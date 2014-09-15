@@ -85,6 +85,7 @@ type Daemon struct {
 	repository     string
 	sysInitPath    string
 	containers     *contStore
+	execCommands   *execStore
 	graph          *graph.Graph
 	repositories   *graph.TagStore
 	idIndex        *truncindex.TruncIndex
@@ -122,7 +123,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
 		"image_delete":      daemon.ImageDelete, // FIXME: see above
-		"exec":              daemon.ContainerExec,
+		"execCreate":        daemon.ContainerExecCreate,
+		"execStart":         daemon.ContainerExecStart,
+		"execResize":        daemon.ContainerExecResize,
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err
@@ -539,6 +542,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		Driver:          daemon.driver.String(),
 		ExecDriver:      daemon.execDriver.Name(),
 		State:           NewState(),
+		execCommands:    newExecStore(),
 	}
 	container.root = daemon.containerRoot(container.ID)
 
@@ -847,6 +851,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	daemon := &Daemon{
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
+		execCommands:   newExecStore(),
 		graph:          g,
 		repositories:   repositories,
 		idIndex:        truncindex.NewTruncIndex([]string{}),

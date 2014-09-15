@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sync"
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
@@ -16,51 +17,98 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-type ExecConfig struct {
+type execConfig struct {
+	ID            string
 	ProcessConfig execdriver.ProcessConfig
 	StreamConfig
-	OpenStdin bool
+	OpenStdin  bool
+	OpenStderr bool
+	OpenStdout bool
+	Container  *Container
 }
 
-func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
+type execStore struct {
+	s map[string]*execConfig
+	sync.Mutex
+}
+
+func newExecStore() *execStore {
+	return &execStore{s: make(map[string]*execConfig, 0)}
+}
+
+func (e *execStore) Add(id string, execConfig *execConfig) {
+	e.Lock()
+	e.s[id] = execConfig
+	e.Unlock()
+}
+
+func (e *execStore) Get(id string) *execConfig {
+	e.Lock()
+	res := e.s[id]
+	e.Unlock()
+	return res
+}
+
+func (e *execStore) Delete(id string) {
+	e.Lock()
+	delete(e.s, id)
+	e.Unlock()
+}
+
+func (execConfig *execConfig) Resize(h, w int) error {
+	return execConfig.ProcessConfig.Terminal.Resize(h, w)
+}
+
+func (d *Daemon) registerExecCommand(execConfig *execConfig) {
+	// Storing execs in container inorder to kill them gracefully whenever the container is stopped or removed.
+	execConfig.Container.execCommands.Add(execConfig.ID, execConfig)
+	// Storing execs in daemon for easy access via remote API.
+	d.execCommands.Add(execConfig.ID, execConfig)
+}
+
+func (d *Daemon) getExecConfig(name string) (*execConfig, error) {
+	if execConfig := d.execCommands.Get(name); execConfig != nil {
+		if !execConfig.Container.IsRunning() {
+			return nil, fmt.Errorf("Container %s is not not running", execConfig.Container.ID)
+		}
+		return execConfig, nil
+	}
+
+	return nil, fmt.Errorf("No exec '%s' in found in daemon", name)
+}
+
+func (d *Daemon) unregisterExecCommand(execConfig *execConfig) {
+	execConfig.Container.execCommands.Delete(execConfig.ID)
+	d.execCommands.Delete(execConfig.ID)
+}
+
+func (d *Daemon) getActiveContainer(name string) (*Container, error) {
+	container := d.Get(name)
+
+	if container == nil {
+		return nil, fmt.Errorf("No such container: %s", name)
+	}
+
+	if !container.IsRunning() {
+		return nil, fmt.Errorf("Container %s is not not running", name)
+	}
+
+	return container, nil
+}
+
+func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 	if len(job.Args) != 1 {
 		return job.Errorf("Usage: %s [options] container command [args]", job.Name)
 	}
 
-	var (
-		cStdin           io.ReadCloser
-		cStdout, cStderr io.Writer
-		cStdinCloser     io.Closer
-		name             = job.Args[0]
-	)
+	var name = job.Args[0]
 
-	container := d.Get(name)
-
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
-	}
-
-	if !container.IsRunning() {
-		return job.Errorf("Container %s is not not running", name)
+	container, err := d.getActiveContainer(name)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	config := runconfig.ExecConfigFromJob(job)
-
-	if config.AttachStdin {
-		r, w := io.Pipe()
-		go func() {
-			defer w.Close()
-			io.Copy(w, job.Stdin)
-		}()
-		cStdin = r
-		cStdinCloser = job.Stdin
-	}
-	if config.AttachStdout {
-		cStdout = job.Stdout
-	}
-	if config.AttachStderr {
-		cStderr = job.Stderr
-	}
 
 	entrypoint, args := d.getEntrypointAndArgs(nil, config.Cmd)
 
@@ -72,10 +120,60 @@ func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 		Arguments:  args,
 	}
 
-	execConfig := &ExecConfig{
+	execConfig := &execConfig{
+		ID:            utils.GenerateRandomID(),
 		OpenStdin:     config.AttachStdin,
+		OpenStdout:    config.AttachStdout,
+		OpenStderr:    config.AttachStderr,
 		StreamConfig:  StreamConfig{},
 		ProcessConfig: processConfig,
+		Container:     container,
+	}
+
+	d.registerExecCommand(execConfig)
+
+	job.Printf("%s\n", execConfig.ID)
+
+	return engine.StatusOK
+}
+
+func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
+	if len(job.Args) != 2 {
+		return job.Errorf("Usage: %s [options] container exec", job.Name)
+	}
+
+	var (
+		cStdin           io.ReadCloser
+		cStdout, cStderr io.Writer
+		cStdinCloser     io.Closer
+		execName         = job.Args[0]
+	)
+
+	if execName == "" {
+		return job.Errorf("ExecName not specified. Cannot start exec command")
+	}
+
+	execConfig, err := d.getExecConfig(execName)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	container := execConfig.Container
+
+	if execConfig.OpenStdin {
+		r, w := io.Pipe()
+		go func() {
+			defer w.Close()
+			io.Copy(w, job.Stdin)
+		}()
+		cStdin = r
+		cStdinCloser = job.Stdin
+	}
+	if execConfig.OpenStdout {
+		cStdout = job.Stdout
+	}
+	if execConfig.OpenStderr {
+		cStderr = job.Stderr
 	}
 
 	execConfig.StreamConfig.stderr = broadcastwriter.New()
@@ -87,13 +185,17 @@ func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 		execConfig.StreamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 
-	attachErr := d.Attach(&execConfig.StreamConfig, config.AttachStdin, false, config.Tty, cStdin, cStdinCloser, cStdout, cStderr)
+	attachErr := d.Attach(&execConfig.StreamConfig, execConfig.OpenStdin, false, execConfig.ProcessConfig.Tty, cStdin, cStdinCloser, cStdout, cStderr)
 
 	execErr := make(chan error)
+
+	// Remove exec from daemon and container.
+	defer d.unregisterExecCommand(execConfig)
+
 	go func() {
 		err := container.Exec(execConfig)
 		if err != nil {
-			execErr <- fmt.Errorf("Cannot run in container %s: %s", name, err)
+			execErr <- fmt.Errorf("Cannot run exec command %s in container %s: %s", execName, container.ID, err)
 		}
 	}()
 
@@ -110,11 +212,11 @@ func (d *Daemon) ContainerExec(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (daemon *Daemon) Exec(c *Container, execConfig *ExecConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	return daemon.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
+func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
 }
 
-func (container *Container) Exec(execConfig *ExecConfig) error {
+func (container *Container) Exec(execConfig *execConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -146,7 +248,7 @@ func (container *Container) Exec(execConfig *ExecConfig) error {
 	return nil
 }
 
-func (container *Container) monitorExec(execConfig *ExecConfig, callback execdriver.StartCallback) error {
+func (container *Container) monitorExec(execConfig *execConfig, callback execdriver.StartCallback) error {
 	var (
 		err      error
 		exitCode int

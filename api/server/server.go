@@ -793,7 +793,7 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	if err := eng.Job("resize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
+	if err := eng.Job("resize", vars["name"], r.Form.Get("h"), r.Form.Get("w"), r.Form.Get("exec")).Run(); err != nil {
 		return err
 	}
 	return nil
@@ -1025,18 +1025,45 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
-func postContainersExec(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainerExecCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return nil
 	}
 	var (
-		name = vars["name"]
-		job  = eng.Job("exec", name)
+		out          engine.Env
+		name         = vars["name"]
+		job          = eng.Job("execCreate", name)
+		stdoutBuffer = bytes.NewBuffer(nil)
 	)
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
-	var errOut io.Writer = os.Stderr
+
+	job.Stdout.Add(stdoutBuffer)
+	// Register an instance of Exec in container.
+	if err := job.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error setting up exec command in container %s: %s\n", name, err)
+		return err
+	}
+	// Return the ID
+	out.Set("Id", engine.Tail(stdoutBuffer, 1))
+
+	return writeJSON(w, http.StatusCreated, out)
+}
+
+func postContainerExecStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return nil
+	}
+	var (
+		name             = vars["name"]
+		job              = eng.Job("execStart", name)
+		errOut io.Writer = os.Stderr
+	)
+
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
 
 	if !job.GetenvBool("Detach") {
 		// Setting up the streaming http interface.
@@ -1076,11 +1103,24 @@ func postContainersExec(eng *engine.Engine, version version.Version, w http.Resp
 	}
 	// Now run the user process in container.
 	if err := job.Run(); err != nil {
-		fmt.Fprintf(errOut, "Error running in container %s: %s\n", name, err)
+		fmt.Fprintf(errOut, "Error starting exec command in container %s: %s\n", name, err)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
 
+	return nil
+}
+
+func postContainerExecResize(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := eng.Job("execResize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1206,7 +1246,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
-			"/containers/{name:.*}/exec":    postContainersExec,
+			"/containers/{name:.*}/exec":    postContainerExecCreate,
+			"/exec/{name:.*}/start":         postContainerExecStart,
+			"/exec/{name:.*}/resize":        postContainerExecResize,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
@@ -1393,6 +1435,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 					return err
 				}
 			}
+
 		}
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err
