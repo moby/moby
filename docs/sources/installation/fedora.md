@@ -48,6 +48,10 @@ Now let's verify that Docker is working.
 
     $ sudo docker run -i -t fedora /bin/bash
 
+> Note: If you get a `Cannot start container` error mentioning SELinux
+> or permission denied, you may need to update the SELinux policies.
+> This can be done using `sudo yum upgrade selinux-policy` and then rebooting.
+
 ## Granting rights to users to use Docker
 
 Fedora 19 and 20 shipped with Docker 0.11. The package has already been updated
