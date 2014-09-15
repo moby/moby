@@ -20,10 +20,10 @@ import "C"
 import (
 	"fmt"
 	"path"
-	"time"
-	"syscall"
-	"unsafe"
 	"strings"
+	"syscall"
+	"time"
+	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/log"
@@ -31,7 +31,7 @@ import (
 )
 
 type ZfsOptions struct {
-	mountPath  string
+	mountPath string
 	zpoolName string
 }
 
@@ -63,7 +63,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	C.libzfs_print_on_error(g_zfs, C.B_TRUE)
 
 	if options.zpoolName == "" {
-		options.zpoolName, err = lookupZfsPool(rootdir);
+		options.zpoolName, err = lookupZfsPool(rootdir)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +71,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		var CPoolName = C.CString(options.zpoolName)
 		defer free(CPoolName)
 		zhp := C.zfs_open(g_zfs, CPoolName, C.ZFS_TYPE_POOL)
-		if (zhp == nil) {
+		if zhp == nil {
 			return nil, fmt.Errorf("Could not open provided zfs pool: %s", options.zpoolName)
 		}
 		C.zfs_close(zhp)
@@ -119,7 +119,7 @@ func checkRootdirFs(rootdir string) error {
 var CprocMounts = C.CString("/proc/mounts")
 var CopenMod = C.CString("r")
 
-func lookupZfsPool(rootdir string) (string, error){
+func lookupZfsPool(rootdir string) (string, error) {
 	var stat syscall.Stat_t
 	var Cmnt C.struct_mntent
 	var Cfp *C.FILE
@@ -143,7 +143,7 @@ func lookupZfsPool(rootdir string) (string, error){
 			return "", err
 		}
 
-		if (stat.Dev == wantedDev) {
+		if stat.Dev == wantedDev {
 			return C.GoString(Cmnt.mnt_fsname), nil
 		}
 	}
