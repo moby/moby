@@ -4,21 +4,26 @@ page_keywords: docker, example, package installation, networking
 
 # Dockerizing an SSH Daemon Service
 
+## Build an `eg_sshd` image
+
 The following `Dockerfile` sets up an SSHd service in a container that you
 can use to connect to and inspect other container's volumes, or to get
 quick access to a test container.
 
     # sshd
     #
-    # VERSION               0.0.1
+    # VERSION               0.0.2
 
-    FROM     ubuntu:14.04
-    MAINTAINER Thatcher R. Peskens "thatcher@dotcloud.com"
+    FROM ubuntu:14.04
+    MAINTAINER Sven Dowideit <SvenDowideit@docker.com>
 
     RUN apt-get update && apt-get install -y openssh-server
     RUN mkdir /var/run/sshd
     RUN echo 'root:screencast' | chpasswd
     RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+    ENV NOTVISIBLE "in users profile"
+    RUN echo "export VISIBLE=now" >> /etc/profile
 
     EXPOSE 22
     CMD ["/usr/sbin/sshd", "-D"]
@@ -26,6 +31,8 @@ quick access to a test container.
 Build the image using:
 
     $ sudo docker build -t eg_sshd .
+
+## Run a `test_sshd` container
 
 Then run it. You can then use `docker port` to find out what host port
 the container's port 22 is mapped to:
@@ -41,6 +48,22 @@ with `docker inspect`) or on port `49154` of the Docker daemon's host IP address
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.
     $$
+
+## Environment variables
+
+Using the `sshd` daemon to spawn shells makes it complicated to pass environment
+variables to the user's shell via the simple Docker mechanisms, as `sshd` scrubs
+the environment before it starts the shell.
+
+If you're setting values in the Dockerfile using `ENV`, you'll need to push them
+to a shell initialisation file like the `/etc/profile` example in the Dockerfile
+above.
+
+If you need to pass`docker run -e ENV=value` values, you will need to write a
+short script to do the same before you start `sshd -D` - and then replace the
+`CMD` with that script.
+
+## Clean up
 
 Finally, clean up after your test by stopping and removing the
 container, and then removing the image.
