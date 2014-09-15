@@ -306,6 +306,10 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 		if err != nil {
 			err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
 		}
+		if err != nil {
+			return err
+		}
+		err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
 	default:
 		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
