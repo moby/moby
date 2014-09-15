@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -1650,7 +1651,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		loc = time.FixedZone(time.Now().Zone())
 	)
 	var setTime = func(key, value string) {
-		format := utils.RFC3339NanoFixed
+		format := timeutils.RFC3339NanoFixed
 		if len(value) < len(format) {
 			format = format[:len(value)]
 		}
