@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -330,6 +331,16 @@ func CheckLocalDns(resolvConf []byte) bool {
 		return false
 	}
 	return true
+}
+
+var (
+	localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
+)
+
+// RemoveLocalDns looks into the /etc/resolv.conf,
+// and removes any local nameserver entries.
+func RemoveLocalDns(resolvConf []byte) []byte {
+	return localHostRx.ReplaceAll(resolvConf, []byte{})
 }
 
 // GetLines parses input into lines and strips away comments.
