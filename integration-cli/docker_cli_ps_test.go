@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestListContainers(t *testing.T) {
@@ -198,4 +199,40 @@ func assertContainerList(out string, expected []string) bool {
 	}
 
 	return true
+}
+
+func TestListContainersSize(t *testing.T) {
+	name := "test_size"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
+	out, _, err := runCommandWithOutput(runCmd)
+	errorOut(err, t, out)
+	id, err := getIDByName(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "ps", "-s", "-n=1")
+	wait := make(chan struct{})
+	go func() {
+		out, _, err = runCommandWithOutput(runCmd)
+		close(wait)
+	}()
+	select {
+	case <-wait:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("Calling \"docker ps -s\" timed out!")
+	}
+	errorOut(err, t, out)
+	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+	sizeIndex := strings.Index(lines[0], "SIZE")
+	idIndex := strings.Index(lines[0], "CONTAINER ID")
+	foundID := lines[1][idIndex : idIndex+12]
+	if foundID != id[:12] {
+		t.Fatalf("Expected id %s, got %s", id[:12], foundID)
+	}
+	expectedSize := "2 B"
+	foundSize := lines[1][sizeIndex:]
+	if foundSize != expectedSize {
+		t.Fatalf("Expected size %q, got %q", expectedSize, foundSize)
+	}
 }

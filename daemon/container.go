@@ -686,10 +686,14 @@ func (container *Container) Mount() error {
 	return container.daemon.Mount(container)
 }
 
+func (container *Container) changes() ([]archive.Change, error) {
+	return container.daemon.Changes(container)
+}
+
 func (container *Container) Changes() ([]archive.Change, error) {
 	container.Lock()
 	defer container.Unlock()
-	return container.daemon.Changes(container)
+	return container.changes()
 }
 
 func (container *Container) GetImage() (*image.Image, error) {
@@ -750,7 +754,7 @@ func (container *Container) GetSize() (int64, int64) {
 	}
 	defer container.Unmount()
 
-	if differ, ok := container.daemon.driver.(graphdriver.Differ); ok {
+	if differ, ok := driver.(graphdriver.Differ); ok {
 		sizeRw, err = differ.DiffSize(container.ID)
 		if err != nil {
 			log.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
@@ -759,7 +763,7 @@ func (container *Container) GetSize() (int64, int64) {
 			sizeRw = -1
 		}
 	} else {
-		changes, _ := container.Changes()
+		changes, _ := container.changes()
 		if changes != nil {
 			sizeRw = archive.ChangesSize(container.basefs, changes)
 		} else {
