@@ -18,7 +18,9 @@ import (
 )
 
 type execConfig struct {
+	sync.Mutex
 	ID            string
+	Running bool
 	ProcessConfig execdriver.ProcessConfig
 	StreamConfig
 	OpenStdin  bool
@@ -128,6 +130,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 		StreamConfig:  StreamConfig{},
 		ProcessConfig: processConfig,
 		Container:     container,
+		Running: false,
 	}
 
 	d.registerExecCommand(execConfig)
@@ -149,11 +152,20 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		execName         = job.Args[0]
 	)
 
-	if execName == "" {
-		return job.Errorf("ExecName not specified. Cannot start exec command")
+	execConfig, err := d.getExecConfig(execName)
+	if err != nil {
+		return job.Error(err)
 	}
 
-	execConfig, err := d.getExecConfig(execName)
+	func() {
+		execConfig.Lock()
+		defer execConfig.Unlock()
+		if execConfig.Running {
+			err = fmt.Errorf("Error: Exec command %s is already running", execName)
+		}
+		execConfig.Running = true
+	}()
+
 	if err != nil {
 		return job.Error(err)
 	}
