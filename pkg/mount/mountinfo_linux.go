@@ -60,17 +60,18 @@ func parseInfoFile(r io.Reader) ([]*MountInfo, error) {
 		}
 		// Safe as mountinfo encodes mountpoints with spaces as \040.
 		index := strings.Index(text, " - ")
-		postSeparatorFields := strings.Fields(text[index+3:])
-		if len(postSeparatorFields) < 3 {
+		i := 0
+		postSeparatorFields := strings.FieldsFunc(text[index+3:], func(r rune) bool {
+			i++
+			return i < 3 && unicode.IsSpace(r)
+		})
+		if len(postSeparatorFields) != 3 {
 			return nil, fmt.Errorf("Error did not find 3 fields post '-' in '%s'", text)
 		}
+
 		p.Fstype = postSeparatorFields[0]
 		p.Source = postSeparatorFields[1]
-
-		// Search third space or tabs...
-		index = index + 3 + len(postSeparatorFields[0]) + 1 + len(postSeparatorFields[1]) + 1
-		// and keep from here to the end in order to keep spaces and tabs
-		p.VfsOpts = text[index:]
+		p.VfsOpts = postSeparatorFields[2]
 		out = append(out, p)
 	}
 	return out, nil
