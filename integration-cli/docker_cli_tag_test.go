@@ -55,7 +55,7 @@ func TestTagInvalidUnprefixedRepo(t *testing.T) {
 // ensure we don't allow the use of invalid tags; these tag operations should fail
 func TestTagInvalidPrefixedRepo(t *testing.T) {
 
-	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:f", "repo:fwaytoolongandwaymorethan30characterslong", "repo:-foo", "repo:.."}
+	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:fwaytoolongandwaymorethan30characterslong", "repo:-foo", "repo:.."}
 
 	for _, repotag := range invalidTags {
 		tagCmd := exec.Command(dockerBinary, "tag", "busybox", repotag)
