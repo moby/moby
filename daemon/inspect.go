@@ -31,7 +31,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out := &engine.Env{}
 		out.Set("Id", container.ID)
 		out.SetAuto("Created", container.Created)
-		out.Set("Path", container.Path)
+		out.SetJson("Path", container.Path)
 		out.SetList("Args", container.Args)
 		out.SetJson("Config", container.Config)
 		out.SetJson("State", container.State)
