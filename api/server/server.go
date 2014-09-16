@@ -663,6 +663,7 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	}
 	out.Set("Id", engine.Tail(stdoutBuffer, 1))
 	out.SetList("Warnings", outWarnings)
+
 	return writeJSON(w, http.StatusCreated, out)
 }
 
@@ -1026,6 +1027,103 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
+func postContainerExecCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return nil
+	}
+	var (
+		out          engine.Env
+		name         = vars["name"]
+		job          = eng.Job("execCreate", name)
+		stdoutBuffer = bytes.NewBuffer(nil)
+	)
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
+
+	job.Stdout.Add(stdoutBuffer)
+	// Register an instance of Exec in container.
+	if err := job.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error setting up exec command in container %s: %s\n", name, err)
+		return err
+	}
+	// Return the ID
+	out.Set("Id", engine.Tail(stdoutBuffer, 1))
+
+	return writeJSON(w, http.StatusCreated, out)
+}
+
+func postContainerExecStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return nil
+	}
+	var (
+		name             = vars["name"]
+		job              = eng.Job("execStart", name)
+		errOut io.Writer = os.Stderr
+	)
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
+	if !job.GetenvBool("Detach") {
+		// Setting up the streaming http interface.
+		inStream, outStream, err := hijackServer(w)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			if tcpc, ok := inStream.(*net.TCPConn); ok {
+				tcpc.CloseWrite()
+			} else {
+				inStream.Close()
+			}
+		}()
+		defer func() {
+			if tcpc, ok := outStream.(*net.TCPConn); ok {
+				tcpc.CloseWrite()
+			} else if closer, ok := outStream.(io.Closer); ok {
+				closer.Close()
+			}
+		}()
+
+		var errStream io.Writer
+
+		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+		if !job.GetenvBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
+			errStream = utils.NewStdWriter(outStream, utils.Stderr)
+			outStream = utils.NewStdWriter(outStream, utils.Stdout)
+		} else {
+			errStream = outStream
+		}
+		job.Stdin.Add(inStream)
+		job.Stdout.Add(outStream)
+		job.Stderr.Set(errStream)
+		errOut = outStream
+	}
+	// Now run the user process in container.
+	job.SetCloseIO(false)
+	if err := job.Run(); err != nil {
+		fmt.Fprintf(errOut, "Error starting exec command in container %s: %s\n", name, err)
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func postContainerExecResize(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := eng.Job("execResize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1148,6 +1246,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/resize":  postContainersResize,
 			"/containers/{name:.*}/attach":  postContainersAttach,
 			"/containers/{name:.*}/copy":    postContainersCopy,
+			"/containers/{name:.*}/exec":    postContainerExecCreate,
+			"/exec/{name:.*}/start":         postContainerExecStart,
+			"/exec/{name:.*}/resize":        postContainerExecResize,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
@@ -1334,6 +1435,7 @@ func ListenAndServe(proto, addr string, job *engine.Job) error {
 					return err
 				}
 			}
+
 		}
 		if err := os.Chmod(addr, 0660); err != nil {
 			return err

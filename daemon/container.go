@@ -86,8 +86,9 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks map[string]*links.Link
-	monitor     *containerMonitor
+	activeLinks  map[string]*links.Link
+	monitor      *containerMonitor
+	execCommands *execStore
 }
 
 func (container *Container) FromDisk() error {

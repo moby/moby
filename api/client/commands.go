@@ -625,7 +625,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil, nil)
 		})
 	}
 
@@ -653,7 +653,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	if *openStdin || *attach {
 		if tty && cli.isTerminal {
-			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
+			if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
 				log.Errorf("Error monitoring TTY size: %s", err)
 			}
 		}
@@ -1805,7 +1805,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	)
 
 	if tty && cli.isTerminal {
-		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
+		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
 			log.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
@@ -1827,7 +1827,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil, nil); err != nil {
 		return err
 	}
 
@@ -2109,7 +2109,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		errCh = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.Get("Id")+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked)
+			return cli.hijack("POST", "/containers/"+runResult.Get("Id")+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked, nil)
 		})
 	} else {
 		close(hijacked)
@@ -2136,7 +2136,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
-		if err := cli.monitorTtySize(runResult.Get("Id")); err != nil {
+		if err := cli.monitorTtySize(runResult.Get("Id"), false); err != nil {
 			log.Errorf("Error monitoring TTY size: %s", err)
 		}
 	}
@@ -2297,5 +2297,103 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	if err := cli.stream("POST", "/images/load", input, cli.out, nil); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdExec(args ...string) error {
+	cmd := cli.Subcmd("exec", "CONTAINER COMMAND [ARG...]", "Run a command in an existing container")
+
+	execConfig, err := runconfig.ParseExec(cmd, args)
+	if err != nil {
+		return err
+	}
+	if execConfig.Container == "" {
+		cmd.Usage()
+		return nil
+	}
+
+	stream, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, false)
+	if err != nil {
+		return err
+	}
+
+	var execResult engine.Env
+	if err := execResult.Decode(stream); err != nil {
+		return err
+	}
+
+	execID := execResult.Get("Id")
+
+	if execID == "" {
+		fmt.Fprintf(cli.out, "exec ID empty")
+		return nil
+	}
+
+	if execConfig.Detach {
+		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, false)); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Interactive exec requested.
+	var (
+		out, stderr io.Writer
+		in          io.ReadCloser
+		hijacked    = make(chan io.Closer)
+		errCh       chan error
+	)
+
+	// Block the return until the chan gets closed
+	defer func() {
+		log.Debugf("End of CmdExec(), Waiting for hijack to finish.")
+		if _, ok := <-hijacked; ok {
+			log.Errorf("Hijack did not finish (chan still open)")
+		}
+	}()
+
+	if execConfig.AttachStdin {
+		in = cli.in
+	}
+	if execConfig.AttachStdout {
+		out = cli.out
+	}
+	if execConfig.AttachStderr {
+		if execConfig.Tty {
+			stderr = cli.out
+		} else {
+			stderr = cli.err
+		}
+	}
+	errCh = utils.Go(func() error {
+		return cli.hijack("POST", "/exec/"+execID+"/start", execConfig.Tty, in, out, stderr, hijacked, execConfig)
+	})
+
+	// Acknowledge the hijack before starting
+	select {
+	case closer := <-hijacked:
+		// Make sure that hijack gets closed when returning. (result
+		// in closing hijack chan and freeing server's goroutines.
+		if closer != nil {
+			defer closer.Close()
+		}
+	case err := <-errCh:
+		if err != nil {
+			log.Debugf("Error hijack: %s", err)
+			return err
+		}
+	}
+
+	if execConfig.Tty && cli.isTerminal {
+		if err := cli.monitorTtySize(execID, true); err != nil {
+			log.Errorf("Error monitoring TTY size: %s", err)
+		}
+	}
+
+	if err := <-errCh; err != nil {
+		log.Debugf("Error hijack: %s", err)
+		return err
+	}
+
 	return nil
 }
