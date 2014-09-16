@@ -35,11 +35,11 @@ will set the value to the opposite of the default value.
 
 Options like `-a=[]` indicate they can be specified multiple times:
 
-    $ docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
+    $ sudo docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
 
 Sometimes this can use a more complex value string, as for `-v`:
 
-    $ docker run -v /host:/container example/mysql
+    $ sudo docker run -v /host:/container example/mysql
 
 ### Strings and Integers
 
@@ -103,10 +103,10 @@ To use lxc as the execution driver, use `docker -d -e lxc`.
 The docker client will also honor the `DOCKER_HOST` environment variable to set
 the `-H` flag for the client.
 
-    $ docker -H tcp://0.0.0.0:2375 ps
+    $ sudo docker -H tcp://0.0.0.0:2375 ps
     # or
     $ export DOCKER_HOST="tcp://0.0.0.0:2375"
-    $ docker ps
+    $ sudo docker ps
     # both are equal
 
 To run the daemon with [systemd socket activation](
@@ -270,7 +270,7 @@ If you wish to keep the intermediate containers after the build is
 complete, you must use `--rm=false`. This does not
 affect the build cache.
 
-    $ docker build .
+    $ sudo docker build .
     Uploading context 18.829 MB
     Uploading context
     Step 0 : FROM busybox
@@ -280,7 +280,7 @@ affect the build cache.
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
     $ echo ".git" > .dockerignore
-    $ docker build .
+    $ sudo docker build .
     Uploading context  6.76 MB
     Uploading context
     Step 0 : FROM busybox
@@ -354,9 +354,9 @@ If this behavior is undesired, set the 'p' option to false.
     ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
     c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
     197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
-    $ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
+    $ sudo docker commit c3f279d17e0a  SvenDowideit/testimage:version3
     f5283438590d
-    $ docker images | head
+    $ sudo docker images | head
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
     SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
@@ -463,7 +463,7 @@ For example:
 
 To see how the `docker:latest` image was built:
 
-    $ docker history docker
+    $ sudo docker history docker
     IMAGE                                                              CREATED             CREATED BY                                                                                                                                                 SIZE
     3e23a5875458790b7a806f95f7ec0d0b2a5c1659bfc899c89f939f6d5b8f7094   8 days ago          /bin/sh -c #(nop) ENV LC_ALL=C.UTF-8                                                                                                                       0 B
     8578938dd17054dce7993d21de79e96a037400e8d28e15e7290fea4f65128a36   8 days ago          /bin/sh -c dpkg-reconfigure locales &&    locale-gen C.UTF-8 &&    /usr/sbin/update-locale LANG=C.UTF-8                                                    1.245 MB
@@ -728,7 +728,7 @@ If you want to login to a self-hosted registry you can
 specify this by adding the server name.
 
     example:
-    $ docker login localhost:8080
+    $ sudo docker login localhost:8080
 
 ## logout
 
@@ -738,7 +738,7 @@ specify this by adding the server name.
 
 For example:
 
-    $ docker logout localhost:8080
+    $ sudo docker logout localhost:8080
 
 ## logs
 
@@ -803,7 +803,7 @@ further details.
 
 Running `docker ps` showing 2 linked containers.
 
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
     4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
@@ -850,13 +850,13 @@ a protocol specifier (https://, for example).
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
 
-    $ docker pull debian
+    $ sudo docker pull debian
     # will pull all the images in the debian repository
-    $ docker pull debian:testing
+    $ sudo docker pull debian:testing
     # will pull only the image named debian:testing and any intermediate layers
     # it is based on. (Typically the empty `scratch` image, a MAINTAINERs layer,
     # and the un-tarred base).
-    $ docker pull registry.hub.docker.com/debian
+    $ sudo docker pull registry.hub.docker.com/debian
     # manually specifies the path to the default Docker registry. This could
     # be replaced with the path to a local registry to pull from another source.
 

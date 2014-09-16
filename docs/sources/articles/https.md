@@ -122,7 +122,7 @@ providing a certificate trusted by our CA:
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
-    $ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
+    $ sudo docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
       -H=dns-name-of-docker-host:2376 version
 
 > **Note**:
@@ -148,7 +148,7 @@ the files to the `.docker` directory in your home directory - and set the
 
 Then you can run Docker with the `--tlsverify` option.
 
-    $ docker --tlsverify ps
+    $ sudo docker --tlsverify ps
 
 ## Other modes
 
@@ -175,4 +175,4 @@ if you want to store your keys in another location, you can specify that
 location using the environment variable `DOCKER_CERT_PATH`.
 
     $ export DOCKER_CERT_PATH=${HOME}/.docker/zone1/
-    $ docker --tlsverify ps
+    $ sudo docker --tlsverify ps

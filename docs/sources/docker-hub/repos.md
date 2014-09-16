@@ -11,7 +11,7 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 You can `search` for all the publicly available repositories and images using
 Docker.
 
-    $ docker search ubuntu
+    $ sudo docker search ubuntu
 
 This will show you a list of the currently available repositories on the
 Docker Hub which match the provided keyword.

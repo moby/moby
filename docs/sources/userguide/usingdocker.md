@@ -27,7 +27,7 @@ flags and arguments.
 
     # Usage:  [sudo] docker [flags] [command] [arguments] ..
     # Example:
-    $ docker run -i -t ubuntu /bin/bash
+    $ sudo docker run -i -t ubuntu /bin/bash
 
 Let's see this in action by using the `docker version` command to return
 version information on the currently installed Docker client and daemon.
