@@ -32,8 +32,14 @@ runtime:
 Docker in daemon mode has specific kernel requirements. For details,
 check your distribution in [*Installation*](../#installation-list).
 
-In general, a 3.8 Linux kernel (or higher) is preferred, as some of the
-prior versions have known issues that are triggered by Docker.
+In general, a 3.8 Linux kernel is the minimum requirement for Docker, as
+some of the prior versions have known issues that are triggered by Docker.
+Linux kernel versions older than 3.8 are known to cause kernel panics and
+to break Docker.
+
+The latest minor version (3.x.y) of the 3.10 (or a newer maintained version)
+Linux kernel is recommended. Keeping the kernel up to date with the latest
+minor version will ensure critical kernel bugs get fixed.
 
 Note that Docker also has a client mode, which can run on virtually any
 Linux kernel (it even builds on OS X!).
