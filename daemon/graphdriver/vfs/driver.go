@@ -19,7 +19,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
-	return graphdriver.NewGenericDriverWrapper(d), nil
+	return graphdriver.NaiveDiffDriver(d), nil
 }
 
 type Driver struct {

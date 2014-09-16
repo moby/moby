@@ -10,27 +10,30 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// GenericDriverWrapper takes a generic Driver and adds the
-// capability of the following methods which it doesn't
-// support on its own:
+// naiveDiffDriver takes a ProtoDriver and adds the
+// capability of the Diffing methods which it may or may not
+// support on its own. See the comment on the exported
+// NaiveDiffDriver function below.
+// Notably, the AUFS driver doesn't need to be wrapped like this.
+type naiveDiffDriver struct {
+	ProtoDriver
+}
+
+// NaiveDiffDriver returns a fully functional driver that wraps the
+// given ProtoDriver and adds the capability of the following methods which
+// it may or may not support on its own:
 //     Diff(id, parent string) (archive.Archive, error)
 //     Changes(id, parent string) ([]archive.Change, error)
 //     ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error)
 //     DiffSize(id, parent string) (bytes int64, err error)
-// Notably, the AUFS driver doesn't need to be wrapped like this.
-type GenericDriverWrapper struct {
-	GenericDriver
-}
-
-// NewGenericDriverWrapper returns a fully functional driver that wraps the given GenericDriver.
-func NewGenericDriverWrapper(driver GenericDriver) Driver {
-	return &GenericDriverWrapper{GenericDriver: driver}
+func NaiveDiffDriver(driver ProtoDriver) Driver {
+	return &naiveDiffDriver{ProtoDriver: driver}
 }
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (gdw *GenericDriverWrapper) Diff(id, parent string) (arch archive.Archive, err error) {
-	driver := gdw.GenericDriver
+func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err error) {
+	driver := gdw.ProtoDriver
 
 	layerFs, err := driver.Get(id, "")
 	if err != nil {
@@ -80,8 +83,8 @@ func (gdw *GenericDriverWrapper) Diff(id, parent string) (arch archive.Archive, 
 
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
-func (gdw *GenericDriverWrapper) Changes(id, parent string) ([]archive.Change, error) {
-	driver := gdw.GenericDriver
+func (gdw *naiveDiffDriver) Changes(id, parent string) ([]archive.Change, error) {
+	driver := gdw.ProtoDriver
 
 	layerFs, err := driver.Get(id, "")
 	if err != nil {
@@ -105,8 +108,8 @@ func (gdw *GenericDriverWrapper) Changes(id, parent string) ([]archive.Change, e
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (gdw *GenericDriverWrapper) ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error) {
-	driver := gdw.GenericDriver
+func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error) {
+	driver := gdw.ProtoDriver
 
 	// Mount the root filesystem so we can apply the diff/layer.
 	layerFs, err := driver.Get(id, "")
@@ -144,8 +147,8 @@ func (gdw *GenericDriverWrapper) ApplyDiff(id, parent string, diff archive.Archi
 // DiffSize calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (gdw *GenericDriverWrapper) DiffSize(id, parent string) (bytes int64, err error) {
-	driver := gdw.GenericDriver
+func (gdw *naiveDiffDriver) DiffSize(id, parent string) (bytes int64, err error) {
+	driver := gdw.ProtoDriver
 
 	changes, err := gdw.Changes(id, parent)
 	if err != nil {
