@@ -2,7 +2,10 @@ package tarsum
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -99,6 +102,77 @@ func sizedTar(opts sizedOptions) io.Reader {
 		}
 	}
 	return fh
+}
+
+func emptyTarSum(gzip bool) (TarSum, error) {
+	reader, writer := io.Pipe()
+	tarWriter := tar.NewWriter(writer)
+
+	// Immediately close tarWriter and write-end of the
+	// Pipe in a separate goroutine so we don't block.
+	go func() {
+		tarWriter.Close()
+		writer.Close()
+	}()
+
+	return NewTarSum(reader, !gzip, Version0)
+}
+
+// TestEmptyTar tests that tarsum does not fail to read an empty tar
+// and correctly returns the hex digest of an empty hash.
+func TestEmptyTar(t *testing.T) {
+	// Test without gzip.
+	ts, err := emptyTarSum(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	zeroBlock := make([]byte, 1024)
+	buf := new(bytes.Buffer)
+
+	n, err := io.Copy(buf, ts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), zeroBlock) {
+		t.Fatalf("tarSum did not write the correct number of zeroed bytes: %d", n)
+	}
+
+	expectedSum := ts.Version().String() + "+sha256:" + hex.EncodeToString(sha256.New().Sum(nil))
+	resultSum := ts.Sum(nil)
+
+	if resultSum != expectedSum {
+		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
+	}
+
+	// Test with gzip.
+	ts, err = emptyTarSum(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf.Reset()
+
+	n, err = io.Copy(buf, ts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bufgz := new(bytes.Buffer)
+	gz := gzip.NewWriter(bufgz)
+	n, err = io.Copy(gz, bytes.NewBuffer(zeroBlock))
+	gz.Close()
+	gzBytes := bufgz.Bytes()
+
+	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), gzBytes) {
+		t.Fatalf("tarSum did not write the correct number of gzipped-zeroed bytes: %d", n)
+	}
+
+	resultSum = ts.Sum(nil)
+
+	if resultSum != expectedSum {
+		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
+	}
 }
 
 func TestTarSums(t *testing.T) {
