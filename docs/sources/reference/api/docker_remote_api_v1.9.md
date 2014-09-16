@@ -1242,7 +1242,7 @@ Get a tarball containing all images and metadata for the repository specified by
 
 **Example request**
 
-        GET /images/ubuntu/ge
+        GET /images/ubuntu/get
 
 **Example response**:
 
