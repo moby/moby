@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"reflect"
@@ -211,4 +213,28 @@ func ListTar(f io.Reader) ([]string, error) {
 		}
 		entries = append(entries, th.Name)
 	}
+}
+
+type FileServer struct {
+	*httptest.Server
+}
+
+func fileServer(files map[string]string) (*FileServer, error) {
+	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		if filePath, found := files[r.URL.Path]; found {
+			http.ServeFile(w, r, filePath)
+		} else {
+			http.Error(w, http.StatusText(404), 404)
+		}
+	}
+
+	for _, file := range files {
+		if _, err := os.Stat(file); err != nil {
+			return nil, err
+		}
+	}
+	server := httptest.NewServer(handler)
+	return &FileServer{
+		Server: server,
+	}, nil
 }

@@ -1,13 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestImportDisplay(t *testing.T) {
-	importCmd := exec.Command(dockerBinary, "import", "https://github.com/ewindisch/docker-cirros/raw/master/cirros-0.3.0-x86_64-lxc.tar.gz")
+	server, err := fileServer(map[string]string{
+		"/cirros.tar.gz": "/cirros.tar.gz",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	fileUrl := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
+	importCmd := exec.Command(dockerBinary, "import", fileUrl)
 	out, _, err := runCommandWithOutput(importCmd)
 	if err != nil {
 		t.Errorf("import failed with errors: %v, output: %q", err, out)
