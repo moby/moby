@@ -652,7 +652,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	}
 
 	if *openStdin || *attach {
-		if tty && cli.isTerminal {
+		if tty && cli.isTerminalOut {
 			if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
 				log.Errorf("Error monitoring TTY size: %s", err)
 			}
@@ -1804,7 +1804,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		tty    = config.GetBool("Tty")
 	)
 
-	if tty && cli.isTerminal {
+	if tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(cmd.Arg(0)); err != nil {
 			log.Debugf("Error monitoring TTY size: %s", err)
 		}
@@ -2135,7 +2135,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return err
 	}
 
-	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminal {
+	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(runResult.Get("Id")); err != nil {
 			log.Errorf("Error monitoring TTY size: %s", err)
 		}
