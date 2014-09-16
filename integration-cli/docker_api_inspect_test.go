@@ -46,6 +46,10 @@ func TestInspectContainerResponse(t *testing.T) {
 				t.Fatalf("%s does not exist in reponse for %s version", key, testVersion)
 			}
 		}
+		//Issue #6830: type not properly converted to JSON/back
+		if _, ok := inspect_json["Path"].(bool); ok {
+			t.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
+		}
 	}
 
 	deleteAllContainers()
