@@ -454,7 +454,7 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 		Private:     true,
 	})
 
-	return ioutil.WriteFile(p, data, 0600)
+	return ioutil.WriteFile(p, data, 0644)
 }
 
 type TtyConsole struct {
