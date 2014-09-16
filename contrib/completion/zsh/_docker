@@ -227,6 +227,13 @@ __docker_subcommand () {
         (diff|export)
             _arguments '*:containers:__docker_containers'
             ;;
+        (exec)
+            _arguments \
+                '-d[Detached mode: leave the container running in the background]' \
+                '-i[Keep stdin open even if not attached]' \
+                '-t[Allocate a pseudo-tty]' \
+                ':containers:__docker_runningcontainers'
+            ;;
         (history)
             _arguments \
                 '--no-trunc[Do not truncate output]' \
