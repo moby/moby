@@ -1279,7 +1279,7 @@ specified by `name`.
 
 **Example request**
 
-        GET /images/ubuntu/ge
+        GET /images/ubuntu/get
 
 **Example response**:
 

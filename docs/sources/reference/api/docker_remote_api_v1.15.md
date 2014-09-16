@@ -1353,7 +1353,7 @@ image (and its parents) are returned, but with the exclusion of the
 
 **Example request**
 
-        GET /images/ubuntu/ge
+        GET /images/ubuntu/get
 
 **Example response**:
 
