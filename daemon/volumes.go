@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -73,17 +74,28 @@ func setupMountsForContainer(container *Container) error {
 	// Note, these are not private because you may want propagation of (un)mounts from host
 	// volumes. For instance if you use -v /usr:/usr and the host later mounts /usr/share you
 	// want this new mount in the container
-	for r, v := range container.Volumes {
+	// These mounts must be ordered based on the length of the path that it is being mounted to (lexicographic)
+	for _, path := range container.sortedVolumeMounts() {
 		mounts = append(mounts, execdriver.Mount{
-			Source:      v,
-			Destination: r,
-			Writable:    container.VolumesRW[r],
+			Source:      container.Volumes[path],
+			Destination: path,
+			Writable:    container.VolumesRW[path],
 		})
 	}
 
 	container.command.Mounts = mounts
-
 	return nil
+}
+
+// sortedVolumeMounts returns the list of container volume mount points sorted in lexicographic order
+func (container *Container) sortedVolumeMounts() []string {
+	var mountPaths []string
+	for path := range container.Volumes {
+		mountPaths = append(mountPaths, path)
+	}
+
+	sort.Strings(mountPaths)
+	return mountPaths
 }
 
 func parseVolumesFromSpec(container *Container, spec string) (map[string]*Volume, error) {
