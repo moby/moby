@@ -224,6 +224,32 @@ __docker_subcommand () {
                     ;;
             esac
             ;;
+        (create)
+            _arguments \
+                '-P[Publish all exposed ports to the host]' \
+                '-a[Attach to stdin, stdout or stderr]' \
+                '-c=-[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
+                '--cidfile=-[Write the container ID to the file]:CID file:_files' \
+                '*--dns=-[Set custom dns servers]:dns server: ' \
+                '*-e=-[Set environment variables]:environment variable: ' \
+                '--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
+                '*--expose=-[Expose a port from the container without publishing it]: ' \
+                '-h=-[Container host name]:hostname:_hosts' \
+                '-i[Keep stdin open even if not attached]' \
+                '--link=-[Add link to another container]:link:->link' \
+                '--lxc-conf=-[Add custom lxc options]:lxc options: ' \
+                '-m=-[Memory limit (in bytes)]:limit: ' \
+                '--name=-[Container name]:name: ' \
+                '*-p=-[Expose a container'"'"'s port to the host]:port:_ports' \
+                '--privileged[Give extended privileges to this container]' \
+                '-t[Allocate a pseudo-tty]' \
+                '-u=-[Username or UID]:user:_users' \
+                '*-v=-[Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)]:volume: '\
+                '--volumes-from=-[Mount volumes from the specified container]:volume: ' \
+                '-w=-[Working directory inside the container]:directory:_directories' \
+                '(-):images:__docker_images' \
+                '(-):command: _command_names -e' \
+                '*::arguments: _normal'
         (diff|export)
             _arguments '*:containers:__docker_containers'
             ;;

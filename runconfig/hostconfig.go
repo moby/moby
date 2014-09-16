@@ -57,7 +57,27 @@ type HostConfig struct {
 	RestartPolicy   RestartPolicy
 }
 
+// This is used by the create command when you want to set both the
+// Config and the HostConfig in the same call
+type ConfigAndHostConfig struct {
+	Config
+	HostConfig HostConfig
+}
+
+func MergeConfigs(config *Config, hostConfig *HostConfig) *ConfigAndHostConfig {
+	return &ConfigAndHostConfig{
+		*config,
+		*hostConfig,
+	}
+}
+
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
+	if job.EnvExists("HostConfig") {
+		hostConfig := HostConfig{}
+		job.GetenvJson("HostConfig", &hostConfig)
+		return &hostConfig
+	}
+
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),
