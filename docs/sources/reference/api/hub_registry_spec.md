@@ -111,7 +111,7 @@ supports:
 
 It's possible to run:
 
-    $ docker pull https://<registry>/repositories/samalba/busybox
+    $ sudo docker pull https://<registry>/repositories/samalba/busybox
 
 In this case, Docker bypasses the Docker Hub. However the security is not
 guaranteed (in case Registry A is corrupted) because there won't be any

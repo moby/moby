@@ -66,7 +66,7 @@ current port bindings. This is also useful for showing you specific port
 configurations. For example, if you've bound the container port to the
 `localhost` on the host machine, then the `docker port` output will reflect that.
 
-    $ docker port nostalgic_morse 5000
+    $ sudo docker port nostalgic_morse 5000
     127.0.0.1:49155
 
 > **Note:** 
@@ -137,7 +137,7 @@ image, which contains a PostgreSQL database.
 Now, you need to delete the `web` container you created previously so you can replace it
 with a linked one:
 
-    $ docker rm -f web
+    $ sudo docker rm -f web
 
 Now, create a new `web` container and link it with your `db` container.
 
@@ -153,7 +153,7 @@ alias for the link name. You'll see how that alias gets used shortly.
 
 Next, look at your linked containers using `docker ps`.
 
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
     349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
     aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web

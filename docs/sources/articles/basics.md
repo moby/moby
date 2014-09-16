@@ -10,7 +10,7 @@ This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
 
     # Check that you have a working install
-    $ docker info
+    $ sudo docker info
 
 If you get `docker: command not found` or something like
 `/var/lib/docker/repositories: permission denied` you may have an
@@ -126,20 +126,20 @@ TCP and a Unix socket
     $ JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
     # Stop the container
-    $ docker stop $JOB
+    $ sudo docker stop $JOB
 
     # Start the container
-    $ docker start $JOB
+    $ sudo docker start $JOB
 
     # Restart the container
-    $ docker restart $JOB
+    $ sudo docker restart $JOB
 
     # SIGKILL a container
-    $ docker kill $JOB
+    $ sudo docker kill $JOB
 
     # Remove a container
-    $ docker stop $JOB # Container must be stopped to remove it
-    $ docker rm $JOB
+    $ sudo docker stop $JOB # Container must be stopped to remove it
+    $ sudo docker rm $JOB
 
 ## Bind a service on a TCP port
 

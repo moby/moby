@@ -57,7 +57,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images,
 accelerating `docker build` significantly (indicated by `Using cache`):
 
-    $ docker build -t SvenDowideit/ambassador .
+    $ sudo docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
     Uploading context
     Step 1 : FROM docker-ut
@@ -109,7 +109,7 @@ The following example shows the use of the `.dockerignore` file to exclude the
 `.git` directory from the context. Its effect can be seen in the changed size of
 the uploaded context.
 
-    $ docker build .
+    $ sudo docker build .
     Uploading context 18.829 MB
     Uploading context
     Step 0 : FROM busybox
@@ -119,7 +119,7 @@ the uploaded context.
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
     $ echo ".git" > .dockerignore
-    $ docker build .
+    $ sudo docker build .
     Uploading context  6.76 MB
     Uploading context
     Step 0 : FROM busybox
