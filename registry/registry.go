@@ -24,6 +24,8 @@ var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	errLoginRequired         = errors.New("Authentication is required.")
 	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
+	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
+	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 )
 
 type TimeoutType uint32
@@ -216,11 +218,9 @@ func validateRepositoryName(repositoryName string) error {
 		namespace = nameParts[0]
 		name = nameParts[1]
 	}
-	validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
 	if !validNamespace.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
 	}
-	validRepo := regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
 	}

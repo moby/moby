@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	TOKEN_ENV_INTERPOLATION = regexp.MustCompile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
+	TOKEN_ENV_INTERPOLATION = regexp.MustCompile(`(\\\\+|[^\\]|\b|\A)\$({?)([[:alnum:]_]+)(}?)`)
 )
 
 // handle environment replacement. Used in dispatcher.

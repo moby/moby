@@ -14,6 +14,11 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 )
 
+var (
+	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
+	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+)
+
 func ListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, nil), names, usage)
 }
@@ -184,12 +189,10 @@ func ValidateDnsSearch(val string) (string, error) {
 }
 
 func validateDomain(val string) (string, error) {
-	alpha := regexp.MustCompile(`[a-zA-Z]`)
-	if alpha.FindString(val) == "" {
+	if alphaRegexp.FindString(val) == "" {
 		return "", fmt.Errorf("%s is not a valid domain", val)
 	}
-	re := regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
-	ns := re.FindSubmatch([]byte(val))
+	ns := domainRegexp.FindSubmatch([]byte(val))
 	if len(ns) > 0 {
 		return string(ns[1]), nil
 	}
