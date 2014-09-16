@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
@@ -34,7 +35,8 @@ func (cli *DockerCli) HTTPClient() *http.Client {
 	tr := &http.Transport{
 		TLSClientConfig: cli.tlsConfig,
 		Dial: func(network, addr string) (net.Conn, error) {
-			return net.Dial(cli.proto, cli.addr)
+			// Why 32? See issue 8035
+			return net.DialTimeout(cli.proto, cli.addr, 32*time.Second)
 		},
 	}
 	return &http.Client{Transport: tr}
