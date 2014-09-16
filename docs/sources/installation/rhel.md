@@ -1,6 +1,6 @@
 page_title: Installation on Red Hat Enterprise Linux
 page_description: Installation instructions for Docker on Red Hat Enterprise Linux.
-page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos
+page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos, SELinux, btrfs
 
 # Red Hat Enterprise Linux 7
 
@@ -82,6 +82,20 @@ Now let's verify that Docker is working.
 **Done!**
 
 Continue with the [User Guide](/userguide/).
+
+## SELinux + btrfs
+
+Btrfs currently [doesn't support](https://bugzilla.redhat.com/show_bug.cgi?id=1128041) Docker when SELinux is in Enforce mode.
+
+You can view your filesystem types with:
+
+    $ df -T
+
+If you're using btrfs, you'll need to put SELinux in Permissive mode:
+
+    $ sudo setenforce 0
+    $ getenforce
+    Permissive
 
 ## Issues?
 

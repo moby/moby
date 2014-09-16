@@ -1,6 +1,6 @@
 page_title: Installation on Fedora
 page_description: Installation instructions for Docker on Fedora.
-page_keywords: Docker, Docker documentation, Fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
+page_keywords: Docker, Docker documentation, Fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux, SELinux, btrfs
 
 # Fedora
 
@@ -89,8 +89,21 @@ Flush changes:
 Restart Docker:
 
     $ systemctl start docker
+ 
+## SELinux + btrfs
+
+Btrfs currently [doesn't support](https://bugzilla.redhat.com/show_bug.cgi?id=1128041) Docker when SELinux is in Enforce mode.
+
+You can view your filesystem types with:
+
+    $ df -T
+
+If you're using btrfs, you'll need to put SELinux in Permissive mode:
+
+    $ sudo setenforce 0
+    $ getenforce
+    Permissive
 
 ## What next?
 
 Continue with the [User Guide](/userguide/).
-
