@@ -18,7 +18,7 @@ other `docker` command.
 
 The basic `docker run` command takes this form:
 
-    $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ sudo docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
 see [*Option types*](/reference/commandline/cli/#option-types).
@@ -91,7 +91,7 @@ streams]( https://github.com/docker/docker/blob/
 specify to which of the three standard streams (`STDIN`, `STDOUT`,
 `STDERR`) you'd like to connect instead, as in:
 
-    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+    $ sudo docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 For interactive processes (like a shell) you will typically want a tty
 as well as persistent standard input (`STDIN`), so you'll use `-i -t`
@@ -192,9 +192,9 @@ Example running a Redis container with Redis binding to `localhost` then
 running the `redis-cli` command and connecting to the Redis server over the
 `localhost` interface.
 
-    $ docker run -d --name redis example/redis --bind 127.0.0.1
+    $ sudo docker run -d --name redis example/redis --bind 127.0.0.1
     $ # use the redis container's network stack to access localhost
-    $ docker run --rm -ti --net container:redis example/redis-cli -h 127.0.0.1
+    $ sudo docker run --rm -ti --net container:redis example/redis-cli -h 127.0.0.1
 
 ## Clean Up (–-rm)
 
@@ -253,14 +253,14 @@ If you want to limit access to a specific device or devices you can use
 the `--device` flag. It allows you to specify one or more devices that
 will be accessible within the container.
 
-    $ docker run --device=/dev/snd:/dev/snd ...
+    $ sudo docker run --device=/dev/snd:/dev/snd ...
 
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
 list of capabilities that are kept. Both flags support the value `all`, so if the
 operator wants to have all capabilities but `MKNOD` they could use:
 
-    $ docker run --cap-add=ALL --cap-drop=MKNOD ...
+    $ sudo docker run --cap-add=ALL --cap-drop=MKNOD ...
 
 For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
@@ -299,7 +299,7 @@ Dockerfile instruction and how the operator can override that setting.
 Recall the optional `COMMAND` in the Docker
 commandline:
 
-    $ docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ sudo docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
 
 This command is optional because the person who created the `IMAGE` may
 have already provided a default `COMMAND` using the Dockerfile `CMD`
@@ -326,12 +326,12 @@ runtime by using a string to specify the new `ENTRYPOINT`. Here is an
 example of how to run a shell in a container that has been set up to
 automatically run something else (like `/usr/bin/redis-server`):
 
-    $ docker run -i -t --entrypoint /bin/bash example/redis
+    $ sudo docker run -i -t --entrypoint /bin/bash example/redis
 
 or two examples of how to pass more parameters to that ENTRYPOINT:
 
-    $ docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
-    $ docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
+    $ sudo docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
+    $ sudo docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
 ## EXPOSE (Incoming Ports)
 
@@ -378,7 +378,7 @@ The operator can **set any environment variable** in the container by
 using one or more `-e` flags, even overriding those already defined by
 the developer with a Dockerfile `ENV`:
 
-    $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
+    $ sudo docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
     declare -x HOME="/"
     declare -x HOSTNAME="85bc26a0e200"
     declare -x OLDPWD
@@ -396,23 +396,23 @@ information for connecting to the service container. Let's imagine we have a
 container running Redis:
 
     # Start the service container, named redis-name
-    $ docker run -d --name redis-name dockerfiles/redis
+    $ sudo docker run -d --name redis-name dockerfiles/redis
     4241164edf6f5aca5b0e9e4c9eccd899b0b8080c64c0cd26efe02166c73208f3
 
     # The redis-name container exposed port 6379
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
     4241164edf6f        $ dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
     # Note that there are no public ports exposed since we didn᾿t use -p or -P
-    $ docker port 4241164edf6f 6379
+    $ sudo docker port 4241164edf6f 6379
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 
 Yet we can get information about the Redis container's exposed ports
 with `--link`. Choose an alias that will form a
 valid environment variable!
 
-    $ docker run --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c export
+    $ sudo docker run --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c export
     declare -x HOME="/"
     declare -x HOSTNAME="acda7f7b1cdc"
     declare -x OLDPWD
@@ -429,15 +429,15 @@ valid environment variable!
 
 And we can use that information to connect from another container as a client:
 
-    $ docker run -i -t --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
+    $ sudo docker run -i -t --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
     172.17.0.32:6379>
 
 Docker will also map the private IP address to the alias of a linked
 container by inserting an entry into `/etc/hosts`.  You can use this
 mechanism to communicate with a linked container by its alias:
 
-    $ docker run -d --name servicename busybox sleep 30
-    $ docker run -i -t --link servicename:servicealias busybox ping -c 1 servicealias
+    $ sudo docker run -d --name servicename busybox sleep 30
+    $ sudo docker run -i -t --link servicename:servicealias busybox ping -c 1 servicealias
 
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
