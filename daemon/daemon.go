@@ -705,25 +705,24 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	// Check that the system is supported and we have sufficient privileges
-	// FIXME: return errors instead of calling Fatal
 	if runtime.GOOS != "linux" {
-		log.Fatalf("The Docker daemon is only supported on linux")
+		return nil, fmt.Errorf("The Docker daemon is only supported on linux")
 	}
 	if os.Geteuid() != 0 {
-		log.Fatalf("The Docker daemon needs to be run as root")
+		return nil, fmt.Errorf("The Docker daemon needs to be run as root")
 	}
 	if err := checkKernelAndArch(); err != nil {
-		log.Fatalf(err.Error())
+		return nil, err
 	}
 
 	// set up the TempDir to use a canonical path
 	tmp, err := utils.TempDir(config.Root)
 	if err != nil {
-		log.Fatalf("Unable to get the TempDir under %s: %s", config.Root, err)
+		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
 	}
 	realTmp, err := utils.ReadSymlinkedDirectory(tmp)
 	if err != nil {
-		log.Fatalf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	os.Setenv("TMPDIR", realTmp)
 	if !config.EnableSelinuxSupport {
@@ -737,7 +736,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	} else {
 		realRoot, err = utils.ReadSymlinkedDirectory(config.Root)
 		if err != nil {
-			log.Fatalf("Unable to get the full path to root (%s): %s", config.Root, err)
+			return nil, fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
 		}
 	}
 	config.Root = realRoot
