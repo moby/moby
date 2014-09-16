@@ -663,6 +663,7 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	}
 	out.Set("Id", engine.Tail(stdoutBuffer, 1))
 	out.SetList("Warnings", outWarnings)
+
 	return writeJSON(w, http.StatusCreated, out)
 }
 
@@ -793,7 +794,7 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	if err := eng.Job("resize", vars["name"], r.Form.Get("h"), r.Form.Get("w"), r.Form.Get("exec")).Run(); err != nil {
+	if err := eng.Job("resize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
 		return err
 	}
 	return nil
@@ -1060,11 +1061,9 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		job              = eng.Job("execStart", name)
 		errOut io.Writer = os.Stderr
 	)
-
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
-
 	if !job.GetenvBool("Detach") {
 		// Setting up the streaming http interface.
 		inStream, outStream, err := hijackServer(w)
@@ -1102,12 +1101,12 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		errOut = outStream
 	}
 	// Now run the user process in container.
+	job.SetCloseIO(false)
 	if err := job.Run(); err != nil {
 		fmt.Fprintf(errOut, "Error starting exec command in container %s: %s\n", name, err)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
-
 	return nil
 }
 

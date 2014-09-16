@@ -20,7 +20,7 @@ import (
 type execConfig struct {
 	sync.Mutex
 	ID            string
-	Running bool
+	Running       bool
 	ProcessConfig execdriver.ProcessConfig
 	StreamConfig
 	OpenStdin  bool
@@ -130,7 +130,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 		StreamConfig:  StreamConfig{},
 		ProcessConfig: processConfig,
 		Container:     container,
-		Running: false,
+		Running:       false,
 	}
 
 	d.registerExecCommand(execConfig)
@@ -141,8 +141,8 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 }
 
 func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
-	if len(job.Args) != 2 {
-		return job.Errorf("Usage: %s [options] container exec", job.Name)
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s [options] exec", job.Name)
 	}
 
 	var (
@@ -165,11 +165,11 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		}
 		execConfig.Running = true
 	}()
-
 	if err != nil {
 		return job.Error(err)
 	}
 
+	log.Debugf("starting exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
 	container := execConfig.Container
 
 	if execConfig.OpenStdin {

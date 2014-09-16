@@ -206,7 +206,7 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		}()
 	}
 	if stderr != nil {
-		nJobs += 1
+		nJobs++
 		if p, err := streamConfig.StderrPipe(); err != nil {
 			errors <- err
 		} else {
@@ -229,7 +229,6 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 				if err != nil {
 					log.Errorf("attach: stderr: %s", err)
 				}
-				log.Debugf("stdout attach end")
 				errors <- err
 			}()
 		}

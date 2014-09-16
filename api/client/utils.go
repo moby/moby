@@ -115,6 +115,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 		return nil, resp.StatusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
 	}
+
 	return resp.Body, resp.StatusCode, nil
 }
 
@@ -179,7 +180,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	return nil
 }
 
-func (cli *DockerCli) resizeTty(id string) {
+func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	height, width := cli.getTtySize()
 	if height == 0 && width == 0 {
 		return
@@ -187,7 +188,15 @@ func (cli *DockerCli) resizeTty(id string) {
 	v := url.Values{}
 	v.Set("h", strconv.Itoa(height))
 	v.Set("w", strconv.Itoa(width))
-	if _, _, err := readBody(cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil, false)); err != nil {
+
+	path := ""
+	if !isExec {
+		path = "/containers/" + id + "/resize?"
+	} else {
+		path = "/exec/" + id + "/resize?"
+	}
+
+	if _, _, err := readBody(cli.call("POST", path+v.Encode(), nil, false)); err != nil {
 		log.Debugf("Error resize: %s", err)
 	}
 }
@@ -226,14 +235,14 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	return state.GetBool("Running"), state.GetInt("ExitCode"), nil
 }
 
-func (cli *DockerCli) monitorTtySize(id string) error {
-	cli.resizeTty(id)
+func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
+	cli.resizeTty(id, isExec)
 
 	sigchan := make(chan os.Signal, 1)
 	gosignal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
 		for _ = range sigchan {
-			cli.resizeTty(id)
+			cli.resizeTty(id, isExec)
 		}
 	}()
 	return nil

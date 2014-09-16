@@ -115,13 +115,14 @@ func (eng *Engine) commands() []string {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
-		Eng:    eng,
-		Name:   name,
-		Args:   args,
-		Stdin:  NewInput(),
-		Stdout: NewOutput(),
-		Stderr: NewOutput(),
-		env:    &Env{},
+		Eng:     eng,
+		Name:    name,
+		Args:    args,
+		Stdin:   NewInput(),
+		Stdout:  NewOutput(),
+		Stderr:  NewOutput(),
+		env:     &Env{},
+		closeIO: true,
 	}
 	if eng.Logging {
 		job.Stderr.Add(ioutils.NopWriteCloser(eng.Stderr))

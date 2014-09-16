@@ -31,6 +31,7 @@ type Job struct {
 	handler Handler
 	status  Status
 	end     time.Time
+	closeIO bool
 }
 
 type Status int
@@ -78,19 +79,22 @@ func (job *Job) Run() error {
 		job.status = job.handler(job)
 		job.end = time.Now()
 	}
-	// Wait for all background tasks to complete
-	if err := job.Stdout.Close(); err != nil {
-		return err
-	}
-	if err := job.Stderr.Close(); err != nil {
-		return err
-	}
-	if err := job.Stdin.Close(); err != nil {
-		return err
+	if job.closeIO {
+		// Wait for all background tasks to complete
+		if err := job.Stdout.Close(); err != nil {
+			return err
+		}
+		if err := job.Stderr.Close(); err != nil {
+			return err
+		}
+		if err := job.Stdin.Close(); err != nil {
+			return err
+		}
 	}
 	if job.status != 0 {
 		return fmt.Errorf("%s", Tail(errorMessage, 1))
 	}
+
 	return nil
 }
 
@@ -227,4 +231,8 @@ func (job *Job) Error(err error) Status {
 
 func (job *Job) StatusCode() int {
 	return int(job.status)
+}
+
+func (job *Job) SetCloseIO(val bool) {
+	job.closeIO = val
 }
