@@ -690,8 +690,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if !config.EnableIptables && !config.InterContainerCommunication {
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
-	// FIXME: DisableNetworkBidge doesn't need to be public anymore
-	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
+	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
