@@ -760,8 +760,9 @@ Passing a negative number or a non-integer to `--tail` is invalid and the
 value is set to `all` in that case. This behavior may change in the future.
 
 The `docker logs --timestamp` commands will add an RFC3339Nano
-timestamp, for example `2014-05-10T17:42:14.999999999Z07:00`, to each
-log entry.
+timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
+log entry. To ensure that the timestamps for are aligned the
+nano-second part of the timestamp will be padded with zero when necessary.
 
 ## port
 

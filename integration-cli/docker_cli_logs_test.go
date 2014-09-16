@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/utils"
 )
 
 // This used to work, it test a log of PageSize-1 (gh#4851)
@@ -102,9 +104,12 @@ func TestLogsTimestamps(t *testing.T) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(time.RFC3339Nano+" ", ts.FindString(l))
+			_, err := time.Parse(utils.RFC3339NanoFixed+" ", ts.FindString(l))
 			if err != nil {
 				t.Fatalf("Failed to parse timestamp from %v: %v", l, err)
+			}
+			if l[29] != 'Z' { // ensure we have padded 0's
+				t.Fatalf("Timestamp isn't padded properly: %s", l)
 			}
 		}
 	}

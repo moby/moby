@@ -24,6 +24,13 @@ import (
 	"github.com/docker/docker/pkg/log"
 )
 
+const (
+	// Define our own version of RFC339Nano because we want one
+	// that pads the nano seconds part with zeros to ensure
+	// the timestamps are aligned in the logs.
+	RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
+)
+
 type KeyValuePair struct {
 	Key   string
 	Value string
