@@ -155,7 +155,7 @@ Json Parameters:
 
 -   **RestartPolicy** – The behavior to apply when the container exits.  The
         value is an object with a `Name` property of either `"always"` to
-        always restart or `"on-failure"` torestart only when the container
+        always restart or `"on-failure"` to restart only when the container
         exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
         controls the number of times to retry before giving up.
         The default is not to restart. (optional)
