@@ -10,7 +10,7 @@ import (
 
 const (
 	defaultNetworkMtu    = 1500
-	DisableNetworkBridge = "none"
+	disableNetworkBridge = "none"
 )
 
 // Config define the configuration of a docker daemon
