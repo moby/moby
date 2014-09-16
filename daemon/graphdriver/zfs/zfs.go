@@ -70,11 +70,11 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	} else {
 		var CPoolName = C.CString(options.zpoolName)
 		defer free(CPoolName)
-		zhp := C.zfs_open(g_zfs, CPoolName, C.ZFS_TYPE_POOL)
-		if zhp == nil {
+		zph := C.zpool_open(g_zfs, CPoolName)
+		if zph == nil {
 			return nil, fmt.Errorf("Could not open provided zfs pool: %s", options.zpoolName)
 		}
-		C.zfs_close(zhp)
+		C.zpool_close(zph)
 	}
 
 	return &Driver{
