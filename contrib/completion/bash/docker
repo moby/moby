@@ -244,6 +244,18 @@ _docker_events()
 	esac
 }
 
+_docker_exec()
+{
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-d --detach -i --interactive -t --tty" -- "$cur" ) )
+			;;
+		*)
+			__docker_containers_running
+			;;
+	esac
+}
+
 _docker_export()
 {
 	local counter=$(__docker_pos_first_nonflag)
@@ -530,7 +542,7 @@ _docker_run()
 			esac
 			return
 			;;
-		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf)
+		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf)
 			return
 			;;
 		*)
@@ -539,10 +551,10 @@ _docker_run()
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--rm -d --detach -n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env -p --publish --expose --dns --volumes-from --lxc-conf" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--rm -d --detach -n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env -p --publish --expose --dns --volumes-from --lxc-conf" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf')
+			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf')
 
 			if [ $cword -eq $counter ]; then
 				__docker_image_repos_and_tags_and_ids
@@ -660,6 +672,7 @@ _docker()
 			cp
 			diff
 			events
+			exec
 			export
 			history
 			images
