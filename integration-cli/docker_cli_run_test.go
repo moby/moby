@@ -2069,3 +2069,45 @@ func TestDockerExecInteractive(t *testing.T) {
 
 	logDone("exec - Interactive test")
 }
+
+// Regression test for #7792
+func TestMountOrdering(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "docker_nested_mount_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpDir2, err := ioutil.TempDir("", "docker_nested_mount_test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir2)
+
+	// Create a temporary tmpfs mount.
+	fooDir := filepath.Join(tmpDir, "foo")
+	if err := os.MkdirAll(filepath.Join(tmpDir, "foo"), 0755); err != nil {
+		t.Fatalf("failed to mkdir at %s - %s", fooDir, err)
+	}
+
+	if err := ioutil.WriteFile(fmt.Sprintf("%s/touch-me", fooDir), []byte{}, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir), []byte{}, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir2), []byte{}, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp", tmpDir), "-v", fmt.Sprintf("%s:/tmp/foo", fooDir), "-v", fmt.Sprintf("%s:/tmp/tmp2", tmpDir2), "-v", fmt.Sprintf("%s:/tmp/tmp2/foo", fooDir), "busybox:latest", "sh", "-c", "ls /tmp/touch-me && ls /tmp/foo/touch-me && ls /tmp/tmp2/touch-me && ls /tmp/tmp2/foo/touch-me")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	deleteAllContainers()
+	logDone("run - volumes are mounted in the correct order")
+}
