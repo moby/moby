@@ -625,7 +625,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v.Set("stderr", "1")
 
 		cErr = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil)
+			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil, nil)
 		})
 	}
 
@@ -1827,7 +1827,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil, nil); err != nil {
 		return err
 	}
 
@@ -2109,7 +2109,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		errCh = utils.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.Get("Id")+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked)
+			return cli.hijack("POST", "/containers/"+runResult.Get("Id")+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked, nil)
 		})
 	} else {
 		close(hijacked)

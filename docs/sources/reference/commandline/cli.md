@@ -1295,7 +1295,6 @@ It is even useful to cherry-pick particular tags of an image repository
 
    $ sudo docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
 
-
 ## search
 
 Search [Docker Hub](https://hub.docker.com) for images

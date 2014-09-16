@@ -122,6 +122,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
 		"image_delete":      daemon.ImageDelete, // FIXME: see above
+		"exec":              daemon.ContainerExec,
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err
@@ -496,17 +497,17 @@ func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	}
 }
 
-func (daemon *Daemon) getEntrypointAndArgs(config *runconfig.Config) (string, []string) {
+func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string) (string, []string) {
 	var (
 		entrypoint string
 		args       []string
 	)
-	if len(config.Entrypoint) != 0 {
-		entrypoint = config.Entrypoint[0]
-		args = append(config.Entrypoint[1:], config.Cmd...)
+	if len(configEntrypoint) != 0 {
+		entrypoint = configEntrypoint[0]
+		args = append(configEntrypoint[1:], configCmd...)
 	} else {
-		entrypoint = config.Cmd[0]
-		args = config.Cmd[1:]
+		entrypoint = configCmd[0]
+		args = configCmd[1:]
 	}
 	return entrypoint, args
 }
@@ -522,7 +523,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 	}
 
 	daemon.generateHostname(id, config)
-	entrypoint, args := daemon.getEntrypointAndArgs(config)
+	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
