@@ -162,6 +162,12 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 			currentHeader, err := ts.tarR.Next()
 			if err != nil {
 				if err == io.EOF {
+					if err := ts.tarW.Close(); err != nil {
+						return 0, err
+					}
+					if _, err := io.Copy(ts.gz, ts.bufTar); err != nil {
+						return 0, err
+					}
 					if err := ts.gz.Close(); err != nil {
 						return 0, err
 					}
