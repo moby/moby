@@ -284,13 +284,15 @@ change them using `docker run --env <key>=<value>`.
 
 ## ADD
 
-    ADD <src> <dest>
+    ADD <src>... <dest>
 
-The `ADD` instruction will copy new files from `<src>` and add them to the
-container's filesystem at path `<dest>`.
+The `ADD` instruction copies new files,directories or remote file URLs to 
+the filesystem of the container  from `<src>` and add them to the at 
+path `<dest>`.  
 
-`<src>` must be the path to a file or directory relative to the source directory
-being built (also called the *context* of the build) or a remote file URL.
+Multiple <src> resource may be specified but if they are files or 
+directories then they must be relative to the source directory that is 
+being built (the context of the build).
 
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
@@ -353,6 +355,9 @@ The copy obeys the following rules:
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
 
+- If multiple `<src>` resources are specified then `<dest>` must be a
+  directory, and it must end with a slash `/`.
+
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.
 
@@ -361,13 +366,15 @@ The copy obeys the following rules:
 
 ## COPY
 
-    COPY <src> <dest>
+    COPY <src>... <dest>
 
-The `COPY` instruction will copy new files from `<src>` and add them to the
-container's filesystem at path `<dest>`.
+The `COPY` instruction copies new files,directories or remote file URLs to 
+the filesystem of the container  from `<src>` and add them to the at 
+path `<dest>`. 
 
-`<src>` must be the path to a file or directory relative to the source directory
-being built (also called the *context* of the build).
+Multiple <src> resource may be specified but if they are files or 
+directories then they must be relative to the source directory that is being 
+built (the context of the build).
 
 `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
@@ -392,6 +399,9 @@ The copy obeys the following rules:
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
+
+- If multiple `<src>` resources are specified then `<dest>` must be a
+  directory, and it must end with a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.

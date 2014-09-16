@@ -65,8 +65,8 @@ func maintainer(b *Builder, args []string, attributes map[string]bool) error {
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
 func add(b *Builder, args []string, attributes map[string]bool) error {
-	if len(args) != 2 {
-		return fmt.Errorf("ADD requires two arguments")
+	if len(args) < 2 {
+		return fmt.Errorf("ADD requires at least two arguments")
 	}
 
 	return b.runContextCommand(args, true, true, "ADD")
@@ -77,8 +77,8 @@ func add(b *Builder, args []string, attributes map[string]bool) error {
 // Same as 'ADD' but without the tar and remote url handling.
 //
 func dispatchCopy(b *Builder, args []string, attributes map[string]bool) error {
-	if len(args) != 2 {
-		return fmt.Errorf("COPY requires two arguments")
+	if len(args) < 2 {
+		return fmt.Errorf("COPY requires at least two arguments")
 	}
 
 	return b.runContextCommand(args, false, false, "COPY")
