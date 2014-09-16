@@ -55,6 +55,7 @@ func init() {
 			{"cp", "Copy files/folders from a container's filesystem to the host path"},
 			{"diff", "Inspect changes on a container's filesystem"},
 			{"events", "Get real time events from the server"},
+			{"exec", "Run a command in an existing container"},
 			{"export", "Stream the contents of a container as a tar archive"},
 			{"history", "Show the history of an image"},
 			{"images", "List images"},
