@@ -606,10 +606,8 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		config := env.GetSubEnv("Config")
 		tty = config.GetBool("Tty")
 
-		if !tty {
-			sigc := cli.forwardAllSignals(cmd.Arg(0))
-			defer signal.StopCatch(sigc)
-		}
+		sigc := cli.forwardAllSignals(cmd.Arg(0))
+		defer signal.StopCatch(sigc)
 
 		var in io.ReadCloser
 
@@ -1772,7 +1770,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	var (
 		cmd     = cli.Subcmd("attach", "CONTAINER", "Attach to a running container")
 		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
-		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.")
+		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process (even in non-TTY mode). In TTY mode, SIGTSTP, SIGTTIN, SIGTTOU, and SIGINT are not proxied. SIGCHLD, SIGKILL, and SIGSTOP are never proxied.")
 	)
 
 	if err := cmd.Parse(args); err != nil {
@@ -1822,7 +1820,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if *proxy && !tty {
+	if *proxy {
 		sigc := cli.forwardAllSignals(cmd.Arg(0))
 		defer signal.StopCatch(sigc)
 	}
@@ -1984,11 +1982,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		autoRemove, _ = strconv.ParseBool(flRm.Value.String())
 		sigProxy, _   = strconv.ParseBool(flSigProxy.Value.String())
 	)
-
-	// Disable sigProxy in case on TTY
-	if config.Tty {
-		sigProxy = false
-	}
 
 	var containerIDFile io.WriteCloser
 	if len(hostConfig.ContainerIDFile) > 0 {
