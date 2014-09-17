@@ -1,4 +1,4 @@
-package utils
+package stdcopy
 
 import (
 	"encoding/binary"
