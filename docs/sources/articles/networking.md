@@ -310,13 +310,13 @@ page.  There are two approaches.
 First, you can supply `-P` or `--publish-all=true|false` to `docker run`
 which is a blanket operation that identifies every port with an `EXPOSE`
 line in the image's `Dockerfile` and maps it to a host port somewhere in
-the range 49000–49900.  This tends to be a bit inconvenient, since you
+the range 49153–65535.  This tends to be a bit inconvenient, since you
 then have to run other `docker` sub-commands to learn which external
 port a given service was mapped to.
 
 More convenient is the `-p SPEC` or `--publish=SPEC` option which lets
 you be explicit about exactly which external port on the Docker server —
-which can be any port at all, not just those in the 49000–49900 block —
+which can be any port at all, not just those in the 49153-65535 block —
 you want mapped to which port in the container.
 
 Either way, you should be able to peek at what Docker has accomplished
@@ -438,7 +438,7 @@ If you want to take Docker out of the business of creating its own
 Ethernet bridge entirely, you can set up your own bridge before starting
 Docker and use `-b BRIDGE` or `--bridge=BRIDGE` to tell Docker to use
 your bridge instead.  If you already have Docker up and running with its
-old `bridge0` still configured, you will probably want to begin by
+old `docker0` still configured, you will probably want to begin by
 stopping the service and removing the interface:
 
     # Stopping Docker and removing docker0

@@ -101,7 +101,7 @@ Populate it with the following program definitions:
 
 Now you should be able to build a Docker image for Riak:
 
-    $ docker build -t "<yourname>/riak" .
+    $ sudo docker build -t "<yourname>/riak" .
 
 ## Next steps
 

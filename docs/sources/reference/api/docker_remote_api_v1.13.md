@@ -630,7 +630,7 @@ Status Codes:
     1.  Read 8 bytes
     2.  chose stdout or stderr depending on the first byte
     3.  Extract the frame size from the last 4 byets
-    4.  Read the extracted size and output it on the correct outpu
+    4.  Read the extracted size and output it on the correct output
     5.  Goto 1)
 
 ### Wait a container
@@ -969,7 +969,7 @@ Status Codes:
 -   **201** – no error
 -   **400** – bad parameter
 -   **404** – no such image
--   **409** – conflic
+-   **409** – conflict
 -   **500** – server error
 
 ### Remove an image
@@ -1004,7 +1004,7 @@ Status Codes:
 
 -   **200** – no error
 -   **404** – no such image
--   **409** – conflic
+-   **409** – conflict
 -   **500** – server error
 
 ### Search images
@@ -1099,7 +1099,7 @@ Query Parameters:
 
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
--   **q** – suppress verbose build outpu
+-   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm - always remove intermediate containers (includes rm)
@@ -1342,7 +1342,7 @@ specified by `name`.
 
 **Example request**
 
-        GET /images/ubuntu/ge
+        GET /images/ubuntu/get
 
 **Example response**:
 

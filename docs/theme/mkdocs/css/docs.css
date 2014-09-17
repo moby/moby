@@ -335,3 +335,7 @@ table.table tr td img {
 #versionnav ul ul {
     padding: 0;
 }
+
+/* over-ride the prettyPrint colouring */
+
+.str, .atv { color: #48484C; }

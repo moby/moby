@@ -57,7 +57,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images,
 accelerating `docker build` significantly (indicated by `Using cache`):
 
-    $ docker build -t SvenDowideit/ambassador .
+    $ sudo docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
     Uploading context
     Step 1 : FROM docker-ut
@@ -109,7 +109,7 @@ The following example shows the use of the `.dockerignore` file to exclude the
 `.git` directory from the context. Its effect can be seen in the changed size of
 the uploaded context.
 
-    $ docker build .
+    $ sudo docker build .
     Uploading context 18.829 MB
     Uploading context
     Step 0 : FROM busybox
@@ -119,7 +119,7 @@ the uploaded context.
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
     $ echo ".git" > .dockerignore
-    $ docker build .
+    $ sudo docker build .
     Uploading context  6.76 MB
     Uploading context
     Step 0 : FROM busybox
@@ -182,6 +182,10 @@ commands using a base image that does not contain `/bin/sh`.
 > passing in the desired shell. For example,
 > `RUN ["/bin/bash", "-c", "echo hello"]`
 
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like `RUN apt-get
 dist-upgrade -y` will be reused during the next build.  The cache for
@@ -218,6 +222,10 @@ instruction as well.
 > If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
 > instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
 > with the JSON array format.
+
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
@@ -435,6 +443,10 @@ optional but default, you could use a `CMD` instruction:
     ENTRYPOINT ["ls"]
 
 > **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
 > It is preferable to use the JSON array format for specifying
 > `ENTRYPOINT` instructions.
 
@@ -448,6 +460,10 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string, `VOLUME /var/log`. For more information/examples and mounting
 instructions via the Docker client, refer to [*Share Directories via Volumes*](
 /userguide/dockervolumes/#volume-def) documentation.
+
+> **Note**:
+> The list is parsed a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
 
 ## USER
 

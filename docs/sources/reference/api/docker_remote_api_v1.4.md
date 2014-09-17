@@ -830,7 +830,7 @@ Status Codes:
 -   **201** – no error
 -   **400** – bad parameter
 -   **404** – no such image
--   **409** – conflic
+-   **409** – conflict
 -   **500** – server error
 
 ### Remove an image
@@ -858,7 +858,7 @@ Status Codes:
 
 -   **200** – no error
 -   **404** – no such image
--   **409** – conflic
+-   **409** – conflict
 -   **500** – server error
 
 ### Search images
@@ -929,7 +929,7 @@ Query Parameters:
 
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
--   **q** – suppress verbose build outpu
+-   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 
 Status Codes:

@@ -148,7 +148,7 @@ Then un-tar the backup file in the new container's data volume.
 
     $ sudo docker run --volumes-from dbdata2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
 
-You can use this techniques above to automate backup, migration and
+You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
 # Next steps
