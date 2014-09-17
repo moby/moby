@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strings"
+	"strconv"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -515,18 +516,13 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
-	split := func(p string) (string, string) {
-		parts := strings.Split(p, "/")
-		return parts[0], parts[1]
-	}
-
-	for _, p := range ports {
-		port, proto := split(p)
+	for _, value := range ports {
+		port := nat.Port(value)
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
+			"-p", port.Proto(),
 			"-s", parentIP,
-			"--dport", port,
+			"--dport", strconv.Itoa(port.Int()),
 			"-d", childIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return job.Error(err)
@@ -536,9 +532,9 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
+			"-p", port.Proto(),
 			"-s", childIP,
-			"--sport", port,
+			"--sport", strconv.Itoa(port.Int()),
 			"-d", parentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return job.Error(err)

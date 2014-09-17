@@ -132,12 +132,8 @@ ENTRYPOINT.
 **--env-file**=[]
    Read in a line delimited file of environment variables
 
-**--expose**=*port*
-   Expose a port from the container without publishing it to your host. A
-containers port can be exposed to other containers in three ways: 1) The
-developer can expose the port using the EXPOSE parameter of the Dockerfile, 2)
-the operator can use the **--expose** option with **docker run**, or 3) the
-container can be started with the **--link**.
+**--expose**=[]
+   Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
 
 **-h**, **--hostname**=*hostname*
    Sets the container host name that is available inside the container.

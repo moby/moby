@@ -79,7 +79,7 @@ docker-create - Create a new container
    Read in a line delimited file of environment variables
 
 **--expose**=[]
-   Expose a port from the container without publishing it to your host
+   Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
 
 **-h**, **--hostname**=""
    Container host name
