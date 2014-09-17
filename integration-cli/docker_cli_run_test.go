@@ -680,6 +680,50 @@ func TestUserNotFound(t *testing.T) {
 	logDone("run - user not found")
 }
 
+// Issue #8069: Test for exact name search priority over ID search
+// in daemon.Get container lookup (e.g. --name "db" container hidden by
+// random ID beginning "db.."
+func TestNameCollisionIDvsName(t *testing.T) {
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	firstID := stripTrailingCharacters(out)
+	// use the first ID to create a fake name out of the first 4 chars
+	secondName := firstID[:4]
+
+	// run this 2nd container with our made up name
+	cmd2 := exec.Command(dockerBinary, "run", "-d", "--name", secondName, "busybox", "true")
+	out2, _, err2 := runCommandWithOutput(cmd2)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+
+	// full ID of second container with name based on prefix of first ID
+	secondID := stripTrailingCharacters(out2)
+
+	// now, let's `rm` our name/shortened ID
+	// if the container with ID prefix match is removed, then
+	// daemon.Get prioritized ID over name
+	rmCmd := exec.Command(dockerBinary, "rm", secondName)
+	_, _, err3 := runCommandWithOutput(rmCmd)
+	errorOut(err3, t, fmt.Sprintf("rm failed to remove container %s", err3))
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", "{{ .Name }}", secondID)
+	out4, stderr, _, _ := runCommandWithStdoutStderr(inspectCmd)
+	out4 = stripTrailingCharacters(out4)
+	if !strings.Contains(stderr, "No such image or container") {
+		t.Fatalf("this container should be deleted by the rm command: %s", out4)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - test container random ID hiding named container via short ID")
+}
+
 func TestRunTwoConcurrentContainers(t *testing.T) {
 	group := sync.WaitGroup{}
 	group.Add(2)
