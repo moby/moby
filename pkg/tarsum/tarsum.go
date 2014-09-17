@@ -39,7 +39,7 @@ func NewTarSum(r io.Reader, dc bool, v Version) (TarSum, error) {
 // checksums of a tar archive
 type TarSum interface {
 	io.Reader
-	GetSums() map[string]string
+	GetSums() FileInfoSums
 	Sum([]byte) string
 	Version() Version
 }
@@ -54,7 +54,8 @@ type tarSum struct {
 	bufGz              *bytes.Buffer
 	bufData            []byte
 	h                  hash.Hash
-	sums               map[string]string
+	sums               FileInfoSums
+	fileCounter        int64
 	currentFile        string
 	finished           bool
 	first              bool
@@ -126,7 +127,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 		ts.h = sha256.New()
 		ts.h.Reset()
 		ts.first = true
-		ts.sums = make(map[string]string)
+		ts.sums = FileInfoSums{}
 	}
 
 	if ts.finished {
@@ -153,7 +154,8 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 				return 0, err
 			}
 			if !ts.first {
-				ts.sums[ts.currentFile] = hex.EncodeToString(ts.h.Sum(nil))
+				ts.sums = append(ts.sums, fileInfoSum{name: ts.currentFile, sum: hex.EncodeToString(ts.h.Sum(nil)), pos: ts.fileCounter})
+				ts.fileCounter++
 				ts.h.Reset()
 			} else {
 				ts.first = false
@@ -218,25 +220,20 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 }
 
 func (ts *tarSum) Sum(extra []byte) string {
-	var sums []string
-
-	for _, sum := range ts.sums {
-		sums = append(sums, sum)
-	}
-	sort.Strings(sums)
+	ts.sums.SortBySums()
 	h := sha256.New()
 	if extra != nil {
 		h.Write(extra)
 	}
-	for _, sum := range sums {
-		log.Debugf("-->%s<--", sum)
-		h.Write([]byte(sum))
+	for _, fis := range ts.sums {
+		log.Debugf("-->%s<--", fis.Sum())
+		h.Write([]byte(fis.Sum()))
 	}
 	checksum := ts.Version().String() + "+sha256:" + hex.EncodeToString(h.Sum(nil))
 	log.Debugf("checksum processed: %s", checksum)
 	return checksum
 }
 
-func (ts *tarSum) GetSums() map[string]string {
+func (ts *tarSum) GetSums() FileInfoSums {
 	return ts.sums
 }

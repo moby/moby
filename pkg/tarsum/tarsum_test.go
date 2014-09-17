@@ -59,6 +59,22 @@ var testLayers = []testLayer{
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
 		tarsum:  "tarsum+sha256:8bf12d7e67c51ee2e8306cba569398b1b9f419969521a12ffb9d8875e8836738"},
+	{
+		// this tar has two files with the same path
+		filename: "testdata/collision/collision-0.tar",
+		tarsum:   "tarsum+sha256:08653904a68d3ab5c59e65ef58c49c1581caa3c34744f8d354b3f575ea04424a"},
+	{
+		// this tar has the same two files (with the same path), but reversed order. ensuring is has different hash than above
+		filename: "testdata/collision/collision-1.tar",
+		tarsum:   "tarsum+sha256:b51c13fbefe158b5ce420d2b930eef54c5cd55c50a2ee4abdddea8fa9f081e0d"},
+	{
+		// this tar has newer of collider-0.tar, ensuring is has different hash
+		filename: "testdata/collision/collision-2.tar",
+		tarsum:   "tarsum+sha256:381547080919bb82691e995508ae20ed33ce0f6948d41cafbeb70ce20c73ee8e"},
+	{
+		// this tar has newer of collider-1.tar, ensuring is has different hash
+		filename: "testdata/collision/collision-3.tar",
+		tarsum:   "tarsum+sha256:f886e431c08143164a676805205979cd8fa535dfcef714db5515650eea5a7c0f"},
 }
 
 type sizedOptions struct {

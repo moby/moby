@@ -214,11 +214,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 			return err
 		} else if fi.IsDir() {
 			var subfiles []string
-			for file, sum := range sums {
-				absFile := path.Join(b.contextPath, file)
+			for _, fileInfo := range sums {
+				absFile := path.Join(b.contextPath, fileInfo.Name())
 				absOrigPath := path.Join(b.contextPath, origPath)
 				if strings.HasPrefix(absFile, absOrigPath) {
-					subfiles = append(subfiles, sum)
+					subfiles = append(subfiles, fileInfo.Sum())
 				}
 			}
 			sort.Strings(subfiles)
@@ -230,8 +230,9 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 				origPath = origPath[1:]
 			}
 			origPath = strings.TrimPrefix(origPath, "./")
-			if h, ok := sums[origPath]; ok {
-				hash = "file:" + h
+			// This will match on the first file in sums of the archive
+			if fis := sums.GetFile(origPath); fis != nil {
+				hash = "file:" + fis.Sum()
 			}
 		}
 		b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, hash, dest)}
