@@ -126,6 +126,18 @@ case "$lsb_dist" in
 			fi
 		fi
 
+		# install apparmor utils if they're missing and apparmor is enabled in the kernel
+		# otherwise Docker will fail to start
+		if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
+			if command -v apparmor_parser &> /dev/null; then
+				echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
+			else
+				echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q apparmor' )
+			fi
+		fi
+
 		if [ ! -e /usr/lib/apt/methods/https ]; then
 			apt_get_update
 			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https' )
