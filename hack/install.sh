@@ -201,12 +201,14 @@ case "$lsb_dist" in
 		;;
 esac
 
-echo >&2
-echo >&2 '  Either your platform is not easily detectable, is not supported by this'
-echo >&2 '  installer script (yet - PRs welcome!), or does not yet have a package for'
-echo >&2 '  Docker.  Please visit the following URL for more detailed installation'
-echo >&2 '  instructions:'
-echo >&2
-echo >&2 '    http://docs.docker.io/en/latest/installation/'
-echo >&2
+cat >&2 <<'EOF'
+
+  Either your platform is not easily detectable, is not supported by this
+  installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
+  a package for Docker.  Please visit the following URL for more detailed
+  installation instructions:
+
+    http://docs.docker.io/en/latest/installation/
+
+EOF
 exit 1
