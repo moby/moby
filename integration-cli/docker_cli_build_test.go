@@ -60,7 +60,17 @@ func TestBuildSixtySteps(t *testing.T) {
 }
 
 func TestAddSingleFileToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", "SingleFileToRoot")
+	testDirName := "SingleFileToRoot"
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-add")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +90,17 @@ func TestAddSingleFileToRoot(t *testing.T) {
 
 // Issue #3960: "ADD src ." hangs
 func TestAddSingleFileToWorkdir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", "SingleFileToWorkdir")
+	testDirName := "SingleFileToWorkdir"
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-add")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -171,7 +191,17 @@ func TestAddDirContentToExistDir(t *testing.T) {
 }
 
 func TestAddWholeDirToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", "WholeDirToRoot")
+	testDirName := "WholeDirToRoot"
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-add")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	test_dir := filepath.Join(buildDirectory, "test_dir")
 	if err := os.MkdirAll(test_dir, 0755); err != nil {
 		t.Fatal(err)
@@ -207,7 +237,17 @@ func TestAddEtcToRoot(t *testing.T) {
 }
 
 func TestCopySingleFileToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", "SingleFileToRoot")
+	testDirName := "SingleFileToRoot"
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-add")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -227,7 +267,17 @@ func TestCopySingleFileToRoot(t *testing.T) {
 
 // Issue #3960: "ADD src ." hangs - adapted for COPY
 func TestCopySingleFileToWorkdir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", "SingleFileToWorkdir")
+	testDirName := "SingleFileToWorkdir"
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-add")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -318,7 +368,17 @@ func TestCopyDirContentToExistDir(t *testing.T) {
 }
 
 func TestCopyWholeDirToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", "WholeDirToRoot")
+	testDirName := "WholeDirToRoot"
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-add")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	test_dir := filepath.Join(buildDirectory, "test_dir")
 	if err := os.MkdirAll(test_dir, 0755); err != nil {
 		t.Fatal(err)
@@ -370,8 +430,18 @@ func TestCopyDisallowRemote(t *testing.T) {
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildWithInaccessibleFilesInContext")
+	testDirName := "TestBuildWithInaccessibleFilesInContext"
 
+	sourceDirectory := filepath.Join(workingDirectory, "build_tests", testDirName)
+	buildDirectory, err := ioutil.TempDir("", "test-build-inaccessible-directory")
+	defer os.RemoveAll(buildDirectory)
+
+	err = copyWithCP(sourceDirectory, buildDirectory)
+	if err != nil {
+		t.Fatalf("failed to copy files to temporary directory: %s", err)
+	}
+
+	buildDirectory = filepath.Join(buildDirectory, testDirName)
 	{
 		// This is used to ensure we detect inaccessible files early during build in the cli client
 		pathToInaccessibleFileBuildDirectory := filepath.Join(buildDirectory, "inaccessiblefile")

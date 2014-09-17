@@ -238,3 +238,12 @@ func fileServer(files map[string]string) (*FileServer, error) {
 		Server: server,
 	}, nil
 }
+
+func copyWithCP(source, target string) error {
+	copyCmd := exec.Command("cp", "-rp", source, target)
+	out, exitCode, err := runCommandWithOutput(copyCmd)
+	if err != nil || exitCode != 0 {
+		return fmt.Errorf("failed to copy: error: %q ,output: %q", err, out)
+	}
+	return nil
+}
