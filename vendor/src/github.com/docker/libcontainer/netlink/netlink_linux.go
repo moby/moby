@@ -937,6 +937,12 @@ func NetworkCreateVethPair(name1, name2 string) error {
 	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name1))
 	wb.AddData(nameData)
 
+	native := nativeEndian()
+	txqLen := make([]byte, 4)
+	native.PutUint32(txqLen, 0)
+	txqData := newRtAttr(syscall.IFLA_TXQLEN, txqLen)
+	wb.AddData(txqData)
+
 	nest1 := newRtAttr(syscall.IFLA_LINKINFO, nil)
 	newRtAttrChild(nest1, IFLA_INFO_KIND, zeroTerminated("veth"))
 	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
@@ -944,7 +950,11 @@ func NetworkCreateVethPair(name1, name2 string) error {
 
 	newIfInfomsgChild(nest3, syscall.AF_UNSPEC)
 	newRtAttrChild(nest3, syscall.IFLA_IFNAME, zeroTerminated(name2))
-
+    
+	txqLen2 := make([]byte, 4)
+	native.PutUint32(txqLen2, 0)
+	newRtAttrChild(nest3, syscall.IFLA_TXQLEN, txqLen2)
+	
 	wb.AddData(nest1)
 
 	if err := s.Send(wb); err != nil {
