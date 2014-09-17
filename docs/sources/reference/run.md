@@ -139,6 +139,7 @@ example, `docker run ubuntu:14.04`.
                                  'none': no networking for this container
                                  'container:<name|id>': reuses another container network stack
                                  'host': use the host network stack inside the container
+    --add-host=""   : Add a line to /etc/hosts (host:IP)
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -195,6 +196,22 @@ running the `redis-cli` command and connecting to the Redis server over the
     $ sudo docker run -d --name redis example/redis --bind 127.0.0.1
     $ # use the redis container's network stack to access localhost
     $ sudo docker run --rm -ti --net container:redis example/redis-cli -h 127.0.0.1
+
+### Managing /etc/hosts
+
+Your container will have lines in `/etc/hosts` which define the hostname of the
+container itself as well as `localhost` and a few other common things.  The
+`--add-host` flag can be used to add additional lines to `/etc/hosts`.  
+
+    $ /docker run -ti --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
+    172.17.0.22     09d03f76bf2c
+    fe00::0         ip6-localnet
+    ff00::0         ip6-mcastprefix
+    ff02::1         ip6-allnodes
+    ff02::2         ip6-allrouters
+    127.0.0.1       localhost
+    ::1	            localhost ip6-localhost ip6-loopback
+    86.75.30.9      db-static
 
 ## Clean Up (–-rm)
 

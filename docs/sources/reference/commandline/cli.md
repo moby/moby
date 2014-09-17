@@ -1043,6 +1043,7 @@ removed before the image is removed.
     Run a command in a new container
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
+      --add-host=[]              Add a custom host-to-IP mapping (host:ip)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities

@@ -51,6 +51,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
+		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
 		flLxcOpts     = opts.NewListOpts(nil)
 		flEnvFile     = opts.NewListOpts(nil)
@@ -86,6 +87,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
+	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
@@ -278,6 +280,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PublishAllPorts: *flPublishAll,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),
+		ExtraHosts:      flExtraHosts.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
 		Devices:         deviceMappings,
