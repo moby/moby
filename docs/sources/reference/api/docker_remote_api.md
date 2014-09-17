@@ -15,8 +15,11 @@ page_keywords: API, Docker, rcli, REST, documentation
  - Since API version 1.2, the auth configuration is now handled client
    side, so the client has to send the `authConfig` as a `POST` in `/images/(name)/push`.
  - authConfig, set as the `X-Registry-Auth` header, is currently a Base64
-   encoded (JSON) string with credentials:
-   `{'username': string, 'password': string, 'email': string, 'serveraddress' : string}`
+   encoded (JSON) string with the following structure: 
+   `{"username": "string", "password": "string", "email": "string",
+   "serveraddress" : "string", "auth": ""}`. Notice that `auth` is to be left 
+   empty, `serveraddress` is a domain/ip without protocol, and that double 
+   quotes (instead of single ones) are required.
 
 The current version of the API is v1.15
 
