@@ -106,7 +106,7 @@ unix://[/path/to/socket] to use.
   Get real time events from the server
 
 **docker-exec(1)**
-  Run a command in an active container
+  Run a command in a running container
 
 **docker-export(1)**
   Stream the contents of a container as a tar archive

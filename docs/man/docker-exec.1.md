@@ -2,7 +2,7 @@
 % Docker Community
 % SEPT 2014
 # NAME
-docker-exec - Run a command in an active container
+docker-exec - Run a command in a running container
 
 # SYNOPSIS
 **docker exec**
@@ -13,7 +13,7 @@ docker-exec - Run a command in an active container
 
 # DESCRIPTION
 
-Run a process in an existing container. The existing CONTAINER needs to be active.
+Run a process in a running container. 
 
 # Options
 

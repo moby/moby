@@ -78,7 +78,7 @@ func (d *Daemon) getExecConfig(name string) (*execConfig, error) {
 		return execConfig, nil
 	}
 
-	return nil, fmt.Errorf("No exec '%s' in found in daemon", name)
+	return nil, fmt.Errorf("No such exec instance '%s' found in daemon", name)
 }
 
 func (d *Daemon) unregisterExecCommand(execConfig *execConfig) {
