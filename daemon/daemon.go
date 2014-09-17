@@ -695,6 +695,9 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if !config.EnableIptables && !config.InterContainerCommunication {
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
+	if !config.EnableIptables && config.EnableIpMasq {
+		return nil, fmt.Errorf("You specified --iptables=false with --ipmasq=true. IP masquerading uses iptables to function. Please set --ipmasq to false or --iptables to true.")
+	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
@@ -805,6 +808,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		job.SetenvBool("EnableIptables", config.EnableIptables)
 		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
 		job.SetenvBool("EnableIpForward", config.EnableIpForward)
+		job.SetenvBool("EnableIpMasq", config.EnableIpMasq)
 		job.Setenv("BridgeIface", config.BridgeIface)
 		job.Setenv("BridgeIP", config.BridgeIP)
 		job.Setenv("DefaultBindingIP", config.DefaultIp.String())

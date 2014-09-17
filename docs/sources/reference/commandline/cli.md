@@ -67,6 +67,7 @@ expect an integer, and they can only be specified once.
       --icc=true                                 Enable inter-container communication
       --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
+      --ip-masq=true                             Enable IP masquerading for bridge's IP range.
       --iptables=true                            Enable Docker's addition of iptables rules
       --mtu=0                                    Set the containers network MTU
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
@@ -109,6 +110,10 @@ the `-H` flag for the client.
     $ export DOCKER_HOST="tcp://0.0.0.0:2375"
     $ sudo docker ps
     # both are equal
+
+IP masquerading uses address translation to allow containers without a public IP to talk
+to other machines on the Internet. This may interfere with some network topologies and
+can be disabled with --ip-masq=false.
 
 To run the daemon with [systemd socket activation](
 http://0pointer.de/blog/projects/socket-activation.html), use
