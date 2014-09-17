@@ -9,11 +9,13 @@ package builder
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/log"
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -176,9 +178,11 @@ func run(b *Builder, args []string, attributes map[string]bool) error {
 		args = append([]string{"/bin/sh", "-c"}, args[0])
 	}
 
-	args = append([]string{b.image}, args...)
+	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
+	runCmd.SetOutput(ioutil.Discard)
+	runCmd.Usage = nil
 
-	config, _, _, err := runconfig.Parse(args, nil)
+	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...), nil)
 	if err != nil {
 		return err
 	}

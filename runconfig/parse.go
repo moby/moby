@@ -2,7 +2,6 @@ package runconfig
 
 import (
 	"fmt"
-	"io/ioutil"
 	"path"
 	"strconv"
 	"strings"
@@ -25,20 +24,7 @@ var (
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
 
-// FIXME Only used in tests
-func Parse(args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
-	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
-	cmd.SetOutput(ioutil.Discard)
-	cmd.Usage = nil
-	return parseRun(cmd, args, sysInfo)
-}
-
-// FIXME: this maps the legacy commands.go code. It should be merged with Parse to only expose a single parse function.
-func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
-	return parseRun(cmd, args, sysInfo)
-}
-
-func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
+func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
