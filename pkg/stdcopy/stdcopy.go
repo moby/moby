@@ -29,14 +29,22 @@ type StdWriter struct {
 }
 
 func (w *StdWriter) Write(buf []byte) (n int, err error) {
+	var n1, n2 int
 	if w == nil || w.Writer == nil {
 		return 0, errors.New("Writer not instanciated")
 	}
 	binary.BigEndian.PutUint32(w.prefix[4:], uint32(len(buf)))
-	buf = append(w.prefix[:], buf...)
-
-	n, err = w.Writer.Write(buf)
-	return n - StdWriterPrefixLen, err
+	n1, err = w.Writer.Write(w.prefix[:])
+	if err != nil {
+		n = n1 - StdWriterPrefixLen
+	} else {
+		n2, err = w.Writer.Write(buf)
+		n = n1 + n2 - StdWriterPrefixLen
+	}
+	if n < 0 {
+		n = 0
+	}
+	return
 }
 
 // NewStdWriter instanciates a new Writer.
