@@ -236,7 +236,7 @@ func TestAddEtcToRoot(t *testing.T) {
 	logDone("build - add etc directory to root")
 }
 
-func TestCopySingleFileToRoot(t *testing.T) {
+func TestBuildCopySingleFileToRoot(t *testing.T) {
 	testDirName := "SingleFileToRoot"
 	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
 	buildDirectory, err := ioutil.TempDir("", "test-build-add")
@@ -266,7 +266,7 @@ func TestCopySingleFileToRoot(t *testing.T) {
 }
 
 // Issue #3960: "ADD src ." hangs - adapted for COPY
-func TestCopySingleFileToWorkdir(t *testing.T) {
+func TestBuildCopySingleFileToWorkdir(t *testing.T) {
 	testDirName := "SingleFileToWorkdir"
 	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
 	buildDirectory, err := ioutil.TempDir("", "test-build-add")
@@ -311,7 +311,7 @@ func TestCopySingleFileToWorkdir(t *testing.T) {
 	logDone("build - copy single file to workdir")
 }
 
-func TestCopySingleFileToExistDir(t *testing.T) {
+func TestBuildCopySingleFileToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -322,10 +322,10 @@ func TestCopySingleFileToExistDir(t *testing.T) {
 
 	deleteImages("testcopyimg")
 
-	logDone("build - add single file to existing dir")
+	logDone("build - copy single file to existing dir")
 }
 
-func TestCopySingleFileToNonExistDir(t *testing.T) {
+func TestBuildCopySingleFileToNonExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToNonExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -339,7 +339,7 @@ func TestCopySingleFileToNonExistDir(t *testing.T) {
 	logDone("build - copy single file to non-existing dir")
 }
 
-func TestCopyDirContentToRoot(t *testing.T) {
+func TestBuildCopyDirContentToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -353,7 +353,7 @@ func TestCopyDirContentToRoot(t *testing.T) {
 	logDone("build - copy directory contents to root")
 }
 
-func TestCopyDirContentToExistDir(t *testing.T) {
+func TestBuildCopyDirContentToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -367,7 +367,7 @@ func TestCopyDirContentToExistDir(t *testing.T) {
 	logDone("build - copy directory contents to existing dir")
 }
 
-func TestCopyWholeDirToRoot(t *testing.T) {
+func TestBuildCopyWholeDirToRoot(t *testing.T) {
 	testDirName := "WholeDirToRoot"
 	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
 	buildDirectory, err := ioutil.TempDir("", "test-build-add")
@@ -400,7 +400,7 @@ func TestCopyWholeDirToRoot(t *testing.T) {
 	logDone("build - copy whole directory to root")
 }
 
-func TestCopyEtcToRoot(t *testing.T) {
+func TestBuildCopyEtcToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "EtcToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -413,7 +413,7 @@ func TestCopyEtcToRoot(t *testing.T) {
 	logDone("build - copy etc directory to root")
 }
 
-func TestCopyDisallowRemote(t *testing.T) {
+func TestBuildCopyDisallowRemote(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DisallowRemote")
 	buildCmd.Dir = buildDirectory
