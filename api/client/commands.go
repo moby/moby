@@ -24,6 +24,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/archive"
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
@@ -75,11 +76,33 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"#no-cache", "-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
+	dump := cmd.Bool([]string{"#-dump"}, false, "Display the parsed representation of your Dockerfile during build")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
 	if cmd.NArg() != 1 {
 		cmd.Usage()
+		return nil
+	}
+
+	if *dump {
+		var reader io.Reader
+
+		if cmd.Arg(0) == "-" {
+			reader = os.Stdin
+		}
+
+		reader, err := os.Open(filepath.Join(cmd.Arg(0), "Dockerfile"))
+		if err != nil {
+			return err
+		}
+
+		node, err := parser.Parse(reader)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(node.Dump())
 		return nil
 	}
 
