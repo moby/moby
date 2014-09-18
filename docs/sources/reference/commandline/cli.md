@@ -1333,7 +1333,7 @@ Providing a maximum restart limit is only valid for the ** on-failure ** policy.
 
     Save an image(s) to a tar archive (streamed to STDOUT by default)
 
-      -o, --output=""    Write to an file, instead of STDOUT
+      -o, --output=""    Write to a file, instead of STDOUT
 
 Produces a tarred repository to the standard output stream.
 Contains all parent layers, and all tags + versions, or specified repo:tag, for
