@@ -322,7 +322,7 @@ func TestCopySingleFileToExistDir(t *testing.T) {
 
 	deleteImages("testcopyimg")
 
-	logDone("build - add single file to existing dir")
+	logDone("build - copy single file to existing dir")
 }
 
 func TestCopySingleFileToNonExistDir(t *testing.T) {
