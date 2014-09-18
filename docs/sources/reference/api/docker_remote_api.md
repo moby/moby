@@ -37,6 +37,12 @@ You can still call an old version of the API using
 
 ### What's new
 
+`POST /build`
+`GET /events`
+
+**New!**
+Now has header: `Content-Type: application/x-json-stream`.
+
 ## v1.14
 
 ### Full Documentation
@@ -77,7 +83,7 @@ the `tag` parameter at the same time will return an error.
 The `HostConfig.Links` field is now filled correctly
 
 **New!**
-`Sockets` parameter added to the `/info` endpoint listing all the sockets the 
+`Sockets` parameter added to the `/info` endpoint listing all the sockets the
 daemon is configured to listen on.
 
 `POST /containers/(name)/start`
@@ -405,7 +411,7 @@ Builder (/build):
    intermediary buffers
  - Simpler, less memory usage, less disk usage and faster
 
-> **Warning**: 
+> **Warning**:
 > The /build improvements are not reverse-compatible. Pre 1.3 clients will
 > break on /build.
 

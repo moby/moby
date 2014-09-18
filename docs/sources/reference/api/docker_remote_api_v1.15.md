@@ -1093,7 +1093,7 @@ Build an image from Dockerfile via stdin
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: application/x-json-stream
 
         {"stream":"Step 1..."}
         {"stream":"..."}
@@ -1328,7 +1328,7 @@ via polling (using since)
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/json
+        Content-Type: application/x-json-stream
 
         {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
         {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}

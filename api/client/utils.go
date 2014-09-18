@@ -167,7 +167,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
 	}
 
-	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
+	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") || api.MatchesContentType(resp.Header.Get("Content-Type"), "application/x-json-stream") {
 		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.terminalFd, cli.isTerminal)
 	}
 	if stdout != nil || stderr != nil {
