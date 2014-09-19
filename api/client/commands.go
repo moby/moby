@@ -69,6 +69,27 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdLinks(args ...string) error {
+	description := "Manage Docker hosts\n\nCommands:\n"
+	for _, command := range [][]string{
+		{"add", "Add a Link"},
+	} {
+		description += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
+	}
+
+	cmd := cli.Subcmd("links", "[COMMAND]", description)
+
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+	}
+
+	return nil
+}
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "PATH | URL | -", "Build a new image from the source code at PATH")
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
