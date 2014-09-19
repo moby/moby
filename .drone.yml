@@ -1,12 +1,9 @@
 image: dockercore/docker
 env:
-  - GOPATH=/var/cache/drone:$DRONE_BUILD_DIR/vendor
+  - AUTO_GOPATH=1
   - DOCKER_GRAPHDRIVER=vfs
   - DOCKER_EXECDRIVER=native
 script:
-# Setup the go environment.
-  - mkdir -p /var/cache/drone/src/github.com/docker
-  - ln -s $DRONE_BUILD_DIR /var/cache/drone/src/github.com/docker
 # Setup the DockerInDocker environment.
   - hack/dind
 # Validate and test.
