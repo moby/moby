@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestGetEventsLineDelim(t *testing.T) {
+func TestEventsApiGetLineDelim(t *testing.T) {
 	name := "testimageevents"
 	defer deleteImages(name)
 	_, err := buildImage(name,
