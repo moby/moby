@@ -59,7 +59,7 @@ func TestBuildSixtySteps(t *testing.T) {
 	logDone("build - build an image with sixty build steps")
 }
 
-func TestAddSingleFileToRoot(t *testing.T) {
+func TestBuildAddSingleFileToRoot(t *testing.T) {
 	testDirName := "SingleFileToRoot"
 	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
 	buildDirectory, err := ioutil.TempDir("", "test-build-add")
@@ -89,7 +89,7 @@ func TestAddSingleFileToRoot(t *testing.T) {
 }
 
 // Issue #3960: "ADD src ." hangs
-func TestAddSingleFileToWorkdir(t *testing.T) {
+func TestBuildAddSingleFileToWorkdir(t *testing.T) {
 	testDirName := "SingleFileToWorkdir"
 	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
 	buildDirectory, err := ioutil.TempDir("", "test-build-add")
@@ -134,7 +134,7 @@ func TestAddSingleFileToWorkdir(t *testing.T) {
 	logDone("build - add single file to workdir")
 }
 
-func TestAddSingleFileToExistDir(t *testing.T) {
+func TestBuildAddSingleFileToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "SingleFileToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -148,7 +148,7 @@ func TestAddSingleFileToExistDir(t *testing.T) {
 	logDone("build - add single file to existing dir")
 }
 
-func TestMultipleFiles(t *testing.T) {
+func TestBuildCopyAddMultipleFiles(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "MultipleFiles")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -162,7 +162,7 @@ func TestMultipleFiles(t *testing.T) {
 	logDone("build - mulitple file copy/add tests")
 }
 
-func TestAddMultipleFilesToFile(t *testing.T) {
+func TestBuildAddMultipleFilesToFile(t *testing.T) {
 	name := "testaddmultiplefilestofile"
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
@@ -185,7 +185,7 @@ func TestAddMultipleFilesToFile(t *testing.T) {
 	logDone("build - multiple add files to file")
 }
 
-func TestCopyMultipleFilesToFile(t *testing.T) {
+func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 	name := "testcopymultiplefilestofile"
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
@@ -208,7 +208,7 @@ func TestCopyMultipleFilesToFile(t *testing.T) {
 	logDone("build - multiple copy files to file")
 }
 
-func TestAddSingleFileToNonExistDir(t *testing.T) {
+func TestBuildAddSingleFileToNonExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "SingleFileToNonExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -222,7 +222,7 @@ func TestAddSingleFileToNonExistDir(t *testing.T) {
 	logDone("build - add single file to non-existing dir")
 }
 
-func TestAddDirContentToRoot(t *testing.T) {
+func TestBuildAddDirContentToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "DirContentToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -236,7 +236,7 @@ func TestAddDirContentToRoot(t *testing.T) {
 	logDone("build - add directory contents to root")
 }
 
-func TestAddDirContentToExistDir(t *testing.T) {
+func TestBuildAddDirContentToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "DirContentToExistDir")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -250,7 +250,7 @@ func TestAddDirContentToExistDir(t *testing.T) {
 	logDone("build - add directory contents to existing dir")
 }
 
-func TestAddWholeDirToRoot(t *testing.T) {
+func TestBuildAddWholeDirToRoot(t *testing.T) {
 	testDirName := "WholeDirToRoot"
 	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
 	buildDirectory, err := ioutil.TempDir("", "test-build-add")
@@ -283,7 +283,7 @@ func TestAddWholeDirToRoot(t *testing.T) {
 	logDone("build - add whole directory to root")
 }
 
-func TestAddEtcToRoot(t *testing.T) {
+func TestBuildAddEtcToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "EtcToRoot")
 	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
@@ -1384,11 +1384,11 @@ func testContextTar(t *testing.T, compression archive.Compression) {
 	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", compression))
 }
 
-func TestContextTarGzip(t *testing.T) {
+func TestBuildContextTarGzip(t *testing.T) {
 	testContextTar(t, archive.Gzip)
 }
 
-func TestContextTarNoCompression(t *testing.T) {
+func TestBuildContextTarNoCompression(t *testing.T) {
 	testContextTar(t, archive.Uncompressed)
 }
 
@@ -1747,7 +1747,7 @@ docker.com>"
 	logDone("build - validate escaping whitespace")
 }
 
-func TestDockerignore(t *testing.T) {
+func TestBuildDockerignore(t *testing.T) {
 	name := "testbuilddockerignore"
 	defer deleteImages(name)
 	dockerfile := `
@@ -1778,7 +1778,7 @@ func TestDockerignore(t *testing.T) {
 	logDone("build - test .dockerignore")
 }
 
-func TestDockerignoringDockerfile(t *testing.T) {
+func TestBuildDockerignoringDockerfile(t *testing.T) {
 	name := "testbuilddockerignoredockerfile"
 	defer deleteImages(name)
 	dockerfile := `
@@ -1797,7 +1797,7 @@ func TestDockerignoringDockerfile(t *testing.T) {
 	logDone("build - test .dockerignore of Dockerfile")
 }
 
-func TestDockerignoringWholeDir(t *testing.T) {
+func TestBuildDockerignoringWholeDir(t *testing.T) {
 	name := "testbuilddockerignorewholedir"
 	defer deleteImages(name)
 	dockerfile := `
