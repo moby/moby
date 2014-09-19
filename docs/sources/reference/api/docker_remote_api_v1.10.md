@@ -1243,6 +1243,8 @@ Status Codes:
 Get a tarball containing all images and metadata for the repository
     specified by `name`.
 
+See the [image tarball format](#image-tarball-format) for more details.
+
 **Example request**
 
         GET /images/ubuntu/get
@@ -1265,6 +1267,8 @@ Status Codes:
 
 Load a set of images and tags into the docker repository.
 
+See the [image tarball format](#image-tarball-format) for more details.
+
 **Example request**
 
         POST /images/load
@@ -1279,6 +1283,27 @@ Status Codes:
 
 -   **200** – no error
 -   **500** – server error
+
+### Image tarball format
+
+An image tarball contains one directory per image layer (named using its long ID),
+each containing three files:
+
+1. `VERSION`: currently `1.0` - the file format version
+2. `json`: detailed layer information, similar to `docker inspect layer_id`
+3. `layer.tar`: A tarfile containing the filesystem changes in this layer
+
+The `layer.tar` file will contain `aufs` style `.wh..wh.aufs` files and directories
+for storing attribute changes and deletions.
+
+If the tarball defines a repository, there will also be a `repositories` file at
+the root that contains a list of repository and tag names mapped to layer IDs.
+
+```
+{"hello-world":
+    {"latest":"565a9d68a73f6706862bfe8409a7f659776d4d60a8d096eb4a3cbce6999cc2a1"}
+}
+```
 
 # 3. Going further
 
