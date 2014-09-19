@@ -1,0 +1,15 @@
+image: dockercore/docker
+env:
+  - GOPATH=/var/cache/drone:$DRONE_BUILD_DIR/vendor
+  - DOCKER_GRAPHDRIVER=vfs
+  - DOCKER_EXECDRIVER=native
+script:
+# Setup the go environment.
+  - mkdir -p /var/cache/drone/src/github.com/docker
+  - ln -s $DRONE_BUILD_DIR /var/cache/drone/src/github.com/docker
+# Setup the DockerInDocker environment.
+  - hack/dind
+# Validate and test.
+  - hack/make.sh validate-dco validate-gofmt
+  - rm integration-cli/docker_cli_daemon_test.go  #FIXME: This test currently fails inside drone.
+  - hack/make.sh binary cross test-unit test-integration-cli test-integration
