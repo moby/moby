@@ -2,7 +2,7 @@
 % Docker Community
 % SEPT 2014
 # NAME
-docker-exec - Run a command in an existing container
+docker-exec - Run a command in an active container
 
 # SYNOPSIS
 **docker exec**
