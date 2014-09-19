@@ -19,7 +19,7 @@ func init() {
 }
 
 var (
-	flVersion     = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
+	flVersion     = flag.Bool([]string{"V", "-version"}, false, "Print version information and quit")
 	flDaemon      = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug       = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode\nuse '' (the empty string) to disable setting of a group")

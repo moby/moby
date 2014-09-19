@@ -19,6 +19,10 @@ func HostListVar(values *[]string, names []string, usage string) {
 	Var(Filter((*List)(values), api.ValidateHost), names, usage)
 }
 
+func (f *FlagSet) HostListVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), api.ValidateHost), names, usage)
+}
+
 // IPListVar defines a "list of IP addresses" flag with specified name,
 // default value, and usage string. The argument p points to a list variable
 // in which to store the value of the flag.
@@ -26,11 +30,19 @@ func IPListVar(values *[]string, names []string, usage string) {
 	Var(Filter((*List)(values), validateIPAddress), names, usage)
 }
 
+func (f *FlagSet) IPListVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), validateIPAddress), names, usage)
+}
+
 // DnsSearchList defines a "list of DNS search domains" flag with specified name,
 // default value, and usage string. The argument p points to a list variable
 // in which to store the value of the flag.
 func DnsSearchListVar(values *[]string, names []string, usage string) {
 	Var(Filter((*List)(values), validateDnsSearch), names, usage)
+}
+
+func (f *FlagSet) DnsSearchListVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), validateDnsSearch), names, usage)
 }
 
 // PathPairListVar defines a "list of path pairs" flag with specified name,
@@ -43,6 +55,10 @@ func PathPairListVar(values *[]string, names []string, usage string) {
 	Var(Filter((*List)(values), validatePathPair), names, usage)
 }
 
+func (f *FlagSet) PathPairListVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), validatePathPair), names, usage)
+}
+
 // PathPairSetVar defines a "set of unique path pairs" flag with specified name,
 // default value, and usage string. The argument p points to a map variable
 // in which to store the value of the flag.
@@ -51,6 +67,10 @@ func PathPairListVar(values *[]string, names []string, usage string) {
 // are valid filesystem paths.
 func PathPairSetVar(values *map[string]struct{}, names []string, usage string) {
 	Var(Filter((*StringSet)(values), validatePathPair), names, usage)
+}
+
+func (f *FlagSet) PathPairSetVar(values *map[string]struct{}, names []string, usage string) {
+	f.Var(Filter((*StringSet)(values), validatePathPair), names, usage)
 }
 
 // NamePairList defines a "set of unique name pairs" flag with specified name,
@@ -62,6 +82,10 @@ func NamePairListVar(values *[]string, names []string, usage string) {
 	Var(Filter((*List)(values), validateNamePair), names, usage)
 }
 
+func (f *FlagSet) NamePairListVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), validateNamePair), names, usage)
+}
+
 // EnvVar defines a "environment" flag with specified name,
 // default value, and usage string. The argument p points to a list variable
 // in which to store the value of the flag.
@@ -71,6 +95,10 @@ func EnvVar(values *[]string, names []string, usage string) {
 	Var(Filter((*List)(values), validateEnv), names, usage)
 }
 
+func (f *FlagSet) EnvVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), validateEnv), names, usage)
+}
+
 // StreamSetVar defines a "set of unique stream names" flag with specified name,
 // default value, and usage string. The argument p points to a map variable
 // in which to store the value of the flag.
@@ -78,6 +106,10 @@ func EnvVar(values *[]string, names []string, usage string) {
 // A stream name is either "stdin", "stdout" or "stderr" (case insensitive).
 func StreamSetVar(values *map[string]struct{}, names []string, usage string) {
 	Var(Filter((*StringSet)(values), validateStreamName), names, usage)
+}
+
+func (f *FlagSet) StreamSetVar(values *map[string]struct{}, names []string, usage string) {
+	f.Var(Filter((*StringSet)(values), validateStreamName), names, usage)
 }
 
 // Validators

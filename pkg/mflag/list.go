@@ -11,6 +11,10 @@ func ListVar(values *[]string, names []string, usage string) {
 	Var((*List)(values), names, usage)
 }
 
+func (f *FlagSet) ListVar(values *[]string, names []string, usage string) {
+	f.Var((*List)(values), names, usage)
+}
+
 // Set is a list of strings which implements the
 // Value interface for command-line parsing.
 type List []string
