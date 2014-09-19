@@ -39,6 +39,17 @@ func newPortAllocationJob(eng *engine.Engine, port int) (job *engine.Job) {
 	return
 }
 
+func newPortAllocationJobWithInvalidHostIP(eng *engine.Engine, port int) (job *engine.Job) {
+	strPort := strconv.Itoa(port)
+
+	job = eng.Job("allocate_port", "container_id")
+	job.Setenv("HostIP", "localhost")
+	job.Setenv("HostPort", strPort)
+	job.Setenv("Proto", "tcp")
+	job.Setenv("ContainerPort", strPort)
+	return
+}
+
 func TestAllocatePortDetection(t *testing.T) {
 	eng := engine.New()
 	eng.Logging = false
@@ -64,5 +75,30 @@ func TestAllocatePortDetection(t *testing.T) {
 	}
 	if res := AllocatePort(job); res == engine.StatusOK {
 		t.Fatal("Duplicate port allocation granted by AllocatePort")
+	}
+}
+
+func TestHostnameFormatChecking(t *testing.T) {
+	eng := engine.New()
+	eng.Logging = false
+
+	freePort := findFreePort(t)
+
+	// Init driver
+	job := eng.Job("initdriver")
+	if res := InitDriver(job); res != engine.StatusOK {
+		t.Fatal("Failed to initialize network driver")
+	}
+
+	// Allocate interface
+	job = eng.Job("allocate_interface", "container_id")
+	if res := Allocate(job); res != engine.StatusOK {
+		t.Fatal("Failed to allocate network interface")
+	}
+
+	// Allocate port with invalid HostIP, expect failure with Bad Request http status
+	job = newPortAllocationJobWithInvalidHostIP(eng, freePort)
+	if res := AllocatePort(job); res == engine.StatusOK {
+		t.Fatal("Failed to check invalid HostIP")
 	}
 }
