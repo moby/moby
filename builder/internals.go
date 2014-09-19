@@ -197,6 +197,16 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		}
 	}
 
+	if !filepath.IsAbs(destPath) {
+		// Support relative COPY destinations
+		destPath = filepath.Join("/", b.Config.WorkingDir, destPath)
+
+		// Preserve trailing slash
+		if strings.HasSuffix(dest, "/") {
+			destPath += "/"
+		}
+	}
+
 	if err := b.checkPathForAddition(origPath); err != nil {
 		return err
 	}
