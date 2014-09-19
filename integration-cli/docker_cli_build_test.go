@@ -148,6 +148,66 @@ func TestAddSingleFileToExistDir(t *testing.T) {
 	logDone("build - add single file to existing dir")
 }
 
+func TestMultipleFiles(t *testing.T) {
+	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
+	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "MultipleFiles")
+	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
+
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to build the image")
+	}
+
+	deleteImages("testaddimg")
+
+	logDone("build - mulitple file copy/add tests")
+}
+
+func TestAddMultipleFilesToFile(t *testing.T) {
+	name := "testaddmultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	ADD file1.txt file2.txt test
+        `,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file")
+}
+
+func TestCopyMultipleFilesToFile(t *testing.T) {
+	name := "testcopymultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	COPY file1.txt file2.txt test
+        `,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple copy files to file")
+}
+
 func TestAddSingleFileToNonExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
 	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "SingleFileToNonExistDir")
@@ -1057,6 +1117,35 @@ func TestBuildADDLocalFileWithCache(t *testing.T) {
 		t.Fatal("The cache should have been used but hasn't.")
 	}
 	logDone("build - add local file with cache")
+}
+
+func TestBuildADDMultipleLocalFileWithCache(t *testing.T) {
+	name := "testbuildaddmultiplelocalfilewithcache"
+	defer deleteImages(name)
+	dockerfile := `
+		FROM busybox
+        MAINTAINER dockerio
+        ADD foo Dockerfile /usr/lib/bla/
+		RUN [ "$(cat /usr/lib/bla/foo)" = "hello" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+	logDone("build - add multiple local files with cache")
 }
 
 func TestBuildADDLocalFileWithoutCache(t *testing.T) {
