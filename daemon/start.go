@@ -34,6 +34,7 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 		}
 	}
 	if err := container.Start(); err != nil {
+		container.LogEvent("die")
 		return job.Errorf("Cannot start container %s: %s", name, err)
 	}
 
