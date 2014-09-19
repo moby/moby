@@ -198,6 +198,7 @@ func TestSaveMultipleNames(t *testing.T) {
 // Issue #6722 #5892 ensure directories are included in changes
 func TestSaveDirectoryPermissions(t *testing.T) {
 	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
+	layerEntriesAUFS := []string{"./", ".wh..wh.aufs", ".wh..wh.orph/", ".wh..wh.plnk/", "opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
 
 	name := "save-directory-permissions"
 	tmpDir, err := ioutil.TempDir("", "save-layers-with-directories")
@@ -245,8 +246,9 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 				t.Fatalf("encountered error while listing tar entries: %s", err)
 			}
 
-			if reflect.DeepEqual(entries, layerEntries) {
+			if reflect.DeepEqual(entries, layerEntries) || reflect.DeepEqual(entries, layerEntriesAUFS) {
 				found = true
+				break
 			}
 		}
 	}
