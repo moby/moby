@@ -34,7 +34,7 @@ VirtualBox VM, Docker itself, and the Boot2Docker management tool.
 
 	     $ boot2docker init
 	     $ boot2docker start
-	     $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
+	     $ $(boot2docker shellinit)
 
 A terminal window will open and you'll see the virtual machine starting up. 
 Once you have an initialized virtual machine, you can control it with `boot2docker stop`
