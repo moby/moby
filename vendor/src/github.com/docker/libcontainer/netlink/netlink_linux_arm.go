@@ -1,9 +1,5 @@
 package netlink
 
-import (
-	"math/rand"
-)
-
-func randIfrDataByte() uint8 {
-	return uint8(rand.Intn(255))
+func ifrDataByte(b byte) uint8 {
+	return uint8(b)
 }
