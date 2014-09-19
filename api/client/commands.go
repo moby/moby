@@ -46,6 +46,13 @@ const (
 )
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
+	if len(args) > 1 {
+		method, exists := cli.getMethod(args[:2]...)
+		if exists {
+			method("--help")
+			return nil
+		}
+	}
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
