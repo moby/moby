@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestImageRemoveWithContainerFails(t *testing.T) {
+func TestRmiWithContainerFails(t *testing.T) {
 	errSubstr := "is using it"
 
 	// create a container
@@ -38,7 +38,7 @@ func TestImageRemoveWithContainerFails(t *testing.T) {
 	logDone("rmi- container using image while rmi, should not remove image name")
 }
 
-func TestImageTagRemove(t *testing.T) {
+func TestRmiTag(t *testing.T) {
 	imagesBefore, _, _ := cmd(t, "images", "-a")
 	cmd(t, "tag", "busybox", "utest:tag1")
 	cmd(t, "tag", "busybox", "utest/docker:tag2")
