@@ -43,11 +43,24 @@ func Build(path, IP, hostname, domainname string, extraContent *map[string]strin
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
 }
 
+func Add(path, IP, hostname string) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path, append(old, []byte(hostname+" "+IP+"\n")...), 0644)
+}
+
 func Update(path, IP, hostname string) error {
 	old, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)", regexp.QuoteMeta(hostname)))
+
+	if !re.Match(old) {
+		return Add(path, IP, hostname)
+	}
+
 	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2")), 0644)
 }

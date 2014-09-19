@@ -31,5 +31,7 @@ func (d *Daemon) linkAddJob(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
+	child.UpdateParentsHosts()
+
 	return engine.StatusOK
 }

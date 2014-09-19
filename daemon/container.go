@@ -902,7 +902,7 @@ func (container *Container) UpdateParentsHosts() error {
 
 	for _, c := range parents {
 		if !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
-			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name); err != nil {
+			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.daemon.AliasFor(c, container)); err != nil {
 				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
 			}
 		}
