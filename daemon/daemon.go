@@ -94,6 +94,11 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 			return err
 		}
 	}
+
+	if err := daemon.RegisterLinkJobs(eng); err != nil {
+		return err
+	}
+
 	if err := daemon.Repositories().Install(eng); err != nil {
 		return err
 	}

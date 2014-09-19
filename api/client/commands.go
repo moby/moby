@@ -90,6 +90,36 @@ func (cli *DockerCli) CmdLinks(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdLinksAdd(args ...string) error {
+	cmd := cli.Subcmd("add", "[parent] [child] [alias]", "Create a new link from parent->child with an alias")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() < 3 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("parent", cmd.Arg(0))
+	v.Set("child", cmd.Arg(1))
+	v.Set("alias", cmd.Arg(2))
+
+	_, _, err := cli.call(
+		"POST",
+		"/links/add?"+v.Encode(),
+		nil,
+		false,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "PATH | URL | -", "Build a new image from the source code at PATH")
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")

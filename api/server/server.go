@@ -453,6 +453,22 @@ func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseW
 	return nil
 }
 
+func postLinksAdd(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	job := eng.Job("link_add")
+	job.Args = []string{r.Form.Get("parent"), r.Form.Get("child"), r.Form.Get("alias")}
+	if err := job.Run(); err != nil {
+		w.WriteHeader(http.StatusConflict)
+		return err
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	return nil
+}
+
 func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1271,6 +1287,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/load":                  postImagesLoad,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
+			"/links/add":                    postLinksAdd,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/pause":   postContainersPause,
