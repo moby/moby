@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRemoveContainerWithRemovedVolume(t *testing.T) {
+func TestRmContainerWithRemovedVolume(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "losemyvolumes", "-v", "/tmp/testing:/test", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -27,7 +27,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	logDone("rm - removed volume")
 }
 
-func TestRemoveContainerWithVolume(t *testing.T) {
+func TestRmContainerWithVolume(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "foo", "-v", "/srv", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -43,7 +43,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	logDone("rm - volume")
 }
 
-func TestRemoveRunningContainer(t *testing.T) {
+func TestRmRunningContainer(t *testing.T) {
 	createRunningContainer(t, "foo")
 
 	// Test cannot remove running container
@@ -57,7 +57,7 @@ func TestRemoveRunningContainer(t *testing.T) {
 	logDone("rm - running container")
 }
 
-func TestForceRemoveRunningContainer(t *testing.T) {
+func TestRmForceRemoveRunningContainer(t *testing.T) {
 	createRunningContainer(t, "foo")
 
 	// Stop then remove with -s
@@ -71,7 +71,7 @@ func TestForceRemoveRunningContainer(t *testing.T) {
 	logDone("rm - running container with --force=true")
 }
 
-func TestContainerOrphaning(t *testing.T) {
+func TestRmContainerOrphaning(t *testing.T) {
 	dockerfile1 := `FROM busybox:latest
 	ENTRYPOINT ["/bin/true"]`
 	img := "test-container-orphaning"
@@ -110,7 +110,7 @@ func TestContainerOrphaning(t *testing.T) {
 	logDone("rm - container orphaning")
 }
 
-func TestDeleteTagWithExistingContainers(t *testing.T) {
+func TestRmTagWithExistingContainers(t *testing.T) {
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"

@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/iptables"
 )
 
-func TestEtcHostsRegularFile(t *testing.T) {
+func TestLinksEtcHostsRegularFile(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
@@ -25,7 +25,7 @@ func TestEtcHostsRegularFile(t *testing.T) {
 	logDone("link - /etc/hosts is a regular file")
 }
 
-func TestEtcHostsContentMatch(t *testing.T) {
+func TestLinksEtcHostsContentMatch(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
@@ -44,7 +44,7 @@ func TestEtcHostsContentMatch(t *testing.T) {
 	logDone("link - /etc/hosts matches hosts copy")
 }
 
-func TestPingUnlinkedContainers(t *testing.T) {
+func TestLinksPingUnlinkedContainers(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	exitCode, err := runCommand(runCmd)
 
@@ -57,7 +57,7 @@ func TestPingUnlinkedContainers(t *testing.T) {
 	logDone("links - ping unlinked container")
 }
 
-func TestPingLinkedContainers(t *testing.T) {
+func TestLinksPingLinkedContainers(t *testing.T) {
 	var out string
 	out, _, _ = cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	idA := stripTrailingCharacters(out)
@@ -71,7 +71,7 @@ func TestPingLinkedContainers(t *testing.T) {
 	logDone("links - ping linked container")
 }
 
-func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
+func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	cmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
 
@@ -96,7 +96,7 @@ func TestIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	logDone("link - verify iptables when link and unlink")
 }
 
-func TestInspectLinksStarted(t *testing.T) {
+func TestLinksInspectLinksStarted(t *testing.T) {
 	var (
 		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
 		result   []string
@@ -125,7 +125,7 @@ func TestInspectLinksStarted(t *testing.T) {
 	logDone("link - links in started container inspect")
 }
 
-func TestInspectLinksStopped(t *testing.T) {
+func TestLinksInspectLinksStopped(t *testing.T) {
 	var (
 		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
 		result   []string

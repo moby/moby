@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestCLIGetEventsUntag(t *testing.T) {
+func TestEventsUntag(t *testing.T) {
 	out, _, _ := cmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	cmd(t, "tag", image, "utest:tag1")
@@ -31,7 +31,7 @@ func TestCLIGetEventsUntag(t *testing.T) {
 	logDone("events - untags are logged")
 }
 
-func TestCLIGetEventsPause(t *testing.T) {
+func TestEventsPause(t *testing.T) {
 	out, _, _ := cmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	cmd(t, "run", "-d", "--name", "testeventpause", image, "sleep", "2")
@@ -57,7 +57,7 @@ func TestCLIGetEventsPause(t *testing.T) {
 	logDone("events - pause/unpause is logged")
 }
 
-func TestCLILimitEvents(t *testing.T) {
+func TestEventsLimit(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		cmd(t, "run", "busybox", "echo", strconv.Itoa(i))
 	}
@@ -71,7 +71,7 @@ func TestCLILimitEvents(t *testing.T) {
 	logDone("events - limited to 64 entries")
 }
 
-func TestCLIGetEventsContainerEvents(t *testing.T) {
+func TestEventsContainerEvents(t *testing.T) {
 	cmd(t, "run", "--rm", "busybox", "true")
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
@@ -103,7 +103,7 @@ func TestCLIGetEventsContainerEvents(t *testing.T) {
 	logDone("events - container create, start, die, destroy is logged")
 }
 
-func TestCLIGetEventsImageUntagDelete(t *testing.T) {
+func TestEventsImageUntagDelete(t *testing.T) {
 	name := "testimageevents"
 	defer deleteImages(name)
 	_, err := buildImage(name,

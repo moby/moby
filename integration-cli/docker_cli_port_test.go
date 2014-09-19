@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestListPorts(t *testing.T) {
+func TestPortList(t *testing.T) {
 	// one port
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "9876:80", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)

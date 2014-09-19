@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestListContainers(t *testing.T) {
+func TestPsListContainers(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
@@ -201,7 +201,7 @@ func assertContainerList(out string, expected []string) bool {
 	return true
 }
 
-func TestListContainersSize(t *testing.T) {
+func TestPsListContainersSize(t *testing.T) {
 	name := "test_size"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
 	out, _, err := runCommandWithOutput(runCmd)

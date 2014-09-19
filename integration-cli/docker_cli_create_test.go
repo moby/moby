@@ -9,7 +9,7 @@ import (
 )
 
 // Make sure we can create a simple container with some args
-func TestDockerCreateArgs(t *testing.T) {
+func TestCreateArgs(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
@@ -57,7 +57,7 @@ func TestDockerCreateArgs(t *testing.T) {
 }
 
 // Make sure we can set hostconfig options too
-func TestDockerCreateHostConfig(t *testing.T) {
+func TestCreateHostConfig(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "create", "-P", "busybox", "echo")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
@@ -95,7 +95,7 @@ func TestDockerCreateHostConfig(t *testing.T) {
 }
 
 // "test123" should be printed by docker create + start
-func TestDockerCreateEchoStdout(t *testing.T) {
+func TestCreateEchoStdout(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "echo", "test123")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)

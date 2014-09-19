@@ -11,7 +11,7 @@ import (
 
 const attachWait = 5 * time.Second
 
-func TestMultipleAttachRestart(t *testing.T) {
+func TestAttachMultipleAndRestart(t *testing.T) {
 	defer deleteAllContainers()
 
 	endGroup := &sync.WaitGroup{}
