@@ -55,6 +55,9 @@ unix://[/path/to/socket] to use.
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
 
+**--ip-masq**=*true*|*false*
+  Enable IP masquerading for bridge's IP range. Default is true.
+
 **--iptables**=*true*|*false*
   Disable Docker's addition of iptables rules. Default is true.
 
