@@ -58,6 +58,8 @@ func sameFsTimeSpec(a, b syscall.Timespec) bool {
 		(a.Nsec == b.Nsec || a.Nsec == 0 || b.Nsec == 0)
 }
 
+// Changes walks the path rw and determines changes for the files in the path,
+// with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
 	var changes []Change
 	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
@@ -340,6 +342,7 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	return newRoot.Changes(oldRoot), nil
 }
 
+// ChangesSize calculates the size in bytes of the provided changes, based on newDir.
 func ChangesSize(newDir string, changes []Change) int64 {
 	var size int64
 	for _, change := range changes {
@@ -362,6 +365,7 @@ func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
+// ExportChanges produces an Archive from the provided changes, relative to dir.
 func ExportChanges(dir string, changes []Change) (Archive, error) {
 	reader, writer := io.Pipe()
 	tw := tar.NewWriter(writer)
