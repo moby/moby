@@ -122,7 +122,7 @@ func TestCommitWithHostBindMount(t *testing.T) {
 	cmd = exec.Command(dockerBinary, "commit", "bind-commit", "bindtest")
 	imageId, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(imageId, err)
 	}
 	imageId = strings.Trim(imageId, "\r\n")
 

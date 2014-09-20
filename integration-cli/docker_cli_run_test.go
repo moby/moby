@@ -398,16 +398,25 @@ func TestRunVolumesFromInReadWriteMode(t *testing.T) {
 	logDone("run - volumes from as read write mount")
 }
 
-func TestRunVolumesFromInheritsReadOnly(t *testing.T) {
+func TestVolumesFromGetsProperMode(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
-
 	// Expect this "rw" mode to be be ignored since the inheritted volume is "ro"
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
 	if _, err := runCommand(cmd); err == nil {
-		t.Fatal("Expected to inherit read-only volume even when passing in `rw`")
+		t.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--name", "parent2", "-v", "/test:/test:ro", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+	// Expect this to be read-only since both are "ro"
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent2:ro", "busybox", "touch", "/test/file")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
 	}
 
 	deleteAllContainers()
@@ -423,8 +432,8 @@ func TestRunApplyVolumesFromBeforeVolumes(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent", "-v", "/test", "busybox", "cat", "/test/foo")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
 	}
 
 	deleteAllContainers()
