@@ -148,10 +148,10 @@ container at the same time - screen sharing style, or quickly view the
 progress of your daemonized process.
 
 You can detach from the container again (and leave it running) with
-`CTRL-C` (for a quiet exit) or `CTRL-\`
-to get a stacktrace of the Docker client when it quits. When
-you detach from the container's process the exit code will be returned
-to the client.
+`CTRL-p CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a
+SIGKILL to the container, or `CTRL-\` to get a stacktrace of the
+Docker client when it quits. When you detach from the container's 
+process the exit code will be returned to the client.
 
 To stop a container, use `docker stop`.
 
