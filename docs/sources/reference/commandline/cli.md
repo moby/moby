@@ -505,6 +505,36 @@ You'll need two shells for this example.
     2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
     2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
 
+## exec
+
+    Usage: docker exec CONTAINER COMMAND [ARG...]
+
+    Run a command in an existing container
+
+      -d, --detach=false         Detached mode: run the process in the background and exit
+      -i, --interactive=false    Keep STDIN open even if not attached
+      -t, --tty=false            Allocate a pseudo-TTY
+
+The `docker exec` command runs a user specified command as a new process in an existing
+user specified container. The container needs to be active.
+
+The `docker exec` command will typically be used after `docker run`.
+
+### Examples:
+
+    $ sudo docker run --name ubuntu_bash --rm -i -t ubuntu bash
+
+This will create a container named 'ubuntu_bash' and start a bash session.
+
+    $ sudo docker exec -d ubuntu_bash touch /tmp/execWorks
+
+This will create a new file '/tmp/execWorks' inside the existing and active container
+'ubuntu_bash', in the background.
+
+    $ sudo docker exec ubuntu_bash -it bash
+
+This will create a new bash session in the container 'ubuntu_bash'.
+
 ## export
 
     Usage: docker export CONTAINER
@@ -1358,36 +1388,6 @@ It is used to create a backup that can then be used with ``docker load``
 It is even useful to cherry-pick particular tags of an image repository
 
    $ sudo docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
-
-## exec
-
-    Usage: docker exec CONTAINER COMMAND [ARG...]
-
-    Run a command in an existing container
-
-      -d, --detach=false         Detached mode: run the process in the background and exit
-      -i, --interactive=false    Keep STDIN open even if not attached
-      -t, --tty=false            Allocate a pseudo-TTY
-
-The `docker exec` command runs a user specified command as a new process in an existing
-user specified container. The container needs to be active.
-
-The `docker exec` command will typically be used after `docker run`.
-
-### Examples:
-
-    $ sudo docker run --name ubuntu_bash --rm -i -t ubuntu bash
-
-This will create a container named 'ubuntu_bash' and start a bash session.
-
-    $ sudo docker exec -d ubuntu_bash touch /tmp/execWorks
-
-This will create a new file '/tmp/execWorks' inside the existing and active container
-'ubuntu_bash', in the background.
-
-    $ sudo docker exec ubuntu_bash -it bash
-
-This will create a new bash session in the container 'ubuntu_bash'.
 
 ## search
 
