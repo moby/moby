@@ -174,6 +174,29 @@ func TestBuildAddMultipleFilesToFile(t *testing.T) {
 	logDone("build - multiple add files to file")
 }
 
+func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
+	name := "testaddmultiplefilestofilewild"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	ADD file*.txt test
+        `,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file wild")
+}
+
 func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 	name := "testcopymultiplefilestofile"
 	defer deleteImages(name)
@@ -195,6 +218,136 @@ func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 	}
 
 	logDone("build - multiple copy files to file")
+}
+
+func TestBuildCopyWildcard(t *testing.T) {
+	name := "testcopywildcard"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"robots.txt": "hello",
+		"index.html": "world",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, err := fakeContext(fmt.Sprintf(`FROM busybox
+	COPY file*.txt /tmp/
+	RUN ls /tmp/file1.txt /tmp/file2.txt
+	RUN mkdir /tmp1
+	COPY dir* /tmp1/
+	RUN ls /tmp1/dirt /tmp1/nested_file /tmp1/nested_dir/nest_nest_file
+	RUN mkdir /tmp2
+        ADD dir/*dir %s/robots.txt /tmp2/
+	RUN ls /tmp2/nest_nest_file /tmp2/robots.txt
+	`, server.URL),
+		map[string]string{
+			"file1.txt":                     "test1",
+			"file2.txt":                     "test2",
+			"dir/nested_file":               "nested file",
+			"dir/nested_dir/nest_nest_file": "2 times nested",
+			"dirt": "dirty",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Now make sure we use a cache the 2nd time
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 != id2 {
+		t.Fatal(fmt.Errorf("Didn't use the cache"))
+	}
+
+	logDone("build - copy wild card")
+}
+
+func TestBuildCopyWildcardNoFind(t *testing.T) {
+	name := "testcopywildcardnofind"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+	COPY file*.txt /tmp/
+	`, nil)
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImageFromContext(name, ctx, true)
+	if err == nil {
+		t.Fatal(fmt.Errorf("Should have failed to find a file"))
+	}
+	if !strings.Contains(err.Error(), "No source files were specified") {
+		t.Fatalf("Wrong error %v, must be about no source files", err)
+	}
+
+	logDone("build - copy wild card no find")
+}
+
+func TestBuildCopyWildcardCache(t *testing.T) {
+	name := "testcopywildcardcache"
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"robots.txt": "hello",
+		"index.html": "world",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, err := fakeContext(`FROM busybox
+	COPY file1.txt /tmp/
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Now make sure we use a cache the 2nd time even with wild card
+	ctx2, err := fakeContext(`FROM busybox
+	COPY file*.txt /tmp/
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+		})
+	defer ctx2.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx2, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 != id2 {
+		t.Fatal(fmt.Errorf("Didn't use the cache"))
+	}
+
+	logDone("build - copy wild card cache")
 }
 
 func TestBuildAddSingleFileToNonExistDir(t *testing.T) {

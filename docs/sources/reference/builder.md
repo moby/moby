@@ -295,11 +295,18 @@ The `ADD` instruction copies new files,directories or remote file URLs to
 the filesystem of the container  from `<src>` and add them to the at 
 path `<dest>`.  
 
-Multiple <src> resource may be specified but if they are files or 
+Multiple `<src>` resource may be specified but if they are files or 
 directories then they must be relative to the source directory that is 
 being built (the context of the build).
 
-`<dest>` is the absolute path to which the source will be copied inside the
+Each `<src>` may contain wildcards and matching will be done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+For most command line uses this should act as expected, for example:
+
+    ADD hom* /mydir/        # adds all files starting with "hom"
+    ADD hom?.txt /mydir/    # ? is replaced with any single character
+
+The `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
 All new files and directories are created with a UID and GID of 0.
@@ -360,8 +367,9 @@ The copy obeys the following rules:
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
 
-- If multiple `<src>` resources are specified then `<dest>` must be a
-  directory, and it must end with a slash `/`.
+- If multiple `<src>` resources are specified, either directly or due to the
+  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.
@@ -377,11 +385,18 @@ The `COPY` instruction copies new files,directories or remote file URLs to
 the filesystem of the container  from `<src>` and add them to the at 
 path `<dest>`. 
 
-Multiple <src> resource may be specified but if they are files or 
+Multiple `<src>` resource may be specified but if they are files or 
 directories then they must be relative to the source directory that is being 
 built (the context of the build).
 
-`<dest>` is the absolute path to which the source will be copied inside the
+Each `<src>` may contain wildcards and matching will be done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+For most command line uses this should act as expected, for example:
+
+    COPY hom* /mydir/        # adds all files starting with "hom"
+    COPY hom?.txt /mydir/    # ? is replaced with any single character
+
+The `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
 All new files and directories are created with a UID and GID of 0.
@@ -405,8 +420,9 @@ The copy obeys the following rules:
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
 
-- If multiple `<src>` resources are specified then `<dest>` must be a
-  directory, and it must end with a slash `/`.
+- If multiple `<src>` resources are specified, either directly or due to the
+  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.
