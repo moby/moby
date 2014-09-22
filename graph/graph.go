@@ -302,13 +302,17 @@ func (graph *Graph) Delete(name string) error {
 		return err
 	}
 	tmp, err := graph.Mktemp("")
-	if err != nil {
-		return err
-	}
 	graph.idIndex.Delete(id)
-	err = os.Rename(graph.ImageRoot(id), tmp)
-	if err != nil {
-		return err
+	if err == nil {
+		err = os.Rename(graph.ImageRoot(id), tmp)
+		// On err make tmp point to old dir and cleanup unused tmp dir
+		if err != nil {
+			os.RemoveAll(tmp)
+			tmp = graph.ImageRoot(id)
+		}
+	} else {
+		// On err make tmp point to old dir for cleanup
+		tmp = graph.ImageRoot(id)
 	}
 	// Remove rootfs data from the driver
 	graph.driver.Remove(id)
