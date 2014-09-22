@@ -1134,8 +1134,16 @@ func (devices *DeviceSet) Status() *Status {
 	status := &Status{}
 
 	status.PoolName = devices.getPoolName()
-	status.DataLoopback = path.Join(devices.loopbackDir(), "data")
-	status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
+	if len(devices.dataDevice) > 0 {
+		status.DataLoopback = devices.dataDevice
+	} else {
+		status.DataLoopback = path.Join(devices.loopbackDir(), "data")
+	}
+	if len(devices.metadataDevice) > 0 {
+		status.MetadataLoopback = devices.metadataDevice
+	} else {
+		status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
+	}
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
