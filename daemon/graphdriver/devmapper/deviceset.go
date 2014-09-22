@@ -466,7 +466,13 @@ func minor(device uint64) uint64 {
 func (devices *DeviceSet) ResizePool(size int64) error {
 	dirname := devices.loopbackDir()
 	datafilename := path.Join(dirname, "data")
+	if len(devices.dataDevice) > 0 {
+		datafilename = devices.dataDevice
+	}
 	metadatafilename := path.Join(dirname, "metadata")
+	if len(devices.metadataDevice) > 0 {
+		metadatafilename = devices.metadataDevice
+	}
 
 	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
 	if datafile == nil {
