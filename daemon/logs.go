@@ -114,12 +114,14 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 		errors := make(chan error, 2)
 		if stdout {
 			stdoutPipe := container.StdoutLogPipe()
+			defer stdoutPipe.Close()
 			go func() {
 				errors <- jsonlog.WriteLog(stdoutPipe, job.Stdout, format)
 			}()
 		}
 		if stderr {
 			stderrPipe := container.StderrLogPipe()
+			defer stderrPipe.Close()
 			go func() {
 				errors <- jsonlog.WriteLog(stderrPipe, job.Stderr, format)
 			}()

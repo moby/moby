@@ -40,6 +40,8 @@ func WriteLog(src io.Reader, dst io.Writer, format string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(dst, "%s", line)
+		if _, err := io.WriteString(dst, line); err != nil {
+			return err
+		}
 	}
 }
