@@ -244,16 +244,27 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 }
 
 func TestBuildAddDirContentToExistDir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "DirContentToExistDir")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	name := "testadddircontenttoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN mkdir /exists
+RUN touch /exists/exists_file
+RUN chown -R dockerio.dockerio /exists
+ADD test_dir/ /exists/
+RUN [ $(ls -l / | grep exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]`,
+		map[string]string{
+			"test_dir/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testaddimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - add directory contents to existing dir")
 }
 
