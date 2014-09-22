@@ -1967,7 +1967,7 @@ func (cli *DockerCli) pullImage(image string) error {
 	registryAuthHeader := []string{
 		base64.URLEncoding.EncodeToString(buf),
 	}
-	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.err, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
+	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
 		return err
 	}
 	return nil
