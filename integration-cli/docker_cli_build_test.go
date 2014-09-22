@@ -46,16 +46,18 @@ func TestBuildCacheADD(t *testing.T) {
 }
 
 func TestBuildSixtySteps(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildSixtySteps")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "foobuildsixtysteps", ".")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	name := "foobuildsixtysteps"
+	defer deleteImages(name)
+	ctx, err := fakeContext("FROM scratch\n"+strings.Repeat("ADD foo /\n", 60),
+		map[string]string{
+			"foo": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("foobuildsixtysteps")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - build an image with sixty build steps")
 }
 
