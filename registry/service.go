@@ -83,7 +83,7 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	job.GetenvJson("metaHeaders", metaHeaders)
 
 	hostname, term, err := ResolveRepositoryName(term)
-	if err != nil {
+	if err != nil && hostname == "" {
 		return job.Error(err)
 	}
 	hostname, err = ExpandAndVerifyRegistryUrl(hostname)
