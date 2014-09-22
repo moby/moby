@@ -62,31 +62,26 @@ func TestBuildSixtySteps(t *testing.T) {
 }
 
 func TestBuildAddSingleFileToRoot(t *testing.T) {
-	testDirName := "SingleFileToRoot"
-	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd", testDirName)
-	buildDirectory, err := ioutil.TempDir("", "test-build-add")
-	defer os.RemoveAll(buildDirectory)
-
-	err = copyWithCP(sourceDirectory, buildDirectory)
-	if err != nil {
-		t.Fatalf("failed to copy files to temporary directory: %s", err)
-	}
-
-	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	name := "testaddimg"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio /exists
+ADD test_file /
+RUN [ $(ls -l /test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /test_file | awk '{print $1}') = '-rw-r--r--' ]
+RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_file": "test1",
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", ".")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testaddimg")
-
 	logDone("build - add single file to root")
 }
 
