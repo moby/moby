@@ -301,16 +301,21 @@ func TestBuildAddWholeDirToRoot(t *testing.T) {
 	logDone("build - add whole directory to root")
 }
 
+// Testing #5941
 func TestBuildAddEtcToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestAdd")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "EtcToRoot")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	name := "testaddetctoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+ADD . /`,
+		map[string]string{
+			"etc/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testaddimg")
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - add etc directory to root")
 }
 
