@@ -2114,12 +2114,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// These are flags not stored in Config/HostConfig
 	var (
 		flAutoRemove = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
-		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run the container in the background and print the new container ID")
 		flSigProxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
 		flName       = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
-		flAttach     *opts.ListOpts
 
-		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
@@ -2133,21 +2130,19 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
-	if *flDetach {
-		if fl := cmd.Lookup("attach"); fl != nil {
-			flAttach = fl.Value.(*opts.ListOpts)
-			if flAttach.Len() != 0 {
-				return ErrConflictAttachDetach
-			}
-		}
-		if *flAutoRemove {
-			return ErrConflictDetachAutoRemove
-		}
+	if fl := cmd.Lookup("-detach"); fl != nil {
+		g, ok := fl.Value.(flag.Getter)
 
-		config.AttachStdin = false
-		config.AttachStdout = false
-		config.AttachStderr = false
-		config.StdinOnce = false
+		if ok && true == g.Get() {
+			if *flAutoRemove {
+				return ErrConflictDetachAutoRemove
+			}
+
+			config.AttachStdin = false
+			config.AttachStdout = false
+			config.AttachStderr = false
+			config.StdinOnce = false
+		}
 	}
 
 	// Disable flSigProxy in case on TTY

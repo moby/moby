@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/pkg/parsers"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -112,6 +113,14 @@ func (f *FlagSet) StreamSetVar(values *map[string]struct{}, names []string, usag
 	f.Var(Filter((*StringSet)(values), validateStreamName), names, usage)
 }
 
+// MirrorListVar defines a list of HTTP(S) registry mirrors
+func MirrorListVar(values *[]string, names []string, usage string) {
+	Var(Filter((*List)(values), validateMirror), names, usage)
+}
+func (f *FlagSet) MirrorListVar(values *[]string, names []string, usage string) {
+	f.Var(Filter((*List)(values), validateMirror), names, usage)
+}
+
 // Validators
 type ValidatorFctType func(val string) (string, error)
 
@@ -190,4 +199,21 @@ func validateDomain(val string) (string, error) {
 		return string(ns[1]), nil
 	}
 	return "", fmt.Errorf("%s is not a valid domain", val)
+}
+
+func validateMirror(val string) (string, error) {
+	uri, err := url.Parse(val)
+	if err != nil {
+		return "", fmt.Errorf("%s is not a valid URI", val)
+	}
+
+	if uri.Scheme != "http" && uri.Scheme != "https" {
+		return "", fmt.Errorf("Unsupported scheme %s", uri.Scheme)
+	}
+
+	if uri.Path != "" || uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
+	}
+
+	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
 }

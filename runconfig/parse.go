@@ -16,6 +16,7 @@ import (
 
 var (
 	ErrInvalidWorkingDirectory          = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictAttachDetach             = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
 	ErrConflictContainerNetworkAndDns   = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
@@ -42,7 +43,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flCapDrop     []string
 
 		// FIXME: switch all parsed values to regular types, then attach them with flag.xxxVar, for consistency
-		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
 		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -94,12 +94,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
 	}
 
-	var (
-		attachStdin  = flAttach.Get("stdin")
-		attachStdout = flAttach.Get("stdout")
-		attachStderr = flAttach.Get("stderr")
-	)
-
 	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
 	}
@@ -108,24 +102,19 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
 	}
 
-	if *flNetMode == "container" && flLinks.Len() > 0 {
+	if *flNetMode == "container" && len(flLinks) > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
 	}
 
-	if *flNetMode == "host" && flDns.Len() > 0 {
+	if *flNetMode == "host" && len(flDns) > 0 {
 		return nil, nil, cmd, ErrConflictHostNetworkAndDns
 	}
 
-	if *flNetMode == "container" && flDns.Len() > 0 {
+	if *flNetMode == "container" && len(flDns) > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
 	}
 
 	// If neither -d or -a are set, attach to everything by default
-	if flAttach.Len() == 0 {
-		attachStdout = true
-		attachStderr = true
-		if *flStdin {
-			attachStdin = true
 	if len(flAttach) == 0 && !*flDetach {
 		if !*flDetach {
 			flAttach["stdout"] = struct{}{}
@@ -277,10 +266,10 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		PortBindings:    portBindings,
 		Links:           flLinks,
 		PublishAllPorts: *flPublishAll,
-		Dns:             flDns.GetAll(),
-		DnsSearch:       flDnsSearch.GetAll(),
-		ExtraHosts:      flExtraHosts.GetAll(),
-		VolumesFrom:     flVolumesFrom.GetAll(),
+		Dns:             flDns,
+		DnsSearch:       flDnsSearch,
+		ExtraHosts:      flExtraHosts,
+		VolumesFrom:     flVolumesFrom,
 		NetworkMode:     netMode,
 		Devices:         deviceMappings,
 		CapAdd:          flCapAdd,

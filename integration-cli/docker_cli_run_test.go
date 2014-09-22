@@ -218,6 +218,17 @@ func TestRunStdinPipe(t *testing.T) {
 	logDone("run - pipe in with -i -a stdin")
 }
 
+func TestRmDetachedError(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--rm", "-d", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err == nil {
+		t.Fatalf("Should have errored out (%s)", out)
+	}
+	deleteAllContainers()
+
+	logDone("run --rm -d fail")
+}
+
 // the container's ID should be printed when starting a container in detached mode
 func TestRunDetachedContainerIDPrinting(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
