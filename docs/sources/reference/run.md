@@ -381,8 +381,9 @@ with `-P` or `-p,` or start the client container with `--link`.
 
 If the operator uses `-P` or `-p` then Docker will make the exposed port
 accessible on the host and the ports will be available to any client
-that can reach the host. To find the map between the host ports and the
-exposed ports, use `docker port`)
+that can reach the host. When using `-P`, Docker will bind the exposed 
+ports to a random port on the host between 49153 and 65535. To find the
+mapping between the host ports and the exposed ports, use `docker port`.
 
 If the operator uses `--link` when starting the new client container,
 then the client container can access the exposed port via a private
