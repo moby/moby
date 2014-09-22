@@ -273,6 +273,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			username = authconfig.Username
 		}
 	}
+	// Assume that a different username means they may not want to use
+	// the password or email from the config file, so prompt them
 	if username != authconfig.Username {
 		if password == "" {
 			oldState, _ := term.SaveState(cli.terminalFd)
@@ -296,8 +298,16 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			}
 		}
 	} else {
-		password = authconfig.Password
-		email = authconfig.Email
+		// However, if they don't override the username use the
+		// password or email from the cmd line if specified. IOW, allow
+		// then to change/overide them.  And if not specified, just
+		// use what's in the config file
+		if password == "" {
+			password = authconfig.Password
+		}
+		if email == "" {
+			email = authconfig.Email
+		}
 	}
 	authconfig.Username = username
 	authconfig.Password = password
