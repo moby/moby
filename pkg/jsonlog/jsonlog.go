@@ -25,7 +25,7 @@ func (jl *JSONLog) Format(format string) (string, error) {
 	return fmt.Sprintf("[%s] %s", jl.Created.Format(format), jl.Log), nil
 }
 
-func WriteLog(src io.Reader, dst io.WriteCloser, format string) error {
+func WriteLog(src io.Reader, dst io.Writer, format string) error {
 	dec := json.NewDecoder(src)
 	for {
 		l := &JSONLog{}
