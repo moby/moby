@@ -821,6 +821,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		job.SetenvBool("EnableIpMasq", config.EnableIpMasq)
 		job.Setenv("BridgeIface", config.BridgeIface)
 		job.Setenv("BridgeIP", config.BridgeIP)
+		job.Setenv("FixedCIDR", config.FixedCIDR)
 		job.Setenv("DefaultBindingIP", config.DefaultIp.String())
 
 		if err := job.Run(); err != nil {

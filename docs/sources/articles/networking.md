@@ -54,6 +54,9 @@ server when it starts up, and cannot be changed once it is running:
  *  `--bip=CIDR` — see
     [Customizing docker0](#docker0)
 
+ *  `--fixed-cidr` — see
+    [Customizing docker0](#docker0)
+
  *  `-H SOCKET...` or `--host=SOCKET...` —
     This might sound like it would affect container networking,
     but it actually faces in the other direction:
@@ -365,16 +368,24 @@ By default, the Docker server creates and configures the host system's
 can pass packets back and forth between other physical or virtual
 network interfaces so that they behave as a single Ethernet network.
 
-Docker configures `docker0` with an IP address and netmask so the host
-machine can both receive and send packets to containers connected to the
-bridge, and gives it an MTU — the *maximum transmission unit* or largest
-packet length that the interface will allow — of either 1,500 bytes or
-else a more specific value copied from the Docker host's interface that
-supports its default route.  Both are configurable at server startup:
+Docker configures `docker0` with an IP address, netmask and IP
+allocation range. The host machine can both receive and send packets to
+containers connected to the bridge, and gives it an MTU — the *maximum
+transmission unit* or largest packet length that the interface will
+allow — of either 1,500 bytes or else a more specific value copied from
+the Docker host's interface that supports its default route.  These
+options are configurable at server startup:
 
  *  `--bip=CIDR` — supply a specific IP address and netmask for the
     `docker0` bridge, using standard CIDR notation like
     `192.168.1.5/24`.
+
+ *  `--fixed-cidr=CIDR` — restrict the IP range from the `docker0` subnet,
+    using the standard CIDR notation like `172.167.1.0/28`. This range must
+    be and IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset
+    of the bridge IP range (`docker0` or set using `--bridge`). For example
+    with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen
+    from the first half of `192.168.1.0/24` subnet.
 
  *  `--mtu=BYTES` — override the maximum packet length on `docker0`.
 
