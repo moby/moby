@@ -401,6 +401,9 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	if hostIP != "" {
 		ip = net.ParseIP(hostIP)
+		if ip == nil {
+			return job.Errorf("Bad parameter: invalid host ip %s", hostIP)
+		}
 	}
 
 	// host ip, proto, and host port
