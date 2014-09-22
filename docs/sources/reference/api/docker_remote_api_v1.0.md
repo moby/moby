@@ -64,10 +64,8 @@ List containers
 
 Query Parameters:
 
-     
-
 -   **all** – 1/True/true or 0/False/false, Show all containers.
-        Only running containers are shown by defaul
+        Only running containers are shown by default
 -   **limit** – Show `limit` last created
         containers, include non-running ones.
 -   **since** – Show only containers created since Id, include
@@ -116,7 +114,7 @@ Create a container
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
         Content-Type: application/json
 
         {
@@ -125,8 +123,6 @@ Create a container
         }
 
 Json Parameters:
-
-     
 
 -   **config** – the container's configuration
 
@@ -300,8 +296,6 @@ Stop the container `id`
 
 Query Parameters:
 
-     
-
 -   **t** – number of seconds to wait before killing the container
 
 Status Codes:
@@ -322,11 +316,9 @@ Restart the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **t** – number of seconds to wait before killing the container
 
@@ -348,7 +340,7 @@ Kill the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -374,8 +366,6 @@ Attach to the container `id`
         {{ STREAM }}
 
 Query Parameters:
-
-     
 
 -   **logs** – 1/True/true or 0/False/false, return logs. Defaul
         false
@@ -433,8 +423,6 @@ Remove the container `id` from the filesystem
         HTTP/1.1 204 OK
 
 Query Parameters:
-
-     
 
 -   **v** – 1/True/true or 0/False/false, Remove the volumes
         associated to the container. Default false
@@ -507,8 +495,6 @@ List images `format` could be json or viz (json default)
 
 Query Parameters:
 
-     
-
 -   **all** – 1/True/true or 0/False/false, Show all containers.
         Only running containers are shown by defaul
 
@@ -536,8 +522,6 @@ Create an image, either by pull it from the registry or by importing i
         {{ STREAM }}
 
 Query Parameters:
-
-     
 
 -   **fromImage** – name of the image to pull
 -   **fromSrc** – source to import, - means stdin
@@ -697,8 +681,6 @@ Tag the image `name` into a repository
 
 Query Parameters:
 
-     
-
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
 
@@ -721,7 +703,7 @@ Remove the image `name` from the filesystem
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -785,8 +767,6 @@ Build an image from Dockerfile via stdin
 
 Query Parameters:
 
-     
-
 -   **t** – repository name to be applied to the resulting image in
         case of success
 
@@ -840,6 +820,7 @@ Get the default username and email
 **Example response**:
 
         HTTP/1.1 200 OK
+        Content-Type: text/plain
 
 Status Codes:
 
@@ -928,8 +909,6 @@ Create a new image from a container's changes
 
 Query Parameters:
 
-     
-
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
@@ -947,25 +926,25 @@ Status Codes:
 
 ## 3.1 Inside `docker run`
 
-Here are the steps of `docker run` :
+As an example, the `docker run` command line makes the following API calls:
 
- - Create the container
+- Create the container
 
- - If the status code is 404, it means the image doesn't exists:
-        - Try to pull i
-        - Then retry to create the container
+- If the status code is 404, it means the image doesn't exist:
+    - Try to pull it
+    - Then retry to create the container
 
- - Start the container
+- Start the container
 
- - If you are not in detached mode:
-        - Attach to the container, using logs=1 (to have stdout and
-            stderr from the container's start) and stream=1
+- If you are not in detached mode:
+    - Attach to the container, using logs=1 (to have stdout and
+          stderr from the container's start) and stream=1
 
- - If in detached mode or only stdin is attached:
-        - Display the container's
+- If in detached mode or only stdin is attached:
+    - Display the container's
 
 ## 3.2 Hijacking
 
 In this first version of the API, some of the endpoints, like /attach,
 /pull or /push uses hijacking to transport stdin, stdout and stderr on
-he same socket. This might change in the future.
+the same socket. This might change in the future.
