@@ -57,6 +57,35 @@ func TestEventsPause(t *testing.T) {
 	logDone("events - pause/unpause is logged")
 }
 
+func TestEventsContainerFailStartDie(t *testing.T) {
+	out, _, _ := cmd(t, "images", "-q")
+	image := strings.Split(out, "\n")[0]
+	eventsCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testeventdie", image, "blerg")
+	_, _, err := runCommandWithOutput(eventsCmd)
+	if err == nil {
+		t.Fatalf("Container run with command blerg should have failed, but it did not")
+	}
+
+	eventsCmd = exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, _, _ = runCommandWithOutput(eventsCmd)
+	events := strings.Split(out, "\n")
+	if len(events) <= 1 {
+		t.Fatalf("Missing expected event")
+	}
+
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+
+	if startEvent[len(startEvent)-1] != "start" {
+		t.Fatalf("event should be start, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+
+	logDone("events - container failed to start logs die")
+}
+
 func TestEventsLimit(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		cmd(t, "run", "busybox", "echo", strconv.Itoa(i))
