@@ -44,14 +44,13 @@ func runCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error
 }
 
 func runCommandWithStdoutStderr(cmd *exec.Cmd) (stdout string, stderr string, exitCode int, err error) {
+	var (
+		stderrBuffer, stdoutBuffer bytes.Buffer
+	)
 	exitCode = 0
-	var stderrBuffer bytes.Buffer
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return "", "", -1, err
-	}
-	go io.Copy(&stderrBuffer, stderrPipe)
-	out, err := cmd.Output()
+	cmd.Stderr = &stderrBuffer
+	cmd.Stdout = &stdoutBuffer
+	err = cmd.Run()
 
 	if err != nil {
 		var exiterr error
@@ -61,8 +60,8 @@ func runCommandWithStdoutStderr(cmd *exec.Cmd) (stdout string, stderr string, ex
 			exitCode = 127
 		}
 	}
-	stdout = string(out)
-	stderr = string(stderrBuffer.Bytes())
+	stdout = stdoutBuffer.String()
+	stderr = stderrBuffer.String()
 	return
 }
 
