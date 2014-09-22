@@ -1362,11 +1362,11 @@ the root that contains a list of repository and tag names mapped to layer IDs.
 
 ## 3.1 Inside `docker run`
 
-Here are what the command line `docker run` does via the API:
+As an example, the `docker run` command line makes the following API calls:
 
 - Create the container
 
-- If the status code is 404, it means the image doesn't exists:
+- If the status code is 404, it means the image doesn't exist:
     - Try to pull it
     - Then retry to create the container
 

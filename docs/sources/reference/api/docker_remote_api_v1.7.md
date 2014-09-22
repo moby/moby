@@ -78,15 +78,11 @@ List containers
 Query Parameters:
 
 -   **all** – 1/True/true or 0/False/false, Show all containers.
-        Only running containers are shown by defaul
--   **limit** – Show `limit` last created
-        containers, include non-running ones.
--   **since** – Show only containers created since Id, include
-        non-running ones.
--   **before** – Show only containers created before Id, include
-        non-running ones.
--   **size** – 1/True/true or 0/False/false, Show the containers
-        sizes
+    Only running containers are shown by default (i.e., this defaults to false)
+-   **limit** – Show `limit` last created containers, include non-running ones.
+-   **since** – Show only containers created since Id, include non-running ones.
+-   **before** – Show only containers created before Id, include non-running ones.
+-   **size** – 1/True/true or 0/False/false, Show the containers sizes
 
 Status Codes:
 
@@ -135,7 +131,7 @@ Create a container
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
         Content-Type: application/json
 
         {
@@ -381,8 +377,6 @@ Stop the container `id`
 
 Query Parameters:
 
-     
-
 -   **t** – number of seconds to wait before killing the container
 
 Status Codes:
@@ -403,11 +397,9 @@ Restart the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **t** – number of seconds to wait before killing the container
 
@@ -429,7 +421,7 @@ Kill the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -455,8 +447,6 @@ Attach to the container `id`
         {{ STREAM }}
 
 Query Parameters:
-
-     
 
 -   **logs** – 1/True/true or 0/False/false, return logs. Defaul
         false
@@ -555,11 +545,9 @@ Remove the container `id` from the filesystem
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **v** – 1/True/true or 0/False/false, Remove the volumes
         associated to the container. Default false
@@ -665,19 +653,15 @@ Create an image, either by pull it from the registry or by importing i
 
 Query Parameters:
 
-     
-
 -   **fromImage** – name of the image to pull
 -   **fromSrc** – source to import, - means stdin
 -   **repo** – repository
 -   **tag** – tag
 -   **registry** – the registry to pull from
 
-    Request Headers:
+Request Headers:
 
-     
-
--   **X-Registry-Auth** – base64-encoded AuthConfig objec
+-   **X-Registry-Auth** – base64-encoded AuthConfig object
 
 Status Codes:
 
@@ -847,8 +831,6 @@ Tag the image `name` into a repository
 
 Query Parameters:
 
-     
-
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
 
@@ -934,8 +916,6 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 
 Query Parameters:
 
-     
-
 -   **term** – term to search
 
 Status Codes:
@@ -974,10 +954,8 @@ Build an image from Dockerfile via stdin
 
 Query Parameters:
 
-     
-
 -   **t** – repository name (and optionally a tag) to be applied to
-        the resulting image in case of success
+    the resulting image in case of success
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 
@@ -1014,6 +992,7 @@ Get the default username and email
 **Example response**:
 
         HTTP/1.1 200 OK
+        Content-Type: text/plain
 
 Status Codes:
 
@@ -1097,8 +1076,6 @@ Create a new image from a container's changes
 
 Query Parameters:
 
-     
-
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
@@ -1136,8 +1113,6 @@ polling (using since)
         {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
 
 Query Parameters:
-
-     
 
 -   **since** – timestamp used for polling
 
@@ -1197,8 +1172,8 @@ Here are the steps of `docker run` :
 
 -   Create the container
 
--   If the status code is 404, it means the image doesn't exists:
-        -   Try to pull i
+-   If the status code is 404, it means the image doesn't exist:
+        -   Try to pull it
         -   Then retry to create the container
 
 -   Start the container
@@ -1218,6 +1193,6 @@ stdout and stderr on the same socket. This might change in the future.
 ## 3.3 CORS Requests
 
 To enable cross origin requests to the remote api add the flag
-"–api-enable-cors" when running docker in daemon mode.
+"--api-enable-cors" when running docker in daemon mode.
 
     $ docker -d -H="192.168.1.9:2375" --api-enable-cors
