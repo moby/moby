@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"time"
@@ -69,10 +68,10 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 					break
 				}
 				if l.Stream == "stdout" && stdout {
-					fmt.Fprintf(job.Stdout, "%s", l.Log)
+					io.WriteString(job.Stdout, l.Log)
 				}
 				if l.Stream == "stderr" && stderr {
-					fmt.Fprintf(job.Stderr, "%s", l.Log)
+					io.WriteString(job.Stderr, l.Log)
 				}
 			}
 		}
