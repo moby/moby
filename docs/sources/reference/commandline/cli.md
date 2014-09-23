@@ -1191,8 +1191,8 @@ folder before starting your container.
     $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
-binary (such as that provided by [https://get.docker.io](
-https://get.docker.io)), you give the container the full access to create and
+binary (such as that provided by [https://get.docker.com](
+https://get.docker.com)), you give the container the full access to create and
 manipulate the host's docker daemon.
 
     $ sudo docker run -p 127.0.0.1:80:8080 ubuntu bash
