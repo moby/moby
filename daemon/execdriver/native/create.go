@@ -121,6 +121,13 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 		})
 	}
 
+	if c.Network.NetNs != "" {
+		container.Networks = append(container.Networks, &libcontainer.Network{
+			Type:   "netns",
+			NsPath: c.Network.NetNs,
+		})
+	}
+
 	return nil
 }
 

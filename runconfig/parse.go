@@ -58,7 +58,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
-		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
+		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the Docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.\n'netns:<path>': use the specified network namespace")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure[:max-retry], always)")
 	)
@@ -384,7 +384,11 @@ func parseNetMode(netMode string) (NetworkMode, error) {
 	case "bridge", "none", "host":
 	case "container":
 		if len(parts) < 2 || parts[1] == "" {
-			return "", fmt.Errorf("invalid container format container:<name|id>")
+			return "", fmt.Errorf("Invalid container format container:<name|id>")
+		}
+	case "netns":
+		if len(parts) < 2 || parts[1] == "" {
+			return "", fmt.Errorf("Invalid netns format netns:<path>")
 		}
 	default:
 		return "", fmt.Errorf("invalid --net: %s", netMode)

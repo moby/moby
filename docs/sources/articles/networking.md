@@ -101,7 +101,7 @@ Finally, several networking options can only be provided when calling
     [Configuring DNS](#dns) and
     [Communication between containers](#between-containers)
 
- *  `--net=bridge|none|container:NAME_or_ID|host` — see
+ *  `--net=bridge|none|container:NAME_or_ID|host|netns:PATH` — see
     [How Docker networks a container](#container-networking)
 
  *  `--mac-address=MACADDRESS...` — see
@@ -585,6 +585,13 @@ values.
     first container, and processes on the two containers will be able to
     connect to each other over the loopback interface.
 
+ * `--net=netns:PATH` — Tells Docker to put the container inside of
+    the network namespace specified by the PATH. This allows you to
+    specify a network environment before starting your Docker
+    container, giving you complete flexibility over how the network is
+    set up. For example, you could use this to run containers in
+    different vxlan ids.
+
  *  `--net=none` — Tells Docker to put the container inside of its own
     network stack but not to take any steps to configure its network,
     leaving you free to build any of the custom configurations explored
@@ -661,6 +668,41 @@ part of safe containerization is that Docker strips container processes
 of the right to configure their own networks.  Using `ip netns exec` is
 what let us finish up the configuration without having to take the
 dangerous step of running the container itself with `--privileged=true`.
+
+The above can also be implemented with `--net=netns`.
+
+    # create a namespace entry in /var/run/netns/
+    # for the "ip netns" command we will be using below
+
+    $ sudo ip netns add myns
+
+    # Check the bridge's IP address and netmask
+
+    $ ip addr show docker0
+    21: docker0: ...
+    inet 172.17.42.1/16 scope global docker0
+    ...
+
+    # Create a pair of "peer" interfaces A and B,
+    # bind the A end to the bridge, and bring it up
+
+    $ sudo ip link add A type veth peer name B
+    $ sudo brctl addif docker0 A
+    $ sudo ip link set A up
+
+    # Place B inside the network namespace,
+    # rename to eth0, and activate it with a free IP
+
+    $ sudo ip link set B netns myns
+    $ sudo ip netns exec myns ip link set dev B name eth0
+    $ sudo ip netns exec myns ip link set eth0 up
+    $ sudo ip netns exec myns ip addr add 172.17.42.99/16 dev eth0
+    $ sudo ip netns exec myns ip route add default via 172.17.42.1
+    $ sudo ip netns exec myns ip link set lo up
+
+    $ sudo docker run -i -t --rm --net=netns:/var/run/netns/myns base /bin/bash
+    root@63f36fc01b5f:/#
+
 
 ## Tools and Examples
 

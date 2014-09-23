@@ -14,6 +14,7 @@ type NetworkSettings struct {
 	MacAddress  string
 	Gateway     string
 	Bridge      string
+	NetNs       string
 	PortMapping map[string]PortMapping // Deprecated
 	Ports       nat.PortMap
 }
