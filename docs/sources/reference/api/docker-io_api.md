@@ -142,7 +142,7 @@ Status Codes:
 
 `DELETE /v1/repositories/(repo_name)/`
 
-Delete a library repository with the given `repo_name`. 
+Delete a library repository with the given `repo_name`.
 This is a restricted feature only available to docker admins.
 
 > When namespace is missing, it is assumed to be `library`

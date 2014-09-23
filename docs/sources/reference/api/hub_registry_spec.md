@@ -137,7 +137,7 @@ and for an active account.
 
         Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
         X-Docker-Token: true
-        
+
 **Action**:
 
         (looking up the foo/bar in db and gets images and checksums
@@ -151,7 +151,7 @@ and for an active account.
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
         X-Docker-Endpoints: registry.docker.io [,registry2.docker.io]
-        
+
 **Body**:
 
         Jsonified checksums (see part 4.4.1)
@@ -169,18 +169,18 @@ and for an active account.
 
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=read
-        
+
 **Body**:
 
         <ids and checksums in payload>
-        
+
 **Action**:
 
         (Lookup token see if they have access to pull.)
-        
+
         If good:
         HTTP 200 OK Docker Hub will invalidate the token
-        
+
         If bad:
         HTTP 401 Unauthorized
 
@@ -328,7 +328,7 @@ the end of the push):
         “checksum”:
         “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
 
-**Return**: 
+**Return**:
 
         HTTP 204
 
@@ -424,11 +424,11 @@ nice clean way to do that. Here is the workflow.
 
         Authorization: Basic 123oislifjsldfj== X-Docker-Endpoints:
         registry-1.docker.io (no validation on this right now)
-        
+
 **Body**:
 
         Empty
-        
+
 **Return**:
 
         HTTP 200
@@ -524,7 +524,7 @@ file is empty.
   regular expression [a-z0-9_].
 - **password**: min 5 characters
 
-**Valid**: 
+**Valid**:
 
      return HTTP 201
 
@@ -688,17 +688,17 @@ You have 3 options:
 
         Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
         X-Docker-Token: true
-        
+
 In this case, along with the 200 response, you'll get a new token
 (if user auth is ok): If authorization isn't correct you get a 401
 response. If account isn't active you will get a 403 response.
-        
+
 **Response**:
 
         200 OK
         X-Docker-Token: Token
         signature=123abc,repository=”foo/bar”,access=read
-    
+
 
 2.  Provide user credentials only
 
