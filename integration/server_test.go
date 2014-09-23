@@ -193,13 +193,13 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 	job = eng.Job("restart", id)
-	job.SetenvInt("t", 15)
+	job.SetenvInt("t", 2)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 
 	job = eng.Job("stop", id)
-	job.SetenvInt("t", 15)
+	job.SetenvInt("t", 2)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
