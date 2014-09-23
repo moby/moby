@@ -2142,3 +2142,25 @@ func TestBuildEmptyCmd(t *testing.T) {
 	}
 	logDone("build - empty cmd")
 }
+
+func TestBuildOnBuildOutput(t *testing.T) {
+	name := "testbuildonbuildparent"
+	defer deleteImages(name)
+	if _, err := buildImage(name, "FROM busybox\nONBUILD RUN echo foo\n", true); err != nil {
+		t.Fatal(err)
+	}
+
+	childname := "testbuildonbuildchild"
+	defer deleteImages(childname)
+
+	_, out, err := buildImageWithOut(name, "FROM "+name+"\nMAINTAINER quux\n", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "Trigger 0, run echo foo") {
+		t.Fatal("failed to find the ONBUILD output")
+	}
+
+	logDone("build - onbuild output")
+}
