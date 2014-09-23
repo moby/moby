@@ -2092,3 +2092,19 @@ func TestBuildClearCmd(t *testing.T) {
 	}
 	logDone("build - clearcmd")
 }
+
+func TestBuildEmptyCmd(t *testing.T) {
+	name := "testbuildemptycmd"
+	defer deleteImages(name)
+	if _, err := buildImage(name, "FROM scratch\nMAINTAINER quux\n", true); err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectFieldJSON(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != "null" {
+		t.Fatalf("Cmd %s, expected %s", res, "null")
+	}
+	logDone("build - empty cmd")
+}
