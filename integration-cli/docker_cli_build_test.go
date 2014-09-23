@@ -1175,6 +1175,37 @@ func TestBuildADDLocalFileWithoutCache(t *testing.T) {
 	logDone("build - add local file without cache")
 }
 
+func TestBuildCopyDirButNotFile(t *testing.T) {
+	name := "testbuildcopydirbutnotfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM scratch
+        COPY dir /tmp/`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"dir/foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Check that adding file with similar name doesn't mess with cache
+	if err := ctx.Add("dir_file", "hello2"); err != nil {
+		t.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but wasn't")
+	}
+	logDone("build - add current directory but not file")
+}
+
 func TestBuildADDCurrentDirWithCache(t *testing.T) {
 	name := "testbuildaddcurrentdirwithcache"
 	defer deleteImages(name)

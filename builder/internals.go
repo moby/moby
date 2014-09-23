@@ -293,9 +293,17 @@ func calcCopyInfo(b *Builder, cmdName string, ci *copyInfo, allowRemote bool, al
 			return err
 		} else if fi.IsDir() {
 			var subfiles []string
+			absOrigPath := path.Join(b.contextPath, ci.origPath)
+
+			// Add a trailing / to make sure we only
+			// pick up nested files under the dir and
+			// not sibling files of the dir that just
+			// happen to start with the same chars
+			if !strings.HasSuffix(absOrigPath, "/") {
+				absOrigPath += "/"
+			}
 			for _, fileInfo := range sums {
 				absFile := path.Join(b.contextPath, fileInfo.Name())
-				absOrigPath := path.Join(b.contextPath, ci.origPath)
 				if strings.HasPrefix(absFile, absOrigPath) {
 					subfiles = append(subfiles, fileInfo.Sum())
 				}
