@@ -2,8 +2,7 @@ page_title: Best Practices for Writing Dockerfiles
 page_description: Hints, tips and guidelines for writing clean, reliable Dockerfiles
 page_keywords: Examples, Usage, base image, docker, documentation, dockerfile, best practices, hub, official repo
 
-
- # Best Practices for Writing `Dockerfile`s
+# Best Practices for Writing `Dockerfile`s
 
 ## Overview
 
@@ -90,7 +89,7 @@ mb), while still being a full distribution.
 ### [`RUN`](https://docs.docker.com/reference/builder/#run)
 
 As always, to make your `Dockerfile` more readable, understandable, and
-maintainable, put long or complex statements on multiple lines separated with
+maintainable, put long or complex `RUN` statements on multiple lines separated with
 backslashes.
 
 Probably the most common use-case for `RUN` is an application of `apt-get`.
@@ -103,7 +102,7 @@ subsequent `apt-get install` fail without comment.
 * For the most part, to keep your code more readable and maintainable, avoid
 `RUN apt-get install -y package-foo && apt-get install -y package-bar`.
 
-* Avoid `RUN apt-get upgrade` or `dist-upgrade` since many of the “essential” packages from the base images will fail to upgrade inside an unprivileged container. If a base package is out of date, you should contact its maintainers. If you know there’s a particular package, `foo`, that needs to be updated, use `apt-get install -y foo` and it will update automatically.
+* Avoid `RUN apt-get upgrade` or `dist-upgrade`, since many of the “essential” packages from the base images will fail to upgrade inside an unprivileged container. If a base package is out of date, you should contact its maintainers. If you know there’s a particular package, `foo`, that needs to be updated, use `apt-get install -y foo` and it will update automatically.
 
 * Do use `RUN apt-get update && apt-get install -y package-bar package-foo
 package-baz`. Writing the instruction this way not only makes it easier to read
@@ -112,9 +111,8 @@ will naturally be busted and the latest versions will be installed with no
 further coding or manual intervention required.
 
 * Further natural cache-busting can be realized by version-pinning packages
-(e.g., `package-foo=1.3*`) since it will force retrieval of that version
+(e.g., `package-foo=1.3.*`) since it will force retrieval of that version
 regardless of what’s in the cache.
-
 Forming your `apt-get` code this way will greatly ease maintenance and reduce
 failures due to unanticipated changes in required packages.
 
@@ -150,13 +148,13 @@ that version (which in this case had a new, required feature).
 The `CMD` instruction should be used to run the software contained by your
 image, along with any arguments.  `CMD` should almost always be used in the
 form of `CMD [“executable”, “param1”, “param2”…]`. Thus, if the image is for a
-service (Apache, Rails, etc.), you would run something like `CMD ["apache2",
-"-DFOREGROUND"]`. Indeed, this form of the instruction is recommended for any
-service-based image.
+service (Apache, Rails, etc.), you would run something like
+`CMD ["apache2","-DFOREGROUND"]`. Indeed, this form of the instruction is
+recommended for any service-based image.
 
 In most other cases, `CMD` should be given an interactive shell (bash, python,
-perl, etc). For example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or `CMD
-[“php”, “-a”]`. Using this form means that when you execute something like
+perl, etc). For example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
+`CMD [“php”, “-a”]`. Using this form means that when you execute something like
 `docker run -it python`, you’ll get dropped into a usable shell, ready to go.
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
 conjunction with [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint), unless
@@ -199,17 +197,15 @@ Similar to having constant variables in a program (as opposed to hard-coding
 values), this approach lets you change a single `ENV` instruction to
 auto-magically bump the version of the software in your container.
 
-### [`ADD`](https://docs.docker.com/reference/builder/#add) or
-[`COPY`](https://docs.docker.com/reference/builder/#copy)
+### [`ADD`](https://docs.docker.com/reference/builder/#add) or [`COPY`](https://docs.docker.com/reference/builder/#copy)
 
 Although `ADD` and `COPY` are functionally similar, generally speaking, `COPY`
 is preferred. That’s because it’s more transparent than `ADD`. `COPY` only
 supports the basic copying of local files into the container, while `ADD` has
 some features (like local-only tar extraction and remote URL support) that are
-not immediately obvious.
+not immediately obvious. Consequently, the best use for `ADD` is local tar file
+auto-extraction into the image, as in `ADD rootfs.tar.xz /`.
 
-Consequently, the best use for `ADD` is local tar file auto-extraction into the
-image, as in `ADD rootfs.tar.xz /`.
 Because image size matters, using `ADD` to fetch packages from remote URLs is
 strongly discouraged; you should use `curl` or `wget` instead. That way you can, where possible, delete the files you no longer need after they’ve been
 extracted without having to add another layer in your image. For example, you
@@ -220,27 +216,29 @@ should avoid doing things like:
     RUN make -C /usr/src/things all
 
 And instead, do something like:
+
     RUN mdkir -p /usr/src/things \
     && curl -SL http://example.com/big.tar.gz \
     | tar -xJC /usr/src/things \
     && make -C /usr/src/things all
 
 For other items (files, directories) that do not require `ADD`’s tar
-auto-extraction capability, you should always use `COPY`. 
+auto-extraction capability, you should always use `COPY`.
 
 ### [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
 
 The best use for `ENTRYPOINT` is as a helper script. Using `ENTRYPOINT` for
-other tasks can make your code harder to understand. For example, `docker run
--it official-image bash` is much easier to understand than `docker run -it
---entrypoint bash official-image -i`, especially for Docker beginners.
+other tasks can make your code harder to understand. For example,
+`docker run -it official-image bash` is much easier to understand than
+`docker run -it --entrypoint bash official-image -i`, especially for Docker
+beginners.
 
 In order to avoid a situation where commands are run without clear visibility
 to the user, make sure your script ends with something like `exec "$@"`. After
 the entrypoint completes, the script will transparently bootstrap the command
 invoked by the user, making what has been run clear to the user (for example,
-`docker run -it mysql mysqld --some --flags` will transparently run `mysqld
---some --flags` after `ENTRYPOINT` runs `initdb`).
+`docker run -it mysql mysqld --some --flags` will transparently run
+`mysqld --some --flags` after `ENTRYPOINT` runs `initdb`).
 
 For example, let’s look at the `Dockerfile` for the
 [Postgres Official Image](https://github.com/docker-library/postgres).
@@ -271,10 +269,10 @@ container startup:
 
 ### [`VOLUME`](https://docs.docker.com/reference/builder/#volume)
 
-`VOLUME` should be used to expose any database storage area, configuration
-storage, or files/folders created by your docker container. You are strongly
-encouraged to use `VOLUME` for any mutable and/or user-serviceable parts of
-your image.
+The `VOLUME` instruction should be used to expose any database storage area,
+configuration storage, or files/folders created by your docker container. You
+are strongly encouraged to use `VOLUME` for any mutable and/or user-serviceable
+parts of your image.
 
 ### [`USER`](https://docs.docker.com/reference/builder/#user)
 
@@ -282,9 +280,9 @@ If a service can run without privileges, use `USER` to change to a non-root
 user. Start by creating the user and group in the `Dockerfile` with something
 like `RUN groupadd -r postgres && useradd -r -g postgres postgres`.
 
->**Note** that users/groups in an image get assigned nondeterministic UID/GID in
->that the “next” UID/GID will be assigned regardless of image rebuilds. So, if
->it’s critical, you should assign an explicit UID/GID.
+>**Note** that users/groups in an image get assigned a non-deterministic
+>UID/GID in that the “next” UID/GID gets assigned regardless of image
+>rebuilds. So, if it’s critical, you should assign an explicit UID/GID.
 
 You should avoid installing or using `sudo` since it has unpredictable TTY and
 signal-forwarding behavior that can cause more more problems than it solves. If
@@ -320,6 +318,7 @@ separate tag, as recommended above, will help mitigate this by allowing the
 ## Examples For Official Repositories
 
 These Official Repos have exemplary `Dockerfile`s:
+
 * [Go](https://registry.hub.docker.com/_/golang/)
 * [Perl](https://registry.hub.docker.com/_/perl/)
 * [Hy](https://registry.hub.docker.com/_/hylang/)
