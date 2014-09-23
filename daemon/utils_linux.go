@@ -11,3 +11,7 @@ func selinuxSetDisabled() {
 func selinuxFreeLxcContexts(label string) {
 	selinux.FreeLxcContexts(label)
 }
+
+func selinuxEnabled() bool {
+	return selinux.SelinuxEnabled()
+}
