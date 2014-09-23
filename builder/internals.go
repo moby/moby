@@ -377,7 +377,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 	// FIXME rewrite this so that builder/parser is used; right now steps in
 	// onbuild are muted because we have no good way to represent the step
 	// number
-	for _, step := range onBuildTriggers {
+	for stepN, step := range onBuildTriggers {
 		splitStep := strings.Split(step, " ")
 		stepInstruction := strings.ToUpper(strings.Trim(splitStep[0], " "))
 		switch stepInstruction {
@@ -392,6 +392,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 		// longer be necessary.
 
 		if f, ok := evaluateTable[strings.ToLower(stepInstruction)]; ok {
+			fmt.Fprintf(b.OutStream, "Trigger %d, %s\n", stepN, step)
 			if err := f(b, splitStep[1:], nil); err != nil {
 				return err
 			}
