@@ -21,7 +21,7 @@ import (
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console string, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console string, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
 		err error
 	)
@@ -34,7 +34,7 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	}
 	defer syncPipe.Close()
 
-	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.Child(), args)
+	command := createCommand(container, console, container.RootFs, dataPath, os.Args[0], syncPipe.Child(), args)
 	// Note: these are only used in non-tty mode
 	// if there is a tty for the container it will be opened within the namespace and the
 	// fds will be duped to stdin, stdiout, and stderr
