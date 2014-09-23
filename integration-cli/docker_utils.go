@@ -345,12 +345,34 @@ func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	return out, status, err
 }
 
+// execute a docker ocmmand with a timeout
+func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
+	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
+	if err != nil {
+		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
+	return out, status, err
+}
+
 // execute a docker command in a directory
 func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, error) {
 	dockerCommand := exec.Command(dockerBinary, args...)
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutput(dockerCommand)
-	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
+	return out, status, err
+}
+
+// execute a docker command in a directory with a timeout
+func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...string) (string, int, error) {
+	dockerCommand := exec.Command(dockerBinary, args...)
+	dockerCommand.Dir = path
+	out, status, err := runCommandWithOutputAndTimeout(dockerCommand, timeout)
+	if err != nil {
+		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
 	return out, status, err
 }
 
@@ -484,6 +506,36 @@ func inspectFieldJSON(name, field string) (string, error) {
 
 func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
+}
+
+// getContainerState returns the exit code of the container
+// and true if it's running
+// the exit code should be ignored if it's running
+func getContainerState(t *testing.T, id string) (int, bool, error) {
+	var (
+		exitStatus int
+		running    bool
+	)
+	out, exitCode, err := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
+	if err != nil || exitCode != 0 {
+		return 0, false, fmt.Errorf("'%s' doesn't exist: %s", id, err)
+	}
+
+	out = strings.Trim(out, "\n")
+	splitOutput := strings.Split(out, " ")
+	if len(splitOutput) != 2 {
+		return 0, false, fmt.Errorf("failed to get container state: output is broken")
+	}
+	if splitOutput[0] == "true" {
+		running = true
+	}
+	if n, err := strconv.Atoi(splitOutput[1]); err == nil {
+		exitStatus = n
+	} else {
+		return 0, false, fmt.Errorf("failed to get container state: couldn't parse integer")
+	}
+
+	return exitStatus, running, nil
 }
 
 func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
