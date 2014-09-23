@@ -150,7 +150,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	b.dockerfile = ast
 
 	// some initializations that would not have been supplied by the caller.
-	b.Config = &runconfig.Config{Entrypoint: []string{}, Cmd: []string{"/bin/sh", "-c"}}
+	b.Config = &runconfig.Config{Entrypoint: []string{}, Cmd: nil}
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {
