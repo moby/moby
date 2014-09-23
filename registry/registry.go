@@ -246,7 +246,11 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 		return "", "", fmt.Errorf("Invalid repository name, try \"%s\" instead", reposName)
 	}
 	if err := validateRepositoryName(reposName); err != nil {
-		return "", "", err
+		if reposName == "" {
+			return hostname, "", err
+		} else {
+			return "", "", err
+		}
 	}
 
 	return hostname, reposName, nil
