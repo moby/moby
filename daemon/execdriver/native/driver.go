@@ -94,7 +94,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err := d.createContainerRoot(c.ID); err != nil {
 		return -1, err
 	}
-	defer d.removeContainerRoot(c.ID)
+	defer d.cleanContainer(c.ID)
 
 	if err := d.writeContainerFile(container, c.ID); err != nil {
 		return -1, err
@@ -186,7 +186,7 @@ func (d *driver) Terminate(p *execdriver.Command) error {
 		err = syscall.Kill(p.ProcessConfig.Process.Pid, 9)
 		syscall.Wait4(p.ProcessConfig.Process.Pid, nil, 0, nil)
 	}
-	d.removeContainerRoot(p.ID)
+	d.cleanContainer(p.ID)
 
 	return err
 
@@ -227,15 +227,18 @@ func (d *driver) writeContainerFile(container *libcontainer.Config, id string) e
 	return ioutil.WriteFile(filepath.Join(d.root, id, "container.json"), data, 0655)
 }
 
+func (d *driver) cleanContainer(id string) error {
+	d.Lock()
+	delete(d.activeContainers, id)
+	d.Unlock()
+	return os.RemoveAll(filepath.Join(d.root, id, "container.json"))
+}
+
 func (d *driver) createContainerRoot(id string) error {
 	return os.MkdirAll(filepath.Join(d.root, id), 0655)
 }
 
-func (d *driver) removeContainerRoot(id string) error {
-	d.Lock()
-	delete(d.activeContainers, id)
-	d.Unlock()
-
+func (d *driver) Clean(id string) error {
 	return os.RemoveAll(filepath.Join(d.root, id))
 }
 
