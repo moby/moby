@@ -15,6 +15,9 @@ type Config struct {
 	// Mount specific options.
 	MountConfig *MountConfig `json:"mount_config,omitempty"`
 
+	// Pathname to container's root filesystem
+	RootFs string `json:"root_fs,omitempty"`
+
 	// Hostname optionally sets the container's hostname if provided
 	Hostname string `json:"hostname,omitempty"`
 
