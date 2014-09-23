@@ -102,6 +102,10 @@ func writeJSON(w http.ResponseWriter, code int, v engine.Env) error {
 
 func streamJSON(job *engine.Job, w http.ResponseWriter, flush bool) {
 	w.Header().Set("Content-Type", "application/json")
+	if job.GetenvBool("lineDelim") {
+		w.Header().Set("Content-Type", "application/x-json-stream")
+	}
+
 	if flush {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	} else {
@@ -976,6 +980,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
 	job.Setenv("forcerm", r.FormValue("forcerm"))
+	job.SetenvBool("lineDelim", version.GreaterThanOrEqualTo("1.15"))
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
 

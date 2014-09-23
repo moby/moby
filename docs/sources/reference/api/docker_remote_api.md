@@ -37,6 +37,12 @@ You can still call an old version of the API using
 
 ### What's new
 
+`POST /build`
+`GET /events`
+
+**New!**
+Now has header: `Content-Type: application/x-json-stream`.
+
 ## v1.14
 
 ### Full Documentation
