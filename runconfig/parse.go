@@ -16,7 +16,6 @@ import (
 
 var (
 	ErrInvalidWorkingDirectory          = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictAttachDetach             = fmt.Errorf("Conflicting options: -a and -d")
 	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
 	ErrConflictContainerNetworkAndDns   = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
@@ -43,7 +42,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flCapDrop     []string
 
 		// FIXME: switch all parsed values to regular types, then attach them with flag.xxxVar, for consistency
-		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to the host interfaces")
@@ -87,12 +85,15 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	}
 
 	// Validate input params
-	if *flDetach && len(flAttach) > 0 {
-		return nil, nil, cmd, ErrConflictAttachDetach
-	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
 	}
+
+	var (
+		_, attachStdin  = flAttach["stdin"]
+		_, attachStdout = flAttach["stdout"]
+		_, attachStderr = flAttach["stderr"]
+	)
 
 	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
@@ -115,13 +116,11 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	}
 
 	// If neither -d or -a are set, attach to everything by default
-	if len(flAttach) == 0 && !*flDetach {
-		if !*flDetach {
-			flAttach["stdout"] = struct{}{}
-			flAttach["stderr"] = struct{}{}
-			if *flStdin {
-				flAttach["stdin"] = struct{}{}
-			}
+	if len(flAttach) == 0 {
+		attachStdout = true
+		attachStderr = true
+		if *flStdin {
+			attachStdin = true
 		}
 	}
 
@@ -241,6 +240,9 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
 		Cpuset:          *flCpuset,
+		AttachStdin:     attachStdin,
+		AttachStdout:    attachStdout,
+		AttachStderr:    attachStderr,
 		Env:             envVariables,
 		Cmd:             runCmd,
 		Image:           image,

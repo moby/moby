@@ -2173,3 +2173,13 @@ func TestRunExecDir(t *testing.T) {
 
 	logDone("run - check execdriver dir behavior")
 }
+
+func TestRunAttachDetach(t *testing.T) {
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "-a", "stdout", "busybox", "true"))
+	if err == nil {
+		t.Fatalf("Detach and attach should conflict but did not: %q", out)
+	}
+
+	deleteAllContainers()
+	logDone("run - detach and attach should conflict")
+}

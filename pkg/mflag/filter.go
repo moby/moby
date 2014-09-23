@@ -1,7 +1,5 @@
 package mflag
 
-import ()
-
 func Filter(dst Value, validator func(string) (string, error)) Value {
 	return &filter{
 		Value:     dst,
@@ -20,4 +18,11 @@ func (f *filter) Set(val string) error {
 		return err
 	}
 	return f.Value.Set(newval)
+}
+
+func (f *filter) Get() interface{} {
+	if g, ok := f.Value.(Getter); ok {
+		return g.Get()
+	}
+	return nil
 }

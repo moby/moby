@@ -15,6 +15,10 @@ func (s StringSet) Set(val string) error {
 	return nil
 }
 
+func (s StringSet) Get() interface{} {
+	return map[string]struct{}(s)
+}
+
 func (s StringSet) String() string {
 	keys := make([]string, 0, len(s))
 	for k := range s {
