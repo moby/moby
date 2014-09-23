@@ -67,6 +67,8 @@ Once you've found the image you want, you can download it with `docker pull <ima
     511136ea3c5a: Download complete
     7064731afe90: Download complete
 
+    Status: Downloaded newer image for centos
+
 You now have an image from which you can run containers.
 
 ## Contributing to Docker Hub

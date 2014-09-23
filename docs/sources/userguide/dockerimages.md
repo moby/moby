@@ -93,6 +93,8 @@ download the `centos` image.
     ef52fb1fe610: Download complete
     . . .
 
+    Status: Downloaded newer image for centos
+
 We can see that each layer of the image has been pulled down and now we
 can run a container from this image and we won't have to wait to
 download the image.
