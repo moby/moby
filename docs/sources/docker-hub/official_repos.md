@@ -7,16 +7,15 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 ## Introduction
 
 You’ve been given the job of creating an image for an Official Repository
-hosted on[Docker Hub Registry](https://registry.hub.docker.com/). These are
+hosted on [Docker Hub Registry](https://registry.hub.docker.com/). These are
 Docker, Inc.’s guidelines for getting that task done. Even if you’re not
 planning to create an Official Repo, you can think of these guidelines as best
 practices for image creation generally.
 
-This document consists of three major sections:
+This document consists of two major sections:
 
-* Expected files, resources and supporting items for your image
+* A list of expected files, resources and supporting items for your image
 * Examples embodying those practices
-* Instructions for submitting contributions and reporting issues
 
 ## Expected Files & Resources
 
@@ -28,8 +27,8 @@ directly.) Docker **strongly** recommends that this repo be publicly
 accessible.
 
 If the repo is private or has otherwise limited access, you must provide a
-means of at least “read-only” access for both general users and for the docker-
-library maintainers, who need access for review and building purposes.
+means of at least “read-only” access for both general users and for the
+docker-library maintainers, who need access for review and building purposes.
 
 ### A `Dockerfile`
 
@@ -41,7 +40,7 @@ Your `Dockerfile` should adhere to the following:
 established Official Image.
 * It must follow `Dockerfile` best practices. These are discussed in the
 [Best Practices document](/articles/dockerfile_best-practices). In addition,
-Docker, Inc. engineer Michael Crosby has a good discussion of Dockerfiles in
+Docker engineer Michael Crosby has a good discussion of Dockerfiles in
 this [blog post](http://crosbymichael.com/dockerfile-best-practices-take-2.html).
 
 While [`ONBUILD` triggers](https://docs.docker.com/reference/builder/#onbuild)
@@ -89,10 +88,9 @@ In terms of content, the long description must include the following sections:
 
 * Overview & Links
 * How-to/Usage
-* User Feedback
+* Issues & Contribution Info
 
 #### Overview & links
-
 A section providing (a) an overview of the software contained in the image,
 similar to the introduction in a Wikipedia entry and (b) a selection of links
 to outside resources that help to describe the software.
@@ -100,13 +98,11 @@ to outside resources that help to describe the software.
 This section *must* also include a link to the `Dockerfile`.
 
 #### How-to/usage
-
 A section that describes how to run and use the image, including common use
 cases and example `Dockerfile`s (if applicable). Try to provide clear,step-by-
 step instructions wherever possible.
 
-##### Contributing
-
+##### Issues & Contribution Info
 In this part, point users to any resources that can help them contribute to the
 project. Include contribution guidelines and any specific instructions related
 to your development practices. Include a link to
@@ -114,7 +110,6 @@ to your development practices. Include a link to
 Be sure to include contact info, handles, etc. for official maintainers.
 
 ##### Issues
-
 Include a brief section letting users know where they can go for help and how
 they can file issues with the repo. Point them to any specific IRC channels,
 issue trackers, contacts, additional “how-to” information or other resources.
