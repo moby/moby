@@ -16,5 +16,5 @@ func (daemon *Daemon) ContainerWait(job *engine.Job) engine.Status {
 		job.Printf("%d\n", status)
 		return engine.StatusOK
 	}
-	return job.Errorf("%s: no such container: %s", job.Name, name)
+	return job.Errorf("%s: No such container: %s", job.Name, name)
 }
