@@ -11,6 +11,11 @@ Docker image. By calling `docker build` from your terminal, you can have
 Docker build your image step by step, executing the instructions
 successively.
 
+This page discusses the specifics of all the instructions you can use in your
+`Dockerfile`. To further help you write a clear, readable, maintainable
+`Dockerfile`, we've also written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
+
+
 ## Usage
 
 To [*build*](../commandline/cli/#cli-build) an image from a source repository,
