@@ -15,8 +15,8 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s", job.Name)
 	}
 	config := runconfig.ContainerConfigFromJob(job)
-	if config.Memory != 0 && config.Memory < 524288 {
-		return job.Errorf("Minimum memory limit allowed is 512k")
+	if config.Memory != 0 && config.Memory < 4194304 {
+		return job.Errorf("Minimum memory limit allowed is 4MB")
 	}
 	if config.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
 		job.Errorf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
