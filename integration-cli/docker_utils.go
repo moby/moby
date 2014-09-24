@@ -440,6 +440,9 @@ func fakeContext(dockerfile string, files map[string]string) (*FakeContext, erro
 	if err != nil {
 		return nil, err
 	}
+	if err := os.Chmod(tmp, 0755); err != nil {
+		return nil, err
+	}
 	ctx := &FakeContext{tmp}
 	for file, content := range files {
 		if err := ctx.Add(file, content); err != nil {
