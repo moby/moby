@@ -14,7 +14,8 @@ practices for image creation generally.
 
 This document consists of two major sections:
 
-* A list of expected files, resources and supporting items for your image
+* A list of expected files, resources and supporting items for your image,
+along with best practices for creating those items
 * Examples embodying those practices
 
 ## Expected Files & Resources
@@ -30,7 +31,7 @@ If the repo is private or has otherwise limited access, you must provide a
 means of at least “read-only” access for both general users and for the
 docker-library maintainers, who need access for review and building purposes.
 
-### A `Dockerfile`
+### A Dockerfile
 
 Complete information on `Dockerfile`s can be found in the [Reference section](https://docs.docker.com/reference/builder/).
 We also have a page discussing [best practices for writing `Dockerfile`s](/articles/dockerfile_best-practices).
@@ -38,9 +39,9 @@ Your `Dockerfile` should adhere to the following:
 
 * It must be written either by using `FROM scratch` or be based on another,
 established Official Image.
-* It must follow `Dockerfile` best practices. These are discussed in the
-[Best Practices document](/articles/dockerfile_best-practices). In addition,
-Docker engineer Michael Crosby has a good discussion of Dockerfiles in
+* It must follow `Dockerfile` best practices. These are discussed on the
+[best practices page](/articles/dockerfile_best-practices). In addition,
+Docker engineer Michael Crosby has some good tips for Dockerfiles in
 this [blog post](http://crosbymichael.com/dockerfile-best-practices-take-2.html).
 
 While [`ONBUILD` triggers](https://docs.docker.com/reference/builder/#onbuild)
@@ -49,7 +50,7 @@ are not required, if you choose to use them you should:
 * Build both `ONBUILD` and non-`ONBUILD` images, with the `ONBUILD` image
 built `FROM` the non-`ONBUILD` image.
 * The `ONBUILD` image should be specifically tagged, for example, `ruby:
-latest`and `ruby:onbuild`, or `ruby:2` and  `ruby:2-onbuild`.
+latest`and `ruby:onbuild`, or `ruby:2` and  `ruby:2-onbuild`
 
 ### A short description
 
@@ -59,7 +60,7 @@ should also:
 
 * Be named `README-short.txt`
 * Reside in the repo for the “latest” tag
-* Not exceed 200 characters.
+* Not exceed 200 characters
 
 ### A logo
 
@@ -69,20 +70,21 @@ file should have the following characteristics:
 
 * Be named `logo.png`
 * Should reside in the repo for the “latest” tag
-* Should be 200px min. in one dimension, 200px max. in the other.
+* Should fit inside a 200px square, maximized in one dimension (preferably the
+width)
 * Square or wide (landscape) is preferred over tall (portrait), but exceptions
-can be made based on the logo needed.
+can be made based on the logo needed
 
 ### A long description
 
-Include a comprehensive description of your image (in markdown format). Only
-one description is required; you don’t need additional descriptions for each
-tag. The file should also: 
+Include a comprehensive description of your image (in markdown format, GitHub 
+flavor preferred). Only one description is required; you don’t need additional
+descriptions for each tag. The file should also: 
 
 * Be named `README.md`
 * Reside in the repo for the “latest” tag
 * Be no longer than absolutely necessary, while still addressing all the
-content requirements.
+content requirements
 
 In terms of content, the long description must include the following sections:
 
@@ -95,21 +97,22 @@ In terms of content, the long description must include the following sections:
 This section should provide:
 
 * an overview of the software contained in the image, similar to the
-introduction in a Wikipedia entry,
+introduction in a Wikipedia entry
 
-* a selection of links to outside resources that help to describe the software,
+* a selection of links to outside resources that help to describe the software
 
-* a *mandatory* link to the `Dockerfile`.
+* a *mandatory* link to the `Dockerfile`
 
 #### How-to/usage
+
 A section that describes how to run and use the image, including common use
-cases and example `Dockerfile`s (if applicable). Try to provide clear,step-by-
+cases and example `Dockerfile`s (if applicable). Try to provide clear, step-by-
 step instructions wherever possible.
 
-##### Issues & Contribution Info
-In this part, point users to any resources that can help them contribute to the
-project. Include contribution guidelines and any specific instructions related
-to your development practices. Include a link to
+##### Issues & contribution info
+In this section, point users to any resources that can help them contribute to
+the project. Include contribution guidelines and any specific instructions
+related to your development practices. Include a link to
 [Docker’s resources for contributors](https://docs.docker.com/contributing/contributing/).
 Be sure to include contact info, handles, etc. for official maintainers.
 
@@ -122,7 +125,7 @@ issue trackers, contacts, additional “how-to” information or other resources
 
 Include a file, `LICENSE`, of any applicable license.  Docker recommends using
 the license of the software contained in the image, provided it allows Docker,
-Inc. to legally build and distribute the image.  Otherwise Docker recommends
+Inc. to legally build and distribute the image.  Otherwise, Docker recommends
 adopting the [Expat license](http://directory.fsf.org/wiki/License:Expat).
 
 ## Examples
@@ -176,3 +179,7 @@ For more examples, take a look at these repos:
 * [Buildpack-deps](https://github.com/docker-library/buildpack-deps)
 * ["Hello World" minimal container](https://github.com/docker-library/hello-world)
 * [Node](https://github.com/docker-library/node)
+
+## Submit your repo
+
+Once you've checked off everything in these guidelines, and are confident your image is ready for primetime, please contact us at [partners@docker.com](mailto:partners@docker.com) to have your project considered for the Official Repos program.

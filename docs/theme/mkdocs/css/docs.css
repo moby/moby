@@ -241,6 +241,15 @@ ol li {
   margin-top: 10px;
 }
 
+.content-body h4 {
+  font-size: 16px;
+  font-weight: 400;
+  color: #394d54;
+  line-height: 1.7;
+  margin-bottom: 4px;
+  margin-top: 10px;
+}
+
 .content-body p {
   font-size: 14px;
   font-weight: 400;
