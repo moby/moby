@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1045,8 +1046,9 @@ func (daemon *Daemon) checkLocaldns() error {
 		return err
 	}
 	resolvConf = utils.RemoveLocalDns(resolvConf)
-	if len(daemon.config.Dns) == 0 && utils.CheckLocalDns(resolvConf) {
-		log.Infof("Local (127.0.0.1) DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
+
+	if len(daemon.config.Dns) == 0 && !bytes.Contains(resolvConf, []byte("nameserver")) {
+		log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
 		daemon.config.Dns = DefaultDns
 	}
 	return nil
