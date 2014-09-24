@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -11,17 +10,42 @@ import (
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
 func TestBuildHistory(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildHistory")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testbuildhistory", ".")
+	name := "testbuildhistory"
+	defer deleteImages(name)
+	_, err := buildImage(name, `FROM busybox
+RUN echo "A"
+RUN echo "B"
+RUN echo "C"
+RUN echo "D"
+RUN echo "E"
+RUN echo "F"
+RUN echo "G"
+RUN echo "H"
+RUN echo "I"
+RUN echo "J"
+RUN echo "K"
+RUN echo "L"
+RUN echo "M"
+RUN echo "N"
+RUN echo "O"
+RUN echo "P"
+RUN echo "Q"
+RUN echo "R"
+RUN echo "S"
+RUN echo "T"
+RUN echo "U"
+RUN echo "V"
+RUN echo "W"
+RUN echo "X"
+RUN echo "Y"
+RUN echo "Z"`,
+		true)
 
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	out, exitCode, err = runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistory"))
+	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistory"))
 	errorOut(err, t, fmt.Sprintf("image history failed: %v %v", out, err))
 	if err != nil || exitCode != 0 {
 		t.Fatal("failed to get image history")
@@ -38,8 +62,6 @@ func TestBuildHistory(t *testing.T) {
 			t.Fatalf("Expected layer \"%s\", but was: %s", expected_values[i], actual_value)
 		}
 	}
-
-	deleteImages("testbuildhistory")
 
 	logDone("history - build history")
 }
