@@ -1414,20 +1414,31 @@ func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
 }
 
 func testContextTar(t *testing.T, compression archive.Compression) {
-	contextDirectory := filepath.Join(workingDirectory, "build_tests", "TestContextTar")
-	context, err := archive.Tar(contextDirectory, compression)
-
+	ctx, err := fakeContext(
+		`FROM busybox
+ADD foo /foo
+CMD ["cat", "/foo"]`,
+		map[string]string{
+			"foo": "bar",
+		},
+	)
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	context, err := archive.Tar(ctx.Dir, compression)
 	if err != nil {
 		t.Fatalf("failed to build context tar: %v", err)
 	}
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "contexttar", "-")
+	name := "contexttar"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
+	defer deleteImages(name)
 	buildCmd.Stdin = context
 
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("build failed to complete: %v %v", out, err)
 	}
-	deleteImages("contexttar")
 	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", compression))
 }
 
