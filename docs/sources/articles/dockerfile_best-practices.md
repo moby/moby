@@ -14,9 +14,9 @@ specific set of instructions. You can learn the basics on the
 you’re new to writing `Dockerfile`s, you should start there.
 
 This document covers the best practices and methods recommended by Docker,
-Inc., for creating easy-to-use, effective `Dockerfile`s. We strongly suggest
-you follow these recommendations (in fact, if you’re creating an Official
-Image, you *must* adhere to these practices).
+Inc. and the Docker Community for creating easy-to-use, effective
+`Dockerfile`s. We strongly suggest you follow these recommendations (in fact,
+if you’re creating an Official Image, you *must* adhere to these practices).
 
 You can see many of these practices and recommendations in action in the [buildpack-deps `Dockerfile`](https://github.com/docker-library/buildpack-deps/blob/master/jessie/Dockerfile).
 
@@ -34,10 +34,11 @@ set-up and configuration.
 
 ### Use a [`.dockerignore` file](https://docs.docker.com/reference/builder/#the-dockerignore-file)
 
-For faster uploading and efficiency, you should make use of a `.dockerignore`
-file to exclude files or directories from the build context. For example, unless
-`.git` is needed by your build process or scripts, you should add it to
-`.dockerignore`, which can save many megabytes worth of upload time.
+For faster uploading and efficiency during `docker build`, you should make use
+of a `.dockerignore` file to exclude files or directories from the build
+context and final image. For example, unless`.git` is needed by your build
+process or scripts, you should add it to `.dockerignore`, which can save many
+megabytes worth of upload time.
 
 ### Avoid installing unnecessary packages
 
@@ -95,14 +96,18 @@ backslashes.
 Probably the most common use-case for `RUN` is an application of `apt-get`.
 When using `apt-get`, here a few things to keep in mind:
 
-* Don’t do simply `RUN apt-get update` on a single line. This will cause
+* Don’t do `RUN apt-get update` on a single line. This will cause
 caching issues if the referenced archive gets updated, which will make your
 subsequent `apt-get install` fail without comment.
 
 * For the most part, to keep your code more readable and maintainable, avoid
 `RUN apt-get install -y package-foo && apt-get install -y package-bar`.
 
-* Avoid `RUN apt-get upgrade` or `dist-upgrade`, since many of the “essential” packages from the base images will fail to upgrade inside an unprivileged container. If a base package is out of date, you should contact its maintainers. If you know there’s a particular package, `foo`, that needs to be updated, use `apt-get install -y foo` and it will update automatically.
+* Avoid `RUN apt-get upgrade` or `dist-upgrade`, since many of the “essential”
+packages from the base images will fail to upgrade inside an unprivileged
+container. If a base package is out of date, you should contact its
+maintainers. If you know there’s a particular package, `foo`, that needs to be
+updated, use `apt-get install -y foo` and it will update automatically.
 
 * Do use `RUN apt-get update && apt-get install -y package-bar package-foo
 package-baz`. Writing the instruction this way not only makes it easier to read
@@ -111,7 +116,7 @@ will naturally be busted and the latest versions will be installed with no
 further coding or manual intervention required.
 
 * Further natural cache-busting can be realized by version-pinning packages
-(e.g., `package-foo=1.3.*`) since it will force retrieval of that version
+(e.g., `package-foo=1.3.*`). This will force retrieval of that version
 regardless of what’s in the cache.
 Forming your `apt-get` code this way will greatly ease maintenance and reduce
 failures due to unanticipated changes in required packages.
@@ -120,8 +125,9 @@ failures due to unanticipated changes in required packages.
 
 Below is a well-formed `RUN` instruction that demonstrates the above
 recommendations. Note that the last package, `s3cmd`, specifies a version
-`1.1.0*`, which will bust the `apt-get` cache and force the installation of
-that version (which in this case had a new, required feature). 
+`1.1.0*`. If the image previously used an older version, specifying the new one
+will cause a cache bust of `apt-get update` and ensure the installation of
+the new version (which in this case had a new, required feature).
 
     RUN apt-get update && apt-get install -y \
         aufs-tools \
@@ -146,14 +152,14 @@ that version (which in this case had a new, required feature).
 ### [`CMD`](https://docs.docker.com/reference/builder/#cmd)
 
 The `CMD` instruction should be used to run the software contained by your
-image, along with any arguments.  `CMD` should almost always be used in the
+image, along with any arguments. `CMD` should almost always be used in the
 form of `CMD [“executable”, “param1”, “param2”…]`. Thus, if the image is for a
 service (Apache, Rails, etc.), you would run something like
 `CMD ["apache2","-DFOREGROUND"]`. Indeed, this form of the instruction is
 recommended for any service-based image.
 
 In most other cases, `CMD` should be given an interactive shell (bash, python,
-perl, etc). For example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
+perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
 `CMD [“php”, “-a”]`. Using this form means that when you execute something like
 `docker run -it python`, you’ll get dropped into a usable shell, ready to go.
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
@@ -163,11 +169,11 @@ works.
 
 ### [`EXPOSE`](https://docs.docker.com/reference/builder/#expose)
 
-The `EXPOSE` instruction is the way you tell the users of your image where to
-connect. Consequently, you should use the common, traditional port for your
-application. For example, an image containing the Apache web server would use
-`EXPOSE 80` while an image containing MongoDB would use `EXPOSE 27017` and so
-on.
+The `EXPOSE` instruction indicates the ports on which a container will listen
+for connections. Consequently, you should use the common, traditional port for
+your application. For example, an image containing the Apache web server would
+use `EXPOSE 80`, while an image containing MongoDB would use `EXPOSE 27017` and
+so on.
 
 For external access, your users can execute `docker run` with a flag indicating
 how to map the specified port to the port of their choice.
@@ -207,9 +213,10 @@ not immediately obvious. Consequently, the best use for `ADD` is local tar file
 auto-extraction into the image, as in `ADD rootfs.tar.xz /`.
 
 Because image size matters, using `ADD` to fetch packages from remote URLs is
-strongly discouraged; you should use `curl` or `wget` instead. That way you can, where possible, delete the files you no longer need after they’ve been
-extracted without having to add another layer in your image. For example, you
-should avoid doing things like:
+strongly discouraged; you should use `curl` or `wget` instead. That way you can
+delete the files you no longer need after they’ve been extracted and you won't
+have to add another layer in your image. For example, you should avoid doing
+things like:
 
     ADD http://example.com/big.tar.xz /usr/src/things/
     RUN tar -xJf /usr/src/things/big.tar.xz -C /usr/src/things
@@ -218,9 +225,9 @@ should avoid doing things like:
 And instead, do something like:
 
     RUN mdkir -p /usr/src/things \
-    && curl -SL http://example.com/big.tar.gz \
-    | tar -xJC /usr/src/things \
-    && make -C /usr/src/things all
+        && curl -SL http://example.com/big.tar.gz \
+        | tar -xJC /usr/src/things \
+        && make -C /usr/src/things all
 
 For other items (files, directories) that do not require `ADD`’s tar
 auto-extraction capability, you should always use `COPY`.
@@ -311,9 +318,9 @@ Images built from `ONBUILD` should get a separate tag, for example:
 `ruby:1.9-onbuild` or `ruby:2.0-onbuild`.
 
 Be careful when putting `ADD` or `COPY` in `ONBUILD`. The “onbuild” image will
-fail catastrophically if it is missing the the resource being added. Adding a
-separate tag, as recommended above, will help mitigate this by allowing the
-`Dockerfile` author to make a choice.
+fail catastrophically if the new build's context is missing the resource being
+added. Adding a separate tag, as recommended above, will help mitigate this by
+allowing the `Dockerfile` author to make a choice.
 
 ## Examples For Official Repositories
 
