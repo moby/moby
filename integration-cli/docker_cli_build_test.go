@@ -604,10 +604,16 @@ func TestBuildForceRm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get the container count: %s", err)
 	}
+	name := "testbuildforcerm"
+	defer deleteImages(name)
+	ctx, err := fakeContext("FROM scratch\nRUN true\nRUN thiswillfail", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
 
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildForceRm")
-	buildCmd := exec.Command(dockerBinary, "build", "--force-rm", ".")
-	buildCmd.Dir = buildDirectory
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "--force-rm", ".")
+	buildCmd.Dir = ctx.Dir
 	_, exitCode, err := runCommandWithOutput(buildCmd)
 
 	if err == nil || exitCode == 0 {
