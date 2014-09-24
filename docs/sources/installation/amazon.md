@@ -32,7 +32,7 @@ course.**
    - When you're on the "Configure Instance Details" step, expand the
      "Advanced Details" section.
    - Under "User data", select "As text".
-   - Enter `#include https://get.docker.io` into
+   - Enter `#include https://get.docker.com` into
      the instance *User Data*.
      [CloudInit](https://help.ubuntu.com/community/CloudInit) is part
      of the Ubuntu image you chose; it will bootstrap Docker by
@@ -46,7 +46,7 @@ Security Group to allow SSH.** By default all incoming ports to your new
 instance will be blocked by the AWS Security Group, so you might just
 get timeouts when you try to connect.
 
-Installing with `get.docker.io` (as above) will
+Installing with `get.docker.com` (as above) will
 create a service named `lxc-docker`. It will also
 set up a [*docker group*](../binaries/#dockergroup) and you may want to
 add the *ubuntu* user to it so that you don't have to use

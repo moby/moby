@@ -2,19 +2,19 @@
 set -e
 #
 # This script is meant for quick & easy install via:
-#   'curl -sSL https://get.docker.io/ | sh'
+#   'curl -sSL https://get.docker.com/ | sh'
 # or:
-#   'wget -qO- https://get.docker.io/ | sh'
+#   'wget -qO- https://get.docker.com/ | sh'
 #
 #
 # Docker Maintainers:
-#   To update this script on https://get.docker.io,
+#   To update this script on https://get.docker.com,
 #   use hack/release.sh during a normal release,
 #   or the following one-liner for script hotfixes:
-#     s3cmd put --acl-public -P hack/install.sh s3://get.docker.io/index
+#     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
 #
 
-url='https://get.docker.io/'
+url='https://get.docker.com/'
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
@@ -149,9 +149,9 @@ case "$lsb_dist" in
 		fi
 		(
 			set -x
-			if [ "https://get.docker.io/" = "$url" ]; then
+			if [ "https://get.docker.com/" = "$url" ]; then
 				$sh_c "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
-			elif [ "https://test.docker.io/" = "$url" ]; then
+			elif [ "https://test.docker.com/" = "$url" ]; then
 				$sh_c "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
 			else
 				$sh_c "$curl ${url}gpg | apt-key add -"
@@ -179,7 +179,7 @@ case "$lsb_dist" in
 		;;
 
 	Gentoo)
-		if [ "$url" = "https://test.docker.io/" ]; then
+		if [ "$url" = "https://test.docker.com/" ]; then
 			echo >&2
 			echo >&2 '  You appear to be trying to install the latest nightly build in Gentoo.'
 			echo >&2 '  The portage tree should contain the latest stable release of Docker, but'

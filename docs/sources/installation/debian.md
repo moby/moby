@@ -59,9 +59,9 @@ which is officially supported by Docker.
         $ sudo apt-get update
         $ sudo apt-get install -t wheezy-backports linux-image-amd64
 
-2. Install Docker using the get.docker.io script:
+2. Install Docker using the get.docker.com script:
  
-    `curl -sSL https://get.docker.io/ | sh`
+    `curl -sSL https://get.docker.com/ | sh`
 
 ## Giving non-root access
 
