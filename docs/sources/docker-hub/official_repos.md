@@ -8,7 +8,7 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 
 You’ve been given the job of creating an image for an Official Repository
 hosted on [Docker Hub Registry](https://registry.hub.docker.com/). These are
-Docker, Inc.’s guidelines for getting that task done. Even if you’re not
+our guidelines for getting that task done. Even if you’re not
 planning to create an Official Repo, you can think of these guidelines as best
 practices for image creation generally.
 
@@ -91,11 +91,15 @@ In terms of content, the long description must include the following sections:
 * Issues & Contribution Info
 
 #### Overview & links
-A section providing (a) an overview of the software contained in the image,
-similar to the introduction in a Wikipedia entry and (b) a selection of links
-to outside resources that help to describe the software.
 
-This section *must* also include a link to the `Dockerfile`.
+This section should provide:
+
+* an overview of the software contained in the image, similar to the
+introduction in a Wikipedia entry,
+
+* a selection of links to outside resources that help to describe the software,
+
+* a *mandatory* link to the `Dockerfile`.
 
 #### How-to/usage
 A section that describes how to run and use the image, including common use
