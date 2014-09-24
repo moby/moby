@@ -218,11 +218,14 @@ func TestRunStdinPipe(t *testing.T) {
 	logDone("run - pipe in with -i -a stdin")
 }
 
-func TestRmDetachedError(t *testing.T) {
+func TestRunRmDetachedError(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--rm", "-d", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	out, stderr, _, err := runCommandWithStdoutStderr(runCmd)
 	if err == nil {
 		t.Fatalf("Should have errored out (%s)", out)
+	}
+	if ! strings.Contains(stderr, "Conflicting options:") {
+		t.Fatalf("Error message should contain: 'Conflicting options'")
 	}
 	deleteAllContainers()
 
@@ -2175,9 +2178,12 @@ func TestRunExecDir(t *testing.T) {
 }
 
 func TestRunAttachDetach(t *testing.T) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "-a", "stdout", "busybox", "true"))
+	out, stderr, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "run", "-d", "-a", "stdout", "busybox", "true"))
 	if err == nil {
 		t.Fatalf("Detach and attach should conflict but did not: %q", out)
+	}
+	if ! strings.Contains(stderr, "Conflicting options:") {
+		t.Fatalf("Error message should contain: 'Conflicting options'")
 	}
 
 	deleteAllContainers()

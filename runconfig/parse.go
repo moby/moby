@@ -250,15 +250,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 	}
-	if _, ok := flAttach["stdin"]; ok {
-		config.AttachStdin = true
-	}
-	if _, ok := flAttach["stdout"]; ok {
-		config.AttachStdout = true
-	}
-	if _, ok := flAttach["stderr"]; ok {
-		config.AttachStderr = true
-	}
 
 	hostConfig := &HostConfig{
 		Binds:           binds,
