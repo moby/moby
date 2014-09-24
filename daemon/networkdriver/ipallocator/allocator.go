@@ -34,8 +34,9 @@ type networkSet map[string]*allocatedMap
 var (
 	ErrNoAvailableIPs           = errors.New("no available ip addresses on network")
 	ErrIPAlreadyAllocated       = errors.New("ip already allocated")
+	ErrIPOutOfRange             = errors.New("requested ip is out of range")
 	ErrNetworkAlreadyRegistered = errors.New("network already registered")
-	ErrBadSubnet                = errors.New("network not contains specified subnet")
+	ErrBadSubnet                = errors.New("network does not contain specified subnet")
 )
 
 var (
@@ -100,11 +101,21 @@ func ReleaseIP(network *net.IPNet, ip net.IP) error {
 
 func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
 	pos := ipToInt(ip)
+
+	// Verify that the IP address has not been already allocated.
 	if _, ok := allocated.p[pos]; ok {
 		return nil, ErrIPAlreadyAllocated
 	}
+
+	// Verify that the IP address is within our network range.
+	if pos < allocated.begin || pos > allocated.end {
+		return nil, ErrIPOutOfRange
+	}
+
+	// Register the IP.
 	allocated.p[pos] = struct{}{}
 	allocated.last = pos
+
 	return ip, nil
 }
 

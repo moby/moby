@@ -97,17 +97,28 @@ func TestGetReleasedIp(t *testing.T) {
 	}
 }
 
-func TestRequesetSpecificIp(t *testing.T) {
+func TestRequestSpecificIp(t *testing.T) {
 	defer reset()
 	network := &net.IPNet{
 		IP:   []byte{192, 168, 0, 1},
-		Mask: []byte{255, 255, 255, 0},
+		Mask: []byte{255, 255, 255, 224},
 	}
 
-	ip := net.ParseIP("192.168.1.5")
+	ip := net.ParseIP("192.168.0.5")
 
+	// Request a "good" IP.
 	if _, err := RequestIP(network, ip); err != nil {
 		t.Fatal(err)
+	}
+
+	// Request the same IP again.
+	if _, err := RequestIP(network, ip); err != ErrIPAlreadyAllocated {
+		t.Fatalf("Got the same IP twice: %#v", err)
+	}
+
+	// Request an out of range IP.
+	if _, err := RequestIP(network, net.ParseIP("192.168.0.42")); err != ErrIPOutOfRange {
+		t.Fatalf("Got an out of range IP: %#v", err)
 	}
 }
 
