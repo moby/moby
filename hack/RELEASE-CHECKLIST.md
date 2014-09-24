@@ -39,8 +39,9 @@ If it's a regular release, we usually merge master.
 git merge origin/master
 ```
 
-Otherwise, if it is a hotfix release, we cherry-pick only the commits we want.
+Otherwise, if it is a hotfix release, we grab any docs released updates (that were previously cherry-picked from master) and then cherry-pick only the commits we want.
 ```bash
+git merge origin/docs
 # get the commits ids we want to cherry-pick
 git log
 # cherry-pick the commits starting from the oldest one, without including merge commits
@@ -141,13 +142,10 @@ To test locally:
 make docs
 ```
 
-To make a shared test at http://beta-docs.docker.io:
+And then browse to the your Docker daemon's documentation web-site and check
+that it is reasonable, links work etc:
 
-(You will need the `awsconfig` file added to the `docs/` dir)
-
-```bash
-make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
-```
+    http://192.168.59.103:8000/
 
 ### 5. Commit and create a pull request to the "release" branch
 
@@ -164,9 +162,11 @@ open the PR against the "release" branch instead of accidentally against
 
 ### 6. Get 2 other maintainers to validate the pull request
 
-### 7. Publish binaries
+### 7. Publish release
 
 To run this you will need access to the release credentials. Get them from the Core maintainers.
+
+#### Publish binaries to `test.docker.io`
 
 Replace "..." with the respective credentials:
 
@@ -191,6 +191,21 @@ After the binaries and packages are uploaded to test.docker.io, make sure
 they get tested in both Ubuntu and Debian for any obvious installation
 issues or runtime issues.
 
+#### Publish documentation to beta-docs.docker.io
+
+You will need the `awsconfig` file added to the `docs/` dir. Get a copy of it
+from the core maintainers.
+
+```bash
+make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
+```
+
+And then browse to the [beta-docs site](http://beta-docs.docker.io.s3-website-us-west-2.amazonaws.com/)
+and check that it is reasonable, links work, and that the documentation versioning
+UI works.
+
+#### Announce the test binaries and documentation
+
 Announcing on IRC in both `#docker` and `#docker-dev` is a great way to get
 help testing!  An easy way to get some useful links for sharing:
 
@@ -200,7 +215,10 @@ echo "Linux 64bit binary: https://test.docker.io/builds/Linux/x86_64/docker-${VE
 echo "Darwin/OSX 64bit client binary: https://test.docker.io/builds/Darwin/x86_64/docker-${VERSION#v}"
 echo "Darwin/OSX 32bit client binary: https://test.docker.io/builds/Darwin/i386/docker-${VERSION#v}"
 echo "Linux 64bit tgz: https://test.docker.io/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
+echo "Documentation: http://beta-docs.docker.io.s3-website-us-west-2.amazonaws.com/"
 ```
+
+#### Publish binaries to final release site
 
 Once they're tested and reasonably believed to be working, run against
 get.docker.io:
@@ -215,6 +233,22 @@ docker run \
        docker \
        hack/release.sh
 ```
+
+#### Publish documentation to the final release site
+
+You will need the `awsconfig` file added to the `docs/` dir. Get a copy of it
+from the core maintainers.
+
+```bash
+make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+```
+
+The docs will appear on http://docs.docker.com/ (though there may be cached
+versions, so its check http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
+For more information about documentation releases, see `docs/README.md`.
+
+Ask SvenDowideit, or JohnCosta to invalidate the CloudFront cache using the
+"CDN Planet" Chrome applet.
 
 ### 8. Breakathon
 
@@ -242,7 +276,7 @@ git tag -a $VERSION -m $VERSION bump_$VERSION
 git push origin $VERSION
 ```
 
-### 10. Go to github to merge the `bump_$VERSION` branch into release
+### 10. Go to github to merge the `bump_$VERSION` branch into `release`
 
 Don't forget to push that pretty blue button to delete the leftover
 branch afterwards!
@@ -254,27 +288,23 @@ documentation:
 
 ```bash
 git checkout -b docs-$PREVIOUS_MAJOR_MINOR docs
-git fetch
+git fetch origin
 git reset --hard origin/docs
 git push -f origin docs-$PREVIOUS_MAJOR_MINOR
 ```
 
-You will need the `awsconfig` file added to the `docs/` directory to contain the
-s3 credentials for the bucket you are deploying to.
+For all releases, make the current release `docs` branch follow the `release` branch:
 
 ```bash
 git checkout -b docs release || git checkout docs
-git fetch
+git fetch origin
 git reset --hard origin/release
 git push -f origin docs
-make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
 ```
 
-The docs will appear on http://docs.docker.com/ (though there may be cached
-versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
-For more information about documentation releases, see `docs/README.md`.
-
-Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrome applet.
+This `docs` branch will be used to publish updates to the `http://docs.docker.com`
+site at other times during the current release's life. These `docs-releases` are organised
+in a similar fashion to hot-fix releases, by merging a cherry-pick PR into the `docs` branch.
 
 ### 12. Create a new pull request to merge release back into master
 
