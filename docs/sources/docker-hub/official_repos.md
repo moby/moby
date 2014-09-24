@@ -41,7 +41,7 @@ Your `Dockerfile` should adhere to the following:
 established Official Image.
 * It must follow `Dockerfile` best practices. These are discussed on the
 [best practices page](/articles/dockerfile_best-practices). In addition,
-Docker engineer Michael Crosby has some good tips for Dockerfiles in
+Docker engineer Michael Crosby has some good tips for `Dockerfiles` in
 this [blog post](http://crosbymichael.com/dockerfile-best-practices-take-2.html).
 
 While [`ONBUILD` triggers](https://docs.docker.com/reference/builder/#onbuild)
@@ -77,7 +77,7 @@ can be made based on the logo needed
 
 ### A long description
 
-Include a comprehensive description of your image (in markdown format, GitHub 
+Include a comprehensive description of your image (in Markdown format, GitHub 
 flavor preferred). Only one description is required; you don’t need additional
 descriptions for each tag. The file should also: 
 
@@ -88,9 +88,9 @@ content requirements
 
 In terms of content, the long description must include the following sections:
 
-* Overview & Links
-* How-to/Usage
-* Issues & Contribution Info
+* Overview & links
+* How-to/usage
+* Issues & contributions
 
 #### Overview & links
 
@@ -109,15 +109,15 @@ A section that describes how to run and use the image, including common use
 cases and example `Dockerfile`s (if applicable). Try to provide clear, step-by-
 step instructions wherever possible.
 
-##### Issues & contribution info
+##### Issues & contributions
+
 In this section, point users to any resources that can help them contribute to
 the project. Include contribution guidelines and any specific instructions
 related to your development practices. Include a link to
 [Docker’s resources for contributors](https://docs.docker.com/contributing/contributing/).
 Be sure to include contact info, handles, etc. for official maintainers.
 
-##### Issues
-Include a brief section letting users know where they can go for help and how
+Also include information letting users know where they can go for help and how
 they can file issues with the repo. Point them to any specific IRC channels,
 issue trackers, contacts, additional “how-to” information or other resources.
 
@@ -125,8 +125,9 @@ issue trackers, contacts, additional “how-to” information or other resources
 
 Include a file, `LICENSE`, of any applicable license.  Docker recommends using
 the license of the software contained in the image, provided it allows Docker,
-Inc. to legally build and distribute the image.  Otherwise, Docker recommends
-adopting the [Expat license](http://directory.fsf.org/wiki/License:Expat).
+Inc. to legally build and distribute the image. Otherwise, Docker recommends
+adopting the [Expat license](http://directory.fsf.org/wiki/License:Expat)
+(a.k.a., the MIT or X11 license).
 
 ## Examples
 
@@ -160,7 +161,7 @@ Put this file in the root of your app, next to the `Gemfile`.
 
 This image includes multiple `ONBUILD` triggers so that should be all that you need for most applications. The build will `ADD . /usr/src/app`, `RUN bundle install`, `EXPOSE 3000`, and set the default command to `rails server`.
 
-Then build and run the docker image.
+Then build and run the Docker image.
 
     docker build -t my-rails-app .
     docker run --name some-rails-app -d my-rails-app
@@ -169,7 +170,7 @@ Test it by visiting `http://container-ip:3000` in a browser. On the other hand, 
 
     docker run --name some-rails-app -p 8080:3000 -d my-rails-app
 
-Then hit `http://localhost:8080` or `http://host-ip:8080` in a browser.
+Then go to `http://localhost:8080` or `http://host-ip:8080` in a browser.
 ```
 
 For more examples, take a look at these repos: 
@@ -182,4 +183,7 @@ For more examples, take a look at these repos:
 
 ## Submit your repo
 
-Once you've checked off everything in these guidelines, and are confident your image is ready for primetime, please contact us at [partners@docker.com](mailto:partners@docker.com) to have your project considered for the Official Repos program.
+Once you've checked off everything in these guidelines, and are confident your
+image is ready for primetime, please contact us at
+[partners@docker.com](mailto:partners@docker.com) to have your project
+considered for the Official Repos program.

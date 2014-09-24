@@ -2,7 +2,7 @@ page_title: Best Practices for Writing Dockerfiles
 page_description: Hints, tips and guidelines for writing clean, reliable Dockerfiles
 page_keywords: Examples, Usage, base image, docker, documentation, dockerfile, best practices, hub, official repo
 
-# Best Practices for Writing Dockerfiles
+# Best practices for writing Dockerfiles
 
 ## Overview
 
@@ -23,7 +23,7 @@ You can see many of these practices and recommendations in action in the [buildp
 > Note: for more detailed explanations of any of the Dockerfile commands
 >mentioned here, visit the [Dockerfile Reference](https://docs.docker.com/reference/builder/) page.
 
-## General Guidelines and Recommendations
+## General guidelines and recommendations
 
 ### Containers should be ephemeral
 
@@ -42,7 +42,8 @@ megabytes worth of upload time.
 
 ### Avoid installing unnecessary packages
 
-In order to reduce complexity, dependencies, file sizes and build times, you should avoid installing extra or unnecessary packages just because they
+In order to reduce complexity, dependencies, file sizes, and build times, you
+should avoid installing extra or unnecessary packages just because they
 might be “nice to have.” For example, you don’t need to include a text editor
 in a database image.
 
@@ -75,7 +76,7 @@ Here’s an example from the [`buildpack-deps` image](https://github.com/docker-
       mercurial \
       subversion
 
-### Build Cache
+### Build cache
 
 During the process of building an image Docker will step through the
 instructions in your `Dockerfile` executing each in the order specified.
@@ -118,7 +119,7 @@ generate new images and the cache will not be used.
         mercurial \
         subversion
 
-## The `Dockerfile` instructions
+## The Dockerfile instructions
 
 Below you'll find recommendations for the best way to write the
 various instructions available for use in a `Dockerfile`.
@@ -133,19 +134,15 @@ since it’s very tightly controlled and kept extremely minimal (currently under
 ### [`RUN`](https://docs.docker.com/reference/builder/#run)
 
 As always, to make your `Dockerfile` more readable, understandable, and
-maintainable, put long or complex `RUN` statements on multiple lines separate
+maintainable, put long or complex `RUN` statements on multiple lines separated
 with backslashes.
 
-Probably the most common use-case for `RUN` is an application of `apt-get`
-When using `apt-get`, here a few things to keep in mind:
+Probably the most common use-case for `RUN` is an application of `apt-get`.
+When using `apt-get`, here are a few things to keep in mind:
 
 * Don’t do `RUN apt-get update` on a single line. This will cause
 caching issues if the referenced archive gets updated, which will make your
 subsequent `apt-get install` fail without comment.
-
-* For the most part, to keep your code more readable and maintainable, avoid instructions like:
-
-    RUN apt-get install -y package-foo && apt-get install -y package-bar
 
 * Avoid `RUN apt-get upgrade` or `dist-upgrade`, since many of the “essential”
 packages from the base images will fail to upgrade inside an unprivileged
@@ -153,9 +150,9 @@ container. If a base package is out of date, you should contact its
 maintainers. If you know there’s a particular package, `foo`, that needs to be
 updated, use `apt-get install -y foo` and it will update automatically.
 
-* Do write something like:
+* Do write instructions like:
 
-    `RUN apt-get update && apt-get install -y package-bar package-foo package-baz`.
+    RUN apt-get update && apt-get install -y package-bar package-foo package-baz
 
 Writing the instruction this way not only makes it easier to read
 and maintain, but also, by including `apt-get update`, ensures that the cache
@@ -165,7 +162,7 @@ further coding or manual intervention required.
 * Further natural cache-busting can be realized by version-pinning packages
 (e.g., `package-foo=1.3.*`). This will force retrieval of that version
 regardless of what’s in the cache.
-Forming your `apt-get` code this way will greatly ease maintenance and reduce
+Writing your `apt-get` code this way will greatly ease maintenance and reduce
 failures due to unanticipated changes in required packages.
 
 #### Example
@@ -196,6 +193,11 @@ the new version (which in this case had a new, required feature).
         ruby1.9.1-dev \
         s3cmd=1.1.0*
 
+Writing the instruction this way also helps you avoid potential duplication of
+a given package because it is much easier to read than an instruction like:
+
+    RUN apt-get install -y package-foo && apt-get install -y package-bar
+    
 ### [`CMD`](https://docs.docker.com/reference/builder/#cmd)
 
 The `CMD` instruction should be used to run the software contained by your
@@ -290,7 +292,11 @@ is much easier to understand than
 
 ....docker run -it --entrypoint bash official-image -i
 
-especially for Docker beginners.
+This is especially true for new Docker users, who might naturally assume the
+above command will work fine. In cases where an image uses `ENTRYPOINT` for
+anything other than just a wrapper script, the command will fail and the
+beginning user will then be forced to learn about `ENTRYPOINT` and
+`--entrypoint`.
 
 In order to avoid a situation where commands are run without clear visibility
 to the user, make sure your script ends with something like `exec "$@"`. After
@@ -339,9 +345,9 @@ If a service can run without privileges, use `USER` to change to a non-root
 user. Start by creating the user and group in the `Dockerfile` with something
 like `RUN groupadd -r postgres && useradd -r -g postgres postgres`.
 
->**Note** Users and groups in an image get a non-deterministic
->UID/GID in that the “next” UID/GID gets assigned regardless of image
->rebuilds. So, if it’s critical, you should assign an explicit UID/GID.
+> **Note:** Users and groups in an image get a non-deterministic
+> UID/GID in that the “next” UID/GID gets assigned regardless of image
+> rebuilds. So, if it’s critical, you should assign an explicit UID/GID.
 
 You should avoid installing or using `sudo` since it has unpredictable TTY and
 signal-forwarding behavior that can cause more more problems than it solves. If
