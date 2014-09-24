@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -884,7 +885,12 @@ func (container *Container) setupContainerDns() error {
 			dnsSearch = resolvconf.GetSearchDomains(resolvConf)
 		)
 		if len(config.Dns) > 0 {
-			dns = config.Dns
+			if config.Dns[0] == "bridge" {
+				ipAddr := daemon.eng.Hack_GetGlobalVar("httpapi.bridgeIP").(net.IP)
+				dns = []string{ipAddr.String()}
+			} else {
+				dns = config.Dns
+			}
 		} else if len(daemon.config.Dns) > 0 {
 			dns = daemon.config.Dns
 		}
