@@ -468,11 +468,13 @@ We can then create a container from our new image.
     root@8196968dac35:/#
 
 > **Note:** 
-> This is just the briefest introduction to creating images. We've
+> This is just a brief introduction to creating images. We've
 > skipped a whole bunch of other instructions that you can use. We'll see more of
 > those instructions in later sections of the Guide or you can refer to the
 > [`Dockerfile`](/reference/builder/) reference for a
 > detailed description and examples of every instruction.
+> To help you write a clear, readable, maintainable `Dockerfile`, we've also
+> written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
 
 ## Setting tags on an image
 
