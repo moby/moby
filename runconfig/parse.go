@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -26,24 +25,23 @@ var (
 
 func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
-		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(opts.ValidatePath)
-		flLinks   = opts.NewListOpts(opts.ValidateLink)
-		flEnv     = opts.NewListOpts(opts.ValidateEnv)
-		flDevices = opts.NewListOpts(opts.ValidatePath)
+		flAttach      = make(map[string]struct{})
+		flVolumes     = make(map[string]struct{})
+		flLinks       []string
+		flEnv         []string
+		flDevices     []string
+		flPublish     []string
+		flExpose      []string
+		flDns         []string
+		flDnsSearch   []string
+		flExtraHosts  []string
+		flVolumesFrom []string
+		flLxcOpts     []string
+		flEnvFile     []string
+		flCapAdd      []string
+		flCapDrop     []string
 
-		flPublish     = opts.NewListOpts(nil)
-		flExpose      = opts.NewListOpts(nil)
-		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
-		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
-		flVolumesFrom = opts.NewListOpts(nil)
-		flLxcOpts     = opts.NewListOpts(nil)
-		flEnvFile     = opts.NewListOpts(nil)
-		flCapAdd      = opts.NewListOpts(nil)
-		flCapDrop     = opts.NewListOpts(nil)
-
+		// FIXME: switch all parsed values to regular types, then attach them with flag.xxxVar, for consistency
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to the host interfaces")
@@ -61,24 +59,21 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure[:max-retry], always)")
 	)
 
-	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
-	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
-	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
-	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
-
-	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
-	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
-
-	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host\nformat: %s\n(use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
-	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
-	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
-	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
-	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
-	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
-
-	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
-	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
+	cmd.StreamSetVar(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
+	cmd.PathPairSetVar(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
+	cmd.NamePairListVar(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
+	cmd.PathPairListVar(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
+	cmd.EnvVar(&flEnv, []string{"e", "-env"}, "Set environment variables")
+	cmd.ListVar(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
+	cmd.ListVar(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host\nformat: %s\n(use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
+	cmd.ListVar(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
+	cmd.IPListVar(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
+	cmd.DnsSearchListVar(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
+	cmd.ListVar(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
+	cmd.ListVar(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
+	cmd.ListVar(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
+	cmd.ListVar(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
+	cmd.ListVar(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -95,33 +90,33 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	}
 
 	var (
-		attachStdin  = flAttach.Get("stdin")
-		attachStdout = flAttach.Get("stdout")
-		attachStderr = flAttach.Get("stderr")
+		_, attachStdin  = flAttach["stdin"]
+		_, attachStdout = flAttach["stdout"]
+		_, attachStderr = flAttach["stderr"]
 	)
 
 	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
 	}
 
-	if *flNetMode == "host" && flLinks.Len() > 0 {
+	if *flNetMode == "host" && len(flLinks) > 0 {
 		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
 	}
 
-	if *flNetMode == "container" && flLinks.Len() > 0 {
+	if *flNetMode == "container" && len(flLinks) > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
 	}
 
-	if *flNetMode == "host" && flDns.Len() > 0 {
+	if *flNetMode == "host" && len(flDns) > 0 {
 		return nil, nil, cmd, ErrConflictHostNetworkAndDns
 	}
 
-	if *flNetMode == "container" && flDns.Len() > 0 {
+	if *flNetMode == "container" && len(flDns) > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
 	}
 
 	// If neither -d or -a are set, attach to everything by default
-	if flAttach.Len() == 0 {
+	if len(flAttach) == 0 {
 		attachStdout = true
 		attachStderr = true
 		if *flStdin {
@@ -140,7 +135,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 	var binds []string
 	// add any bind targets to the list of container volumes
-	for bind := range flVolumes.GetMap() {
+	for bind := range flVolumes {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
 			if arr[1] == "/" {
 				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
@@ -148,7 +143,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
-			flVolumes.Delete(bind)
+			delete(flVolumes, bind)
 		} else if bind == "/" {
 			return nil, nil, cmd, fmt.Errorf("Invalid volume: path can't be '/'")
 		}
@@ -185,13 +180,13 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		domainname = parts[1]
 	}
 
-	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
+	ports, portBindings, err := nat.ParsePortSpecs(flPublish)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
 
 	// Merge in exposed ports to the map of published ports
-	for _, e := range flExpose.GetAll() {
+	for _, e := range flExpose {
 		if strings.Contains(e, ":") {
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
@@ -203,7 +198,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 	// parse device mappings
 	deviceMappings := []DeviceMapping{}
-	for _, device := range flDevices.GetAll() {
+	for _, device := range flDevices {
 		deviceMapping, err := ParseDevice(device)
 		if err != nil {
 			return nil, nil, cmd, err
@@ -213,15 +208,15 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 	// collect all the environment variables for the container
 	envVariables := []string{}
-	for _, ef := range flEnvFile.GetAll() {
-		parsedVars, err := opts.ParseEnvFile(ef)
+	for _, ef := range flEnvFile {
+		parsedVars, err := flag.ParseEnvFile(ef)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
 		envVariables = append(envVariables, parsedVars...)
 	}
 	// parse the '-e' and '--env' after, to allow override
-	envVariables = append(envVariables, flEnv.GetAll()...)
+	envVariables = append(envVariables, flEnv...)
 
 	netMode, err := parseNetMode(*flNetMode)
 	if err != nil {
@@ -251,7 +246,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		Env:             envVariables,
 		Cmd:             runCmd,
 		Image:           image,
-		Volumes:         flVolumes.GetMap(),
+		Volumes:         flVolumes,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 	}
@@ -262,16 +257,16 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		LxcConf:         lxcConf,
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
-		Links:           flLinks.GetAll(),
+		Links:           flLinks,
 		PublishAllPorts: *flPublishAll,
-		Dns:             flDns.GetAll(),
-		DnsSearch:       flDnsSearch.GetAll(),
-		ExtraHosts:      flExtraHosts.GetAll(),
-		VolumesFrom:     flVolumesFrom.GetAll(),
+		Dns:             flDns,
+		DnsSearch:       flDnsSearch,
+		ExtraHosts:      flExtraHosts,
+		VolumesFrom:     flVolumesFrom,
 		NetworkMode:     netMode,
 		Devices:         deviceMappings,
-		CapAdd:          flCapAdd.GetAll(),
-		CapDrop:         flCapDrop.GetAll(),
+		CapAdd:          flCapAdd,
+		CapDrop:         flCapDrop,
 		RestartPolicy:   restartPolicy,
 	}
 
@@ -328,9 +323,9 @@ func parseRestartPolicy(policy string) (RestartPolicy, error) {
 }
 
 // options will come in the format of name.key=value or name.option
-func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
-	out := make(map[string][]string, len(opts.GetAll()))
-	for _, o := range opts.GetAll() {
+func parseDriverOpts(opts []string) (map[string][]string, error) {
+	out := make(map[string][]string, len(opts))
+	for _, o := range opts {
 		parts := strings.SplitN(o, ".", 2)
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("invalid opt format %s", o)
@@ -346,9 +341,9 @@ func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
 	return out, nil
 }
 
-func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
-	out := make([]utils.KeyValuePair, opts.Len())
-	for i, o := range opts.GetAll() {
+func parseKeyValueOpts(opts []string) ([]utils.KeyValuePair, error) {
+	out := make([]utils.KeyValuePair, len(opts))
+	for i, o := range opts {
 		k, v, err := parsers.ParseKeyValueOpt(o)
 		if err != nil {
 			return nil, err

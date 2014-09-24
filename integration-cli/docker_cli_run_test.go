@@ -218,6 +218,20 @@ func TestRunStdinPipe(t *testing.T) {
 	logDone("run - pipe in with -i -a stdin")
 }
 
+func TestRunRmDetachedError(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--rm", "-d", "busybox", "true")
+	out, stderr, _, err := runCommandWithStdoutStderr(runCmd)
+	if err == nil {
+		t.Fatalf("Should have errored out (%s)", out)
+	}
+	if ! strings.Contains(stderr, "Conflicting options:") {
+		t.Fatalf("Error message should contain: 'Conflicting options'")
+	}
+	deleteAllContainers()
+
+	logDone("run --rm -d fail")
+}
+
 // the container's ID should be printed when starting a container in detached mode
 func TestRunDetachedContainerIDPrinting(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
@@ -2161,4 +2175,17 @@ func TestRunExecDir(t *testing.T) {
 	}
 
 	logDone("run - check execdriver dir behavior")
+}
+
+func TestRunAttachDetach(t *testing.T) {
+	out, stderr, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "run", "-d", "-a", "stdout", "busybox", "true"))
+	if err == nil {
+		t.Fatalf("Detach and attach should conflict but did not: %q", out)
+	}
+	if ! strings.Contains(stderr, "Conflicting options:") {
+		t.Fatalf("Error message should contain: 'Conflicting options'")
+	}
+
+	deleteAllContainers()
+	logDone("run - detach and attach should conflict")
 }

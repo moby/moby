@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/log"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
@@ -1246,8 +1245,8 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
-	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
+	var flFilter []string
+	cmd.ListVar(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1260,7 +1259,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.
 	imageFilterArgs := filters.Args{}
-	for _, f := range flFilter.GetAll() {
+	for _, f := range flFilter {
 		var err error
 		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
 		if err != nil {
@@ -1479,8 +1478,10 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	before := cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
 	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
 
-	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
+	// FIXME: `flag.ListVar` should support arbitrary FlagSets
+	// (currently it only supports the global `flag.Var`.
+	var flFilter []string
+	cmd.Var((*flag.List)(&flFilter), []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1508,7 +1509,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	// Consolidate all filter flags, and sanity check them.
 	// They'll get processed in the daemon/server.
 	psFilterArgs := filters.Args{}
-	for _, f := range flFilter.GetAll() {
+	for _, f := range flFilter {
 		var err error
 		psFilterArgs, err = filters.ParseFlag(f, psFilterArgs)
 		if err != nil {
@@ -2116,7 +2117,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run the container in the background and print the new container ID")
 		flSigProxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
 		flName       = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
-		flAttach     *opts.ListOpts
+		flAttach     map[string]struct{}
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
@@ -2133,12 +2134,15 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if *flDetach {
-		if fl := cmd.Lookup("attach"); fl != nil {
-			flAttach = fl.Value.(*opts.ListOpts)
-			if flAttach.Len() != 0 {
-				return ErrConflictAttachDetach
+		if fl := cmd.Lookup("-attach"); fl != nil {
+			if g, ok := fl.Value.(flag.Getter); ok {
+				flAttach = g.Get().(map[string]struct{})
+				if len(flAttach) != 0 {
+					return ErrConflictAttachDetach
+				}
 			}
 		}
+
 		if *flAutoRemove {
 			return ErrConflictDetachAutoRemove
 		}
