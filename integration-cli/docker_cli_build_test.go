@@ -633,17 +633,23 @@ func TestBuildForceRm(t *testing.T) {
 }
 
 func TestBuildRm(t *testing.T) {
+	name := "testbuildrm"
+	defer deleteImages(name)
+	ctx, err := fakeContext("FROM scratch\nADD foo /\nADD foo /", map[string]string{"foo": "bar"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
 	{
 		containerCountBefore, err := getContainerCount()
 		if err != nil {
 			t.Fatalf("failed to get the container count: %s", err)
 		}
 
-		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
-		_, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "--rm", "-t", "testbuildrm", ".")
+		out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "--rm", "-t", name, ".")
 
 		if err != nil || exitCode != 0 {
-			t.Fatal("failed to build the image")
+			t.Fatal("failed to build the image", out)
 		}
 
 		containerCountAfter, err := getContainerCount()
@@ -654,7 +660,7 @@ func TestBuildRm(t *testing.T) {
 		if containerCountBefore != containerCountAfter {
 			t.Fatalf("-rm shouldn't have left containers behind")
 		}
-		deleteImages("testbuildrm")
+		deleteImages(name)
 	}
 
 	{
@@ -663,11 +669,10 @@ func TestBuildRm(t *testing.T) {
 			t.Fatalf("failed to get the container count: %s", err)
 		}
 
-		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
-		_, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testbuildrm", ".")
+		out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name, ".")
 
 		if err != nil || exitCode != 0 {
-			t.Fatal("failed to build the image")
+			t.Fatal("failed to build the image", out)
 		}
 
 		containerCountAfter, err := getContainerCount()
@@ -678,7 +683,7 @@ func TestBuildRm(t *testing.T) {
 		if containerCountBefore != containerCountAfter {
 			t.Fatalf("--rm shouldn't have left containers behind")
 		}
-		deleteImages("testbuildrm")
+		deleteImages(name)
 	}
 
 	{
@@ -687,11 +692,10 @@ func TestBuildRm(t *testing.T) {
 			t.Fatalf("failed to get the container count: %s", err)
 		}
 
-		buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildRm")
-		_, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "--rm=false", "-t", "testbuildrm", ".")
+		out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "--rm=false", "-t", name, ".")
 
 		if err != nil || exitCode != 0 {
-			t.Fatal("failed to build the image")
+			t.Fatal("failed to build the image", out)
 		}
 
 		containerCountAfter, err := getContainerCount()
@@ -703,7 +707,7 @@ func TestBuildRm(t *testing.T) {
 			t.Fatalf("--rm=false should have left containers behind")
 		}
 		deleteAllContainers()
-		deleteImages("testbuildrm")
+		deleteImages(name)
 
 	}
 
