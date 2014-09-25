@@ -179,7 +179,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 	if ts.finished {
 		return ts.bufWriter.Read(buf)
 	}
-	if ts.bufData == nil {
+	if len(ts.bufData) < len(buf) {
 		switch {
 		case len(buf) <= buf8K:
 			ts.bufData = make([]byte, buf8K)
@@ -191,7 +191,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 			ts.bufData = make([]byte, len(buf))
 		}
 	}
-	buf2 := ts.bufData[:len(buf)-1]
+	buf2 := ts.bufData[:len(buf)]
 
 	n, err := ts.tarR.Read(buf2)
 	if err != nil {
