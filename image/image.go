@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -32,6 +33,7 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
+	Checksum        string            `json:"checksum"`
 	Size            int64
 
 	graph Graph
@@ -80,9 +82,25 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		if size, err = driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+		// Autodetect compression of the layer data.
+		layerData, err := archive.DecompressStream(layerData)
+		if err != nil {
 			return err
 		}
+
+		// Wrap with tarsum.
+		tarsumLayerData, err := tarsum.NewTarSum(layerData, true, tarsum.Version0)
+		if err != nil {
+			return err
+		}
+
+		// Extract the archive to the file system driver.
+		if size, err = driver.ApplyDiff(img.ID, img.Parent, tarsumLayerData); err != nil {
+			return err
+		}
+
+		// Get the resulting tarsum.
+		img.Checksum = tarsumLayerData.Sum(nil)
 	}
 
 	img.Size = size
