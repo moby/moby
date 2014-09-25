@@ -263,7 +263,7 @@ func mkContainer(r *daemon.Daemon, args []string, t *testing.T) (*daemon.Contain
 	if config.Image == "_" {
 		config.Image = GetTestImage(r).ID
 	}
-	c, _, err := r.Create(config, "")
+	c, _, err := r.Create(config, nil, "")
 	if err != nil {
 		return nil, nil, err
 	}

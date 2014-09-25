@@ -18,6 +18,7 @@ func TestRestartStdin(t *testing.T) {
 
 		OpenStdin: true,
 	},
+		&runconfig.HostConfig{},
 		"",
 	)
 	if err != nil {
@@ -94,6 +95,7 @@ func TestStdin(t *testing.T) {
 
 		OpenStdin: true,
 	},
+		&runconfig.HostConfig{},
 		"",
 	)
 	if err != nil {
@@ -139,6 +141,7 @@ func TestTty(t *testing.T) {
 
 		OpenStdin: true,
 	},
+		&runconfig.HostConfig{},
 		"",
 	)
 	if err != nil {
@@ -183,6 +186,7 @@ func BenchmarkRunSequential(b *testing.B) {
 			Image: GetTestImage(daemon).ID,
 			Cmd:   []string{"echo", "-n", "foo"},
 		},
+			&runconfig.HostConfig{},
 			"",
 		)
 		if err != nil {
@@ -216,6 +220,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				Image: GetTestImage(daemon).ID,
 				Cmd:   []string{"echo", "-n", "foo"},
 			},
+				&runconfig.HostConfig{},
 				"",
 			)
 			if err != nil {
