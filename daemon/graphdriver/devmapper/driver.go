@@ -63,6 +63,9 @@ func (d *Driver) Status() [][2]string {
 		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Used)))},
 		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Total)))},
 	}
+	if vStr, err := GetLibraryVersion(); err == nil {
+		status = append(status, [2]string{"Library Version", vStr})
+	}
 	return status
 }
 
