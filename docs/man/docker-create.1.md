@@ -7,6 +7,7 @@ docker-create - Create a new container
 # SYNOPSIS
 **docker create**
 [**-a**|**--attach**[=*[]*]]
+[**--add-host**[=*[]*]]
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
@@ -29,6 +30,7 @@ docker-create - Create a new container
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--restart**[=*RESTART*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -39,6 +41,9 @@ docker-create - Create a new container
 # OPTIONS
 **-a**, **--attach**=[]
    Attach to STDIN, STDOUT or STDERR.
+
+**--add-host**=[]
+   Add a custom host-to-IP mapping (host:ip)
 
 **-c**, **--cpu-shares**=0
    CPU shares (relative weight)
@@ -106,11 +111,14 @@ docker-create - Create a new container
 
 **-p**, **--publish**=[]
    Publish a container's port to the host
-                               format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort
+                               format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                                (use 'docker port' to see the actual mapping)
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
+
+**--restart**=""
+   Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
@@ -129,3 +137,4 @@ docker-create - Create a new container
 
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+September 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
