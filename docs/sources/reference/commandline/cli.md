@@ -502,6 +502,10 @@ For example:
       --since=""         Show all events created since timestamp
       --until=""         Stream events until this timestamp
 
+Docker containers will report the following events:
+
+    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+
 ### Examples
 
 You'll need two shells for this example.

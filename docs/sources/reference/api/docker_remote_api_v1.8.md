@@ -1147,7 +1147,11 @@ Status Codes:
 `GET /events`
 
 Get events from docker, either in real time via streaming,
-or via polling (using since)
+or via polling (using since).
+
+Docker containers will report the following events:
+
+    create, destroy, die, export, kill, pause, restart, start, stop, unpause
 
 **Example request**:
 
