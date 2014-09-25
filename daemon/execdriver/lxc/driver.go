@@ -2,6 +2,7 @@ package lxc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,6 +27,8 @@ import (
 )
 
 const DriverName = "lxc"
+
+var ErrExec = errors.New("Unsupported: Exec is not supported by the lxc driver")
 
 type driver struct {
 	root       string // root path for the driver to use
@@ -534,5 +537,5 @@ func (t *TtyConsole) Close() error {
 }
 
 func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	return -1, fmt.Errorf("Unsupported: Exec is not supported by the lxc driver")
+	return -1, ErrExec
 }
