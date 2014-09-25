@@ -51,6 +51,24 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	return conn, conn, nil
 }
 
+// Check to make sure request's Content-Type is application/json
+func checkForJson(r *http.Request) error {
+	ct := r.Header.Get("Content-Type")
+
+	// No Content-Type header is ok as long as there's no Body
+	if ct == "" {
+		if r.Body == nil || r.ContentLength == 0 {
+			return nil
+		}
+	}
+
+	// Otherwise it better be json
+	if api.MatchesContentType(ct, "application/json") {
+		return nil
+	}
+	return fmt.Errorf("Content-Type specified (%s) must be 'application/json'", ct)
+}
+
 //If we don't do this, POST method without Content-type (even with empty body) will fail
 func parseForm(r *http.Request) error {
 	if r == nil {
@@ -445,6 +463,11 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		job          = eng.Job("commit", r.Form.Get("container"))
 		stdoutBuffer = bytes.NewBuffer(nil)
 	)
+
+	if err := checkForJson(r); err != nil {
+		return err
+	}
+
 	if err := config.Decode(r.Body); err != nil {
 		log.Errorf("%s", err)
 	}
@@ -651,6 +674,11 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 		stdoutBuffer = bytes.NewBuffer(nil)
 		warnings     = bytes.NewBuffer(nil)
 	)
+
+	if err := checkForJson(r); err != nil {
+		return err
+	}
+
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
@@ -734,8 +762,8 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 
 	// allow a nil body for backwards compatibility
 	if r.Body != nil && r.ContentLength > 0 {
-		if !api.MatchesContentType(r.Header.Get("Content-Type"), "application/json") {
-			return fmt.Errorf("Content-Type of application/json is required")
+		if err := checkForJson(r); err != nil {
+			return err
 		}
 
 		if err := job.DecodeEnv(r.Body); err != nil {
@@ -1001,12 +1029,12 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	var copyData engine.Env
 
-	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
-		if err := copyData.Decode(r.Body); err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	if err := checkForJson(r); err != nil {
+		return err
+	}
+
+	if err := copyData.Decode(r.Body); err != nil {
+		return err
 	}
 
 	if copyData.Get("Resource") == "" {
@@ -1043,6 +1071,7 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 		job          = eng.Job("execCreate", name)
 		stdoutBuffer = bytes.NewBuffer(nil)
 	)
+
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}
@@ -1068,6 +1097,7 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		job              = eng.Job("execStart", name)
 		errOut io.Writer = os.Stderr
 	)
+
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
 	}

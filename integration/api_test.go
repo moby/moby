@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -356,6 +357,8 @@ func TestPostContainersCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+
 	r := httptest.NewRecorder()
 	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
@@ -376,6 +379,49 @@ func TestPostContainersCreate(t *testing.T) {
 
 	if !containerFileExists(eng, containerID, "test", t) {
 		t.Fatal("Test file was not created")
+	}
+}
+
+func TestPostJsonVerify(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkDaemonFromEngine(eng, t).Nuke()
+
+	configJSON, err := json.Marshal(&runconfig.Config{
+		Image:  unitTestImageID,
+		Memory: 33554432,
+		Cmd:    []string{"touch", "/test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/create", bytes.NewReader(configJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+
+	// Don't add Content-Type header
+	// req.Header.Set("Content-Type", "application/json")
+
+	err = server.ServeRequest(eng, api.APIVERSION, r, req)
+	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
+		t.Fatal("Create should have failed due to no Content-Type header - got:", r)
+	}
+
+	// Now add header but with wrong type and retest
+	req.Header.Set("Content-Type", "application/xml")
+
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
+		t.Fatal("Create should have failed due to wrong Content-Type header - got:", r)
 	}
 }
 
