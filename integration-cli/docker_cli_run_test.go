@@ -821,6 +821,26 @@ func TestRunLoopbackOnlyExistsWhenNetworkingDisabled(t *testing.T) {
 	logDone("run - test loopback only exists when networking disabled")
 }
 
+// #7851 hostname outside container shows FQDN, inside only shortname
+// For testing purposes it is not required to set host's hostname directly
+// and use "--net=host" (as the original issue submitter did), as the same
+// codepath is executed with "docker run -h <hostname>".  Both were manually
+// tested, but this testcase takes the simpler path of using "run -h .."
+func TestRunFullHostnameSet(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-h", "foo.bar.baz", "busybox", "hostname")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "foo.bar.baz" {
+		t.Fatalf("expected hostname 'foo.bar.baz', received %s", actual)
+	}
+	deleteAllContainers()
+
+	logDone("run - test fully qualified hostname set with -h")
+}
+
 func TestRunPrivilegedCanMknod(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)

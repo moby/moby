@@ -1043,10 +1043,15 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 }
 
 func (container *Container) createDaemonEnvironment(linkedEnv []string) []string {
+	// if a domain name was specified, append it to the hostname (see #7851)
+	fullHostname := container.Config.Hostname
+	if container.Config.Domainname != "" {
+		fullHostname = fmt.Sprintf("%s.%s", fullHostname, container.Config.Domainname)
+	}
 	// Setup environment
 	env := []string{
 		"PATH=" + DefaultPathEnv,
-		"HOSTNAME=" + container.Config.Hostname,
+		"HOSTNAME=" + fullHostname,
 		// Note: we don't set HOME here because it'll get autoset intelligently
 		// based on the value of USER inside dockerinit, but only if it isn't
 		// set already (ie, that can be overridden by setting HOME via -e or ENV
