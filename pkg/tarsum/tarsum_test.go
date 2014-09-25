@@ -274,6 +274,22 @@ func TestTarSums(t *testing.T) {
 			t.Errorf("%q :: %q", err, layer.filename)
 			continue
 		}
+
+		// Read variable number of bytes to test dynamic buffer
+		dBuf := make([]byte, 1)
+		_, err = ts.Read(dBuf)
+		if err != nil {
+			t.Errorf("failed to read 1B from %s: %s", layer.filename, err)
+			continue
+		}
+		dBuf = make([]byte, 16*1024)
+		_, err = ts.Read(dBuf)
+		if err != nil {
+			t.Errorf("failed to read 16KB from %s: %s", layer.filename, err)
+			continue
+		}
+
+		// Read and discard remaining bytes
 		_, err = io.Copy(ioutil.Discard, ts)
 		if err != nil {
 			t.Errorf("failed to copy from %s: %s", layer.filename, err)
