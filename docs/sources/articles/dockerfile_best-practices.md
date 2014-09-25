@@ -68,12 +68,12 @@ review. Adding a space before a backslash (`\`) helps as well.
 
 Here’s an example from the [`buildpack-deps` image](https://github.com/docker-library/buildpack-deps):
 
- RUN apt-get update && apt-get install -y \
-    bzr \
-    cvs \
-    git \
-    mercurial \
-    subversion
+    RUN apt-get update && apt-get install -y \
+      bzr \
+      cvs \
+      git \
+      mercurial \
+      subversion
 
 ## The `Dockerfile` instructions
 
