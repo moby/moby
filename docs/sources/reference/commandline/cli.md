@@ -156,7 +156,7 @@ progress of your daemonized process.
 You can detach from the container again (and leave it running) with
 `CTRL-p CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a
 SIGKILL to the container, or `CTRL-\` to get a stacktrace of the
-Docker client when it quits. When you detach from the container's 
+Docker client when it quits. When you detach from the container's
 process the exit code will be returned to the client.
 
 To stop a container, use `docker stop`.
@@ -974,10 +974,13 @@ To download a particular image, or set of images (i.e., a repository),
 use `docker pull`:
 
     $ sudo docker pull debian
-    # will pull only the debian:latest image and its intermediate layers 
+    # will pull the debian:latest image, its intermediate layers
+    # and any aliases of the same id
     $ sudo docker pull debian:testing
-    # will pull only the image named debian:testing and any intermediate layers
-    # it is based on. (Typically the empty `scratch` image, a MAINTAINER layer,
+    # will pull the image named ubuntu:trusty, ubuntu:14.04
+    # which is an alias of the same image
+    # and any intermediate layers it is based on.
+    # (Typically the empty `scratch` image, a MAINTAINER layer,
     # and the un-tarred base).
     $ sudo docker pull --all-tags centos
     # will pull all the images from the centos repository
