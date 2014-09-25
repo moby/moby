@@ -364,6 +364,28 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
+### Resize a container TTY
+
+`GET /containers/(id)/resize?h=<height>&w=<width>`
+
+Resize the TTY of container `id` 
+
+**Example request**:
+
+        GET /containers/4fa6e0f0c678/resize?h=40&w=80 HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Length: 0
+        Content-Type: text/plain; charset=utf-8
+
+Status Codes:
+
+-   **200** – no error
+-   **404** – No such container
+-   **500** – bad file descriptor
+
 ### Start a container
 
 `POST /containers/(id)/start`
