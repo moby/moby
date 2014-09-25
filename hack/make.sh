@@ -102,7 +102,13 @@ LDFLAGS='
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
-BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
+# ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
+# with options like -race.
+ORIG_BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
+BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
+# Test timeout.
+: ${TIMEOUT:=30m}
+TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
 # PLEASE do not use these anywhere else.
