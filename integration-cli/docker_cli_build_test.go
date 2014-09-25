@@ -728,13 +728,26 @@ func TestBuildWithVolumes(t *testing.T) {
 		result   map[string]map[string]struct{}
 		name     = "testbuildvolumes"
 		emptyMap = make(map[string]struct{})
-		expected = map[string]map[string]struct{}{"/test1": emptyMap, "/test2": emptyMap}
+		expected = map[string]map[string]struct{}{
+			"/test1":  emptyMap,
+			"/test2":  emptyMap,
+			"/test3":  emptyMap,
+			"/test4":  emptyMap,
+			"/test5":  emptyMap,
+			"/test6":  emptyMap,
+			"[/test7": emptyMap,
+			"/test8]": emptyMap,
+		}
 	)
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
 		VOLUME /test1
-		VOLUME /test2`,
+		VOLUME /test2
+    VOLUME /test3 /test4
+    VOLUME ["/test5", "/test6"]
+    VOLUME [/test7 /test8]
+    `,
 		true)
 	if err != nil {
 		t.Fatal(err)

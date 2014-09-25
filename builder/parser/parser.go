@@ -55,7 +55,7 @@ func init() {
 		"cmd":            parseMaybeJSON,
 		"entrypoint":     parseMaybeJSON,
 		"expose":         parseStringsWhitespaceDelimited,
-		"volume":         parseMaybeJSON,
+		"volume":         parseMaybeJSONToList,
 		"insert":         parseIgnore,
 	}
 }
