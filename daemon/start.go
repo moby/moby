@@ -27,6 +27,8 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 	}
 
 	// If no environment was set, then no hostconfig was passed.
+	// This is kept for backward compatibility - hostconfig should be passed when
+	// creating a container, not during start.
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
