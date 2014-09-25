@@ -71,7 +71,7 @@ func (d *Daemon) registerExecCommand(execConfig *execConfig) {
 func (d *Daemon) getExecConfig(name string) (*execConfig, error) {
 	if execConfig := d.execCommands.Get(name); execConfig != nil {
 		if !execConfig.Container.IsRunning() {
-			return nil, fmt.Errorf("Container %s is not not running", execConfig.Container.ID)
+			return nil, fmt.Errorf("Container %s is not running", execConfig.Container.ID)
 		}
 		return execConfig, nil
 	}
@@ -92,7 +92,7 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 	}
 
 	if !container.IsRunning() {
-		return nil, fmt.Errorf("Container %s is not not running", name)
+		return nil, fmt.Errorf("Container %s is not running", name)
 	}
 
 	return container, nil
