@@ -1972,6 +1972,61 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 	logDone("run - network must not be initialized in 'none' mode")
 }
 
+func TestRunNetworkInitializedContainerMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("run failed: %s %s", err, out)
+	}
+	id := strings.TrimSpace(out)
+
+	res, err_2 := inspectField(id, "NetworkSettings.IPAddress")
+	if err_2 != nil {
+		t.Fatal(err_2)
+	}
+	if res == "" {
+		t.Fatal("bridge network was not initialized.")
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", id,
+		"/bin/sh", "-c",
+		"while ! grep -q ^up$ /sys/class/net/eth0/operstate 2>/dev/null;do sleep 1;done; ip link show eth0")
+	ipc, _, err_3 := runCommandWithOutput(cmd)
+	if err_3 != nil {
+		t.Fatalf("exec ipconfig failed: %s %s", err_3, ipc)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "-d", "--net=container:"+id, "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("run failed: %s %s", err, out)
+	}
+	id2 := strings.TrimSpace(out)
+
+	res2, err2_2 := inspectField(id2, "NetworkSettings.IPAddress")
+	if err2_2 != nil {
+		t.Fatal(err2_2)
+	}
+	if res2 != "" {
+		t.Fatalf("'container' mode network has configuration, %s", res2)
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", id2,
+		"/bin/sh", "-c",
+		"while ! grep -q ^up$ /sys/class/net/eth0/operstate 2>/dev/null;do sleep 1;done; ip link show eth0")
+	ipc2, _, err2_3 := runCommandWithOutput(cmd)
+	if err2_3 != nil {
+		t.Fatalf("exec ipconfig failed: %s %s", err2_3, ipc2)
+	}
+
+	if ipc != ipc2 {
+		t.Fatalf("'container' mode network was not equivalent to bridge mode network. %s != %s", ipc, ipc2)
+	}
+
+	deleteAllContainers()
+	logDone("run - network must be shared in 'container' mode")
+}
+
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
