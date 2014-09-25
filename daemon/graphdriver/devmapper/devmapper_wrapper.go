@@ -38,9 +38,7 @@ static void	log_with_errno_init()
 */
 import "C"
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type (
 	CDmTask C.struct_dm_task
@@ -92,6 +90,7 @@ var (
 	DmTaskAddTarget        = dmTaskAddTargetFct
 	DmTaskCreate           = dmTaskCreateFct
 	DmTaskDestroy          = dmTaskDestroyFct
+	DmTaskGetDeps          = dmTaskGetDepsFct
 	DmTaskGetInfo          = dmTaskGetInfoFct
 	DmTaskGetDriverVersion = dmTaskGetDriverVersionFct
 	DmTaskRun              = dmTaskRunFct
@@ -166,6 +165,21 @@ func dmTaskAddTargetFct(task *CDmTask,
 	defer free(Cparams)
 
 	return int(C.dm_task_add_target((*C.struct_dm_task)(task), C.uint64_t(start), C.uint64_t(size), Cttype, Cparams))
+}
+
+func dmTaskGetDepsFct(task *CDmTask) *Deps {
+	Cdeps := C.dm_task_get_deps((*C.struct_dm_task)(task))
+	if Cdeps == nil {
+		return nil
+	}
+	deps := &Deps{
+		Count:  uint32(Cdeps.count),
+		Filler: uint32(Cdeps.filler),
+	}
+	for _, device := range Cdeps.device {
+		deps.Device = append(deps.Device, (uint64)(device))
+	}
+	return deps
 }
 
 func dmTaskGetInfoFct(task *CDmTask, info *Info) int {
