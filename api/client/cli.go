@@ -13,6 +13,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
+	"github.com/docker/libtrust"
 )
 
 type DockerCli struct {
@@ -22,6 +23,7 @@ type DockerCli struct {
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
+	key        libtrust.PrivateKey
 	tlsConfig  *tls.Config
 	scheme     string
 	// inFd holds file descriptor of the client's STDIN, if it's a valid file
@@ -98,7 +100,7 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 	return err
 }
 
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsConfig *tls.Config) *DockerCli {
+func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey, proto, addr string, tlsConfig *tls.Config) *DockerCli {
 	var (
 		inFd          uintptr
 		outFd         uintptr
@@ -135,6 +137,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, proto, addr string, tlsC
 		in:            in,
 		out:           out,
 		err:           err,
+		key:           key,
 		inFd:          inFd,
 		outFd:         outFd,
 		isTerminalIn:  isTerminalIn,

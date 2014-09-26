@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libtrust"
 )
 
 func closeWrap(args ...io.Closer) error {
@@ -117,8 +118,12 @@ func TestRunDisconnect(t *testing.T) {
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	c1 := make(chan struct{})
@@ -163,8 +168,12 @@ func TestRunDisconnectTty(t *testing.T) {
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	c1 := make(chan struct{})
@@ -213,8 +222,12 @@ func TestRunDetach(t *testing.T) {
 
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -260,8 +273,12 @@ func TestRunDetach(t *testing.T) {
 func TestAttachDetach(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -294,7 +311,7 @@ func TestAttachDetach(t *testing.T) {
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
-	cli = client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli = client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 
 	ch = make(chan struct{})
 	go func() {
@@ -341,8 +358,12 @@ func TestAttachDetach(t *testing.T) {
 func TestAttachDetachTruncatedID(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	// Discard the CmdRun output
@@ -360,7 +381,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 
 	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
-	cli = client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli = client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 
 	ch := make(chan struct{})
 	go func() {
@@ -406,8 +427,12 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 func TestAttachDisconnect(t *testing.T) {
 	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	go func() {
@@ -461,7 +486,7 @@ func TestAttachDisconnect(t *testing.T) {
 
 	// We closed stdin, expect /bin/cat to still be running
 	// Wait a little bit to make sure container.monitor() did his thing
-	_, err := container.WaitStop(500 * time.Millisecond)
+	_, err = container.WaitStop(500 * time.Millisecond)
 	if err == nil || !container.IsRunning() {
 		t.Fatalf("/bin/cat is not running after closing stdin")
 	}
@@ -476,7 +501,11 @@ func TestAttachDisconnect(t *testing.T) {
 func TestRunAutoRemove(t *testing.T) {
 	t.Skip("Fixme. Skipping test for now, race condition")
 	stdout, stdoutPipe := io.Pipe()
-	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
@@ -512,8 +541,12 @@ func TestRunAutoRemove(t *testing.T) {
 
 // Expected behaviour: error out when attempting to bind mount non-existing source paths
 func TestRunErrorBindNonExistingSource(t *testing.T) {
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli := client.NewDockerCli(nil, nil, ioutil.Discard, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(nil, nil, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})
