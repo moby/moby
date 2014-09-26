@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"syscall"
 	"testing"
 	"time"
 
@@ -61,6 +62,50 @@ func TestCmdStreamGood(t *testing.T) {
 	} else if s := string(output); s != "hello\n" {
 		t.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
 	}
+}
+
+func TestTarFiles(t *testing.T) {
+	// try without hardlinks
+	if err := checkNoChanges(1000, false); err != nil {
+		t.Fatal(err)
+	}
+	// try with hardlinks
+	if err := checkNoChanges(1000, true); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkNoChanges(fileNum int, hardlinks bool) error {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(srcDir)
+
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(destDir)
+
+	_, err = prepareUntarSourceDirectory(fileNum, srcDir, hardlinks)
+	if err != nil {
+		return err
+	}
+
+	err = TarUntar(srcDir, destDir)
+	if err != nil {
+		return err
+	}
+
+	changes, err := ChangesDirs(destDir, srcDir)
+	if err != nil {
+		return err
+	}
+	if len(changes) > 0 {
+		return fmt.Errorf("with %d files and %v hardlinks: expected 0 changes, got %d", fileNum, hardlinks, len(changes))
+	}
+	return nil
 }
 
 func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error) {
@@ -204,12 +249,41 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 	}
 }
 
-func prepareUntarSourceDirectory(numberOfFiles int, targetPath string) (int, error) {
+func getNlink(path string) (uint64, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	statT, ok := stat.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
+	}
+	return statT.Nlink, nil
+}
+
+func getInode(path string) (uint64, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	statT, ok := stat.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
+	}
+	return statT.Ino, nil
+}
+
+func prepareUntarSourceDirectory(numberOfFiles int, targetPath string, makeLinks bool) (int, error) {
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
 		if err := ioutil.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
 			return 0, err
+		}
+		if makeLinks {
+			if err := os.Link(path.Join(targetPath, fileName), path.Join(targetPath, fileName+"-link")); err != nil {
+				return 0, err
+			}
 		}
 	}
 	totalSize := numberOfFiles * len(fileData)
@@ -226,14 +300,43 @@ func BenchmarkTarUntar(b *testing.B) {
 		b.Fatal(err)
 	}
 	target := path.Join(tempDir, "dest")
-	n, err := prepareUntarSourceDirectory(100, origin)
+	n, err := prepareUntarSourceDirectory(100, origin, false)
 	if err != nil {
 		b.Fatal(err)
 	}
-	b.ResetTimer()
-	b.SetBytes(int64(n))
 	defer os.RemoveAll(origin)
 	defer os.RemoveAll(tempDir)
+
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for n := 0; n < b.N; n++ {
+		err := TarUntar(origin, target)
+		if err != nil {
+			b.Fatal(err)
+		}
+		os.RemoveAll(target)
+	}
+}
+
+func BenchmarkTarUntarWithLinks(b *testing.B) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		b.Fatal(err)
+	}
+	tempDir, err := ioutil.TempDir("", "docker-test-untar-destination")
+	if err != nil {
+		b.Fatal(err)
+	}
+	target := path.Join(tempDir, "dest")
+	n, err := prepareUntarSourceDirectory(100, origin, true)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	defer os.RemoveAll(tempDir)
+
+	b.ResetTimer()
+	b.SetBytes(int64(n))
 	for n := 0; n < b.N; n++ {
 		err := TarUntar(origin, target)
 		if err != nil {
