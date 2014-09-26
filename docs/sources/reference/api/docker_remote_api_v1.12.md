@@ -1276,6 +1276,10 @@ Docker containers will report the following events:
 
     create, destroy, die, export, kill, pause, restart, start, stop, unpause
 
+and Docker images will report:
+
+    untag, delete
+
 **Example request**:
 
         GET /events?since=1374067924
