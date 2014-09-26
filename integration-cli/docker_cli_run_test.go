@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/kr/pty"
 )
 
 // "test123" should be printed by docker run
@@ -2181,4 +2182,42 @@ func TestRunExecDir(t *testing.T) {
 	}
 
 	logDone("run - check execdriver dir behavior")
+}
+
+// #6509
+func TestRunRedirectStdout(t *testing.T) {
+
+	defer deleteAllContainers()
+
+	checkRedirect := func(command string) {
+		_, tty, err := pty.Open()
+		if err != nil {
+			t.Fatalf("Could not open pty: %v", err)
+		}
+		cmd := exec.Command("sh", "-c", command)
+		cmd.Stdin = tty
+		cmd.Stdout = tty
+		cmd.Stderr = tty
+		ch := make(chan struct{})
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("start err: %v", err)
+		}
+		go func() {
+			if err := cmd.Wait(); err != nil {
+				t.Fatalf("wait err=%v", err)
+			}
+			close(ch)
+		}()
+
+		select {
+		case <-time.After(time.Second):
+			t.Fatal("command timeout")
+		case <-ch:
+		}
+	}
+
+	checkRedirect(dockerBinary + " run -i busybox cat /etc/passwd | grep -q root")
+	checkRedirect(dockerBinary + " run busybox cat /etc/passwd | grep -q root")
+
+	logDone("run - redirect stdout")
 }

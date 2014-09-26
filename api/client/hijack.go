@@ -69,20 +69,20 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	var oldState *term.State
 
-	if in != nil && setRawTerminal && cli.isTerminal && os.Getenv("NORAW") == "" {
-		oldState, err = term.SetRawTerminal(cli.terminalFd)
+	if in != nil && setRawTerminal && cli.isTerminalIn && os.Getenv("NORAW") == "" {
+		oldState, err = term.SetRawTerminal(cli.inFd)
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(cli.terminalFd, oldState)
+		defer term.RestoreTerminal(cli.inFd, oldState)
 	}
 
 	if stdout != nil || stderr != nil {
 		receiveStdout = utils.Go(func() (err error) {
 			defer func() {
 				if in != nil {
-					if setRawTerminal && cli.isTerminal {
-						term.RestoreTerminal(cli.terminalFd, oldState)
+					if setRawTerminal && cli.isTerminalIn {
+						term.RestoreTerminal(cli.inFd, oldState)
 					}
 					// For some reason this Close call blocks on darwin..
 					// As the client exists right after, simply discard the close
@@ -129,7 +129,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		}
 	}
 
-	if !cli.isTerminal {
+	if !cli.isTerminalIn {
 		if err := <-sendStdin; err != nil {
 			log.Debugf("Error sendStdin: %s", err)
 			return err
