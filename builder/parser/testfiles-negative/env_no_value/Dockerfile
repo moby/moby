@@ -1,3 +1,3 @@
 FROM busybox
 
-ENV PATH=PATH
+ENV PATH

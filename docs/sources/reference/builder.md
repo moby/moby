@@ -337,10 +337,35 @@ expose ports to the host, at runtime,
 ## ENV
 
     ENV <key> <value>
+    ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
 `<value>`. This value will be passed to all future `RUN` instructions. This is
 functionally equivalent to prefixing the command with `<key>=<value>`
+
+The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
+will set a single variable to a value. The entire string after the first
+space will be treated as the `<value>` - including characters such as 
+spaces and quotes.
+
+The second form, `ENV <key>=<value> ...`, allows for multiple variables to 
+be set at one time. Notice that the second form uses the equals sign (=) 
+in the syntax, while the first form does not. Like command line parsing, 
+quotes and backslashes can be used to include spaces within values.
+
+For example:
+
+    ENV myName="John Doe" myDog=Rex\ The\ Dog \
+        myCat=fluffy
+
+and
+
+    ENV myName John Doe
+    ENV myDog Rex The Dog
+    ENV myCat fluffy
+
+will yield the same net results in the final container, but the first form 
+does it all in one layer.
 
 The environment variables set using `ENV` will persist when a container is run
 from the resulting image. You can view the values using `docker inspect`, and

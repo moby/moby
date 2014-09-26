@@ -2951,6 +2951,46 @@ RUN    [ "$(cat $TO)" = "hello" ]
 	logDone("build - environment variables usage")
 }
 
+func TestBuildEnvUsage2(t *testing.T) {
+	name := "testbuildenvusage2"
+	defer deleteImages(name)
+	dockerfile := `FROM busybox
+ENV    abc=def
+RUN    [ "$abc" = "def" ]
+ENV    def="hello world"
+RUN    [ "$def" = "hello world" ]
+ENV    def=hello\ world
+RUN    [ "$def" = "hello world" ]
+ENV    v1=abc v2="hi there"
+RUN    [ "$v1" = "abc" ]
+RUN    [ "$v2" = "hi there" ]
+ENV    v3='boogie nights' v4="with'quotes too"
+RUN    [ "$v3" = "boogie nights" ]
+RUN    [ "$v4" = "with'quotes too" ]
+ENV    abc=zzz FROM=hello/docker/world
+ENV    abc=zzz TO=/docker/world/hello
+ADD    $FROM $TO
+RUN    [ "$(cat $TO)" = "hello" ]
+ENV    abc "zzz"
+RUN    [ $abc = \"zzz\" ]
+ENV    abc 'yyy'
+RUN    [ $abc = \'yyy\' ]
+ENV    abc=
+RUN    [ "$abc" = "" ]
+`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"hello/docker/world": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - environment variables usage2")
+}
+
 func TestBuildAddScript(t *testing.T) {
 	name := "testbuildaddscript"
 	defer deleteImages(name)
