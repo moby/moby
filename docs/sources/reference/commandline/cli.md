@@ -231,6 +231,26 @@ Exclusion patterns match files or directories relative to `PATH` that
 will be excluded from the context. Globbing is done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
 
+Please note that `.dockerignore` files in other subdirectories are considered as 
+normal files. Filepaths in .dockerignore are absolute with the current directory
+as the root. Wildcards are allowed but the search is not recursive.
+
+### Example .dockerignore file 
+    */temp*
+    */*/temp*
+    temp?
+
+The first line above `*/temp*`, would ignore all files with names starting with
+`temp` from any subdirectory below the root directory, for example file named 
+`/somedir/temporary.txt` will be ignored. The second line `*/*/temp*`, will  
+ignore files starting with name `temp` from any subdirectory that is two levels
+below the root directory, for example a file `/somedir/subdir/temporary.txt` is 
+ignored in this case. The last line in the above example `temp?`, will ignore 
+the files that match the pattern from the root directory, for example files 
+`tempa`, `tempb` are ignored from the root directory. Currently  there is no
+support for regular expressions, formats like `[^temp*]` are ignored.
+
+
 See also:
 
 [*Dockerfile Reference*](/reference/builder).
