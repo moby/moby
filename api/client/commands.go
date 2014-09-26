@@ -664,7 +664,6 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	if encounteredError != nil {
 		if *openStdin || *attach {
 			cli.in.Close()
-			<-cErr
 		}
 		return encounteredError
 	}
