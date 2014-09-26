@@ -2221,3 +2221,34 @@ func TestRunRedirectStdout(t *testing.T) {
 
 	logDone("run - redirect stdout")
 }
+
+// Regression test for https://github.com/docker/docker/issues/8259
+func TestRunReuseBindVolumeThatIsSymlink(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "testlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	linkPath := os.TempDir() + "/testlink2"
+	if err := os.Symlink(tmpDir, linkPath); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(linkPath)
+
+	// Create first container
+	cmd := exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp/test", linkPath), "busybox", "ls", "-lh", "/tmp/test")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create second container with same symlinked path
+	// This will fail if the referenced issue is hit with a "Volume exists" error
+	cmd = exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp/test", linkPath), "busybox", "ls", "-lh", "/tmp/test")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(err, out)
+	}
+
+	deleteAllContainers()
+	logDone("run - can remount old bindmount volume")
+}

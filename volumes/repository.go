@@ -97,12 +97,16 @@ func (r *Repository) restore() error {
 
 func (r *Repository) Get(path string) *Volume {
 	r.lock.Lock()
-	vol := r.volumes[path]
+	vol := r.get(path)
 	r.lock.Unlock()
 	return vol
 }
 
 func (r *Repository) get(path string) *Volume {
+	path, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil
+	}
 	return r.volumes[path]
 }
 
@@ -129,6 +133,10 @@ func (r *Repository) remove(volume *Volume) {
 func (r *Repository) Delete(path string) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	path, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return err
+	}
 	volume := r.get(path)
 	if volume == nil {
 		return fmt.Errorf("Volume %s does not exist", path)
