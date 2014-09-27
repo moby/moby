@@ -111,12 +111,9 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			return nil, err
 		}
 		// Check if a volume already exists for this and use it
-		vol := container.daemon.volumes.Get(path)
-		if vol == nil {
-			vol, err = container.daemon.volumes.NewVolume(path, writable)
-			if err != nil {
-				return nil, err
-			}
+		vol, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
+		if err != nil {
+			return nil, err
 		}
 		mounts[mountToPath] = &Mount{container: container, volume: vol, MountToPath: mountToPath, Writable: writable}
 	}
@@ -128,7 +125,7 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			continue
 		}
 
-		vol, err := container.daemon.volumes.NewVolume("", true)
+		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
 		if err != nil {
 			return nil, err
 		}
