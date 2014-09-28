@@ -114,7 +114,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 
 // FIXME: this should be private, and every outside subsystem
 // should go through the "container_attach" job. But that would require
-// that job to be properly documented, as well as the relationship betweem
+// that job to be properly documented, as well as the relationship between
 // Attach and ContainerAttach.
 //
 // This method is in use by builder/builder.go.
