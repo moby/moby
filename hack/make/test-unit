@@ -29,7 +29,6 @@ bundle_test_unit() {
 			export HOME="$(mktemp -d)"
 			mkdir -p "$HOME/.parallel"
 			touch "$HOME/.parallel/ignored_vars"
-			export -f go_compile_test_dir
 			export LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER"
 			export TESTFLAGS
 			export HAVE_GO_TEST_COVER
@@ -38,12 +37,12 @@ bundle_test_unit() {
 			export BUILDFLAGS_FILE="$HOME/buildflags_file"
 			( IFS=$'\n'; echo "${BUILDFLAGS[*]}" ) > "$BUILDFLAGS_FILE"
 
-			echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --halt 2 --env _ go_compile_test_dir
+			echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --halt 2 --env _ "$(dirname "$BASH_SOURCE")/.go-compile-test-dir"
 			rm -rf "$HOME"
 		) else
 			# aww, no "parallel" available - fall back to boring
 			for test_dir in $TESTDIRS; do
-				go_compile_test_dir "$test_dir"
+				"$(dirname "$BASH_SOURCE")/.go-compile-test-dir" "$test_dir"
 			done
 		fi
 		echo "$TESTDIRS" | go_run_test_dir
