@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -312,39 +313,14 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
-// CheckLocalDns looks into the /etc/resolv.conf,
-// it returns true if there is a local nameserver or if there is no nameserver.
-func CheckLocalDns(resolvConf []byte) bool {
-	for _, line := range GetLines(resolvConf, []byte("#")) {
-		if !bytes.Contains(line, []byte("nameserver")) {
-			continue
-		}
-		for _, ip := range [][]byte{
-			[]byte("127.0.0.1"),
-			[]byte("127.0.1.1"),
-		} {
-			if bytes.Contains(line, ip) {
-				return true
-			}
-		}
-		return false
-	}
-	return true
-}
+var (
+	localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
+)
 
-// GetLines parses input into lines and strips away comments.
-func GetLines(input []byte, commentMarker []byte) [][]byte {
-	lines := bytes.Split(input, []byte("\n"))
-	var output [][]byte
-	for _, currentLine := range lines {
-		var commentIndex = bytes.Index(currentLine, commentMarker)
-		if commentIndex == -1 {
-			output = append(output, currentLine)
-		} else {
-			output = append(output, currentLine[:commentIndex])
-		}
-	}
-	return output
+// RemoveLocalDns looks into the /etc/resolv.conf,
+// and removes any local nameserver entries.
+func RemoveLocalDns(resolvConf []byte) []byte {
+	return localHostRx.ReplaceAll(resolvConf, []byte{})
 }
 
 // An StatusError reports an unsuccessful exit by a command.

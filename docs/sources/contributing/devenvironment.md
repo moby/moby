@@ -101,8 +101,6 @@ something like this
     --- PASS: TestParseRepositoryTag (0.00 seconds)
     === RUN TestGetResolvConf
     --- PASS: TestGetResolvConf (0.00 seconds)
-    === RUN TestCheckLocalDns
-    --- PASS: TestCheckLocalDns (0.00 seconds)
     === RUN TestParseRelease
     --- PASS: TestParseRelease (0.00 seconds)
     === RUN TestDependencyGraphCircular

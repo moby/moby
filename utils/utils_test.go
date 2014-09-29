@@ -5,35 +5,6 @@ import (
 	"testing"
 )
 
-func TestCheckLocalDns(t *testing.T) {
-	for resolv, result := range map[string]bool{`# Dynamic
-nameserver 10.0.2.3
-search docker.com`: false,
-		`# Dynamic
-#nameserver 127.0.0.1
-nameserver 10.0.2.3
-search docker.com`: false,
-		`# Dynamic
-nameserver 10.0.2.3 #not used 127.0.1.1
-search docker.com`: false,
-		`# Dynamic
-#nameserver 10.0.2.3
-#search docker.com`: true,
-		`# Dynamic
-nameserver 127.0.0.1
-search docker.com`: true,
-		`# Dynamic
-nameserver 127.0.1.1
-search docker.com`: true,
-		`# Dynamic
-`: true,
-		``: true,
-	} {
-		if CheckLocalDns([]byte(resolv)) != result {
-			t.Fatalf("Wrong local dns detection: {%s} should be %v", resolv, result)
-		}
-	}
-}
 func TestReplaceAndAppendEnvVars(t *testing.T) {
 	var (
 		d = []string{"HOME=/"}
