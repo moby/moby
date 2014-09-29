@@ -296,17 +296,8 @@ func TestBuildCopyWildcardNoFind(t *testing.T) {
 func TestBuildCopyWildcardCache(t *testing.T) {
 	name := "testcopywildcardcache"
 	defer deleteImages(name)
-	server, err := fakeStorage(map[string]string{
-		"robots.txt": "hello",
-		"index.html": "world",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
 	ctx, err := fakeContext(`FROM busybox
-	COPY file1.txt /tmp/
-	`,
+	COPY file1.txt /tmp/`,
 		map[string]string{
 			"file1.txt": "test1",
 		})
@@ -315,30 +306,17 @@ func TestBuildCopyWildcardCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err != nil {
-		t.Fatal(err)
-	}
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Now make sure we use a cache the 2nd time even with wild card
-	ctx2, err := fakeContext(`FROM busybox
-	COPY file*.txt /tmp/
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-		})
-	defer ctx2.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Now make sure we use a cache the 2nd time even with wild cards.
+	// Use the same context so the file is the same and the checksum will match
+	ctx.Add("Dockerfile", `FROM busybox
+	COPY file*.txt /tmp/`)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-	id2, err := buildImageFromContext(name, ctx2, true)
+	id2, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		t.Fatal(err)
 	}
