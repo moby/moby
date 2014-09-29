@@ -518,6 +518,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	job.Setenv("tag", r.Form.Get("tag"))
 	job.Setenv("author", r.Form.Get("author"))
 	job.Setenv("comment", r.Form.Get("comment"))
+	job.Setenv("changes", r.Form.Get("changes"))
 	job.SetenvSubEnv("config", &config)
 
 	job.Stdout.Add(stdoutBuffer)
