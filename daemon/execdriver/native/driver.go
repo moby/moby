@@ -100,7 +100,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return -1, err
 	}
 
-	return namespaces.Exec(container, c.ProcessConfig.Stdin, c.ProcessConfig.Stdout, c.ProcessConfig.Stderr, c.ProcessConfig.Console, c.Rootfs, dataPath, args, func(container *libcontainer.Config, console, rootfs, dataPath, init string, child *os.File, args []string) *exec.Cmd {
+	return namespaces.Exec(container, c.ProcessConfig.Stdin, c.ProcessConfig.Stdout, c.ProcessConfig.Stderr, c.ProcessConfig.Console, dataPath, args, func(container *libcontainer.Config, console, dataPath, init string, child *os.File, args []string) *exec.Cmd {
 		c.ProcessConfig.Path = d.initPath
 		c.ProcessConfig.Args = append([]string{
 			DriverName,
@@ -117,7 +117,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		c.ProcessConfig.ExtraFiles = []*os.File{child}
 
 		c.ProcessConfig.Env = container.Env
-		c.ProcessConfig.Dir = c.Rootfs
+		c.ProcessConfig.Dir = container.RootFs
 
 		return &c.ProcessConfig.Cmd
 	}, func() {
