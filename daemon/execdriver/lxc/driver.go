@@ -413,7 +413,7 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 	var (
 		process, mount string
 		root           = path.Join(d.root, "containers", c.ID, "config.lxc")
-		labels         = c.Config["label"]
+		label_opts     []string
 	)
 	fo, err := os.Create(root)
 	if err != nil {
@@ -421,11 +421,16 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 	}
 	defer fo.Close()
 
-	if len(labels) > 0 {
-		process, mount, err = label.GenLabels(labels[0])
-		if err != nil {
-			return "", err
+	for _, opt := range c.SecurityOpt {
+		con := strings.SplitN(opt, ":", 2)
+		if con[0] == "label" {
+			label_opts = append(label_opts, con[1])
 		}
+	}
+
+	process, mount, err = label.InitLabels(label_opts)
+	if err != nil {
+		return "", err
 	}
 
 	if err := LxcTemplateCompiled.Execute(fo, struct {

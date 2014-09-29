@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/libcontainer/label"
 	"github.com/kr/pty"
 )
 
@@ -1717,6 +1718,42 @@ func TestRunWriteResolvFileAndNotCommit(t *testing.T) {
 	}
 
 	logDone("run - write to /etc/resolv.conf and not commited")
+}
+
+func TestRunSecurityOptLevel(t *testing.T) {
+	plabel, _, _ := label.InitLabels(nil)
+	if plabel != "" {
+		defer deleteAllContainers()
+		cmd := exec.Command(dockerBinary, "run", "--security-opt", "label:level:s0:c0,c100", "busybox", "ps", "-eZ")
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			t.Fatal(err, out)
+		}
+		id := strings.TrimSpace(out)
+		if !strings.ContainsAny(id, "s0:c0,c100") {
+			t.Fatal("security-opt label:level:s0:c0,c100 failed")
+		}
+	}
+
+	logDone("run - security-opt label:level")
+}
+
+func TestRunSecurityOptDisable(t *testing.T) {
+	plabel, _, _ := label.InitLabels(nil)
+	if plabel != "" {
+		defer deleteAllContainers()
+		cmd := exec.Command(dockerBinary, "run", "--security-opt", "label:disable", "busybox", "ps", "-eZ")
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			t.Fatal(err, out)
+		}
+		id := strings.TrimSpace(out)
+		if !strings.ContainsAny(id, "svirt") {
+			t.Fatal("security-opt label:level:disable failed")
+		}
+	}
+
+	logDone("run - security-opt label:disable")
 }
 
 func TestRunWithBadDevice(t *testing.T) {
