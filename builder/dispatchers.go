@@ -234,7 +234,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool) error {
 	b.Config.Cmd = handleJsonArgs(args, attributes)
 
 	if !attributes["json"] && len(b.Config.Entrypoint) == 0 {
-		b.Config.Entrypoint = []string{"/bin/sh", "-c"}
+		b.Config.Cmd = append([]string{"/bin/sh", "-c"}, b.Config.Cmd...)
 	}
 
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", b.Config.Cmd)); err != nil {

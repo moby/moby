@@ -2250,3 +2250,45 @@ func TestBuildInvalidTag(t *testing.T) {
 	}
 	logDone("build - invalid tag")
 }
+
+func TestBuildCmdShDashC(t *testing.T) {
+	name := "testbuildcmdshc"
+	defer deleteImages(name)
+	if _, err := buildImage(name, "FROM busybox\nCMD echo cmd\n", true); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err, res)
+	}
+
+	expected := `["/bin/sh","-c","echo cmd"]`
+
+	if res != expected {
+		t.Fatalf("Expected value %s not in Config.Cmd: %s", expected, res)
+	}
+
+	logDone("build - cmd should have sh -c for non-json")
+}
+
+func TestBuildCmdJSONNoShDashC(t *testing.T) {
+	name := "testbuildcmdjson"
+	defer deleteImages(name)
+	if _, err := buildImage(name, "FROM busybox\nCMD [\"echo\", \"cmd\"]", true); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.Cmd")
+	if err != nil {
+		t.Fatal(err, res)
+	}
+
+	expected := `["echo","cmd"]`
+
+	if res != expected {
+		t.Fatalf("Expected value %s not in Config.Cmd: %s", expected, res)
+	}
+
+	logDone("build - cmd should not have /bin/sh -c for json")
+}
