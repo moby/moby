@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/execdriver/native/configuration"
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
@@ -68,10 +67,6 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		cmds[k] = v.cmd
 	}
 	d.Unlock()
-
-	if err := configuration.ParseConfiguration(container, cmds, c.Config["native"]); err != nil {
-		return nil, err
-	}
 
 	return container, nil
 }
@@ -175,8 +170,8 @@ func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Comma
 }
 
 func (d *driver) setupLabels(container *libcontainer.Config, c *execdriver.Command) error {
-	container.ProcessLabel = c.Config["process_label"][0]
-	container.MountConfig.MountLabel = c.Config["mount_label"][0]
+	container.ProcessLabel = c.ProcessLabel
+	container.MountConfig.MountLabel = c.MountLabel
 
 	return nil
 }
