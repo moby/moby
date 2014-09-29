@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -422,6 +423,67 @@ func TestPostJsonVerify(t *testing.T) {
 	}
 	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
 		t.Fatal("Create should have failed due to wrong Content-Type header - got:", r)
+	}
+}
+
+// Issue 7941 - test to make sure a "null" in JSON is just ignored.
+// W/o this fix a null in JSON would be parsed into a string var as "null"
+func TestPostCreateNull(t *testing.T) {
+	eng := NewTestEngine(t)
+	daemon := mkDaemonFromEngine(eng, t)
+	defer daemon.Nuke()
+
+	configStr := fmt.Sprintf(`{
+		"Hostname":"",
+		"Domainname":"",
+		"Memory":0,
+		"MemorySwap":0,
+		"CpuShares":0,
+		"Cpuset":null,
+		"AttachStdin":true,
+		"AttachStdout":true,
+		"AttachStderr":true,
+		"PortSpecs":null,
+		"ExposedPorts":{},
+		"Tty":true,
+		"OpenStdin":true,
+		"StdinOnce":true,
+		"Env":[],
+		"Cmd":"ls",
+		"Image":"%s",
+		"Volumes":{},
+		"WorkingDir":"",
+		"Entrypoint":null,
+		"NetworkDisabled":false,
+		"OnBuild":null}`, unitTestImageID)
+
+	req, err := http.NewRequest("POST", "/containers/create", strings.NewReader(configStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	r := httptest.NewRecorder()
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
+	}
+
+	var apiRun engine.Env
+	if err := apiRun.Decode(r.Body); err != nil {
+		t.Fatal(err)
+	}
+	containerID := apiRun.Get("Id")
+
+	containerAssertExists(eng, containerID, t)
+
+	c := daemon.Get(containerID)
+	if c.Config.Cpuset != "" {
+		t.Fatalf("Cpuset should have been empty - instead its:" + c.Config.Cpuset)
 	}
 }
 
