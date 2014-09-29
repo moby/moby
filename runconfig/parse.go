@@ -43,6 +43,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flEnvFile     = opts.NewListOpts(nil)
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
+		flSecurityOpt = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -79,6 +80,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
+	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -254,6 +256,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		Volumes:         flVolumes.GetMap(),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
+		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	hostConfig := &HostConfig{

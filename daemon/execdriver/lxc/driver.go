@@ -409,7 +409,10 @@ func rootIsShared() bool {
 }
 
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	root := path.Join(d.root, "containers", c.ID, "config.lxc")
+	var (
+		root       = path.Join(d.root, "containers", c.ID, "config.lxc")
+		label_opts []string
+	)
 
 	fo, err := os.Create(root)
 	if err != nil {
