@@ -209,7 +209,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	if err := validateRepoName(repoName); err != nil {
 		return err
 	}
-	if err := validateTagName(tag); err != nil {
+	if err := ValidateTagName(tag); err != nil {
 		return err
 	}
 	if err := store.reload(); err != nil {
@@ -285,7 +285,7 @@ func validateRepoName(name string) error {
 }
 
 // Validate the name of a tag
-func validateTagName(name string) error {
+func ValidateTagName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Tag name can't be empty")
 	}
