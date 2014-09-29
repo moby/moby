@@ -36,7 +36,7 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
+var newClient = func(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
 	tlsConfig := tls.Config{RootCAs: roots}
 
 	if cert != nil {
@@ -153,8 +153,8 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType) (*htt
 }
 
 func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
-	if endpoint == IndexServerAddress() {
-		// Skip the check, we now this one is valid
+	if endpoint == PublicIndexAddress() {
+		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
 		return RegistryInfo{Standalone: false}, nil
 	}
@@ -242,7 +242,7 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
-	if strings.Contains(hostname, "index.docker.io") {
+	if strings.Contains(hostname, IndexServerHostname()) {
 		return "", "", fmt.Errorf("Invalid repository name, try \"%s\" instead", reposName)
 	}
 	if err := validateRepositoryName(reposName); err != nil {
