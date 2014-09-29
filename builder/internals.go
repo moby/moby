@@ -102,7 +102,7 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 type copyInfo struct {
 	origPath   string
 	destPath   string
-	hashPath   string
+	hash       string
 	decompress bool
 	tmpDir     string
 }
@@ -118,14 +118,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 
 	dest := args[len(args)-1] // last one is always the dest
 
-	if len(args) > 2 && dest[len(dest)-1] != '/' {
-		return fmt.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
-	}
-
-	copyInfos := make([]copyInfo, len(args)-1)
-	hasHash := false
-	srcPaths := ""
-	origPaths := ""
+	copyInfos := []*copyInfo{}
 
 	b.Config.Image = b.image
 
@@ -140,28 +133,44 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	// Loop through each src file and calculate the info we need to
 	// do the copy (e.g. hash value if cached).  Don't actually do
 	// the copy until we've looked at all src files
-	for i, orig := range args[0 : len(args)-1] {
-		ci := &copyInfos[i]
-		ci.origPath = orig
-		ci.destPath = dest
-		ci.decompress = true
-
-		err := calcCopyInfo(b, cmdName, ci, allowRemote, allowDecompression)
+	for _, orig := range args[0 : len(args)-1] {
+		err := calcCopyInfo(b, cmdName, &copyInfos, orig, dest, allowRemote, allowDecompression)
 		if err != nil {
 			return err
 		}
+	}
 
-		origPaths += " " + ci.origPath // will have leading space
-		if ci.hashPath == "" {
-			srcPaths += " " + ci.origPath // note leading space
-		} else {
-			srcPaths += " " + ci.hashPath // note leading space
-			hasHash = true
+	if len(copyInfos) == 0 {
+		return fmt.Errorf("No source files were specified")
+	}
+
+	if len(copyInfos) > 1 && !strings.HasSuffix(dest, "/") {
+		return fmt.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
+	}
+
+	// For backwards compat, if there's just one CI then use it as the
+	// cache look-up string, otherwise hash 'em all into one
+	var srcHash string
+	var origPaths string
+
+	if len(copyInfos) == 1 {
+		srcHash = copyInfos[0].hash
+		origPaths = copyInfos[0].origPath
+	} else {
+		var hashs []string
+		var origs []string
+		for _, ci := range copyInfos {
+			hashs = append(hashs, ci.hash)
+			origs = append(origs, ci.origPath)
 		}
+		hasher := sha256.New()
+		hasher.Write([]byte(strings.Join(hashs, ",")))
+		srcHash = "multi:" + hex.EncodeToString(hasher.Sum(nil))
+		origPaths = strings.Join(origs, " ")
 	}
 
 	cmd := b.Config.Cmd
-	b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s%s in %s", cmdName, srcPaths, dest)}
+	b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest)}
 	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
 
 	hit, err := b.probeCache()
@@ -169,7 +178,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		return err
 	}
 	// If we do not have at least one hash, never use the cache
-	if hit && hasHash {
+	if hit && b.UtilizeCache {
 		return nil
 	}
 
@@ -190,24 +199,32 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		}
 	}
 
-	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s%s in %s", cmdName, origPaths, dest)); err != nil {
+	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func calcCopyInfo(b *Builder, cmdName string, ci *copyInfo, allowRemote bool, allowDecompression bool) error {
-	var (
-		remoteHash string
-		isRemote   bool
-	)
+func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool) error {
 
-	saveOrig := ci.origPath
-	isRemote = utils.IsURL(ci.origPath)
+	if origPath != "" && origPath[0] == '/' && len(origPath) > 1 {
+		origPath = origPath[1:]
+	}
+	origPath = strings.TrimPrefix(origPath, "./")
 
-	if isRemote && !allowRemote {
-		return fmt.Errorf("Source can't be an URL for %s", cmdName)
-	} else if isRemote {
+	// In the remote/URL case, download it and gen its hashcode
+	if utils.IsURL(origPath) {
+		if !allowRemote {
+			return fmt.Errorf("Source can't be a URL for %s", cmdName)
+		}
+
+		ci := copyInfo{}
+		ci.origPath = origPath
+		ci.hash = origPath // default to this but can change
+		ci.destPath = destPath
+		ci.decompress = false
+		*cInfos = append(*cInfos, &ci)
+
 		// Initiate the download
 		resp, err := utils.Download(ci.origPath)
 		if err != nil {
@@ -243,24 +260,9 @@ func calcCopyInfo(b *Builder, cmdName string, ci *copyInfo, allowRemote bool, al
 
 		ci.origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
-		// Process the checksum
-		r, err := archive.Tar(tmpFileName, archive.Uncompressed)
-		if err != nil {
-			return err
-		}
-		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
-			return err
-		}
-		remoteHash = tarSum.Sum(nil)
-		r.Close()
-
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(ci.destPath, "/") {
-			u, err := url.Parse(saveOrig)
+			u, err := url.Parse(origPath)
 			if err != nil {
 				return err
 			}
@@ -275,60 +277,111 @@ func calcCopyInfo(b *Builder, cmdName string, ci *copyInfo, allowRemote bool, al
 			}
 			ci.destPath = ci.destPath + filename
 		}
-	}
 
-	if err := b.checkPathForAddition(ci.origPath); err != nil {
-		return err
-	}
-
-	// Hash path and check the cache
-	if b.UtilizeCache {
-		var (
-			sums = b.context.GetSums()
-		)
-
-		if remoteHash != "" {
-			ci.hashPath = remoteHash
-		} else if fi, err := os.Stat(path.Join(b.contextPath, ci.origPath)); err != nil {
-			return err
-		} else if fi.IsDir() {
-			var subfiles []string
-			absOrigPath := path.Join(b.contextPath, ci.origPath)
-
-			// Add a trailing / to make sure we only
-			// pick up nested files under the dir and
-			// not sibling files of the dir that just
-			// happen to start with the same chars
-			if !strings.HasSuffix(absOrigPath, "/") {
-				absOrigPath += "/"
+		// Calc the checksum, only if we're using the cache
+		if b.UtilizeCache {
+			r, err := archive.Tar(tmpFileName, archive.Uncompressed)
+			if err != nil {
+				return err
 			}
-			for _, fileInfo := range sums {
-				absFile := path.Join(b.contextPath, fileInfo.Name())
-				if strings.HasPrefix(absFile, absOrigPath) {
-					subfiles = append(subfiles, fileInfo.Sum())
-				}
+			tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
+			if err != nil {
+				return err
 			}
-			sort.Strings(subfiles)
-			hasher := sha256.New()
-			hasher.Write([]byte(strings.Join(subfiles, ",")))
-			ci.hashPath = "dir:" + hex.EncodeToString(hasher.Sum(nil))
-		} else {
-			if ci.origPath[0] == '/' && len(ci.origPath) > 1 {
-				ci.origPath = ci.origPath[1:]
+			if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
+				return err
 			}
-			ci.origPath = strings.TrimPrefix(ci.origPath, "./")
-			// This will match on the first file in sums of the archive
-			if fis := sums.GetFile(ci.origPath); fis != nil {
-				ci.hashPath = "file:" + fis.Sum()
-			}
+			ci.hash = tarSum.Sum(nil)
+			r.Close()
 		}
 
+		return nil
 	}
 
-	if !allowDecompression || isRemote {
-		ci.decompress = false
+	// Deal with wildcards
+	if ContainsWildcards(origPath) {
+		for _, fileInfo := range b.context.GetSums() {
+			if fileInfo.Name() == "" {
+				continue
+			}
+			match, _ := path.Match(origPath, fileInfo.Name())
+			if !match {
+				continue
+			}
+
+			calcCopyInfo(b, cmdName, cInfos, fileInfo.Name(), destPath, allowRemote, allowDecompression)
+		}
+		return nil
 	}
+
+	// Must be a dir or a file
+
+	if err := b.checkPathForAddition(origPath); err != nil {
+		return err
+	}
+	fi, _ := os.Stat(path.Join(b.contextPath, origPath))
+
+	ci := copyInfo{}
+	ci.origPath = origPath
+	ci.hash = origPath
+	ci.destPath = destPath
+	ci.decompress = allowDecompression
+	*cInfos = append(*cInfos, &ci)
+
+	// If not using cache don't need to do anything else.
+	// If we are using a cache then calc the hash for the src file/dir
+	if !b.UtilizeCache {
+		return nil
+	}
+
+	// Deal with the single file case
+	if !fi.IsDir() {
+		// This will match first file in sums of the archive
+		fis := b.context.GetSums().GetFile(ci.origPath)
+		if fis != nil {
+			ci.hash = "file:" + fis.Sum()
+		}
+		return nil
+	}
+
+	// Must be a dir
+	var subfiles []string
+	absOrigPath := path.Join(b.contextPath, ci.origPath)
+
+	// Add a trailing / to make sure we only pick up nested files under
+	// the dir and not sibling files of the dir that just happen to
+	// start with the same chars
+	if !strings.HasSuffix(absOrigPath, "/") {
+		absOrigPath += "/"
+	}
+
+	// Need path w/o / too to find matching dir w/o trailing /
+	absOrigPathNoSlash := absOrigPath[:len(absOrigPath)-1]
+
+	for _, fileInfo := range b.context.GetSums() {
+		absFile := path.Join(b.contextPath, fileInfo.Name())
+		if strings.HasPrefix(absFile, absOrigPath) || absFile == absOrigPathNoSlash {
+			subfiles = append(subfiles, fileInfo.Sum())
+		}
+	}
+	sort.Strings(subfiles)
+	hasher := sha256.New()
+	hasher.Write([]byte(strings.Join(subfiles, ",")))
+	ci.hash = "dir:" + hex.EncodeToString(hasher.Sum(nil))
+
 	return nil
+}
+
+func ContainsWildcards(name string) bool {
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch == '\\' {
+			i++
+		} else if ch == '*' || ch == '?' || ch == '[' {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
