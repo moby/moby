@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/archive"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/log"
@@ -174,9 +175,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	//Check if the given image name can be resolved
 	if *tag != "" {
-		repository, _ := parsers.ParseRepositoryTag(*tag)
+		repository, tag := parsers.ParseRepositoryTag(*tag)
 		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
 			return err
+		}
+		if len(tag) > 0 {
+			if err := graph.ValidateTagName(tag); err != nil {
+				return err
+			}
 		}
 	}
 
