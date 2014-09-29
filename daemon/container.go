@@ -441,7 +441,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	return container.buildHostsFiles(IP)
 }
 
-func (container *Container) AllocateNetwork() error {
+func (container *Container) AllocateNetwork() (err error) {
 	mode := container.hostConfig.NetworkMode
 	if container.Config.NetworkDisabled || !mode.IsPrivate() {
 		return nil
@@ -449,7 +449,6 @@ func (container *Container) AllocateNetwork() error {
 
 	var (
 		env *engine.Env
-		err error
 		eng = container.daemon.eng
 	)
 
@@ -461,14 +460,21 @@ func (container *Container) AllocateNetwork() error {
 		return err
 	}
 
+	// Error handling: At this point, the interface is allocated so we have to
+	// make sure that it is always released in case of error, otherwise we
+	// might leak resources.
+	defer func() {
+		if err != nil {
+			eng.Job("release_interface", container.ID).Run()
+		}
+	}()
+
 	if container.Config.PortSpecs != nil {
 		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
-			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 		container.Config.PortSpecs = nil
 		if err := container.WriteHostConfig(); err != nil {
-			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -498,7 +504,6 @@ func (container *Container) AllocateNetwork() error {
 
 	for port := range portSpecs {
 		if err := container.allocatePort(eng, port, bindings); err != nil {
-			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -522,6 +527,37 @@ func (container *Container) ReleaseNetwork() {
 
 	eng.Job("release_interface", container.ID).Run()
 	container.NetworkSettings = &NetworkSettings{}
+}
+
+func (container *Container) isNetworkAllocated() bool {
+	return container.NetworkSettings.IPAddress != ""
+}
+
+func (container *Container) RestoreNetwork() error {
+	mode := container.hostConfig.NetworkMode
+	// Don't attempt a restore if we previously didn't allocate networking.
+	// This might be a legacy container with no network allocated, in which case the
+	// allocation will happen once and for all at start.
+	if !container.isNetworkAllocated() || container.Config.NetworkDisabled || !mode.IsPrivate() {
+		return nil
+	}
+
+	eng := container.daemon.eng
+
+	// Re-allocate the interface with the same IP address.
+	job := eng.Job("allocate_interface", container.ID)
+	job.Setenv("RequestedIP", container.NetworkSettings.IPAddress)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	// Re-allocate any previously allocated ports.
+	for port, _ := range container.NetworkSettings.Ports {
+		if err := container.allocatePort(eng, port, container.NetworkSettings.Ports); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // cleanup releases any network resources allocated to the container along with any rules
