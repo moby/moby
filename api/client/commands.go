@@ -2474,6 +2474,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 func (cli *DockerCli) CmdCp(args ...string) error {
 	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH")
+	fileOnly := cmd.Bool([]string{"f", "-file"}, false, "Copy a file only")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -2505,7 +2506,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 
 	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
+		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true, SingleFile: *fileOnly}); err != nil {
 			return err
 		}
 	}
