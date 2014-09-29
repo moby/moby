@@ -155,6 +155,8 @@ Json Parameters:
         exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
         controls the number of times to retry before giving up.
         The default is not to restart. (optional)
+-   **Volumes** – An object mapping mountpoint paths (strings) inside the
+        container to empty objects.
 -   **config** – the container's configuration
 
 Query Parameters:
@@ -445,6 +447,11 @@ Start the container `id`
 
 Json Parameters:
 
+-   **Binds** – A list of volume bindings for this container.  Each volume
+        binding is a string of the form `container_path` (to create a new
+        volume for the container), `host_path:container_path` (to bind-mount
+        a host path into the container), or `host_path:container_path:ro`
+        (to make the bind-mount read-only inside the container).
 -   **hostConfig** – the container's host configuration (optional)
 
 Status Codes:
