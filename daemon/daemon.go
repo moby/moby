@@ -561,8 +561,16 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 
 	for _, opt := range config.SecurityOpt {
 		con := strings.SplitN(opt, ":", 2)
-		if con[0] == "label" {
+		if len(con) == 1 {
+			return nil, fmt.Errorf("Invalid --security-opt: %q", opt)
+		}
+		switch con[0] {
+		case "label":
 			label_opts = append(label_opts, con[1])
+		case "apparmor":
+			container.AppArmorProfile = con[1]
+		default:
+			return nil, fmt.Errorf("Invalid --security-opt: %q", opt)
 		}
 	}
 

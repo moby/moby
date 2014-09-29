@@ -49,6 +49,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		}
 	}
 
+	if c.AppArmorProfile != "" {
+		container.AppArmorProfile = c.AppArmorProfile
+	}
+
 	if err := d.setupCgroups(container, c); err != nil {
 		return nil, err
 	}
