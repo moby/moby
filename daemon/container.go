@@ -441,7 +441,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	return container.buildHostsFiles(IP)
 }
 
-func (container *Container) allocateNetwork() error {
+func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	if container.Config.NetworkDisabled || !mode.IsPrivate() {
 		return nil
@@ -514,7 +514,7 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork() {
+func (container *Container) ReleaseNetwork() {
 	if container.Config.NetworkDisabled {
 		return
 	}
@@ -527,7 +527,7 @@ func (container *Container) releaseNetwork() {
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
-	container.releaseNetwork()
+	container.ReleaseNetwork()
 
 	// Disable all active links
 	if container.activeLinks != nil {
@@ -972,7 +972,7 @@ func (container *Container) initializeNetworking() error {
 		container.Config.NetworkDisabled = true
 		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	}
-	if err := container.allocateNetwork(); err != nil {
+	if err := container.AllocateNetwork(); err != nil {
 		return err
 	}
 	return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
