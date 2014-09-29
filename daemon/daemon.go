@@ -529,8 +529,9 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string)
 
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *image.Image) (*Container, error) {
 	var (
-		id  string
-		err error
+		id         string
+		err        error
+		label_opts []string
 	)
 	id, name, err = daemon.generateIdAndName(name)
 	if err != nil {
@@ -558,7 +559,14 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 	}
 	container.root = daemon.containerRoot(container.ID)
 
-	if container.ProcessLabel, container.MountLabel, err = label.GenLabels(""); err != nil {
+	for _, opt := range config.SecurityOpt {
+		con := strings.SplitN(opt, ":", 2)
+		if con[0] == "label" {
+			label_opts = append(label_opts, con[1])
+		}
+	}
+
+	if container.ProcessLabel, container.MountLabel, err = label.InitLabels(label_opts); err != nil {
 		return nil, err
 	}
 	return container, nil

@@ -23,6 +23,7 @@ docker-run - Run a command in a new container
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
+[**--security-opt**[=*[]*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
@@ -142,6 +143,13 @@ container can be started with the **--link**.
 
 **-i**, **--interactive**=*true*|*false*
    When set to true, keep stdin open even if not attached. The default is false.
+
+**--security-opt**=*secdriver*:*name*:*value*
+    "label:user:USER"   : Set the label user for the container
+    "label:role:ROLE"   : Set the label role for the container
+    "label:type:TYPE"   : Set the label type for the container
+    "label:level:LEVEL" : Set the label level for the container
+    "label:disable"     : Turn off label confinement for the container
 
 **--link**=*name*:*alias*
    Add link to another container. The format is name:alias. If the operator
@@ -382,6 +390,29 @@ to the host directory:
 
 Now, writing to the /data1 volume in the container will be allowed and the
 changes will also be reflected on the host in /var/db.
+
+## Using alternative security labeling
+
+If you want to use the same label for multiple containers you can override use
+the security-opt flag to select an MCS level.  This is a common practive for MLS
+systems.  But it also might help in cases where you want to share the same 
+content between containers. Run the following command.
+
+    # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
+
+Run the follwing command if you want to disable the labeling controls for just 
+this container.
+
+    # docker run --security-opt label:disable -i -t fedora bash
+
+If you decide you would like to work with a tighter policy on your container.  
+For example if you want to run a container that could only listen on apache 
+ports, and not connect to the network. You could select an alternate type to 
+run the container execute the following command.
+
+    # docker run --security-opt label:type:svirt_apache_t -i -t fedora bash
+
+Note: You would have to write policy defining a svirt_apache_t type.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

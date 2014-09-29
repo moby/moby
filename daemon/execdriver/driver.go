@@ -114,4 +114,5 @@ type Command struct {
 	CapDrop            []string            `json:"cap_drop"`
 	ContainerPid       int                 `json:"container_pid"`  // the pid for the process inside a container
 	ProcessConfig      ProcessConfig       `json:"process_config"` // Describes the init process of the container.
+	SecurityOpt        []string            `json:"security_opt"`
 }
