@@ -463,10 +463,12 @@ func (container *Container) allocateNetwork() error {
 
 	if container.Config.PortSpecs != nil {
 		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 		container.Config.PortSpecs = nil
 		if err := container.WriteHostConfig(); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -496,6 +498,7 @@ func (container *Container) allocateNetwork() error {
 
 	for port := range portSpecs {
 		if err := container.allocatePort(eng, port, bindings); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -1149,7 +1152,6 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 			return err
 		}
 		if err := job.Run(); err != nil {
-			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 		b.HostIp = portEnv.Get("HostIP")
