@@ -18,12 +18,14 @@ import (
 const CONFIGFILE = ".dockercfg"
 
 // Only used for user auth + account creation
-const INDEXSERVER = "https://index.docker.io/v1/"
-
-//const INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
+const PUBLIC_INDEX_HOSTNAME = "index.docker.io"
+//const PUBLIC_INDEX_HOSTNAME = "registry-stage.hub.docker.com"
+const PUBLIC_INDEX_ADDRESS = "https://" + PUBLIC_INDEX_HOSTNAME + "/v1/"
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
+	CurrentIndexServerAddress = PUBLIC_INDEX_ADDRESS
+	CurrentIndexServerHostname = PUBLIC_INDEX_HOSTNAME
 )
 
 type AuthConfig struct {
@@ -39,8 +41,37 @@ type ConfigFile struct {
 	rootPath string
 }
 
+func PublicIndexAddress() (string) {
+	return PUBLIC_INDEX_ADDRESS
+}
+
+func PublicIndexHostname() (string) {
+	return PUBLIC_INDEX_HOSTNAME
+}
+
 func IndexServerAddress() string {
-	return INDEXSERVER
+	return CurrentIndexServerAddress
+}
+
+func IndexServerHostname() (string) {
+	return CurrentIndexServerHostname
+}
+
+func SetIndexServerAddress(indexServer string) error {
+	schemaParts := strings.SplitN(indexServer, "://", 2)
+	if len(schemaParts) != 2 {
+		return fmt.Errorf("Invalid index server (missing schema): %s", indexServer)
+	}
+	indexParts := strings.SplitN(schemaParts[1], "/", 2)
+	if len(indexParts) != 2 {
+		indexServer += "/v1/"
+	}
+	if ! strings.HasSuffix(indexServer, "/") {
+		indexServer += "/"
+	}
+	CurrentIndexServerAddress = indexServer
+	CurrentIndexServerHostname = indexParts[0]
+	return nil
 }
 
 // create a base64 encoded auth string to store in config
@@ -171,7 +202,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 		serverAddress = IndexServerAddress()
 	}
 
-	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
+	loginAgainstOfficialIndex := serverAddress == PublicIndexAddress()
 
 	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig

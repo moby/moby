@@ -1,12 +1,15 @@
 package registry
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,6 +23,7 @@ import (
 
 var (
 	testHttpServer *httptest.Server
+	testHttpsServer *httptest.Server
 	testLayers     = map[string]map[string]string{
 		"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20": {
 			"json": `{"id":"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
@@ -94,6 +98,7 @@ func init() {
 	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
 	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
 	testHttpServer = httptest.NewServer(handlerAccessLog(r))
+	testHttpsServer = httptest.NewTLSServer(handlerAccessLog(r))
 }
 
 func handlerAccessLog(handler http.Handler) http.Handler {
@@ -106,6 +111,36 @@ func handlerAccessLog(handler http.Handler) http.Handler {
 
 func makeURL(req string) string {
 	return testHttpServer.URL + req
+}
+
+func makeHttpsURL(req string) string {
+	return testHttpsServer.URL + req
+}
+
+// Restorer holds a function that can be used
+// to restore some previous state.
+type Restorer func()
+
+// Restore restores some previous state.
+func (r Restorer) Restore() {
+	r()
+}
+
+func useInsecureHttpsClient() Restorer {
+	secureClient := newClient
+	fn := reflect.ValueOf(&newClient).Elem()
+	fnOrig := reflect.New(fn.Type()).Elem()
+	fnOrig.Set(fn)
+	fnNew := reflect.ValueOf(func (jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
+		insecureClient := secureClient(jar, roots, cert, timeout)
+		transport := insecureClient.Transport.(*http.Transport)
+		transport.TLSClientConfig.InsecureSkipVerify = true
+		return insecureClient
+	})
+	fn.Set(fnNew)
+	return func() {
+		fn.Set(fnOrig)
+	}
 }
 
 func writeHeaders(w http.ResponseWriter) {
@@ -151,6 +186,16 @@ func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
 	}
 	if len(message) == 0 {
 		message = fmt.Sprintf("%v != %v", a, b)
+	}
+	t.Fatal(message)
+}
+
+func assertNotEqual(t *testing.T, a interface{}, b interface{}, message string) {
+	if a != b {
+		return
+	}
+	if len(message) == 0 {
+		message = fmt.Sprintf("%v == %v", a, b)
 	}
 	t.Fatal(message)
 }

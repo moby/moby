@@ -25,12 +25,130 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	return r
 }
 
-func TestPingRegistryEndpoint(t *testing.T) {
-	regInfo, err := pingRegistryEndpoint(makeURL("/v1/"))
+func TestPublicSession(t *testing.T) {
+	defer useInsecureHttpsClient().Restore()
+
+	authConfig := &AuthConfig{}
+	r, err := NewSession(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, regInfo.Standalone, true, "Expected standalone to be true (default)")
+	assertEqual(t, len(r.reqFactory.GetDecorators()), 0, "Expected no decorator on http session")
+
+	authConfig = &AuthConfig{}
+	r, err = NewSession(authConfig, utils.NewHTTPRequestFactory(), PublicIndexAddress(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, len(r.reqFactory.GetDecorators()), 0, "Expected no decorator on public session")
+
+	authConfig = &AuthConfig{}
+	r, err = NewSession(authConfig, utils.NewHTTPRequestFactory(), makeHttpsURL("/v1/"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNotEqual(t, len(r.reqFactory.GetDecorators()), 0, "Expected decorator on https session")
+}
+
+func TestPingRegistryEndpoint(t *testing.T) {
+	defer useInsecureHttpsClient().Restore()
+
+	testPing := func(endpoint string, expectedStandalone bool, assertMessage string) {
+		regInfo, err := pingRegistryEndpoint(endpoint)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertEqual(t, regInfo.Standalone, expectedStandalone, assertMessage)
+	}
+
+	testPing(makeURL("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(makeHttpsURL("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(PublicIndexAddress(), false, "Expected standalone to be false for public index")
+
+	SetIndexServerAddress(makeURL("/v1/"))
+	testPing(makeURL("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(makeHttpsURL("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(PublicIndexAddress(), false, "Expected standalone to be false for public index")
+
+	SetIndexServerAddress(makeHttpsURL("/v1/"))
+	testPing(makeURL("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(makeHttpsURL("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(PublicIndexAddress(), false, "Expected standalone to be false for public index")
+
+	SetIndexServerAddress(PublicIndexAddress())
+}
+
+func TestExpandAndVerifyRegistryUrl(t *testing.T) {
+	defer useInsecureHttpsClient().Restore()
+
+	// Simple wrapper to fail test if err != nil
+	expandEndpoint := func(hostname string) string {
+		endpoint, err := ExpandAndVerifyRegistryUrl(hostname)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return endpoint
+	}
+
+	httpUrl := makeURL("/v1/")
+	endpoint := expandEndpoint(httpUrl)
+	assertEqual(t, endpoint, httpUrl, "Expected endpoint to be " + httpUrl)
+
+	httpUrl = makeURL("")
+	endpoint = expandEndpoint(httpUrl)
+	assertEqual(t, endpoint, httpUrl+"/v1/", httpUrl + ": Expected endpoint to be " + httpUrl + "/v1/")
+
+	httpUrl = makeURL("")
+	strippedUrl := strings.SplitN(httpUrl, "://", 2)[1]
+	endpoint = expandEndpoint(strippedUrl)
+	assertEqual(t, endpoint, httpUrl+"/v1/", strippedUrl + ": Expected endpoint to be " + httpUrl + "/v1/")
+
+	httpsUrl := makeHttpsURL("/v1/")
+	endpoint = expandEndpoint(httpsUrl)
+	assertEqual(t, endpoint, httpsUrl, "Expected endpoint to be " + httpsUrl)
+
+	httpsUrl = makeHttpsURL("")
+	endpoint = expandEndpoint(httpsUrl)
+	assertEqual(t, endpoint, httpsUrl+"/v1/", httpsUrl + ": Expected endpoint to be " + httpsUrl + "/v1/")
+
+	httpsUrl = makeHttpsURL("")
+	strippedUrl = strings.SplitN(httpsUrl, "://", 2)[1]
+	endpoint = expandEndpoint(strippedUrl)
+	assertEqual(t, endpoint, httpsUrl+"/v1/", strippedUrl + ": Expected endpoint to be " + httpsUrl + "/v1/")
+
+	_, err := ExpandAndVerifyRegistryUrl("http://127.0.0.2/v1/")
+	assertNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+	_, err = ExpandAndVerifyRegistryUrl("https://127.0.0.2/v1/")
+	assertNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+	_, err = ExpandAndVerifyRegistryUrl("http://127.0.0.2")
+	assertNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+	_, err = ExpandAndVerifyRegistryUrl("https://127.0.0.2")
+	assertNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+	_, err = ExpandAndVerifyRegistryUrl("127.0.0.2")
+	assertNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+}
+
+func TestSetIndexServerAddress(t *testing.T) {
+	testSetIndex := func(address string, expectedAddress string, expectedHostname string) {
+		err := SetIndexServerAddress(address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertEqual(t, IndexServerAddress(), expectedAddress, IndexServerAddress() + ": Expected index server address " + expectedAddress)
+		assertEqual(t, IndexServerHostname(), expectedHostname, IndexServerHostname() + ": Expected index server hostname " + expectedHostname)
+	}
+	testSetIndex(PublicIndexAddress(), PublicIndexAddress(), PublicIndexHostname())
+	testSetIndex("http://127.0.0.1:5000/v1/", "http://127.0.0.1:5000/v1/", "127.0.0.1:5000")
+	testSetIndex("https://127.0.0.1:5000/v1/", "https://127.0.0.1:5000/v1/", "127.0.0.1:5000")
+	testSetIndex("http://127.0.0.1:5000", "http://127.0.0.1:5000/v1/", "127.0.0.1:5000")
+	testSetIndex("http://127.0.0.1:5000/v1", "http://127.0.0.1:5000/v1/", "127.0.0.1:5000")
+
+	err := SetIndexServerAddress("127.0.0.1:5000/v1/")
+	assertNotEqual(t, err, nil, "Expected error setting index server with no schema")
+	err = SetIndexServerAddress(PublicIndexHostname())
+	assertNotEqual(t, err, nil, "Expected error setting index server with no schema")
+
+	SetIndexServerAddress(PublicIndexAddress())
 }
 
 func TestGetRemoteHistory(t *testing.T) {
@@ -168,6 +286,56 @@ func TestResolveRepositoryName(t *testing.T) {
 	}
 	assertEqual(t, ep, IndexServerAddress(), "Expected endpoint to be "+IndexServerAddress())
 	assertEqual(t, repo, "ubuntu-12.04-base", "Expected endpoint to be ubuntu-12.04-base")
+
+	_, _, err = ResolveRepositoryName(IndexServerHostname() + "/private/moonbase")
+	assertNotEqual(t, err, nil, "Expected error invalid repo name when including index hostname")
+
+	_, _, err = ResolveRepositoryName(IndexServerHostname() + "/ubuntu-12.04-base")
+	assertNotEqual(t, err, nil, "Expected error invalid repo name when including index hostname")
+
+	SetIndexServerAddress(makeHttpsURL("/v1/"))
+	_, _, err = ResolveRepositoryName(IndexServerHostname() + "/private/moonbase")
+	assertNotEqual(t, err, nil, "Expected error invalid repo name when including index hostname")
+
+	_, _, err = ResolveRepositoryName(IndexServerHostname() + "/ubuntu-12.04-base")
+	assertNotEqual(t, err, nil, "Expected error invalid repo name when including index hostname")
+
+	ep, repo, err = ResolveRepositoryName(PublicIndexHostname() + "/private/securebase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, PublicIndexHostname(), "Expected endpoint to be "+PublicIndexHostname())
+	assertEqual(t, repo, "private/securebase", "Expected endpoint to be private/securebase")
+
+	ep, repo, err = ResolveRepositoryName(PublicIndexHostname() + "/ubuntu")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, PublicIndexHostname(), "Expected endpoint to be "+PublicIndexHostname())
+	assertEqual(t, repo, "ubuntu", "Expected endpoint to be ubuntu")
+
+	SetIndexServerAddress(makeURL("/v1/"))
+	_, _, err = ResolveRepositoryName(IndexServerHostname() + "/private/moonbase")
+	assertNotEqual(t, err, nil, "Expected error invalid repo name when including index hostname")
+
+	_, _, err = ResolveRepositoryName(IndexServerHostname() + "/ubuntu-12.04-base")
+	assertNotEqual(t, err, nil, "Expected error invalid repo name when including index hostname")
+
+	ep, repo, err = ResolveRepositoryName(PublicIndexHostname() + "/private/marsbase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, PublicIndexHostname(), "Expected endpoint to be "+PublicIndexHostname())
+	assertEqual(t, repo, "private/marsbase", "Expected endpoint to be private/marsbase")
+
+	ep, repo, err = ResolveRepositoryName(PublicIndexHostname() + "/debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, ep, PublicIndexHostname(), "Expected endpoint to be "+PublicIndexHostname())
+	assertEqual(t, repo, "debian", "Expected endpoint to be debian")
+
+	SetIndexServerAddress(PublicIndexAddress())
 }
 
 func TestPushRegistryTag(t *testing.T) {

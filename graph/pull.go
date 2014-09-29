@@ -65,7 +65,10 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if endpoint == registry.IndexServerAddress() {
 		// If pull "index.docker.io/foo/bar", it's stored locally under "foo/bar"
 		localName = remoteName
+	}
 
+	if endpoint == registry.PublicIndexAddress() {
+		// *TODO: Allow private index mirrors
 		// Use provided mirrors, if any
 		mirrors = s.mirrors
 	}

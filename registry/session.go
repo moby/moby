@@ -47,7 +47,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, index
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
-	if indexEndpoint != IndexServerAddress() && strings.HasPrefix(indexEndpoint, "https://") {
+	if indexEndpoint != PublicIndexAddress() && strings.HasPrefix(indexEndpoint, "https://") {
 		info, err := pingRegistryEndpoint(indexEndpoint)
 		if err != nil {
 			return nil, err

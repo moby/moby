@@ -65,6 +65,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("OperatingSystem", operatingSystem)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
+	v.Set("PublicIndexServerAddress", registry.PublicIndexAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
 	if _, err := v.WriteTo(job.Stdout); err != nil {

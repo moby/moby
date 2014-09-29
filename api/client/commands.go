@@ -256,6 +256,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 	}
 
+	firstPrompt := true
+	promptServerOnce := func() {
+		if firstPrompt {
+			fmt.Fprintf(cli.out, "Server: %s\n", serverAddress)
+			firstPrompt = false
+		}
+	}
+
 	readInput := func(in io.Reader, out io.Writer) string {
 		reader := bufio.NewReader(in)
 		line, _, err := reader.ReadLine()
@@ -273,6 +281,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 
 	if username == "" {
+		promptServerOnce()
 		promptDefault("Username", authconfig.Username)
 		username = readInput(cli.in, cli.out)
 		if username == "" {
@@ -284,6 +293,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if username != authconfig.Username {
 		if password == "" {
 			oldState, _ := term.SaveState(cli.inFd)
+			promptServerOnce()
 			fmt.Fprintf(cli.out, "Password: ")
 			term.DisableEcho(cli.inFd, oldState)
 
@@ -297,6 +307,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 
 		if email == "" {
+			promptServerOnce()
 			promptDefault("Email", authconfig.Email)
 			email = readInput(cli.in, cli.out)
 			if email == "" {
@@ -493,6 +504,14 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if initPath := remoteInfo.Get("InitPath"); initPath != "" {
 			fmt.Fprintf(cli.out, "Init Path: %s\n", initPath)
 		}
+		if len(remoteInfo.GetList("PublicIndexServerAddress")) != 0 {
+			cli.LoadConfigFile()
+			u := cli.configFile.Configs[remoteInfo.Get("PublicIndexServerAddress")].Username
+			if len(u) > 0 {
+				fmt.Fprintf(cli.out, "Public Username: %v\n", u)
+			}
+			fmt.Fprintf(cli.out, "Public Registry: %v\n", remoteInfo.Get("PublicIndexServerAddress"))
+		}
 	}
 
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
@@ -500,8 +519,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		u := cli.configFile.Configs[remoteInfo.Get("IndexServerAddress")].Username
 		if len(u) > 0 {
 			fmt.Fprintf(cli.out, "Username: %v\n", u)
-			fmt.Fprintf(cli.out, "Registry: %v\n", remoteInfo.GetList("IndexServerAddress"))
 		}
+		fmt.Fprintf(cli.out, "Registry: %v\n", remoteInfo.Get("IndexServerAddress"))
 	}
 	if !remoteInfo.GetBool("MemoryLimit") {
 		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
@@ -1128,22 +1147,24 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	remote, tag := parsers.ParseRepositoryTag(name)
 
 	// Resolve the Repository name from fqn to hostname + name
-	hostname, _, err := registry.ResolveRepositoryName(remote)
+	hostname, reposName, err := registry.ResolveRepositoryName(remote)
 	if err != nil {
 		return err
 	}
 	// Resolve the Auth config relevant for this server
 	authConfig := cli.configFile.ResolveAuthConfig(hostname)
-	// If we're not using a custom registry, we know the restrictions
+	// If we're using the public registry, we know the restrictions
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
 	// allow pushing by image ID.
-	if len(strings.SplitN(name, "/", 2)) == 1 {
-		username := cli.configFile.Configs[registry.IndexServerAddress()].Username
-		if username == "" {
-			username = "<user>"
+	if strings.Contains(hostname, registry.PublicIndexHostname()) {
+		if len(strings.SplitN(reposName, "/", 2)) == 1 {
+			username := cli.configFile.Configs[registry.PublicIndexAddress()].Username
+			if username == "" {
+				username = "<user>"
+			}
+			return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
 		}
-		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
 	}
 
 	v := url.Values{}

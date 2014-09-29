@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/registry"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/utils"
@@ -49,6 +50,10 @@ func main() {
 			log.Fatal(err)
 		}
 		flHosts = append(flHosts, defaultHost)
+	}
+
+	if err := registry.SetIndexServerAddress(*flIndexServer); err != nil {
+		log.Fatal(err)
 	}
 
 	if *flDaemon {

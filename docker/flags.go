@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/registry"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -32,6 +33,7 @@ var (
 	flCa    *string
 	flCert  *string
 	flKey   *string
+	flIndexServer *string
 	flHosts []string
 )
 
@@ -40,6 +42,11 @@ func init() {
 	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
 	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
+	defaultIndexServer := os.Getenv("DOCKER_INDEX")
+	if defaultIndexServer == "" {
+		defaultIndexServer = registry.PublicIndexAddress()
+	}
+	flIndexServer = flag.String([]string{"I", "-index"}, defaultIndexServer, "Specify the docker index address")
 
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
