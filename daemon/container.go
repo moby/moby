@@ -297,6 +297,8 @@ func (container *Container) Start() (err error) {
 	// setup has been cleaned up properly
 	defer func() {
 		if err != nil {
+			container.setError(err)
+			container.toDisk()
 			container.cleanup()
 		}
 	}()
