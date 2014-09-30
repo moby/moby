@@ -135,8 +135,8 @@ func startContainer(container *libcontainer.Config, dataPath string, args []stri
 
 	signal.Notify(sigc)
 
-	createCommand := func(container *libcontainer.Config, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
-		cmd = namespaces.DefaultCreateCommand(container, console, rootfs, dataPath, init, pipe, args)
+	createCommand := func(container *libcontainer.Config, console, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
+		cmd = namespaces.DefaultCreateCommand(container, console, dataPath, init, pipe, args)
 		if logPath != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("log=%s", logPath))
 		}
@@ -189,7 +189,7 @@ func startContainer(container *libcontainer.Config, dataPath string, args []stri
 		}()
 	}
 
-	return namespaces.Exec(container, stdin, stdout, stderr, console, "", dataPath, args, createCommand, startCallback)
+	return namespaces.Exec(container, stdin, stdout, stderr, console, dataPath, args, createCommand, startCallback)
 }
 
 func resizeTty(master *os.File) {
