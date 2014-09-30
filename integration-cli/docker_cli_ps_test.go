@@ -235,4 +235,50 @@ func TestPsListContainersSize(t *testing.T) {
 	if foundSize != expectedSize {
 		t.Fatalf("Expected size %q, got %q", expectedSize, foundSize)
 	}
+
+	deleteAllContainers()
+	logDone("ps - test ps size")
+}
+
+func TestPsListContainersFilterStatus(t *testing.T) {
+	// FIXME: this should test paused, but it makes things hang and its wonky
+	// this is because paused containers can't be controlled by signals
+
+	// start exited container
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox")
+	out, _, err := runCommandWithOutput(runCmd)
+	errorOut(err, t, out)
+	firstID := stripTrailingCharacters(out)
+
+	// make sure the exited cintainer is not running
+	runCmd = exec.Command(dockerBinary, "wait", firstID)
+	out, _, err = runCommandWithOutput(runCmd)
+	errorOut(err, t, out)
+
+	// start running container
+	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "sleep 360")
+	out, _, err = runCommandWithOutput(runCmd)
+	errorOut(err, t, out)
+	secondID := stripTrailingCharacters(out)
+
+	// filter containers by exited
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--filter=status=exited")
+	out, _, err = runCommandWithOutput(runCmd)
+	errorOut(err, t, out)
+	containerOut := strings.TrimSpace(out)
+	if containerOut != firstID[:12] {
+		t.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
+	}
+
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--filter=status=running")
+	out, _, err = runCommandWithOutput(runCmd)
+	errorOut(err, t, out)
+	containerOut = strings.TrimSpace(out)
+	if containerOut != secondID[:12] {
+		t.Fatalf("Expected id %s, got %s for running filter, output: %q", secondID[:12], containerOut, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("ps - test ps filter status")
 }
