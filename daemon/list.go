@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/version"
 )
 
 // List returns an array of all containers registered in the daemon.
@@ -24,6 +25,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		before      = job.Getenv("before")
 		n           = job.GetenvInt("limit")
 		size        = job.GetenvBool("size")
+		ver         = version.Version(job.Getenv("version"))
 		psFilters   filters.Args
 		filt_exited []int
 	)
@@ -45,7 +47,11 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 
 	names := map[string][]string{}
 	for _, container := range daemon.containers.List() {
-		names[container.ID] = append(names[container.ID], container.Name)
+		name := container.Name
+		if ver.LessThan("1.15") {
+			name = "/" + name
+		}
+		names[container.ID] = append(names[container.ID], name)
 	}
 
 	var beforeCont, sinceCont *Container
