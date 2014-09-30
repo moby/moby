@@ -94,6 +94,8 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return err
 	}
 
+	container.ReleaseNetwork()
+
 	// Deregister the container before removing its directory, to avoid race conditions
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)

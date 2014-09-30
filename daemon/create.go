@@ -83,6 +83,9 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if container, err = daemon.newContainer(name, config, img); err != nil {
 		return nil, nil, err
 	}
+	if err := daemon.Register(container); err != nil {
+		return nil, nil, err
+	}
 	if err := daemon.createRootfs(container, img); err != nil {
 		return nil, nil, err
 	}
@@ -90,11 +93,12 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
 			return nil, nil, err
 		}
+		// We may only allocate the network if a host config was passed, otherwise we'll miss port mappings.
+		if err := container.AllocateNetwork(); err != nil {
+			return nil, nil, err
+		}
 	}
 	if err := container.ToDisk(); err != nil {
-		return nil, nil, err
-	}
-	if err := daemon.Register(container); err != nil {
 		return nil, nil, err
 	}
 	return container, warnings, nil
