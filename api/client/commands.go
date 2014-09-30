@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -2365,7 +2366,10 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		if err != nil {
 			return err
 		}
+	} else if cli.isTerminalOut {
+		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
+
 	if len(cmd.Args()) == 1 {
 		image := cmd.Arg(0)
 		if err := cli.stream("GET", "/images/"+image+"/get", nil, output, nil); err != nil {

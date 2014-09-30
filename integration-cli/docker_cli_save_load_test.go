@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/docker/docker/vendor/src/github.com/kr/pty"
 )
 
 // save a repo and try to load it using stdout
@@ -60,6 +63,34 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 
 	logDone("save - save a repo using stdout")
 	logDone("load - load a repo using stdout")
+
+	pty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("Could not open pty: %v", err)
+	}
+	cmd := exec.Command(dockerBinary, "save", repoName)
+	cmd.Stdin = tty
+	cmd.Stdout = tty
+	cmd.Stderr = tty
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start err: %v", err)
+	}
+	if err := cmd.Wait(); err == nil {
+		t.Fatal("did not break writing to a TTY")
+	}
+
+	buf := make([]byte, 1024)
+
+	n, err := pty.Read(buf)
+	if err != nil {
+		t.Fatal("could not read tty output")
+	}
+
+	if !bytes.Contains(buf[:n], []byte("Cowardly refusing")) {
+		t.Fatal("help output is not being yielded", out)
+	}
+
+	logDone("save - do not save to a tty")
 }
 
 func TestSaveSingleTag(t *testing.T) {
