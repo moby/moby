@@ -13,6 +13,8 @@ import (
 )
 
 func TestLinksEtcHostsRegularFile(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
@@ -21,12 +23,12 @@ func TestLinksEtcHostsRegularFile(t *testing.T) {
 		t.Errorf("/etc/hosts should be a regular file")
 	}
 
-	deleteAllContainers()
-
 	logDone("link - /etc/hosts is a regular file")
 }
 
 func TestLinksEtcHostsContentMatch(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	errorOut(err, t, out)
@@ -40,12 +42,11 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 		t.Errorf("container")
 	}
 
-	deleteAllContainers()
-
 	logDone("link - /etc/hosts matches hosts copy")
 }
 
 func TestLinksPingUnlinkedContainers(t *testing.T) {
+	defer deleteAllContainers()
 	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	exitCode, err := runCommand(runCmd)
 
@@ -60,6 +61,7 @@ func TestLinksPingUnlinkedContainers(t *testing.T) {
 
 func TestLinksPingLinkedContainers(t *testing.T) {
 	var out string
+	defer deleteAllContainers()
 	out, _, _ = cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	idA := stripTrailingCharacters(out)
 	out, _, _ = cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
@@ -67,12 +69,12 @@ func TestLinksPingLinkedContainers(t *testing.T) {
 	cmd(t, "run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	cmd(t, "kill", idA)
 	cmd(t, "kill", idB)
-	deleteAllContainers()
 
 	logDone("links - ping linked container")
 }
 
 func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
+	defer deleteAllContainers()
 	cmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
 
@@ -92,7 +94,6 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 
 	cmd(t, "kill", "child")
 	cmd(t, "kill", "parent")
-	deleteAllContainers()
 
 	logDone("link - verify iptables when link and unlink")
 }
@@ -194,6 +195,7 @@ func TestLinkSameAliasFails(t *testing.T) {
 }
 
 func TestLinkAddLink(t *testing.T) {
+	defer deleteAllContainers()
 	cmd(t, "run", "-d", "--name", "one", "busybox", "top")
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "two", "busybox", "top"))
 	if err != nil {
@@ -219,4 +221,118 @@ func TestLinkAddLink(t *testing.T) {
 	}
 
 	logDone("link - docker links add")
+}
+
+func TestLinkRemoveLink(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd(t, "run", "-d", "--name", "one", "busybox", "top")
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "two", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	cmd(t, "links", "add", "two", "one", "one2")
+
+	f, err := os.Open(filepath.Join("/var/lib/docker/containers", strings.TrimSpace(out), "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(content), "one2") {
+		t.Fatal("Content does not contain the new alias name in /etc/hosts", string(content))
+	}
+
+	cmd(t, "links", "remove", "two", "one", "one2")
+
+	f, err = os.Open(filepath.Join("/var/lib/docker/containers", strings.TrimSpace(out), "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(string(content), "one2") {
+		t.Fatal("Content contains the removed alias name in /etc/hosts", string(content))
+	}
+
+	logDone("link - docker links remove")
+}
+
+func TestLinkRemoveLinkAddLink(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd(t, "run", "-d", "--name", "one", "busybox", "top")
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "two", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	cmd(t, "links", "add", "two", "one", "one2")
+
+	f, err := os.Open(filepath.Join("/var/lib/docker/containers", strings.TrimSpace(out), "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(content), "one2") {
+		t.Fatal("Content does not contain the new alias name in /etc/hosts", string(content))
+	}
+
+	cmd(t, "links", "remove", "two", "one", "one2")
+
+	f, err = os.Open(filepath.Join("/var/lib/docker/containers", strings.TrimSpace(out), "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(string(content), "one2") {
+		t.Fatal("Content contains the removed alias name in /etc/hosts", string(content))
+	}
+
+	cmd(t, "links", "add", "two", "one", "one2")
+
+	f, err = os.Open(filepath.Join("/var/lib/docker/containers", strings.TrimSpace(out), "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(content), "one2") {
+		t.Fatal("Content does not contain the new alias name in /etc/hosts", string(content))
+	}
+
+	logDone("link - docker links add, then remove, then add")
 }
