@@ -1014,10 +1014,6 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 				alias = child.Name
 			}
 
-			if !child.IsRunning() {
-				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, alias)
-			}
-
 			link, err := links.NewLink(
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,

@@ -336,3 +336,34 @@ func TestLinkRemoveLinkAddLink(t *testing.T) {
 
 	logDone("link - docker links add, then remove, then add")
 }
+
+func TestLinkToStoppedContainer(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd(t, "run", "-d", "--name", "one", "busybox", "top")
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "two", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	cmd(t, "stop", "one")
+	cmd(t, "links", "add", "two", "one", "one2")
+
+	f, err := os.Open(filepath.Join("/var/lib/docker/containers", strings.TrimSpace(out), "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(content), "one2") {
+		t.Fatal("Content does not contain the new alias name in /etc/hosts", string(content))
+	}
+
+	logDone("link - link to stopped container")
+}
