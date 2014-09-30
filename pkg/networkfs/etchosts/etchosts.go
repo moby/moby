@@ -55,6 +55,21 @@ func makeHostRegexp(hostname string) *regexp.Regexp {
 	return regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)\n", regexp.QuoteMeta(hostname)))
 }
 
+func Remove(path, hostname string) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	re := makeHostRegexp(hostname)
+
+	if !re.Match(old) {
+		return fmt.Errorf("Did not find the appropriate host '%s' while editing /etc/hosts", hostname)
+	}
+
+	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte{}), 0644)
+}
+
 func Update(path, IP, hostname string) error {
 	old, err := ioutil.ReadFile(path)
 	if err != nil {

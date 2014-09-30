@@ -73,6 +73,7 @@ func (cli *DockerCli) CmdLinks(args ...string) error {
 	description := "Manage Docker hosts\n\nCommands:\n"
 	for _, command := range [][]string{
 		{"add", "Add a Link"},
+		{"remove", "Remove a Link"},
 	} {
 		description += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 	}
@@ -96,7 +97,7 @@ func (cli *DockerCli) CmdLinksAdd(args ...string) error {
 		return err
 	}
 
-	if cmd.NArg() < 3 {
+	if cmd.NArg() != 3 {
 		cmd.Usage()
 		return nil
 	}
@@ -109,6 +110,36 @@ func (cli *DockerCli) CmdLinksAdd(args ...string) error {
 	_, _, err := cli.call(
 		"POST",
 		"/links/add?"+v.Encode(),
+		nil,
+		false,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cli *DockerCli) CmdLinksRemove(args ...string) error {
+	cmd := cli.Subcmd("remove", "[parent] [child] [alias]", "Remove a link from parent->child")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("parent", cmd.Arg(0))
+	v.Set("child", cmd.Arg(1))
+	v.Set("alias", cmd.Arg(2))
+
+	_, _, err := cli.call(
+		"POST",
+		"/links/remove?"+v.Encode(),
 		nil,
 		false,
 	)
