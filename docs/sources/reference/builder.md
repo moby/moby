@@ -273,7 +273,10 @@ default specified in `CMD`.
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see the [Docker User
-Guide](/userguide/dockerlinks)).
+Guide](/userguide/dockerlinks)). Note that `EXPOSE` only works for
+inter-container links. It doesn't make ports accessible from the host. To
+expose ports to the host, at runtime, 
+[use the `-p` flag](/userguide/dockerlinks).
 
 ## ENV
 
