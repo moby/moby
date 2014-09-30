@@ -43,6 +43,16 @@ You can still call an old version of the API using
 **New!**
 Now has header: `Content-Type: application/x-json-stream`.
 
+`POST /containers/(id)/exec`
+
+**New!**
+Setup an exec command in a running container `id`.
+
+`POST /exec/(id)/start`
+
+**New!**
+Start an exec command.
+
 ## v1.14
 
 ### Full Documentation

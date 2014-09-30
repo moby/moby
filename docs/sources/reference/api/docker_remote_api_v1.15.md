@@ -1428,6 +1428,110 @@ the root that contains a list of repository and tag names mapped to layer IDs.
 }
 ```
 
+### Exec Create
+
+`POST /containers/(id)/exec`
+
+Sets up an exec instance in a running container `id`
+
+**Example request**:
+
+        POST /containers/e90e34656806/exec HTTP/1.1
+        Content-Type: application/json
+
+        {             
+	     "Detach":false,
+	     "AttachStdin":false,
+	     "AttachStdout":true,
+	     "AttachStderr":true,
+	     "Tty":false,
+	     "Cmd":[
+                     "date"
+             ],
+	     "Container":"e90e34656806",
+        }
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: application/json
+
+        {
+             "Id":"f90e34656806"
+        }
+
+Json Parameters:
+
+-   **execConfig** ? exec configuration.
+
+Status Codes:
+
+-   **201** – no error
+-   **404** – no such container
+
+### Exec Start
+
+`POST /exec/(id)/start`
+
+Starts a previously set up exec instance `id`. If `detach` is true, this API returns after
+starting the `exec` command. Otherwise, this API sets up an interactive session with the `exec` command.
+
+**Example request**:
+
+        POST /containers/e90e34656806/exec HTTP/1.1
+        Content-Type: application/json
+
+        {
+	     "Detach":false,
+	     "Tty":false,
+        }
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: application/json
+
+        {{ STREAM }}
+
+Json Parameters:
+
+-   **execConfig** ? exec configuration.
+
+Status Codes:
+
+-   **201** – no error
+-   **404** – no such exec instance
+
+    **Stream details**:
+    Similar to the stream behavior of `POST /container/(id)/attach` API
+
+### Exec Resize
+
+`POST /exec/(id)/resize`
+
+Resizes the tty session used by the exec command `id`.
+This API is valid only if `tty` was specified as part of creating and starting the exec command.
+
+**Example request**:
+
+        POST /containers/e90e34656806/exec HTTP/1.1
+        Content-Type: plain/text
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: plain/text
+
+Query Parameters:
+
+-   **h** – height of tty session
+-   **w** – width
+
+Status Codes:
+
+-   **201** – no error
+-   **404** – no such exec instance
+
 # 3. Going further
 
 ## 3.1 Inside `docker run`

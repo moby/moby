@@ -1088,6 +1088,7 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 	return writeJSON(w, http.StatusCreated, out)
 }
 
+// TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
 func postContainerExecStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return nil
@@ -1144,6 +1145,7 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
