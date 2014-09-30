@@ -7,8 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"

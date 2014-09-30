@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/archive"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"

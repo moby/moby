@@ -30,8 +30,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/utils"
