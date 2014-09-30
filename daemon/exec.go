@@ -243,7 +243,7 @@ func (container *Container) Exec(execConfig *execConfig) error {
 	callback := func(processConfig *execdriver.ProcessConfig, pid int) {
 		if processConfig.Tty {
 			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
+			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
 			// which we close here.
 			if c, ok := processConfig.Stdout.(io.Closer); ok {
 				c.Close()
