@@ -527,11 +527,35 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string)
 	return entrypoint, args
 }
 
+func parseSecurityOpt(container *Container, config *runconfig.Config) error {
+	var (
+		label_opts []string
+		err        error
+	)
+
+	for _, opt := range config.SecurityOpt {
+		con := strings.SplitN(opt, ":", 2)
+		if len(con) == 1 {
+			return fmt.Errorf("Invalid --security-opt: %q", opt)
+		}
+		switch con[0] {
+		case "label":
+			label_opts = append(label_opts, con[1])
+		case "apparmor":
+			container.AppArmorProfile = con[1]
+		default:
+			return fmt.Errorf("Invalid --security-opt: %q", opt)
+		}
+	}
+
+	container.ProcessLabel, container.MountLabel, err = label.InitLabels(label_opts)
+	return err
+}
+
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *image.Image) (*Container, error) {
 	var (
-		id         string
-		err        error
-		label_opts []string
+		id  string
+		err error
 	)
 	id, name, err = daemon.generateIdAndName(name)
 	if err != nil {
@@ -558,26 +582,8 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		execCommands:    newExecStore(),
 	}
 	container.root = daemon.containerRoot(container.ID)
-
-	for _, opt := range config.SecurityOpt {
-		con := strings.SplitN(opt, ":", 2)
-		if len(con) == 1 {
-			return nil, fmt.Errorf("Invalid --security-opt: %q", opt)
-		}
-		switch con[0] {
-		case "label":
-			label_opts = append(label_opts, con[1])
-		case "apparmor":
-			container.AppArmorProfile = con[1]
-		default:
-			return nil, fmt.Errorf("Invalid --security-opt: %q", opt)
-		}
-	}
-
-	if container.ProcessLabel, container.MountLabel, err = label.InitLabels(label_opts); err != nil {
-		return nil, err
-	}
-	return container, nil
+	err = parseSecurityOpt(container, config)
+	return container, err
 }
 
 func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error {
