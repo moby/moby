@@ -393,8 +393,8 @@ changes will also be reflected on the host in /var/db.
 
 ## Using alternative security labeling
 
-If you want to use the same label for multiple containers you can override use
-the security-opt flag to select an MCS level.  This is a common practive for MLS
+If you want to use the same label for multiple containers, you can override use
+the security-opt flag to select an MCS level.  This is a common practice for MLS
 systems.  But it also might help in cases where you want to share the same 
 content between containers. Run the following command.
 

@@ -231,23 +231,23 @@ the container exits**, you can add the `--rm` flag:
     --security-opt="label:type:TYPE"   : Set the label type for the container
     --security-opt="label:level:LEVEL" : Set the label level for the container
     --security-opt="label:disable"     : Turn off label confinement for the container
+    --secutity-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
+                                         to the container
 
-If you want to use the same label for multiple containers you can override use
-the security-opt flag to select an MCS level.  This is a common practive for MLS
+If you want to use the same label for multiple containers, you can override use
+the security-opt flag to select an MCS level.  This is a common practice for MLS
 systems.  But it also might help in cases where you want to share the same 
 content between containers. Run the following command.
 
     # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
 
-Run the follwing command if you want to disable the labeling controls for just 
+Run the following command if you want to disable the labeling controls for just 
 this container.
 
     # docker run --security-opt label:disable -i -t fedora bash
 
-If you decide you would like to work with a tighter policy on your container.  
-For example if you want to run a container that could only listen on apache 
-ports, and not connect to the network. You could select an alternate type to 
-run the container execute the following command.
+Run the following command if you want to run a container that could only listen
+on apache ports.
 
     # docker run --security-opt label:type:svirt_apache_t -i -t fedora bash
 
