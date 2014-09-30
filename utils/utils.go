@@ -21,6 +21,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 )
@@ -493,7 +494,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		// skip this directory/file if it's not in the path, it won't get added to the context
 		if relFilePath, err := filepath.Rel(srcPath, filePath); err != nil {
 			return err
-		} else if skip, err := Matches(relFilePath, excludes); err != nil {
+		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
 			return err
 		} else if skip {
 			if f.IsDir() {
@@ -536,24 +537,4 @@ func StringsContainsNoCase(slice []string, s string) bool {
 		}
 	}
 	return false
-}
-
-// Matches returns true if relFilePath matches any of the patterns
-func Matches(relFilePath string, patterns []string) (bool, error) {
-	for _, exclude := range patterns {
-		matched, err := filepath.Match(exclude, relFilePath)
-		if err != nil {
-			log.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
-			return false, err
-		}
-		if matched {
-			if filepath.Clean(relFilePath) == "." {
-				log.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
-				continue
-			}
-			log.Debugf("Skipping excluded path: %s", relFilePath)
-			return true, nil
-		}
-	}
-	return false, nil
 }
