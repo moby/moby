@@ -9,12 +9,17 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/helpinfo"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
 // List returns an array of all containers registered in the daemon.
 func (daemon *Daemon) List() []*Container {
 	return daemon.containers.List()
+}
+
+func init() {
+	helpinfo.RegisterHelpInfo("ps", "filter", helpinfo.Blurb{"exited = <int>", "containers with exit code of <int>"})
 }
 
 func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
