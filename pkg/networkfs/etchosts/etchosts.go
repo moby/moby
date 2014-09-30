@@ -52,7 +52,7 @@ func Add(path, IP, hostname string) error {
 }
 
 func makeHostRegexp(hostname string) *regexp.Regexp {
-	return regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)\n", regexp.QuoteMeta(hostname)))
+	return regexp.MustCompile(fmt.Sprintf("(\\S*)(\t[^ ]* ?%s\n)", regexp.QuoteMeta(hostname)))
 }
 
 func Remove(path, hostname string) error {
