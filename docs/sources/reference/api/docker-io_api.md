@@ -330,7 +330,7 @@ Status Codes:
 
 ## Library Repository
 
-### Authorize a toke for a library
+### Authorize a token for a library
 
 `PUT /v1/repositories/(repo_name)/auth`
 
