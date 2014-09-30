@@ -204,8 +204,13 @@ func (c *containerIndex) unlock() {
 
 func (c *containerIndex) ToDisk() error {
 	c.lock()
-	defer c.unlock()
+	err := c.toDisk()
+	c.unlock()
+	return err
+}
 
+func (c *containerIndex) toDisk() error {
+	// lock is acquired in caller
 	f, err := ioutil.TempFile("", "container_index")
 	if err != nil {
 		return err
@@ -235,13 +240,15 @@ func (c *containerIndex) ToDisk() error {
 func (c *containerIndex) Add(cont *Container) error {
 	c.lock()
 	c.add(cont)
+	err := c.toDisk()
 	c.unlock()
 
-	return nil
+	return err
 }
 
 func (c *containerIndex) add(cont *Container) {
-	// this is to fix a migration issue where the containers would be assigned a name starting with /
+	// this is to fix a migration issue where the containers would be assigned a
+	// name starting with /
 	if cont.Name[0] == '/' {
 		cont.Name = cont.Name[1:]
 	}
@@ -263,12 +270,14 @@ func (c *containerIndex) add(cont *Container) {
 func (c *containerIndex) Delete(cont *Container) {
 	c.lock()
 	c.doDelete(cont)
+	c.toDisk()
 	c.unlock()
 }
 
 func (c *containerIndex) Unlink(cont *Container) {
 	c.lock()
 	c.removeParents(cont)
+	c.toDisk()
 	c.unlock()
 }
 
@@ -278,6 +287,7 @@ func (c *containerIndex) RemoveLink(parent, child *Container, alias string) {
 	delete(c.Aliases[parent.Name], child.Name)
 	delete(c.AliasChildMap[parent.Name], alias)
 	delete(c.NameToParents[child.Name], parent.Name)
+	c.toDisk()
 	c.unlock()
 }
 
@@ -292,6 +302,13 @@ func (c *containerIndex) removeParents(cont *Container) {
 }
 
 func (c *containerIndex) doDelete(cont *Container) {
+	for name, parents := range c.NameToParents {
+		for parent := range parents {
+			if parent == cont.Name {
+				delete(c.NameToParents[name], parent)
+			}
+		}
+	}
 	delete(c.NameToParents, cont.Name)
 	delete(c.NameToChildren, cont.Name)
 	delete(c.Aliases, cont.Name)
@@ -301,12 +318,15 @@ func (c *containerIndex) doDelete(cont *Container) {
 	delete(c.idToContainer, cont.ID)
 }
 
-func (c *containerIndex) Link(parent *Container, child *Container) {
+func (c *containerIndex) Link(parent *Container, child *Container) error {
 	c.lock()
 	c.cleanChildParent(parent, child)
 	c.addChild(parent, child)
 	c.addParent(parent, child)
+	err := c.toDisk()
 	c.unlock()
+
+	return err
 }
 
 func (c *containerIndex) cleanChildParent(parent, child *Container) {
@@ -361,8 +381,6 @@ func (c *containerIndex) SetAlias(parent, child *Container, alias string) error 
 	c.lock()
 	defer c.unlock()
 
-	// locks are already used in AliasInUse and AddAlias
-
 	if c.aliasInUse(parent, child, alias) {
 		return fmt.Errorf("Alias %s cannot be set for container ID %s, parent %s: name conflict", alias, child.ID, parent.ID)
 	}
@@ -371,15 +389,17 @@ func (c *containerIndex) SetAlias(parent, child *Container, alias string) error 
 		return err
 	}
 
-	return nil
+	return c.toDisk()
 }
 
 func (c *containerIndex) aliasInUse(parent, child *Container, alias string) bool {
 	// lock is acquired in caller
-	if _, ok := c.Aliases[parent.Name]; ok {
-		_, aliasok := c.Aliases[parent.Name][child.Name]
-		_, childok := c.AliasChildMap[parent.Name][alias]
-		return aliasok || childok
+	if aliases, ok := c.Aliases[parent.Name]; ok {
+		if children, ok := c.AliasChildMap[parent.Name]; ok {
+			_, aliasok := aliases[child.Name]
+			_, childok := children[alias]
+			return aliasok || childok
+		}
 	}
 
 	return false

@@ -59,10 +59,6 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 			}
 		}
 	}
-	// Register any links from the host config before starting the container
-	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
-		return err
-	}
 	container.SetHostConfig(hostConfig)
 	container.ToDisk()
 

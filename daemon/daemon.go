@@ -540,8 +540,7 @@ func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error
 		return err
 	}
 
-	daemon.containers.Link(parent, child)
-	return nil
+	return daemon.containers.Link(parent, child)
 }
 
 func (daemon *Daemon) UnregisterLink(parent, child *Container, alias string) error {
@@ -552,6 +551,8 @@ func (daemon *Daemon) UnregisterLink(parent, child *Container, alias string) err
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
+			log.Debugf("%#v", l)
+
 			parts, err := parsers.PartParser("name:alias", l)
 			if err != nil {
 				return err
