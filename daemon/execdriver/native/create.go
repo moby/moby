@@ -90,6 +90,7 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 	if c.Network.Interface != nil {
 		vethNetwork := libcontainer.Network{
 			Mtu:        c.Network.Mtu,
+			MacAddress: c.Network.Interface.MacAddress,
 			Address:    fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
 			Gateway:    c.Network.Interface.Gateway,
 			Type:       "veth",

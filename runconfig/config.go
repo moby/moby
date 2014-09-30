@@ -31,6 +31,7 @@ type Config struct {
 	WorkingDir      string
 	Entrypoint      []string
 	NetworkDisabled bool
+	MacAddress      string
 	OnBuild         []string
 }
 
@@ -52,6 +53,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Image:           job.Getenv("Image"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),
+		MacAddress:      job.Getenv("MacAddress"),
 	}
 	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
 	job.GetenvJson("Volumes", &config.Volumes)

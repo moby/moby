@@ -9,12 +9,15 @@ import (
 type PortMapping map[string]string // Deprecated
 
 type NetworkSettings struct {
-	IPAddress   string
-	IPPrefixLen int
-	Gateway     string
-	Bridge      string
-	PortMapping map[string]PortMapping // Deprecated
-	Ports       nat.PortMap
+	MacAddress             string
+	IPAddress              string
+	IPPrefixLen            int
+	LinkLocalIPv6Address   string
+	LinkLocalIPv6PrefixLen int
+	Gateway                string
+	Bridge                 string
+	PortMapping            map[string]PortMapping // Deprecated
+	Ports                  nat.PortMap
 }
 
 func (settings *NetworkSettings) PortMappingAPI() *engine.Table {

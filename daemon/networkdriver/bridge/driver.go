@@ -1,8 +1,11 @@
 package bridge
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -104,6 +107,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		if !usingDefaultBridge {
 			return job.Error(err)
 		}
+
 		// If the iface is not found, try to create it
 		if err := createBridge(bridgeIP); err != nil {
 			return job.Error(err)
@@ -317,6 +321,29 @@ func createBridge(bridgeIP string) error {
 	return nil
 }
 
+func randMacAddr() string {
+	hw := make(net.HardwareAddr, 6)
+	for i := 0; i < 6; i++ {
+		hw[i] = byte(rand.Intn(255))
+	}
+	hw[0] &^= 0x1 // clear multicast bit
+	hw[0] |= 0x2  // set local assignment bit (IEEE802)
+
+	return hw.String()
+}
+
+func linkLocalIPv6FromMac(mac string) (string, error) {
+	hx := strings.Replace(mac, ":", "", -1)
+	hw, err := hex.DecodeString(hx)
+	if err != nil {
+		return "", errors.New("Could not parse MAC address " + mac)
+	}
+
+	hw[0] ^= 0x2
+
+	return fmt.Sprintf("fe80::%x%x:%xff:fe%x:%x%x/64", hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]), nil
+}
+
 func createBridgeIface(name string) error {
 	kv, err := kernel.GetKernelVersion()
 	// only set the bridge's mac address if the kernel version is > 3.3
@@ -329,17 +356,21 @@ func createBridgeIface(name string) error {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip          net.IP
-		err         error
-		id          = job.Args[0]
-		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+		ip           net.IP
+		err          error
+		mac          string
+		id           = job.Args[0]
+		requestedMac = job.Getenv("MacAddress")
+		requestedIP  = net.ParseIP(job.Getenv("RequestedIP")) // may be nil
 	)
 
-	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
+	if requestedMac == "" {
+		mac = randMacAddr()
 	} else {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
+		mac = requestedMac
 	}
+
+	ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -352,6 +383,15 @@ func Allocate(job *engine.Job) engine.Status {
 
 	size, _ := bridgeNetwork.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
+
+	// if linklocal IPv6
+	localIPv6Net, err := linkLocalIPv6FromMac(mac)
+	if err != nil {
+		return job.Error(err)
+	}
+	localIPv6, _, _ := net.ParseCIDR(localIPv6Net)
+	out.Set("LinkLocalIPv6", localIPv6.String())
+	out.Set("MacAddress", mac)
 
 	currentInterfaces.Set(id, &networkInterface{
 		IP: ip,

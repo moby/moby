@@ -209,10 +209,12 @@ func populateCommand(c *Container, env []string) error {
 		if !c.Config.NetworkDisabled {
 			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
-				Gateway:     network.Gateway,
-				Bridge:      network.Bridge,
-				IPAddress:   network.IPAddress,
-				IPPrefixLen: network.IPPrefixLen,
+				MacAddress:           network.MacAddress,
+				Gateway:              network.Gateway,
+				Bridge:               network.Bridge,
+				IPAddress:            network.IPAddress,
+				IPPrefixLen:          network.IPPrefixLen,
+				LinkLocalIPv6Address: network.LinkLocalIPv6Address,
 			}
 		}
 	case "container":
@@ -450,6 +452,7 @@ func (container *Container) allocateNetwork() error {
 	)
 
 	job := eng.Job("allocate_interface", container.ID)
+	job.Setenv("MacAddress", container.Config.MacAddress)
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
@@ -502,6 +505,9 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.IPAddress = env.Get("IP")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
+	container.NetworkSettings.MacAddress = env.Get("MacAddress")
+	container.NetworkSettings.LinkLocalIPv6Address = env.Get("LinkLocalIPv6")
+	container.NetworkSettings.LinkLocalIPv6PrefixLen = 64
 
 	return nil
 }
