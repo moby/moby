@@ -16,32 +16,35 @@ import os.path
 
 script, docker_cmd = argv
 
-# date "+%B %Y"
 date_string = datetime.date.today().strftime('%B %Y')
 
+
 def print_usage(outtext, docker_cmd, command):
-    help = ""
     try:
-        #print "RUN ", "".join((docker_cmd, " ", command, " --help"))
-        help = subprocess.check_output("".join((docker_cmd, " ", command, " --help")), stderr=subprocess.STDOUT, shell=True)
+        help_string = subprocess.check_output(
+            "".join((docker_cmd, " ", command, " --help")),
+            stderr=subprocess.STDOUT,
+            shell=True
+        )
     except subprocess.CalledProcessError, e:
-        help = e.output
-    for l in str(help).strip().split("\n"):
+        help_string = e.output
+    for l in str(help_string).strip().split("\n"):
         l = l.rstrip()
         if l == '':
             outtext.write("\n")
         else:
             # `docker --help` tells the user the path they called it with
             l = re.sub(docker_cmd, "docker", l)
-            outtext.write("    "+l+"\n")
+            outtext.write("    {}\n".format(l))
     outtext.write("\n")
+
 
 # TODO: look for an complain about any missing commands
 def update_cli_reference():
     originalFile = "docs/sources/reference/commandline/cli.md"
     os.rename(originalFile, originalFile+".bak")
 
-    intext = open(originalFile+".bak", "r")
+    intext = open("{}.bak".format(originalFile), "r")
     outtext = open(originalFile, "w")
 
     mode = 'p'
@@ -49,7 +52,7 @@ def update_cli_reference():
     command = ""
     # 2 mode line-by line parser
     for line in intext:
-        if mode=='p':
+        if mode == 'p':
             # Prose
             match = re.match("(    \s*)Usage: docker ([a-z]+)", line)
             if match:
@@ -69,31 +72,47 @@ def update_cli_reference():
         else:
             # command usage block
             match = re.match("("+space+")(.*)|^$", line)
-            #print "CMD ", command
             if not match:
-                # The end of the current usage block - Shell out to run docker to see the new output
+                # The end of the current usage block
+                # Shell out to run docker to see the new output
                 print_usage(outtext, docker_cmd, command)
                 outtext.write(line)
                 mode = 'p'
     if mode == 'c':
         print_usage(outtext, docker_cmd, command)
 
+
 def update_man_pages():
     cmds = []
     try:
-        help = subprocess.check_output("".join((docker_cmd)), stderr=subprocess.STDOUT, shell=True)
+        help_string = subprocess.check_output(
+            "".join((docker_cmd)),
+            stderr=subprocess.STDOUT,
+            shell=True
+        )
     except subprocess.CalledProcessError, e:
-        help = e.output
-    for l in str(help).strip().split("\n"):
+        help_string = e.output
+    for l in str(help_string).strip().split("\n"):
         l = l.rstrip()
         if l != "":
             match = re.match("    (.*?) .*", l)
             if match:
                 cmds.append(match.group(1))
 
-    desc_re = re.compile(r".*# DESCRIPTION(.*?)# (OPTIONS|EXAMPLES?).*", re.MULTILINE|re.DOTALL)
-    example_re = re.compile(r".*# EXAMPLES?(.*)# HISTORY.*", re.MULTILINE|re.DOTALL)
-    history_re = re.compile(r".*# HISTORY(.*)", re.MULTILINE|re.DOTALL)
+    desc_re = re.compile(
+        r".*# DESCRIPTION(.*?)# (OPTIONS|EXAMPLES?).*",
+        re.MULTILINE | re.DOTALL
+    )
+
+    example_re = re.compile(
+        r".*# EXAMPLES?(.*)# HISTORY.*",
+        re.MULTILINE | re.DOTALL
+    )
+
+    history_re = re.compile(
+        r".*# HISTORY(.*)",
+        re.MULTILINE | re.DOTALL
+    )
 
     for command in cmds:
         print "COMMAND: "+command
@@ -113,41 +132,43 @@ def update_man_pages():
             match = history_re.match(txt)
             if match:
                 history = match.group(1).strip()
-        
+
         usage = ""
         usage_description = ""
         params = {}
         key_params = {}
-        
-        help = ""
+
         try:
-            help = subprocess.check_output("".join((docker_cmd, " ", command, " --help")), stderr=subprocess.STDOUT, shell=True)
+            help_string = subprocess.check_output(
+                "".join((docker_cmd, " ", command, " --help")),
+                stderr=subprocess.STDOUT,
+                shell=True
+            )
         except subprocess.CalledProcessError, e:
-            help = e.output
+            help_string = e.output
+
         last_key = ""
         for l in str(help).split("\n"):
             l = l.rstrip()
             if l != "":
-                match = re.match("Usage: docker "+command+"(.*)", l)
+                match = re.match("Usage: docker {}(.*)".format(command), l)
                 if match:
                     usage = match.group(1).strip()
                 else:
-                    #print ">>>>"+l
                     match = re.match("  (-+)(.*) \s+(.*)", l)
                     if match:
                         last_key = match.group(2).rstrip()
-                        #print "    found "+match.group(1)
                         key_params[last_key] = match.group(1)+last_key
                         params[last_key] = match.group(3)
                     else:
                         if last_key != "":
-                            params[last_key] = params[last_key] + "\n" + l
+                            params[last_key] = "{}\n{}".format(params[last_key], l)
                         else:
                             if usage_description != "":
                                 usage_description = usage_description + "\n"
                             usage_description = usage_description + l
-        
-        # replace [OPTIONS] with the list of params     
+
+        # replace [OPTIONS] with the list of params
         options = ""
         match = re.match("\[OPTIONS\](.*)", usage)
         if match:
@@ -160,57 +181,57 @@ def update_man_pages():
             ps = []
             opts = []
             for k in key_params[key].split(","):
-                #print "......"+k
                 match = re.match("(-+)([A-Za-z-0-9]*)(?:=(.*))?", k.lstrip())
                 if match:
-                    p = "**"+match.group(1)+match.group(2)+"**"
-                    o = "**"+match.group(1)+match.group(2)+"**"
+                    p = "**{}{}**".format(match.group(1), match.group(2))
+                    o = "**{}{}**".format(match.group(1), match.group(2))
                     if match.group(3):
-                        # if ="" then use UPPERCASE(group(2))"
                         val = match.group(3)
                         if val == "\"\"":
                             val = match.group(2).upper()
-                        p = p+"[=*"+val+"*]"
+                        p = "{}[=*{}*]".format(p, val)
                         val = match.group(3)
                         if val in ("true", "false"):
                             params[key] = params[key].rstrip()
                             if not params[key].endswith('.'):
                                 params[key] = params[key]+ "."
-                            params[key] = params[key] + " The default is *"+val+"*."
+                            params[key] = "{} The default is *{}*.".format(params[key], val)
                             val = "*true*|*false*"
-                        o = o+"="+val
+                        o = "{}={}".format(o, val)
                     ps.append(p)
                     opts.append(o)
                 else:
-                    print "nomatch:"+k
-            new_usage = new_usage+ "\n["+"|".join(ps)+"]"
-            options = options + ", ".join(opts) + "\n   "+ params[key]+"\n\n"
+                    print "nomatch:{}".format(k)
+            new_usage = "{}\n[{}]".format(new_usage, "|".join(ps))
+            options = "{}{}\n   {}\n\n".format(options, ", ".join(opts), params[key])
         if new_usage != "":
-            new_usage = new_usage.strip() + "\n"
+            new_usage = "{}\n".format(new_usage.strip())
         usage = new_usage + usage
-            
-        
-        outtext = open("docs/man/docker-"+command+".1.md", "w")
+
+        outtext = open("docs/man/docker-{}.1.md".format(command), "w")
         outtext.write("""% DOCKER(1) Docker User Manuals
 % Docker Community
 % JUNE 2014
 # NAME
 """)
-        outtext.write("docker-"+command+" - "+usage_description+"\n\n")
-        outtext.write("# SYNOPSIS\n**docker "+command+"**\n"+usage+"\n\n")
+        outtext.write("docker-{} - {}\n\n".format(command, usage_description))
+        outtext.write("# SYNOPSIS\n**docker {}**\n{}\n\n".format(command, usage))
         if description != "":
-            outtext.write("# DESCRIPTION"+description)
+            outtext.write("# DESCRIPTION{}".format(description))
         if options == "":
             options = "There are no available options.\n\n"
-        outtext.write("# OPTIONS\n"+options)
+        outtext.write("# OPTIONS\n{}".format(options))
         if examples != "":
-           outtext.write("# EXAMPLES"+examples)
+           outtext.write("# EXAMPLES{}".format(examples))
         outtext.write("# HISTORY\n")
         if history != "":
-           outtext.write(history+"\n")
-        recent_history_re = re.compile(".*"+date_string+".*", re.MULTILINE|re.DOTALL)
+           outtext.write("{}\n".format(history))
+        recent_history_re = re.compile(
+            ".*{}.*".format(date_string),
+            re.MULTILINE | re.DOTALL
+        )
         if not recent_history_re.match(history):
-            outtext.write(date_string+", updated by Sven Dowideit <SvenDowideit@home.org.au>\n")
+            outtext.write("{}, updated by Sven Dowideit <SvenDowideit@home.org.au>\n".format(date_string))
         outtext.close()
 
 # main
