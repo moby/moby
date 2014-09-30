@@ -17,9 +17,10 @@ EOF
 go build \
 	-o "$DEST/docker-$VERSION" \
 	"${BUILDFLAGS[@]}" \
-	-ldflags "
-		$LDFLAGS
-		$LDFLAGS_STATIC_DOCKER
+	-compiler gccgo \
+	-gccgoflags "
+		$GCCGOFLAGS
+		$GCCGOFLAGS_STATIC
 	" \
 	./docker
 echo "Created binary: $DEST/docker-$VERSION"

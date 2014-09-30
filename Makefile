@@ -24,6 +24,9 @@ all: build
 binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
+binary-gccgo: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary-gccgo
+
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
