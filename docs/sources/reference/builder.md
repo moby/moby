@@ -13,8 +13,8 @@ successively.
 
 This page discusses the specifics of all the instructions you can use in your
 `Dockerfile`. To further help you write a clear, readable, maintainable
-`Dockerfile`, we've also written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
-
+`Dockerfile`, we've also written a [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices).
 
 ## Usage
 
@@ -60,7 +60,9 @@ to be created - so `RUN cd /tmp` will not have any effect on the next
 instructions.
 
 Whenever possible, Docker will re-use the intermediate images,
-accelerating `docker build` significantly (indicated by `Using cache`):
+accelerating `docker build` significantly (indicated by `Using cache` -
+see the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information):
 
     $ sudo docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
@@ -192,10 +194,13 @@ commands using a base image that does not contain `/bin/sh`.
 > you must use double-quotes (") around words not single-quotes (').
 
 The cache for `RUN` instructions isn't invalidated automatically during
-the next build. The cache for an instruction like `RUN apt-get
-dist-upgrade -y` will be reused during the next build.  The cache for
-`RUN` instructions can be invalidated by using the `--no-cache` flag,
-for example `docker build --no-cache`.
+the next build. The cache for an instruction like 
+`RUN apt-get dist-upgrade -y` will be reused during the next build.  The 
+cache for `RUN` instructions can be invalidated by using the `--no-cache` 
+flag, for example `docker build --no-cache`.
+
+See the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -332,6 +337,9 @@ have permissions of 600.
 > The first encountered `ADD` instruction will invalidate the cache for all
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
+> See the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+
 
 The copy obeys the following rules:
 

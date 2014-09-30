@@ -75,6 +75,43 @@ Here’s an example from the [`buildpack-deps` image](https://github.com/docker-
       mercurial \
       subversion
 
+### Build Cache
+
+During the process of building an image Docker will step through the
+instructions in your `Dockerfile` executing each in the order specified.
+As each instruction is examined Docker will look for an existing image in its
+cache that it can reuse, rather than creating a new (duplicate) image.
+If you do not want to use the cache at all you can use the ` --no-cache=true`
+option on the `docker build` command.
+
+However, if you do let Docker use its cache then it is very important to
+understand when it will, and will not, find a matching image. The basic rules
+that Docker will follow are outlined below:
+
+* Starting with a base image that is already in the cache, the next
+instruction is compared against all child images derived from that base
+image to see if one of them was built using the exact same instruction. If
+not, the cache is invalidated.
+
+* In most cases simply comparing the instruction in the `Dockerfile` with one
+of the child images is sufficient.  However, certain instructions require
+a little more examination and explanation.
+
+* In the case of the `ADD` and `COPY` instructions, the contents of the file(s)
+being put into the image are examined. Specifically, a checksum is done
+of the file(s) and then that checksum is used during the cache lookup.
+If anything has changed in the file(s), including its metadata,
+then the cache is invalidated.
+
+* Aside from the `ADD` and `COPY` commands cache checking will not look at the
+files in the container to determine a cache match. For example, when processing
+a `RUN apt-get -y update` command the files updated in the container
+will not be examined to determine if a cache hit exists.  In that case just
+the command string itself will be used to find a match.
+
+Once the cache is invalidated, all subsequent `Dockerfile` commands will
+generate new images and the cache will not be used.
+
 ## The `Dockerfile` instructions
 
 This section contains specific recommendations for the correct usage of the
@@ -336,4 +373,5 @@ These Official Repos have exemplary `Dockerfile`s:
 * [Dockerfile Reference](https://docs.docker.com/reference/builder/#onbuild)
 * [More about Base Images](https://docs.docker.com/articles/baseimages/)
 * [More about Automated Builds](https://docs.docker.com/docker-hub/builds/)
-* [Guidelines for Creating Official Repositories](https://docs.docker.com/docker-hub/official_repos/)
+* [Guidelines for Creating Official 
+Repositories](https://docs.docker.com/docker-hub/official_repos/)
