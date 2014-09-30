@@ -48,6 +48,11 @@ ol li {
   margin: 8px;
 }
 
+pre {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* Main Navigation */
 #nav_menu > #docsnav {
   max-width: 940px;
@@ -191,12 +196,6 @@ ol li {
   background: #edd3d7;
   border: none;
   margin-bottom: 20px;
-}
-
-.content-body * {
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.7;
 }
 
 .content-body ul {
