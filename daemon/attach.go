@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/utils"
 )
 
@@ -246,7 +247,7 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		}()
 	}
 
-	return utils.Go(func() error {
+	return promise.Go(func() error {
 		defer func() {
 			if cStdout != nil {
 				cStdout.Close()

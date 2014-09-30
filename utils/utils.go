@@ -30,16 +30,6 @@ type KeyValuePair struct {
 	Value string
 }
 
-// Go is a basic promise implementation: it wraps calls a function in a goroutine,
-// and returns a channel which will later return the function's return value.
-func Go(f func() error) chan error {
-	ch := make(chan error, 1)
-	go func() {
-		ch <- f()
-	}()
-	return ch
-}
-
 // Request a given URL and return an io.Reader
 func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {

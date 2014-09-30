@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
 )
 
 func (cli *DockerCli) dial() (net.Conn, error) {
@@ -78,7 +78,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	}
 
 	if stdout != nil || stderr != nil {
-		receiveStdout = utils.Go(func() (err error) {
+		receiveStdout = promise.Go(func() (err error) {
 			defer func() {
 				if in != nil {
 					if setRawTerminal && cli.isTerminalIn {
@@ -104,7 +104,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		})
 	}
 
-	sendStdin := utils.Go(func() error {
+	sendStdin := promise.Go(func() error {
 		if in != nil {
 			io.Copy(rwc, in)
 			log.Debugf("[hijack] End of stdin")
