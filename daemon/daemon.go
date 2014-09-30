@@ -544,6 +544,11 @@ func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error
 	return nil
 }
 
+func (daemon *Daemon) UnregisterLink(parent, child *Container, alias string) error {
+	defer daemon.containers.RemoveLink(parent, child, alias)
+	return parent.RemoveLink(alias)
+}
+
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {

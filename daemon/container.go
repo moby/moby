@@ -897,6 +897,14 @@ func (container *Container) setupContainerDns() error {
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
 }
 
+func (container *Container) RemoveLink(alias string) error {
+	if err := etchosts.Remove(container.HostsPath, alias); err != nil {
+		return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
+	}
+
+	return nil
+}
+
 func (container *Container) UpdateParentsHosts() error {
 	parents := container.daemon.Parents(container.Name)
 

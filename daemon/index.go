@@ -272,6 +272,15 @@ func (c *containerIndex) Unlink(cont *Container) {
 	c.unlock()
 }
 
+func (c *containerIndex) RemoveLink(parent, child *Container, alias string) {
+	c.lock()
+	delete(c.NameToChildren[parent.Name], child.Name)
+	delete(c.Aliases[parent.Name], child.Name)
+	delete(c.AliasChildMap[parent.Name], alias)
+	delete(c.NameToParents[child.Name], parent.Name)
+	c.unlock()
+}
+
 func (c *containerIndex) removeParents(cont *Container) {
 	for name := range c.NameToParents[cont.Name] {
 		delete(c.NameToChildren[name], cont.Name)
