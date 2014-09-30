@@ -195,14 +195,7 @@ func (container *Container) getRootResourcePath(path string) (string, error) {
 }
 
 func populateCommand(c *Container, env []string) error {
-	var (
-		en      *execdriver.Network
-		context = make(map[string][]string)
-	)
-	context["process_label"] = []string{c.GetProcessLabel()}
-	context["mount_label"] = []string{c.GetMountLabel()}
-
-	en = &execdriver.Network{
+	en := &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
 		Interface: nil,
 	}
@@ -247,7 +240,7 @@ func populateCommand(c *Container, env []string) error {
 	autoCreatedDevices := append(devices.DefaultAutoCreatedDevices, userSpecifiedDevices...)
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
-	mergeLxcConfIntoOptions(c.hostConfig, context)
+	lxcConfig := mergeLxcConfIntoOptions(c.hostConfig)
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
@@ -263,21 +256,25 @@ func populateCommand(c *Container, env []string) error {
 		Tty:        c.Config.Tty,
 		User:       c.Config.User,
 	}
+
 	processConfig.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	processConfig.Env = env
+
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
 		Rootfs:             c.RootfsPath(),
 		InitPath:           "/.dockerinit",
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,
-		Config:             context,
 		Resources:          resources,
 		AllowedDevices:     allowedDevices,
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.hostConfig.CapAdd,
 		CapDrop:            c.hostConfig.CapDrop,
 		ProcessConfig:      processConfig,
+		ProcessLabel:       c.GetProcessLabel(),
+		MountLabel:         c.GetMountLabel(),
+		LxcConfig:          lxcConfig,
 	}
 
 	return nil
