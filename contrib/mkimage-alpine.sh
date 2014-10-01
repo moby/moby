@@ -19,7 +19,7 @@ tmp() {
 }
 
 apkv() {
-	curl -sSL $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
+	curl -sSL $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz --exclude=*.pub |
 		grep '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
 }
 
