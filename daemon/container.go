@@ -77,6 +77,7 @@ type Container struct {
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
+	AppArmorProfile          string
 	RestartCount             int
 
 	// Maps container paths to volume paths.  The key in this is the path to which
@@ -275,6 +276,7 @@ func populateCommand(c *Container, env []string) error {
 		ProcessLabel:       c.GetProcessLabel(),
 		MountLabel:         c.GetMountLabel(),
 		LxcConfig:          lxcConfig,
+		AppArmorProfile:    c.AppArmorProfile,
 	}
 
 	return nil

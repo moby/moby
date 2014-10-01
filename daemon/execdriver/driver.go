@@ -116,4 +116,5 @@ type Command struct {
 	ProcessLabel       string            `json:"process_label"`
 	MountLabel         string            `json:"mount_label"`
 	LxcConfig          []string          `json:"lxc_config"`
+	AppArmorProfile    string            `json:"apparmor_profile"`
 }
