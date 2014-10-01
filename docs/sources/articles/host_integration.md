@@ -15,7 +15,7 @@ automatically restart your containers when the host is restarted.
 
 When you have finished setting up your image and are happy with your
 running container, you can then attach a process manager to manage it.
-When your run `docker start -a` docker will automatically attach to the
+When you run `docker start -a` docker will automatically attach to the
 running container, or start it if needed and forward all signals so that
 the process manager can detect when a container stops and correctly
 restart it.
