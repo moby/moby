@@ -30,7 +30,7 @@ getapk() {
 
 mkbase() {
 	$TMP/sbin/apk.static --repository $REPO --update-cache --allow-untrusted \
-		--root $ROOTFS --initdb add alpine-base
+		--root $ROOTFS --initdb add alpine-base bash
 }
 
 conf() {
