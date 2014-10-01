@@ -1804,7 +1804,7 @@ func TestRunWithBadDevice(t *testing.T) {
 	if err == nil {
 		t.Fatal("Run should fail with bad device")
 	}
-	expected := `"/etc": not a device node`
+	expected := `\"/etc\": not a device node`
 	if !strings.Contains(out, expected) {
 		t.Fatalf("Output should contain %q, actual out: %q", expected, out)
 	}
