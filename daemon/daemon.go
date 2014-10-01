@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -508,7 +509,15 @@ func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
-		config.Hostname = id[:12]
+		hostname := id[:12]
+
+		b := make([]byte, 1)
+		rand.Read(b)
+		b[0] = b[0]%6 + 'a'
+
+		hostname = string(append(b, []byte(hostname)...))
+
+		config.Hostname = hostname
 	}
 }
 

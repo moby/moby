@@ -2252,3 +2252,62 @@ func TestRunReuseBindVolumeThatIsSymlink(t *testing.T) {
 	deleteAllContainers()
 	logDone("run - can remount old bindmount volume")
 }
+
+func TestHostnameGenerationHexStart(t *testing.T) {
+	deleteAllContainers()
+	defer deleteAllContainers()
+	var contID string
+	var err error
+	numberStart := regexp.MustCompile(`^[0-9]`)
+	hexStart := regexp.MustCompile(`^[a-f]`)
+
+	for {
+		contID, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "top"))
+		if err != nil {
+			t.Fatal(err, contID)
+		}
+
+		contID = strings.TrimSpace(contID)
+		if numberStart.MatchString(contID) {
+			break
+		}
+	}
+
+	f, err := os.Open(filepath.Join("/var/lib/docker/containers", contID, "hosts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// hostname should be on the first line of the hosts file, second field.
+	lines := strings.Split(string(content), "\n")
+	fields := strings.Split(lines[0], "\t")
+
+	if !hexStart.MatchString(fields[1]) {
+		t.Fatalf("Could not find a leading hex character for hostname %s, container ID %s", fields[1], contID)
+	}
+
+	f, err = os.Open(filepath.Join("/var/lib/docker/containers", contID, "hostname"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadAll(f)
+	f.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !hexStart.Match(content) {
+		t.Fatalf("Could not find a leading hex character for hostname %s, container ID %s", fields[1], contID)
+	}
+
+	logDone("run - hostname and /etc/hosts have leading hex character")
+}
