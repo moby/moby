@@ -267,7 +267,7 @@ func (r *Session) GetV2ImageBlobReader(imageName, sumType, sum string, token []s
 // Push the image to the server for storage.
 // 'layer' is an uncompressed reader of the blob to be pushed.
 // The server will generate it's own checksum calculation.
-func (r *Session) PutV2ImageBlob(imageName, sumType string, blobRdr io.Reader, token []string) (serverChecksum string, err error) {
+func (r *Session) PutV2ImageBlob(imageName, sumType, sumStr string, blobRdr io.Reader, token []string) (serverChecksum string, err error) {
 	vars := map[string]string{
 		"imagename": imageName,
 		"sumtype":   sumType,
@@ -285,6 +285,7 @@ func (r *Session) PutV2ImageBlob(imageName, sumType string, blobRdr io.Reader, t
 		return "", err
 	}
 	setTokenAuth(req, token)
+	req.Header.Set("X-Tarsum", sumStr)
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return "", err
@@ -307,6 +308,10 @@ func (r *Session) PutV2ImageBlob(imageName, sumType string, blobRdr io.Reader, t
 	err = decoder.Decode(&sumInfo)
 	if err != nil {
 		return "", fmt.Errorf("unable to decode PutV2ImageBlob JSON response: %s", err)
+	}
+
+	if sumInfo.Checksum != sumStr {
+		return "", fmt.Errorf("failed checksum comparison. serverChecksum: %q, localChecksum: %q", sumInfo.Checksum, sumStr)
 	}
 
 	// XXX this is a json struct from the registry, with its checksum

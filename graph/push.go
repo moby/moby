@@ -1,15 +1,18 @@
 package graph
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -267,6 +270,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	}
 
 	tag := job.Getenv("tag")
+	manifestBytes := job.Getenv("manifest")
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
 
@@ -284,6 +288,92 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	r, err2 := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
 	if err2 != nil {
 		return job.Error(err2)
+	}
+
+	var isOfficial bool
+	if endpoint.String() == registry.IndexServerAddress() {
+		isOfficial = isOfficialName(remoteName)
+		if isOfficial && strings.IndexRune(remoteName, '/') == -1 {
+			remoteName = "library/" + remoteName
+		}
+	}
+
+	if len(tag) == 0 {
+		tag = DEFAULTTAG
+	}
+	if isOfficial || endpoint.Version == registry.APIVersion2 {
+		j := job.Eng.Job("trust_update_base")
+		if err = j.Run(); err != nil {
+			return job.Errorf("error updating trust base graph: %s", err)
+		}
+
+		repoData, err := r.PushImageJSONIndex(remoteName, []*registry.ImgData{}, false, nil)
+		if err != nil {
+			return job.Error(err)
+		}
+
+		// try via manifest
+		manifest, verified, err := s.verifyManifest(job.Eng, []byte(manifestBytes))
+		if err != nil {
+			return job.Errorf("error verifying manifest: %s", err)
+		}
+
+		if len(manifest.FSLayers) != len(manifest.History) {
+			return job.Errorf("length of history not equal to number of layers")
+		}
+
+		if !verified {
+			log.Debugf("Pushing unverified image")
+		}
+
+		for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
+			var (
+				sumStr  = manifest.FSLayers[i].BlobSum
+				imgJSON = []byte(manifest.History[i].V1Compatibility)
+			)
+
+			sumParts := strings.SplitN(sumStr, ":", 2)
+			if len(sumParts) < 2 {
+				return job.Errorf("Invalid checksum: %s", sumStr)
+			}
+			manifestSum := sumParts[1]
+
+			// for each layer, check if it exists ...
+			// XXX wait this requires having the TarSum of the layer.tar first
+			// skip this step for now. Just push the layer every time for this naive implementation
+			//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
+
+			img, err := image.NewImgJSON(imgJSON)
+			if err != nil {
+				return job.Errorf("Failed to parse json: %s", err)
+			}
+
+			img, err = s.graph.Get(img.ID)
+			if err != nil {
+				return job.Error(err)
+			}
+
+			arch, err := img.TarLayer()
+			if err != nil {
+				return job.Errorf("Could not get tar layer: %s", err)
+			}
+
+			_, err = r.PutV2ImageBlob(remoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), job.Stdout, sf, false, utils.TruncateID(img.ID), "Pushing"), repoData.Tokens)
+			if err != nil {
+				job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+				return job.Error(err)
+			}
+			job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
+		}
+
+		// push the manifest
+		err = r.PutV2ImageManifest(remoteName, tag, bytes.NewReader([]byte(manifestBytes)), repoData.Tokens)
+		if err != nil {
+			return job.Error(err)
+		}
+
+		// done, no fallback to V1
+		return engine.StatusOK
 	}
 
 	if err != nil {
