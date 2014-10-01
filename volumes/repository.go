@@ -38,7 +38,7 @@ func NewRepository(configPath string, driver graphdriver.Driver) (*Repository, e
 	return repo, repo.restore()
 }
 
-func (r *Repository) NewVolume(path string, writable bool) (*Volume, error) {
+func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 	var (
 		isBindMount bool
 		err         error
@@ -73,10 +73,8 @@ func (r *Repository) NewVolume(path string, writable bool) (*Volume, error) {
 	if err := v.initialize(); err != nil {
 		return nil, err
 	}
-	if err := r.Add(v); err != nil {
-		return nil, err
-	}
-	return v, nil
+
+	return v, r.add(v)
 }
 
 func (r *Repository) restore() error {
@@ -113,6 +111,10 @@ func (r *Repository) get(path string) *Volume {
 func (r *Repository) Add(volume *Volume) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	return r.add(volume)
+}
+
+func (r *Repository) add(volume *Volume) error {
 	if vol := r.get(volume.Path); vol != nil {
 		return fmt.Errorf("Volume exists: %s", volume.ID)
 	}
@@ -174,4 +176,19 @@ func (r *Repository) createNewVolumePath(id string) (string, error) {
 	}
 
 	return path, nil
+}
+
+func (r *Repository) FindOrCreateVolume(path string, writable bool) (*Volume, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if path == "" {
+		return r.newVolume(path, writable)
+	}
+
+	if v := r.get(path); v != nil {
+		return v, nil
+	}
+
+	return r.newVolume(path, writable)
 }
