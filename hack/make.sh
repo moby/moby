@@ -94,6 +94,8 @@ if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
 fi
 
+rm -f dockerversion/static.go
+
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-w
@@ -115,7 +117,6 @@ TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
-	-X $DOCKER_PKG/dockerversion.IAMSTATIC true
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 
