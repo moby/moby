@@ -20,6 +20,10 @@ page_keywords: API, Docker, rcli, REST, documentation
    "serveraddress" : "string", "auth": ""}`. Notice that `auth` is to be left
    empty, `serveraddress` is a domain/ip without protocol, and that double
    quotes (instead of single ones) are required.
+ - The Remote API uses an open schema model.  In this model, unknown 
+   properties in incoming messages will be ignored.
+   Client applications need to take this into account to ensure
+   they will not break when talking to newer Docker daemons.
 
 The current version of the API is v1.15
 
