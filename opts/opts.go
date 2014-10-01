@@ -179,6 +179,15 @@ func ValidateIPAddress(val string) (string, error) {
 	return "", fmt.Errorf("%s is not an ip address", val)
 }
 
+// Validate options to "-dns"; can be the string "bridge", or
+// specify an IP address for DNS resolution
+func ValidateDnsOpt(val string) (string, error) {
+	if val = strings.Trim(val, " "); val == "bridge" {
+		return val, nil
+	}
+	return ValidateIPAddress(val)
+}
+
 // Validates domain for resolvconf search configuration.
 // A zero length domain is represented by .
 func ValidateDnsSearch(val string) (string, error) {

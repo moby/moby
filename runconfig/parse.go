@@ -35,7 +35,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)
-		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
+		flDns         = opts.NewListOpts(opts.ValidateDnsOpt)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
 		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
@@ -72,7 +72,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host\nformat: %s\n(use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
-	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
+	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers, or set to \"bridge\" to use Docker bridge IP as container's DNS server")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
