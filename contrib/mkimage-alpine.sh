@@ -49,6 +49,7 @@ save() {
 	[ $SAVE -eq 1 ] || return
 
 	tar --numeric-owner -C $ROOTFS -c . | xz > rootfs.tar.xz
+	printf 'saved:%s/rootfs.tar.xz\n' $(pwd)
 }
 
 while getopts "hr:m:s" opt; do
