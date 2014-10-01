@@ -18,11 +18,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
@@ -516,7 +517,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 func (b *Builder) run(c *daemon.Container) error {
 	var errCh chan error
 	if b.Verbose {
-		errCh = utils.Go(func() error {
+		errCh = promise.Go(func() error {
 			// FIXME: call the 'attach' job so that daemon.Attach can be made private
 			//
 			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
