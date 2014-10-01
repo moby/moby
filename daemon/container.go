@@ -1113,7 +1113,11 @@ func (container *Container) startLoggingToDisk() error {
 }
 
 func (container *Container) waitForStart() error {
-	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
+	restartPolicy := container.hostConfig.RestartPolicy
+	if restartPolicy.Name == "" {
+		restartPolicy = container.daemon.config.DefaultRestartPolicy
+	}
+	container.monitor = newContainerMonitor(container, restartPolicy)
 
 	// block until we either receive an error from the initial start of the container's
 	// process or until the process is running in the container

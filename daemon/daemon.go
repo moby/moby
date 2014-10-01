@@ -373,8 +373,12 @@ func (daemon *Daemon) restore() error {
 		log.Debugf("Restarting containers...")
 
 		for _, container := range registeredContainers {
-			if container.hostConfig.RestartPolicy.Name == "always" ||
-				(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0) {
+			restartPolicy := container.hostConfig.RestartPolicy.Name
+			if restartPolicy == "" {
+				restartPolicy = daemon.config.DefaultRestartPolicy.Name
+			}
+			if restartPolicy == "always" ||
+				(restartPolicy == "on-failure" && container.ExitCode != 0) {
 				log.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {
@@ -880,6 +884,11 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 
 	sysInfo := sysinfo.New(false)
 	ed, err := execdrivers.NewDriver(config.ExecDriver, config.Root, sysInitPath, sysInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	config.DefaultRestartPolicy, err = runconfig.ParseRestartPolicy(config.DefaultRestartPolicySpec)
 	if err != nil {
 		return nil, err
 	}
