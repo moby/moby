@@ -719,7 +719,6 @@ func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 }
 
 func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
-	// Apply configuration defaults
 	if config.Mtu == 0 {
 		config.Mtu = getDefaultNetworkMtu()
 	}

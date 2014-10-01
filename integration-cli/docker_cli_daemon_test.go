@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -222,4 +223,64 @@ func TestDaemonIptablesCreate(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("daemon - run,iptables - iptables rules for always restarted container created after daemon restart")
+}
+
+func TestDaemonLoggingLevel(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.Start("--log-level=bogus"); err == nil {
+		t.Fatal("Daemon should not have been able to start")
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--log-level=debug"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ := ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--log-level=fatal"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Should not have level="debug" in log file:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("-D"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file using -D:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--debug"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file using --debug:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--debug", "--log-level=fatal"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
+	}
+
+	logDone("daemon - Logging Level")
 }
