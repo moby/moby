@@ -28,3 +28,4 @@ docs/GIT_BRANCH
 docs/VERSION
 docs/GITCOMMIT
 dockerversion/static.go
+dockerversion/details.go
