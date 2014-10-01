@@ -19,7 +19,7 @@ tmp() {
 }
 
 apkv() {
-	curl -sSL $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
+	curl -sSL $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz --exclude=*.pub |
 		grep '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
 }
 
@@ -30,7 +30,7 @@ getapk() {
 
 mkbase() {
 	$TMP/sbin/apk.static --repository $REPO --update-cache --allow-untrusted \
-		--root $ROOTFS --initdb add alpine-base
+		--root $ROOTFS --initdb add alpine-base bash
 }
 
 conf() {
@@ -49,6 +49,7 @@ save() {
 	[ $SAVE -eq 1 ] || return
 
 	tar --numeric-owner -C $ROOTFS -c . | xz > rootfs.tar.xz
+	printf 'saved:%s/rootfs.tar.xz\n' $(pwd)
 }
 
 while getopts "hr:m:s" opt; do
