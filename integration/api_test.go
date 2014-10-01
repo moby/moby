@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -158,6 +159,8 @@ func TestGetContainersTop(t *testing.T) {
 
 func TestPostCommit(t *testing.T) {
 	eng := NewTestEngine(t)
+	b := &builder.BuilderJob{Engine: eng}
+	b.Install()
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	// Create a container and remove a file
