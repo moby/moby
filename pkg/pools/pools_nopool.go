@@ -1,4 +1,4 @@
-// +build !go1.3
+// +build !go1.3 gccgo
 
 package pools
 

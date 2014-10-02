@@ -1,4 +1,4 @@
-// +build go1.3
+// +build go1.3,!gccgo
 
 // Package pools provides a collection of pools which provide various
 // data types with buffers. These can be used to lower the number of
