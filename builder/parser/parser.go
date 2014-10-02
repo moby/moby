@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // Node is a structure used to represent a parse tree.
@@ -96,14 +97,14 @@ func Parse(rwc io.Reader) (*Node, error) {
 	scanner := bufio.NewScanner(rwc)
 
 	for scanner.Scan() {
-		line, child, err := parseLine(strings.TrimSpace(scanner.Text()))
+		line, child, err := parseLine(strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace))
 		if err != nil {
 			return nil, err
 		}
 
 		if line != "" && child == nil {
 			for scanner.Scan() {
-				newline := strings.TrimSpace(scanner.Text())
+				newline := scanner.Text()
 
 				if newline == "" {
 					continue
