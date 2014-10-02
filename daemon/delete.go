@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"path"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/log"
@@ -17,36 +16,21 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
 	forceRemove := job.GetenvBool("forceRemove")
-	container := daemon.Get(name)
-
-	if container == nil {
-		job.Errorf("No such container: %s", name)
-	}
 
 	if removeLink {
-		name, err := GetFullContainerName(name)
+		parent, child, alias, err := daemon.containers.DeconstructPath(name)
 		if err != nil {
-			job.Error(err)
-		}
-		parent, n := path.Split(name)
-		if parent == "/" {
-			return job.Errorf("Conflict, cannot remove the default name of the container")
-		}
-		pe := daemon.ContainerGraph().Get(parent)
-		if pe == nil {
-			return job.Errorf("Cannot get parent %s for name %s", parent, name)
-		}
-		parentContainer := daemon.Get(pe.ID())
-
-		if parentContainer != nil {
-			parentContainer.DisableLink(n)
-		}
-
-		if err := daemon.ContainerGraph().Delete(name); err != nil {
 			return job.Error(err)
 		}
+
+		parent.DisableLink(alias)
+		daemon.containers.Unlink(child)
+		child.UpdateParentsHosts()
+
 		return engine.StatusOK
 	}
+
+	container := daemon.Get(name)
 
 	if container != nil {
 		if container.IsRunning() {
@@ -85,22 +69,15 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return fmt.Errorf("The given container is <nil>")
 	}
 
-	element := daemon.containers.Get(container.ID)
-	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
+	if _, err := daemon.containers.GetByID(container.ID); err != nil {
+		return err
 	}
 
 	if err := container.Stop(3); err != nil {
 		return err
 	}
 
-	// Deregister the container before removing its directory, to avoid race conditions
-	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Delete(container.ID)
-	container.derefVolumes()
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		log.Debugf("Unable to remove container from link graph: %s", err)
-	}
+	daemon.containers.Delete(container)
 
 	if err := daemon.driver.Remove(container.ID); err != nil {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)

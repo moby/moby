@@ -6,10 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/graphdb"
-
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/version"
 )
 
 // List returns an array of all containers registered in the daemon.
@@ -26,6 +25,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		before      = job.Getenv("before")
 		n           = job.GetenvInt("limit")
 		size        = job.GetenvBool("size")
+		ver         = version.Version(job.Getenv("version"))
 		psFilters   filters.Args
 		filt_exited []int
 		filt_status []string
@@ -49,10 +49,13 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	filt_status, _ = psFilters["status"]
 
 	names := map[string][]string{}
-	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, -1)
+	for _, container := range daemon.containers.List() {
+		name := container.Name
+		if ver.LessThan("1.15") {
+			name = "/" + name
+		}
+		names[container.ID] = append(names[container.ID], name)
+	}
 
 	var beforeCont, sinceCont *Container
 	if before != "" {

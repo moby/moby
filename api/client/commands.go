@@ -70,6 +70,88 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdLinks(args ...string) error {
+	description := "Manage Docker hosts\n\nCommands:\n"
+	for _, command := range [][]string{
+		{"add", "Add a Link"},
+		{"remove", "Remove a Link"},
+	} {
+		description += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
+	}
+
+	cmd := cli.Subcmd("links", "[COMMAND]", description)
+
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+	}
+
+	return nil
+}
+
+func (cli *DockerCli) CmdLinksAdd(args ...string) error {
+	cmd := cli.Subcmd("add", "[parent] [child] [alias]", "Create a new link from parent->child with an alias")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("parent", cmd.Arg(0))
+	v.Set("child", cmd.Arg(1))
+	v.Set("alias", cmd.Arg(2))
+
+	_, _, err := cli.call(
+		"POST",
+		"/links/add?"+v.Encode(),
+		nil,
+		false,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cli *DockerCli) CmdLinksRemove(args ...string) error {
+	cmd := cli.Subcmd("remove", "[parent] [child] [alias]", "Remove a link from parent->child")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() != 3 {
+		cmd.Usage()
+		return nil
+	}
+
+	v := url.Values{}
+	v.Set("parent", cmd.Arg(0))
+	v.Set("child", cmd.Arg(1))
+	v.Set("alias", cmd.Arg(2))
+
+	_, _, err := cli.call(
+		"POST",
+		"/links/remove?"+v.Encode(),
+		nil,
+		false,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "PATH | URL | -", "Build a new image from the source code at PATH")
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) to be applied to the resulting image in case of success")
@@ -1556,11 +1638,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		if !*noTrunc {
 			outID = utils.TruncateID(outID)
-		}
-
-		// Remove the leading / from the names
-		for i := 0; i < len(outNames); i++ {
-			outNames[i] = outNames[i][1:]
 		}
 
 		if !*quiet {

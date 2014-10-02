@@ -43,11 +43,44 @@ func Build(path, IP, hostname, domainname string, extraContent *map[string]strin
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
 }
 
+func Add(path, IP, hostname string) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path, append(old, []byte(IP+"\t"+hostname+"\n")...), 0644)
+}
+
+func makeHostRegexp(hostname string) *regexp.Regexp {
+	return regexp.MustCompile(fmt.Sprintf("(\\S*)(\t[^ ]* ?%s\n)", regexp.QuoteMeta(hostname)))
+}
+
+func Remove(path, hostname string) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	re := makeHostRegexp(hostname)
+
+	if !re.Match(old) {
+		return fmt.Errorf("Did not find the appropriate host '%s' while editing /etc/hosts", hostname)
+	}
+
+	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte{}), 0644)
+}
+
 func Update(path, IP, hostname string) error {
 	old, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)", regexp.QuoteMeta(hostname)))
+
+	re := makeHostRegexp(hostname)
+
+	if !re.Match(old) {
+		return Add(path, IP, hostname)
+	}
+
 	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2")), 0644)
 }

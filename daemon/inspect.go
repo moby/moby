@@ -48,10 +48,8 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.SetJson("Volumes", container.Volumes)
 		out.SetJson("VolumesRW", container.VolumesRW)
 
-		if children, err := daemon.Children(container.Name); err == nil {
-			for linkAlias, child := range children {
-				container.hostConfig.Links = append(container.hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
-			}
+		for _, child := range daemon.Children(name) {
+			container.hostConfig.Links = append(container.hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, daemon.containers.AliasFor(container, child)))
 		}
 
 		out.SetJson("HostConfig", container.hostConfig)

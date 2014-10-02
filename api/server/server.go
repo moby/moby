@@ -365,6 +365,7 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	job.Setenv("before", r.Form.Get("before"))
 	job.Setenv("limit", r.Form.Get("limit"))
 	job.Setenv("filters", r.Form.Get("filters"))
+	job.Setenv("version", string(version))
 
 	if version.GreaterThanOrEqualTo("1.5") {
 		streamJSON(job, w, false)
@@ -449,6 +450,38 @@ func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseW
 	if err := job.Run(); err != nil {
 		return err
 	}
+	w.WriteHeader(http.StatusCreated)
+	return nil
+}
+
+func postLinksAdd(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	job := eng.Job("link_add")
+	job.Args = []string{r.Form.Get("parent"), r.Form.Get("child"), r.Form.Get("alias")}
+	if err := job.Run(); err != nil {
+		w.WriteHeader(http.StatusConflict)
+		return err
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	return nil
+}
+
+func postLinksRemove(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	job := eng.Job("link_remove")
+	job.Args = []string{r.Form.Get("parent"), r.Form.Get("child"), r.Form.Get("alias")}
+	if err := job.Run(); err != nil {
+		w.WriteHeader(http.StatusConflict)
+		return err
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	return nil
 }
@@ -1273,6 +1306,8 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/load":                  postImagesLoad,
 			"/images/{name:.*}/push":        postImagesPush,
 			"/images/{name:.*}/tag":         postImagesTag,
+			"/links/add":                    postLinksAdd,
+			"/links/remove":                 postLinksRemove,
 			"/containers/create":            postContainersCreate,
 			"/containers/{name:.*}/kill":    postContainersKill,
 			"/containers/{name:.*}/pause":   postContainersPause,

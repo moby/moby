@@ -90,6 +90,10 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
 			return nil, nil, err
 		}
+		// Register any links from the host config before starting the container
+		if err := daemon.RegisterLinks(container, hostConfig); err != nil {
+			return nil, nil, err
+		}
 	}
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err

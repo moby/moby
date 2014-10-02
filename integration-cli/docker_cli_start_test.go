@@ -10,12 +10,8 @@ import (
 func TestStartAttachReturnsOnError(t *testing.T) {
 	defer deleteAllContainers()
 
-	cmd(t, "run", "-d", "--name", "test", "busybox")
-	cmd(t, "stop", "test")
-
-	// Expect this to fail because the above container is stopped, this is what we want
-	if _, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "test2", "--link", "test:test", "busybox")); err == nil {
-		t.Fatal("Expected error but got none")
+	if _, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "test", "busybox", "/")); err == nil {
+		t.Fatal("Container started even though it should not have")
 	}
 
 	ch := make(chan struct{})
