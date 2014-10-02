@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -708,7 +709,16 @@ func NetworkCreateVethPair(name1, name2 string) error {
 	if err := s.Send(wb); err != nil {
 		return err
 	}
-	return s.HandleAck(wb.Seq)
+
+	if err := s.HandleAck(wb.Seq); err != nil {
+		if os.IsExist(err) {
+			return ErrInterfaceExists
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 // Add a new VLAN interface with masterDev as its upper device

@@ -68,6 +68,14 @@ func SetDefaultGateway(ip, ifaceName string) error {
 	return netlink.AddDefaultGw(ip, ifaceName)
 }
 
+func SetInterfaceMac(name string, macaddr string) error {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.NetworkSetMacAddress(iface, macaddr)
+}
+
 func SetInterfaceIp(name string, rawIp string) error {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
