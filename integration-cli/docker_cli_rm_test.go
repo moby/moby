@@ -110,28 +110,12 @@ func TestRmContainerOrphaning(t *testing.T) {
 	logDone("rm - container orphaning")
 }
 
-func TestRmTagWithExistingContainers(t *testing.T) {
-	container := "test-delete-tag"
-	newtag := "busybox:newtag"
-	bb := "busybox:latest"
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", bb, newtag)); err != nil {
-		t.Fatalf("Could not tag busybox: %v: %s", err, out)
-	}
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", container, bb, "/bin/true")); err != nil {
-		t.Fatalf("Could not run busybox: %v: %s", err, out)
-	}
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rmi", newtag))
-	if err != nil {
-		t.Fatalf("Could not remove tag %s: %v: %s", newtag, err, out)
-	}
-	if d := strings.Count(out, "Untagged: "); d != 1 {
-		t.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
+func TestRmInvalidContainer(t *testing.T) {
+	if _, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "unknown")); err == nil {
+		t.Fatal("Expected error on rm unknown container, got none")
 	}
 
-	deleteAllContainers()
-
-	logDone("rm - delete tag with existing containers")
-
+	logDone("rm - delete unknown container")
 }
 
 func createRunningContainer(t *testing.T, name string) {
