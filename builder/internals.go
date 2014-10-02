@@ -356,6 +356,18 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	ci.decompress = allowDecompression
 	*cInfos = append(*cInfos, &ci)
 
+	//check to see if this is a link that can be converted to a simple file/dir
+	if fi2, _ := os.Lstat(path.Join(b.contextPath, origPath)); fi2.Mode()&os.ModeSymlink == os.ModeSymlink {
+		origPath, err := filepath.EvalSymlinks(path.Join(b.contextPath, origPath))
+		if err != nil {
+			return fmt.Errorf("Reading link failed for %q: %v", origPath, err)
+		}
+		if ci.origPath, err = filepath.Rel(b.contextPath, origPath); err != nil {
+			return fmt.Errorf("Reading link failed for %q: %v", origPath, err)
+		}
+		ci.hash = ci.origPath
+	}
+
 	// Deal with the single file case
 	if !fi.IsDir() {
 		// This will match first file in sums of the archive

@@ -535,6 +535,10 @@ func (f *FakeContext) Close() error {
 	return os.RemoveAll(f.Dir)
 }
 
+func (f *FakeContext) Link(srcfile, destfile string) error {
+	return os.Symlink(srcfile, path.Join(f.Dir, destfile))
+}
+
 func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
 	tmp, err := ioutil.TempDir("", "fake-context")
 	if err != nil {
