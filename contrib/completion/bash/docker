@@ -46,6 +46,22 @@ __docker_containers_stopped()
 	COMPREPLY=( $( compgen -W "$names $containers" -- "$cur" ) )
 }
 
+__docker_containers_paused()
+{
+	local containers="$( __docker_q ps -q)"
+	local names="$( __docker_q inspect --format='{{.State.Paused}} {{.Name}}' $containers | sed 's/^false.*//' | sed 's,^true /,,' )"
+	local hostnames="$( __docker_q inspect --format='{{.State.Paused}} {{.Config.Hostname}}' $containers | sed 's/^false.*//' | sed 's,^true ,,' )"
+	COMPREPLY=( $( compgen -W "$names $hostnames" -- "$cur" ) )
+}
+
+__docker_containers_not_paused()
+{
+	local containers="$( __docker_q ps -q)"
+	local names="$( __docker_q inspect --format='{{.State.Paused}} {{.Name}}' $containers | sed 's/^true.*//' | sed 's,^false /,,' )"
+	local hostnames="$( __docker_q inspect --format='{{.State.Paused}} {{.Config.Hostname}}' $containers | sed 's/^true.*//' | sed 's/^false //' )"
+	COMPREPLY=( $( compgen -W "$names $hostnames" -- "$cur" ) )
+}
+
 __docker_image_repos()
 {
 	local repos="$( __docker_q images | awk 'NR>1{print $1}' | grep -v '^<none>$' )"
@@ -453,6 +469,13 @@ _docker_logs()
 			;;
 	esac
 }
+_docker_pause()
+{
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		__docker_containers_not_paused
+	fi
+}
 
 _docker_port()
 {
@@ -715,6 +738,14 @@ _docker_tag()
 	esac
 }
 
+_docker_unpause()
+{
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		__docker_containers_paused
+	fi
+}
+
 _docker_top()
 {
 	local counter=$(__docker_pos_first_nonflag)
@@ -755,6 +786,7 @@ _docker()
 			load
 			login
 			logs
+			pause
 			port
 			ps
 			pull
@@ -769,6 +801,7 @@ _docker()
 			stop
 			tag
 			top
+			unpause
 			version
 			wait
 		"
