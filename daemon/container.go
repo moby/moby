@@ -215,6 +215,7 @@ func populateCommand(c *Container, env []string) error {
 				Bridge:      network.Bridge,
 				IPAddress:   network.IPAddress,
 				IPPrefixLen: network.IPPrefixLen,
+				MacAddress:  network.MacAddress,
 			}
 		}
 	case "container":
@@ -504,6 +505,7 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.Bridge = env.Get("Bridge")
 	container.NetworkSettings.IPAddress = env.Get("IP")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
+	container.NetworkSettings.MacAddress = env.Get("MacAddress")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
 
 	return nil
