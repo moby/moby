@@ -4,7 +4,7 @@ page_keywords: API, Docker, index, registry, REST, documentation, clients, C#, E
 
 # Docker Remote API Client Libraries
 
-These libraries have not been tested by the Docker Maintainers for
+These libraries have not been tested by the Docker maintainers for
 compatibility. Please file issues with the library owners. If you find
 more library implementations, please list them in Docker doc bugs and we
 will add the libraries here.
