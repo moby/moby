@@ -46,9 +46,9 @@ the container's port 22 is mapped to:
 
 And now you can ssh as `root` on the container's IP address (you can find it
 with `docker inspect`) or on port `49154` of the Docker daemon's host IP address
-(`ip address` or `ifconfig` can tell you that):
+(`ip address` or `ifconfig` can tell you that) or localhost if on same server:
 
-    $ ssh root@192.168.1.2 -p 49154
+    $ ssh root@localhost -p 49154
     # The password is ``screencast``.
     $$
 
