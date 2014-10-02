@@ -328,7 +328,7 @@ func TestCreateBridgeWithMac(t *testing.T) {
 	}
 }
 
-func TestSetMACAddress(t *testing.T) {
+func TestSetMacAddress(t *testing.T) {
 	if testing.Short() {
 		return
 	}
