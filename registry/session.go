@@ -47,7 +47,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
-	if r.indexEndpoint.String() != IndexServerAddress() && r.indexEndpoint.URL.Scheme == "https" {
+	if r.indexEndpoint.VersionString(1) != IndexServerAddress() && r.indexEndpoint.URL.Scheme == "https" {
 		info, err := r.indexEndpoint.Ping()
 		if err != nil {
 			return nil, err
@@ -261,7 +261,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 }
 
 func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
-	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.String(), remote)
+	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), remote)
 
 	log.Debugf("[registry] Calling GET %s", repositoryTarget)
 
@@ -295,7 +295,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 
 	var endpoints []string
 	if res.Header.Get("X-Docker-Endpoints") != "" {
-		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +488,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	if validate {
 		suffix = "images"
 	}
-	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.String(), remote, suffix)
+	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote, suffix)
 	log.Debugf("[registry] PUT %s", u)
 	log.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
@@ -546,7 +546,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		}
 
 		if res.Header.Get("X-Docker-Endpoints") != "" {
-			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
+			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
 			if err != nil {
 				return nil, err
 			}
@@ -572,7 +572,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	log.Debugf("Index server: %s", r.indexEndpoint)
-	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err

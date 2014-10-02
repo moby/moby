@@ -276,6 +276,20 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 	return reporefs
 }
 
+// isOfficialName returns whether a repo name is considered an official
+// repository.  Official repositories are repos with names within
+// the library namespace or which default to the library namespace
+// by not providing one.
+func isOfficialName(name string) bool {
+	if strings.HasPrefix(name, "library/") {
+		return true
+	}
+	if strings.IndexRune(name, '/') == -1 {
+		return true
+	}
+	return false
+}
+
 // Validate the name of a repository
 func validateRepoName(name string) error {
 	if name == "" {

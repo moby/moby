@@ -20,6 +20,7 @@ import (
 var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+	ErrDoesNotExist          = errors.New("Image does not exist")
 	errLoginRequired         = errors.New("Authentication is required.")
 	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
 	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
