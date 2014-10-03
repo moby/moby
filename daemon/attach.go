@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/engine"
@@ -124,7 +125,25 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		cStdout, cStderr io.ReadCloser
 		nJobs            int
 		errors           = make(chan error, 3)
+		waiter           sync.WaitGroup
+		useWaiter        bool = (stdinCloser != nil && openStdin && (stdout != nil || stderr != nil))
 	)
+
+	// wait to close stdin until both stdout and stderr have been closed
+	if useWaiter {
+		waiter.Add(1)
+		waiter.Add(1)
+		go func() {
+			waiter.Wait()
+			stdinCloser.Close()
+		}()
+	}
+
+	notifyWaiter := func() {
+		if useWaiter {
+			waiter.Done()
+		}
+	}
 
 	// Connect stdin of container to the http conn.
 	if stdin != nil && openStdin {
@@ -153,7 +172,6 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 					_, err = utils.CopyEscapable(cStdin, stdin)
 				} else {
 					_, err = io.Copy(cStdin, stdin)
-
 				}
 				if err == io.ErrClosedPipe {
 					err = nil
@@ -170,18 +188,20 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		// Get a reader end of a pipe that is attached as stdout to the container.
 		if p, err := streamConfig.StdoutPipe(); err != nil {
 			errors <- err
+			notifyWaiter()
 		} else {
 			cStdout = p
 			go func() {
 				log.Debugf("attach: stdout: begin")
 				defer log.Debugf("attach: stdout: end")
+
+				defer notifyWaiter()
+
 				// If we are in StdinOnce mode, then close stdin
 				if stdinOnce && stdin != nil {
 					defer stdin.Close()
 				}
-				if stdinCloser != nil {
-					defer stdinCloser.Close()
-				}
+
 				_, err := io.Copy(stdout, cStdout)
 				if err == io.ErrClosedPipe {
 					err = nil
@@ -195,9 +215,8 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 	} else {
 		// Point stdout of container to a no-op writer.
 		go func() {
-			if stdinCloser != nil {
-				defer stdinCloser.Close()
-			}
+			defer notifyWaiter()
+
 			if cStdout, err := streamConfig.StdoutPipe(); err != nil {
 				log.Errorf("attach: stdout pipe: %s", err)
 			} else {
@@ -209,19 +228,20 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		nJobs++
 		if p, err := streamConfig.StderrPipe(); err != nil {
 			errors <- err
+			notifyWaiter()
 		} else {
 			cStderr = p
 			go func() {
 				log.Debugf("attach: stderr: begin")
 				defer log.Debugf("attach: stderr: end")
+
+				defer notifyWaiter()
 				// If we are in StdinOnce mode, then close stdin
 				// Why are we closing stdin here and above while handling stdout?
 				if stdinOnce && stdin != nil {
 					defer stdin.Close()
 				}
-				if stdinCloser != nil {
-					defer stdinCloser.Close()
-				}
+
 				_, err := io.Copy(stderr, cStderr)
 				if err == io.ErrClosedPipe {
 					err = nil
@@ -235,9 +255,7 @@ func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 	} else {
 		// Point stderr at a no-op writer.
 		go func() {
-			if stdinCloser != nil {
-				defer stdinCloser.Close()
-			}
+			defer notifyWaiter()
 
 			if cStderr, err := streamConfig.StderrPipe(); err != nil {
 				log.Errorf("attach: stdout pipe: %s", err)
