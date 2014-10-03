@@ -390,8 +390,18 @@ func TestRunVolumesFromInReadWriteMode(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatalf("running --volumes-from parent:rw failed with output: %q\nerror: %v", out, err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:bar", "busybox", "touch", "/test/file")
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Invalid mode for volumes-from: bar") {
+		t.Fatalf("running --volumes-from foo:bar should have failed with invalid mount mode: %q", out)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent", "busybox", "touch", "/test/file")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatalf("running --volumes-from parent failed with output: %q\nerror: %v", out, err)
 	}
 
 	deleteAllContainers()
