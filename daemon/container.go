@@ -544,9 +544,10 @@ func (container *Container) RestoreNetwork() error {
 
 	eng := container.daemon.eng
 
-	// Re-allocate the interface with the same IP address.
+	// Re-allocate the interface with the same IP and MAC address.
 	job := eng.Job("allocate_interface", container.ID)
 	job.Setenv("RequestedIP", container.NetworkSettings.IPAddress)
+	job.Setenv("RequestedMac", container.NetworkSettings.MacAddress)
 	if err := job.Run(); err != nil {
 		return err
 	}
