@@ -133,13 +133,14 @@ example, `docker run ubuntu:14.04`.
 
 ## Network settings
 
-    --dns=[]        : Set custom dns servers for the container
-    --net="bridge"  : Set the Network mode for the container
-                                 'bridge': creates a new network stack for the container on the docker bridge
-                                 'none': no networking for this container
-                                 'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the container
-    --add-host=""   : Add a line to /etc/hosts (host:IP)
+    --dns=[]         : Set custom dns servers for the container
+    --net="bridge"   : Set the Network mode for the container
+                                  'bridge': creates a new network stack for the container on the docker bridge
+                                  'none': no networking for this container
+                                  'container:<name|id>': reuses another container network stack
+                                  'host': use the host network stack inside the container
+    --add-host=""    : Add a line to /etc/hosts (host:IP)
+    --mac-address="" : Sets the container's ethernet device's mac address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -149,6 +150,10 @@ networking. In cases like this, you would perform I/O through files or
 
 Your container will use the same DNS servers as the host by default, but
 you can override this with `--dns`.
+
+By default a random mac is generated. You can set the container's mac address
+explicitly by providing a mac via the `--mac-address` parameter (format:
+12:34:56:78:9a:bc).
 
 Supported networking modes are:
 

@@ -2018,6 +2018,41 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 	logDone("run - network must not be initialized in 'none' mode")
 }
 
+func TestRunSetMacAddress(t *testing.T) {
+	mac := "12:34:56:78:9a:bc"
+	cmd := exec.Command("/bin/bash", "-c", dockerBinary+` run -i --rm --mac-address=`+mac+` busybox /bin/sh -c "ip link show eth0 | tail -1 | awk '{ print \$2 }'"`)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualMac := strings.TrimSpace(out)
+	if actualMac != mac {
+		t.Fatalf("Set Mac Address with --mac-address failed. The container has an incorrect MAC address: %q, expected: %q", actualMac, mac)
+	}
+
+	deleteAllContainers()
+	logDone("run - setting Mac Address with --mac-address")
+}
+
+func TestRunInspectMacAddress(t *testing.T) {
+	mac := "12:34:56:78:9a:bc"
+	cmd := exec.Command(dockerBinary, "run", "-d", "--mac-address="+mac, "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSpace(out)
+	inspectedMac, err := inspectField(id, "NetworkSettings.MacAddress")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inspectedMac != mac {
+		t.Fatalf("Inspecting Mac Address with failed. docker inspect shows incorrect MacAddress: %q, actual Mac: %q", inspectedMac, mac)
+	}
+	deleteAllContainers()
+	logDone("run - inspecting Mac Address")
+}
+
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
