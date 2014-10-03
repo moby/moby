@@ -107,6 +107,7 @@ pages:
 - ['reference/api/index.md', '**HIDDEN**']
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
+- ['reference/api/registry_api_client_libraries.md', 'Reference', 'Docker Registry API Client Libraries']
 - ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
 - ['reference/api/docker_remote_api_v1.15.md', 'Reference', 'Docker Remote API v1.15']
