@@ -39,6 +39,9 @@ func (s *TagStore) verifyManifest(eng *engine.Engine, manifestBytes []byte) (*re
 	if err := json.Unmarshal(payload, &manifest); err != nil {
 		return nil, false, fmt.Errorf("error unmarshalling manifest: %s", err)
 	}
+	if manifest.SchemaVersion != 1 {
+		return nil, false, fmt.Errorf("unsupported schema version: %d", manifest.SchemaVersion)
+	}
 
 	var verified bool
 	for _, key := range keys {
@@ -454,6 +457,10 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", localName))
 
+	if len(manifest.BlobSums) == 0 {
+		return fmt.Errorf("no blobSums in manifest")
+	}
+
 	downloads := make([]downloadInfo, len(manifest.BlobSums))
 
 	for i := len(manifest.BlobSums) - 1; i >= 0; i-- {
@@ -493,6 +500,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					log.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
 				}
 			} else {
+				defer s.poolRemove("pull", "img:"+img.ID)
 				tmpFile, err := ioutil.TempFile("", "GetV2ImageBlob")
 				if err != nil {
 					return err
@@ -513,7 +521,6 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 				di.downloaded = true
 			}
 			di.imgJSON = imgJSON
-			defer s.poolRemove("pull", "img:"+img.ID)
 
 			return nil
 		}
