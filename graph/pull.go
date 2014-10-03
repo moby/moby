@@ -75,6 +75,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
 		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
 	}
+
 	var (
 		localName   = job.Args[0]
 		tag         string
@@ -83,6 +84,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		metaHeaders map[string][]string
 		mirrors     []string
 	)
+
 	if len(job.Args) > 1 {
 		tag = job.Args[1]
 	}
@@ -132,18 +134,6 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		mirrors = s.mirrors
 	}
 
-	if isOfficial || endpoint.Version == registry.APIVersion2 {
-		j := job.Eng.Job("trust_update_base")
-		if err = j.Run(); err != nil {
-			return job.Errorf("error updating trust base graph: %s", err)
-		}
-
-		if err := s.pullV2Repository(job.Eng, r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err == nil {
-			return engine.StatusOK
-		} else if err != registry.ErrDoesNotExist {
-			log.Errorf("Error from V2 registry: %s", err)
-		}
-	}
 	if err = s.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel"), mirrors); err != nil {
 		return job.Error(err)
 	}
