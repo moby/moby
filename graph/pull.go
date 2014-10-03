@@ -55,6 +55,7 @@ func (s *TagStore) verifyManifest(eng *engine.Engine, manifestBytes []byte) (*re
 
 		job.Args = append(job.Args, namespace)
 		job.Setenv("PublicKey", string(b))
+		// Check key has read/write permission (0x03)
 		job.SetenvInt("Permission", 0x03)
 		job.Stdout.Add(stdoutBuffer)
 		if err = job.Run(); err != nil {

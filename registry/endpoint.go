@@ -124,6 +124,6 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 		// there is a header set, and it is not "true" or "1", so assume fails
 		info.Standalone = false
 	}
-	log.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
+	log.Debugf("RegistryInfo.Standalone: %t", info.Standalone)
 	return info, nil
 }
