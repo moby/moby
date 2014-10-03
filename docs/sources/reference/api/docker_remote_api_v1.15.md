@@ -1486,7 +1486,7 @@ starting the `exec` command. Otherwise, this API sets up an interactive session 
 
 **Example request**:
 
-        POST /containers/e90e34656806/exec HTTP/1.1
+        POST /exec/e90e34656806/start HTTP/1.1
         Content-Type: application/json
 
         {
@@ -1522,7 +1522,7 @@ This API is valid only if `tty` was specified as part of creating and starting t
 
 **Example request**:
 
-        POST /containers/e90e34656806/exec HTTP/1.1
+        POST /exec/e90e34656806/resize HTTP/1.1
         Content-Type: plain/text
 
 **Example response**:
