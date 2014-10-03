@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -2445,4 +2446,47 @@ func TestRunVolumesCleanPaths(t *testing.T) {
 	}
 
 	logDone("run - volume paths are cleaned")
+}
+
+// Regression test for #3631
+func TestRunSlowStdoutConsumer(t *testing.T) {
+	defer deleteAllContainers()
+
+	c := exec.Command("/bin/bash", "-c", dockerBinary+` run --rm -i busybox /bin/sh -c "dd if=/dev/zero of=/foo bs=1024 count=2000 &>/dev/null; catv /foo"`)
+
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	n, err := consumeSlow(stdout, 10000, 5*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := 2 * 1024 * 2000
+	if n != expected {
+		t.Fatalf("Expected %d, got %d", expected, n)
+	}
+
+	logDone("run - slow consumer")
+}
+
+func consumeSlow(reader io.Reader, chunkSize int, interval time.Duration) (n int, err error) {
+	buffer := make([]byte, chunkSize)
+	for {
+		var readBytes int
+		readBytes, err = reader.Read(buffer)
+		n += readBytes
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+		time.Sleep(interval)
+	}
 }
