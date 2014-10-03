@@ -102,3 +102,19 @@ func TestHostnameFormatChecking(t *testing.T) {
 		t.Fatal("Failed to check invalid HostIP")
 	}
 }
+
+func TestMacAddrGeneration(t *testing.T) {
+	ip := net.ParseIP("192.168.0.1")
+	mac := generateMacAddr(ip).String()
+
+	// Should be consistent.
+	if generateMacAddr(ip).String() != mac {
+		t.Fatal("Inconsistent MAC address")
+	}
+
+	// Should be unique.
+	ip2 := net.ParseIP("192.168.0.2")
+	if generateMacAddr(ip2).String() == mac {
+		t.Fatal("Non-unique MAC address")
+	}
+}
