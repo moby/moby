@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -321,15 +320,29 @@ func createBridge(bridgeIP string) error {
 	return nil
 }
 
-func randMacAddr() string {
+// Generate a IEEE802 compliant MAC address from the given IP address.
+//
+// The generator is guaranteed to be consistent: the same IP will always yield the same
+// MAC address. This is to avoid ARP cache issues.
+func generateMacAddr(ip net.IP) net.HardwareAddr {
 	hw := make(net.HardwareAddr, 6)
-	for i := 0; i < 6; i++ {
-		hw[i] = byte(rand.Intn(255))
-	}
-	hw[0] &^= 0x1 // clear multicast bit
-	hw[0] |= 0x2  // set local assignment bit (IEEE802)
 
-	return hw.String()
+	// The first byte of the MAC address has to comply with these rules:
+	// 1. Unicast: Set the least-significant bit to 0.
+	// 2. Address is locally administered: Set the second-least-significant bit (U/L) to 1.
+	// 3. As "small" as possible: The veth address has to be "smaller" than the bridge address.
+	hw[0] = 0x02
+
+	// The first 24 bits of the MAC represent the Organizationally Unique Identifier (OUI).
+	// Since this address is locally administered, we can do whatever we want as long as
+	// it doesn't conflict with other addresses.
+	hw[1] = 0x42
+
+	// Insert the IP address into the last 32 bits of the MAC address.
+	// This is a simply way to guarantee the address will be consistent and unique.
+	copy(hw[2:], ip.To4())
+
+	return hw
 }
 
 func linkLocalIPv6FromMac(mac string) (string, error) {
@@ -364,15 +377,15 @@ func Allocate(job *engine.Job) engine.Status {
 		requestedIP  = net.ParseIP(job.Getenv("RequestedIP")) // may be nil
 	)
 
-	if requestedMac == "" {
-		mac = randMacAddr()
-	} else {
-		mac = requestedMac
-	}
-
 	ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
 	if err != nil {
 		return job.Error(err)
+	}
+
+	if requestedMac == "" {
+		mac = generateMacAddr(ip).String()
+	} else {
+		mac = requestedMac
 	}
 
 	out := engine.Env{}
