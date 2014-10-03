@@ -57,7 +57,7 @@ func main() {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				Certificates: []tls.Certificate{
-					tls.Certificate{
+					{
 						Certificate: [][]byte{selfSignedClientCert.Raw},
 						PrivateKey:  clientKey.CryptoPrivateKey(),
 						Leaf:        selfSignedClientCert,

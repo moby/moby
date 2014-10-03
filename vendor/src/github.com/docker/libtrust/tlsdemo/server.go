@@ -54,7 +54,7 @@ func main() {
 	// Create TLS config, requiring client certificates.
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{
-			tls.Certificate{
+			{
 				Certificate: [][]byte{selfSignedServerCert.Raw},
 				PrivateKey:  serverKey.CryptoPrivateKey(),
 				Leaf:        selfSignedServerCert,

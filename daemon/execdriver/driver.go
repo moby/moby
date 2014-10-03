@@ -63,10 +63,12 @@ type Network struct {
 }
 
 type NetworkInterface struct {
-	Gateway     string `json:"gateway"`
-	IPAddress   string `json:"ip"`
-	Bridge      string `json:"bridge"`
-	IPPrefixLen int    `json:"ip_prefix_len"`
+	MacAddress           string `json:"mac"`
+	Gateway              string `json:"gateway"`
+	IPAddress            string `json:"ip"`
+	Bridge               string `json:"bridge"`
+	IPPrefixLen          int    `json:"ip_prefix_len"`
+	LinkLocalIPv6Address string `json:"link_local_ipv6"`
 }
 
 type Resources struct {

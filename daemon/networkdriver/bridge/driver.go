@@ -1,6 +1,8 @@
 package bridge
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -104,6 +106,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		if !usingDefaultBridge {
 			return job.Error(err)
 		}
+
 		// If the iface is not found, try to create it
 		if err := createBridge(bridgeIP); err != nil {
 			return job.Error(err)
@@ -317,6 +320,43 @@ func createBridge(bridgeIP string) error {
 	return nil
 }
 
+// Generate a IEEE802 compliant MAC address from the given IP address.
+//
+// The generator is guaranteed to be consistent: the same IP will always yield the same
+// MAC address. This is to avoid ARP cache issues.
+func generateMacAddr(ip net.IP) net.HardwareAddr {
+	hw := make(net.HardwareAddr, 6)
+
+	// The first byte of the MAC address has to comply with these rules:
+	// 1. Unicast: Set the least-significant bit to 0.
+	// 2. Address is locally administered: Set the second-least-significant bit (U/L) to 1.
+	// 3. As "small" as possible: The veth address has to be "smaller" than the bridge address.
+	hw[0] = 0x02
+
+	// The first 24 bits of the MAC represent the Organizationally Unique Identifier (OUI).
+	// Since this address is locally administered, we can do whatever we want as long as
+	// it doesn't conflict with other addresses.
+	hw[1] = 0x42
+
+	// Insert the IP address into the last 32 bits of the MAC address.
+	// This is a simply way to guarantee the address will be consistent and unique.
+	copy(hw[2:], ip.To4())
+
+	return hw
+}
+
+func linkLocalIPv6FromMac(mac string) (string, error) {
+	hx := strings.Replace(mac, ":", "", -1)
+	hw, err := hex.DecodeString(hx)
+	if err != nil {
+		return "", errors.New("Could not parse MAC address " + mac)
+	}
+
+	hw[0] ^= 0x2
+
+	return fmt.Sprintf("fe80::%x%x:%xff:fe%x:%x%x/64", hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]), nil
+}
+
 func createBridgeIface(name string) error {
 	kv, err := kernel.GetKernelVersion()
 	// only set the bridge's mac address if the kernel version is > 3.3
@@ -329,19 +369,23 @@ func createBridgeIface(name string) error {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip          net.IP
-		err         error
-		id          = job.Args[0]
-		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+		ip           net.IP
+		err          error
+		mac          string
+		id           = job.Args[0]
+		requestedMac = job.Getenv("MacAddress")
+		requestedIP  = net.ParseIP(job.Getenv("RequestedIP")) // may be nil
 	)
 
-	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
-	} else {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
-	}
+	ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
 	if err != nil {
 		return job.Error(err)
+	}
+
+	if requestedMac == "" {
+		mac = generateMacAddr(ip).String()
+	} else {
+		mac = requestedMac
 	}
 
 	out := engine.Env{}
@@ -352,6 +396,15 @@ func Allocate(job *engine.Job) engine.Status {
 
 	size, _ := bridgeNetwork.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
+
+	// if linklocal IPv6
+	localIPv6Net, err := linkLocalIPv6FromMac(mac)
+	if err != nil {
+		return job.Error(err)
+	}
+	localIPv6, _, _ := net.ParseCIDR(localIPv6Net)
+	out.Set("LinkLocalIPv6", localIPv6.String())
+	out.Set("MacAddress", mac)
 
 	currentInterfaces.Set(id, &networkInterface{
 		IP: ip,
