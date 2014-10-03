@@ -1072,6 +1072,86 @@ func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
 	}
 }
 
+// Regression test for https://github.com/docker/docker/issues/6231
+func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkDaemonFromEngine(eng, t).Nuke()
+
+	r := httptest.NewRecorder()
+
+	var testData engine.Env
+	testData.Set("Image", "docker-test-image")
+	testData.SetAuto("Volumes", map[string]struct{}{"/foo": {}})
+	testData.Set("Cmd", "true")
+	jsonData := bytes.NewBuffer(nil)
+	if err := testData.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/create?name=chunk_test", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	var testData2 engine.Env
+	testData2.SetAuto("Binds", []string{"/tmp:/foo"})
+	jsonData = bytes.NewBuffer(nil)
+	if err := testData2.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err = http.NewRequest("POST", "/containers/chunk_test/start", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	// This is a cheat to make the http request do chunked encoding
+	// Otherwise (just setting the Content-Encoding to chunked) net/http will overwrite
+	// http://golang.org/src/pkg/net/http/request.go?s=11980:12172
+	req.ContentLength = -1
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	type config struct {
+		HostConfig struct {
+			Binds []string
+		}
+	}
+
+	req, err = http.NewRequest("GET", "/containers/chunk_test/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r2 := httptest.NewRecorder()
+	req.Header.Add("Content-Type", "application/json")
+	if err := server.ServeRequest(eng, api.APIVERSION, r2, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	c := config{}
+
+	json.Unmarshal(r2.Body.Bytes(), &c)
+
+	if len(c.HostConfig.Binds) == 0 {
+		t.Fatal("Chunked Encoding not handled")
+	}
+
+	if c.HostConfig.Binds[0] != "/tmp:/foo" {
+		t.Fatal("Chunked encoding not properly handled, execpted binds to be /tmp:/foo, got:", c.HostConfig.Binds[0])
+	}
+}
+
 // Mocked types for tests
 type NopConn struct {
 	io.ReadCloser
