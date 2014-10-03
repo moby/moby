@@ -235,7 +235,7 @@ func parseVolumesFromSpec(daemon *Daemon, spec string) (map[string]*Mount, error
 
 	if len(specParts) == 2 {
 		mode := specParts[1]
-		if validMountMode(mode) {
+		if !validMountMode(mode) {
 			return nil, fmt.Errorf("Invalid mode for volumes-from: %s", mode)
 		}
 

@@ -389,7 +389,7 @@ func TestRunVolumesFromInReadWriteMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent", "busybox", "touch", "/test/file")
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
