@@ -38,6 +38,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
 )
@@ -98,6 +99,7 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+	trustStore     *trust.TrustStore
 }
 
 // Install installs daemon capabilities to eng.
@@ -134,6 +136,9 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		}
 	}
 	if err := daemon.Repositories().Install(eng); err != nil {
+		return err
+	}
+	if err := daemon.trustStore.Install(eng); err != nil {
 		return err
 	}
 	// FIXME: this hack is necessary for legacy integration tests to access
@@ -835,6 +840,15 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
 
+	trustDir := path.Join(config.Root, "trust")
+	if err := os.MkdirAll(trustDir, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	t, err := trust.NewTrustStore(trustDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not create trust store: %s", err)
+	}
+
 	if !config.DisableNetwork {
 		job := eng.Job("init_networkdriver")
 
@@ -899,6 +913,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
+		trustStore:     t,
 	}
 	if err := daemon.checkLocaldns(); err != nil {
 		return nil, err

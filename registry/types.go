@@ -31,3 +31,29 @@ type RegistryInfo struct {
 	Version    string `json:"version"`
 	Standalone bool   `json:"standalone"`
 }
+
+type ManifestData struct {
+	Name          string   `json:"name"`
+	Tag           string   `json:"tag"`
+	Architecture  string   `json:"architecture"`
+	BlobSums      []string `json:"blobSums"`
+	History       []string `json:"history"`
+	SchemaVersion int      `json:"schemaVersion"`
+}
+
+type APIVersion int
+
+func (av APIVersion) String() string {
+	return apiVersions[av]
+}
+
+var DefaultAPIVersion APIVersion = APIVersion1
+var apiVersions = map[APIVersion]string{
+	1: "v1",
+	2: "v2",
+}
+
+const (
+	APIVersion1 = iota + 1
+	APIVersion2
+)
