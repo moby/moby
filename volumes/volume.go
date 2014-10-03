@@ -15,7 +15,7 @@ type Volume struct {
 	Path        string
 	IsBindMount bool
 	Writable    bool
-	Containers  map[string]struct{}
+	containers  map[string]struct{}
 	configPath  string
 	repository  *Repository
 	lock        sync.Mutex
@@ -30,15 +30,27 @@ func (v *Volume) IsDir() (bool, error) {
 	return stat.IsDir(), nil
 }
 
+func (v *Volume) Containers() []string {
+	v.lock.Lock()
+
+	var containers []string
+	for c := range v.containers {
+		containers = append(containers, c)
+	}
+
+	v.lock.Unlock()
+	return containers
+}
+
 func (v *Volume) RemoveContainer(containerId string) {
 	v.lock.Lock()
-	delete(v.Containers, containerId)
+	delete(v.containers, containerId)
 	v.lock.Unlock()
 }
 
 func (v *Volume) AddContainer(containerId string) {
 	v.lock.Lock()
-	v.Containers[containerId] = struct{}{}
+	v.containers[containerId] = struct{}{}
 	v.lock.Unlock()
 }
 

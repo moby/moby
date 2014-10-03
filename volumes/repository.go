@@ -65,7 +65,7 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 		Path:        path,
 		repository:  r,
 		Writable:    writable,
-		Containers:  make(map[string]struct{}),
+		containers:  make(map[string]struct{}),
 		configPath:  r.configPath + "/" + id,
 		IsBindMount: isBindMount,
 	}
@@ -147,8 +147,9 @@ func (r *Repository) Delete(path string) error {
 	if volume.IsBindMount {
 		return fmt.Errorf("Volume %s is a bind-mount and cannot be removed", volume.Path)
 	}
-	if len(volume.Containers) > 0 {
-		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Path, volume.Containers)
+	containers := volume.Containers()
+	if len(containers) > 0 {
+		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Path, containers)
 	}
 
 	if err := os.RemoveAll(volume.configPath); err != nil {
