@@ -119,17 +119,31 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 	}
 
 	// Get the rest of the volumes
-	for path := range container.Config.Volumes {
+	for spec := range container.Config.Volumes {
+		var (
+			path        = ""
+			mountToPath = spec
+			writable    = true
+			err         error
+		)
+
+		if strings.Contains(spec, ":") {
+			path, mountToPath, writable, err = parseBindMountSpec(spec)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Check if this is already added as a bind-mount
-		if _, exists := mounts[path]; exists {
+		if _, exists := mounts[mountToPath]; exists {
 			continue
 		}
 
-		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
+		vol, err := container.daemon.volumes.FindOrCreateVolume(path, true)
 		if err != nil {
 			return nil, err
 		}
-		mounts[path] = &Mount{container: container, MountToPath: path, volume: vol, Writable: true}
+		mounts[mountToPath] = &Mount{container: container, MountToPath: mountToPath, volume: vol, Writable: writable}
 	}
 
 	return mounts, nil
