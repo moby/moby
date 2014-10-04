@@ -1679,6 +1679,58 @@ func TestBuildWithVolumeOwnership(t *testing.T) {
 	logDone("build - volume ownership")
 }
 
+func TestBuildWithVolumeBindMount(t *testing.T) {
+	name := "testbuildimg"
+	defer deleteImages(name)
+
+	tmpDir, err := ioutil.TempDir("", "volume-bind-mount")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+
+	expected := "test with volume bind mount"
+	writeFile(tmpDir+"/testfile", expected, t)
+
+	_, err = buildImage(name,
+		`FROM busybox:latest
+        VOLUME `+tmpDir+`:/test`,
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--rm", "testbuildimg", "cat", "/test/testfile")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if out != expected {
+		t.Fatalf("expected %s received %s", expected, out)
+	}
+
+	name = "testbuildimg-ro"
+	defer deleteImages(name)
+
+	_, err = buildImage(name,
+		`FROM busybox:latest
+        VOLUME `+tmpDir+`:/test:ro`,
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--rm", "testbuildimg-ro", "touch", "/test/testfile")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil {
+		t.Fatal("Expected volume to be read-only")
+	}
+
+	logDone("build - volume bind mount")
+}
+
 // testing #1405 - config.Cmd does not get cleaned up if
 // utilizing cache
 func TestBuildEntrypointRunCleanup(t *testing.T) {
