@@ -17,6 +17,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/github.com/docker/libcontainer/xattr"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
@@ -58,17 +59,6 @@ func IsArchive(header []byte) bool {
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
 	return err == nil
-}
-
-func stringsfromByte(buf []byte) (result []string) {
-	offset := 0
-	for index, b := range buf {
-		if b == 0 {
-			result = append(result, string(buf[offset:index]))
-			offset = index + 1
-		}
-	}
-	return
 }
 
 func filterXattrs(str []string, AttrNS string) (result []string) {
@@ -231,34 +221,34 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		}
 	}
 
-	capability, _ := system.Lgetxattr(path, "security.capability")
-	if capability != nil {
+	capability, _ := xattr.Getxattr(path, "security.capability")
+	if capability != "" {
 		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability)
+		hdr.Xattrs["security.capability"] = capability
 	}
 
-	size, _ := system.Llistxattr(path, nil)
-	if size > 0 {
-		buf := make([]byte, size)
-		read, _ := system.Llistxattr(path, buf)
-		/*
-		 Grab only "user." xattrs ignore rest
-		*/
-		names := filterXattrs(stringsfromByte(buf[:read]), UserXattr)
-		for _, name := range names {
-			userattr, _ := system.Lgetxattr(path, name)
-			if userattr != nil {
-				if hdr.Xattrs != nil {
-					hdr.Xattrs[name] = string(userattr)
-				} else {
-					hdr.Xattrs = make(map[string]string)
-					hdr.Xattrs[name] = string(userattr)
-				}
+	// List all available xattrs and pack them into archive
+	// with their corresponding values
+	xattrs, err := xattr.Listxattr(path)
+	if err != nil {
+		return err
+	}
+
+	// filter "user." xattrs ignore rest
+	user_xattrs := filterXattrs(xattrs, UserXattr)
+	for _, xattr_name := range user_xattrs {
+		xattr_value, _ := xattr.Getxattr(path, xattr_name)
+		if xattr_value != "" {
+			if hdr.Xattrs != nil {
+				hdr.Xattrs[name] = xattr_value
+			} else {
+				hdr.Xattrs = make(map[string]string)
+				hdr.Xattrs[name] = xattr_value
 			}
 		}
 	}
 
-	if err := tw.WriteHeader(hdr); err != nil {
+	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
 		return err
 	}
 
@@ -350,7 +340,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	}
 
 	for key, value := range hdr.Xattrs {
-		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
+		if err := xattr.Setxattr(path, key, value); err != nil {
 			return err
 		}
 	}
