@@ -46,7 +46,7 @@ and `boot2docker start`.
 >    `To connect the Docker client to the Docker daemon, please set: export 
 DOCKER_HOST=tcp://192.168.59.103:2375`
 > 
-you can safely set the evironment variable as instructed.
+you can safely set the environment variable as instructed.
 
 View the
 [Boot2Docker ReadMe](https://github.com/boot2docker/boot2docker/blob/master/README.md)
