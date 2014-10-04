@@ -170,7 +170,7 @@ generated images.
 
 RUN has 2 forms:
 
-- `RUN <command>` (the command is run in a shell - `/bin/sh -c`)
+- `RUN <command>` (the command is run in a shell - `/bin/sh -c` - *shell* form)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
@@ -192,6 +192,13 @@ commands using a base image that does not contain `/bin/sh`.
 > **Note**:
 > The *exec* form is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like 
@@ -216,9 +223,9 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 
 The `CMD` instruction has three forms:
 
-- `CMD ["executable","param1","param2"]` (like an *exec*, this is the preferred form)
+- `CMD ["executable","param1","param2"]` (*exec* form, this is the preferred form)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
-- `CMD command param1 param2` (as a *shell*)
+- `CMD command param1 param2` (*shell* form)
 
 There can only be one `CMD` instruction in a `Dockerfile`. If you list more than one `CMD`
 then only the last `CMD` will take effect.
@@ -236,6 +243,13 @@ instruction as well.
 > **Note**:
 > The *exec* form is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
@@ -446,9 +460,9 @@ The copy obeys the following rules:
 ENTRYPOINT has two forms:
 
 - `ENTRYPOINT ["executable", "param1", "param2"]`
-  (like an *exec*, the preferred form)
+  (*exec* form, the preferred form)
 - `ENTRYPOINT command param1 param2`
-  (as a *shell*)
+  (*shell* form)
 
 There can only be one `ENTRYPOINT` in a `Dockerfile`. If you have more
 than one `ENTRYPOINT`, then only the last one in the `Dockerfile` will
@@ -487,6 +501,13 @@ optional but default, you could use a `CMD` instruction:
 > **Note**:
 > The *exec* form is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 > **Note**:
 > It is preferable to use the JSON array format for specifying
