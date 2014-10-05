@@ -818,6 +818,26 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 	return encounteredError
 }
 
+func (cli *DockerCli) CmdRename(args ...string) error {
+	cmd := cli.Subcmd("rename", "OLD_NAME NEW_NAME", "Rename a container", true)
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() != 2 {
+		cmd.Usage()
+		return nil
+	}
+	old_name := cmd.Arg(0)
+	new_name := cmd.Arg(1)
+
+	if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/rename?name=%s", old_name, new_name), nil, false)); err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
+		return fmt.Errorf("Error: failed to rename container named %s", old_name)
+	}
+	return nil
+}
+
 func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container or image", true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template.")

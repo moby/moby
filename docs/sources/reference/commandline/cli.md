@@ -1366,6 +1366,30 @@ just a specific mapping:
     $ sudo docker port test 7890
     0.0.0.0:4321
 
+## pause
+
+    Usage: docker pause CONTAINER
+
+    Pause all processes within a container
+
+The `docker pause` command uses the cgroups freezer to suspend all processes in
+a container.  Traditionally when suspending a process the `SIGSTOP` signal is
+used, which is observable by the process being suspended. With the cgroups freezer
+the process is unaware, and unable to capture, that it is being suspended,
+and subsequently resumed.
+
+See the
+[cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
+for further details.
+
+## rename
+
+    Usage: docker rename OLD_NAME NEW_NAME
+
+    rename a existing container to a NEW_NAME
+
+The `docker rename` command allows the container to be renamed to a different name.  
+
 ## ps
 
     Usage: docker ps [OPTIONS]
