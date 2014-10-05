@@ -267,7 +267,7 @@ limiting the memory available to a specific container.
 Union file systems, or UnionFS, are file systems that operate by creating layers,
 making them very lightweight and fast. Docker uses union file systems to provide
 the building blocks for containers. Docker can make use of several union file system variants
-including: AUFS, btrfs, vfs, and DeviceMapper.
+including: AUFS, btrfs, zfs, vfs, and DeviceMapper.
 
 ### Container format 
 Docker combines these components into a wrapper we call a container format. The

@@ -40,7 +40,7 @@ func remote(eng *engine.Engine) error {
 // daemon: a default execution and storage backend for Docker on Linux,
 // with the following underlying components:
 //
-// * Pluggable storage drivers including aufs, vfs, lvm and btrfs.
+// * Pluggable storage drivers including aufs, zfs, vfs, lvm and btrfs.
 // * Pluggable execution drivers including lxc and chroot.
 //
 // In practice `daemon` still includes most core Docker components, including:
