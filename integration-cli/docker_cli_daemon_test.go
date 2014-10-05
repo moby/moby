@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -91,4 +92,39 @@ func TestDaemonStartIptablesFalse(t *testing.T) {
 	d.Stop()
 
 	logDone("daemon - started daemon with iptables=false")
+}
+
+// Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
+// no longer has an IP associated, we should gracefully handle that case and associate
+// an IP with it rather than fail daemon start
+func TestDaemonStartBridgeWithoutIPAssociation(t *testing.T) {
+	d := NewDaemon(t)
+	// rather than depending on brctl commands to verify docker0 is created and up
+	// let's start the daemon and stop it, and then make a modification to run the
+	// actual test
+	if err := d.Start(); err != nil {
+		t.Fatalf("Could not start daemon: %v", err)
+	}
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	// now we will remove the ip from docker0 and then try starting the daemon
+	ipCmd := exec.Command("ip", "addr", "flush", "dev", "docker0")
+	stdout, stderr, _, err := runCommandWithStdoutStderr(ipCmd)
+	if err != nil {
+		t.Fatalf("failed to remove docker0 IP association: %v, stdout: %q, stderr: %q", err, stdout, stderr)
+	}
+
+	if err := d.Start(); err != nil {
+		warning := "**WARNING: Docker bridge network in bad state--delete docker0 bridge interface to fix"
+		t.Fatalf("Could not start daemon when docker0 has no IP address: %v\n%s", err, warning)
+	}
+
+	// cleanup - stop the daemon if test passed
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	logDone("daemon - successful daemon start when bridge has no IP association")
 }

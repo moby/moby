@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"sync"
 
@@ -104,8 +105,8 @@ func InitDriver(job *engine.Job) engine.Status {
 		if !usingDefaultBridge {
 			return job.Error(err)
 		}
-		// If the iface is not found, try to create it
-		if err := createBridge(bridgeIP); err != nil {
+		// If the bridge interface is not found (or has no address), try to create it and/or add an address
+		if err := configureBridge(bridgeIP); err != nil {
 			return job.Error(err)
 		}
 
@@ -251,10 +252,12 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	return nil
 }
 
-// CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
-// and attempts to configure it with an address which doesn't conflict with any other interface on the host.
-// If it can't find an address which doesn't conflict, it will return an error.
-func createBridge(bridgeIP string) error {
+// configureBridge attempts to create and configure a network bridge interface named `ifaceName` on the host
+// If bridgeIP is empty, it will try to find a non-conflicting IP from the Docker-specified private ranges
+// If the bridge `ifaceName` already exists, it will only perform the IP address association with the existing
+// bridge (fixes issue #8444)
+// If an address which doesn't conflict with existing interfaces can't be found, an error is returned.
+func configureBridge(bridgeIP string) error {
 	nameservers := []string{}
 	resolvConf, _ := resolvconf.Get()
 	// we don't check for an error here, because we don't really care
@@ -295,7 +298,10 @@ func createBridge(bridgeIP string) error {
 	log.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
 
 	if err := createBridgeIface(bridgeIface); err != nil {
-		return err
+		// the bridge may already exist, therefore we can ignore an "exists" error
+		if !os.IsExist(err) {
+			return err
+		}
 	}
 
 	iface, err := net.InterfaceByName(bridgeIface)
