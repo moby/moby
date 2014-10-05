@@ -1,5 +1,5 @@
 {
-    "swagger": 2.0,
+    "swagger": 2,
     "info": {
         "title": "Docker Remote API",
         "description": "The API exposed by the Docker daemon",
@@ -82,9 +82,234 @@
                     }
                 }
             }
+        },
+        "/containers/{id}/start": {
+            "post": {
+                "summary": "Start a container",
+                "description": "Start the container `id`",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of a container to start",
+                        "type": "string",
+                        "format": "uuid",
+                        "required": true
+                    },
+                    {
+                        "name": "hostConfig",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "HostConfig"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Containers"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No error"
+                    },
+                    "304": {
+                        "description": "Container already started"
+                    },
+                    "404": {
+                        "description": "No such container"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/containers/{id}/stop": {
+            "post": {
+                "summary": "Stop a container",
+                "description": "Stop the container `id`",
+                "tags": [
+                    "Containers"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of a container to stop",
+                        "type": "string",
+                        "format": "uuid",
+                        "required": true
+                    },
+                    {
+                        "name": "t",
+                        "in": "query",
+                        "description": "Number of seconds to wait before killing the container",
+                        "type": "integer"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No error"
+                    },
+                    "304": {
+                        "description": "Container already stopped"
+                    },
+                    "404": {
+                        "description": "No such container"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/images/{name}/tag": {
+            "post": {
+                "summary": "Tag an image into a repository",
+                "description": "Tag the image `name` into a repository",
+                "tags": [
+                    "Images"
+                ],
+                "parameters": [
+                    {
+                        "name": "name",
+                        "description": "The name or uuid of the image to tag",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "repo",
+                        "description": "The repository to tag in",
+                        "in": "query",
+                        "type": "string"
+                    },
+                    {
+                        "name": "force",
+                        "description": "unknown",
+                        "in": "query",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "No error"
+                    },
+                    "400": {
+                        "description": "Bad parameters"
+                    },
+                    "404": {
+                        "description": "No such image"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "description": "Server Error"
+                    }
+                }
+            }
+        },
+        "/images/{name}": {
+            "delete": {
+                "summary": "Remove an image",
+                "description": "Remote the image `name` from the filesystem",
+                "tags": [
+                    "Images"
+                ],
+                "parameters": [
+                    {
+                        "name": "name",
+                        "description": "The name or uuid of the image to remove",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "force",
+                        "type": "boolean",
+                        "in": "query",
+                        "description": "unknown"
+                    },
+                    {
+                        "name": "noprune",
+                        "type": "boolean",
+                        "in": "query",
+                        "description": "unknown"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "No error"
+                    },
+                    "404": {
+                        "description": "No such image"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    },
+                    "500": {
+                        "description": "Server Error"
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "HostConfig": {
+            "properties": {
+                "Binds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "volume-binds"
+                    }
+                },
+                "Links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "links"
+                    }
+                },
+                "LxcConf": {
+                    "type": "object"
+                },
+                "PortBindings": {
+                    "type": "object"
+                },
+                "PublishAllPorts": {
+                    "type": "boolean"
+                },
+                "Priviledged": {
+                    "type": "boolean"
+                },
+                "Dns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "ip"
+                    }
+                },
+                "VolumesFrom": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "CapAdd": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "CapDrop": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "ContainerSummary": {
             "properties": {
                 "Id": {
@@ -141,13 +366,13 @@
                 "PrivatePort": {
                     "type": "integer",
                     "description": "The port number inside the docker container",
-                    "required": true 
+                    "required": true
                 },
                 "Type": {
                     "type": "string",
                     "description": "Protocol name",
                     "example": "tcp",
-                    "required": true 
+                    "required": true
                 },
                 "PublicPort": {
                     "type": "integer",
