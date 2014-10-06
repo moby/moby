@@ -15,8 +15,8 @@ func TestImportDisplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
-	fileUrl := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
-	importCmd := exec.Command(dockerBinary, "import", fileUrl)
+	fileURL := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
+	importCmd := exec.Command(dockerBinary, "import", fileURL)
 	out, _, err := runCommandWithOutput(importCmd)
 	if err != nil {
 		t.Errorf("import failed with errors: %v, output: %q", err, out)

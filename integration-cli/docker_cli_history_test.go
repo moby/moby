@@ -51,15 +51,15 @@ RUN echo "Z"`,
 		t.Fatal("failed to get image history")
 	}
 
-	actual_values := strings.Split(out, "\n")[1:27]
-	expected_values := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
+	actualValues := strings.Split(out, "\n")[1:27]
+	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
 	for i := 0; i < 26; i++ {
-		echo_value := fmt.Sprintf("echo \"%s\"", expected_values[i])
-		actual_value := actual_values[i]
+		echoValue := fmt.Sprintf("echo \"%s\"", expectedValues[i])
+		actualValue := actualValues[i]
 
-		if !strings.Contains(actual_value, echo_value) {
-			t.Fatalf("Expected layer \"%s\", but was: %s", expected_values[i], actual_value)
+		if !strings.Contains(actualValue, echoValue) {
+			t.Fatalf("Expected layer \"%s\", but was: %s", expectedValues[i], actualValue)
 		}
 	}
 

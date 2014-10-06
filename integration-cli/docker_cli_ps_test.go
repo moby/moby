@@ -190,9 +190,9 @@ func assertContainerList(out string, expected []string) bool {
 		return false
 	}
 
-	containerIdIndex := strings.Index(lines[0], "CONTAINER ID")
+	containerIDIndex := strings.Index(lines[0], "CONTAINER ID")
 	for i := 0; i < len(expected); i++ {
-		foundID := lines[i+1][containerIdIndex : containerIdIndex+12]
+		foundID := lines[i+1][containerIDIndex : containerIDIndex+12]
 		if foundID != expected[i][:12] {
 			return false
 		}

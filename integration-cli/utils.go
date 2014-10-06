@@ -149,25 +149,25 @@ func convertSliceOfStringsToMap(input []string) map[string]struct{} {
 	return output
 }
 
-func waitForContainer(contId string, args ...string) error {
-	args = append([]string{"run", "--name", contId}, args...)
+func waitForContainer(contID string, args ...string) error {
+	args = append([]string{"run", "--name", contID}, args...)
 	cmd := exec.Command(dockerBinary, args...)
 	if _, err := runCommand(cmd); err != nil {
 		return err
 	}
 
-	if err := waitRun(contId); err != nil {
+	if err := waitRun(contID); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func waitRun(contId string) error {
+func waitRun(contID string) error {
 	after := time.After(5 * time.Second)
 
 	for {
-		cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", contId)
+		cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", contID)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
 			return fmt.Errorf("error executing docker inspect: %v", err)

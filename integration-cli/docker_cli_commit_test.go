@@ -68,13 +68,13 @@ func TestCommitNewFile(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "commit", "commiter")
-	imageId, _, err := runCommandWithOutput(cmd)
+	imageID, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err)
 	}
-	imageId = strings.Trim(imageId, "\r\n")
+	imageID = strings.Trim(imageID, "\r\n")
 
-	cmd = exec.Command(dockerBinary, "run", imageId, "cat", "/foo")
+	cmd = exec.Command(dockerBinary, "run", imageID, "cat", "/foo")
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -85,7 +85,7 @@ func TestCommitNewFile(t *testing.T) {
 	}
 
 	deleteAllContainers()
-	deleteImages(imageId)
+	deleteImages(imageID)
 
 	logDone("commit - commit file and read")
 }
@@ -98,11 +98,11 @@ func TestCommitTTY(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "commit", "tty", "ttytest")
-	imageId, _, err := runCommandWithOutput(cmd)
+	imageID, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err)
 	}
-	imageId = strings.Trim(imageId, "\r\n")
+	imageID = strings.Trim(imageID, "\r\n")
 
 	cmd = exec.Command(dockerBinary, "run", "ttytest", "/bin/ls")
 
@@ -120,11 +120,11 @@ func TestCommitWithHostBindMount(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "commit", "bind-commit", "bindtest")
-	imageId, _, err := runCommandWithOutput(cmd)
+	imageID, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(imageId, err)
+		t.Fatal(imageID, err)
 	}
-	imageId = strings.Trim(imageId, "\r\n")
+	imageID = strings.Trim(imageID, "\r\n")
 
 	cmd = exec.Command(dockerBinary, "run", "bindtest", "true")
 
@@ -133,7 +133,7 @@ func TestCommitWithHostBindMount(t *testing.T) {
 	}
 
 	deleteAllContainers()
-	deleteImages(imageId)
+	deleteImages(imageID)
 
 	logDone("commit - commit bind mounted file")
 }
