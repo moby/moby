@@ -2752,3 +2752,22 @@ func TestBuildVerifySingleQuoteFails(t *testing.T) {
 
 	logDone("build - verify single quotes fail")
 }
+
+func TestBuildVerboseOut(t *testing.T) {
+	name := "testbuildverboseout"
+	defer deleteImages(name)
+
+	_, out, err := buildImageWithOut(name,
+		`FROM busybox
+RUN echo 123`,
+		false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "\n123\n") {
+		t.Fatalf("Output should contain %q: %q", "123", out)
+	}
+
+	logDone("build - verbose output from commands")
+}
