@@ -31,7 +31,7 @@ func TestBuildCacheADD(t *testing.T) {
 		true); err != nil {
 		t.Fatal(err)
 	}
-	out, _, err := buildImageWithOut(name,
+	_, out, err := buildImageWithOut(name,
 		fmt.Sprintf(`FROM scratch
 		ADD %s/index.html /`, server.URL),
 		true)
