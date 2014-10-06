@@ -25,7 +25,7 @@
 (run "echo \"cfg_dir=${NAGIOS_HOME}/etc/conf.d\" >> ${NAGIOS_HOME}/etc/nagios.cfg")
 (run "echo \"cfg_dir=${NAGIOS_HOME}/etc/monitor\" >> ${NAGIOS_HOME}/etc/nagios.cfg")
 (run "download-mibs && echo \"mibs +ALL\" > /etc/snmp/snmp.conf")
-(run "sed -i 's,/bin/mail,/usr/bin/mail,' /opt/nagios/etc/objects/commands.cfg && sed -i 's,/usr/usr,/usr,' /opt/nagios/etc/objects/commands.cfg")
+(run "sed -i 's,/bin/mail,/usr/bin/mail,' /opt/nagios/etc/objects/commands.cfg &&   sed -i 's,/usr/usr,/usr,' /opt/nagios/etc/objects/commands.cfg")
 (run "cp /etc/services /var/spool/postfix/etc/")
 (run "mkdir -p /etc/sv/nagios && mkdir -p /etc/sv/apache && rm -rf /etc/sv/getty-5 && mkdir -p /etc/sv/postfix")
 (add "nagios.init" "/etc/sv/nagios/run")
