@@ -664,7 +664,20 @@ func copyAsDirectory(source, destination string, destinationExists bool) error {
 		return nil
 	}
 
+	if err := removeDockerfile(destination); err != nil {
+		return err
+	}
+
 	return fixPermissions(destination, 0, 0)
+}
+
+func removeDockerfile(destination string) error {
+	path := filepath.Join(destination, "Dockerfile")
+	if _, err := os.Stat(path); os.IsExist(err) {
+		return os.Remove(path)
+	}
+
+	return nil
 }
 
 func fixPermissions(destination string, uid, gid int) error {

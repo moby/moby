@@ -14,6 +14,25 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildCleanDockerfile(t *testing.T) {
+	name := "testbuildcleandockerfile"
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`
+FROM busybox
+RUN mkdir /quux
+ADD . /quux/
+RUN stat /quux/Dockerfile
+    `,
+		false,
+	)
+
+	if err == nil {
+		t.Fatal("Dockerfile exists in container after ADD")
+	}
+}
+
 func TestBuildCacheADD(t *testing.T) {
 	name := "testbuildtwoimageswithadd"
 	defer deleteImages(name)
