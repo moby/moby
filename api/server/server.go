@@ -993,6 +993,9 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		}
 	}
 
+	// This needs to be set before calls to streamJSON
+	job.SetenvBool("lineDelim", version.GreaterThanOrEqualTo("1.15"))
+
 	if version.GreaterThanOrEqualTo("1.8") {
 		job.SetenvBool("json", true)
 		streamJSON(job, w, true)
@@ -1013,7 +1016,6 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
 	job.Setenv("forcerm", r.FormValue("forcerm"))
-	job.SetenvBool("lineDelim", version.GreaterThanOrEqualTo("1.15"))
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
 
