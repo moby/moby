@@ -2303,3 +2303,39 @@ func TestRunReuseBindVolumeThatIsSymlink(t *testing.T) {
 	deleteAllContainers()
 	logDone("run - can remount old bindmount volume")
 }
+
+func TestVolumesNoCopyData(t *testing.T) {
+	defer deleteImages("dataimage")
+	defer deleteAllContainers()
+	if _, err := buildImage("dataimage",
+		`FROM busybox
+		 RUN mkdir -p /foo
+		 RUN touch /foo/bar`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "-v", "/foo", "busybox")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar")
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "No such file or directory") {
+		t.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
+	}
+
+	tmpDir, err := ioutil.TempDir("", "docker_test_bind_mount_copy_data")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+
+	cmd = exec.Command(dockerBinary, "run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar")
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "No such file or directory") {
+		t.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
+	}
+
+	logDone("run - volumes do not copy data for volumes-from and bindmounts")
+}
