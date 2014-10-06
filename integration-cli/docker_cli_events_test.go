@@ -25,11 +25,11 @@ func TestEventsUntag(t *testing.T) {
 	eventsCmd := exec.Command("timeout", "0.2", dockerBinary, "events", "--since=1")
 	out, _, _ = runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
-	n_events := len(events)
+	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
 	// get the two elements before the last, which are the untags we're
 	// looking for.
-	for _, v := range events[n_events-3 : n_events-1] {
+	for _, v := range events[nEvents-3 : nEvents-1] {
 		if !strings.Contains(v, "untag") {
 			t.Fatalf("event should be untag, not %#v", v)
 		}
@@ -99,9 +99,9 @@ func TestEventsLimit(t *testing.T) {
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
-	n_events := len(events) - 1
-	if n_events != 64 {
-		t.Fatalf("events should be limited to 64, but received %d", n_events)
+	nEvents := len(events) - 1
+	if nEvents != 64 {
+		t.Fatalf("events should be limited to 64, but received %d", nEvents)
 	}
 	logDone("events - limited to 64 entries")
 }

@@ -265,7 +265,7 @@ func TestBuildCopyWildcard(t *testing.T) {
 	}
 
 	if id1 != id2 {
-		t.Fatal(fmt.Errorf("Didn't use the cache"))
+		t.Fatal("didn't use the cache")
 	}
 
 	logDone("build - copy wild card")
@@ -284,7 +284,7 @@ func TestBuildCopyWildcardNoFind(t *testing.T) {
 
 	_, err = buildImageFromContext(name, ctx, true)
 	if err == nil {
-		t.Fatal(fmt.Errorf("Should have failed to find a file"))
+		t.Fatal("should have failed to find a file")
 	}
 	if !strings.Contains(err.Error(), "No source files were specified") {
 		t.Fatalf("Wrong error %v, must be about no source files", err)
@@ -322,7 +322,7 @@ func TestBuildCopyWildcardCache(t *testing.T) {
 	}
 
 	if id1 != id2 {
-		t.Fatal(fmt.Errorf("Didn't use the cache"))
+		t.Fatal("didn't use the cache")
 	}
 
 	logDone("build - copy wild card cache")
@@ -568,11 +568,11 @@ func TestBuildCopyWholeDirToRoot(t *testing.T) {
 	}
 
 	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	test_dir := filepath.Join(buildDirectory, "test_dir")
-	if err := os.MkdirAll(test_dir, 0755); err != nil {
+	testDir := filepath.Join(buildDirectory, "test_dir")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	f, err := os.OpenFile(filepath.Join(test_dir, "test_file"), os.O_CREATE, 0644)
+	f, err := os.OpenFile(filepath.Join(testDir, "test_file"), os.O_CREATE, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

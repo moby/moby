@@ -44,11 +44,11 @@ func NewDaemon(t *testing.T) *Daemon {
 	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().Unix()))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
-		t.Fatal("Could not make '%s' an absolute path: %v", dir, err)
+		t.Fatalf("Could not make '%s' an absolute path: %v", dir, err)
 	}
 
 	if err := os.MkdirAll(filepath.Join(daemonFolder, "graph"), 0600); err != nil {
-		t.Fatal("Could not create %s/graph directory", daemonFolder)
+		t.Fatalf("Could not create %s/graph directory", daemonFolder)
 	}
 
 	return &Daemon{
@@ -92,7 +92,7 @@ func (d *Daemon) Start(arg ...string) error {
 	d.cmd.Stderr = d.logFile
 
 	if err := d.cmd.Start(); err != nil {
-		return fmt.Errorf("Could not start daemon container: %v", err)
+		return fmt.Errorf("could not start daemon container: %v", err)
 	}
 
 	wait := make(chan error)
@@ -172,7 +172,7 @@ func (d *Daemon) StartWithBusybox(arg ...string) error {
 // instantiate a new one with NewDaemon.
 func (d *Daemon) Stop() error {
 	if d.cmd == nil || d.wait == nil {
-		return errors.New("Daemon not started")
+		return errors.New("daemon not started")
 	}
 
 	defer func() {
@@ -184,7 +184,7 @@ func (d *Daemon) Stop() error {
 	tick := time.Tick(time.Second)
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-		return fmt.Errorf("Could not send signal: %v", err)
+		return fmt.Errorf("could not send signal: %v", err)
 	}
 out:
 	for {
@@ -197,7 +197,7 @@ out:
 		case <-tick:
 			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i+1, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-				return fmt.Errorf("Could not send signal: %v", err)
+				return fmt.Errorf("could not send signal: %v", err)
 			}
 			i++
 		}
@@ -376,7 +376,7 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return out, status, err
 }
 
-func findContainerIp(t *testing.T, id string) string {
+func findContainerIP(t *testing.T, id string) string {
 	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -625,17 +625,17 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	defer os.Chdir(curdir)
 
 	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("Error trying to init repo: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to init repo: %s (%s)", err, output)
 	}
 	err = os.Chdir(ctx.Dir)
 	if err != nil {
 		return nil, err
 	}
 	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("Error trying to add files to repo: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to add files to repo: %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("Error trying to commit to repo: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to commit to repo: %s (%s)", err, output)
 	}
 
 	root, err := ioutil.TempDir("", "docker-test-git-repo")
@@ -645,7 +645,7 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	repoPath := filepath.Join(root, name+".git")
 	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		return nil, fmt.Errorf("Error trying to clone --bare: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to clone --bare: %s (%s)", err, output)
 	}
 	err = os.Chdir(repoPath)
 	if err != nil {
@@ -654,7 +654,7 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	}
 	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		return nil, fmt.Errorf("Error trying to git update-server-info: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to git update-server-info: %s (%s)", err, output)
 	}
 	err = os.Chdir(curdir)
 	if err != nil {

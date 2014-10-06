@@ -2038,7 +2038,7 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res != "" {
-		t.Fatal("For 'none' mode network must not be initialized, but container got IP: %s", res)
+		t.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)
 	}
 	deleteAllContainers()
 	logDone("run - network must not be initialized in 'none' mode")

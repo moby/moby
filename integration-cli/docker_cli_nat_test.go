@@ -19,7 +19,7 @@ func TestNetworkNat(t *testing.T) {
 		t.Fatalf("Error retrieving addresses for eth0: %v (%d addresses)", err, len(ifaceAddrs))
 	}
 
-	ifaceIp, _, err := net.ParseCIDR(ifaceAddrs[0].String())
+	ifaceIP, _, err := net.ParseCIDR(ifaceAddrs[0].String())
 	if err != nil {
 		t.Fatalf("Error retrieving the up for eth0: %s", err)
 	}
@@ -30,7 +30,7 @@ func TestNetworkNat(t *testing.T) {
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
-	runCmd = exec.Command(dockerBinary, "run", "busybox", "sh", "-c", fmt.Sprintf("echo hello world | nc -w 30 %s 8080", ifaceIp))
+	runCmd = exec.Command(dockerBinary, "run", "busybox", "sh", "-c", fmt.Sprintf("echo hello world | nc -w 30 %s 8080", ifaceIP))
 	out, _, err = runCommandWithOutput(runCmd)
 	errorOut(err, t, fmt.Sprintf("run2 failed with errors: %v (%s)", err, out))
 
@@ -40,7 +40,7 @@ func TestNetworkNat(t *testing.T) {
 	out = strings.Trim(out, "\r\n")
 
 	if expected := "hello world"; out != expected {
-		t.Fatalf("Unexpected output. Expected: %q, received: %q for iface %s", expected, out, ifaceIp)
+		t.Fatalf("Unexpected output. Expected: %q, received: %q for iface %s", expected, out, ifaceIP)
 	}
 
 	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
