@@ -47,7 +47,11 @@ RUN	apt-get update && apt-get install -y \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
 	s3cmd=1.1.0* \
+	software-properties-common \
 	--no-install-recommends
+
+# Install zfs
+RUN	apt-add-repository -y ppa:zfs-native/stable && apt-get update && apt-get install -y ubuntu-zfs
 
 # Get lvm2 source for compiling statically
 RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103

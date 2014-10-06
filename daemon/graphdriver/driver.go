@@ -14,6 +14,7 @@ type FsMagic uint64
 
 const (
 	FsMagicBtrfs = FsMagic(0x9123683E)
+	FsMagicZfs   = FsMagic(0x2FC12FC1)
 	FsMagicAufs  = FsMagic(0x61756673)
 )
 
@@ -78,6 +79,7 @@ var (
 	// Slice of drivers that should be used in an order
 	priority = []string{
 		"aufs",
+		"zfs",
 		"btrfs",
 		"devicemapper",
 		"vfs",

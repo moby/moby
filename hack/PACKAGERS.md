@@ -59,6 +59,7 @@ To build the Docker daemon, you will additionally need:
   2.02.89 or later
 * btrfs-progs version 3.8 or later (including commit e5cb128 from 2013-01-07)
   for the necessary btrfs headers
+* ZFS on Linux 0.6.3 or later
 
 Be sure to also check out Docker's Dockerfile for the most up-to-date list of
 these build-time dependencies.
@@ -168,6 +169,11 @@ for all graphdrivers are built in.
 To disable btrfs:
 ```bash
 export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
+```
+
+To disable zfs:
+```bash
+export DOCKER_BUILDTAGS='exclude_graphdriver_zfs'
 ```
 
 To disable devicemapper:
