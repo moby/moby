@@ -28,23 +28,24 @@ func newProtoMap() protoMap {
 	}
 }
 
-type ipMapping map[string]protoMap
-
-const (
-	BeginPortRange = 49153
-	EndPortRange   = 65535
-)
-
 var (
 	ErrAllPortsAllocated = errors.New("all ports are allocated")
 	ErrUnknownProtocol   = errors.New("unknown protocol")
 )
 
-var (
-	mutex sync.Mutex
+type ipMapping map[string]protoMap
 
-	defaultIP = net.ParseIP("0.0.0.0")
-	globalMap = ipMapping{}
+const (
+	DefaultStartPortRange = 49153
+	DefaultEndPortRange   = 65535
+)
+
+var (
+	mutex          sync.Mutex
+	defaultIP      = net.ParseIP("0.0.0.0")
+	globalMap      = ipMapping{}
+	StartPortRange = DefaultStartPortRange
+	EndPortRange   = DefaultEndPortRange
 )
 
 type ErrPortAlreadyAllocated struct {
@@ -137,10 +138,10 @@ func ReleaseAll() error {
 
 func (pm *portMap) findPort() (int, error) {
 	port := pm.last
-	for i := 0; i <= EndPortRange-BeginPortRange; i++ {
+	for i := 0; i <= EndPortRange-StartPortRange; i++ {
 		port++
 		if port > EndPortRange {
-			port = BeginPortRange
+			port = StartPortRange
 		}
 
 		if _, ok := pm.p[port]; !ok {

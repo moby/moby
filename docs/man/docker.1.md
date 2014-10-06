@@ -74,6 +74,12 @@ unix://[/path/to/socket] to use.
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
+**--port-range-start**="49153"
+  Set range start for dynamic port allocator. Default is `49153`.
+
+**--port-range-end**="65535"
+  Set range end for dynamic port allocator. Default is `65535`.
+
 **--registry-mirror=<scheme>://<host>
   Prepend a registry mirror to be used for image pulls. May be specified multiple times.
 

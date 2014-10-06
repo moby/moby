@@ -80,6 +80,10 @@ expect an integer, and they can only be specified once.
       --mtu=0                                    Set the containers network MTU
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
+      --port-range-end=65535                     Set range end for dynamic port allocator
+                                                   if no value is provided: default to 65535
+      --port-range-start=49153                   Set range start for dynamic port allocator
+                                                   if no value is provided: default to 49153
       --registry-mirror=[]                       Specify a preferred Docker registry mirror
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
       --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
