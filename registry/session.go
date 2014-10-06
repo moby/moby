@@ -3,6 +3,7 @@ package registry
 import (
 	"bytes"
 	"crypto/sha256"
+	// this is required for some certificates
 	_ "crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -243,11 +244,11 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 
 func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 	var endpoints []string
-	parsedUrl, err := url.Parse(indexEp)
+	parsedURL, err := url.Parse(indexEp)
 	if err != nil {
 		return nil, err
 	}
-	var urlScheme = parsedUrl.Scheme
+	var urlScheme = parsedURL.Scheme
 	// The Registry's URL scheme has to match the Index'
 	for _, ep := range headers {
 		epList := strings.Split(ep, ",")
