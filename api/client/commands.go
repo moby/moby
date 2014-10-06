@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/archive"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -1951,6 +1953,33 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	if _, _, err := readBody(cli.call("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil, false)); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (cli *DockerCli) CmdDaemon(args ...string) error {
+	config := daemon.Config{}
+
+	cmd := cli.Subcmd("daemon", "[OPTIONS]", "Enable Daemon Mode")
+	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, "/var/run/docker.pid", "Path to use for daemon PID file")
+	cmd.StringVar(&config.Root, []string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the Docker runtime")
+	cmd.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
+	cmd.BoolVar(&config.EnableIptables, []string{"#iptables", "-iptables"}, true, "Enable Docker's addition of iptables rules")
+	cmd.BoolVar(&config.EnableIpForward, []string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward")
+	cmd.BoolVar(&config.EnableIpMasq, []string{"-ip-masq"}, true, "Enable IP masquerading for bridge's IP range")
+	cmd.StringVar(&config.BridgeIP, []string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
+	cmd.StringVar(&config.BridgeIface, []string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge\nuse 'none' to disable container networking")
+	cmd.StringVar(&config.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs (ex: 10.20.0.0/16)\nthis subnet must be nested in the bridge subnet (which is defined by -b or --bip)")
+	cmd.BoolVar(&config.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Enable inter-container communication")
+	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", "Force the Docker runtime to use a specific storage driver")
+	cmd.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, "native", "Force the Docker runtime to use a specific exec driver")
+	cmd.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
+	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, "Set the containers network MTU\nif no value is provided: default to the default route MTU or 1500 if no default route is available")
+	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
+	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
+	// FIXME: why the inconsistency between "hosts" and "sockets"?
+	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
+	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
+	opts.MirrorListVar(&config.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
 	return nil
 }
 

@@ -13,9 +13,7 @@ daemon and to run the CLI (i.e., to command the daemon to manage images,
 containers etc.) So **docker** is both a server, as a daemon, and a client
 to the daemon, through the CLI.
 
-To run the Docker daemon you do not specify any of the commands listed below but
-must specify the **-d** option.  The other options listed below are for the
-daemon only.
+To run the Docker daemon you specify the **daemon** command.
 
 The Docker CLI has over 30 commands. The commands are listed below and each has
 its own man page which explain usage and arguments.
@@ -26,6 +24,7 @@ To see the man page for a command run **man docker <command>**.
 **-D**=*true*|*false*
    Enable debug mode. Default is false.
 
+<<<<<<< HEAD
 **-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
    The socket(s) to bind to in daemon mode specified using one or more
@@ -77,11 +76,55 @@ unix://[/path/to/socket] to use.
 **-s**=""
   Force the Docker runtime to use a specific storage driver.
 
+||||||| parent of af6ac83... Use docker daemon command instead of -d
+**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
+unix://[/path/to/socket] to use.
+   The socket(s) to bind to in daemon mode specified using one or more
+   tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
+
+**--api-enable-cors**=*true*|*false*
+  Enable CORS headers in the remote API. Default is false.
+
+**-b**=""
+  Attach containers to a pre\-existing network bridge; use 'none' to disable container networking
+
+**--bip**=""
+  Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
+
+**-d**=*true*|*false*
+  Enable daemon mode. Default is false.
+
+**--dns**=""
+  Force Docker to use specific DNS servers
+
+**-g**=""
+  Path to use as the root of the Docker runtime. Default is `/var/lib/docker`.
+
+**--icc**=*true*|*false*
+  Enable inter\-container communication. Default is true.
+
+**--ip**=""
+  Default IP address to use when binding container ports. Default is `0.0.0.0`.
+
+**--iptables**=*true*|*false*
+  Disable Docker's addition of iptables rules. Default is true.
+
+**--mtu**=VALUE
+  Set the containers network mtu. Default is `1500`.
+
+**-p**=""
+  Path to use for daemon PID file. Default is `/var/run/docker.pid`
+
+**-r**=*true*|*false*
+  Restart previously running containers. Default is true.
+
+**-s**=""
+  Force the Docker runtime to use a specific storage driver.
+
+=======
+>>>>>>> af6ac83... Use docker daemon command instead of -d
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
-
-**--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
 # COMMANDS
 **docker-attach(1)**
@@ -96,9 +139,16 @@ unix://[/path/to/socket] to use.
 **docker-cp(1)**
   Copy files/folders from a container's filesystem to the host at path
 
+<<<<<<< HEAD
 **docker-create(1)**
   Create a new container
 
+||||||| parent of af6ac83... Use docker daemon command instead of -d
+=======
+**docker-daemon(1)**
+  Enable Daemon Mode
+
+>>>>>>> af6ac83... Use docker daemon command instead of -d
 **docker-diff(1)**
   Inspect changes on a container's filesystem
 

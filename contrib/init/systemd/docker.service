@@ -5,7 +5,15 @@ After=network.target docker.socket
 Requires=docker.socket
 
 [Service]
+<<<<<<< HEAD
 ExecStart=/usr/bin/docker -d -H fd://
+||||||| parent of af6ac83... Use docker daemon command instead of -d
+ExecStart=/usr/bin/docker -d -H fd://
+Restart=on-failure
+=======
+ExecStart=/usr/bin/docker daemon -H fd://
+Restart=on-failure
+>>>>>>> af6ac83... Use docker daemon command instead of -d
 LimitNOFILE=1048576
 LimitNPROC=1048576
 
