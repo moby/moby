@@ -131,7 +131,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 		in = bytes.NewReader([]byte{})
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://v%s%s", api.APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
