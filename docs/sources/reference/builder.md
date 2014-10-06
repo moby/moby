@@ -33,17 +33,18 @@ whole context must be transferred to the daemon. The Docker CLI reports
 "Sending build context to Docker daemon" when the context is sent to the daemon.
 
 > **Warning**
-> Avoid using your root directory, `/`, as the root of the source repository. The 
-> `docker build` command will use whatever directory contains the Dockerfile as the build
-> context (including all of its subdirectories). The build context will be sent to the
-> Docker daemon before building the image, which means if you use `/` as the source
-> repository, the entire contents of your hard drive will get sent to the daemon (and
+> Avoid using your root directory, `/`, as the root of the source repository. 
+> The `docker build` command will use whatever directory contains the 
+> Dockerfile as the build context (including all of its subdirectories). The 
+> build context will be sent to the Docker daemon before building the image, 
+> which means if you use `/` as the source repository, the entire contents of 
+> your hard drive will get sent to the daemon (and
 > thus to the machine running the daemon). You probably don't want that.
 
-In most cases, it's best to put each Dockerfile in an empty directory, and then add only
-the files needed for building that Dockerfile to that directory. To further speed up the
-build, you can exclude files and directories by adding a `.dockerignore` file to the same
-directory.
+In most cases, it's best to put each Dockerfile in an empty directory, and 
+then add only the files needed for building that Dockerfile to that directory. 
+To further speed up the build, you can exclude files and directories by adding 
+a `.dockerignore` file to the same directory.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
@@ -168,10 +169,11 @@ generated images.
 
 ## RUN
 
-RUN has 2 forms:
+RUN has 2 notations:
 
-- `RUN <command>` (the command is run in a shell - `/bin/sh -c` - *shell* form)
-- `RUN ["executable", "param1", "param2"]` (*exec* form)
+- `RUN <command>` (the command is run in a shell - `/bin/sh -c` - 
+   *shell* notation)
+- `RUN ["executable", "param1", "param2"]` (*exec* notation)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
 current image and commit the results. The resulting committed image will be
@@ -181,28 +183,28 @@ Layering `RUN` instructions and generating commits conforms to the core
 concepts of Docker where commits are cheap and containers can be created from
 any point in an image's history, much like source control.
 
-The *exec* form makes it possible to avoid shell string munging, and to `RUN`
-commands using a base image that does not contain `/bin/sh`.
+The *exec* notation makes it possible to avoid shell string munging, and to 
+`RUN` commands using a base image that does not contain `/bin/sh`.
 
 > **Note**:
-> To use a different shell, other than '/bin/sh', use the *exec* form
+> To use a different shell, other than '/bin/sh', use the *exec* notation
 > passing in the desired shell. For example,
 > `RUN ["/bin/bash", "-c", "echo hello"]`
 
 > **Note**:
-> The *exec* form is parsed as a JSON array, which means that
+> The *exec* notation is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
 > **Note**:
-> Unlike the *shell* form, the *exec* form does not invoke a command shell.
-> This means that normal shell processing does not happen. For example,
+> Unlike the *shell* notation, the *exec* notation does not invoke a command 
+> shell. This means that normal shell processing does not happen. For example,
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* notation or execute 
 > a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like 
-`RUN apt-get dist-upgrade -y` will be reused during the next build.  The 
+`RUN apt-get dist-upgrade -y` will be reused during the next build. The 
 cache for `RUN` instructions can be invalidated by using the `--no-cache` 
 flag, for example `docker build --no-cache`.
 
@@ -221,14 +223,15 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 
 ## CMD
 
-The `CMD` instruction has three forms:
+The `CMD` instruction has three notations:
 
-- `CMD ["executable","param1","param2"]` (*exec* form, this is the preferred form)
+- `CMD ["executable","param1","param2"]` (*exec* notation, this is the 
+   preferred notation)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
-- `CMD command param1 param2` (*shell* form)
+- `CMD command param1 param2` (*shell* notation)
 
-There can only be one `CMD` instruction in a `Dockerfile`. If you list more than one `CMD`
-then only the last `CMD` will take effect.
+There can only be one `CMD` instruction in a `Dockerfile`. If you list more 
+than one `CMD` then only the last `CMD` will take effect.
 
 **The main purpose of a `CMD` is to provide defaults for an executing
 container.** These defaults can include an executable, or they can omit
@@ -241,29 +244,29 @@ instruction as well.
 > with the JSON array format.
 
 > **Note**:
-> The *exec* form is parsed as a JSON array, which means that
+> The *exec* notation is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
 > **Note**:
-> Unlike the *shell* form, the *exec* form does not invoke a command shell.
-> This means that normal shell processing does not happen. For example,
+> Unlike the *shell* notation, the *exec* notation does not invoke a command 
+> shell. This means that normal shell processing does not happen. For example,
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* notation or execute 
 > a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
 
-If you use the *shell* form of the `CMD`, then the `<command>` will execute in
-`/bin/sh -c`:
+If you use the *shell* notation of the `CMD`, then the `<command>` will 
+execute in `/bin/sh -c`:
 
     FROM ubuntu
     CMD echo "This is a test." | wc -
 
 If you want to **run your** `<command>` **without a shell** then you must
 express the command as a JSON array and give the full path to the executable.
-**This array form is the preferred format of `CMD`.** Any additional parameters
-must be individually expressed as strings in the array:
+**This array notation is the preferred format of `CMD`.** Any additional 
+parameters must be individually expressed as strings in the array:
 
     FROM ubuntu
     CMD ["/usr/bin/wc","--help"]
@@ -315,7 +318,7 @@ change them using `docker run --env <key>=<value>`.
 
 The `ADD` instruction copies new files,directories or remote file URLs to 
 the filesystem of the container  from `<src>` and add them to the at 
-path `<dest>`.  
+path `<dest>`.
 
 Multiple `<src>` resource may be specified but if they are files or 
 directories then they must be relative to the source directory that is 
@@ -457,12 +460,12 @@ The copy obeys the following rules:
 
 ## ENTRYPOINT
 
-ENTRYPOINT has two forms:
+ENTRYPOINT has two notation:
 
 - `ENTRYPOINT ["executable", "param1", "param2"]`
-  (*exec* form, the preferred form)
+  (*exec* notation, the preferred notation)
 - `ENTRYPOINT command param1 param2`
-  (*shell* form)
+  (*shell* notation)
 
 There can only be one `ENTRYPOINT` in a `Dockerfile`. If you have more
 than one `ENTRYPOINT`, then only the last one in the `Dockerfile` will
@@ -475,7 +478,7 @@ container runs as if it was just that executable.
 Unlike the behavior of the `CMD` instruction, The `ENTRYPOINT`
 instruction adds an entry command that will **not** be overwritten when
 arguments are passed to `docker run`. This allows arguments to be passed
-to the entry point, i.e.  `docker run <image> -d` will pass the `-d`
+to the entry point, i.e. `docker run <image> -d` will pass the `-d`
 argument to the entry point.
 
 You can specify parameters either in the `ENTRYPOINT` JSON array (as in
@@ -499,14 +502,14 @@ optional but default, you could use a `CMD` instruction:
     ENTRYPOINT ["ls"]
 
 > **Note**:
-> The *exec* form is parsed as a JSON array, which means that
+> The *exec* notation is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
 > **Note**:
-> Unlike the *shell* form, the *exec* form does not invoke a command shell.
-> This means that normal shell processing does not happen. For example,
+> Unlike the *shell* notation, the *exec* notation does not invoke a command 
+> shell. This means that normal shell processing does not happen. For example,
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* notation or execute 
 > a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 > **Note**:
@@ -521,8 +524,9 @@ The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
-/var/db`.  For more information/examples and mounting instructions via the
-Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def)
+/var/db`. For more information/examples and mounting instructions via the
+Docker client, refer to 
+[*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def)
 documentation.
 
 > **Note**:
@@ -609,9 +613,9 @@ For example you might add something like this:
     ONBUILD RUN /usr/local/bin/python-build --dir /app/src
     [...]
 
-> **Warning**: Chaining `ONBUILD` instructions using `ONBUILD ONBUILD` isn't allowed.
-
-> **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
+> **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER`
+> instructions. Also, chaining `ONBUILD` instructions using `ONBUILD ONBUILD`
+> isn't allowed.
 
 ## Dockerfile Examples
 
