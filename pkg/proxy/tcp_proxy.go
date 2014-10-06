@@ -46,6 +46,7 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 			}
 		}
 		to.CloseRead()
+		to.SetLinger(0)
 		event <- written
 	}
 
