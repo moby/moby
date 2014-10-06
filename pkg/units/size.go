@@ -10,6 +10,7 @@ import (
 // See: http://en.wikipedia.org/wiki/Binary_prefix
 const (
 	// Decimal
+
 	KB = 1000
 	MB = 1000 * KB
 	GB = 1000 * MB
@@ -17,6 +18,7 @@ const (
 	PB = 1000 * TB
 
 	// Binary
+
 	KiB = 1024
 	MiB = 1024 * KiB
 	GiB = 1024 * MiB
@@ -52,7 +54,7 @@ func FromHumanSize(size string) (int64, error) {
 	return parseSize(size, decimalMap)
 }
 
-// Parses a human-readable string representing an amount of RAM
+// RAMInBytes parses a human-readable string representing an amount of RAM
 // in bytes, kibibytes, mebibytes, gibibytes, or tebibytes and
 // returns the number of bytes, or -1 if the string is unparseable.
 // Units are case-insensitive, and the 'b' suffix is optional.
@@ -64,7 +66,7 @@ func RAMInBytes(size string) (int64, error) {
 func parseSize(sizeStr string, uMap unitMap) (int64, error) {
 	matches := sizeRegex.FindStringSubmatch(sizeStr)
 	if len(matches) != 3 {
-		return -1, fmt.Errorf("Invalid size: '%s'", sizeStr)
+		return -1, fmt.Errorf("invalid size: '%s'", sizeStr)
 	}
 
 	size, err := strconv.ParseInt(matches[1], 10, 0)
