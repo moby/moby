@@ -168,6 +168,8 @@ update and create images.
 1. We can update a container created from an image and commit the results to an image.
 2. We can use a `Dockerfile` to specify instructions to create an image.
 
+Test your understanding [here](/userguide/level1)!
+
 ### Updating and committing an image
 
 To update an image we first need to create a container from the image
@@ -478,6 +480,10 @@ We can then create a container from our new image.
 > To help you write a clear, readable, maintainable `Dockerfile`, we've also
 > written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
 
+### Test your understanding
+
+See how well you understand the material by taking [this short quiz](/userguide/level1)!
+
 ## Setting tags on an image
 
 You can also add a tag to an existing image after you commit or build it. We
@@ -534,4 +540,5 @@ containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
 Go to [Linking Containers Together](/userguide/dockerlinks).
+
 
