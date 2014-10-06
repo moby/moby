@@ -45,7 +45,7 @@ func init() {
 	dispatch = map[string]func(string) (*Node, map[string]bool, error){
 		"user":           parseString,
 		"onbuild":        parseSubCommand,
-		"workdir":        parseString,
+		"workdir":        parseMaybeJSON,
 		"env":            parseEnv,
 		"maintainer":     parseString,
 		"docker-version": parseString,
