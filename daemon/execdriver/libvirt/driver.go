@@ -366,6 +366,20 @@ func NewDriver(root string, initPath string) (*driver, error) {
 	}, nil
 }
 
+func getDomain(id string) (libvirt.VirConnection, libvirt.VirDomain, error) {
+	conn, err := libvirt.NewVirConnection("lxc:///")
+	if err != nil {
+		return libvirt.VirConnection{}, libvirt.VirDomain{}, err
+	}
+
+	domain, err := conn.LookupDomainByName(utils.TruncateID(id))
+	if err != nil {
+		conn.CloseConnection()
+		return libvirt.VirConnection{}, libvirt.VirDomain{}, err
+	}
+	return conn, domain, nil
+}
+
 func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, d.version)
 }
@@ -584,29 +598,40 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
-	// TODO implement me
-	return nil
+	conn, domain, err := getDomain(c.ID)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		domain.Free()
+		conn.CloseConnection()
+	}()
+
+	return domain.Suspend()
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
-	// TODO implement me
-	return nil
+	conn, domain, err := getDomain(c.ID)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		domain.Free()
+		conn.CloseConnection()
+	}()
+
+	return domain.Resume()
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
-	id := utils.TruncateID(c.ID)
-
-	conn, err := libvirt.NewVirConnection("lxc:///")
+	conn, domain, err := getDomain(c.ID)
 	if err != nil {
 		return err
 	}
-	defer conn.CloseConnection()
-
-	domain, err := conn.LookupDomainByName(id)
-	if err != nil {
-		return err
-	}
-	defer domain.Free()
+	defer func() {
+		domain.Free()
+		conn.CloseConnection()
+	}()
 
 	return domain.Destroy()
 }
