@@ -28,14 +28,17 @@ func (b *Builder) replaceEnv(str string) string {
 }
 
 func handleJsonArgs(args []string, attributes map[string]bool) []string {
+	if attributes["json"] {
+		return args
+	}
+
+	// HACK: in certain scenarios, [] will get transformed to [""]. This needs to
+	// be fixed in the parser, which requires larger effort to fix. At the time of
+	// this writing, it was felt that the easier fix was better unless the more
+	// fundamental issue can be addressed.
 	if len(args) == 0 {
 		return []string{}
 	}
 
-	if attributes != nil && attributes["json"] {
-		return args
-	}
-
-	// literal string command, not an exec array
 	return []string{strings.Join(args, " ")}
 }

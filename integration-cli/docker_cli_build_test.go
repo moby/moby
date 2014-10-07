@@ -1157,6 +1157,26 @@ func TestBuildEntrypoint(t *testing.T) {
 	logDone("build - entrypoint")
 }
 
+func TestBuildRunShEntrypoint(t *testing.T) {
+	name := "testbuildentrypoint"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+        ENTRYPOINT /bin/echo`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", name))
+
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("build - entrypoint with /bin/echo running successfully")
+}
+
 // #6445 ensure ONBUILD triggers aren't committed to grandchildren
 func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 	var (
@@ -2446,4 +2466,43 @@ func TestBuildCmdJSONNoShDashC(t *testing.T) {
 	}
 
 	logDone("build - cmd should not have /bin/sh -c for json")
+}
+
+func TestBuildEntrypointInheritance(t *testing.T) {
+	name := "testbuildepinherit"
+	name2 := "testbuildepinherit2"
+	defer deleteImages(name)
+	defer deleteImages(name2)
+
+	if _, err := buildImage(name, "FROM busybox\nENTRYPOINT /foo/bar", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImage(name2, fmt.Sprintf("FROM %s\nENTRYPOINT echo quux", name), true); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name2, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err, res)
+	}
+
+	expected := `["/bin/sh","-c","echo quux"]`
+
+	if res != expected {
+		t.Fatalf("Expected value %s not in Config.Entrypoint: %s", expected, res)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name2))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	expected = "quux"
+
+	if strings.TrimSpace(out) != expected {
+		t.Fatalf("Expected output is %s, got %s", expected, out)
+	}
+
+	logDone("build - entrypoint override inheritance properly")
 }
