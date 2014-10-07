@@ -552,8 +552,18 @@ instruction. For example:
     WORKDIR c
     RUN pwd
 
-The output of the final `pwd` command in this Dockerfile would be
+The output of the final `pwd` command in this `Dockerfile` would be
 `/a/b/c`.
+
+The `WORKDIR` instruction can resolve environment variables previously set using
+`ENV`. You can only use environment variables explicitly set in the `Dockerfile`.
+For example:
+
+    ENV DIRPATH /path
+    WORKDIR $DIRPATH/$DIRNAME
+
+The output of the final `pwd` command in this `Dockerfile` would be
+`/path/$DIRNAME`
 
 ## ONBUILD
 
