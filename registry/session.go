@@ -281,6 +281,26 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
 		return nil, errLoginRequired
+	} else if res.StatusCode == 404 && (r.authConfig == nil || len(r.authConfig.Username) == 0) {
+		// check if the problem is that we're unauthorized by making a
+		// request to the same url without "/images" (GH issue 7892)
+		url := fmt.Sprintf("%srepositories/%s", indexEp, remote)
+		log.Debugf("[registry] Calling GET %s", url)
+
+		req2, err := r.reqFactory.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req2.Header.Set("X-Docker-Token", "true")
+
+		res2, _, err := r.doRequest(req2)
+		if err != nil {
+			return nil, err
+		}
+		defer res2.Body.Close()
+		if res2.StatusCode == 401 {
+			return nil, errLoginRequired
+		}
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
