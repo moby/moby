@@ -1,9 +1,6 @@
 package parser
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // QuoteString walks characters (after trimming), escapes any quotes and
 // escapes, then wraps the whole thing in quotes. Very useful for generating
@@ -52,11 +49,14 @@ func (node *Node) Dump() string {
 // performs the dispatch based on the two primal strings, cmd and args. Please
 // look at the dispatch table in parser.go to see how these dispatchers work.
 func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
-	if _, ok := dispatch[cmd]; !ok {
-		return nil, nil, fmt.Errorf("'%s' is not a valid dockerfile command", cmd)
+	fn := dispatch[cmd]
+
+	// Ignore invalid Dockerfile instructions
+	if fn == nil {
+		fn = parseIgnore
 	}
 
-	sexp, attrs, err := dispatch[cmd](args)
+	sexp, attrs, err := fn(args)
 	if err != nil {
 		return nil, nil, err
 	}
