@@ -751,7 +751,7 @@ func TestRunEnvironment(t *testing.T) {
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
-		t.Fatalf("Wrong environment: should be %d variables, not: '%s'\n", len(goodEnv), strings.Join(actualEnv, ", "))
+		t.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
@@ -1168,7 +1168,7 @@ func TestRunModeHostname(t *testing.T) {
 	}
 
 	if actual := strings.Trim(out, "\r\n"); actual != "testhostname" {
-		t.Fatalf("expected 'testhostname', but says: '%s'", actual)
+		t.Fatalf("expected 'testhostname', but says: %q", actual)
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hostname")
@@ -1182,7 +1182,7 @@ func TestRunModeHostname(t *testing.T) {
 		t.Fatal(err)
 	}
 	if actual := strings.Trim(out, "\r\n"); actual != hostname {
-		t.Fatalf("expected '%s', but says: '%s'", hostname, actual)
+		t.Fatalf("expected %q, but says: '%s'", hostname, actual)
 	}
 
 	deleteAllContainers()
@@ -1196,7 +1196,7 @@ func TestRunRootWorkdir(t *testing.T) {
 		t.Fatal(s, err)
 	}
 	if s != "/\n" {
-		t.Fatalf("pwd returned '%s' (expected /\\n)", s)
+		t.Fatalf("pwd returned %q (expected /\\n)", s)
 	}
 
 	deleteAllContainers()
@@ -1297,7 +1297,7 @@ func TestRunDnsOptions(t *testing.T) {
 
 	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
 	if actual != "nameserver 127.0.0.1 search mydomain" {
-		t.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: '%s'", actual)
+		t.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: %q", actual)
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
@@ -1309,61 +1309,101 @@ func TestRunDnsOptions(t *testing.T) {
 
 	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
 	if actual != "nameserver 127.0.0.1" {
-		t.Fatalf("expected 'nameserver 127.0.0.1', but says: '%s'", actual)
+		t.Fatalf("expected 'nameserver 127.0.0.1', but says: %q", actual)
 	}
 
 	logDone("run - dns options")
 }
 
 func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
-	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	var out string
+
+	origResolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
 	if os.IsNotExist(err) {
 		t.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	hostNamservers := resolvconf.GetNameservers(resolvConf)
-	hostSearch := resolvconf.GetSearchDomains(resolvConf)
+	hostNamservers := resolvconf.GetNameservers(origResolvConf)
+	hostSearch := resolvconf.GetSearchDomains(origResolvConf)
 
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
+	if out, _, err = runCommandWithOutput(cmd); err != nil {
 		t.Fatal(err, out)
 	}
 
 	if actualNameservers := resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "127.0.0.1" {
-		t.Fatalf("expected '127.0.0.1', but says: '%s'", string(actualNameservers[0]))
+		t.Fatalf("expected '127.0.0.1', but says: %q", string(actualNameservers[0]))
 	}
 
 	actualSearch := resolvconf.GetSearchDomains([]byte(out))
 	if len(actualSearch) != len(hostSearch) {
-		t.Fatalf("expected '%s' search domain(s), but it has: '%s'", len(hostSearch), len(actualSearch))
+		t.Fatalf("expected %q search domain(s), but it has: '%s'", len(hostSearch), len(actualSearch))
 	}
 	for i := range actualSearch {
 		if actualSearch[i] != hostSearch[i] {
-			t.Fatalf("expected '%s' domain, but says: '%s'", actualSearch[i], hostSearch[i])
+			t.Fatalf("expected %q domain, but says: '%s'", actualSearch[i], hostSearch[i])
 		}
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
+	if out, _, err = runCommandWithOutput(cmd); err != nil {
 		t.Fatal(err, out)
 	}
 
 	actualNameservers := resolvconf.GetNameservers([]byte(out))
 	if len(actualNameservers) != len(hostNamservers) {
-		t.Fatalf("expected '%s' nameserver(s), but it has: '%s'", len(hostNamservers), len(actualNameservers))
+		t.Fatalf("expected %q nameserver(s), but it has: '%s'", len(hostNamservers), len(actualNameservers))
 	}
 	for i := range actualNameservers {
 		if actualNameservers[i] != hostNamservers[i] {
-			t.Fatalf("expected '%s' nameserver, but says: '%s'", actualNameservers[i], hostNamservers[i])
+			t.Fatalf("expected %q nameserver, but says: '%s'", actualNameservers[i], hostNamservers[i])
 		}
 	}
 
 	if actualSearch = resolvconf.GetSearchDomains([]byte(out)); string(actualSearch[0]) != "mydomain" {
-		t.Fatalf("expected 'mydomain', but says: '%s'", string(actualSearch[0]))
+		t.Fatalf("expected 'mydomain', but says: %q", string(actualSearch[0]))
+	}
+
+	// test with file
+	tmpResolvConf := []byte("search example.com\nnameserver 12.34.56.78\nnameserver 127.0.0.1")
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+	// put the old resolvconf back
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", origResolvConf, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	if os.IsNotExist(err) {
+		t.Fatalf("/etc/resolv.conf does not exist")
+	}
+
+	hostNamservers = resolvconf.GetNameservers(resolvConf)
+	hostSearch = resolvconf.GetSearchDomains(resolvConf)
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
+
+	if out, _, err = runCommandWithOutput(cmd); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actualNameservers = resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "12.34.56.78" || len(actualNameservers) != 1 {
+		t.Fatalf("expected '12.34.56.78', but has: %v", actualNameservers)
+	}
+
+	actualSearch = resolvconf.GetSearchDomains([]byte(out))
+	if len(actualSearch) != len(hostSearch) {
+		t.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
+	}
+	for i := range actualSearch {
+		if actualSearch[i] != hostSearch[i] {
+			t.Fatalf("expected %q domain, but says: '%s'", actualSearch[i], hostSearch[i])
+		}
 	}
 
 	deleteAllContainers()
@@ -1382,7 +1422,7 @@ func TestRunAddHost(t *testing.T) {
 
 	actual := strings.Trim(out, "\r\n")
 	if actual != "86.75.30.9\textra" {
-		t.Fatalf("expected '86.75.30.9\textra', but says: '%s'", actual)
+		t.Fatalf("expected '86.75.30.9\textra', but says: %q", actual)
 	}
 
 	logDone("run - add-host option")
@@ -1989,7 +2029,7 @@ func TestRunCidFileCleanupIfEmpty(t *testing.T) {
 	}
 
 	if _, err := os.Stat(tmpCidFile); err == nil {
-		t.Fatalf("empty CIDFile '%s' should've been deleted", tmpCidFile)
+		t.Fatalf("empty CIDFile %q should've been deleted", tmpCidFile)
 	}
 	deleteAllContainers()
 	logDone("run - cleanup empty cidfile on fail")
@@ -2017,7 +2057,7 @@ func TestRunCidFileCheckIDLength(t *testing.T) {
 	}
 	cid := string(buffer)
 	if len(cid) != 64 {
-		t.Fatalf("--cidfile should be a long id, not '%s'", id)
+		t.Fatalf("--cidfile should be a long id, not %q", id)
 	}
 	if cid != id {
 		t.Fatalf("cid must be equal to %s, got %s", id, cid)
