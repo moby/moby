@@ -257,17 +257,30 @@ func cmd(b *Builder, args []string, attributes map[string]bool) error {
 // is initialized at NewBuilder time instead of through argument parsing.
 //
 func entrypoint(b *Builder, args []string, attributes map[string]bool) error {
-	b.Config.Entrypoint = handleJsonArgs(args, attributes)
+	parsed := handleJsonArgs(args, attributes)
 
-	if len(b.Config.Entrypoint) == 0 && len(b.Config.Cmd) == 0 {
-		b.Config.Entrypoint = []string{"/bin/sh", "-c"}
-	} else if !b.cmdSet {
+	switch {
+	case len(parsed) == 0:
+		// ENTYRPOINT []
+		b.Config.Entrypoint = nil
+	case attributes["json"]:
+		// ENTRYPOINT ["echo", "hi"]
+		b.Config.Entrypoint = parsed
+	default:
+		// ENTYRPOINT echo hi
+		b.Config.Entrypoint = []string{"/bin/sh", "-c", parsed[0]}
+	}
+
+	// when setting the entrypoint if a CMD was not explicitly set then
+	// set the command to nil
+	if !b.cmdSet {
 		b.Config.Cmd = nil
 	}
 
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %v", b.Config.Entrypoint)); err != nil {
 		return err
 	}
+
 	return nil
 }
 
