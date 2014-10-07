@@ -45,21 +45,20 @@ var evaluateTable map[string]func(*Builder, []string, map[string]bool) error
 
 func init() {
 	evaluateTable = map[string]func(*Builder, []string, map[string]bool) error{
-		"env":            env,
-		"maintainer":     maintainer,
-		"add":            add,
-		"copy":           dispatchCopy, // copy() is a go builtin
-		"from":           from,
-		"onbuild":        onbuild,
-		"workdir":        workdir,
-		"docker-version": nullDispatch, // we don't care about docker-version
-		"run":            run,
-		"cmd":            cmd,
-		"entrypoint":     entrypoint,
-		"expose":         expose,
-		"volume":         volume,
-		"user":           user,
-		"insert":         insert,
+		"env":        env,
+		"maintainer": maintainer,
+		"add":        add,
+		"copy":       dispatchCopy, // copy() is a go builtin
+		"from":       from,
+		"onbuild":    onbuild,
+		"workdir":    workdir,
+		"run":        run,
+		"cmd":        cmd,
+		"entrypoint": entrypoint,
+		"expose":     expose,
+		"volume":     volume,
+		"user":       user,
+		"insert":     insert,
 	}
 }
 

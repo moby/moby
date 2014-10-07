@@ -1,4 +1,4 @@
-(docker-version "0.6.1")
+(docker-version)
 (from "ubuntu:14.04")
 (maintainer "Tianon Gravi <admwiggin@gmail.com> (@tianon)")
 (run "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq 	apt-utils 	aufs-tools 	automake 	btrfs-tools 	build-essential 	curl 	dpkg-sig 	git 	iptables 	libapparmor-dev 	libcap-dev 	libsqlite3-dev 	lxc=1.0* 	mercurial 	pandoc 	parallel 	reprepro 	ruby1.9.1 	ruby1.9.1-dev 	s3cmd=1.1.0* 	--no-install-recommends")

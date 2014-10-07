@@ -2447,3 +2447,15 @@ func TestBuildCmdJSONNoShDashC(t *testing.T) {
 
 	logDone("build - cmd should not have /bin/sh -c for json")
 }
+
+func TestBuildIgnoreInvalidInstruction(t *testing.T) {
+	name := "testbuildignoreinvalidinstruction"
+	defer deleteImages(name)
+
+	out, _, err := buildImageWithOut(name, "FROM busybox\nfoo bar", true)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("build - ignore invalid Dockerfile instruction")
+}
