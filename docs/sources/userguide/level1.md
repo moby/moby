@@ -4,9 +4,9 @@ page_keywords: documentation, docs, the docker guide, docker guide, docker, dock
 
 <a title="back" class="btn btn-primary back" href="/userguide/dockerimages/#creating-our-own-images">Back</a>
 
-# Test Yourself
+# Dockerfile Tutorial
 
-## Test your Dockerfile skills - Level 1
+## Test your Dockerfile knowledge - Level 1
 
 ### Questions
 
