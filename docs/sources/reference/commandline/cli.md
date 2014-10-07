@@ -146,11 +146,14 @@ Docker supports softlinks for the Docker data directory
       --no-stdin=false    Do not attach STDIN
       --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
-The `attach` command will allow you to view or
-interact with any running container, detached (`-d`)
-or interactive (`-i`). You can attach to the same
-container at the same time - screen sharing style, or quickly view the
-progress of your daemonized process.
+The `attach` command lets you view or interact with any running container's
+primary process (`pid 1`).
+
+You can attach to the same contained process multiple times simultaneously, screen
+sharing style, or quickly view the progress of your daemonized process.
+
+> **Note:** This command is not for running a new process in a container.
+> See: [`docker exec`](#exec).
 
 You can detach from the container again (and leave it running) with
 `CTRL-p CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a
