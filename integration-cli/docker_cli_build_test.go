@@ -1157,6 +1157,26 @@ func TestBuildEntrypoint(t *testing.T) {
 	logDone("build - entrypoint")
 }
 
+func TestBuildRunShEntrypoint(t *testing.T) {
+	name := "testbuildentrypoint"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+        ENTRYPOINT /bin/echo`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", name))
+
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("build - entrypoint with /bin/echo running successfully")
+}
+
 // #6445 ensure ONBUILD triggers aren't committed to grandchildren
 func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 	var (

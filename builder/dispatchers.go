@@ -259,9 +259,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool) error {
 func entrypoint(b *Builder, args []string, attributes map[string]bool) error {
 	b.Config.Entrypoint = handleJsonArgs(args, attributes)
 
-	if len(b.Config.Entrypoint) == 0 && len(b.Config.Cmd) == 0 {
-		b.Config.Entrypoint = []string{"/bin/sh", "-c"}
-	} else if !b.cmdSet {
+	if !b.cmdSet {
 		b.Config.Cmd = nil
 	}
 
