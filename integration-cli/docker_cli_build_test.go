@@ -4301,3 +4301,24 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 
 	logDone("build - rename dockerfile")
 }
+
+func TestBuildFromOfficialNames(t *testing.T) {
+	name := "testbuildfromofficial"
+	fromNames := []string{
+		"busybox",
+		"docker.io/busybox",
+		"index.docker.io/busybox",
+		"library/busybox",
+		"docker.io/library/busybox",
+		"index.docker.io/library/busybox",
+	}
+	for idx, fromName := range fromNames {
+		imgName := fmt.Sprintf("%s%d", name, idx)
+		_, err := buildImage(imgName, "FROM "+fromName, true)
+		if err != nil {
+			t.Errorf("Build failed using FROM %s: %s", fromName, err)
+		}
+		deleteImages(imgName)
+	}
+	logDone("build - from official names")
+}

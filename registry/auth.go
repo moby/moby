@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -22,22 +21,14 @@ const (
 	// Only used for user auth + account creation
 	INDEXSERVER    = "https://index.docker.io/v1/"
 	REGISTRYSERVER = "https://registry-1.docker.io/v1/"
+	INDEXNAME      = "docker.io"
 
 	// INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
 )
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
-	IndexServerURL       *url.URL
 )
-
-func init() {
-	url, err := url.Parse(INDEXSERVER)
-	if err != nil {
-		panic(err)
-	}
-	IndexServerURL = url
-}
 
 type AuthConfig struct {
 	Username      string `json:"username,omitempty"`
@@ -54,6 +45,10 @@ type ConfigFile struct {
 
 func IndexServerAddress() string {
 	return INDEXSERVER
+}
+
+func IndexServerName() string {
+	return INDEXNAME
 }
 
 // create a base64 encoded auth string to store in config
@@ -118,6 +113,7 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		}
 		authConfig.Email = origEmail[1]
 		authConfig.ServerAddress = IndexServerAddress()
+		// *TODO: Switch to using IndexServerName() instead?
 		configFile.Configs[IndexServerAddress()] = authConfig
 	} else {
 		for k, authConfig := range configFile.Configs {
@@ -181,7 +177,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 	)
 
 	if serverAddress == "" {
-		serverAddress = IndexServerAddress()
+		return "", fmt.Errorf("Server Error: Server Address not set.")
 	}
 
 	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
@@ -213,6 +209,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 			status = "Account created. Please use the confirmation link we sent" +
 				" to your e-mail to activate it."
 		} else {
+			// *TODO: Use registry configuration to determine what this says, if anything?
 			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
 		}
 	} else if reqStatusCode == 400 {
@@ -236,6 +233,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 				if loginAgainstOfficialIndex {
 					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
 				}
+				// *TODO: Use registry configuration to determine what this says, if anything?
 				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
 			}
 			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
@@ -271,14 +269,10 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 }
 
 // this method matches a auth configuration to a server address or a url
-func (config *ConfigFile) ResolveAuthConfig(hostname string) AuthConfig {
-	if hostname == IndexServerAddress() || len(hostname) == 0 {
-		// default to the index server
-		return config.Configs[IndexServerAddress()]
-	}
-
+func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
+	configKey := index.GetAuthConfigKey()
 	// First try the happy case
-	if c, found := config.Configs[hostname]; found {
+	if c, found := config.Configs[configKey]; found || index.Official {
 		return c
 	}
 
@@ -297,9 +291,8 @@ func (config *ConfigFile) ResolveAuthConfig(hostname string) AuthConfig {
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	normalizedHostename := convertToHostname(hostname)
 	for registry, config := range config.Configs {
-		if registryHostname := convertToHostname(registry); registryHostname == normalizedHostename {
+		if configKey == convertToHostname(registry) {
 			return config
 		}
 	}

@@ -427,17 +427,17 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	if tag == "" {
 		tag = "latest"
 	}
+	job := b.Engine.Job("pull", remote, tag)
 	pullRegistryAuth := b.AuthConfig
 	if len(b.AuthConfigFile.Configs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
-		endpoint, _, err := registry.ResolveRepositoryName(remote)
+		repoInfo, err := registry.ResolveRepositoryInfo(job, remote)
 		if err != nil {
 			return nil, err
 		}
-		resolvedAuth := b.AuthConfigFile.ResolveAuthConfig(endpoint)
+		resolvedAuth := b.AuthConfigFile.ResolveAuthConfig(repoInfo.Index)
 		pullRegistryAuth = &resolvedAuth
 	}
-	job := b.Engine.Job("pull", remote, tag)
 	job.SetenvBool("json", b.StreamFormatter.Json())
 	job.SetenvBool("parallel", true)
 	job.SetenvJson("authConfig", pullRegistryAuth)

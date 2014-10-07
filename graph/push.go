@@ -61,7 +61,7 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 	return imageList, tagsByImage, nil
 }
 
-func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName, remoteName string, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
+func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, localRepo map[string]string, tag string, sf *utils.StreamFormatter) error {
 	out = utils.NewWriteFlusher(out)
 	log.Debugf("Local repo: %s", localRepo)
 	imgList, tagsByImage, err := s.getImageList(localRepo, tag)
@@ -104,7 +104,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 
 	// Register all the images in a repository with the registry
 	// If an image is not in this list it will not be associated with the repository
-	repoData, err = r.PushImageJSONIndex(remoteName, imageIndex, false, nil)
+	repoData, err = r.PushImageJSONIndex(repoInfo.RemoteName, imageIndex, false, nil)
 	if err != nil {
 		return err
 	}
@@ -114,11 +114,11 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 		nTag = len(localRepo)
 	}
 	for _, ep := range repoData.Endpoints {
-		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, nTag))
+		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", repoInfo.CanonicalName, nTag))
 		for _, imgId := range imgList {
 			if err := r.LookupRemoteImage(imgId, ep, repoData.Tokens); err != nil {
 				log.Errorf("Error in LookupRemoteImage: %s", err)
-				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
+				if _, err := s.pushImage(r, out, imgId, ep, repoData.Tokens, sf); err != nil {
 					// FIXME: Continue on error?
 					return err
 				}
@@ -126,23 +126,23 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 			}
 			for _, tag := range tagsByImage[imgId] {
-				out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(imgId), ep+"repositories/"+remoteName+"/tags/"+tag))
+				out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(imgId), ep+"repositories/"+repoInfo.RemoteName+"/tags/"+tag))
 
-				if err := r.PushRegistryTag(remoteName, imgId, tag, ep, repoData.Tokens); err != nil {
+				if err := r.PushRegistryTag(repoInfo.RemoteName, imgId, tag, ep, repoData.Tokens); err != nil {
 					return err
 				}
 			}
 		}
 	}
 
-	if _, err := r.PushImageJSONIndex(remoteName, imageIndex, true, repoData.Endpoints); err != nil {
+	if _, err := r.PushImageJSONIndex(repoInfo.RemoteName, imageIndex, true, repoData.Endpoints); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *TagStore) pushImage(r *registry.Session, out io.Writer, remote, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
+func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep string, token []string, sf *utils.StreamFormatter) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
 	if err != nil {
@@ -199,26 +199,27 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		metaHeaders map[string][]string
 	)
 
+	// Resolve the Repository name from fqn to RepositoryInfo
+	repoInfo, err := registry.ResolveRepositoryInfo(job, localName)
+	if err != nil {
+		return job.Error(err)
+	}
+
 	tag := job.Getenv("tag")
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
-	if _, err := s.poolAdd("push", localName); err != nil {
+
+	if _, err := s.poolAdd("push", repoInfo.LocalName); err != nil {
 		return job.Error(err)
 	}
-	defer s.poolRemove("push", localName)
+	defer s.poolRemove("push", repoInfo.LocalName)
 
-	// Resolve the Repository name from fqn to endpoint + name
-	hostname, remoteName, err := registry.ResolveRepositoryName(localName)
+	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.NewEndpoint(hostname, s.insecureRegistries)
-	if err != nil {
-		return job.Error(err)
-	}
-
-	img, err := s.graph.Get(localName)
+	img, err := s.graph.Get(repoInfo.LocalName)
 	r, err2 := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
 	if err2 != nil {
 		return job.Error(err2)
@@ -227,12 +228,12 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	if err != nil {
 		reposLen := 1
 		if tag == "" {
-			reposLen = len(s.Repositories[localName])
+			reposLen = len(s.Repositories[repoInfo.LocalName])
 		}
-		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", localName, reposLen))
+		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
 		// If it fails, try to get the repository
-		if localRepo, exists := s.Repositories[localName]; exists {
-			if err := s.pushRepository(r, job.Stdout, localName, remoteName, localRepo, tag, sf); err != nil {
+		if localRepo, exists := s.Repositories[repoInfo.LocalName]; exists {
+			if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
 				return job.Error(err)
 			}
 			return engine.StatusOK
@@ -241,8 +242,8 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	}
 
 	var token []string
-	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint.String(), token, sf); err != nil {
+	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", repoInfo.CanonicalName))
+	if _, err := s.pushImage(r, job.Stdout, img.ID, endpoint.String(), token, sf); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK

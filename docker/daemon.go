@@ -19,11 +19,13 @@ import (
 const CanDaemon = true
 
 var (
-	daemonCfg = &daemon.Config{}
+	daemonCfg   = &daemon.Config{}
+	registryCfg = &registry.Options{}
 )
 
 func init() {
 	daemonCfg.InstallFlags()
+	registryCfg.InstallFlags()
 }
 
 func mainDaemon() {
@@ -42,7 +44,7 @@ func mainDaemon() {
 	}
 
 	// load registry service
-	if err := registry.NewService(daemonCfg.InsecureRegistries).Install(eng); err != nil {
+	if err := registry.NewService(registryCfg).Install(eng); err != nil {
 		log.Fatal(err)
 	}
 
