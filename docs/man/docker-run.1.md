@@ -98,8 +98,9 @@ the detached mode, then you cannot use the **-rm** option.
 
    When attached in the tty mode, you can detach from a running container without
 stopping the process by pressing the keys CTRL-P CTRL-Q.
+
 **--device**=[]
-   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
 **--dns-search**=[]
    Set custom DNS search domains
