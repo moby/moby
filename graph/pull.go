@@ -453,9 +453,10 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 
 	if verified {
-		out.Write(sf.FormatStatus("", "The image you are pulling has been digitally signed by Docker, Inc."))
+		out.Write(sf.FormatStatus(localName+":"+tag, "The image you are pulling has been digitally signed by Docker, Inc."))
+	} else {
+		out.Write(sf.FormatStatus(tag, "Pulling from %s", localName))
 	}
-	out.Write(sf.FormatStatus(tag, "Pulling from %s", localName))
 
 	if len(manifest.BlobSums) == 0 {
 		return fmt.Errorf("no blobSums in manifest")
@@ -489,7 +490,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Pulling fs layer", nil))
 
 		downloadFunc := func(di *downloadInfo) error {
-			log.Infof("pulling blob %q to V1 img %s", sumStr, img.ID)
+			log.Debugf("pulling blob %q to V1 img %s", sumStr, img.ID)
 
 			if c, err := s.poolAdd("pull", "img:"+img.ID); err != nil {
 				if c != nil {
