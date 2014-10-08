@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/rpcfd"
 	"github.com/docker/docker/utils"
@@ -128,56 +129,89 @@ func (init *dockerInit) signal(signal syscall.Signal) error {
 	return nil
 }
 
-func (init *dockerInit) connectConsole() error {
-	if init.command.ProcessConfig.Tty {
-		ptyMaster, err := init.getPtyMaster()
-		if err != nil {
-			return err
-		}
+func (init *dockerInit) newTtyConsole() (*lxc.TtyConsole, error) {
 
-		if init.pipes.Stdin != nil {
-			go func() {
-				io.Copy(ptyMaster, init.pipes.Stdin)
-				ptyMaster.Close()
-			}()
-		}
+	ptyMaster, err := init.getPtyMaster()
+	if err != nil {
+		return nil, err
+	}
 
+	tty := &lxc.TtyConsole{
+		MasterPty: ptyMaster,
+	}
+
+	// Attach the pipes
+	if init.pipes.Stdin != nil {
 		go func() {
-			io.Copy(init.pipes.Stdout, ptyMaster)
+			io.Copy(ptyMaster, init.pipes.Stdin)
 			ptyMaster.Close()
 		}()
+	}
+
+	go func() {
+		io.Copy(init.pipes.Stdout, ptyMaster)
+		ptyMaster.Close()
+	}()
+
+	return tty, nil
+}
+
+func (init *dockerInit) newStdConsole() (*execdriver.StdConsole, error) {
+	std := &execdriver.StdConsole{}
+
+	stdout, err := init.getStdout()
+	if err != nil {
+		return nil, err
+	}
+
+	stderr, err := init.getStderr()
+	if err != nil {
+		return nil, err
+	}
+
+	if init.pipes.Stdin != nil {
+		stdin, err := init.getStdin()
+		if err != nil {
+			return nil, err
+		}
+		go func() {
+			io.Copy(stdin, init.pipes.Stdin)
+			stdin.Close()
+		}()
+	}
+
+	go func() {
+		io.Copy(init.pipes.Stdout, stdout)
+		stdout.Close()
+	}()
+
+	go func() {
+		io.Copy(init.pipes.Stderr, stderr)
+		stderr.Close()
+	}()
+
+	return std, nil
+}
+
+func (init *dockerInit) connectConsole() error {
+
+	var (
+		term execdriver.Terminal
+		err  error
+	)
+
+	if init.command.ProcessConfig.Tty {
+		term, err = init.newTtyConsole()
+		if err != nil {
+			return err
+		}
 	} else {
-		var err error
-
-		stdout, err := init.getStdout()
+		term, err = init.newStdConsole()
 		if err != nil {
 			return err
-		}
-		go func() {
-			io.Copy(init.pipes.Stdout, stdout)
-			stdout.Close()
-		}()
-
-		stderr, err := init.getStderr()
-		if err != nil {
-			return err
-		}
-		go func() {
-			io.Copy(init.pipes.Stderr, stderr)
-			stderr.Close()
-		}()
-
-		if init.pipes.Stdin != nil {
-			stdin, err := init.getStdin()
-			if err != nil {
-				return err
-			}
-			go func() {
-				io.Copy(stdin, init.pipes.Stdin)
-				stdin.Close()
-			}()
 		}
 	}
+	init.command.ProcessConfig.Terminal = term
 	return nil
 }
 
