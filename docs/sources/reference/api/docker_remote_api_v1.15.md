@@ -1447,8 +1447,7 @@ Sets up an exec instance in a running container `id`
         POST /containers/e90e34656806/exec HTTP/1.1
         Content-Type: application/json
 
-        {             
-	     "Detach":false,
+        {
 	     "AttachStdin":false,
 	     "AttachStdout":true,
 	     "AttachStderr":true,
