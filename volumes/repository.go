@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/utils"
 )
 
@@ -16,6 +18,8 @@ type Repository struct {
 	configPath string
 	driver     graphdriver.Driver
 	volumes    map[string]*Volume
+	nameIndex  map[string]*Volume
+	idIndex    map[string]*Volume
 	lock       sync.Mutex
 }
 
@@ -34,17 +38,36 @@ func NewRepository(configPath string, driver graphdriver.Driver) (*Repository, e
 		driver:     driver,
 		configPath: abspath,
 		volumes:    make(map[string]*Volume),
+		nameIndex:  make(map[string]*Volume),
+		idIndex:    make(map[string]*Volume),
 	}
 
 	return repo, repo.restore()
 }
 
-func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
+func (r *Repository) newVolume(path, name string, writable bool) (*Volume, error) {
 	var (
 		isBindMount bool
 		err         error
-		id          = utils.GenerateRandomID()
+		id          string
 	)
+
+	id, err = r.generateNewId()
+	if err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		name, err = r.generateNewName()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if v := r.findByName(name); v != nil {
+		return nil, fmt.Errorf("Volume exists for name: %s", name)
+	}
+
 	if path != "" {
 		isBindMount = true
 	}
@@ -57,19 +80,33 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 	}
 	path = filepath.Clean(path)
 
-	path, err = filepath.EvalSymlinks(path)
+	newPath, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		return nil, err
+		if !os.IsNotExist(err) {
+			log.Debugf("Error evaluating symlink: %v", err)
+			return nil, err
+		}
+		log.Debugf("Creating dir for volume: %s", path)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return nil, err
+		}
+		newPath = path
+	}
+
+	if v := r.get(newPath); v != nil {
+		return nil, fmt.Errorf("Volume exists for path: %s", newPath)
 	}
 
 	v := &Volume{
 		ID:          id,
-		Path:        path,
+		Path:        newPath,
 		repository:  r,
 		Writable:    writable,
 		containers:  make(map[string]struct{}),
 		configPath:  r.configPath + "/" + id,
 		IsBindMount: isBindMount,
+		Created:     time.Now().UTC(),
+		Name:        name,
 	}
 
 	if err := v.initialize(); err != nil {
@@ -92,11 +129,17 @@ func (r *Repository) restore() error {
 			log.Debugf("Could not find volume for %s: %v", id, err)
 			continue
 		}
+		name, err := r.generateNewName()
+		if err != nil {
+			log.Debugf("Error restoring volume %s: %s", id, err)
+			continue
+		}
 		vol := &Volume{
 			ID:         id,
 			configPath: r.configPath + "/" + id,
 			containers: make(map[string]struct{}),
 			Path:       path,
+			Name:       name,
 		}
 		if err := vol.FromDisk(); err != nil {
 			if !os.IsNotExist(err) {
@@ -140,7 +183,10 @@ func (r *Repository) add(volume *Volume) error {
 	if vol := r.get(volume.Path); vol != nil {
 		return fmt.Errorf("Volume exists: %s", volume.ID)
 	}
+
 	r.volumes[volume.Path] = volume
+	r.idIndex[volume.ID] = volume
+	r.nameIndex[volume.Name] = volume
 	return nil
 }
 
@@ -152,28 +198,28 @@ func (r *Repository) Remove(volume *Volume) {
 
 func (r *Repository) remove(volume *Volume) {
 	delete(r.volumes, volume.Path)
+	delete(r.idIndex, volume.ID)
+	delete(r.nameIndex, volume.Name)
 }
 
-func (r *Repository) Delete(path string) error {
+func (r *Repository) Delete(name string) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	path, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return err
-	}
-	volume := r.get(filepath.Clean(path))
+
+	volume := r.find(name)
 	if volume == nil {
-		return fmt.Errorf("Volume %s does not exist", path)
+		return fmt.Errorf("Volume %s does not exist", name)
 	}
 
 	containers := volume.Containers()
 	if len(containers) > 0 {
-		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Path, containers)
+		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Name, containers)
 	}
 
 	if err := os.RemoveAll(volume.configPath); err != nil {
 		return err
 	}
+	r.remove(volume)
 
 	if volume.IsBindMount {
 		return nil
@@ -185,7 +231,6 @@ func (r *Repository) Delete(path string) error {
 		}
 	}
 
-	r.remove(volume)
 	return nil
 }
 
@@ -202,17 +247,86 @@ func (r *Repository) createNewVolumePath(id string) (string, error) {
 	return path, nil
 }
 
-func (r *Repository) FindOrCreateVolume(path string, writable bool) (*Volume, error) {
+func (r *Repository) FindOrCreateVolume(path, name string, writable bool) (*Volume, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
 	if path == "" {
-		return r.newVolume(path, writable)
+		return r.newVolume(path, name, writable)
 	}
 
 	if v := r.get(path); v != nil {
 		return v, nil
 	}
 
-	return r.newVolume(path, writable)
+	return r.newVolume(path, name, writable)
+}
+
+func (r *Repository) NewVolume(path, name string, writable bool) (*Volume, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.newVolume(path, name, writable)
+}
+
+func (r *Repository) List() []*Volume {
+	r.lock.Lock()
+	var vols []*Volume
+
+	for _, v := range r.volumes {
+		vols = append(vols, v)
+	}
+
+	r.lock.Unlock()
+	return vols
+}
+
+func (r *Repository) findByName(name string) *Volume {
+	return r.nameIndex[name]
+}
+
+func (r *Repository) findByID(id string) *Volume {
+	return r.idIndex[id]
+}
+
+func (r *Repository) find(name string) *Volume {
+	if v := r.findByName(name); v != nil {
+		return v
+	}
+
+	if v := r.findByID(name); v != nil {
+		return v
+	}
+
+	return r.get(name)
+}
+
+func (r *Repository) Find(name string) *Volume {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.find(name)
+}
+
+func (r *Repository) generateNewName() (string, error) {
+	for i := 0; i < 6; i++ {
+		name := namesgenerator.GetRandomName(i)
+		if v := r.findByName(name); v != nil {
+			continue
+		}
+
+		return name, nil
+	}
+
+	return "", fmt.Errorf("Could not generate unique name")
+}
+
+func (r *Repository) generateNewId() (string, error) {
+	for i := 0; i < 6; i++ {
+		id := utils.GenerateRandomID()
+		if v := r.findByID(id); v != nil || r.driver.Exists(id) {
+			continue
+		}
+
+		return id, nil
+	}
+	return "", fmt.Errorf("Could not generate unique id")
 }

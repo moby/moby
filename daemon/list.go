@@ -162,3 +162,46 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	}
 	return engine.StatusOK
 }
+
+func (daemon *Daemon) VolumesList(job *engine.Job) engine.Status {
+	var (
+		outs       = engine.NewTable("Created", 0)
+		volFilters filters.Args
+		filterUsed bool
+	)
+
+	volFilters, err := filters.FromParam(job.Getenv("filters"))
+	if err != nil {
+		return job.Error(err)
+	}
+
+	if i, ok := volFilters["dangling"]; ok {
+		for _, value := range i {
+			if strings.ToLower(value) == "true" {
+				filterUsed = true
+			}
+		}
+	}
+
+	for _, v := range daemon.volumes.List() {
+		if filterUsed {
+			if len(v.Containers()) > 0 {
+				continue
+			}
+		}
+		out := &engine.Env{}
+		out.Set("Name", v.Name)
+		out.SetInt64("Created", v.Created.Unix())
+		if job.GetenvBool("size") {
+			out.SetInt64("Size", v.Size())
+		}
+		out.SetInt("Count", len(v.Containers()))
+		outs.Add(out)
+	}
+
+	outs.ReverseSort()
+	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
+}

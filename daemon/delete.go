@@ -123,3 +123,15 @@ func (daemon *Daemon) Destroy(container *Container) error {
 
 	return nil
 }
+
+func (daemon *Daemon) VolumeDelete(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
+	}
+
+	if err := daemon.volumes.Delete(job.Args[0]); err != nil {
+		return job.Error(err)
+	}
+
+	return engine.StatusOK
+}

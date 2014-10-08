@@ -1188,10 +1188,10 @@ ensure we know how your setup is configured.
 
     Return low-level information on a container or image
 
-      -f, --format=""    Format the output using the given go template.
+      -f, --format=""    Format the output using the given Go template.
 
 By default, this will render all results in a JSON array. If a format is
-specified, the given template will be executed for each result.
+specified, the given template will be applied for each result.
 
 Go's [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
@@ -2000,3 +2000,48 @@ both Docker client and daemon.
 
     Block until a container stops, then print its exit code.
 
+
+## volumes ls
+
+    Usage: docker volumes ls
+
+      -f, --filter=[]   Provide filter values (i.e. 'dangling=true')
+      -q, --quiet=false Only display volume names
+      -s, --size=false  Display total size (on disk) of volumes
+
+    Lists registered volumes. `ls` is optional. Running `docker volumes` alone,
+    without `ls`, will yield the same result.
+
+## volumes rm
+
+    Usage: docker volumes rm VOLUME [VOLUME...]
+
+    Remove a volume
+
+## volumes inspect
+
+    Usage: docker volumes inspect VOLUME [VOLUME...]
+
+      -f, --format=""    Format the output using the given Go template.
+
+    Return low-level information on a volume
+
+By default, this will render all results in a JSON array. If a format is
+specified, the given template will be applied for each result.
+
+Go's [text/template](http://golang.org/pkg/text/template/) package
+describes all the details of the format.
+
+## volumes create
+
+    Usage: docker volumes create [OPTIONS]
+
+      -p, --path=""   Specify path of new volume
+      -n, --name=""   Specify name of volume
+      -m, --mode="rw" Sepcify write-mode of volume
+
+The `docker volumes create` command creates a volume, which is a directory or
+file on the host that can be mounted into containers.
+
+If no path is specified, one is automatically created.
+If there is no name specified, one will be generated.

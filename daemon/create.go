@@ -141,3 +141,24 @@ func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode) ([]string, 
 	}
 	return nil, nil
 }
+
+func (daemon *Daemon) VolumeCreate(job *engine.Job) engine.Status {
+	var (
+		name = job.Getenv("name")
+		path = job.Getenv("path")
+		mode = job.Getenv("mode")
+	)
+
+	if !validMountMode(mode) {
+		return job.Errorf("Invalid mount mode: %s", mode)
+	}
+
+	writable := determineMountWritable(mode, true)
+	v, err := daemon.volumes.NewVolume(path, name, writable)
+	if err != nil {
+		return job.Errorf("Error creating volume: %q", err)
+	}
+
+	job.Printf("%s\n", v.Name)
+	return engine.StatusOK
+}

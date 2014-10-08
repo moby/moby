@@ -843,3 +843,66 @@ func readContainerFile(containerId, filename string) ([]byte, error) {
 
 	return content, nil
 }
+
+func deleteAllVolumes() error {
+	volumes, err := getAllVolumes()
+	if err != nil {
+		fmt.Println(volumes)
+		return err
+	}
+
+	deleteAllContainers()
+	deleteVolume(volumes)
+
+	// Clean up anything that couldn't be removed (bind-mounts, e.g.)
+	info, err := ioutil.ReadDir(volumesConfigPath)
+	if err != nil {
+		return err
+	}
+	if len(info) > 0 {
+		for _, f := range info {
+			if err := os.RemoveAll(volumesConfigPath + "/" + f.Name()); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func deleteVolume(volume string) error {
+	volume = strings.Replace(volume, "\n", " ", -1)
+	volume = strings.Trim(volume, " ")
+
+	cmd := exec.Command(dockerBinary, "volume", "rm", volume)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		return fmt.Errorf(out, err)
+	}
+	return nil
+}
+
+func getAllVolumes() (string, error) {
+	cmd := exec.Command(dockerBinary, "volume", "ls", "-q")
+	volumes, _, err := runCommandWithOutput(cmd)
+	return volumes, err
+}
+
+func inspectVolumeField(name, field string) (string, error) {
+	format := fmt.Sprintf("{{.%s}}", field)
+	inspectCmd := exec.Command(dockerBinary, "volume", "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func inspectVolumeFieldJSON(name, field string) (string, error) {
+	format := fmt.Sprintf("{{json .%s}}", field)
+	inspectCmd := exec.Command(dockerBinary, "volume", "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
