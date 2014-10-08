@@ -29,3 +29,4 @@ docs/VERSION
 docs/GITCOMMIT
 dockerversion/static.go
 dockerversion/details.go
+dockerversion/init.go
