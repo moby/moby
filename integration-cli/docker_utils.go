@@ -267,7 +267,7 @@ func deleteContainer(container string) error {
 	killSplitArgs := strings.Split(killArgs, " ")
 	killCmd := exec.Command(dockerBinary, killSplitArgs...)
 	runCommand(killCmd)
-	rmArgs := fmt.Sprintf("rm %v", container)
+	rmArgs := fmt.Sprintf("rm -v %v", container)
 	rmSplitArgs := strings.Split(rmArgs, " ")
 	rmCmd := exec.Command(dockerBinary, rmSplitArgs...)
 	exitCode, err := runCommand(rmCmd)

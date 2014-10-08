@@ -2339,3 +2339,40 @@ func TestVolumesNoCopyData(t *testing.T) {
 
 	logDone("run - volumes do not copy data for volumes-from and bindmounts")
 }
+
+func TestRunVolumesNotRecreatedOnStart(t *testing.T) {
+	// Clear out any remnants from other tests
+	deleteAllContainers()
+	info, err := ioutil.ReadDir(volumesConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(info) > 0 {
+		for _, f := range info {
+			if err := os.RemoveAll(volumesConfigPath + "/" + f.Name()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "--name", "lone_starr", "busybox")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "start", "lone_starr")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	info, err = ioutil.ReadDir(volumesConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(info) != 1 {
+		t.Fatalf("Expected only 1 volume have %v", len(info))
+	}
+
+	logDone("run - volumes not recreated on start")
+}

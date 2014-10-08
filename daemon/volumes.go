@@ -137,6 +137,11 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			continue
 		}
 
+		// Check if this has already been created
+		if _, exists := container.Volumes[path]; exists {
+			continue
+		}
+
 		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
 		if err != nil {
 			return nil, err
