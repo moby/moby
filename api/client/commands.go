@@ -116,7 +116,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		root := cmd.Arg(0)
 		if utils.IsGIT(root) {
 			remoteURL := cmd.Arg(0)
-			if !strings.HasPrefix(remoteURL, "git://") && !strings.HasPrefix(remoteURL, "git@") && !utils.IsURL(remoteURL) {
+			if !utils.ValidGitTransport(remoteURL) {
 				remoteURL = "https://" + remoteURL
 			}
 
