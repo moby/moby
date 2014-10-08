@@ -79,7 +79,7 @@ func (d *Daemon) getExecConfig(name string) (*execConfig, error) {
 		return execConfig, nil
 	}
 
-	return nil, fmt.Errorf("No such exec instance '%s' found in daemon", name)
+	return nil, engine.NotFoundError{Type: "exec instance", Id: name, Detail: "not found in daemon"}
 }
 
 func (d *Daemon) unregisterExecCommand(execConfig *execConfig) {
@@ -91,7 +91,7 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 	container := d.Get(name)
 
 	if container == nil {
-		return nil, fmt.Errorf("No such container: %s", name)
+		return nil, engine.NotFoundError{Type: "container", Id: name}
 	}
 
 	if !container.IsRunning() {

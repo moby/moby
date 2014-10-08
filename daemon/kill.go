@@ -53,7 +53,7 @@ func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
 			// FIXME: Add event for signals
 		}
 	} else {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	return engine.StatusOK
 }

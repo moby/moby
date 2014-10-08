@@ -26,5 +26,5 @@ func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
 		container.LogEvent("export")
 		return engine.StatusOK
 	}
-	return job.Errorf("No such container: %s", name)
+	return engine.NotFoundError{Type: "container", Id: name}
 }

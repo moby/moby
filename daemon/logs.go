@@ -41,7 +41,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	container := daemon.Get(name)
 	if container == nil {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	cLog, err := container.ReadLog("json")
 	if err != nil && os.IsNotExist(err) {

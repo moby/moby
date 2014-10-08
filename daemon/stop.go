@@ -17,14 +17,14 @@ func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
 	}
 	if container := daemon.Get(name); container != nil {
 		if !container.IsRunning() {
-			return job.Errorf("Container already stopped")
+			return engine.NotModifiedError("Container already stopped")
 		}
 		if err := container.Stop(int(t)); err != nil {
 			return job.Errorf("Cannot stop container %s: %s\n", name, err)
 		}
 		container.LogEvent("stop")
 	} else {
-		return job.Errorf("No such container: %s\n", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	return engine.StatusOK
 }

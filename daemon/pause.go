@@ -11,7 +11,7 @@ func (daemon *Daemon) ContainerPause(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	container := daemon.Get(name)
 	if container == nil {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	if err := container.Pause(); err != nil {
 		return job.Errorf("Cannot pause container %s: %s", name, err)
@@ -27,7 +27,7 @@ func (daemon *Daemon) ContainerUnpause(job *engine.Job) engine.Status {
 	name := job.Args[0]
 	container := daemon.Get(name)
 	if container == nil {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	if err := container.Unpause(); err != nil {
 		return job.Errorf("Cannot unpause container %s: %s", name, err)

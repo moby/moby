@@ -43,18 +43,19 @@ func TestGetBoolParam(t *testing.T) {
 
 func TesthttpError(t *testing.T) {
 	r := httptest.NewRecorder()
+	req := http.Request{}
 
-	httpError(r, fmt.Errorf("No such method"))
+	httpError(r, &req, engine.NotFoundError{Type: "method", Id: "test_method"})
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("Expected %d, got %d", http.StatusNotFound, r.Code)
 	}
 
-	httpError(r, fmt.Errorf("This accound hasn't been activated"))
+	httpError(r, &req, engine.AccountDisabledError("This accound hasn't been activated"))
 	if r.Code != http.StatusForbidden {
 		t.Fatalf("Expected %d, got %d", http.StatusForbidden, r.Code)
 	}
 
-	httpError(r, fmt.Errorf("Some error"))
+	httpError(r, &req, fmt.Errorf("Some error"))
 	if r.Code != http.StatusInternalServerError {
 		t.Fatalf("Expected %d, got %d", http.StatusInternalServerError, r.Code)
 	}

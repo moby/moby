@@ -155,7 +155,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		}
 		return engine.StatusOK
 	}
-	return job.Errorf("No such image: %s", name)
+	return engine.NotFoundError{Type: "image", Id: name}
 }
 
 // CmdTarLayer return the tarLayer of the image
@@ -178,5 +178,5 @@ func (s *TagStore) CmdTarLayer(job *engine.Job) engine.Status {
 		log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		return engine.StatusOK
 	}
-	return job.Errorf("No such image: %s", name)
+	return engine.NotFoundError{Type: "image", Id: name}
 }

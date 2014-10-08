@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	container := daemon.Get(name)
 
 	if container == nil {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 
 	if removeLink {
@@ -87,7 +87,7 @@ func (daemon *Daemon) Destroy(container *Container) error {
 
 	element := daemon.containers.Get(container.ID)
 	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
+		return engine.NotFoundError{Type: "container", Id: container.ID, Detail: "maybe it was already destroyed?"}
 	}
 
 	if err := container.Stop(3); err != nil {

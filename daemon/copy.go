@@ -29,5 +29,5 @@ func (daemon *Daemon) ContainerCopy(job *engine.Job) engine.Status {
 		}
 		return engine.StatusOK
 	}
-	return job.Errorf("No such container: %s", name)
+	return engine.NotFoundError{Type: "container", Id: name}
 }

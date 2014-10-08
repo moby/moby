@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/utils"
@@ -184,14 +185,14 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 				}
 				deleted = true
 			} else {
-				return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
+				return false, engine.NotFoundError{Type: "tag", Id: repoName + ":" + tag}
 			}
 		} else {
 			delete(store.Repositories, repoName)
 			deleted = true
 		}
 	} else {
-		return false, fmt.Errorf("No such repository: %s", repoName)
+		return false, engine.NotFoundError{Type: "repository", Id: repoName}
 	}
 	return deleted, store.save()
 }

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -45,7 +46,7 @@ func TestJob(t *testing.T) {
 
 	h := func(j *Job) Status {
 		j.Printf("%s\n", j.Name)
-		return 42
+		return errors.New("42")
 	}
 
 	eng.Register("dummy2", h)
@@ -56,7 +57,7 @@ func TestJob(t *testing.T) {
 		t.Fatalf("job2.handler shouldn't be nil")
 	}
 
-	if job2.handler(job2) != 42 {
+	if job2.handler(job2).Error() != "42" {
 		t.Fatalf("handler dummy2 was not found in job2")
 	}
 }

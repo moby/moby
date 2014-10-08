@@ -42,7 +42,7 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 			if tag == "" {
 				tag = graph.DEFAULTTAG
 			}
-			return job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return engine.NotFoundError{"image", config.Image, "tag: " + tag}
 		}
 		return job.Error(err)
 	}

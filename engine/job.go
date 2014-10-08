@@ -2,8 +2,10 @@ package engine
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -34,12 +36,71 @@ type Job struct {
 	closeIO bool
 }
 
-type Status int
+type Status error
 
-const (
-	StatusOK       Status = 0
-	StatusErr      Status = 1
-	StatusNotFound Status = 127
+type RedirectError struct {
+	Err    string
+	Target *url.URL
+}
+
+func (err RedirectError) Error() string {
+	return err.Err
+}
+
+type NotFoundError struct {
+	Type   string
+	Id     string
+	Detail string
+}
+
+func (err NotFoundError) Error() string {
+	if err.Detail == "" {
+		return fmt.Sprintf("No such %s %s", err.Type, err.Id)
+	} else {
+		return fmt.Sprintf("No such %s %s - %s", err.Type, err.Id, err.Detail)
+	}
+}
+
+type BadParameterError string
+
+func (err BadParameterError) Error() string {
+	return string(err)
+}
+
+type ConflictError string
+
+func (err ConflictError) Error() string {
+	return string(err)
+}
+
+type NotPossibleError string
+
+func (err NotPossibleError) Error() string {
+	return string(err)
+}
+
+type AuthenticationError string
+
+func (err AuthenticationError) Error() string {
+	return string(err)
+}
+
+type AccountDisabledError string
+
+func (err AccountDisabledError) Error() string {
+	return string(err)
+}
+
+type NotModifiedError string
+
+func (err NotModifiedError) Error() string {
+	return string(err)
+}
+
+var (
+	StatusOK       Status = errors.New("successful")
+	StatusErr      Status = errors.New("general error")
+	StatusNotFound Status = errors.New("not found")
 )
 
 // Run executes the job and blocks until the job completes.
@@ -74,7 +135,7 @@ func (job *Job) Run() error {
 	job.Stderr.Add(errorMessage)
 	if job.handler == nil {
 		job.Errorf("%s: command not found", job.Name)
-		job.status = 127
+		job.status = StatusNotFound
 	} else {
 		job.status = job.handler(job)
 		job.end = time.Now()
@@ -91,8 +152,12 @@ func (job *Job) Run() error {
 			return err
 		}
 	}
-	if job.status != 0 {
-		return fmt.Errorf("%s", Tail(errorMessage, 1))
+	if job.status != StatusOK {
+		if job.status.Error() == "" {
+			return fmt.Errorf("%s", Tail(errorMessage, 1))
+		} else {
+			return job.status
+		}
 	}
 
 	return nil
@@ -220,17 +285,25 @@ func (job *Job) Errorf(format string, args ...interface{}) Status {
 	if format[len(format)-1] != '\n' {
 		format = format + "\n"
 	}
-	fmt.Fprintf(job.Stderr, format, args...)
-	return StatusErr
+	err := fmt.Errorf(format, args...)
+	fmt.Fprint(job.Stderr, err)
+	return err
 }
 
 func (job *Job) Error(err error) Status {
 	fmt.Fprintf(job.Stderr, "%s\n", err)
-	return StatusErr
+	return Status(err)
 }
 
 func (job *Job) StatusCode() int {
-	return int(job.status)
+	switch job.status {
+	case StatusOK:
+		return 0
+	case StatusNotFound:
+		return 127
+	default:
+		return 1
+	}
 }
 
 func (job *Job) SetCloseIO(val bool) {
