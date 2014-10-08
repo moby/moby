@@ -261,9 +261,23 @@ some features (like local-only tar extraction and remote URL support) that are
 not immediately obvious. Consequently, the best use for `ADD` is local tar file
 auto-extraction into the image, as in `ADD rootfs.tar.xz /`.
 
+If you have multiple `Dockerfile` steps that use different files from your
+context, `COPY` them individually, rather than all at once. This will ensure that
+each step's build cache is only invalidated (forcing the step to be re-run) if the
+specifically required files change.
+
+For example:
+
+    COPY requirements.txt /tmp/
+    RUN pip install /tmp/requirements.txt
+    COPY . /tmp/
+
+Results in fewer cache invalidations for the `RUN` step, than if you put the
+`COPY . /tmp/` before it.
+
 Because image size matters, using `ADD` to fetch packages from remote URLs is
 strongly discouraged; you should use `curl` or `wget` instead. That way you can
-delete the files you no longer need after they’ve been extracted and you won't
+delete the files you no longer need after they've been extracted and you won't
 have to add another layer in your image. For example, you should avoid doing
 things like:
 
