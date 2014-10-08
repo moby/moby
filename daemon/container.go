@@ -441,7 +441,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	return container.buildHostsFiles(IP)
 }
 
-func (container *Container) AllocateNetwork() (err error) {
+func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	if container.Config.NetworkDisabled || !mode.IsPrivate() {
 		return nil
@@ -449,6 +449,7 @@ func (container *Container) AllocateNetwork() (err error) {
 
 	var (
 		env *engine.Env
+		err error
 		eng = container.daemon.eng
 	)
 
@@ -456,25 +457,22 @@ func (container *Container) AllocateNetwork() (err error) {
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
-	if err := job.Run(); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 
 	// Error handling: At this point, the interface is allocated so we have to
 	// make sure that it is always released in case of error, otherwise we
 	// might leak resources.
-	defer func() {
-		if err != nil {
-			eng.Job("release_interface", container.ID).Run()
-		}
-	}()
 
 	if container.Config.PortSpecs != nil {
-		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
+		if err = migratePortMappings(container.Config, container.hostConfig); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 		container.Config.PortSpecs = nil
-		if err := container.WriteHostConfig(); err != nil {
+		if err = container.WriteHostConfig(); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -503,7 +501,8 @@ func (container *Container) AllocateNetwork() (err error) {
 	container.NetworkSettings.PortMapping = nil
 
 	for port := range portSpecs {
-		if err := container.allocatePort(eng, port, bindings); err != nil {
+		if err = container.allocatePort(eng, port, bindings); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
