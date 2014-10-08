@@ -1558,22 +1558,27 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			outID = utils.TruncateID(outID)
 		}
 
-		// Remove the leading / from the names
-		for i := 0; i < len(outNames); i++ {
-			outNames[i] = outNames[i][1:]
-		}
-
 		if !*quiet {
 			var (
-				outCommand   = out.Get("Command")
-				ports        = engine.NewTable("", 0)
-				outNamesList = strings.Join(outNames, ",")
+				outCommand = out.Get("Command")
+				ports      = engine.NewTable("", 0)
 			)
 			outCommand = strconv.Quote(outCommand)
 			if !*noTrunc {
 				outCommand = utils.Trunc(outCommand, 20)
-				outNamesList = outNames[0]
+				// Keep only the canonical name
+				for i := 0; i < len(outNames); i++ {
+					if !strings.Contains(outNames[i][1:], "/") {
+						outNames = outNames[i : i+1]
+						break
+					}
+				}
 			}
+			// Remove the leading / from the names
+			for i := 0; i < len(outNames); i++ {
+				outNames[i] = outNames[i][1:]
+			}
+			outNamesList := strings.Join(outNames, ",")
 			ports.ReadListFrom([]byte(out.Get("Ports")))
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), outNamesList)
 			if *size {
