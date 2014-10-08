@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -254,4 +255,14 @@ func copyWithCP(source, target string) error {
 		return fmt.Errorf("failed to copy: error: %q ,output: %q", err, out)
 	}
 	return nil
+}
+
+func makeRandomString(n int) string {
+	// make a really long string
+	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
