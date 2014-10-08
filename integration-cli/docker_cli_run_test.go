@@ -2093,6 +2093,39 @@ func TestRunPortInUse(t *testing.T) {
 	logDone("run - fail if port already in use")
 }
 
+// https://github.com/docker/docker/issues/8428
+func TestRunPortProxy(t *testing.T) {
+	defer deleteAllContainers()
+
+	port := "12345"
+	cmd := exec.Command(dockerBinary, "run", "-p", port+":80", "busybox", "true")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("Failed to run and bind port %s, output: %s, error: %s", port, out, err)
+	}
+
+	// connect for 10 times here. This will trigger 10 EPIPES in the child
+	// process and kill it when it writes to a closed stdout/stderr
+	for i := 0; i < 10; i++ {
+		net.Dial("tcp", fmt.Sprintf("0.0.0.0:%s", port))
+	}
+
+	listPs := exec.Command("sh", "-c", "ps ax | grep docker")
+	out, _, err = runCommandWithOutput(listPs)
+	if err != nil {
+		t.Errorf("list docker process failed with output %s, error %s", out, err)
+	}
+	if strings.Contains(out, "docker <defunct>") {
+		t.Errorf("Unexpected defunct docker process")
+	}
+	if !strings.Contains(out, "docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 12345") {
+		t.Errorf("Failed to find docker-proxy process, got %s", out)
+	}
+
+	logDone("run - proxy should work with unavailable port")
+}
+
 // Regression test for #7792
 func TestRunMountOrdering(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "docker_nested_mount_test")
