@@ -6,18 +6,21 @@ import (
 	"os/exec"
 )
 
-// the docker binary to use
-var dockerBinary = "docker"
+var (
+	// the docker binary to use
+	dockerBinary = "docker"
 
-// the private registry image to use for tests involving the registry
-var registryImageName = "registry"
+	// the private registry image to use for tests involving the registry
+	registryImageName = "registry"
 
-// the private registry to use for tests
-var privateRegistryURL = "127.0.0.1:5000"
+	// the private registry to use for tests
+	privateRegistryURL = "127.0.0.1:5000"
 
-var execDriverPath = "/var/lib/docker/execdriver/native"
+	execDriverPath    = "/var/lib/docker/execdriver/native"
+	volumesConfigPath = "/var/lib/docker/volumes"
 
-var workingDirectory string
+	workingDirectory string
+)
 
 func init() {
 	if dockerBin := os.Getenv("DOCKER_BINARY"); dockerBin != "" {
