@@ -92,6 +92,12 @@ func (container *Container) VolumePaths() map[string]struct{} {
 	return paths
 }
 
+func (container *Container) registerVolumes() {
+	for _, mnt := range container.VolumeMounts() {
+		mnt.volume.AddContainer(container.ID)
+	}
+}
+
 func (container *Container) derefVolumes() {
 	for path := range container.VolumePaths() {
 		vol := container.daemon.volumes.Get(path)

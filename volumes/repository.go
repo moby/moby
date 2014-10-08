@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -83,11 +84,31 @@ func (r *Repository) restore() error {
 		return err
 	}
 
-	var ids []string
 	for _, v := range dir {
 		id := v.Name()
-		if r.driver.Exists(id) {
-			ids = append(ids, id)
+		path, err := r.driver.Get(id, "")
+		if err != nil {
+			log.Debugf("Could not find volume for %s: %v", id, err)
+			continue
+		}
+		vol := &Volume{
+			ID:         id,
+			configPath: r.configPath + "/" + id,
+			containers: make(map[string]struct{}),
+			Path:       path,
+		}
+		if err := vol.FromDisk(); err != nil {
+			if !os.IsNotExist(err) {
+				log.Debugf("Error restoring volume: %v", err)
+				continue
+			}
+			if err := vol.initialize(); err != nil {
+				log.Debugf("%s", err)
+				continue
+			}
+		}
+		if err := r.add(vol); err != nil {
+			log.Debugf("Error restoring volume: %v", err)
 		}
 	}
 	return nil
@@ -173,7 +194,7 @@ func (r *Repository) createNewVolumePath(id string) (string, error) {
 
 	path, err := r.driver.Get(id, "")
 	if err != nil {
-		return "", fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", r.driver, id, err)
+		return "", fmt.Errorf("Driver %s failed to get volume rootfs %s: %v", r.driver, id, err)
 	}
 
 	return path, nil

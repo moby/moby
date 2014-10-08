@@ -400,9 +400,7 @@ func (daemon *Daemon) restore() error {
 	}
 
 	for _, c := range registeredContainers {
-		for _, mnt := range c.VolumeMounts() {
-			daemon.volumes.Add(mnt.volume)
-		}
+		c.registerVolumes()
 	}
 
 	if !debug {
