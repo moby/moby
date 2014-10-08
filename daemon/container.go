@@ -920,6 +920,7 @@ func (container *Container) setupContainerDns() error {
 	}
 
 	if config.NetworkMode != "host" {
+		// check configurations for any container/daemon dns settings
 		if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
 			var (
 				dns       = resolvconf.GetNameservers(resolvConf)
@@ -936,15 +937,15 @@ func (container *Container) setupContainerDns() error {
 				dnsSearch = daemon.config.DnsSearch
 			}
 			return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
-		} else {
-			resolvConf = utils.RemoveLocalDns(resolvConf)
-			if !bytes.Contains(resolvConf, []byte("nameserver")) {
-				for _, dns := range DefaultDns {
-					log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
-					resolvConf = append(append(resolvConf, []byte("\nnameserver ")...), dns...)
-				}
-				resolvConf = append(resolvConf, []byte("\n")...)
-			}
+		}
+
+		// replace any localhost/127.* nameservers
+		resolvConf = utils.RemoveLocalDns(resolvConf)
+		// if the resulting resolvConf is empty, use DefaultDns
+		if !bytes.Contains(resolvConf, []byte("nameserver")) {
+			log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
+			// prefix the default dns options with nameserver
+			resolvConf = append(resolvConf, []byte("\nnameserver "+strings.Join(DefaultDns, "\nnameserver "))...)
 		}
 	}
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)

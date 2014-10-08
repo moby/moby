@@ -1266,20 +1266,39 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 }
 
 func TestRunDnsDefaultOptions(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
-
-	actual, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatal(err, actual)
-	}
-
-	resolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
+	// ci server has default resolv.conf
+	// so rewrite it for the test
+	origResolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
 	if os.IsNotExist(err) {
 		t.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	if actual != string(resolvConf) {
-		t.Fatalf("expected resolv.conf is not the same of actual")
+	// test with file
+	tmpResolvConf := []byte("nameserver 127.0.0.1")
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+	// put the old resolvconf back
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", origResolvConf, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	cmd := exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
+
+	actual, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Error(err, actual)
+		return
+	}
+
+	// check that the actual defaults are there
+	// if we ever change the defaults from google dns, this will break
+	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	if actual != expected {
+		t.Errorf("expected resolv.conf be: %q, but was: %q", expected, actual)
+		return
 	}
 
 	deleteAllContainers()
