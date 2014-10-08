@@ -100,7 +100,7 @@ func (m *containerMonitor) Close() error {
 func (m *containerMonitor) Start() error {
 	var (
 		err        error
-		exitStatus int
+		exitStatus *execdriver.ExitStatus
 		// this variable indicates where we in execution flow:
 		// before Run or after
 		afterRun bool
@@ -150,9 +150,9 @@ func (m *containerMonitor) Start() error {
 		// here container.Lock is already lost
 		afterRun = true
 
-		m.resetMonitor(err == nil && exitStatus == 0)
+		m.resetMonitor(err == nil && exitStatus.ExitCode == 0)
 
-		if m.shouldRestart(exitStatus) {
+		if m.shouldRestart(exitStatus.ExitCode) {
 			m.container.SetRestarting(exitStatus)
 			m.container.LogEvent("die")
 			m.resetContainer(true)
@@ -209,7 +209,7 @@ func (m *containerMonitor) waitForNextRestart() {
 
 // shouldRestart checks the restart policy and applies the rules to determine if
 // the container's process should be restarted
-func (m *containerMonitor) shouldRestart(exitStatus int) bool {
+func (m *containerMonitor) shouldRestart(exitCode int) bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -228,7 +228,7 @@ func (m *containerMonitor) shouldRestart(exitStatus int) bool {
 			return false
 		}
 
-		return exitStatus != 0
+		return exitCode != 0
 	}
 
 	return false

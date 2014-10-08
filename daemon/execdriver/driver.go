@@ -40,9 +40,18 @@ type TtyTerminal interface {
 	Master() *os.File
 }
 
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+
+	// Whether the container encountered an OOM.
+	OOMKilled bool
+}
+
 type Driver interface {
 	Run(c *Command, pipes *Pipes, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
-	// Exec executes the process in a running container, blocks until the process exits and returns the exit code
+	// Exec executes the process in an existing container, blocks until the process exits and returns the exit code
 	Exec(c *Command, processConfig *ProcessConfig, pipes *Pipes, startCallback StartCallback) (int, error)
 	Kill(c *Command, sig int) error
 	Pause(c *Command) error
