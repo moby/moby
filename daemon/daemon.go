@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -32,7 +31,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/namesgenerator"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -923,9 +921,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		eng:            eng,
 		trustStore:     t,
 	}
-	if err := daemon.checkLocaldns(); err != nil {
-		return nil, err
-	}
 	if err := daemon.restore(); err != nil {
 		return nil, err
 	}
@@ -1083,20 +1078,6 @@ func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
 
 func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 	return daemon.containerGraph
-}
-
-func (daemon *Daemon) checkLocaldns() error {
-	resolvConf, err := resolvconf.Get()
-	if err != nil {
-		return err
-	}
-	resolvConf = utils.RemoveLocalDns(resolvConf)
-
-	if len(daemon.config.Dns) == 0 && !bytes.Contains(resolvConf, []byte("nameserver")) {
-		log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
-		daemon.config.Dns = DefaultDns
-	}
-	return nil
 }
 
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {

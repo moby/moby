@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -917,22 +918,34 @@ func (container *Container) setupContainerDns() error {
 		return err
 	}
 
-	if config.NetworkMode != "host" && (len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0) {
-		var (
-			dns       = resolvconf.GetNameservers(resolvConf)
-			dnsSearch = resolvconf.GetSearchDomains(resolvConf)
-		)
-		if len(config.Dns) > 0 {
-			dns = config.Dns
-		} else if len(daemon.config.Dns) > 0 {
-			dns = daemon.config.Dns
+	if config.NetworkMode != "host" {
+		// check configurations for any container/daemon dns settings
+		if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
+			var (
+				dns       = resolvconf.GetNameservers(resolvConf)
+				dnsSearch = resolvconf.GetSearchDomains(resolvConf)
+			)
+			if len(config.Dns) > 0 {
+				dns = config.Dns
+			} else if len(daemon.config.Dns) > 0 {
+				dns = daemon.config.Dns
+			}
+			if len(config.DnsSearch) > 0 {
+				dnsSearch = config.DnsSearch
+			} else if len(daemon.config.DnsSearch) > 0 {
+				dnsSearch = daemon.config.DnsSearch
+			}
+			return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 		}
-		if len(config.DnsSearch) > 0 {
-			dnsSearch = config.DnsSearch
-		} else if len(daemon.config.DnsSearch) > 0 {
-			dnsSearch = daemon.config.DnsSearch
+
+		// replace any localhost/127.* nameservers
+		resolvConf = utils.RemoveLocalDns(resolvConf)
+		// if the resulting resolvConf is empty, use DefaultDns
+		if !bytes.Contains(resolvConf, []byte("nameserver")) {
+			log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
+			// prefix the default dns options with nameserver
+			resolvConf = append(resolvConf, []byte("\nnameserver "+strings.Join(DefaultDns, "\nnameserver "))...)
 		}
-		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	}
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
 }
