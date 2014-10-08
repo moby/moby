@@ -19,7 +19,7 @@ import (
 const DEFAULTTAG = "latest"
 
 var (
-	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,29}$`)
+	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
 )
 
 type TagStore struct {
