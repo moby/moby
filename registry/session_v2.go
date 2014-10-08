@@ -57,10 +57,14 @@ func getV2URL(e *Endpoint, routeName string, vars map[string]string) (*url.URL, 
 	if err != nil {
 		return nil, fmt.Errorf("unable to make registry route %q with vars %v: %s", routeName, vars, err)
 	}
+	u, err := url.Parse(REGISTRYSERVER)
+	if err != nil {
+		return nil, fmt.Errorf("invalid registry url: %s", err)
+	}
 
 	return &url.URL{
-		Scheme: e.URL.Scheme,
-		Host:   e.URL.Host,
+		Scheme: u.Scheme,
+		Host:   u.Host,
 		Path:   routePath.Path,
 	}, nil
 }
