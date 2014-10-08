@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
 )
 
@@ -25,6 +26,8 @@ var (
 	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
 	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
 	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
+
+	flInsecureSslRegistry = flag.Bool([]string{"-insecure-ssl-registry"}, false, "Skip TLS verify between daemon with registry")
 )
 
 type TimeoutType uint32
@@ -36,7 +39,7 @@ const (
 )
 
 func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
-	tlsConfig := tls.Config{RootCAs: roots}
+	tlsConfig := tls.Config{RootCAs: roots, InsecureSkipVerify: *flInsecureSslRegistry}
 
 	if cert != nil {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
