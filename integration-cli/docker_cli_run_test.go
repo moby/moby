@@ -1937,100 +1937,6 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 	}
 }
 
-func TestRunStableIPAndPort(t *testing.T) {
-	const nContainers = 2
-	var ids, ips, macs, ports [nContainers]string
-
-	// Setup: Create a couple of containers and collect their IPs and public ports.
-	for i := 0; i < nContainers; i++ {
-		runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "1234", "busybox", "top")
-		out, _, err := runCommandWithOutput(runCmd)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ids[i] = strings.TrimSpace(out)
-
-		ips[i], err = inspectField(ids[i], "NetworkSettings.IPAddress")
-		errorOut(err, t, out)
-		if ips[i] == "" {
-			t.Fatal("IP allocation failed")
-		}
-
-		macs[i], err = inspectField(ids[i], "NetworkSettings.MacAddress")
-		errorOut(err, t, out)
-
-		portCmd := exec.Command(dockerBinary, "port", ids[i], "1234")
-		ports[i], _, err = runCommandWithOutput(portCmd)
-		errorOut(err, t, out)
-		if ports[i] == "" {
-			t.Fatal("Port allocation failed")
-		}
-	}
-
-	// Stop them all.
-	for _, id := range ids {
-		cmd := exec.Command(dockerBinary, "stop", id)
-		out, _, err := runCommandWithOutput(cmd)
-		if err != nil {
-			t.Fatal(err, out)
-		}
-	}
-
-	// Create a new container and ensure it's not getting the IP or port of some stopped container.
-	{
-		runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "1234", "busybox", "top")
-		out, _, err := runCommandWithOutput(runCmd)
-		errorOut(err, t, out)
-
-		id := strings.TrimSpace(out)
-		ip, err := inspectField(id, "NetworkSettings.IPAddress")
-		errorOut(err, t, out)
-
-		portCmd := exec.Command(dockerBinary, "port", id, "1234")
-		port, _, err := runCommandWithOutput(portCmd)
-		errorOut(err, t, out)
-
-		for i := range ids {
-			if ip == ips[i] {
-				t.Fatalf("Conflicting IP: %s", ip)
-			}
-			if port == ports[i] {
-				t.Fatalf("Conflicting port: %s", port)
-			}
-		}
-	}
-
-	// Start the containers back, and ensure they are getting the same IPs, MACs and ports.
-	for i, id := range ids {
-		runCmd := exec.Command(dockerBinary, "start", id)
-		out, _, err := runCommandWithOutput(runCmd)
-		errorOut(err, t, out)
-
-		ip, err := inspectField(id, "NetworkSettings.IPAddress")
-		errorOut(err, t, out)
-
-		mac, err := inspectField(id, "NetworkSettings.MacAddress")
-		errorOut(err, t, out)
-
-		portCmd := exec.Command(dockerBinary, "port", ids[i], "1234")
-		port, _, err := runCommandWithOutput(portCmd)
-		errorOut(err, t, out)
-
-		if ips[i] != ip {
-			t.Fatalf("Container started with a different IP: %s != %s", ip, ips[i])
-		}
-		if macs[i] != mac {
-			t.Fatalf("Container started with a different MAC: %s != %s", mac, macs[i])
-		}
-		if ports[i] != port {
-			t.Fatalf("Container started with a different port: %s != %s", port, ports[i])
-		}
-	}
-
-	deleteAllContainers()
-	logDone("run - ips and ports must not change")
-}
-
 // Ensure that CIDFile gets deleted if it's empty
 // Perform this test by making `docker run` fail
 func TestRunCidFileCleanupIfEmpty(t *testing.T) {
@@ -2139,7 +2045,7 @@ func TestRunPortInUse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	cmd := exec.Command(dockerBinary, "run", "-p", port+":80", "busybox", "true")
+	cmd := exec.Command(dockerBinary, "run", "-d", "-p", port+":80", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
 		t.Fatalf("Binding on used port must fail")
@@ -2157,7 +2063,7 @@ func TestRunPortProxy(t *testing.T) {
 	defer deleteAllContainers()
 
 	port := "12345"
-	cmd := exec.Command(dockerBinary, "run", "-p", port+":80", "busybox", "true")
+	cmd := exec.Command(dockerBinary, "run", "-d", "-p", port+":80", "busybox", "top")
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {

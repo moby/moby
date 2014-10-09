@@ -564,6 +564,8 @@ func (container *Container) RestoreNetwork() error {
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
+	container.ReleaseNetwork()
+
 	// Disable all active links
 	if container.activeLinks != nil {
 		for _, link := range container.activeLinks {
@@ -1019,14 +1021,8 @@ func (container *Container) initializeNetworking() error {
 		container.Config.NetworkDisabled = true
 		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	}
-	// Backward compatibility:
-	// Network allocation used to be done when containers started, not when they
-	// were created, therefore we might be starting a legacy container that
-	// doesn't have networking.
-	if !container.isNetworkAllocated() {
-		if err := container.AllocateNetwork(); err != nil {
-			return err
-		}
+	if err := container.AllocateNetwork(); err != nil {
+		return err
 	}
 	return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 }

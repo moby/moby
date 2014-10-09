@@ -370,16 +370,6 @@ func (daemon *Daemon) restore() error {
 		registeredContainers = append(registeredContainers, container)
 	}
 
-	// Restore networking of registered containers.
-	// This must be performed prior to any IP allocation, otherwise we might
-	// end up giving away an already allocated address.
-	for _, container := range registeredContainers {
-		if err := container.RestoreNetwork(); err != nil {
-			log.Errorf("Failed to restore network for %v: %v", container.Name, err)
-			continue
-		}
-	}
-
 	// check the restart policy on the containers and restart any container with
 	// the restart policy of "always"
 	if daemon.config.AutoRestart {
