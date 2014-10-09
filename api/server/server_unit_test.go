@@ -275,7 +275,7 @@ func TestGetEvents(t *testing.T) {
 	if !called {
 		t.Fatal("handler was not called")
 	}
-	assertContentType(r, "application/x-json-stream", t)
+	assertContentType(r, "application/json", t)
 	var stdout_json struct {
 		Since int
 		Until int

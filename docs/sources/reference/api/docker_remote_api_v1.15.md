@@ -1082,7 +1082,7 @@ Build an image from Dockerfile via stdin
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/x-json-stream
+        Content-Type: application/json
 
         {"stream":"Step 1..."}
         {"stream":"..."}
@@ -1317,7 +1317,7 @@ and Docker images will report:
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/x-json-stream
+        Content-Type: application/json
 
         {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
         {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
