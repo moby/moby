@@ -527,6 +527,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 			repo, tag = parsers.ParseRepositoryTag(repo)
 		}
 		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
+		job.SetenvList("env", strings.Split(r.Form.Get("env"), " "))
 		job.Stdin.Add(r.Body)
 	}
 

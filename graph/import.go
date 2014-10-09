@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -46,7 +47,12 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		defer progressReader.Close()
 		archive = progressReader
 	}
-	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, nil)
+	var config runconfig.Config
+	if len(job.GetenvList("env")) > 0 {
+		config.Env = job.GetenvList("env")
+	}
+
+	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, &config)
 	if err != nil {
 		return job.Error(err)
 	}
