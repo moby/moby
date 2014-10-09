@@ -59,6 +59,8 @@ pages:
 - ['userguide/dockerlinks.md', 'User Guide', 'Linking containers together' ]
 - ['userguide/dockervolumes.md', 'User Guide', 'Managing data in containers' ]
 - ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
+- ['userguide/level1.md', '**HIDDEN**' ]
+- ['userguide/level2.md', '**HIDDEN**' ]
 
 # Docker Hub docs:
 - ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]

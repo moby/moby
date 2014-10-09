@@ -114,8 +114,7 @@ We've specified an image: `training/webapp`. This image is a
 pre-built image we've created that contains a simple Python Flask web
 application.
 
-Lastly, we've specified a command for our container to run: `python app.py`. 
-This launches our web application.
+Lastly, we've specified a command for our container to run: `python app.py`. This launches our web application.
 
 > **Note:** 
 > You can see more detail on the `docker run` command in the [command
