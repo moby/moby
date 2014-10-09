@@ -93,10 +93,6 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
 			return nil, nil, err
 		}
-		// We may only allocate the network if a host config was passed, otherwise we'll miss port mappings.
-		if err := container.AllocateNetwork(); err != nil {
-			return nil, nil, err
-		}
 	}
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
