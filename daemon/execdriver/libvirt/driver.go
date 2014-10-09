@@ -316,10 +316,10 @@ func connectToDockerInit(c *execdriver.Command, p *execdriver.Pipes, reconnect b
 	// We can't connect to the dockerinit RPC socket file directly because
 	// the path to it is longer than 108 characters (UNIX_PATH_MAX).
 	// Create a temporary symlink to connect to.
-	// TODO: Make random temp and safe
-	symlink := "/tmp/docker-rpc." + c.ID
+	tmpPath, err := ioutil.TempDir("", "docker-rpc.")
+	symlink := path.Join(tmpPath, "socket")
 	os.Symlink(path.Join(c.Rootfs, SocketPath, RpcSocketName), symlink)
-	defer os.Remove(symlink)
+	defer os.RemoveAll(tmpPath)
 	address, err := net.ResolveUnixAddr("unix", symlink)
 	if err != nil {
 		return nil, err
