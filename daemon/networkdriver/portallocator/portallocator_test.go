@@ -243,3 +243,172 @@ func TestNoDuplicateBPR(t *testing.T) {
 		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
 	}
 }
+
+func TestTCPUDPPortAllocation(t *testing.T) {
+	defer reset()
+
+	ip := net.ParseIP("192.168.0.1")
+	ip2 := net.ParseIP("192.168.0.2")
+	if port, err := RequestTCPUDPPort(ip, "tcp", 80); err != nil {
+		t.Fatal(err)
+	} else if port != 80 {
+		t.Fatalf("Acquire(80) should return 80, not %d", port)
+	}
+	port, err := RequestTCPUDPPort(ip, "tcp", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port <= 0 {
+		t.Fatalf("Acquire(0) should return a non-zero port")
+	}
+
+	if _, err := RequestTCPUDPPort(ip, "tcp", port); err == nil {
+		t.Fatalf("Acquiring a port already in use should return an error")
+	}
+
+	if newPort, err := RequestTCPUDPPort(ip, "tcp", 0); err != nil {
+		t.Fatal(err)
+	} else if newPort == port {
+		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
+	}
+
+	if _, err := RequestTCPUDPPort(ip, "tcp", 80); err == nil {
+		t.Fatalf("Acquiring a port already in use should return an error")
+	}
+	if _, err := RequestTCPUDPPort(ip2, "tcp", 80); err != nil {
+		t.Fatalf("It should be possible to allocate the same port on a different interface")
+	}
+	if _, err := RequestTCPUDPPort(ip2, "tcp", 80); err == nil {
+		t.Fatalf("Acquiring a port already in use should return an error")
+	}
+	if err := ReleasePort(ip, "tcp", 80); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RequestPort(ip, "tcp", 80); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReleasePort(ip, "udp", 80); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RequestPort(ip, "udp", 80); err != nil {
+		t.Fatal(err)
+	}
+
+	port, err = RequestTCPUDPPort(ip, "tcp", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port2, err := RequestTCPUDPPort(ip, "tcp", port+1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port3, err := RequestTCPUDPPort(ip, "tcp", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port3 == port2 {
+		t.Fatal("Requesting a dynamic port should never allocate a used port")
+	}
+}
+
+//allocate 49153-49158 for TCP
+//allocate 49153,49154 and 49155 for UDP
+//allocate TCPUDP vix 49159 and 49160
+//request a udp (49156) and a tcp (49161)
+//new tcpudp request should now give 49162
+func TestTCPUDPPorts(t *testing.T) {
+	defer reset()
+
+	for i := 0; i <= 5; i++ {
+		port, err := RequestPort(defaultIP, "tcp", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected := BeginPortRange + i; port != expected {
+			t.Fatalf("Expected port %d got %d", expected, port)
+		}
+	}
+
+	for i := 0; i <= 2; i++ {
+		port, err := RequestPort(defaultIP, "udp", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected := BeginPortRange + i; port != expected {
+			t.Fatalf("Expected port %d got %d", expected, port)
+		}
+	}
+
+	for i := 0; i <= 2; i++ {
+		port, err := RequestTCPUDPPort(defaultIP, "tcpudp", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected := BeginPortRange + i + 6; port != expected {
+			t.Fatalf("Expected port %d got %d", expected, port)
+		}
+	}
+
+	port, err := RequestPort(defaultIP, "udp", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port != BeginPortRange+3 {
+		t.Fatalf("Expected port %d got %d", (BeginPortRange + 3), port)
+	}
+
+	// release a port in the middle and ensure we get another tcp port
+	port = BeginPortRange + 7
+	if err := ReleasePort(defaultIP, "tcp", port); err != nil {
+		t.Fatal(err)
+	}
+	newPort, err := RequestTCPUDPPort(defaultIP, "tcp", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newPort != BeginPortRange+9 {
+		t.Fatalf("Expected port %d got %d", port, newPort)
+	}
+}
+
+func TestTCPUDPAllocateAndReleasePorts(t *testing.T) {
+	defer reset()
+
+	for i := 0; i <= 2; i++ {
+		port, err := RequestTCPUDPPort(defaultIP, "tcp", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected := BeginPortRange + i; port != expected {
+			t.Fatalf("Expected port %d got %d", expected, port)
+		}
+	}
+
+	for i := 0; i <= 2; i++ {
+		port := BeginPortRange + i
+		err := ReleasePort(defaultIP, "tcp", port)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = ReleasePort(defaultIP, "udp", port)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i <= 2; i++ {
+		port, err := RequestTCPUDPPort(defaultIP, "tcpudp", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected := BeginPortRange + i; port != expected {
+			t.Fatalf("Expected port %d got %d", expected, port)
+		}
+	}
+}

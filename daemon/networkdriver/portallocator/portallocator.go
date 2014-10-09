@@ -111,6 +111,58 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	return port, nil
 }
 
+func RequestTCPUDPPort(ip net.IP, proto string, port int) (int, error) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if ip == nil {
+		ip = defaultIP
+	}
+	ipstr := ip.String()
+	protomap, ok := globalMap[ipstr]
+	if !ok {
+		protomap = newProtoMap()
+		globalMap[ipstr] = protomap
+	}
+
+	mapping_tcp := protomap["tcp"]
+	mapping_udp := protomap["udp"]
+	if port > 0 {
+		_, ok := mapping_tcp.p[port]
+		_, ok2 := mapping_udp.p[port]
+		if !ok && !ok2 {
+			mapping_tcp.p[port] = struct{}{}
+			mapping_udp.p[port] = struct{}{}
+			return port, nil
+		}
+		return 0, NewErrPortAlreadyAllocated(ipstr, port)
+	}
+
+	if (mapping_tcp.last == 0 || len(mapping_tcp.p) == 0) &&
+		(mapping_udp.last == 0 || len(mapping_udp.p) == 0) {
+		mapping_tcp.p[BeginPortRange] = struct{}{}
+		mapping_tcp.last = BeginPortRange
+		mapping_udp.p[BeginPortRange] = struct{}{}
+		mapping_udp.last = BeginPortRange
+		return BeginPortRange, nil
+	}
+
+	for port := mapping_tcp.last + 1; port != mapping_tcp.last; port++ {
+		if port > EndPortRange {
+			port = BeginPortRange
+		}
+
+		_, ok := mapping_tcp.p[port]
+		_, ok2 := mapping_udp.p[port]
+		if !ok && !ok2 {
+			mapping_tcp.p[port] = struct{}{}
+			mapping_udp.p[port] = struct{}{}
+			return port, nil
+		}
+	}
+	return 0, ErrAllPortsAllocated
+}
+
 // ReleasePort releases port from global ports pool for specified ip and proto.
 func ReleasePort(ip net.IP, proto string, port int) error {
 	mutex.Lock()

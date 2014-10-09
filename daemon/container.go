@@ -530,6 +530,20 @@ func (container *Container) AllocateNetwork() error {
 			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
+		if port.Proto() == "tcpudp" || port.Proto() == "udptcp" {
+			portnum := port.Port()
+			b := bindings[port]
+			delete(portSpecs, port)
+			delete(bindings, port)
+			newport := nat.NewPort("tcp", portnum)
+			bindings[newport] = b
+			portSpecs[port] = struct{}{}
+			newport = nat.NewPort("udp", portnum)
+			bindings[newport] = b
+			portSpecs[port] = struct{}{}
+
+		}
+
 	}
 	container.WriteHostConfig()
 

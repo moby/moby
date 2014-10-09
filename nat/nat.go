@@ -76,7 +76,7 @@ func SplitProtoPort(rawPort string) (string, string) {
 }
 
 func validateProto(proto string) bool {
-	for _, availableProto := range []string{"tcp", "udp"} {
+	for _, availableProto := range []string{"tcp", "udp", "tcpudp", "udptcp"} {
 		if availableProto == proto {
 			return true
 		}
