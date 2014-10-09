@@ -168,7 +168,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	}
 
 	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
-		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.terminalFd, cli.isTerminal)
+		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.outFd, cli.isTerminalOut)
 	}
 	if stdout != nil || stderr != nil {
 		// When TTY is ON, use regular copy
