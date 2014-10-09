@@ -31,6 +31,7 @@ docker-run - Run a command in a new container
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
+[**--pin**[=*false*]]
 [**--privileged**[=*false*]]
 [**--restart**[=*POLICY*]]
 [**--rm**[=*false*]]
@@ -202,6 +203,10 @@ mapping between the host ports and the exposed ports, use **docker port**.
    Publish a container's port to the host (format: ip:hostPort:containerPort |
 ip::containerPort | hostPort:containerPort | containerPort) (use **docker port** to see the
 actual mapping)
+
+**--pin**=*true*|*false*
+  The `--pin` flag tells `docker run` to pin the container.  This makes it
+impossible to remove the container without using the `--force` option.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. By default, Docker containers are

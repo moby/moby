@@ -58,6 +58,9 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 				return job.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f")
 			}
 		}
+		if container.HostConfig().Pinned && !forceRemove {
+			return job.Errorf("Container `%s` is pinned. You must remove with the `force` option", name)
+		}
 		if err := daemon.Destroy(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}

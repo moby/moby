@@ -337,6 +337,17 @@ Dockerfile instruction and how the operator can override that setting.
  - [USER](#user)
  - [WORKDIR](#workdir)
 
+## Container pinning (--pin)
+
+  --pin=false: Pin the container, making it impossible to remove without using `--force`
+
+Use container pinning to ensure a container is not accidentally removed. This is
+useful when using data-only containers which stay in a stopped state. The only
+way to remove pinned containers is with the `--force` option.
+
+  $ docker run --pin --name pinnned-container IMAGE [COMMAND]
+  $ docekr rm --force pinned-container
+
 ## CMD (Default Command or Options)
 
 Recall the optional `COMMAND` in the Docker
