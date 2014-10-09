@@ -18,7 +18,7 @@ func NewDriver(name, root, initPath string, sysInfo *sysinfo.SysInfo) (execdrive
 		// to be backwards compatible
 		return lxc.NewDriver(root, initPath, sysInfo.AppArmor)
 	case "libvirt":
-		return libvirt.NewDriver(root, initPath)
+		return libvirt.NewDriver(root, initPath, sysInfo.AppArmor)
 	case "native":
 		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath)
 	}

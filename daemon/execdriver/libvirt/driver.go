@@ -34,6 +34,7 @@ type driver struct {
 	version  string
 	template *template.Template
 	initPath string
+	apparmor bool
 }
 
 type dockerInit struct {
@@ -371,7 +372,7 @@ func (init *dockerInit) close() {
 	}
 }
 
-func NewDriver(root string, initPath string) (*driver, error) {
+func NewDriver(root string, initPath string, apparmor bool) (*driver, error) {
 	// test libvirtd connection
 	conn, err := libvirt.NewVirConnection("lxc:///")
 	if err != nil {
@@ -397,6 +398,7 @@ func NewDriver(root string, initPath string) (*driver, error) {
 		version:  version,
 		template: template,
 		initPath: initPath,
+		apparmor: apparmor,
 	}, nil
 }
 
@@ -478,7 +480,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, callback ex
 	// Generate libvirt domain XML file
 	filename := path.Join(d.root, "containers", c.ID, "libvirt-lxc-config.xml")
 
-	if err = execdriver.GenerateContainerConfig(d.template, c, false, filename); err != nil {
+	if err = execdriver.GenerateContainerConfig(d.template, c, d.apparmor, filename); err != nil {
 		return -1, err
 	}
 

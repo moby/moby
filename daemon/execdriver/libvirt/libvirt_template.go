@@ -68,6 +68,15 @@ const LibvirtLxcTemplate = `
 {{end}}
     <console type='pty'/>
   </devices>
+{{if not .ProcessConfig.Privileged}}
+{{if .AppArmor}}
+  <seclabel type='dynamic' model='apparmor'/>
+{{else if .ProcessLabel}}
+  <seclabel type='static' model='selinux'>
+    <label>{{.ProcessLabel}}</label>
+  </seclabel>
+{{end}}
+{{end}}
 </domain>
 
 `
