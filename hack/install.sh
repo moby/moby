@@ -42,7 +42,7 @@ user="$(id -un 2>/dev/null || true)"
 sh_c='sh -c'
 if [ "$user" != 'root' ]; then
 	if command_exists sudo; then
-		sh_c='sudo sh -c'
+		sh_c='sudo -E sh -c'
 	elif command_exists su; then
 		sh_c='su -c'
 	else
