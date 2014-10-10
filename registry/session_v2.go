@@ -28,13 +28,13 @@ func newV2RegistryRouter() *mux.Router {
 	v2Router.Path("/tags/{imagename:[a-z0-9-._/]+}").Name("tags")
 
 	// Download a blob
-	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}/{sum:[a-fA-F0-9]{4,}}").Name("downloadBlob")
+	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9._+-]+}/{sum:[a-fA-F0-9]{4,}}").Name("downloadBlob")
 
 	// Upload a blob
-	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}").Name("uploadBlob")
+	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9._+-]+}").Name("uploadBlob")
 
 	// Mounting a blob in an image
-	v2Router.Path("/mountblob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9_+-]+}/{sum:[a-fA-F0-9]{4,}}").Name("mountBlob")
+	v2Router.Path("/mountblob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9._+-]+}/{sum:[a-fA-F0-9]{4,}}").Name("mountBlob")
 
 	return router
 }
