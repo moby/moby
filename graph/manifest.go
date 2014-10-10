@@ -78,7 +78,7 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 
-		tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version0)
+		tarSum, err := tarsum.NewTarSum(archive, true, tarsum.VersionDev)
 		if err != nil {
 			return job.Error(err)
 		}
