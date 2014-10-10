@@ -43,7 +43,6 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 	if !exists {
 		return job.Errorf("Tag does not exist for %s: %s", name, tag)
 	}
-	tarsums := make([]string, 0, 4)
 	layersSeen := make(map[string]bool)
 
 	layer, err := s.graph.Get(layerId)
@@ -54,9 +53,10 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 		return job.Errorf("Missing layer configuration")
 	}
 	manifest.Architecture = layer.Architecture
+	manifest.FSLayers = make([]*registry.FSLayer, 0, 4)
+	manifest.History = make([]*registry.ManifestHistory, 0, 4)
 	var metadata runconfig.Config
 	metadata = *layer.Config
-	history := make([]string, 0, cap(tarsums))
 
 	for ; layer != nil; layer, err = layer.GetParent() {
 		if err != nil {
@@ -89,18 +89,15 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 		tarId := tarSum.Sum(nil)
 		// Save tarsum to image json
 
-		tarsums = append(tarsums, tarId)
+		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: tarId})
 
 		layersSeen[layer.ID] = true
 		jsonData, err := ioutil.ReadFile(path.Join(s.graph.Root, layer.ID, "json"))
 		if err != nil {
 			return job.Error(fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err))
 		}
-		history = append(history, string(jsonData))
+		manifest.History = append(manifest.History, &registry.ManifestHistory{V1Compatibility: string(jsonData)})
 	}
-
-	manifest.BlobSums = tarsums
-	manifest.History = history
 
 	manifestBytes, err := json.MarshalIndent(manifest, "", "   ")
 	if err != nil {
