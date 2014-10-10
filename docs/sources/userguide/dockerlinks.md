@@ -151,12 +151,13 @@ earlier. The `--link` flag takes the form:
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.
 
-Next, look at your linked containers using `docker ps`.
+Next, look at the names of your linked containers by filtering the full output of
+`docker ps` to the last column (NAMES) using `docker ps --no-trunc | awk '{print $NF}'`.
 
-    $ sudo docker ps
-    CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
-    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
-    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
+    $ sudo docker ps --no-trunc | awk '{print $NF}'
+    NAMES
+    db, web/db
+    web
 
 You can see your named containers, `db` and `web`, and you can see that the `db`
 container also shows `web/db` in the `NAMES` column. This tells you that the
