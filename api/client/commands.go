@@ -1475,57 +1475,68 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 }
 
 func (cli *DockerCli) CmdPs(args ...string) error {
-	cmd := cli.Subcmd("ps", "", "List containers")
-	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
-	size := cmd.Bool([]string{"s", "-size"}, false, "Display sizes")
-	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers. Only running containers are shown by default.")
-	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-	nLatest := cmd.Bool([]string{"l", "-latest"}, false, "Show only the latest created container, include non-running ones.")
-	since := cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show only containers created since Id or Name, include non-running ones.")
-	before := cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
-	last := cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
+	var (
+		err error
 
-	flFilter := opts.NewListOpts(nil)
+		psFilterArgs = filters.Args{}
+		v            = url.Values{}
+
+		cmd      = cli.Subcmd("ps", "", "List containers")
+		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
+		size     = cmd.Bool([]string{"s", "-size"}, false, "Display sizes")
+		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers. Only running containers are shown by default.")
+		noTrunc  = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
+		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show only the latest created container, include non-running ones.")
+		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show only containers created since Id or Name, include non-running ones.")
+		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
+		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
+		flFilter = opts.NewListOpts(nil)
+	)
+
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>\nstatus=(restarting|running|paused|exited)")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
-	v := url.Values{}
+
 	if *last == -1 && *nLatest {
 		*last = 1
 	}
+
 	if *all {
 		v.Set("all", "1")
 	}
+
 	if *last != -1 {
 		v.Set("limit", strconv.Itoa(*last))
 	}
+
 	if *since != "" {
 		v.Set("since", *since)
 	}
+
 	if *before != "" {
 		v.Set("before", *before)
 	}
+
 	if *size {
 		v.Set("size", "1")
 	}
 
 	// Consolidate all filter flags, and sanity check them.
 	// They'll get processed in the daemon/server.
-	psFilterArgs := filters.Args{}
 	for _, f := range flFilter.GetAll() {
-		var err error
-		psFilterArgs, err = filters.ParseFlag(f, psFilterArgs)
-		if err != nil {
+		if psFilterArgs, err = filters.ParseFlag(f, psFilterArgs); err != nil {
 			return err
 		}
 	}
+
 	if len(psFilterArgs) > 0 {
 		filterJson, err := filters.ToParam(psFilterArgs)
 		if err != nil {
 			return err
 		}
+
 		v.Set("filters", filterJson)
 	}
 
@@ -1538,9 +1549,11 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	if _, err := outs.ReadListFrom(body); err != nil {
 		return err
 	}
+
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
 		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1548,56 +1561,69 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
+	stripNamePrefix := func(ss []string) []string {
+		for i, s := range ss {
+			ss[i] = s[1:]
+		}
+
+		return ss
+	}
+
 	for _, out := range outs.Data {
-		var (
-			outID    = out.Get("Id")
-			outNames = out.GetList("Names")
-		)
+		outID := out.Get("Id")
 
 		if !*noTrunc {
 			outID = utils.TruncateID(outID)
 		}
 
-		if !*quiet {
-			var (
-				outCommand = out.Get("Command")
-				ports      = engine.NewTable("", 0)
-			)
-			outCommand = strconv.Quote(outCommand)
-			if !*noTrunc {
-				outCommand = utils.Trunc(outCommand, 20)
-				// Keep only the canonical name
-				for i := 0; i < len(outNames); i++ {
-					if !strings.Contains(outNames[i][1:], "/") {
-						outNames = outNames[i : i+1]
-						break
-					}
-				}
-			}
-			// Remove the leading / from the names
-			for i := 0; i < len(outNames); i++ {
-				outNames[i] = outNames[i][1:]
-			}
-			outNamesList := strings.Join(outNames, ",")
-			ports.ReadListFrom([]byte(out.Get("Ports")))
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), out.Get("Status"), api.DisplayablePorts(ports), outNamesList)
-			if *size {
-				if out.GetInt("SizeRootFs") > 0 {
-					fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
-				} else {
-					fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("SizeRw")))
-				}
-			} else {
-				fmt.Fprint(w, "\n")
-			}
-		} else {
+		if *quiet {
 			fmt.Fprintln(w, outID)
+
+			continue
 		}
+
+		var (
+			outNames   = stripNamePrefix(out.GetList("Names"))
+			outCommand = strconv.Quote(out.Get("Command"))
+			ports      = engine.NewTable("", 0)
+		)
+
+		if !*noTrunc {
+			outCommand = utils.Trunc(outCommand, 20)
+
+			// only display the default name for the container with notrunc is passed
+			for _, name := range outNames {
+				if len(strings.Split(name, "/")) == 1 {
+					outNames = []string{name}
+
+					break
+				}
+			}
+		}
+
+		ports.ReadListFrom([]byte(out.Get("Ports")))
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand,
+			units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))),
+			out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
+
+		if *size {
+			if out.GetInt("SizeRootFs") > 0 {
+				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
+			} else {
+				fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("SizeRw")))
+			}
+
+			continue
+		}
+
+		fmt.Fprint(w, "\n")
 	}
 
 	if !*quiet {
 		w.Flush()
 	}
+
 	return nil
 }
 
