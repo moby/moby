@@ -463,7 +463,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 
 	if verified {
-		out.Write(sf.FormatStatus(localName+":"+tag, "The image you are pulling has been digitally signed by Docker, Inc."))
+		out.Write(sf.FormatStatus(localName+":"+tag, "The image you are pulling has been verified"))
 	} else {
 		out.Write(sf.FormatStatus(tag, "Pulling from %s", localName))
 	}
