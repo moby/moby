@@ -458,7 +458,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		return false, fmt.Errorf("error verifying manifest: %s", err)
 	}
 
-	if len(manifest.BlobSums) != len(manifest.History) {
+	if len(manifest.FSLayers) != len(manifest.History) {
 		return false, fmt.Errorf("length of history not equal to number of layers")
 	}
 
@@ -468,16 +468,16 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		out.Write(sf.FormatStatus(tag, "Pulling from %s", localName))
 	}
 
-	if len(manifest.BlobSums) == 0 {
+	if len(manifest.FSLayers) == 0 {
 		return false, fmt.Errorf("no blobSums in manifest")
 	}
 
-	downloads := make([]downloadInfo, len(manifest.BlobSums))
+	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
-	for i := len(manifest.BlobSums) - 1; i >= 0; i-- {
+	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
 		var (
-			sumStr  = manifest.BlobSums[i]
-			imgJSON = []byte(manifest.History[i])
+			sumStr  = manifest.FSLayers[i].BlobSum
+			imgJSON = []byte(manifest.History[i].V1Compatibility)
 		)
 
 		img, err := image.NewImgJSON(imgJSON)
