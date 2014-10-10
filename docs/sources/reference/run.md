@@ -234,22 +234,32 @@ the container exits**, you can add the `--rm` flag:
     --secutity-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
                                          to the container
 
-If you want to use the same label for multiple containers, you can override use
-the security-opt flag to select an MCS level.  This is a common practice for MLS
-systems.  But it also might help in cases where you want to share the same 
-content between containers. Run the following command.
+You can override the default labeling scheme for each container by specifying
+the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
+requirement for MLS systems. Specifying the level in the following command
+allows you to share the same content between containers.
 
     # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
 
-Run the following command if you want to disable the labeling controls for just 
-this container.
+An MLS example might be:
+
+    # docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+
+To disable the security labeling for this container versus running with the
+`--permissive` flag, use the following command:
 
     # docker run --security-opt label:disable -i -t fedora bash
 
-Run the following command if you want to run a container that could only listen
-on apache ports.
+If you want a tighter security policy on the processes within a container,
+you can specify an alternate type for the container. You could run a container
+that is only allowed to listen on Apache ports by executing the following
+command:
 
-    # docker run --security-opt label:type:svirt_apache_t -i -t fedora bash
+    # docker run --security-opt label:type:svirt_apache_t -i -t centos bash
+
+Note:
+
+You would have to write policy defining a `svirt_apache_t` type.
 
 ## Runtime Constraints on CPU and Memory
 

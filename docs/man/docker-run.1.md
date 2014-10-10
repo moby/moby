@@ -343,7 +343,7 @@ to create a secure tunnel for the parent to access.
 ## Mapping Ports for External Usage
 
 The exposed port of an application can be mapped to a host port using the **-p**
-flag. For example a httpd port 80 can be mapped to the host port 8080 using the
+flag. For example, a httpd port 80 can be mapped to the host port 8080 using the
 following:
 
     # docker run -p 8080:80 -d -i -t fedora/httpd
@@ -393,26 +393,32 @@ changes will also be reflected on the host in /var/db.
 
 ## Using alternative security labeling
 
-If you want to use the same label for multiple containers, you can override use
-the security-opt flag to select an MCS level.  This is a common practice for MLS
-systems.  But it also might help in cases where you want to share the same 
-content between containers. Run the following command.
+You can override the default labeling scheme for each container by specifying
+the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
+requirement for MLS systems. Specifying the level in the following command
+allows you to share the same content between containers.
 
     # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
 
-Run the follwing command if you want to disable the labeling controls for just 
-this container.
+An MLS example might be:
+
+    # docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+
+To disable the security labeling for this container versus running with the
+`--permissive` flag, use the following command:
 
     # docker run --security-opt label:disable -i -t fedora bash
 
-If you decide you would like to work with a tighter policy on your container.  
-For example if you want to run a container that could only listen on apache 
-ports, and not connect to the network. You could select an alternate type to 
-run the container execute the following command.
+If you want a tighter security policy on the processes within a container,
+you can specify an alternate type for the container. You could run a container
+that is only allowed to listen on Apache ports by executing the following
+command:
 
-    # docker run --security-opt label:type:svirt_apache_t -i -t fedora bash
+    # docker run --security-opt label:type:svirt_apache_t -i -t centos bash
 
-Note: You would have to write policy defining a svirt_apache_t type.
+Note:
+
+You would have to write policy defining a `svirt_apache_t` type.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
