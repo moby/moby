@@ -32,13 +32,21 @@ type RegistryInfo struct {
 	Standalone bool   `json:"standalone"`
 }
 
+type FSLayer struct {
+	BlobSum string `json:"blobSum"`
+}
+
+type ManifestHistory struct {
+	V1Compatibility string `json:"v1Compatibility"`
+}
+
 type ManifestData struct {
-	Name          string   `json:"name"`
-	Tag           string   `json:"tag"`
-	Architecture  string   `json:"architecture"`
-	BlobSums      []string `json:"blobSums"`
-	History       []string `json:"history"`
-	SchemaVersion int      `json:"schemaVersion"`
+	Name          string             `json:"name"`
+	Tag           string             `json:"tag"`
+	Architecture  string             `json:"architecture"`
+	FSLayers      []*FSLayer         `json:"fsLayers"`
+	History       []*ManifestHistory `json:"history"`
+	SchemaVersion int                `json:"schemaVersion"`
 }
 
 type APIVersion int
