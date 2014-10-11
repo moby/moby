@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -56,11 +57,18 @@ func (l *Link) ToEnv() []string {
 	}
 
 	// Load exposed ports into the environment
+	ports := []string{}
 	for _, p := range l.Ports {
+		ports = append(ports, p.Port()+"/"+p.Proto())
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
+	}
+
+	if len(ports) > 0 {
+		sort.Strings(ports) // just so it looks nice to the user
+		env = append(env, alias+"_PORTS="+strings.Join(ports, " "))
 	}
 
 	// Load the linked container's name into the environment

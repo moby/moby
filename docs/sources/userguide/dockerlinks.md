@@ -185,11 +185,22 @@ When two containers are linked, Docker will set some environment variables
 in the target container to enable programmatic discovery of information
 related to the source container.
 
-First, Docker will set an `<alias>_NAME` environment variable specifying the
-alias of each target container that was given in a `--link` parameter. So,
+First, Docker will set an environment variable called `DOCKER_LINKS`
+whose value will be a space separated list of alias containers that this
+container is linked to.
+
+For each linked container (or alias), Docker will then set an
+`<alias>_NAME` environment variable specifying the
+full alias of each target container that was given in a `--link` parameter. So,
 for example, if a new container called `web` is being linked to a database
 container called `db` via `--link db:webdb` then in the `web` container
 would be `WEBDB_NAME=/web/webdb`.
+
+Additionally, Docker will set an `<alias>_PORTS` environment variable
+whose value will be a space separated list of ports that are exposed
+by the linked container. Each port will be of the form `<port>/<protoco>`.
+For example, if `webdb` container's port 80 is exposed via tcp/ip, then
+`WEBDB_PORTS=80/tcp` would be set.
 
 Docker will then also define a set of environment variables for each
 port that is exposed by the source container. The pattern followed is:
