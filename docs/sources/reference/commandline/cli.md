@@ -70,7 +70,7 @@ expect an integer, and they can only be specified once.
       -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
       -H, --host=[]                              The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --icc=true                                 Enable inter-container communication
-      --insecure-registry=[]                     Make these registries use http
+      --insecure-registry=[]                     Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback)
       --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
@@ -195,16 +195,16 @@ to other machines on the Internet. This may interfere with some network topologi
 can be disabled with --ip-masq=false.
 
 
+By default, Docker will assume all registries are secured via TLS with certificate verification
+enabled. Prior versions of Docker used an auto fallback if a registry did not support TLS
+(or if the TLS connection failed). This introduced the opportunity for Man In The Middle (MITM)
+attacks, so as of Docker 1.3.1, the user must now specify the `--insecure-registry` daemon flag
+for each insecure registry. An insecure registry is either not using TLS (i.e. plain text HTTP),
+or is using TLS with a CA certificate not known by the Docker daemon (i.e. certification
+verification disabled). For example, if there is a registry listening for HTTP at 127.0.0.1:5000,
+as of Docker 1.3.1 you are required to specify `--insecure-registry 127.0.0.1:5000` when starting
+the Docker daemon.
 
-By default docker will assume all registries are securied via TLS.  Prior versions
-of docker used an auto fallback if a registry did not support TLS.  This introduces
-the opportunity for MITM attacks so in Docker 1.2 the user must specify `--insecure-registries` 
-when starting the Docker daemon to state which registries are not using TLS and to communicate
-with these registries via plain text.  If you are running a local registry over plain text
-on `127.0.0.1:5000` you will be required to specify `--insecure-registries 127.0.0.1:500` 
-when starting the docker daemon to be able to push and pull images to that registry.
-No automatic fallback will happen after Docker 1.2 to detect if a registry is using
-HTTP or HTTPS.
 
 Docker supports softlinks for the Docker data directory
 (`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:

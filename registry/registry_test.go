@@ -21,7 +21,7 @@ const (
 
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &AuthConfig{}
-	endpoint, err := NewEndpoint(makeURL("/v1/"))
+	endpoint, err := NewEndpoint(makeURL("/v1/"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
-	ep, err := NewEndpoint(makeURL("/v1/"))
+	ep, err := NewEndpoint(makeURL("/v1/"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
