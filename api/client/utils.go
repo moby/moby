@@ -40,6 +40,14 @@ func (cli *DockerCli) HTTPClient() *http.Client {
 			return net.DialTimeout(cli.proto, cli.addr, 32*time.Second)
 		},
 	}
+	if cli.proto == "unix" {
+		// XXX workaround for net/http Transport which caches connections, but is
+		// intended for tcp connections, not unix sockets.
+		tr.DisableKeepAlives = true
+
+		// no need in compressing for local communications
+		tr.DisableCompression = true
+	}
 	return &http.Client{Transport: tr}
 }
 
