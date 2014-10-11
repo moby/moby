@@ -204,13 +204,14 @@ The `CMD` instruction should be used to run the software contained by your
 image, along with any arguments. `CMD` should almost always be used in the
 form of `CMD [“executable”, “param1”, “param2”…]`. Thus, if the image is for a
 service (Apache, Rails, etc.), you would run something like
-`CMD ["apache2","-DFOREGROUND"]`. Indeed, this form of the instruction is
+`CMD ["apache2","-DFOREGROUND"]`. Indeed, this notation of the instruction is
 recommended for any service-based image.
 
 In most other cases, `CMD` should be given an interactive shell (bash, python,
 perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
-`CMD [“php”, “-a”]`. Using this form means that when you execute something like
-`docker run -it python`, you’ll get dropped into a usable shell, ready to go.
+`CMD [“php”, “-a”]`. Using this notation means that when you execute 
+something like `docker run -it python`, you’ll get dropped into a usable 
+shell, ready to go.
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
 conjunction with [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint), unless
 you and your expected users are already quite familiar with how `ENTRYPOINT`

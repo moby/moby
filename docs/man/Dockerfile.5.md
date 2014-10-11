@@ -24,7 +24,7 @@ FROM image
 
 # DESCRIPTION
 
-A Dockerfile is a file that automates the steps of creating a Docker image. 
+A Dockerfile is a file that automates the steps of creating a Docker image.
 A Dockerfile is similar to a Makefile.
 
 # USAGE
@@ -32,19 +32,19 @@ A Dockerfile is similar to a Makefile.
 **sudo docker build .**
  -- runs the steps and commits them, building a final image
     The path to the source repository defines where to find the context of the
-    build. The build is run by the docker daemon, not the CLI. The whole 
-    context must be transferred to the daemon. The Docker CLI reports 
+    build. The build is run by the docker daemon, not the CLI. The whole
+    context must be transferred to the daemon. The Docker CLI reports
     "Sending build context to Docker daemon" when the context is sent to the daemon.
-    
+
 **sudo docker build -t repository/tag .**
- -- specifies a repository and tag at which to save the new image if the build 
-    succeeds. The Docker daemon runs the steps one-by-one, committing the result 
-    to a new image if necessary before finally outputting the ID of the new 
+ -- specifies a repository and tag at which to save the new image if the build
+    succeeds. The Docker daemon runs the steps one-by-one, committing the result
+    to a new image if necessary before finally outputting the ID of the new
     image. The Docker daemon automatically cleans up the context it is given.
 
-Docker re-uses intermediate images whenever possible. This significantly 
+Docker re-uses intermediate images whenever possible. This significantly
 accelerates the *docker build* process.
- 
+
 # FORMAT
 
 **FROM image**
@@ -65,41 +65,43 @@ or
  --The MAINTAINER instruction sets the Author field for the generated images.
 
 **RUN**
- --RUN has two forms:
+ --RUN has two notations:
  **RUN <command>**
  -- (the command is run in a shell - /bin/sh -c)
  **RUN ["executable", "param1", "param2"]**
- --The above is executable form.
+ --The above is the executable notation.
  --The RUN instruction executes any commands in a new layer on top of the
  current image and commits the results. The committed image is used for the next
  step in Dockerfile.
  --Layering RUN instructions and generating commits conforms to the core
  concepts of Docker where commits are cheap and containers can be created from
  any point in the history of an image. This is similar to source control.  The
- exec form makes it possible to avoid shell string munging. The exec form makes
+ exec notation makes it possible to avoid shell string munging. It also makes
  it possible to RUN commands using a base image that does not contain /bin/sh.
 
 **CMD**
- --CMD has three forms:
-  **CMD ["executable", "param1", "param2"]** This is the preferred form, the
-  exec form.
-  **CMD ["param1", "param2"]** This command provides default parameters to
-  ENTRYPOINT)
-  **CMD command param1 param2** This command is run as a shell.
-  --There can be only one CMD in a Dockerfile. If more than one CMD is listed, only
-  the last CMD takes effect.
+ --CMD has three notations:
+  **CMD ["executable", "param1", "param2"]** This is the preferred notation, the
+  exec notation.
+  **CMD ["param1", "param2"]** This is the parameter notation and provides
+  default parameters to ENTRYPOINT)
+  **CMD command param1 param2** This is the shell notation and the command is 
+  run as a shell.
+  --There can be only one CMD in a Dockerfile. If more than one CMD is listed,
+  only the last CMD takes effect.
   The main purpose of a CMD is to provide defaults for an executing container.
   These defaults may include an executable, or they can omit the executable. If
   they omit the executable, an ENTRYPOINT must be specified.
   When used in the shell or exec formats, the CMD instruction sets the command to
   be executed when running the image.
-  If you use the shell form of the CMD, the <command> executes in /bin/sh -c:
+  If you use the shell notation of the CMD, the <command> executes in
+  /bin/sh -c:
   **FROM ubuntu**
   **CMD echo "This is a test." | wc -**
   If you run <command> without a shell, then you must express the command as a
-  JSON array and give the full path to the executable. This array form is the
-  preferred form of CMD. All additional parameters must be individually expressed
-  as strings in the array:
+  JSON array and give the full path to the executable. This array notation is
+  the preferred form of CMD. All additional parameters must be individually
+  expressed as strings in the array:
   **FROM ubuntu**
   **CMD ["/usr/bin/wc","--help"]**
   To make the container run the same executable every time, use ENTRYPOINT in
@@ -132,16 +134,17 @@ or
 
 **ADD**
  --**ADD <src>... <dest>** The ADD instruction copies new files, directories
- or remote file URLs to the filesystem of the container at path <dest>.  
+ or remote file URLs to the filesystem of the container at path <dest>.
  Mutliple <src> resources may be specified but if they are files or directories
- then they must be relative to the source directory that is being built 
+ then they must be relative to the source directory that is being built
  (the context of the build).  <dest> is the absolute path to
  which the source is copied inside the target container.  All new files and
  directories are created with mode 0755, with uid and gid 0.
 
 **ENTRYPOINT**
- --**ENTRYPOINT** has two forms: ENTRYPOINT ["executable", "param1", "param2"]
- (This is like an exec, and is the preferred form.) ENTRYPOINT command param1
+ --**ENTRYPOINT** has two notations:
+ ENTRYPOINT ["executable", "param1", "param2"]
+ (This is the exec notation and is preferred.) ENTRYPOINT command param1
  param2 (This is running as a shell.) An ENTRYPOINT helps you configure a
  container that can be run as an executable. When you specify an ENTRYPOINT,
  the whole container runs as if it was only that executable.  The ENTRYPOINT
@@ -149,11 +152,11 @@ or
  passed to docker run. This is different from the behavior of CMD. This allows
  arguments to be passed to the entrypoint, for instance docker run <image> -d
  passes the -d argument to the ENTRYPOINT.  Specify parameters either in the
- ENTRYPOINT JSON array (as in the preferred exec form above), or by using a CMD
- statement.  Parameters in the ENTRYPOINT are not overwritten by the docker run
- arguments.  Parameters specifies via CMD are overwritten by docker run
- arguments.  Specify a plain string for the ENTRYPOINT, and it will execute in
- /bin/sh -c, like a CMD instruction:
+ ENTRYPOINT JSON array (as in the preferred exec notation above), or by using
+ a CMD statement.  Parameters in the ENTRYPOINT are not overwritten by the
+ docker run arguments.  Parameters specifies via CMD are overwritten by docker
+ run arguments.  Specify a plain string for the ENTRYPOINT, and it will
+ execute in /bin/sh -c, like a CMD instruction:
  FROM ubuntu
  ENTRYPOINT wc -l -
  This means that the Dockerfile's image always takes stdin as input (that's
@@ -164,7 +167,7 @@ or
  ENTRYPOINT ["/usr/bin/wc"]
 
 **VOLUME**
- --**VOLUME ["/data"]** 
+ --**VOLUME ["/data"]**
  The VOLUME instruction creates a mount point with the specified name and marks
  it as holding externally-mounted volumes from the native host or from other
  containers.
@@ -178,12 +181,12 @@ or
  -- **WORKDIR /path/to/workdir**
  The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, and **ENTRYPOINT** Dockerfile commands that follow it.
  It can be used multiple times in a single Dockerfile. Relative paths are defined relative to the path of the previous **WORKDIR** instruction. For example:
- **WORKDIR /a WORKDIR b WORKDIR c RUN pwd** 
+ **WORKDIR /a WORKDIR b WORKDIR c RUN pwd**
  In the above example, the output of the **pwd** command is **a/b/c**.
 
 **ONBUILD**
  -- **ONBUILD [INSTRUCTION]**
- The ONBUILD instruction adds a trigger instruction to the image, which is 
+ The ONBUILD instruction adds a trigger instruction to the image, which is
  executed at a later time, when the image is used as the base for another
  build. The trigger is executed in the context of the downstream build, as
  if it had been inserted immediately after the FROM instruction in the
@@ -195,13 +198,13 @@ or
  application builder, it requires application source code to be
  added in a particular directory, and might require a build script
  to be called after that. You can't just call ADD and RUN now, because
- you don't yet have access to the application source code, and it 
- is different for each application build. Providing  
+ you don't yet have access to the application source code, and it
+ is different for each application build. Providing
  application developers with a boilerplate Dockerfile to copy-paste
  into their application is inefficient, error-prone, and
  difficult to update because it mixes with application-specific code.
  The solution is to use **ONBUILD** to register instructions in advance, to
- run later, during the next build stage.  
+ run later, during the next build stage.
 
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.
