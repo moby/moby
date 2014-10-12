@@ -1367,7 +1367,7 @@ how a container should or should not be restarted on exit.
 
 ** on-failure ** - Restart the container only if it exits with a non zero exit status.
 
-** always ** - Always restart the container reguardless of the exit status.
+** always ** - Always restart the container regardless of the exit status.
 
 You can also specify the maximum amount of times Docker will try to
 restart the container when using the ** on-failure ** policy.  The
