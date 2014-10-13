@@ -925,9 +925,9 @@ used, which is observable by the process being suspended. With the cgroups freez
 the process is unaware, and unable to capture, that it is being suspended,
 and subsequently resumed.
 
-See the [cgroups freezer documentation]
-(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
-further details.
+See the 
+[cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
+for further details.
 
 ## ps
 
@@ -1479,9 +1479,9 @@ them to [*Share Images via Repositories*](
 The `docker unpause` command uses the cgroups freezer to un-suspend all
 processes in a container.
 
-See the [cgroups freezer documentation]
-(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
-further details.
+See the 
+[cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
+for further details.
 
 ## version
 
