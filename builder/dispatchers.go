@@ -20,7 +20,7 @@ import (
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
-func nullDispatch(b *Builder, args []string, attributes map[string]bool) error {
+func nullDispatch(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return nil
 }
 
@@ -29,7 +29,7 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool) error {
 // Sets the environment variable foo to bar, also makes interpolation
 // in the dockerfile available from the next statement on via ${foo}.
 //
-func env(b *Builder, args []string, attributes map[string]bool) error {
+func env(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("ENV accepts two arguments")
 	}
@@ -50,7 +50,7 @@ func env(b *Builder, args []string, attributes map[string]bool) error {
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.
-func maintainer(b *Builder, args []string, attributes map[string]bool) error {
+func maintainer(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("MAINTAINER requires only one argument")
 	}
@@ -64,7 +64,7 @@ func maintainer(b *Builder, args []string, attributes map[string]bool) error {
 // Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
-func add(b *Builder, args []string, attributes map[string]bool) error {
+func add(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("ADD requires at least two arguments")
 	}
@@ -76,7 +76,7 @@ func add(b *Builder, args []string, attributes map[string]bool) error {
 //
 // Same as 'ADD' but without the tar and remote url handling.
 //
-func dispatchCopy(b *Builder, args []string, attributes map[string]bool) error {
+func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("COPY requires at least two arguments")
 	}
@@ -88,7 +88,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool) error {
 //
 // This sets the image the dockerfile will build on top of.
 //
-func from(b *Builder, args []string, attributes map[string]bool) error {
+func from(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("FROM requires one argument")
 	}
@@ -120,7 +120,7 @@ func from(b *Builder, args []string, attributes map[string]bool) error {
 // special cases. search for 'OnBuild' in internals.go for additional special
 // cases.
 //
-func onbuild(b *Builder, args []string, attributes map[string]bool) error {
+func onbuild(b *Builder, args []string, attributes map[string]bool, original string) error {
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
@@ -129,17 +129,17 @@ func onbuild(b *Builder, args []string, attributes map[string]bool) error {
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
-	trigger := strings.Join(args, " ")
+	original = strings.TrimSpace(strings.TrimLeft(original, "ONBUILD"))
 
-	b.Config.OnBuild = append(b.Config.OnBuild, trigger)
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("ONBUILD %s", trigger))
+	b.Config.OnBuild = append(b.Config.OnBuild, original)
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("ONBUILD %s", original))
 }
 
 // WORKDIR /tmp
 //
 // Set the working directory for future RUN/CMD/etc statements.
 //
-func workdir(b *Builder, args []string, attributes map[string]bool) error {
+func workdir(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("WORKDIR requires exactly one argument")
 	}
@@ -167,7 +167,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool) error {
 // RUN echo hi          # sh -c echo hi
 // RUN [ "echo", "hi" ] # echo hi
 //
-func run(b *Builder, args []string, attributes map[string]bool) error {
+func run(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -230,7 +230,7 @@ func run(b *Builder, args []string, attributes map[string]bool) error {
 // Set the default command to run in the container (which may be empty).
 // Argument handling is the same as RUN.
 //
-func cmd(b *Builder, args []string, attributes map[string]bool) error {
+func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
 	b.Config.Cmd = handleJsonArgs(args, attributes)
 
 	if !attributes["json"] && len(b.Config.Entrypoint) == 0 {
@@ -256,7 +256,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool) error {
 // Handles command processing similar to CMD and RUN, only b.Config.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
 //
-func entrypoint(b *Builder, args []string, attributes map[string]bool) error {
+func entrypoint(b *Builder, args []string, attributes map[string]bool, original string) error {
 	parsed := handleJsonArgs(args, attributes)
 
 	switch {
@@ -289,7 +289,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool) error {
 // Expose ports for links and port mappings. This all ends up in
 // b.Config.ExposedPorts for runconfig.
 //
-func expose(b *Builder, args []string, attributes map[string]bool) error {
+func expose(b *Builder, args []string, attributes map[string]bool, original string) error {
 	portsTab := args
 
 	if b.Config.ExposedPorts == nil {
@@ -316,7 +316,7 @@ func expose(b *Builder, args []string, attributes map[string]bool) error {
 // Set the user to 'foo' for future commands and when running the
 // ENTRYPOINT/CMD at container run time.
 //
-func user(b *Builder, args []string, attributes map[string]bool) error {
+func user(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("USER requires exactly one argument")
 	}
@@ -329,7 +329,7 @@ func user(b *Builder, args []string, attributes map[string]bool) error {
 //
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
-func volume(b *Builder, args []string, attributes map[string]bool) error {
+func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("Volume cannot be empty")
 	}
@@ -347,6 +347,6 @@ func volume(b *Builder, args []string, attributes map[string]bool) error {
 }
 
 // INSERT is no longer accepted, but we still parse it.
-func insert(b *Builder, args []string, attributes map[string]bool) error {
+func insert(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
 }
