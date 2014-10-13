@@ -7,12 +7,85 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
 )
+
+func TestBuildOnBuildCmdEntrypointJSON(t *testing.T) {
+	name1 := "onbuildcmd"
+	name2 := "onbuildgenerated"
+
+	defer deleteAllContainers()
+	defer deleteImages(name2)
+	defer deleteImages(name1)
+
+	_, err := buildImage(name1, `
+FROM busybox
+ONBUILD CMD ["hello world"]
+ONBUILD ENTRYPOINT ["echo"]
+ONBUILD RUN ["true"]`,
+		false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name2, fmt.Sprintf(`FROM %s`, name1), false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
+		t.Fatal("did not get echo output from onbuild", out)
+	}
+
+	logDone("build - onbuild with json entrypoint/cmd")
+}
+
+func TestBuildOnBuildEntrypointJSON(t *testing.T) {
+	name1 := "onbuildcmd"
+	name2 := "onbuildgenerated"
+
+	defer deleteAllContainers()
+	defer deleteImages(name2)
+	defer deleteImages(name1)
+
+	_, err := buildImage(name1, `
+FROM busybox
+ONBUILD ENTRYPOINT ["echo"]`,
+		false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name2, fmt.Sprintf("FROM %s\nCMD [\"hello world\"]\n", name1), false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
+		t.Fatal("got malformed output from onbuild", out)
+	}
+
+	logDone("build - onbuild with json entrypoint")
+}
 
 func TestBuildCacheADD(t *testing.T) {
 	name := "testbuildtwoimageswithadd"
@@ -2386,8 +2459,8 @@ func TestBuildOnBuildOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(out, "Trigger 0, run echo foo") {
-		t.Fatal("failed to find the ONBUILD output")
+	if !strings.Contains(out, "Trigger 0, RUN echo foo") {
+		t.Fatal("failed to find the ONBUILD output", out)
 	}
 
 	logDone("build - onbuild output")
