@@ -1,6 +1,7 @@
 page_title: Search the Docker documentation
 page_keywords: Docker, search documentation
 no_toc: true
+no_version_dropdown: true
 
 # Search
 
