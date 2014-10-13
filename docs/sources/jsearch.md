@@ -1,3 +1,7 @@
+page_title: Search the Docker documentation
+page_keywords: Docker, search documentation
+no_toc: true
+
 # Search
 
 <form id="content_search" action="/jsearch/">
@@ -6,4 +10,5 @@
 </form>
 
 <div id="tipue_search_content">
+Sorry, page not found.
 </div>
