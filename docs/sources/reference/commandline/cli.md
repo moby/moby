@@ -116,6 +116,14 @@ the `-H` flag for the client.
     $ sudo docker ps
     # both are equal
 
+Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than the empty
+string is equivalent to setting the `--tlsverify` flag. The following are equivalent:
+
+    $ sudo docker --tlsverify ps
+    # or
+    $ export DOCKER_TLS_VERIFY=1
+    $ sudo docker ps
+
 IP masquerading uses address translation to allow containers without a public IP to talk
 to other machines on the Internet. This may interfere with some network topologies and
 can be disabled with --ip-masq=false.
