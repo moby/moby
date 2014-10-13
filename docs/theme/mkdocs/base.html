@@ -49,6 +49,7 @@
   {% include "nav.html" %}
   <div id="content" class="container">
     <div class="row">
+{% if not meta.no_toc %}
       <div class="span3" id="leftnav">
         <div id="toc_table">
           <ul class="nav nav-tabs nav-stacked">
@@ -57,6 +58,9 @@
         </div>
       </div>
       <div class="span9 content-body">
+{% else %}
+      <div class="span12 content-body">
+{% endif %}
         {% include "beta_warning.html" %}
         <div id="versionnav" class="span3 pull-right">
           <ul class="nav version pull-right">
@@ -80,23 +84,7 @@
 
 </div>
 
-{#
-      <div class="row">
-        <div class="container container-better">
-          <div class="row">
-            <div class="col-sm-4">
-              {% include "toc.html" %}
-            </div>
-            <div class="col-sm-8" role="main">
-              {% include "breadcrumbs.html" %}
-              <main id="content" role="main">
-  	            {% include "version.html" %}
-                {{ content }}
-              </main>
-            </div>
-          </div>
-        </div>
-      </div>
+{# need to find an unobtrusive way to add this back
 {% include "prev_next.html" %}
 #}
 
