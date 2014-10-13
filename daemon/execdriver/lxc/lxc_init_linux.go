@@ -17,7 +17,7 @@ func setHostname(hostname string) error {
 	return syscall.Sethostname([]byte(hostname))
 }
 
-func finalizeNamespace(args *InitArgs) error {
+func finalizeNamespace(args *execdriver.InitArgs) error {
 	if err := utils.CloseExecFrom(3); err != nil {
 		return err
 	}

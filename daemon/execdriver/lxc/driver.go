@@ -1,7 +1,6 @@
 package lxc
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -75,10 +74,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		Private:     true,
 	})
 
-	if err := d.generateEnvConfig(c); err != nil {
+	if err := execdriver.GenerateEnvConfig(c, d.root); err != nil {
 		return -1, err
 	}
-	configPath, err := d.generateLXCConfig(c)
+	configPath := path.Join(d.root, "containers", c.ID, "config.lxc")
+	err = execdriver.GenerateContainerConfig(LxcTemplateCompiled, c, d.apparmor, configPath)
 	if err != nil {
 		return -1, err
 	}
@@ -406,44 +406,6 @@ func rootIsShared() bool {
 
 	// No idea, probably safe to assume so
 	return true
-}
-
-func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	root := path.Join(d.root, "containers", c.ID, "config.lxc")
-
-	fo, err := os.Create(root)
-	if err != nil {
-		return "", err
-	}
-	defer fo.Close()
-
-	if err := LxcTemplateCompiled.Execute(fo, struct {
-		*execdriver.Command
-		AppArmor bool
-	}{
-		Command:  c,
-		AppArmor: d.apparmor,
-	}); err != nil {
-		return "", err
-	}
-
-	return root, nil
-}
-
-func (d *driver) generateEnvConfig(c *execdriver.Command) error {
-	data, err := json.Marshal(c.ProcessConfig.Env)
-	if err != nil {
-		return err
-	}
-	p := path.Join(d.root, "containers", c.ID, "config.env")
-	c.Mounts = append(c.Mounts, execdriver.Mount{
-		Source:      p,
-		Destination: "/.dockerenv",
-		Writable:    false,
-		Private:     true,
-	})
-
-	return ioutil.WriteFile(p, data, 0600)
 }
 
 // Clean not implemented for lxc

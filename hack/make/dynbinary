@@ -7,7 +7,7 @@ if [ -z "$DOCKER_CLIENTONLY" ]; then
 	# dockerinit still needs to be a static binary, even if docker is dynamic
 	go build \
 		-o "$DEST/dockerinit-$VERSION" \
-		"${BUILDFLAGS[@]}" \
+		"${BUILDFLAGS[@]} dockerinit" \
 		-ldflags "
 			$LDFLAGS
 			$LDFLAGS_STATIC

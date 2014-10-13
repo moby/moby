@@ -47,6 +47,19 @@ RUN	apt-get update && apt-get install -y \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
 	s3cmd=1.1.0* \
+	libtool \
+	pkg-config \
+	autopoint \
+	gettext \
+	libxml2-utils \
+	xsltproc \
+	python-dev \
+	libxml2-dev \
+	libnl-dev \
+	w3c-dtd-xhtml \
+	pm-utils \
+	ebtables \
+	dmidecode \
 	--no-install-recommends
 
 # Get lvm2 source for compiling statically
@@ -57,6 +70,15 @@ RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local
 # Compile and install lvm2
 RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+
+# Get libvirt sources to have the latest and greatest
+#RUN	git clone --no-checkout git://libvirt.org/libvirt.git /usr/local/libvirt && cd /usr/local/libvirt && git checkout -q v1.2.8
+# See http://libvirt.org/git/?p=libvirt.git;a=tags for release tags
+RUN	git clone --no-checkout https://github.com/cbosdo/libvirt.git /usr/local/libvirt && cd /usr/local/libvirt && git checkout -q build-static
+
+# Compile and install libvirt
+RUN	cd /usr/local/libvirt && ./autogen.sh --enable-static && make && make install
+ENV LD_LIBRARY_PATH /usr/local/lib
 
 # Install Go
 RUN	curl -sSL https://golang.org/dl/go1.3.3.src.tar.gz | tar -v -C /usr/local -xz
