@@ -10,7 +10,7 @@ one for metadata.  By default these block devices are created
 automatically by using loopback mounts of automatically created sparse
 files.
 
-The default loopback files used are `$graph/devicemapper/data` and
+The default loopback files are used `$graph/devicemapper/data` and
 `$graph/devicemapper/metadata`. Additional metadata required to map
 from docker entities to the corresponding devicemapper volumes is
 stored in the `$graph/devicemapper/json` file (encoded as Json).
