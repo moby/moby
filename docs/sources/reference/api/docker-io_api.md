@@ -363,7 +363,7 @@ Status Codes:
 
 ## User Repository
 
-### Authorize a toke for a user repository
+### Authorize a token for a user repository
 
 `PUT /v1/repositories/(namespace)/(repo_name)/auth`
 
@@ -399,13 +399,13 @@ Status Codes:
 
 ### User Login
 
-`GET /v1/users`
+`GET /v1/users/`
 
 If you want to check your login, you can try this endpoint
 
 **Example Request**:
 
-        GET /v1/users HTTP/1.1
+        GET /v1/users/ HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Authorization: Basic akmklmasadalkm==
@@ -426,13 +426,13 @@ Status Codes:
 
 ### User Register
 
-`POST /v1/users`
+`POST /v1/users/`
 
 Registering a new account.
 
 **Example request**:
 
-        POST /v1/users HTTP/1.1
+        POST /v1/users/ HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -518,7 +518,7 @@ Search the Index given a search term. It accepts
 **Example request**:
 
         GET /v1/search?q=search_term HTTP/1.1
-        Host: example.com
+        Host: index.docker.io
         Accept: application/json
 
 **Example response**:
