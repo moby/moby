@@ -41,10 +41,10 @@ var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
-var evaluateTable map[string]func(*Builder, []string, map[string]bool) error
+var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
-	evaluateTable = map[string]func(*Builder, []string, map[string]bool) error{
+	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
 		"env":        env,
 		"maintainer": maintainer,
 		"add":        add,
@@ -190,6 +190,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 	attrs := ast.Attributes
+	original := ast.Original
 	strs := []string{}
 	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
 
@@ -210,7 +211,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		return f(b, strs, attrs)
+		return f(b, strs, attrs, original)
 	}
 
 	fmt.Fprintf(b.ErrStream, "# Skipping unknown instruction %s\n", strings.ToUpper(cmd))

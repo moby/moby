@@ -26,6 +26,7 @@ type Node struct {
 	Next       *Node           // the next item in the current sexp
 	Children   []*Node         // the children of this sexp
 	Attributes map[string]bool // special attributes for this node
+	Original   string          // original line used before parsing
 }
 
 var (
@@ -84,6 +85,7 @@ func parseLine(line string) (string, *Node, error) {
 	if sexp.Value != "" || sexp.Next != nil || sexp.Children != nil {
 		node.Next = sexp
 		node.Attributes = attrs
+		node.Original = line
 	}
 
 	return "", node, nil
