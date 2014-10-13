@@ -69,8 +69,10 @@
 		      Latest (Version {{ major_minor }})
               </a>
               <ul id="documentation-version-list" class="dropdown-menu pull-right">
+{% if not meta.no_edit %}
 		<li role="presentation" class="divider"></li>
 		<li> <a class="home-link3 tertiary-nav" href="https://github.com/docker/docker/blob/master/docs/sources/{{ current_page.input_path }}" >Edit on GitHub</a></li>
+{% endif %}
               </ul>
             </li>
           </ul>
@@ -127,6 +129,17 @@ piCId = '1482';
 		$(e).removeClass()
 	});
     });
+{% if meta.auto_scroll_to_path %}
+    // scroll to the right location in the generated index page
+    m=location.pathname.match(/^\/(.*?)\//)
+    if (m && m[1]) {
+        anchor = m[1].toLowerCase().replace(/ /, "-").replace(/\//, "-")
+        anchor_point = $('#'+anchor)
+        if (anchor_point && anchor_point[0]) {
+            $(window).scrollTop(anchor_point.offset().top);
+        }
+    }
+{% endif %}
   })
   var userName = getCookie('docker_sso_username');
   if (userName) {
