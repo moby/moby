@@ -181,11 +181,11 @@ recipient container in two ways:
 
 ### Environment Variables
 
-When two containers are linked, Docker will set some envrionment variables
+When two containers are linked, Docker will set some environment variables
 in the target container to enable programmatic discovery of information
 related to the source container.
 
-First, Docker will set a `<alias>_NAME` environment variable specifying the
+First, Docker will set an `<alias>_NAME` environment variable specifying the
 alias of each target container that was given in a `--link` parameter. So,
 for example, if a new container called `web` is being linked to a database
 container called `db` via `--link db:webdb` then in the `web` container
