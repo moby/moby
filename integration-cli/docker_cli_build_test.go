@@ -488,8 +488,8 @@ func TestBuildCopyWildcardCache(t *testing.T) {
 	logDone("build - copy wild card cache")
 }
 
-func TestBuildAddSingleFileToNonExistDir(t *testing.T) {
-	name := "testaddsinglefiletononexistdir"
+func TestBuildAddSingleFileToNonExistingDir(t *testing.T) {
+	name := "testaddsinglefiletononexistingdir"
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM busybox
 RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
@@ -536,8 +536,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	logDone("build - add directory contents to root")
 }
 
-func TestBuildAddDirContentToExistDir(t *testing.T) {
-	name := "testadddircontenttoexistdir"
+func TestBuildAddDirContentToExistingDir(t *testing.T) {
+	name := "testadddircontenttoexistingdir"
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM busybox
 RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
