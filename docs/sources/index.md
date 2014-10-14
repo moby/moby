@@ -88,63 +88,40 @@ implementation, check out the [Docker User Guide](/userguide/).
 
 ## Release Notes
 
-**Version 1.2.0**
+**Version 1.3.0**
 
 This version fixes a number of bugs and issues and adds new functions and other
 improvements. These include:
 
-*New restart policies*
+*New command: `docker exec`*
 
-We added a `--restart flag` to `docker run` to specify a restart policy for your
-container. Currently, there are three policies available:
+The new `docker exec` command lets you run a process in an existing, active
+container. The command has APIs for both the daemon and the client. With
+`docker exec`, you'll be able to do things like add or remove devices from running containers, debug running containers, and run commands that are not
+part of the container's static specification.
 
-* `no` – Do not restart the container if it dies. (default)
-* `on-failure` – Restart the container if it exits with a non-zero exit code.
-This can also accept an optional maximum restart count (e.g. `on-failure:5`).
-* `always` – Always restart the container no matter what exit code is returned.
-This deprecates the `--restart` flag on the Docker daemon.
+*New command: `docker create`*
 
-*New flags for `docker run`: `--cap-add` and `–-cap-drop`*
+Traditionally, the `docker run` command has been used to both create a
+container and spawn a process to run it. The new `docker create` command breaks
+this apart, letting you set up a container without actually starting it. This
+provides more control over management of the container lifecycle, giving you the
+ability to configure things like volumes or port mappings before the container
+is started. For example, in a rapid-response scaling situation, you could use
+`create` to prepare and stage ten containers in anticipation of heavy loads.
 
-In previous releases, Docker containers could either be given complete capabilities or
-they could all follow a whitelist of allowed capabilities while dropping all others.
-Further, using `--privileged` would grant all capabilities inside a container, rather than
-applying a whitelist. This was not recommended for production use because it’s really
-unsafe; it’s as if you were directly in the host.
+*New provenance features*
 
-This release introduces two new flags for `docker run`, `--cap-add` and `--cap-drop`, that
-give you fine-grain control over the specific capabilities you want grant to a particular
-container.
+Official images are now signed by Docker, Inc. to improve your confidence and
+security. Look for the blue ribbons on the [Docker Hub](https://hub.docker.com/).
+The Docker Engine has been updated to automatically verify that a given Official
+Repo has a current, valid signature. If no valid signature is detected, Docker
+Engine will use a prior image.
 
-*New `-–device` flag for `docker run`*
-
-Previously, you could only use devices inside your containers by bind mounting them (with
-`-v`) in a `--privileged` container. With this release, we introduce the `--device flag`
-to `docker run` which lets you use a device without requiring a privileged container.
-
-*Writable `/etc/hosts`, `/etc/hostname` and `/etc/resolv.conf`*
-
-You can now edit `/etc/hosts`, `/etc/hostname` and `/etc/resolve.conf` in a running
-container. This is useful if you need to install BIND or other services that might
-override one of those files.
-
-Note, however, that changes to these files are not saved when running `docker build` and
-so will not be preserved in the resulting image. The changes will only “stick” in a
-running container.
-
-*Docker proxy in a separate process*
-
-The Docker userland proxy that routes outbound traffic to your containers now has its own
-separate process (one process per connection). This greatly reduces the load on the
-daemon, which increases stability and efficiency.
 
 *Other improvements & changes*
 
-* When using `docker rm -f`, Docker now kills the container (instead of stopping it)
-before removing it . If you intend to stop the container cleanly, you can use `docker
-stop`.
-
-* Added support for IPv6 addresses in `--dns`
-
-* Added search capability in private registries
+We've added a new security options flag that lets you set SELinux and AppArmor
+labels and profiles. This means you'll longer have to use `docker run
+--privileged on kernels that support SE Linux or AppArmor.
 
