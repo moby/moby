@@ -62,11 +62,12 @@
       <div class="span12 content-body">
 {% endif %}
         {% include "beta_warning.html" %}
+{% if not meta.no_version_dropdown %}
         <div id="versionnav" class="span3 pull-right">
           <ul class="nav version pull-right">
             <li class="dropdown">
-              <a id="logged-in-header-username" class="dropdown-toggle" data-toggle="dropdown" href="#">
-		      Latest (Version {{ major_minor }})
+              <a id="document-version-number" class="dropdown-toggle" data-toggle="dropdown" href="#">
+		      Version {{ major_minor }}
               </a>
               <ul id="documentation-version-list" class="dropdown-menu pull-right">
 {% if not meta.no_edit %}
@@ -77,6 +78,7 @@
             </li>
           </ul>
         </div>
+{% endif %}
         {{ content }}
       </div>
     </div>
@@ -119,10 +121,17 @@ piCId = '1482';
 <script type="text/javascript">
   $(document).ready(function() {
     $('#content').css("min-height", $(window).height() - 553 );
+    // if the URL contains a version string, update the version picker to reflect that
+    version = document.location.pathname.match(/^\/(v\d\.\d)\/.*/)
+    if (version && version[1]) {
+        $('#document-version-number')[0].text = 'Version '+version[1];
+    } else {
+        $('#document-version-number')[0].text = $('#document-version-number')[0].text + " (Latest)"
+    }
     // load the complete versions list
     $.get("/versions.html_fragment", function( data ) {
     	$('#documentation-version-list').prepend(data);
-	//remove any "/v1.1/" bits from font.
+	//remove any "/v1.1/" bits from front, so we can add the path to the version selection dropdown.
 	path = document.location.pathname.replace(/^\/v\d\.\d/, "");
 	$('#documentation-version-list a.version').each(function(i, e) {
 		e.href = e.href+path;
