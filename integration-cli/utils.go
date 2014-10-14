@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -111,18 +110,6 @@ func stripTrailingCharacters(target string) string {
 	target = strings.Trim(target, "\n")
 	target = strings.Trim(target, " ")
 	return target
-}
-
-func errorOut(err error, t *testing.T, message string) {
-	if err != nil {
-		t.Fatal(message)
-	}
-}
-
-func errorOutOnNonNilError(err error, t *testing.T, message string) {
-	if err == nil {
-		t.Fatalf(message)
-	}
 }
 
 func nLines(s string) int {
