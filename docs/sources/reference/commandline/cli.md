@@ -49,7 +49,7 @@ expect an integer, and they can only be specified once.
 
 ## daemon
 
-    Usage: docker [OPTIONS] COMMAND [arg...]
+    Usage: docker daemon [OPTIONS]
 
     A self-sufficient runtime for linux containers.
 
@@ -92,20 +92,20 @@ Options with [] may be specified multiple times.
 
 The Docker daemon is the persistent process that manages containers.
 Docker uses the same binary for both the daemon and client. To run the
-daemon you provide the `-d` flag.
+daemon you provide the daemon command.
 
 To force Docker to use devicemapper as the storage driver, use
-`docker -d -s devicemapper`.
+`docker daemon -s devicemapper`.
 
 To set the DNS server for all Docker containers, use
-`docker -d --dns 8.8.8.8`.
+`docker daemon --dns 8.8.8.8`.
 
 To set the DNS search domain for all Docker containers, use
-`docker -d --dns-search example.com`.
+`docker daemon --dns-search example.com`.
 
-To run the daemon with debug output, use `docker -d -D`.
+To run the daemon with debug output, use `docker daemon -D`.
 
-To use lxc as the execution driver, use `docker -d -e lxc`.
+To use lxc as the execution driver, use `docker daemon -e lxc`.
 
 The docker client will also honor the `DOCKER_HOST` environment variable to set
 the `-H` flag for the client.
@@ -130,8 +130,8 @@ can be disabled with --ip-masq=false.
 
 To run the daemon with [systemd socket activation](
 http://0pointer.de/blog/projects/socket-activation.html), use
-`docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
-you can also specify individual sockets too `docker -d -H fd://3`. If the
+`docker daemon -H fd://`. Using `fd://` will work perfectly for most setups but
+you can also specify individual sockets too `docker daemon -H fd://3`. If the
 specified socket activated files aren't found then docker will exit. You
 can find examples of using systemd socket activation with docker and
 systemd in the [docker source tree](
@@ -140,10 +140,10 @@ https://github.com/docker/docker/tree/master/contrib/init/systemd/).
 Docker supports softlinks for the Docker data directory
 (`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:
 
-    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
-    /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 ## attach
 
