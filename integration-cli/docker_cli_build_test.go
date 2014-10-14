@@ -2710,3 +2710,33 @@ func TestBuildRunShEntrypoint(t *testing.T) {
 
 	logDone("build - entrypoint with /bin/echo running successfully")
 }
+
+func TestBuildExoticShellInterpolation(t *testing.T) {
+	name := "testbuildexoticshellinterpolation"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+		FROM busybox
+
+		ENV SOME_VAR a.b.c
+
+		RUN [ "$SOME_VAR"       = 'a.b.c' ]
+		RUN [ "${SOME_VAR}"     = 'a.b.c' ]
+		RUN [ "${SOME_VAR%.*}"  = 'a.b'   ]
+		RUN [ "${SOME_VAR%%.*}" = 'a'     ]
+		RUN [ "${SOME_VAR#*.}"  = 'b.c'   ]
+		RUN [ "${SOME_VAR##*.}" = 'c'     ]
+		RUN [ "${SOME_VAR/c/d}" = 'a.b.d' ]
+		RUN [ "${#SOME_VAR}"    = '5'     ]
+
+		RUN [ "${SOME_UNSET_VAR:-$SOME_VAR}" = 'a.b.c' ]
+		RUN [ "${SOME_VAR:+Version: ${SOME_VAR}}" = 'Version: a.b.c' ]
+		RUN [ "${SOME_UNSET_VAR:+${SOME_VAR}}" = '' ]
+		RUN [ "${SOME_UNSET_VAR:-${SOME_VAR:-d.e.f}}" = 'a.b.c' ]
+	`, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	logDone("build - exotic shell interpolation")
+}
