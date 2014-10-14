@@ -93,7 +93,7 @@ RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.gi
 RUN	curl -sSL -o /cirros.tar.gz https://github.com/ewindisch/docker-cirros/raw/1cded459668e8b9dbf4ef976c94c05add9bbd8e9/cirros-0.3.0-x86_64-lxc.tar.gz
 
 # Setup s3cmd config
-RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > /.s3cfg
+RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > $HOME/.s3cfg
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN	git config --global user.email 'docker-dummy@example.com'
