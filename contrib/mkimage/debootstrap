@@ -15,9 +15,13 @@ done
 suite="$1"
 shift
 
+# let qemu-debootstrap handle foreign arch thing whenever available.
+debBootStrap=$(which qemu-debootstrap)
+[ -z "$debBootStrap" ] && debBootStrap=debootstrap
+
 (
 	set -x
-	debootstrap "${before[@]}" "$suite" "$rootfsDir" "$@"
+	$debBootStrap "${before[@]}" "$suite" "$rootfsDir" "$@"
 )
 
 # now for some Docker-specific tweaks
