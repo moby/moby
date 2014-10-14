@@ -827,14 +827,14 @@ COPY . /`,
 }
 
 func TestBuildCopyDisallowRemote(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DisallowRemote")
-	buildCmd.Dir = buildDirectory
-	if out, _, err := runCommandWithOutput(buildCmd); err == nil {
-		t.Fatalf("building the image should've failed; output: %s", out)
+	name := "testcopydisallowremote"
+	defer deleteImages(name)
+	_, out, err := buildImageWithOut(name, `FROM scratch
+COPY https://index.docker.io/robots.txt /`,
+		true)
+	if err == nil || !strings.Contains(out, "Source can't be a URL for COPY") {
+		t.Fatal("Error should be about disallowed remote source, got err: %s, out: %q", err, out)
 	}
-
-	deleteImages("testcopyimg")
 	logDone("build - copy - disallow copy from remote")
 }
 
