@@ -208,7 +208,7 @@ cat >&2 <<'EOF'
   a package for Docker.  Please visit the following URL for more detailed
   installation instructions:
 
-    http://docs.docker.io/en/latest/installation/
+    https://docs.docker.com/en/latest/installation/
 
 EOF
 exit 1
