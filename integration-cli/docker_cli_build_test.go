@@ -784,32 +784,28 @@ RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]`,
 }
 
 func TestBuildCopyWholeDirToRoot(t *testing.T) {
-	testDirName := "WholeDirToRoot"
-	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
-	buildDirectory, err := ioutil.TempDir("", "test-build-add")
-	defer os.RemoveAll(buildDirectory)
-
-	err = copyWithCP(sourceDirectory, buildDirectory)
+	name := "testcopywholedirtoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio exists
+COPY test_dir /test_dir
+RUN [ $(ls -l / | grep test_dir | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l / | grep test_dir | awk '{print $1}') = 'drwxr-xr-x' ]
+RUN [ $(ls -l /test_dir/test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /test_dir/test_file | awk '{print $1}') = '-rw-r--r--' ]
+RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_dir/test_file": "test1",
+		})
 	if err != nil {
-		t.Fatalf("failed to copy files to temporary directory: %s", err)
-	}
-
-	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	testDir := filepath.Join(buildDirectory, "test_dir")
-	if err := os.MkdirAll(testDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	f, err := os.OpenFile(filepath.Join(testDir, "test_file"), os.O_CREATE, 0644)
-	if err != nil {
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
-	}
-
-	deleteImages("testcopyimg")
-
 	logDone("build - copy whole directory to root")
 }
 
