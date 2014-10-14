@@ -759,13 +759,27 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 }
 
 func TestBuildCopyDirContentToExistDir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToExistDir"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopydircontenttoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN mkdir /exists
+RUN touch /exists/exists_file
+RUN chown -R dockerio.dockerio /exists
+COPY test_dir/ /exists/
+RUN [ $(ls -l / | grep exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]`,
+		map[string]string{
+			"test_dir/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy directory contents to existing dir")
 }
 
