@@ -509,6 +509,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
+
+	logDone("build - add single file to non-existing dir")
 }
 
 func TestBuildAddDirContentToRoot(t *testing.T) {
