@@ -810,12 +810,19 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 }
 
 func TestBuildCopyEtcToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "EtcToRoot"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopyetctoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+COPY . /`,
+		map[string]string{
+			"etc/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy etc directory to root")
 }
 
