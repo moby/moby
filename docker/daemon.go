@@ -79,7 +79,6 @@ func mainDaemon() {
 	job.Setenv("TlsCa", *flCa)
 	job.Setenv("TlsCert", *flCert)
 	job.Setenv("TlsKey", *flKey)
-	job.Setenv("TrustKey", *flTrustKey)
 	job.SetenvBool("BufferRequests", true)
 	if err := job.Run(); err != nil {
 		log.Fatal(err)
