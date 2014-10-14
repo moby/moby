@@ -661,28 +661,28 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 
 // Issue #3960: "ADD src ." hangs - adapted for COPY
 func TestBuildCopySingleFileToWorkdir(t *testing.T) {
-	testDirName := "SingleFileToWorkdir"
-	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
-	buildDirectory, err := ioutil.TempDir("", "test-build-add")
-	defer os.RemoveAll(buildDirectory)
-
-	err = copyWithCP(sourceDirectory, buildDirectory)
-	if err != nil {
-		t.Fatalf("failed to copy files to temporary directory: %s", err)
-	}
-
-	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	name := "testcopysinglefiletoworkdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+COPY test_file .`,
+		map[string]string{
+			"test_file": "test1",
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	if out, _, err := dockerCmdInDirWithTimeout(5*time.Second, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	done := make(chan struct{})
+	go func() {
+		if _, err := buildImageFromContext(name, ctx, true); err != nil {
+			t.Fatal(err)
+		}
+		close(done)
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Build with adding to workdir timed out")
+	case <-done:
 	}
-
-	deleteImages("testcopyimg")
-
 	logDone("build - copy single file to workdir")
 }
 
