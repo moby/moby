@@ -341,7 +341,9 @@ func cmd(t *testing.T, args ...string) (string, int, error) {
 
 func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	errorOut(err, t, fmt.Sprintf("%q failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		t.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
+	}
 	return out, status, err
 }
 
