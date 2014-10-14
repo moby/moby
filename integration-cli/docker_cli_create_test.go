@@ -107,7 +107,7 @@ func TestCreateEchoStdout(t *testing.T) {
 	errorOut(err, t, out)
 
 	if out != "test123\n" {
-		t.Errorf("container should've printed 'test123', got '%s'", out)
+		t.Errorf("container should've printed 'test123', got %q", out)
 	}
 
 	deleteAllContainers()
