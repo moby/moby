@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -436,30 +437,26 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 	onBuildTriggers := b.Config.OnBuild
 	b.Config.OnBuild = []string{}
 
-	// FIXME rewrite this so that builder/parser is used; right now steps in
-	// onbuild are muted because we have no good way to represent the step
-	// number
+	// parse the ONBUILD triggers by invoking the parser
 	for stepN, step := range onBuildTriggers {
-		splitStep := strings.Split(step, " ")
-		stepInstruction := strings.ToUpper(strings.Trim(splitStep[0], " "))
-		switch stepInstruction {
-		case "ONBUILD":
-			return fmt.Errorf("Source image contains forbidden chained `ONBUILD ONBUILD` trigger: %s", step)
-		case "MAINTAINER", "FROM":
-			return fmt.Errorf("Source image contains forbidden %s trigger: %s", stepInstruction, step)
+		ast, err := parser.Parse(strings.NewReader(step))
+		if err != nil {
+			return err
 		}
 
-		// FIXME we have to run the evaluator manually here. This does not belong
-		// in this function. Once removed, the init() in evaluator.go should no
-		// longer be necessary.
+		for i, n := range ast.Children {
+			switch strings.ToUpper(n.Value) {
+			case "ONBUILD":
+				return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			case "MAINTAINER", "FROM":
+				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
+			}
 
-		if f, ok := evaluateTable[strings.ToLower(stepInstruction)]; ok {
 			fmt.Fprintf(b.OutStream, "Trigger %d, %s\n", stepN, step)
-			if err := f(b, splitStep[1:], nil); err != nil {
+
+			if err := b.dispatch(i, n); err != nil {
 				return err
 			}
-		} else {
-			return fmt.Errorf("%s doesn't appear to be a valid Dockerfile instruction", splitStep[0])
 		}
 	}
 
