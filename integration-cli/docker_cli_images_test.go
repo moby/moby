@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -11,7 +10,9 @@ import (
 func TestImagesEnsureImageIsListed(t *testing.T) {
 	imagesCmd := exec.Command(dockerBinary, "images")
 	out, _, err := runCommandWithOutput(imagesCmd)
-	errorOut(err, t, fmt.Sprintf("listing images failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("listing images failed with errors: %s, %v", out, err)
+	}
 
 	if !strings.Contains(out, "busybox") {
 		t.Fatal("images should've listed busybox")
@@ -46,7 +47,9 @@ func TestImagesOrderedByCreationDate(t *testing.T) {
 	}
 
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images", "-q", "--no-trunc"))
-	errorOut(err, t, fmt.Sprintf("listing images failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("listing images failed with errors: %s, %v", out, err)
+	}
 	imgs := strings.Split(out, "\n")
 	if imgs[0] != id3 {
 		t.Fatalf("First image must be %s, got %s", id3, imgs[0])
