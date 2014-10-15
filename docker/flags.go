@@ -27,6 +27,7 @@ var (
 	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode\nuse '' (the empty string) to disable setting of a group")
 	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
+	flHelp        = flag.Bool([]string{"h", "-help"}, false, "Print usage")
 	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
@@ -48,8 +49,9 @@ func init() {
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
+		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
 
+		flag.CommandLine.SetOutput(os.Stdout)
 		flag.PrintDefaults()
 
 		help := "\nCommands:\n"
@@ -96,6 +98,6 @@ func init() {
 			help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 		}
 		help += "\nRun 'docker COMMAND --help' for more information on a command."
-		fmt.Fprintf(os.Stderr, "%s\n", help)
+		fmt.Fprintf(os.Stdout, "%s\n", help)
 	}
 }

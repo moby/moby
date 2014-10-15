@@ -7,6 +7,7 @@ docker-logs - Fetch the logs of a container
 # SYNOPSIS
 **docker logs**
 [**-f**|**--follow**[=*false*]]
+[**--help**]
 [**-t**|**--timestamps**[=*false*]]
 [**--tail**[=*"all"*]]
 CONTAINER
@@ -22,6 +23,9 @@ The **docker logs --follow** command combines commands **docker logs** and
 then continue streaming new output from the container’s stdout and stderr.
 
 # OPTIONS
+**--help**
+  Print usage statement
+
 **-f**, **--follow**=*true*|*false*
    Follow log output. The default is *false*.
 

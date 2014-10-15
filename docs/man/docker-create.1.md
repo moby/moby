@@ -21,6 +21,7 @@ docker-create - Create a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
@@ -83,6 +84,9 @@ docker-create - Create a new container
 
 **-h**, **--hostname**=""
    Container host name
+
+**--help**
+  Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
