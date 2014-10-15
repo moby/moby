@@ -22,11 +22,13 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 		return job.Errorf("No such container: %s", name)
 	}
 
-	if container.State.IsRunning() {
+	if container.IsRunning() {
 		return job.Errorf("Container already started")
 	}
 
 	// If no environment was set, then no hostconfig was passed.
+	// This is kept for backward compatibility - hostconfig should be passed when
+	// creating a container, not during start.
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
@@ -34,6 +36,7 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 		}
 	}
 	if err := container.Start(); err != nil {
+		container.LogEvent("die")
 		return job.Errorf("Cannot start container %s: %s", name, err)
 	}
 

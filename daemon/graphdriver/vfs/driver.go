@@ -3,10 +3,12 @@ package vfs
 import (
 	"bytes"
 	"fmt"
-	"github.com/docker/docker/daemon/graphdriver"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/libcontainer/label"
 )
 
 func init() {
@@ -17,7 +19,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
-	return d, nil
+	return graphdriver.NaiveDiffDriver(d), nil
 }
 
 type Driver struct {
@@ -66,6 +68,10 @@ func (d *Driver) Create(id, parent string) error {
 	}
 	if err := os.Mkdir(dir, 0755); err != nil {
 		return err
+	}
+	opts := []string{"level:s0"}
+	if _, mountLabel, err := label.InitLabels(opts); err == nil {
+		label.Relabel(dir, mountLabel, "")
 	}
 	if parent == "" {
 		return nil

@@ -119,7 +119,8 @@ You can also extend the chain by mounting the volume that came from the
 
 If you remove containers that mount volumes, including the initial `dbdata`
 container, or the subsequent containers `db1` and `db2`, the volumes will not
-be deleted until there are no containers still referencing those volumes. This
+be deleted.  To delete the volume from disk, you must explicitly call
+`docker rm -v` against the last container with a reference to the volume. This
 allows you to upgrade, or effectively migrate data volumes between containers.
 
 ## Backup, restore, or migrate data volumes
@@ -147,7 +148,7 @@ Then un-tar the backup file in the new container's data volume.
 
     $ sudo docker run --volumes-from dbdata2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar
 
-You can use this techniques above to automate backup, migration and
+You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
 # Next steps

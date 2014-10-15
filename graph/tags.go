@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -17,9 +18,14 @@ import (
 
 const DEFAULTTAG = "latest"
 
+var (
+	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
+)
+
 type TagStore struct {
 	path         string
 	graph        *Graph
+	mirrors      []string
 	Repositories map[string]Repository
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -30,7 +36,25 @@ type TagStore struct {
 
 type Repository map[string]string
 
-func NewTagStore(path string, graph *Graph) (*TagStore, error) {
+// update Repository mapping with content of u
+func (r Repository) Update(u Repository) {
+	for k, v := range u {
+		r[k] = v
+	}
+}
+
+// return true if the contents of u Repository, are wholly contained in r Repository
+func (r Repository) Contains(u Repository) bool {
+	for k, v := range u {
+		// if u's key is not present in r OR u's key is present, but not the same value
+		if rv, ok := r[k]; !ok || (ok && rv != v) {
+			return false
+		}
+	}
+	return true
+}
+
+func NewTagStore(path string, graph *Graph, mirrors []string) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -38,6 +62,7 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	store := &TagStore{
 		path:         abspath,
 		graph:        graph,
+		mirrors:      mirrors,
 		Repositories: make(map[string]Repository),
 		pullingPool:  make(map[string]chan struct{}),
 		pushingPool:  make(map[string]chan struct{}),
@@ -184,7 +209,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	if err := validateRepoName(repoName); err != nil {
 		return err
 	}
-	if err := validateTagName(tag); err != nil {
+	if err := ValidateTagName(tag); err != nil {
 		return err
 	}
 	if err := store.reload(); err != nil {
@@ -251,6 +276,20 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 	return reporefs
 }
 
+// isOfficialName returns whether a repo name is considered an official
+// repository.  Official repositories are repos with names within
+// the library namespace or which default to the library namespace
+// by not providing one.
+func isOfficialName(name string) bool {
+	if strings.HasPrefix(name, "library/") {
+		return true
+	}
+	if strings.IndexRune(name, '/') == -1 {
+		return true
+	}
+	return false
+}
+
 // Validate the name of a repository
 func validateRepoName(name string) error {
 	if name == "" {
@@ -260,52 +299,52 @@ func validateRepoName(name string) error {
 }
 
 // Validate the name of a tag
-func validateTagName(name string) error {
+func ValidateTagName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Tag name can't be empty")
 	}
-	if strings.Contains(name, "/") || strings.Contains(name, ":") {
-		return fmt.Errorf("Illegal tag name: %s", name)
+	if !validTagName.MatchString(name) {
+		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 2, maximum 30 in length", name)
 	}
 	return nil
 }
 
-func (s *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
-	s.Lock()
-	defer s.Unlock()
+func (store *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
+	store.Lock()
+	defer store.Unlock()
 
-	if c, exists := s.pullingPool[key]; exists {
+	if c, exists := store.pullingPool[key]; exists {
 		return c, fmt.Errorf("pull %s is already in progress", key)
 	}
-	if c, exists := s.pushingPool[key]; exists {
+	if c, exists := store.pushingPool[key]; exists {
 		return c, fmt.Errorf("push %s is already in progress", key)
 	}
 
 	c := make(chan struct{})
 	switch kind {
 	case "pull":
-		s.pullingPool[key] = c
+		store.pullingPool[key] = c
 	case "push":
-		s.pushingPool[key] = c
+		store.pushingPool[key] = c
 	default:
 		return nil, fmt.Errorf("Unknown pool type")
 	}
 	return c, nil
 }
 
-func (s *TagStore) poolRemove(kind, key string) error {
-	s.Lock()
-	defer s.Unlock()
+func (store *TagStore) poolRemove(kind, key string) error {
+	store.Lock()
+	defer store.Unlock()
 	switch kind {
 	case "pull":
-		if c, exists := s.pullingPool[key]; exists {
+		if c, exists := store.pullingPool[key]; exists {
 			close(c)
-			delete(s.pullingPool, key)
+			delete(store.pullingPool, key)
 		}
 	case "push":
-		if c, exists := s.pushingPool[key]; exists {
+		if c, exists := store.pushingPool[key]; exists {
 			close(c)
-			delete(s.pushingPool, key)
+			delete(store.pushingPool, key)
 		}
 	default:
 		return fmt.Errorf("Unknown pool type")

@@ -4,7 +4,7 @@
 FROM 		debian:jessie
 MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-RUN 	apt-get update && apt-get install -y make python-pip python-setuptools vim-tiny git gettext
+RUN 	apt-get update && apt-get install -y make python-pip python-setuptools vim-tiny git gettext python-dev libssl-dev
 
 RUN	pip install mkdocs
 
@@ -14,7 +14,7 @@ RUN	pip install mkdocs
 #RUN	pip install MarkdownTools2
 
 # this version works, the current versions fail in different ways
-RUN	pip install awscli==1.3.9
+RUN	pip install awscli==1.4.4 pyopenssl==0.12
 
 # make sure the git clone is not an old cache - we've published old versions a few times now
 ENV	CACHE_BUST Jul2014

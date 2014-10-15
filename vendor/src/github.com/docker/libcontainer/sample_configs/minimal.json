@@ -166,6 +166,12 @@
                 "path": "/dev/random",
                 "type": 99
             }
+        ],
+        "mounts": [
+            {
+                "type": "tmpfs",
+                "destination": "/tmp"
+            }
         ]
     },
     "environment": [

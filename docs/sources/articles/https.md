@@ -122,7 +122,7 @@ providing a certificate trusted by our CA:
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
-    $ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
+    $ sudo docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
       -H=dns-name-of-docker-host:2376 version
 
 > **Note**:
@@ -139,16 +139,18 @@ need to provide your client keys, certificates and trusted CA:
 
 If you want to secure your Docker client connections by default, you can move 
 the files to the `.docker` directory in your home directory - and set the
-`DOCKER_HOST` variable as well.
+`DOCKER_HOST` and `DOCKER_TLS_VERIFY` variables as well (instead of passing
+`-H=tcp://:2376` and `--tlsverify` on every call).
 
     $ cp ca.pem ~/.docker/ca.pem
     $ cp cert.pem ~/.docker/cert.pem
     $ cp key.pem ~/.docker/key.pem
     $ export DOCKER_HOST=tcp://:2376
+    $ export DOCKER_TLS_VERIFY=1
 
-Then you can run Docker with the `--tlsverify` option.
+Docker will now connect securely by default:
 
-    $ docker --tlsverify ps
+    $ sudo docker ps
 
 ## Other modes
 
@@ -175,4 +177,11 @@ if you want to store your keys in another location, you can specify that
 location using the environment variable `DOCKER_CERT_PATH`.
 
     $ export DOCKER_CERT_PATH=${HOME}/.docker/zone1/
-    $ docker --tlsverify ps
+    $ sudo docker --tlsverify ps
+
+### Connecting to the Secure Docker port using `curl`
+
+To use `curl` to make test API requests, you need to use three extra command line
+flags:
+
+    $ curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`

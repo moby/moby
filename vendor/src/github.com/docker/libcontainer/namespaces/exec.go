@@ -21,7 +21,7 @@ import (
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
-func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console string, rootfs, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
+func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
 	var (
 		err error
 	)
@@ -34,7 +34,7 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	}
 	defer syncPipe.Close()
 
-	command := createCommand(container, console, rootfs, dataPath, os.Args[0], syncPipe.Child(), args)
+	command := createCommand(container, console, dataPath, os.Args[0], syncPipe.Child(), args)
 	// Note: these are only used in non-tty mode
 	// if there is a tty for the container it will be opened within the namespace and the
 	// fds will be duped to stdin, stdiout, and stderr
@@ -121,7 +121,7 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 // root: the path to the container json file and information
 // pipe: sync pipe to synchronize the parent and child processes
 // args: the arguments to pass to the container to run as the user's program
-func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
+func DefaultCreateCommand(container *libcontainer.Config, console, dataPath, init string, pipe *os.File, args []string) *exec.Cmd {
 	// get our binary name from arg0 so we can always reexec ourself
 	env := []string{
 		"console=" + console,
@@ -141,7 +141,7 @@ func DefaultCreateCommand(container *libcontainer.Config, console, rootfs, dataP
 
 	command := exec.Command(init, append([]string{"init", "--"}, args...)...)
 	// make sure the process is executed inside the context of the rootfs
-	command.Dir = rootfs
+	command.Dir = container.RootFs
 	command.Env = append(os.Environ(), env...)
 
 	if command.SysProcAttr == nil {

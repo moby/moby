@@ -2,6 +2,8 @@ package portmapper
 
 import (
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/pkg/proxy"
 	"github.com/docker/docker/reexec"
@@ -33,14 +36,18 @@ type proxyCommand struct {
 
 // execProxy is the reexec function that is registered to start the userland proxies
 func execProxy() {
+	f := os.NewFile(3, "signal-parent")
 	host, container := parseHostContainerAddrs()
 
 	p, err := proxy.NewProxy(host, container)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(f, "1\n%s", err)
+		f.Close()
+		os.Exit(1)
 	}
-
 	go handleStopSignals(p)
+	fmt.Fprint(f, "0\n")
+	f.Close()
 
 	// Run will block until the proxy stops
 	p.Run()
@@ -96,10 +103,8 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 
 	return &proxyCommand{
 		cmd: &exec.Cmd{
-			Path:   reexec.Self(),
-			Args:   args,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
+			Path: reexec.Self(),
+			Args: args,
 			SysProcAttr: &syscall.SysProcAttr{
 				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies
 			},
@@ -108,12 +113,44 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 }
 
 func (p *proxyCommand) Start() error {
-	return p.cmd.Start()
+	r, w, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("proxy unable to open os.Pipe %s", err)
+	}
+	defer r.Close()
+	p.cmd.ExtraFiles = []*os.File{w}
+	if err := p.cmd.Start(); err != nil {
+		return err
+	}
+	w.Close()
+
+	errchan := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 2)
+		r.Read(buf)
+
+		if string(buf) != "0\n" {
+			errStr, _ := ioutil.ReadAll(r)
+			errchan <- fmt.Errorf("Error starting userland proxy: %s", errStr)
+			return
+		}
+		errchan <- nil
+	}()
+
+	select {
+	case err := <-errchan:
+		return err
+	case <-time.After(1 * time.Second):
+		return fmt.Errorf("Timed out proxy starting the userland proxy")
+	}
 }
 
 func (p *proxyCommand) Stop() error {
-	err := p.cmd.Process.Signal(os.Interrupt)
-	p.cmd.Wait()
-
-	return err
+	if p.cmd.Process != nil {
+		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
+			return err
+		}
+		return p.cmd.Wait()
+	}
+	return nil
 }

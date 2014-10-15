@@ -102,7 +102,13 @@ LDFLAGS='
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
-BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
+# ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
+# with options like -race.
+ORIG_BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
+BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
+# Test timeout.
+: ${TIMEOUT:=30m}
+TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
 # PLEASE do not use these anywhere else.
@@ -156,35 +162,11 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
+		export DEST
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
-}
-
-# Compile phase run by parallel in test-unit. No support for coverpkg
-go_compile_test_dir() {
-	dir=$1
-	out_file="$DEST/precompiled/$dir.test"
-	testcover=()
-	if [ "$HAVE_GO_TEST_COVER" ]; then
-		# if our current go install has -cover, we want to use it :)
-		mkdir -p "$DEST/coverprofiles"
-		coverprofile="docker${dir#.}"
-		coverprofile="$DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -cover -coverprofile "$coverprofile" ) # missing $coverpkg
-	fi
-	if [ "$BUILDFLAGS_FILE" ]; then
-		readarray -t BUILDFLAGS < "$BUILDFLAGS_FILE"
-	fi
-	(
-		cd "$dir"
-		go test "${testcover[@]}" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c
-	)
-	[ $? -ne 0 ] && return 1
-	mkdir -p "$(dirname "$out_file")"
-	mv "$dir/$(basename "$dir").test" "$out_file"
-	echo "Precompiled: ${DOCKER_PKG}${dir#.}"
 }
 
 # This helper function walks the current directory looking for directories

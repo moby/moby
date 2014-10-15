@@ -78,7 +78,7 @@ func (t *Table) WriteListTo(dst io.Writer) (n int64, err error) {
 			if _, err := dst.Write([]byte{','}); err != nil {
 				return -1, err
 			}
-			n += 1
+			n++
 		}
 	}
 	if _, err := dst.Write([]byte{']'}); err != nil {

@@ -111,7 +111,7 @@ supports:
 
 It's possible to run:
 
-    $ docker pull https://<registry>/repositories/samalba/busybox
+    $ sudo docker pull https://<registry>/repositories/samalba/busybox
 
 In this case, Docker bypasses the Docker Hub. However the security is not
 guaranteed (in case Registry A is corrupted) because there won't be any
@@ -133,52 +133,61 @@ and for an active account.
 
 1.  (Docker -> Docker Hub) GET /v1/repositories/foo/bar/images:
 
-        **Headers**:
+**Headers**:
+
         Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
         X-Docker-Token: true
-        
-        **Action**:
+
+**Action**:
+
         (looking up the foo/bar in db and gets images and checksums
         for that repo (all if no tag is specified, if tag, only
         checksums for those tags) see part 4.4.1)
 
 2.  (Docker Hub -> Docker) HTTP 200 OK
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
         X-Docker-Endpoints: registry.docker.io [,registry2.docker.io]
-        
-        **Body**:
+
+**Body**:
+
         Jsonified checksums (see part 4.4.1)
 
 3.  (Docker -> Registry) GET /v1/repositories/foo/bar/tags/latest
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
 
 4.  (Registry -> Docker Hub) GET /v1/repositories/foo/bar/images
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=read
-        
-        **Body**:
+
+**Body**:
+
         <ids and checksums in payload>
-        
-        **Action**:
+
+**Action**:
+
         (Lookup token see if they have access to pull.)
-        
+
         If good:
         HTTP 200 OK Docker Hub will invalidate the token
-        
+
         If bad:
         HTTP 401 Unauthorized
 
 5.  (Docker -> Registry) GET /v1/images/928374982374/ancestry
 
-        **Action**:
+**Action**:
+
         (for each image id returned in the registry, fetch /json + /layer)
 
 > **Note**:
@@ -220,92 +229,108 @@ the end).
 
 1.  (Docker -> Docker Hub) PUT /v1/repositories/foo/bar/
 
-        **Headers**:
+**Headers**:
+
         Authorization: Basic sdkjfskdjfhsdkjfh== X-Docker-Token:
         true
 
-        **Action**:
-        - in Docker Hub, we allocated a new repository, and set to
-        initialized
+**Action**:
 
-        **Body**:
-        (The body contains the list of images that are going to be
-        pushed, with empty checksums. The checksums will be set at
-        the end of the push):
+- in Docker Hub, we allocated a new repository, and set to
+  initialized
+
+**Body**:
+
+(The body contains the list of images that are going to be
+pushed, with empty checksums. The checksums will be set at
+the end of the push):
 
         [{“id”: “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”}]
 
 2.  (Docker Hub -> Docker) 200 Created
 
-        **Headers**:
-        - WWW-Authenticate: Token
+**Headers**:
+
+        WWW-Authenticate: Token
         signature=123abc,repository=”foo/bar”,access=write
-        - X-Docker-Endpoints: registry.docker.io [,
-        registry2.docker.io]
+        X-Docker-Endpoints: registry.docker.io [, registry2.docker.io]
 
 3.  (Docker -> Registry) PUT /v1/images/98765432_parent/json
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
 
 4.  (Registry->Docker Hub) GET /v1/repositories/foo/bar/images
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
 
-        **Action**:
-        - Docker Hub:
-        will invalidate the token.
-        - Registry:
-        grants a session (if token is approved) and fetches
-        the images id
+**Action**:
+
+- Docker Hub:
+  will invalidate the token.
+- Registry:
+  grants a session (if token is approved) and fetches
+  the images id
 
 5.  (Docker -> Registry) PUT /v1/images/98765432_parent/json
 
-        **Headers**::
-        - Authorization: Token
+**Headers**:
+
+        Authorization: Token
         signature=123abc,repository=”foo/bar”,access=write
-        - Cookie: (Cookie provided by the Registry)
+        Cookie: (Cookie provided by the Registry)
 
 6.  (Docker -> Registry) PUT /v1/images/98765432/json
 
-        **Headers**:
-        - Cookie: (Cookie provided by the Registry)
+**Headers**:
+
+        Cookie: (Cookie provided by the Registry)
 
 7.  (Docker -> Registry) PUT /v1/images/98765432_parent/layer
 
-        **Headers**:
-        - Cookie: (Cookie provided by the Registry)
+**Headers**:
+
+        Cookie: (Cookie provided by the Registry)
 
 8.  (Docker -> Registry) PUT /v1/images/98765432/layer
 
-        **Headers**:
+**Headers**:
+
         X-Docker-Checksum: sha256:436745873465fdjkhdfjkgh
 
 9.  (Docker -> Registry) PUT /v1/repositories/foo/bar/tags/latest
 
-        **Headers**:
-        - Cookie: (Cookie provided by the Registry)
+**Headers**:
 
-        **Body**:
+        Cookie: (Cookie provided by the Registry)
+
+**Body**:
+
         “98765432”
 
 10. (Docker -> Docker Hub) PUT /v1/repositories/foo/bar/images
 
-        **Headers**:
+**Headers**:
+
         Authorization: Basic 123oislifjsldfj== X-Docker-Endpoints:
         registry1.docker.io (no validation on this right now)
 
-        **Body**:
+**Body**:
+
         (The image, id`s, tags and checksums)
         [{“id”:
         “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
         “checksum”:
         “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}]
 
-        **Return**: HTTP 204
+**Return**:
+
+        HTTP 204
 
 > **Note:** If push fails and they need to start again, what happens in the Docker Hub,
 > there will already be a record for the namespace/name, but it will be
@@ -344,43 +369,49 @@ nice clean way to do that. Here is the workflow.
 
 1.  (Docker -> Docker Hub) DELETE /v1/repositories/foo/bar/
 
-        **Headers**:
+**Headers**:
+
         Authorization: Basic sdkjfskdjfhsdkjfh== X-Docker-Token:
         true
 
-        **Action**:
-        - in Docker Hub, we make sure it is a valid repository, and set
-        to deleted (logically)
+**Action**:
 
-        **Body**:
+- in Docker Hub, we make sure it is a valid repository, and set
+  to deleted (logically)
+
+**Body**:
+
         Empty
 
 2.  (Docker Hub -> Docker) 202 Accepted
 
-        **Headers**:
-        - WWW-Authenticate: Token
+**Headers**:
+
+        WWW-Authenticate: Token
         signature=123abc,repository=”foo/bar”,access=delete
-        - X-Docker-Endpoints: registry.docker.io [,
-        registry2.docker.io]
+        X-Docker-Endpoints: registry.docker.io [, registry2.docker.io]
         # list of endpoints where this repo lives.
 
 3.  (Docker -> Registry) DELETE /v1/repositories/foo/bar/
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=delete
 
 4.  (Registry->Docker Hub) PUT /v1/repositories/foo/bar/auth
 
-        **Headers**:
+**Headers**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=delete
 
-        **Action**:
-        - Docker Hub:
-        will invalidate the token.
-        - Registry:
-        deletes the repository (if token is approved)
+**Action**:
+
+- Docker Hub:
+  will invalidate the token.
+- Registry:
+  deletes the repository (if token is approved)
 
 5.  (Registry -> Docker) 200 OK
 
@@ -389,14 +420,18 @@ nice clean way to do that. Here is the workflow.
 
 6.  (Docker -> Docker Hub) DELETE /v1/repositories/foo/bar/
 
-        **Headers**:
+**Headers**:
+
         Authorization: Basic 123oislifjsldfj== X-Docker-Endpoints:
         registry-1.docker.io (no validation on this right now)
-        
-        **Body**:
+
+**Body**:
+
         Empty
-        
-        **Return**: HTTP 200
+
+**Return**:
+
+        HTTP 200
 
 ## How to use the Registry in standalone mode
 
@@ -412,7 +447,7 @@ The Docker Hub has two main purposes (along with its fancy social features):
  - Authenticate a user as a repos owner (for a central referenced
     repository)
 
-### Without an Docker Hub
+### Without a Docker Hub
 
 Using the Registry without the Docker Hub can be useful to store the images
 on a private network without having to rely on an external entity
@@ -433,7 +468,7 @@ As hinted previously, a standalone registry can also be implemented by
 any HTTP server handling GET/PUT requests (or even only GET requests if
 no write access is necessary).
 
-### With an Docker Hub
+### With a Docker Hub
 
 The Docker Hub data needed by the Registry are simple:
 
@@ -478,16 +513,20 @@ file is empty.
 
     POST /v1/users:
 
-    **Body**:
+**Body**:
+
     {"email": "[sam@docker.com](mailto:sam%40docker.com)",
     "password": "toto42", "username": "foobar"`}
 
-    **Validation**:
-    - **username**: min 4 character, max 30 characters, must match the
-    regular expression [a-z0-9_].
-    - **password**: min 5 characters
+**Validation**:
 
-    **Valid**: return HTTP 200
+- **username**: min 4 character, max 30 characters, must match the
+  regular expression [a-z0-9_].
+- **password**: min 5 characters
+
+**Valid**:
+
+     return HTTP 201
 
 Errors: HTTP 400 (we should create error codes for possible errors) -
 invalid json - missing field - wrong format (username, password, email,
@@ -501,7 +540,8 @@ etc) - forbidden name - name already exists
 
     PUT /v1/users/<username>
 
-    **Body**:
+**Body**:
+
     {"password": "toto"}
 
 > **Note**:
@@ -515,10 +555,10 @@ validate credentials. HTTP Basic Auth for now, maybe change in future.
 
 GET /v1/users
 
-    **Return**:
-     - Valid: HTTP 200
-     - Invalid login: HTTP 401
-     - Account inactive: HTTP 403 Account is not Active
+**Return**:
+- Valid: HTTP 200
+- Invalid login: HTTP 401
+- Account inactive: HTTP 403 Account is not Active
 
 ### Tags (Registry)
 
@@ -543,14 +583,15 @@ GET /v1/repositories/<namespace>/<repository_name>/tags
     “0.1.1”:
     “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087” }
 
-    **4.3.2 Read the content of a tag (resolve the image id):**
+**4.3.2 Read the content of a tag (resolve the image id):**
 
     GET /v1/repositories/<namespace>/<repo_name>/tags/<tag>
 
-    **Return**:
+**Return**:
+
     "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f"
 
-    **4.3.3 Delete a tag (registry):**
+**4.3.3 Delete a tag (registry):**
 
     DELETE /v1/repositories/<namespace>/<repo_name>/tags/<tag>
 
@@ -577,14 +618,17 @@ You always add images, you never remove them.
 
     PUT /v1/repositories/<namespace>/<repo_name>/images
 
-    **Body**:
+**Body**:
+
     [ {“id”:
     “9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f”,
     “checksum”:
     “sha256:b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087”}
     ]
 
-    **Return**: 204
+**Return**:
+
+    204
 
 ### Repositories
 
@@ -640,28 +684,32 @@ You have 3 options:
 
 1.  Provide user credentials and ask for a token
 
-        **Header**:
-        - Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
-        - X-Docker-Token: true
-        
-        In this case, along with the 200 response, you'll get a new token
-        (if user auth is ok): If authorization isn't correct you get a 401
-        response. If account isn't active you will get a 403 response.
-        
-        **Response**:
-        - 200 OK
-        - X-Docker-Token: Token
-          signature=123abc,repository=”foo/bar”,access=read
-    
+**Header**:
+
+        Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
+        X-Docker-Token: true
+
+In this case, along with the 200 response, you'll get a new token
+(if user auth is ok): If authorization isn't correct you get a 401
+response. If account isn't active you will get a 403 response.
+
+**Response**:
+
+        200 OK
+        X-Docker-Token: Token
+        signature=123abc,repository=”foo/bar”,access=read
+
 
 2.  Provide user credentials only
 
-        **Header**:
+**Header**:
+
         Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
 
 3.  Provide Token
 
-        **Header**:
+**Header**:
+
         Authorization: Token
         signature=123abc,repository=”foo/bar”,access=read
 

@@ -16,7 +16,7 @@ func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
 		t = job.GetenvInt("t")
 	}
 	if container := daemon.Get(name); container != nil {
-		if !container.State.IsRunning() {
+		if !container.IsRunning() {
 			return job.Errorf("Container already stopped")
 		}
 		if err := container.Stop(int(t)); err != nil {

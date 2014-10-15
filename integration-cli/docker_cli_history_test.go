@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -11,35 +10,60 @@ import (
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
 func TestBuildHistory(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestBuildHistory")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testbuildhistory", ".")
+	name := "testbuildhistory"
+	defer deleteImages(name)
+	_, err := buildImage(name, `FROM busybox
+RUN echo "A"
+RUN echo "B"
+RUN echo "C"
+RUN echo "D"
+RUN echo "E"
+RUN echo "F"
+RUN echo "G"
+RUN echo "H"
+RUN echo "I"
+RUN echo "J"
+RUN echo "K"
+RUN echo "L"
+RUN echo "M"
+RUN echo "N"
+RUN echo "O"
+RUN echo "P"
+RUN echo "Q"
+RUN echo "R"
+RUN echo "S"
+RUN echo "T"
+RUN echo "U"
+RUN echo "V"
+RUN echo "W"
+RUN echo "X"
+RUN echo "Y"
+RUN echo "Z"`,
+		true)
 
-	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	out, exitCode, err = runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistory"))
+	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistory"))
 	errorOut(err, t, fmt.Sprintf("image history failed: %v %v", out, err))
 	if err != nil || exitCode != 0 {
 		t.Fatal("failed to get image history")
 	}
 
-	actual_values := strings.Split(out, "\n")[1:27]
-	expected_values := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
+	actualValues := strings.Split(out, "\n")[1:27]
+	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
 	for i := 0; i < 26; i++ {
-		echo_value := fmt.Sprintf("echo \"%s\"", expected_values[i])
-		actual_value := actual_values[i]
+		echoValue := fmt.Sprintf("echo \"%s\"", expectedValues[i])
+		actualValue := actualValues[i]
 
-		if !strings.Contains(actual_value, echo_value) {
-			t.Fatalf("Expected layer \"%s\", but was: %s", expected_values[i], actual_value)
+		if !strings.Contains(actualValue, echoValue) {
+			t.Fatalf("Expected layer \"%s\", but was: %s", expectedValues[i], actualValue)
 		}
 	}
 
-	deleteImages("testbuildhistory")
+	logDone("history - build history")
 }
 
 func TestHistoryExistentImage(t *testing.T) {

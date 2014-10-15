@@ -55,5 +55,14 @@ image to base your new minimal containers `FROM`:
     COPY true-asm /true
     CMD ["/true"]
 
-The Dockerfile above is from extremely minimal image - [tianon/true](
+The `Dockerfile` above is from an extremely minimal image - [tianon/true](
 https://github.com/tianon/dockerfiles/tree/master/true).
+
+## More resources
+
+There are lots more resources available to help you write your 'Dockerfile`.
+
+* There's a [complete guide to all the instructions](/reference/builder/) available for use in a `Dockerfile` in the reference section.
+* To help you write a clear, readable, maintainable `Dockerfile`, we've also
+written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
+* If you're working on an Official Repo, be sure to check out the [Official Repo Guidelines](/docker-hub/official_repos/).

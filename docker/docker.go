@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	defaultCaFile   = "ca.pem"
-	defaultKeyFile  = "key.pem"
-	defaultCertFile = "cert.pem"
+	defaultTrustKeyFile = "key.json"
+	defaultCaFile       = "ca.pem"
+	defaultKeyFile      = "key.pem"
+	defaultCertFile     = "cert.pem"
 )
 
 func main() {
@@ -44,7 +45,8 @@ func main() {
 			// If we do not have a host, default to unix socket
 			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
 		}
-		if _, err := api.ValidateHost(defaultHost); err != nil {
+		defaultHost, err := api.ValidateHost(defaultHost)
+		if err != nil {
 			log.Fatal(err)
 		}
 		flHosts = append(flHosts, defaultHost)
@@ -94,9 +96,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {

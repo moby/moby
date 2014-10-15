@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -100,7 +101,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return nil
 	}
 	if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(time.RFC3339Nano))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(timeutils.RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)
@@ -143,7 +144,9 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			if !ok {
 				line = len(ids)
 				ids[jm.ID] = line
-				fmt.Fprintf(out, "\n")
+				if isTerminal {
+					fmt.Fprintf(out, "\n")
+				}
 				diff = 0
 			} else {
 				diff = len(ids) - line

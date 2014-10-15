@@ -36,6 +36,18 @@ func TestEnvLenDup(t *testing.T) {
 	}
 }
 
+func TestEnvGetDup(t *testing.T) {
+	env := &Env{
+		"foo=bar",
+		"foo=baz",
+		"foo=bif",
+	}
+	expected := "bif"
+	if v := env.Get("foo"); v != expected {
+		t.Fatalf("expect %q, got %q", expected, v)
+	}
+}
+
 func TestNewJob(t *testing.T) {
 	job := mkJob(t, "dummy", "--level=awesome")
 	if job.Name != "dummy" {

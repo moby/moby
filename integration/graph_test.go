@@ -2,11 +2,11 @@ package docker
 
 import (
 	"errors"
-	"github.com/docker/docker/archive"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/utils"
 	"io"
 	"io/ioutil"
@@ -74,7 +74,7 @@ func TestInterruptedRegister(t *testing.T) {
 		Created: time.Now(),
 	}
 	w.CloseWithError(errors.New("But I'm not a tarball!")) // (Nobody's perfect, darling)
-	graph.Register(nil, badArchive, image)
+	graph.Register(image, nil, badArchive)
 	if _, err := graph.Get(image.ID); err == nil {
 		t.Fatal("Image should not exist after Register is interrupted")
 	}
@@ -83,7 +83,7 @@ func TestInterruptedRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := graph.Register(nil, goodArchive, image); err != nil {
+	if err := graph.Register(image, nil, goodArchive); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -133,7 +133,7 @@ func TestRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	err = graph.Register(nil, archive, image)
+	err = graph.Register(image, nil, archive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Test delete twice (pull -> rm -> pull -> rm)
-	if err := graph.Register(nil, archive, img1); err != nil {
+	if err := graph.Register(img1, nil, archive); err != nil {
 		t.Fatal(err)
 	}
 	if err := graph.Delete(img1.ID); err != nil {
@@ -262,9 +262,9 @@ func TestByParent(t *testing.T) {
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}
-	_ = graph.Register(nil, archive1, parentImage)
-	_ = graph.Register(nil, archive2, childImage1)
-	_ = graph.Register(nil, archive3, childImage2)
+	_ = graph.Register(parentImage, nil, archive1)
+	_ = graph.Register(childImage1, nil, archive2)
+	_ = graph.Register(childImage2, nil, archive3)
 
 	byParent, err := graph.ByParent()
 	if err != nil {

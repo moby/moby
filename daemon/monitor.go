@@ -101,15 +101,16 @@ func (m *containerMonitor) Start() error {
 	var (
 		err        error
 		exitStatus int
+		// this variable indicates where we in execution flow:
+		// before Run or after
+		afterRun bool
 	)
-
-	// this variable indicates that we under container.Lock
-	underLock := true
 
 	// ensure that when the monitor finally exits we release the networking and unmount the rootfs
 	defer func() {
-		if !underLock {
+		if afterRun {
 			m.container.Lock()
+			m.container.setStopped(exitStatus)
 			defer m.container.Unlock()
 		}
 		m.Close()
@@ -122,7 +123,7 @@ func (m *containerMonitor) Start() error {
 		m.container.RestartCount++
 
 		if err := m.container.startLoggingToDisk(); err != nil {
-			m.resetContainer()
+			m.resetContainer(false)
 
 			return err
 		}
@@ -137,7 +138,7 @@ func (m *containerMonitor) Start() error {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
-				m.resetContainer()
+				m.resetContainer(false)
 
 				return err
 			}
@@ -146,16 +147,14 @@ func (m *containerMonitor) Start() error {
 		}
 
 		// here container.Lock is already lost
-		underLock = false
+		afterRun = true
 
 		m.resetMonitor(err == nil && exitStatus == 0)
 
 		if m.shouldRestart(exitStatus) {
-			m.container.State.SetRestarting(exitStatus)
-
+			m.container.SetRestarting(exitStatus)
 			m.container.LogEvent("die")
-
-			m.resetContainer()
+			m.resetContainer(true)
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
 			// restarting the container because of some types of errors ( networking cut out, etc... )
@@ -164,24 +163,14 @@ func (m *containerMonitor) Start() error {
 			// we need to check this before reentering the loop because the waitForNextRestart could have
 			// been terminated by a request from a user
 			if m.shouldStop {
-				m.container.State.SetStopped(exitStatus)
-
 				return err
 			}
-
 			continue
 		}
-
-		m.container.State.SetStopped(exitStatus)
-
 		m.container.LogEvent("die")
-
-		m.resetContainer()
-
-		break
+		m.resetContainer(true)
+		return err
 	}
-
-	return err
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
@@ -244,17 +233,17 @@ func (m *containerMonitor) shouldRestart(exitStatus int) bool {
 
 // callback ensures that the container's state is properly updated after we
 // received ack from the execution drivers
-func (m *containerMonitor) callback(command *execdriver.Command) {
-	if command.Tty {
+func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int) {
+	if processConfig.Tty {
 		// The callback is called after the process Start()
-		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlace
+		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
 		// which we close here.
-		if c, ok := command.Stdout.(io.Closer); ok {
+		if c, ok := processConfig.Stdout.(io.Closer); ok {
 			c.Close()
 		}
 	}
 
-	m.container.State.SetRunning(command.Pid())
+	m.container.setRunning(pid)
 
 	// signal that the process has started
 	// close channel only if not closed
@@ -271,8 +260,13 @@ func (m *containerMonitor) callback(command *execdriver.Command) {
 
 // resetContainer resets the container's IO and ensures that the command is able to be executed again
 // by copying the data into a new struct
-func (m *containerMonitor) resetContainer() {
+// if lock is true, then container locked during reset
+func (m *containerMonitor) resetContainer(lock bool) {
 	container := m.container
+	if lock {
+		container.Lock()
+		defer container.Unlock()
+	}
 
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
@@ -288,8 +282,8 @@ func (m *containerMonitor) resetContainer() {
 		log.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 
-	if container.command != nil && container.command.Terminal != nil {
-		if err := container.command.Terminal.Close(); err != nil {
+	if container.command != nil && container.command.ProcessConfig.Terminal != nil {
+		if err := container.command.ProcessConfig.Terminal.Close(); err != nil {
 			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
@@ -299,9 +293,9 @@ func (m *containerMonitor) resetContainer() {
 		container.stdin, container.stdinPipe = io.Pipe()
 	}
 
-	c := container.command.Cmd
+	c := container.command.ProcessConfig.Cmd
 
-	container.command.Cmd = exec.Cmd{
+	container.command.ProcessConfig.Cmd = exec.Cmd{
 		Stdin:       c.Stdin,
 		Stdout:      c.Stdout,
 		Stderr:      c.Stderr,

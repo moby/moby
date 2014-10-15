@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -20,22 +21,14 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 )
 
 type KeyValuePair struct {
 	Key   string
 	Value string
-}
-
-// Go is a basic promise implementation: it wraps calls a function in a goroutine,
-// and returns a channel which will later return the function's return value.
-func Go(f func() error) chan error {
-	ch := make(chan error, 1)
-	go func() {
-		ch <- f()
-	}()
-	return ch
 }
 
 // Request a given URL and return an io.Reader
@@ -157,81 +150,6 @@ func DockerInitPath(localCopy string) string {
 	return ""
 }
 
-type NopWriter struct{}
-
-func (*NopWriter) Write(buf []byte) (int, error) {
-	return len(buf), nil
-}
-
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (w *nopWriteCloser) Close() error { return nil }
-
-func NopWriteCloser(w io.Writer) io.WriteCloser {
-	return &nopWriteCloser{w}
-}
-
-type bufReader struct {
-	sync.Mutex
-	buf    *bytes.Buffer
-	reader io.Reader
-	err    error
-	wait   sync.Cond
-}
-
-func NewBufReader(r io.Reader) *bufReader {
-	reader := &bufReader{
-		buf:    &bytes.Buffer{},
-		reader: r,
-	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
-}
-
-func (r *bufReader) drain() {
-	buf := make([]byte, 1024)
-	for {
-		n, err := r.reader.Read(buf)
-		r.Lock()
-		if err != nil {
-			r.err = err
-		} else {
-			r.buf.Write(buf[0:n])
-		}
-		r.wait.Signal()
-		r.Unlock()
-		if err != nil {
-			break
-		}
-	}
-}
-
-func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.Lock()
-	defer r.Unlock()
-	for {
-		n, err = r.buf.Read(p)
-		if n > 0 {
-			return n, err
-		}
-		if r.err != nil {
-			return 0, r.err
-		}
-		r.wait.Wait()
-	}
-}
-
-func (r *bufReader) Close() error {
-	closer, ok := r.reader.(io.ReadCloser)
-	if !ok {
-		return nil
-	}
-	return closer.Close()
-}
-
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
 		log.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
@@ -340,10 +258,6 @@ func CopyDirectory(source, dest string) error {
 	return nil
 }
 
-type NopFlusher struct{}
-
-func (f *NopFlusher) Flush() {}
-
 type WriteFlusher struct {
 	sync.Mutex
 	w       io.Writer
@@ -370,7 +284,7 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	if f, ok := w.(http.Flusher); ok {
 		flusher = f
 	} else {
-		flusher = &NopFlusher{}
+		flusher = &ioutils.NopFlusher{}
 	}
 	return &WriteFlusher{w: w, flusher: flusher}
 }
@@ -390,39 +304,14 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
-// CheckLocalDns looks into the /etc/resolv.conf,
-// it returns true if there is a local nameserver or if there is no nameserver.
-func CheckLocalDns(resolvConf []byte) bool {
-	for _, line := range GetLines(resolvConf, []byte("#")) {
-		if !bytes.Contains(line, []byte("nameserver")) {
-			continue
-		}
-		for _, ip := range [][]byte{
-			[]byte("127.0.0.1"),
-			[]byte("127.0.1.1"),
-		} {
-			if bytes.Contains(line, ip) {
-				return true
-			}
-		}
-		return false
-	}
-	return true
-}
+var (
+	localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
+)
 
-// GetLines parses input into lines and strips away comments.
-func GetLines(input []byte, commentMarker []byte) [][]byte {
-	lines := bytes.Split(input, []byte("\n"))
-	var output [][]byte
-	for _, currentLine := range lines {
-		var commentIndex = bytes.Index(currentLine, commentMarker)
-		if commentIndex == -1 {
-			output = append(output, currentLine)
-		} else {
-			output = append(output, currentLine[:commentIndex])
-		}
-	}
-	return output
+// RemoveLocalDns looks into the /etc/resolv.conf,
+// and removes any local nameserver entries.
+func RemoveLocalDns(resolvConf []byte) []byte {
+	return localHostRx.ReplaceAll(resolvConf, []byte{})
 }
 
 // An StatusError reports an unsuccessful exit by a command.
@@ -527,22 +416,6 @@ func CopyFile(src, dst string) (int64, error) {
 	return io.Copy(df, sf)
 }
 
-type readCloserWrapper struct {
-	io.Reader
-	closer func() error
-}
-
-func (r *readCloserWrapper) Close() error {
-	return r.closer()
-}
-
-func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
-	return &readCloserWrapper{
-		Reader: r,
-		closer: closer,
-	}
-}
-
 // ReplaceOrAppendValues returns the defaults with the overrides either
 // replaced by env key or appended to the list
 func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
@@ -617,48 +490,44 @@ func TreeSize(dir string) (size int64, err error) {
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
 func ValidateContextDirectory(srcPath string, excludes []string) error {
-	var finalError error
-
-	filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
+	return filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
 		// skip this directory/file if it's not in the path, it won't get added to the context
-		relFilePath, err := filepath.Rel(srcPath, filePath)
-		if err != nil && os.IsPermission(err) {
-			return nil
-		}
-
-		skip, err := Matches(relFilePath, excludes)
-		if err != nil {
-			finalError = err
-		}
-		if skip {
+		if relFilePath, err := filepath.Rel(srcPath, filePath); err != nil {
+			return err
+		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
+			return err
+		} else if skip {
 			if f.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		if _, err := os.Stat(filePath); err != nil && os.IsPermission(err) {
-			finalError = fmt.Errorf("can't stat '%s'", filePath)
+		if err != nil {
+			if os.IsPermission(err) {
+				return fmt.Errorf("can't stat '%s'", filePath)
+			}
+			if os.IsNotExist(err) {
+				return nil
+			}
 			return err
 		}
+
 		// skip checking if symlinks point to non-existing files, such symlinks can be useful
-		lstat, _ := os.Lstat(filePath)
-		if lstat.Mode()&os.ModeSymlink == os.ModeSymlink {
-			return err
+		// also skip named pipes, because they hanging on open
+		if f.Mode()&(os.ModeSymlink|os.ModeNamedPipe) != 0 {
+			return nil
 		}
 
 		if !f.IsDir() {
 			currentFile, err := os.Open(filePath)
 			if err != nil && os.IsPermission(err) {
-				finalError = fmt.Errorf("no permission to read from '%s'", filePath)
-				return err
-			} else {
-				currentFile.Close()
+				return fmt.Errorf("no permission to read from '%s'", filePath)
 			}
+			currentFile.Close()
 		}
 		return nil
 	})
-	return finalError
 }
 
 func StringsContainsNoCase(slice []string, s string) bool {
@@ -668,24 +537,4 @@ func StringsContainsNoCase(slice []string, s string) bool {
 		}
 	}
 	return false
-}
-
-// Matches returns true if relFilePath matches any of the patterns
-func Matches(relFilePath string, patterns []string) (bool, error) {
-	for _, exclude := range patterns {
-		matched, err := filepath.Match(exclude, relFilePath)
-		if err != nil {
-			log.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
-			return false, err
-		}
-		if matched {
-			if filepath.Clean(relFilePath) == "." {
-				log.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
-				continue
-			}
-			log.Debugf("Skipping excluded path: %s", relFilePath)
-			return true, nil
-		}
-	}
-	return false, nil
 }

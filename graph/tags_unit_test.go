@@ -2,15 +2,16 @@ package graph
 
 import (
 	"bytes"
+	"io"
+	"os"
+	"path"
+	"testing"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
-	"io"
-	"os"
-	"path"
-	"testing"
 )
 
 const (
@@ -52,7 +53,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := NewTagStore(path.Join(root, "tags"), graph)
+	store, err := NewTagStore(path.Join(root, "tags"), graph, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &image.Image{ID: testImageID}
-	if err := graph.Register(nil, archive, img); err != nil {
+	if err := graph.Register(img, nil, archive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Set(testImageName, "", testImageID, false); err != nil {
@@ -112,5 +113,38 @@ func TestLookupImage(t *testing.T) {
 		t.Fatal(err)
 	} else if img == nil {
 		t.Errorf("Expected 1 image, none found")
+	}
+}
+
+func TestValidTagName(t *testing.T) {
+	validTags := []string{"9", "foo", "foo-test", "bar.baz.boo"}
+	for _, tag := range validTags {
+		if err := ValidateTagName(tag); err != nil {
+			t.Errorf("'%s' should've been a valid tag", tag)
+		}
+	}
+}
+
+func TestInvalidTagName(t *testing.T) {
+	validTags := []string{"-9", ".foo", "-test", ".", "-"}
+	for _, tag := range validTags {
+		if err := ValidateTagName(tag); err == nil {
+			t.Errorf("'%s' shouldn't have been a valid tag", tag)
+		}
+	}
+}
+
+func TestOfficialName(t *testing.T) {
+	names := map[string]bool{
+		"library/ubuntu":    true,
+		"nonlibrary/ubuntu": false,
+		"ubuntu":            true,
+		"other/library":     false,
+	}
+	for name, isOfficial := range names {
+		result := isOfficialName(name)
+		if result != isOfficial {
+			t.Errorf("Unexpected result for %s\n\tExpecting: %v\n\tActual: %v", name, isOfficial, result)
+		}
 	}
 }
