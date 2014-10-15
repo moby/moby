@@ -2,4 +2,5 @@
 (maintainer "Erik \\\\Hollensbe <erik@hollensbe.org>\\\"")
 (run "apt-get \\update &&   apt-get \\\"install znc -y")
 (add "\\conf\\\\\"" "/.znc")
+(run "foo bar baz")
 (cmd "/usr\\\"/bin/znc" "-f" "-r")

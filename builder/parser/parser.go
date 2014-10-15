@@ -98,6 +98,10 @@ func Parse(rwc io.Reader) (*Node, error) {
 	scanner := bufio.NewScanner(rwc)
 
 	for scanner.Scan() {
+		if scanner.Text() == "" {
+			continue
+		}
+
 		line, child, err := parseLine(strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace))
 		if err != nil {
 			return nil, err
