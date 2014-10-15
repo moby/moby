@@ -72,7 +72,10 @@ func parseLine(line string) (string, *Node, error) {
 		return line, nil, nil
 	}
 
-	cmd, args := splitCommand(line)
+	cmd, args, err := splitCommand(line)
+	if err != nil {
+		return "", nil, err
+	}
 
 	node := &Node{}
 	node.Value = cmd
