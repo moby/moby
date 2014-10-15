@@ -178,3 +178,10 @@ location using the environment variable `DOCKER_CERT_PATH`.
 
     $ export DOCKER_CERT_PATH=${HOME}/.docker/zone1/
     $ sudo docker --tlsverify ps
+
+### Connecting to the Secure Docker port using `curl`
+
+To use `curl` to make test API requests, you need to use three extra command line
+flags:
+
+    $ curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
