@@ -32,7 +32,7 @@ type Node struct {
 var (
 	dispatch                map[string]func(string) (*Node, map[string]bool, error)
 	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
-	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\$`)
+	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\\s*$`)
 	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
 )
 
