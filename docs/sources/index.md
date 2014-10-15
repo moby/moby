@@ -101,7 +101,7 @@ container. The command has APIs for both the daemon and the client. With
 `docker exec`, you'll be able to do things like add or remove devices from
 running containers, debug running containers, and run commands that are not
 part of the container's static specification. Details in the [command line
-reference](/reference/commandline/).
+reference](/reference/commandline/cli/#exec).
 
 *New command: `docker create`*
 
@@ -112,7 +112,7 @@ provides more control over management of the container lifecycle, giving you the
 ability to configure things like volumes or port mappings before the container
 is started. For example, in a rapid-response scaling situation, you could use
 `create` to prepare and stage ten containers in anticipation of heavy loads.
-Details in the [command line reference](/reference/commandline/).
+Details in the [command line reference](/reference/commandline/cli/#create).
 
 *Tech preview of new provenance features*
 
@@ -135,12 +135,12 @@ regular, unsigned image.
 `--security-opt`, that lets you set SELinux and AppArmor labels and profiles.
 This means you'll  no longer have to use `docker run --privileged` on kernels
 that support SE Linux or AppArmor. For more information, see the
-[run reference page](/reference/run).
+[command line reference](/reference/commandline/cli/#run).
 
 * A new flag, `--add-host`, has been added to `docker run` that lets you add
 lines to `/etc/hosts`. This allows you to specify different name
 resolution for the container than it would get via DNS. For more information,
-see the [run reference page](/reference/run).
+see the [command line reference](/reference/commandline/cli/#run).
 
 * You can now set a `DOCKER_TLS_VERIFY` environment variable to secure
 connections by default (rather than having to pass the `--tlsverify` flag on
