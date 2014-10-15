@@ -73,7 +73,7 @@ func splitCommand(line string) (string, string, error) {
 	cmdline := TOKEN_WHITESPACE.Split(line, 2)
 
 	if len(cmdline) != 2 {
-		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile.")
+		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at %q", line)
 	}
 
 	cmd := strings.ToLower(cmdline[0])
