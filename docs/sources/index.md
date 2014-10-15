@@ -110,14 +110,20 @@ ability to configure things like volumes or port mappings before the container
 is started. For example, in a rapid-response scaling situation, you could use
 `create` to prepare and stage ten containers in anticipation of heavy loads.
 
-*New provenance features*
+*Tech preview of new provenance features*
 
-Official images are now signed by Docker, Inc. to improve your confidence and
-security. Look for the blue ribbons on the [Docker Hub](https://hub.docker.com/).
-The Docker Engine has been updated to automatically verify that a given Official
-Repo has a current, valid signature. If no valid signature is detected, Docker
-Engine will use a prior image.
-
+This release offers a sneak peek at new image signing capabilities that are
+currently under development. Soon, these capabilities will allow any image
+author to sign their images to certify they have not been tampered with. For
+this release, Official images are now signed by Docker, Inc. Not only does this
+demonstrate the new functionality, we hope it will improve your confidence in
+the security of Official images. Look for the blue ribbons denoting signed
+images on the [Docker Hub](https://hub.docker.com/).
+The Docker Engine has been updated to automatically verify that a given
+Official Repo has a current, valid signature. When pulling a signed image,
+you'll see a message stating `the image you are pulling has been verified`. If
+no valid signature is detected, Docker Engine will fall back to pulling a
+regular, unsigned image.
 
 *Other improvements & changes*
 
