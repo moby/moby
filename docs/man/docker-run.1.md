@@ -22,6 +22,7 @@ docker-run - Run a command in a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
@@ -152,6 +153,9 @@ ENTRYPOINT.
    Container host name
 
    Sets the container host name that is available inside the container.
+
+**--help**
+  Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.

@@ -410,6 +410,47 @@ func IsSet(name string) bool {
 	return CommandLine.IsSet(name)
 }
 
+// Indicator used to pass to BadArgs function
+const (
+	Exact = 1
+	Max   = 2
+	Min   = 3
+)
+
+// Bad Args takes two arguments.
+// The first one indicates whether the number of arguments should, be
+// A Minimal number of arguments, a maximum number of arguments or
+// The exact number of arguments required
+// If the actuall number of arguments is not valid and error message
+// prints and true is returned, otherwise false is returned
+func (f *FlagSet) BadArgs(arg_type, nargs int) bool {
+	if arg_type == Max && f.NArg() > nargs {
+		if nargs == 1 {
+			fmt.Fprintf(f.out(), "docker: '%s' requires a maximum of 1 argument. See 'docker %s --help'.\n", f.name, f.name)
+		} else {
+			fmt.Fprintf(f.out(), "docker: '%s' requires a maximum of %d arguments. See 'docker %s --help'.\n", f.name, nargs, f.name)
+		}
+		return true
+	}
+	if arg_type == Exact && f.NArg() != nargs {
+		if nargs == 1 {
+			fmt.Fprintf(f.out(), "docker: '%s' requires 1 argument. See 'docker %s --help'.\n", f.name, f.name)
+		} else {
+			fmt.Fprintf(f.out(), "docker: '%s' requires %d arguments. See 'docker %s --help'.\n", f.name, nargs, f.name)
+		}
+		return true
+	}
+	if arg_type == Min && f.NArg() < nargs {
+		if nargs == 1 {
+			fmt.Fprintf(f.out(), "docker: '%s' requires a minimum of 1 argument. See 'docker %s --help'.\n", f.name, f.name)
+		} else {
+			fmt.Fprintf(f.out(), "docker: '%s' requires a minimum of %d arguments. See 'docker %s --help'.\n", f.name, nargs, f.name)
+		}
+		return true
+	}
+	return false
+}
+
 // Set sets the value of the named flag.
 func (f *FlagSet) Set(name, value string) error {
 	flag, ok := f.formal[name]
@@ -483,7 +524,7 @@ func defaultUsage(f *FlagSet) {
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
 }
 
@@ -789,7 +830,7 @@ func Var(value Value, names []string, usage string) {
 func (f *FlagSet) failf(format string, a ...interface{}) error {
 	err := fmt.Errorf(format, a...)
 	fmt.Fprintln(f.out(), err)
-	f.usage()
+	fmt.Fprintf(f.out(), "See 'docker %s --help'.\n", f.name)
 	return err
 }
 
