@@ -547,6 +547,30 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 	return nil
 }
 
+// Flatten selected images and create a new image from it
+func getImagesFlatten(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	var (
+		repo  = r.Form.Get("repo")
+		tag   = r.Form.Get("tag")
+		job   *engine.Job
+	)
+
+	if tag == "" {
+		repo, tag = parsers.ParseRepositoryTag(repo)
+	}
+	job = eng.Job("flatten", r.Form.Get("parent"), r.Form.Get("name"), repo, tag)
+
+	job.SetenvBool("json", true)
+	streamJSON(job, w, true)
+
+	return job.Run()
+}
+
+
 func getImagesSearch(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1251,6 +1275,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/viz":                     getImagesViz,
 			"/images/search":                  getImagesSearch,
 			"/images/get":                     getImagesGet,
+			"/images/flatten":                 getImagesFlatten,
 			"/images/{name:.*}/get":           getImagesGet,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
