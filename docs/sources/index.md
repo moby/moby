@@ -128,6 +128,6 @@ regular, unsigned image.
 *Other improvements & changes*
 
 We've added a new security options flag that lets you set SELinux and AppArmor
-labels and profiles. This means you'll longer have to use `docker run
---privileged on kernels that support SE Linux or AppArmor.
+labels and profiles. This means you'll no longer have to use `docker run
+--privileged` on kernels that support SE Linux or AppArmor.
 
