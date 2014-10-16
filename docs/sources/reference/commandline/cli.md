@@ -640,7 +640,7 @@ This will create a container named `ubuntu_bash` and start a Bash session.
 This will create a new file `/tmp/execWorks` inside the running container
 `ubuntu_bash`, in the background.
 
-    $ sudo docker exec ubuntu_bash -it bash
+    $ sudo docker exec -it ubuntu_bash bash
 
 This will create a new Bash session in the container `ubuntu_bash`.
 
