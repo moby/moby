@@ -731,7 +731,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
 	if !config.EnableIptables && config.EnableIpMasq {
-		return nil, fmt.Errorf("You specified --iptables=false with --ipmasq=true. IP masquerading uses iptables to function. Please set --ipmasq to false or --iptables to true.")
+		config.EnableIpMasq = false
 	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
