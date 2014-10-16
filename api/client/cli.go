@@ -138,14 +138,17 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 	// The transport is created here for reuse during the client session
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
-		Dial: func(dial_network, dial_addr string) (net.Conn, error) {
-			// Why 32? See issue 8035
-			return net.DialTimeout(proto, addr, 32*time.Second)
-		},
 	}
+
+	// Why 32? See issue 8035
 	if proto == "unix" {
 		// no need in compressing for local communications
 		tr.DisableCompression = true
+		tr.Dial = func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout("unix", addr, 32*time.Second)
+		}
+	} else {
+		tr.Dial = (&net.Dialer{Timeout: 32 * time.Second}).Dial
 	}
 
 	return &DockerCli{
