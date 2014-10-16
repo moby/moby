@@ -47,6 +47,18 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("ENV %s", fullEnv))
 }
 
+// COMMENT some text
+//
+// Sets the comment metadata.
+func comment(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("COMMENT requires only one argument")
+	}
+
+	b.comment = args[0]
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("COMMENT %s", b.comment))
+}
+
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.

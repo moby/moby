@@ -44,6 +44,7 @@ func init() {
 	// functions. Errors are propogated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
 	dispatch = map[string]func(string) (*Node, map[string]bool, error){
+		"comment":    parseString,
 		"user":       parseString,
 		"onbuild":    parseSubCommand,
 		"workdir":    parseString,

@@ -15,6 +15,27 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildComment(t *testing.T) {
+	name := "testbuildcomment"
+	expected := "hello, is there anyone in there?"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        COMMENT hello, is there anyone in there?`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Comment")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Comment %s, expected %s", res, expected)
+	}
+	logDone("build - comment")
+}
+
 func TestBuildOnBuildForbiddenMaintainerInSourceImage(t *testing.T) {
 	name := "testbuildonbuildforbiddenmaintainerinsourceimage"
 	defer deleteImages(name)

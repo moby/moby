@@ -110,6 +110,9 @@ or
   executes nothing at build time, but specifies the intended command for the
   image.
 
+**COMMENT**
+ --The COMMENT instruction sets the Comment field for the generated images.
+
 **EXPOSE**
  --**EXPOSE <port> [<port>...]**
  The **EXPOSE** instruction informs Docker that the container listens on the
