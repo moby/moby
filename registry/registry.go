@@ -24,7 +24,7 @@ var (
 	errLoginRequired         = errors.New("Authentication is required.")
 	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
 	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
-	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
+	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$|\s{0}`)
 )
 
 type TimeoutType uint32
