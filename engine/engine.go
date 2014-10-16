@@ -196,8 +196,8 @@ func (eng *Engine) Shutdown() {
 	case <-time.After(time.Second * 10):
 	case <-done:
 	}
-        
-        eng.shutdown = true
+
+	eng.shutdown = true
 	return
 }
 
