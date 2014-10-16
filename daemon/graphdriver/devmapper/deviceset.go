@@ -771,9 +771,14 @@ func (devices *DeviceSet) deactivatePool() error {
 	log.Debugf("[devmapper] deactivatePool()")
 	defer log.Debugf("[devmapper] deactivatePool END")
 	devname := devices.getPoolDevName()
+
 	devinfo, err := getInfo(devname)
 	if err != nil {
 		return err
+	}
+	if d, err := getDeps(devname); err == nil {
+		// Access to more Debug output
+		log.Debugf("[devmapper] getDeps() %s: %#v", devname, d)
 	}
 	if devinfo.Exists != 0 {
 		return removeDevice(devname)
