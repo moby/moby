@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
@@ -33,22 +31,7 @@ var (
 )
 
 func (cli *DockerCli) HTTPClient() *http.Client {
-	tr := &http.Transport{
-		TLSClientConfig: cli.tlsConfig,
-		Dial: func(network, addr string) (net.Conn, error) {
-			// Why 32? See issue 8035
-			return net.DialTimeout(cli.proto, cli.addr, 32*time.Second)
-		},
-	}
-	if cli.proto == "unix" {
-		// XXX workaround for net/http Transport which caches connections, but is
-		// intended for tcp connections, not unix sockets.
-		tr.DisableKeepAlives = true
-
-		// no need in compressing for local communications
-		tr.DisableCompression = true
-	}
-	return &http.Client{Transport: tr}
+	return &http.Client{Transport: cli.transport}
 }
 
 func (cli *DockerCli) encodeData(data interface{}) (*bytes.Buffer, error) {
