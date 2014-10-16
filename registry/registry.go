@@ -37,7 +37,11 @@ const (
 )
 
 func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
-	tlsConfig := tls.Config{RootCAs: roots}
+	tlsConfig := tls.Config{
+		RootCAs: roots,
+		// Avoid fallback to SSL protocols < TLS1.0
+		MinVersion: tls.VersionTLS10,
+	}
 
 	if cert != nil {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
