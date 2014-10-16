@@ -32,20 +32,22 @@ func migratePortMappings(config *runconfig.Config, hostConfig *runconfig.HostCon
 	return nil
 }
 
-func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig, driverConfig map[string][]string) {
+func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) []string {
 	if hostConfig == nil {
-		return
+		return nil
 	}
+
+	out := []string{}
 
 	// merge in the lxc conf options into the generic config map
 	if lxcConf := hostConfig.LxcConf; lxcConf != nil {
-		lxc := driverConfig["lxc"]
 		for _, pair := range lxcConf {
 			// because lxc conf gets the driver name lxc.XXXX we need to trim it off
 			// and let the lxc driver add it back later if needed
 			parts := strings.SplitN(pair.Key, ".", 2)
-			lxc = append(lxc, fmt.Sprintf("%s=%s", parts[1], pair.Value))
+			out = append(out, fmt.Sprintf("%s=%s", parts[1], pair.Value))
 		}
-		driverConfig["lxc"] = lxc
 	}
+
+	return out
 }

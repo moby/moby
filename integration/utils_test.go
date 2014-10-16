@@ -19,6 +19,8 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/log"
+	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -96,12 +98,12 @@ func containerAttach(eng *engine.Engine, id string, t log.Fataler) (io.WriteClos
 }
 
 func containerWait(eng *engine.Engine, id string, t log.Fataler) int {
-	ex, _ := getContainer(eng, id, t).State.WaitStop(-1 * time.Second)
+	ex, _ := getContainer(eng, id, t).WaitStop(-1 * time.Second)
 	return ex
 }
 
 func containerWaitTimeout(eng *engine.Engine, id string, t log.Fataler) error {
-	_, err := getContainer(eng, id, t).State.WaitStop(500 * time.Millisecond)
+	_, err := getContainer(eng, id, t).WaitStop(500 * time.Millisecond)
 	return err
 }
 
@@ -112,7 +114,7 @@ func containerKill(eng *engine.Engine, id string, t log.Fataler) {
 }
 
 func containerRunning(eng *engine.Engine, id string, t log.Fataler) bool {
-	return getContainer(eng, id, t).State.IsRunning()
+	return getContainer(eng, id, t).IsRunning()
 }
 
 func containerAssertExists(eng *engine.Engine, id string, t log.Fataler) {
@@ -176,6 +178,7 @@ func newTestEngine(t log.Fataler, autorestart bool, root string) *engine.Engine 
 	os.MkdirAll(root, 0700)
 
 	eng := engine.New()
+	eng.Logging = false
 	// Load default plugins
 	builtins.Register(eng)
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
@@ -248,7 +251,7 @@ func readFile(src string, t *testing.T) (content string) {
 // The caller is responsible for destroying the container.
 // Call t.Fatal() at the first error.
 func mkContainer(r *daemon.Daemon, args []string, t *testing.T) (*daemon.Container, *runconfig.HostConfig, error) {
-	config, hc, _, err := runconfig.Parse(args, nil)
+	config, hc, _, err := parseRun(args, nil)
 	defer func() {
 		if err != nil && t != nil {
 			t.Fatal(err)
@@ -260,7 +263,7 @@ func mkContainer(r *daemon.Daemon, args []string, t *testing.T) (*daemon.Contain
 	if config.Image == "_" {
 		config.Image = GetTestImage(r).ID
 	}
-	c, _, err := r.Create(config, "")
+	c, _, err := r.Create(config, nil, "")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -303,7 +306,7 @@ func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testin
 		return "", err
 	}
 
-	container.State.WaitStop(-1 * time.Second)
+	container.WaitStop(-1 * time.Second)
 	data, err := ioutil.ReadAll(stdout)
 	if err != nil {
 		return "", err
@@ -347,4 +350,11 @@ func getImages(eng *engine.Engine, t *testing.T, all bool, filter string) *engin
 	}
 	return images
 
+}
+
+func parseRun(args []string, sysInfo *sysinfo.SysInfo) (*runconfig.Config, *runconfig.HostConfig, *flag.FlagSet, error) {
+	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
+	cmd.SetOutput(ioutil.Discard)
+	cmd.Usage = nil
+	return runconfig.Parse(cmd, args, sysInfo)
 }

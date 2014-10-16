@@ -18,7 +18,11 @@ var (
 
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &AuthConfig{}
-	r, err := NewSession(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"), true)
+	endpoint, err := NewEndpoint(makeURL("/v1/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewSession(authConfig, utils.NewHTTPRequestFactory(), endpoint, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +30,11 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
-	regInfo, err := pingRegistryEndpoint(makeURL("/v1/"))
+	ep, err := NewEndpoint(makeURL("/v1/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	regInfo, err := ep.Ping()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +205,7 @@ func TestPushImageJSONIndex(t *testing.T) {
 	if repoData == nil {
 		t.Fatal("Expected RepositoryData object")
 	}
-	repoData, err = r.PushImageJSONIndex("foo42/bar", imgData, true, []string{r.indexEndpoint})
+	repoData, err = r.PushImageJSONIndex("foo42/bar", imgData, true, []string{r.indexEndpoint.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,6 +232,10 @@ func TestValidRepositoryName(t *testing.T) {
 	if err := validateRepositoryName("docker/docker"); err != nil {
 		t.Fatal(err)
 	}
+	// Support 64-byte non-hexadecimal names (hexadecimal names are forbidden)
+	if err := validateRepositoryName("thisisthesongthatneverendsitgoesonandonandonthisisthesongthatnev"); err != nil {
+		t.Fatal(err)
+	}
 	if err := validateRepositoryName("docker/Docker"); err == nil {
 		t.Log("Repository name should be invalid")
 		t.Fail()
@@ -232,17 +244,21 @@ func TestValidRepositoryName(t *testing.T) {
 		t.Log("Repository name should be invalid")
 		t.Fail()
 	}
+	if err := validateRepositoryName("1a3f5e7d9c1b3a5f7e9d1c3b5a7f9e1d3c5b7a9f1e3d5d7c9b1a3f5e7d9c1b3a"); err == nil {
+		t.Log("Repository name should be invalid, 64-byte hexadecimal names forbidden")
+		t.Fail()
+	}
 }
 
 func TestTrustedLocation(t *testing.T) {
-	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.io", "https://fakedocker.com"} {
+	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
 		req, _ := http.NewRequest("GET", url, nil)
 		if trustedLocation(req) == true {
 			t.Fatalf("'%s' shouldn't be detected as a trusted location", url)
 		}
 	}
 
-	for _, url := range []string{"https://docker.io", "https://test.docker.io:80"} {
+	for _, url := range []string{"https://docker.io", "https://test.docker.com:80"} {
 		req, _ := http.NewRequest("GET", url, nil)
 		if trustedLocation(req) == false {
 			t.Fatalf("'%s' should be detected as a trusted location", url)

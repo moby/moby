@@ -54,6 +54,9 @@ server when it starts up, and cannot be changed once it is running:
  *  `--bip=CIDR` — see
     [Customizing docker0](#docker0)
 
+ *  `--fixed-cidr` — see
+    [Customizing docker0](#docker0)
+
  *  `-H SOCKET...` or `--host=SOCKET...` —
     This might sound like it would affect container networking,
     but it actually faces in the other direction:
@@ -150,7 +153,10 @@ Four different options affect container domain name services.
     `CONTAINER_NAME`.  This lets processes inside the new container
     connect to the hostname `ALIAS` without having to know its IP.  The
     `--link=` option is discussed in more detail below, in the section
-    [Communication between containers](#between-containers).
+    [Communication between containers](#between-containers). Because
+    Docker may assign a different IP address to the linked containers
+    on restart, Docker updates the `ALIAS` entry in the `/etc/hosts` file
+    of the recipient containers.
 
  *  `--dns=IP_ADDRESS...` — sets the IP addresses added as `server`
     lines to the container's `/etc/resolv.conf` file.  Processes in the
@@ -307,13 +313,13 @@ page.  There are two approaches.
 First, you can supply `-P` or `--publish-all=true|false` to `docker run`
 which is a blanket operation that identifies every port with an `EXPOSE`
 line in the image's `Dockerfile` and maps it to a host port somewhere in
-the range 49000–49900.  This tends to be a bit inconvenient, since you
+the range 49153–65535.  This tends to be a bit inconvenient, since you
 then have to run other `docker` sub-commands to learn which external
 port a given service was mapped to.
 
 More convenient is the `-p SPEC` or `--publish=SPEC` option which lets
 you be explicit about exactly which external port on the Docker server —
-which can be any port at all, not just those in the 49000–49900 block —
+which can be any port at all, not just those in the 49153-65535 block —
 you want mapped to which port in the container.
 
 Either way, you should be able to peek at what Docker has accomplished
@@ -362,16 +368,24 @@ By default, the Docker server creates and configures the host system's
 can pass packets back and forth between other physical or virtual
 network interfaces so that they behave as a single Ethernet network.
 
-Docker configures `docker0` with an IP address and netmask so the host
-machine can both receive and send packets to containers connected to the
-bridge, and gives it an MTU — the *maximum transmission unit* or largest
-packet length that the interface will allow — of either 1,500 bytes or
-else a more specific value copied from the Docker host's interface that
-supports its default route.  Both are configurable at server startup:
+Docker configures `docker0` with an IP address, netmask and IP
+allocation range. The host machine can both receive and send packets to
+containers connected to the bridge, and gives it an MTU — the *maximum
+transmission unit* or largest packet length that the interface will
+allow — of either 1,500 bytes or else a more specific value copied from
+the Docker host's interface that supports its default route.  These
+options are configurable at server startup:
 
  *  `--bip=CIDR` — supply a specific IP address and netmask for the
     `docker0` bridge, using standard CIDR notation like
     `192.168.1.5/24`.
+
+ *  `--fixed-cidr=CIDR` — restrict the IP range from the `docker0` subnet,
+    using the standard CIDR notation like `172.167.1.0/28`. This range must
+    be and IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset
+    of the bridge IP range (`docker0` or set using `--bridge`). For example
+    with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen
+    from the first half of `192.168.1.0/24` subnet.
 
  *  `--mtu=BYTES` — override the maximum packet length on `docker0`.
 
@@ -435,7 +449,7 @@ If you want to take Docker out of the business of creating its own
 Ethernet bridge entirely, you can set up your own bridge before starting
 Docker and use `-b BRIDGE` or `--bridge=BRIDGE` to tell Docker to use
 your bridge instead.  If you already have Docker up and running with its
-old `bridge0` still configured, you will probably want to begin by
+old `docker0` still configured, you will probably want to begin by
 stopping the service and removing the interface:
 
     # Stopping Docker and removing docker0

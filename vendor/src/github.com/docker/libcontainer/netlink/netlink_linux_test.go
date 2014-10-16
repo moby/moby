@@ -3,8 +3,49 @@ package netlink
 import (
 	"net"
 	"strings"
+	"syscall"
 	"testing"
 )
+
+type testLink struct {
+	name     string
+	linkType string
+}
+
+func addLink(t *testing.T, name string, linkType string) {
+	if err := NetworkLinkAdd(name, linkType); err != nil {
+		t.Fatalf("Unable to create %s link: %s", name, err)
+	}
+}
+
+func readLink(t *testing.T, name string) *net.Interface {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		t.Fatalf("Could not find %s interface: %s", name, err)
+	}
+
+	return iface
+}
+
+func deleteLink(t *testing.T, name string) {
+	if err := NetworkLinkDel(name); err != nil {
+		t.Fatalf("Unable to delete %s link: %s", name, err)
+	}
+}
+
+func upLink(t *testing.T, name string) {
+	iface := readLink(t, name)
+	if err := NetworkLinkUp(iface); err != nil {
+		t.Fatalf("Could not bring UP %#v interface: %s", iface, err)
+	}
+}
+
+func downLink(t *testing.T, name string) {
+	iface := readLink(t, name)
+	if err := NetworkLinkDown(iface); err != nil {
+		t.Fatalf("Could not bring DOWN %#v interface: %s", iface, err)
+	}
+}
 
 func ipAssigned(iface *net.Interface, ip net.IP) bool {
 	addrs, _ := iface.Addrs()
@@ -17,6 +58,194 @@ func ipAssigned(iface *net.Interface, ip net.IP) bool {
 	}
 
 	return false
+}
+
+func TestNetworkLinkAddDel(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	testLinks := []testLink{
+		{"tstEth", "dummy"},
+		{"tstBr", "bridge"},
+	}
+
+	for _, tl := range testLinks {
+		addLink(t, tl.name, tl.linkType)
+		defer deleteLink(t, tl.name)
+		readLink(t, tl.name)
+	}
+}
+
+func TestNetworkLinkUpDown(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := testLink{name: "tstEth", linkType: "dummy"}
+
+	addLink(t, tl.name, tl.linkType)
+	defer deleteLink(t, tl.name)
+
+	upLink(t, tl.name)
+	ifcAfterUp := readLink(t, tl.name)
+
+	if (ifcAfterUp.Flags & syscall.IFF_UP) != syscall.IFF_UP {
+		t.Fatalf("Could not bring UP %#v initerface", tl)
+	}
+
+	downLink(t, tl.name)
+	ifcAfterDown := readLink(t, tl.name)
+
+	if (ifcAfterDown.Flags & syscall.IFF_UP) == syscall.IFF_UP {
+		t.Fatalf("Could not bring DOWN %#v initerface", tl)
+	}
+}
+
+func TestNetworkSetMacAddress(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := testLink{name: "tstEth", linkType: "dummy"}
+	macaddr := "22:ce:e0:99:63:6f"
+
+	addLink(t, tl.name, tl.linkType)
+	defer deleteLink(t, tl.name)
+
+	ifcBeforeSet := readLink(t, tl.name)
+
+	if err := NetworkSetMacAddress(ifcBeforeSet, macaddr); err != nil {
+		t.Fatalf("Could not set %s MAC address on %#v interface: err", macaddr, tl, err)
+	}
+
+	ifcAfterSet := readLink(t, tl.name)
+
+	if ifcAfterSet.HardwareAddr.String() != macaddr {
+		t.Fatalf("Could not set %s MAC address on %#v interface", macaddr, tl)
+	}
+}
+
+func TestNetworkSetMTU(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := testLink{name: "tstEth", linkType: "dummy"}
+	mtu := 1400
+
+	addLink(t, tl.name, tl.linkType)
+	defer deleteLink(t, tl.name)
+
+	ifcBeforeSet := readLink(t, tl.name)
+
+	if err := NetworkSetMTU(ifcBeforeSet, mtu); err != nil {
+		t.Fatalf("Could not set %d MTU on %#v interface: err", mtu, tl, err)
+	}
+
+	ifcAfterSet := readLink(t, tl.name)
+
+	if ifcAfterSet.MTU != mtu {
+		t.Fatalf("Could not set %d MTU on %#v interface", mtu, tl)
+	}
+}
+
+func TestNetworkSetMasterNoMaster(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	master := testLink{"tstBr", "bridge"}
+	slave := testLink{"tstEth", "dummy"}
+	testLinks := []testLink{master, slave}
+
+	for _, tl := range testLinks {
+		addLink(t, tl.name, tl.linkType)
+		defer deleteLink(t, tl.name)
+		upLink(t, tl.name)
+	}
+
+	masterIfc := readLink(t, master.name)
+	slaveIfc := readLink(t, slave.name)
+	if err := NetworkSetMaster(slaveIfc, masterIfc); err != nil {
+		t.Fatalf("Could not set %#v to be the master of %#v: %s", master, slave, err)
+	}
+
+	// Trying to figure out a way to test which will not break on RHEL6.
+	// We could check for existence of /sys/class/net/tstEth/upper_tstBr
+	// which should point to the ../tstBr which is the UPPER device i.e. network bridge
+
+	if err := NetworkSetNoMaster(slaveIfc); err != nil {
+		t.Fatalf("Could not UNset %#v master of %#v: %s", master, slave, err)
+	}
+}
+
+func TestNetworkChangeName(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := testLink{"tstEth", "dummy"}
+	newName := "newTst"
+
+	addLink(t, tl.name, tl.linkType)
+
+	linkIfc := readLink(t, tl.name)
+	if err := NetworkChangeName(linkIfc, newName); err != nil {
+		deleteLink(t, tl.name)
+		t.Fatalf("Could not change %#v interface name to %s: %s", tl, newName, err)
+	}
+
+	readLink(t, newName)
+	deleteLink(t, newName)
+}
+
+func TestNetworkLinkAddVlan(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := struct {
+		name string
+		id   uint16
+	}{
+		name: "tstVlan",
+		id:   32,
+	}
+	masterLink := testLink{"tstEth", "dummy"}
+
+	addLink(t, masterLink.name, masterLink.linkType)
+	defer deleteLink(t, masterLink.name)
+
+	if err := NetworkLinkAddVlan(masterLink.name, tl.name, tl.id); err != nil {
+		t.Fatalf("Unable to create %#v VLAN interface: %s", tl, err)
+	}
+
+	readLink(t, tl.name)
+}
+
+func TestNetworkLinkAddMacVlan(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := struct {
+		name string
+		mode string
+	}{
+		name: "tstVlan",
+		mode: "private",
+	}
+	masterLink := testLink{"tstEth", "dummy"}
+
+	addLink(t, masterLink.name, masterLink.linkType)
+	defer deleteLink(t, masterLink.name)
+
+	if err := NetworkLinkAddMacVlan(masterLink.name, tl.name, tl.mode); err != nil {
+		t.Fatalf("Unable to create %#v MAC VLAN interface: %s", tl, err)
+	}
+
+	readLink(t, tl.name)
 }
 
 func TestAddDelNetworkIp(t *testing.T) {
@@ -35,7 +264,7 @@ func TestAddDelNetworkIp(t *testing.T) {
 	}
 
 	if err := NetworkLinkAddIp(iface, ip, ipNet); err != nil {
-		t.Fatal(err)
+		t.Fatalf("Could not add IP address %s to interface %#v: %s", ip.String(), iface, err)
 	}
 
 	if !ipAssigned(iface, ip) {
@@ -43,7 +272,7 @@ func TestAddDelNetworkIp(t *testing.T) {
 	}
 
 	if err := NetworkLinkDelIp(iface, ip, ipNet); err != nil {
-		t.Fatal(err)
+		t.Fatalf("Could not delete IP address %s from interface %#v: %s", ip.String(), iface, err)
 	}
 
 	if ipAssigned(iface, ip) {
@@ -51,6 +280,28 @@ func TestAddDelNetworkIp(t *testing.T) {
 	}
 }
 
+func TestCreateVethPair(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	var (
+		name1 = "veth1"
+		name2 = "veth2"
+	)
+
+	if err := NetworkCreateVethPair(name1, name2); err != nil {
+		t.Fatalf("Could not create veth pair %s %s: %s", name1, name2, err)
+	}
+	defer NetworkLinkDel(name1)
+
+	readLink(t, name1)
+	readLink(t, name2)
+}
+
+//
+// netlink package tests which do not use RTNETLINK
+//
 func TestCreateBridgeWithMac(t *testing.T) {
 	if testing.Short() {
 		return
@@ -77,50 +328,29 @@ func TestCreateBridgeWithMac(t *testing.T) {
 	}
 }
 
-func TestCreateBridgeLink(t *testing.T) {
+func TestSetMacAddress(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 
-	name := "mybrlink"
+	name := "testmac"
+	mac := randMacAddr()
 
 	if err := NetworkLinkAdd(name, "bridge"); err != nil {
 		t.Fatal(err)
 	}
+	defer NetworkLinkDel(name)
 
-	if _, err := net.InterfaceByName(name); err != nil {
+	if err := SetMacAddress(name, mac); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := NetworkLinkDel(name); err != nil {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := net.InterfaceByName(name); err == nil {
-		t.Fatalf("expected error getting interface because %s bridge was deleted", name)
-	}
-
-}
-
-func TestCreateVethPair(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
-	var (
-		name1 = "veth1"
-		name2 = "veth2"
-	)
-
-	if err := NetworkCreateVethPair(name1, name2); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := net.InterfaceByName(name1); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := net.InterfaceByName(name2); err != nil {
-		t.Fatal(err)
+	if iface.HardwareAddr.String() != mac {
+		t.Fatalf("mac address %q does not match %q", iface.HardwareAddr, mac)
 	}
 }

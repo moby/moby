@@ -6,16 +6,18 @@ import (
 	"testing"
 )
 
+// FIXME: we need a test for pulling all aliases for an image (issue #8141)
+
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
-	pullCmd := exec.Command(dockerBinary, "pull", "busybox:latest")
+	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
 	out, exitCode, err := runCommandWithOutput(pullCmd)
 	errorOut(err, t, fmt.Sprintf("%s %s", out, err))
 
 	if err != nil || exitCode != 0 {
-		t.Fatal("pulling the busybox image from the registry has failed")
+		t.Fatal("pulling the scratch image from the registry has failed")
 	}
-	logDone("pull - pull busybox")
+	logDone("pull - pull scratch")
 }
 
 // pulling a non-existing image from the central registry should return a non-zero exit code

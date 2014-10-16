@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/libtrust"
 )
 
 const (
@@ -37,7 +38,11 @@ func getTlsConfig(certFile, keyFile string, t *testing.T) *tls.Config {
 
 // TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
 func TestHttpsInfo(t *testing.T) {
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, key, testDaemonProto,
 		testDaemonHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t))
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
@@ -50,7 +55,11 @@ func TestHttpsInfo(t *testing.T) {
 // TestHttpsInfoRogueCert connects via two-way authenticated HTTPS to the info endpoint
 // by using a rogue client certificate and checks that it fails with the expected error.
 func TestHttpsInfoRogueCert(t *testing.T) {
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, key, testDaemonProto,
 		testDaemonHttpsAddr, getTlsConfig("client-rogue-cert.pem", "client-rogue-key.pem", t))
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {
@@ -67,7 +76,11 @@ func TestHttpsInfoRogueCert(t *testing.T) {
 // TestHttpsInfoRogueServerCert connects via two-way authenticated HTTPS to the info endpoint
 // which provides a rogue server certificate and checks that it fails with the expected error
 func TestHttpsInfoRogueServerCert(t *testing.T) {
-	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, testDaemonProto,
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := client.NewDockerCli(nil, ioutil.Discard, ioutil.Discard, key, testDaemonProto,
 		testDaemonRogueHttpsAddr, getTlsConfig("client-cert.pem", "client-key.pem", t))
 
 	setTimeout(t, "Reading command output time out", 10*time.Second, func() {

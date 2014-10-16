@@ -6,6 +6,7 @@ docker-pull - Pull an image or a repository from the registry
 
 # SYNOPSIS
 **docker pull**
+[**-a**|**--all-tags**[=*false*]]
 NAME[:TAG]
 
 # DESCRIPTION
@@ -16,11 +17,14 @@ images for that repository name are pulled down including any tags.
 It is also possible to specify a non-default registry to pull from.
 
 # OPTIONS
-There are no available options.
+**-a**, **--all-tags**=*true*|*false*
+   Download all tagged images in the repository. The default is *false*.
 
 # EXAMPLES
 
 # Pull a repository with multiple images
+# Note that if the  image is previously downloaded then the status would be
+# 'Status: Image is up to date for fedora'
 
     $ sudo docker pull fedora
     Pulling repository fedora
@@ -28,6 +32,8 @@ There are no available options.
     105182bb5e8b: Download complete
     511136ea3c5a: Download complete
     73bd853d2ea5: Download complete
+
+    Status: Downloaded newer image for fedora
 
     $ sudo docker images
     REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
@@ -37,12 +43,16 @@ There are no available options.
     fedora       latest      105182bb5e8b    5 days ago   372.7 MB
 
 # Pull an image, manually specifying path to the registry and tag
+# Note that if the  image is previously downloaded then the status would be
+# 'Status: Image is up to date for registry.hub.docker.com/fedora:20'
 
     $ sudo docker pull registry.hub.docker.com/fedora:20
     Pulling repository fedora
     3f2fed40e4b0: Download complete 
     511136ea3c5a: Download complete 
     fd241224e9cf: Download complete 
+
+    Status: Downloaded newer image for registry.hub.docker.com/fedora:20
 
     $ sudo docker images
     REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
@@ -53,3 +63,4 @@ There are no available options.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

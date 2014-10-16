@@ -26,8 +26,8 @@ container that ran a Python Flask application:
 > information on Docker networking [here](/articles/networking/).
 
 When that container was created, the `-P` flag was used to automatically map any
-network ports inside it to a random high port from the range 49000
-to 49900 on our Docker host.  Next, when `docker ps` was run, you saw that
+network ports inside it to a random high port from the range 49153
+to 65535 on our Docker host.  Next, when `docker ps` was run, you saw that
 port 5000 in the container was bound to port 49155 on the host.
 
     $ sudo docker ps nostalgic_morse
@@ -66,7 +66,7 @@ current port bindings. This is also useful for showing you specific port
 configurations. For example, if you've bound the container port to the
 `localhost` on the host machine, then the `docker port` output will reflect that.
 
-    $ docker port nostalgic_morse 5000
+    $ sudo docker port nostalgic_morse 5000
     127.0.0.1:49155
 
 > **Note:** 
@@ -137,7 +137,7 @@ image, which contains a PostgreSQL database.
 Now, you need to delete the `web` container you created previously so you can replace it
 with a linked one:
 
-    $ docker rm -f web
+    $ sudo docker rm -f web
 
 Now, create a new `web` container and link it with your `db` container.
 
@@ -151,12 +151,13 @@ earlier. The `--link` flag takes the form:
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.
 
-Next, look at your linked containers using `docker ps`.
+Next, look at the names of your linked containers by filtering the full output of
+`docker ps` to the last column (NAMES) using `docker ps --no-trunc | awk '{print $NF}'`.
 
-    $ docker ps
-    CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
-    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
-    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
+    $ sudo docker ps --no-trunc | awk '{print $NF}'
+    NAMES
+    db, web/db
+    web
 
 You can see your named containers, `db` and `web`, and you can see that the `db`
 container also shows `web/db` in the `NAMES` column. This tells you that the
@@ -178,7 +179,45 @@ recipient container in two ways:
 * Environment variables,
 * Updating the `/etc/hosts` file.
 
-Docker can set a number of environment variables. You run the `env`
+### Environment Variables
+
+When two containers are linked, Docker will set some environment variables
+in the target container to enable programmatic discovery of information
+related to the source container.
+
+First, Docker will set an `<alias>_NAME` environment variable specifying the
+alias of each target container that was given in a `--link` parameter. So,
+for example, if a new container called `web` is being linked to a database
+container called `db` via `--link db:webdb` then in the `web` container
+would be `WEBDB_NAME=/web/webdb`.
+
+Docker will then also define a set of environment variables for each
+port that is exposed by the source container. The pattern followed is:
+
+* `<name>_PORT_<port>_<protocol>` will contain a URL reference to the
+port. Where `<name>` is the alias name specified in the `--link` parameter
+(e.g. `webdb`), `<port>` is the port number being exposed, and `<protocol>`
+is either `TCP` or `UDP`. The format of the URL will be: 
+`<protocol>://<container_ip_address>:<port>`
+(e.g. `tcp://172.17.0.82:8080`).  This URL will then be
+split into the following 3 environment variables for convinience:
+* `<name>_PORT_<port>_<protocol>_ADDR` will contain just the IP address 
+from the URL (e.g. `WEBDB_PORT_8080_TCP_ADDR=172.17.0.82`).
+* `<name>_PORT_<port>_<protocol>_PORT` will contain just the port number
+from the URL (e.g. `WEBDB_PORT_8080_TCP_PORT=8080`).
+* `<name>_PORT_<port>_<protocol>_PROTO` will contain just the protocol
+from the URL (e.g. `WEBDB_PORT_8080_TCP_PROTO=tcp`).
+
+If there are multiple ports exposed then the above set of environment
+variables will be defined for each one.
+
+Finally, there will be an environment variable called `<alias>_PORT` that will
+contain the URL of the first exposed port of the source container.
+For example, `WEBDB_PORT=tcp://172.17.0.82:8080`. In this case, 'first'
+is defined as the lowest numbered port that is exposed. If that port is
+used for both tcp and udp, then the tcp one will be specified.
+
+Returning back to our database example, you can run the `env`
 command to list the specified container's environment variables.
 
 ```
@@ -186,10 +225,10 @@ command to list the specified container's environment variables.
     . . .
     DB_NAME=/web2/db
     DB_PORT=tcp://172.17.0.5:5432
-    DB_PORT_5000_TCP=tcp://172.17.0.5:5432
-    DB_PORT_5000_TCP_PROTO=tcp
-    DB_PORT_5000_TCP_PORT=5432
-    DB_PORT_5000_TCP_ADDR=172.17.0.5
+    DB_PORT_5432_TCP=tcp://172.17.0.5:5432
+    DB_PORT_5432_TCP_PROTO=tcp
+    DB_PORT_5432_TCP_PORT=5432
+    DB_PORT_5432_TCP_ADDR=172.17.0.5
     . . .
 ```
 
@@ -205,6 +244,8 @@ were `db1`, the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
 on the `db` container. The connection will be secure and private; only the
 linked `web` container will be able to talk to the `db` container.
+
+### Updating the `/etc/hosts` file
 
 In addition to the environment variables, Docker adds a host entry for the
 source container to the `/etc/hosts` file. Here's an entry for the `web`
@@ -240,6 +281,16 @@ to make use of your `db` container.
 > You can link multiple recipient containers to a single source. For
 > example, you could have multiple (differently named) web containers attached to your
 >`db` container.
+
+If you restart the source container, the linked containers `/etc/hosts` files
+will be automatically updated with the source container's new IP address,
+allowing linked communication to continue.
+
+    $ sudo docker restart db
+    root@aed84ee21bde:/opt/webapp# cat /etc/hosts
+    172.17.0.7  aed84ee21bde
+    . . .
+    172.17.0.9  db
 
 # Next step
 

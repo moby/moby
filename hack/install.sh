@@ -2,19 +2,19 @@
 set -e
 #
 # This script is meant for quick & easy install via:
-#   'curl -sSL https://get.docker.io/ | sh'
+#   'curl -sSL https://get.docker.com/ | sh'
 # or:
-#   'wget -qO- https://get.docker.io/ | sh'
+#   'wget -qO- https://get.docker.com/ | sh'
 #
 #
 # Docker Maintainers:
-#   To update this script on https://get.docker.io,
+#   To update this script on https://get.docker.com,
 #   use hack/release.sh during a normal release,
 #   or the following one-liner for script hotfixes:
-#     s3cmd put --acl-public -P hack/install.sh s3://get.docker.io/index
+#     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
 #
 
-url='https://get.docker.io/'
+url='https://get.docker.com/'
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
@@ -42,7 +42,7 @@ user="$(id -un 2>/dev/null || true)"
 sh_c='sh -c'
 if [ "$user" != 'root' ]; then
 	if command_exists sudo; then
-		sh_c='sudo sh -c'
+		sh_c='sudo -E sh -c'
 	elif command_exists su; then
 		sh_c='su -c'
 	else
@@ -85,7 +85,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run hello-world'
+				$sh_c 'docker run --rm hello-world'
 			) || true
 		fi
 		your_user=your-user
@@ -101,7 +101,7 @@ case "$lsb_dist" in
 		exit 0
 		;;
 
-	Ubuntu|Debian)
+	Ubuntu|Debian|LinuxMint)
 		export DEBIAN_FRONTEND=noninteractive
 
 		did_apt_get_update=
@@ -126,6 +126,18 @@ case "$lsb_dist" in
 			fi
 		fi
 
+		# install apparmor utils if they're missing and apparmor is enabled in the kernel
+		# otherwise Docker will fail to start
+		if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
+			if command -v apparmor_parser &> /dev/null; then
+				echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
+			else
+				echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q apparmor' )
+			fi
+		fi
+
 		if [ ! -e /usr/lib/apt/methods/https ]; then
 			apt_get_update
 			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https' )
@@ -137,9 +149,9 @@ case "$lsb_dist" in
 		fi
 		(
 			set -x
-			if [ "https://get.docker.io/" = "$url" ]; then
+			if [ "https://get.docker.com/" = "$url" ]; then
 				$sh_c "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
-			elif [ "https://test.docker.io/" = "$url" ]; then
+			elif [ "https://test.docker.com/" = "$url" ]; then
 				$sh_c "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
 			else
 				$sh_c "$curl ${url}gpg | apt-key add -"
@@ -150,7 +162,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run hello-world'
+				$sh_c 'docker run --rm hello-world'
 			) || true
 		fi
 		your_user=your-user
@@ -167,7 +179,7 @@ case "$lsb_dist" in
 		;;
 
 	Gentoo)
-		if [ "$url" = "https://test.docker.io/" ]; then
+		if [ "$url" = "https://test.docker.com/" ]; then
 			echo >&2
 			echo >&2 '  You appear to be trying to install the latest nightly build in Gentoo.'
 			echo >&2 '  The portage tree should contain the latest stable release of Docker, but'
@@ -189,12 +201,14 @@ case "$lsb_dist" in
 		;;
 esac
 
-echo >&2
-echo >&2 '  Either your platform is not easily detectable, is not supported by this'
-echo >&2 '  installer script (yet - PRs welcome!), or does not yet have a package for'
-echo >&2 '  Docker.  Please visit the following URL for more detailed installation'
-echo >&2 '  instructions:'
-echo >&2
-echo >&2 '    http://docs.docker.io/en/latest/installation/'
-echo >&2
+cat >&2 <<'EOF'
+
+  Either your platform is not easily detectable, is not supported by this
+  installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
+  a package for Docker.  Please visit the following URL for more detailed
+  installation instructions:
+
+    https://docs.docker.com/en/latest/installation/
+
+EOF
 exit 1

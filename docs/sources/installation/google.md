@@ -20,7 +20,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
    (select a zone close to you and the desired instance size)
 
         $ gcloud compute instances create docker-playground \
-          --image container-vm-v20140730 \
+          --image container-vm-v20140925 \
           --image-project google-containers \
           --zone us-central1-a \
           --machine-type f1-micro
@@ -28,7 +28,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 4. Connect to the instance using SSH:
 
         $ gcloud compute ssh --zone us-central1-a docker-playground
-        $$ docker-playground:~$ sudo docker run hello-world
+        docker-playground:~$ sudo docker run hello-world
 	Hello from Docker.
 	This message shows that your installation appears to be working correctly.
 	...

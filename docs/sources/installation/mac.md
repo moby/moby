@@ -34,7 +34,7 @@ VirtualBox VM, Docker itself, and the Boot2Docker management tool.
 
 	     $ boot2docker init
 	     $ boot2docker start
-	     $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
+	     $ $(boot2docker shellinit)
 
 A terminal window will open and you'll see the virtual machine starting up. 
 Once you have an initialized virtual machine, you can control it with `boot2docker stop`
@@ -46,7 +46,7 @@ and `boot2docker start`.
 >    `To connect the Docker client to the Docker daemon, please set: export 
 DOCKER_HOST=tcp://192.168.59.103:2375`
 > 
-you can safely set the evironment variable as instructed.
+you can safely set the environment variable as instructed.
 
 View the
 [Boot2Docker ReadMe](https://github.com/boot2docker/boot2docker/blob/master/README.md)
@@ -67,7 +67,8 @@ terminal window and run:
         $ boot2docker download
         $ boot2docker start
 
-This will download an .iso containing a fresh VM and start it up.
+This will download an .iso image containing a fresh VM and start it up. Your upgrade is
+complete. You can test it by following the directions below.
 
 ## Running Docker
 

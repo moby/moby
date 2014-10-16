@@ -16,9 +16,10 @@
   {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
   <link href="/css/bootstrap-custom.css" rel="stylesheet">
   <link href="/css/main.css" rel="stylesheet">
-  <link href="/css/docs.css" rel="stylesheet">
   <link href="/css/prettify-1.0.css" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="/css/dockerfile_tutorial.css">
   <link href="/tipuesearch/tipuesearch.css" rel="stylesheet">
+  <link href="/css/docs.css" rel="stylesheet">
   <link rel="shortcut icon" href="{{ site_favicon }}">
   <title>{% if page_title != '**HIDDEN** - '+site_name %}{{ page_title }}{% else %}{{ site_name }}{% endif %}</title>
   <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -47,29 +48,8 @@
 <div id="wrap">
   {% include "nav.html" %}
   <div id="content" class="container">
-{% if current_page.title != '**HIDDEN**' %}
-    <div class="row" id="top-header">
-      <div class="span7">
-        <h1 class="header2">{{ current_page.title }}</h1>
-      </div>
-      <div class="span5">
-        <div id="versionnav" class="span3 pull-right">
-          <ul class="nav version pull-right">
-            <li class="dropdown">
-              <a id="logged-in-header-username" class="dropdown-toggle" data-toggle="dropdown" href="#">
-		      Latest (Version {{ major_minor }})
-              </a>
-              <ul id="documentation-version-list" class="dropdown-menu pull-right">
-		<li role="presentation" class="divider"></li>
-		<li> <a class="home-link3 tertiary-nav" href="https://github.com/docker/docker/blob/master/docs/sources/{{ current_page.input_path }}" >Edit on GitHub</a></li>
-              </ul>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-{% endif %}
     <div class="row">
+{% if not meta.no_toc %}
       <div class="span3" id="leftnav">
         <div id="toc_table">
           <ul class="nav nav-tabs nav-stacked">
@@ -78,7 +58,27 @@
         </div>
       </div>
       <div class="span9 content-body">
+{% else %}
+      <div class="span12 content-body">
+{% endif %}
         {% include "beta_warning.html" %}
+{% if not meta.no_version_dropdown %}
+        <div id="versionnav" class="span3 pull-right">
+          <ul class="nav version pull-right">
+            <li class="dropdown">
+              <a id="document-version-number" class="dropdown-toggle" data-toggle="dropdown" href="#">
+		      Version {{ major_minor }}
+              </a>
+              <ul id="documentation-version-list" class="dropdown-menu pull-right">
+{% if not meta.no_edit %}
+		<li role="presentation" class="divider"></li>
+		<li> <a class="home-link3 tertiary-nav" href="https://github.com/docker/docker/blob/master/docs/sources/{{ current_page.input_path }}" >Edit on GitHub</a></li>
+{% endif %}
+              </ul>
+            </li>
+          </ul>
+        </div>
+{% endif %}
         {{ content }}
       </div>
     </div>
@@ -88,32 +88,19 @@
 
 </div>
 
-{#
-      <div class="row">
-        <div class="container container-better">
-          <div class="row">
-            <div class="col-sm-4">
-              {% include "toc.html" %}
-            </div>
-            <div class="col-sm-8" role="main">
-              {% include "breadcrumbs.html" %}
-              <main id="content" role="main">
-  	            {% include "version.html" %}
-                {{ content }}
-              </main>
-            </div>
-          </div>
-        </div>
-      </div>
+{# need to find an unobtrusive way to add this back
 {% include "prev_next.html" %}
 #}
 
 {% include "footer.html" %}
 
-<script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="/js/jquery-1.10.2.min.js"></script>
+<script src="/js/jquery.cookie.js" ></script>
 <script src="/js/jquery-scrolltofixed-min.js"></script>
 <script src="/js/bootstrap-3.0.3.min.js"></script>
 <script src="/js/prettify-1.0.min.js"></script>
+<script src="/js/dockerfile_tutorial.js"></script>
+<script src="/js/dockerfile_tutorial_level.js"></script>
 <script src="/js/base.js"></script>
 <script src="/tipuesearch/tipuesearch_set.js"></script>
 <script src="/tipuesearch/tipuesearch.min.js"></script>
@@ -134,16 +121,34 @@ piCId = '1482';
 <script type="text/javascript">
   $(document).ready(function() {
     $('#content').css("min-height", $(window).height() - 553 );
+    // if the URL contains a version string, update the version picker to reflect that
+    version = document.location.pathname.match(/^\/(v\d\.\d)\/.*/)
+    if (version && version[1]) {
+        $('#document-version-number')[0].text = 'Version '+version[1];
+    } else {
+        $('#document-version-number')[0].text = $('#document-version-number')[0].text + " (Latest)"
+    }
     // load the complete versions list
     $.get("/versions.html_fragment", function( data ) {
     	$('#documentation-version-list').prepend(data);
-	//remove any "/v1.1/" bits from font.
+	//remove any "/v1.1/" bits from front, so we can add the path to the version selection dropdown.
 	path = document.location.pathname.replace(/^\/v\d\.\d/, "");
 	$('#documentation-version-list a.version').each(function(i, e) {
 		e.href = e.href+path;
 		$(e).removeClass()
 	});
     });
+{% if meta.auto_scroll_to_path %}
+    // scroll to the right location in the generated index page
+    m=location.pathname.match(/^\/(.*?)\//)
+    if (m && m[1]) {
+        anchor = m[1].toLowerCase().replace(/ /, "-").replace(/\//, "-")
+        anchor_point = $('#'+anchor)
+        if (anchor_point && anchor_point[0]) {
+            $(window).scrollTop(anchor_point.offset().top);
+        }
+    }
+{% endif %}
   })
   var userName = getCookie('docker_sso_username');
   if (userName) {

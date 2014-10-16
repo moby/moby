@@ -26,7 +26,7 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOARCH=${platform##*/}
 		if [ -z "${daemonSupporting[$platform]}" ]; then
 			export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
-			export BUILDFLAGS=( "${BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
+			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
 		fi
 		source "$(dirname "$BASH_SOURCE")/binary" "$DEST/$platform"
 	)

@@ -30,8 +30,10 @@ func (v *NetNS) Initialize(config *Network, networkState *NetworkState) error {
 	}
 
 	if err := system.Setns(f.Fd(), syscall.CLONE_NEWNET); err != nil {
+		f.Close()
 		return fmt.Errorf("failed to setns current network namespace: %v", err)
 	}
 
+	f.Close()
 	return nil
 }

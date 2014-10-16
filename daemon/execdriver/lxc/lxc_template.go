@@ -34,15 +34,11 @@ lxc.pts = 1024
 
 # disable the main console
 lxc.console = none
-{{if .ProcessLabel}}
-lxc.se_context = {{ .ProcessLabel}}
-{{end}}
-{{$MOUNTLABEL := .MountLabel}}
 
 # no controlling tty at all
 lxc.tty = 1
 
-{{if .Privileged}}
+{{if .ProcessConfig.Privileged}}
 lxc.cgroup.devices.allow = a
 {{else}}
 # no implicit access to devices
@@ -66,12 +62,12 @@ lxc.pivotdir = lxc_putold
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
 
-{{if .Tty}}
-lxc.mount.entry = {{.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
+{{if .ProcessConfig.Tty}}
+lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
 {{end}}
 
-lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" $MOUNTLABEL}} 0 0
-lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" $MOUNTLABEL}} 0 0
+lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" ""}} 0 0
+lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" ""}} 0 0
 
 {{range $value := .Mounts}}
 {{if $value.Writable}}
@@ -81,7 +77,7 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{end}}
 {{end}}
 
-{{if .Privileged}}
+{{if .ProcessConfig.Privileged}}
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
 {{else}}
@@ -106,8 +102,8 @@ lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
 {{end}}
 {{end}}
 
-{{if .Config.lxc}}
-{{range $value := .Config.lxc}}
+{{if .LxcConfig}}
+{{range $value := .LxcConfig}}
 lxc.{{$value}}
 {{end}}
 {{end}}

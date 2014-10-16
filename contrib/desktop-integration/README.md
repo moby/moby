@@ -7,5 +7,5 @@ desktop applications.
 Examples
 ========
 
-* Data container: ./data/Dockerfile creates a data image sharing /data volume
-* Iceweasel: ./iceweasel/Dockerfile shows a way to dockerize a common multimedia application
+* Chromium: ./chromium/Dockerfile shows a way to dockerize a common application
+* Gparted: ./gparted/Dockerfile shows a way to dockerize a common application w devices

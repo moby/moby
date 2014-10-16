@@ -9,17 +9,19 @@ type ThrottlingData struct {
 	ThrottledTime uint64 `json:"throttled_time,omitempty"`
 }
 
+// All CPU stats are aggregate since container inception.
 type CpuUsage struct {
-	// percentage of available CPUs currently being used.
-	PercentUsage uint64 `json:"percent_usage,omitempty"`
-	// nanoseconds of cpu time consumed over the last 100 ms.
-	CurrentUsage uint64 `json:"current_usage,omitempty"`
-	// total nanoseconds of cpu time consumed
-	TotalUsage  uint64   `json:"total_usage,omitempty"`
+	// Total CPU time consumed.
+	// Units: nanoseconds.
+	TotalUsage uint64 `json:"total_usage,omitempty"`
+	// Total CPU time consumed per core.
+	// Units: nanoseconds.
 	PercpuUsage []uint64 `json:"percpu_usage,omitempty"`
-	// Time spent by tasks of the cgroup in kernel mode. Units: nanoseconds.
+	// Time spent by tasks of the cgroup in kernel mode.
+	// Units: nanoseconds.
 	UsageInKernelmode uint64 `json:"usage_in_kernelmode"`
-	// Time spent by tasks of the cgroup in user mode. Units: nanoseconds.
+	// Time spent by tasks of the cgroup in user mode.
+	// Units: nanoseconds.
 	UsageInUsermode uint64 `json:"usage_in_usermode"`
 }
 

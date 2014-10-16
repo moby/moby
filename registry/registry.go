@@ -3,7 +3,6 @@ package registry
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,14 +14,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
 var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+	ErrDoesNotExist          = errors.New("Image does not exist")
 	errLoginRequired         = errors.New("Authentication is required.")
+	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
+	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
+	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 )
 
 type TimeoutType uint32
@@ -105,22 +107,20 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType) (*htt
 			data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
 			if err != nil {
 				return nil, nil, err
-			} else {
-				pool.AppendCertsFromPEM(data)
 			}
+			pool.AppendCertsFromPEM(data)
 		}
 		if strings.HasSuffix(f.Name(), ".cert") {
 			certName := f.Name()
 			keyName := certName[:len(certName)-5] + ".key"
 			if !hasFile(fs, keyName) {
 				return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
-			} else {
-				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
-				if err != nil {
-					return nil, nil, err
-				}
-				certs = append(certs, &cert)
 			}
+			cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
+			if err != nil {
+				return nil, nil, err
+			}
+			certs = append(certs, &cert)
 		}
 		if strings.HasSuffix(f.Name(), ".key") {
 			keyName := f.Name()
@@ -138,75 +138,17 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType) (*htt
 			return nil, nil, err
 		}
 		return res, client, nil
-	} else {
-		for i, cert := range certs {
-			client := newClient(jar, pool, cert, timeout)
-			res, err := client.Do(req)
-			if i == len(certs)-1 {
-				// If this is the last cert, always return the result
-				return res, client, err
-			} else {
-				// Otherwise, continue to next cert if 403 or 5xx
-				if err == nil && res.StatusCode != 403 && !(res.StatusCode >= 500 && res.StatusCode < 600) {
-					return res, client, err
-				}
-			}
+	}
+	for i, cert := range certs {
+		client := newClient(jar, pool, cert, timeout)
+		res, err := client.Do(req)
+		// If this is the last cert, otherwise, continue to next cert if 403 or 5xx
+		if i == len(certs)-1 || err == nil && res.StatusCode != 403 && res.StatusCode < 500 {
+			return res, client, err
 		}
 	}
 
 	return nil, nil, nil
-}
-
-func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
-	if endpoint == IndexServerAddress() {
-		// Skip the check, we now this one is valid
-		// (and we never want to fallback to http in case of error)
-		return RegistryInfo{Standalone: false}, nil
-	}
-
-	req, err := http.NewRequest("GET", endpoint+"_ping", nil)
-	if err != nil {
-		return RegistryInfo{Standalone: false}, err
-	}
-
-	resp, _, err := doRequest(req, nil, ConnectTimeout)
-	if err != nil {
-		return RegistryInfo{Standalone: false}, err
-	}
-
-	defer resp.Body.Close()
-
-	jsonString, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return RegistryInfo{Standalone: false}, fmt.Errorf("Error while reading the http response: %s", err)
-	}
-
-	// If the header is absent, we assume true for compatibility with earlier
-	// versions of the registry. default to true
-	info := RegistryInfo{
-		Standalone: true,
-	}
-	if err := json.Unmarshal(jsonString, &info); err != nil {
-		log.Debugf("Error unmarshalling the _ping RegistryInfo: %s", err)
-		// don't stop here. Just assume sane defaults
-	}
-	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		log.Debugf("Registry version header: '%s'", hdr)
-		info.Version = hdr
-	}
-	log.Debugf("RegistryInfo.Version: %q", info.Version)
-
-	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-	log.Debugf("Registry standalone header: '%s'", standalone)
-	// Accepted values are "true" (case-insensitive) and "1".
-	if strings.EqualFold(standalone, "true") || standalone == "1" {
-		info.Standalone = true
-	} else if len(standalone) > 0 {
-		// there is a header set, and it is not "true" or "1", so assume fails
-		info.Standalone = false
-	}
-	log.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
-	return info, nil
 }
 
 func validateRepositoryName(repositoryName string) error {
@@ -218,15 +160,17 @@ func validateRepositoryName(repositoryName string) error {
 	if len(nameParts) < 2 {
 		namespace = "library"
 		name = nameParts[0]
+
+		if validHex.MatchString(name) {
+			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
+		}
 	} else {
 		namespace = nameParts[0]
 		name = nameParts[1]
 	}
-	validNamespace := regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
 	if !validNamespace.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
 	}
-	validRepo := regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
 	}
@@ -258,33 +202,6 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	return hostname, reposName, nil
 }
 
-// this method expands the registry name as used in the prefix of a repo
-// to a full url. if it already is a url, there will be no change.
-// The registry is pinged to test if it http or https
-func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
-	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
-		// if there is no slash after https:// (8 characters) then we have no path in the url
-		if strings.LastIndex(hostname, "/") < 9 {
-			// there is no path given. Expand with default path
-			hostname = hostname + "/v1/"
-		}
-		if _, err := pingRegistryEndpoint(hostname); err != nil {
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
-		return hostname, nil
-	}
-	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
-	if _, err := pingRegistryEndpoint(endpoint); err != nil {
-		log.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
-		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
-		if _, err = pingRegistryEndpoint(endpoint); err != nil {
-			//TODO: triggering highland build can be done there without "failing"
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
-	}
-	return endpoint, nil
-}
-
 func trustedLocation(req *http.Request) bool {
 	var (
 		trusteds = []string{"docker.com", "docker.io"}
@@ -306,12 +223,12 @@ func AddRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 	if via != nil && via[0] != nil {
 		if trustedLocation(req) && trustedLocation(via[0]) {
 			req.Header = via[0].Header
-		} else {
-			for k, v := range via[0].Header {
-				if k != "Authorization" {
-					for _, vv := range v {
-						req.Header.Add(k, vv)
-					}
+			return nil
+		}
+		for k, v := range via[0].Header {
+			if k != "Authorization" {
+				for _, vv := range v {
+					req.Header.Add(k, vv)
 				}
 			}
 		}

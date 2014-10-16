@@ -2,6 +2,7 @@ package syncpipe
 
 import (
 	"fmt"
+	"syscall"
 	"testing"
 )
 
@@ -20,9 +21,17 @@ func TestSendErrorFromChild(t *testing.T) {
 		}
 	}()
 
-	expected := "something bad happened"
+	childfd, err := syscall.Dup(int(pipe.Child().Fd()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	childPipe, _ := NewSyncPipeFromFd(0, uintptr(childfd))
 
-	pipe.ReportChildError(fmt.Errorf(expected))
+	pipe.CloseChild()
+	pipe.SendToChild(nil)
+
+	expected := "something bad happened"
+	childPipe.ReportChildError(fmt.Errorf(expected))
 
 	childError := pipe.ReadFromChild()
 	if childError == nil {

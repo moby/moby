@@ -25,11 +25,16 @@ func (jl *JSONLog) Format(format string) (string, error) {
 	return fmt.Sprintf("[%s] %s", jl.Created.Format(format), jl.Log), nil
 }
 
-func WriteLog(src io.Reader, dst io.WriteCloser, format string) error {
-	dec := json.NewDecoder(src)
-	for {
-		l := &JSONLog{}
+func (jl *JSONLog) Reset() {
+	jl.Log = ""
+	jl.Stream = ""
+	jl.Created = time.Time{}
+}
 
+func WriteLog(src io.Reader, dst io.Writer, format string) error {
+	dec := json.NewDecoder(src)
+	l := &JSONLog{}
+	for {
 		if err := dec.Decode(l); err == io.EOF {
 			return nil
 		} else if err != nil {
@@ -40,6 +45,9 @@ func WriteLog(src io.Reader, dst io.WriteCloser, format string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(dst, "%s", line)
+		if _, err := io.WriteString(dst, line); err != nil {
+			return err
+		}
+		l.Reset()
 	}
 }

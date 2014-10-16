@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/pkg/timeutils"
 )
 
 // This used to work, it test a log of PageSize-1 (gh#4851)
@@ -102,9 +104,12 @@ func TestLogsTimestamps(t *testing.T) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(time.RFC3339Nano+" ", ts.FindString(l))
+			_, err := time.Parse(timeutils.RFC3339NanoFixed+" ", ts.FindString(l))
 			if err != nil {
 				t.Fatalf("Failed to parse timestamp from %v: %v", l, err)
+			}
+			if l[29] != 'Z' { // ensure we have padded 0's
+				t.Fatalf("Timestamp isn't padded properly: %s", l)
 			}
 		}
 	}
@@ -212,4 +217,36 @@ func TestLogsTail(t *testing.T) {
 
 	deleteContainer(cleanedContainerID)
 	logDone("logs - logs tail")
+}
+
+func TestLogsFollowStopped(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
+
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+
+	logsCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
+	if err := logsCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := make(chan struct{})
+	go func() {
+		if err := logsCmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+		close(c)
+	}()
+
+	select {
+	case <-c:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Following logs is hanged")
+	}
+
+	deleteContainer(cleanedContainerID)
+	logDone("logs - logs follow stopped container")
 }

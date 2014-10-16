@@ -104,7 +104,7 @@ host-mapped port to test as well. You need to use `docker ps`
 to find out what local host port the container is mapped to
 first:
 
-    $ docker ps
+    $ sudo docker ps
     CONTAINER ID        IMAGE                  COMMAND                CREATED             STATUS              PORTS                                      NAMES
     5e24362f27f6        eg_postgresql:latest   /usr/lib/postgresql/   About an hour ago   Up About an hour    0.0.0.0:49153->5432/tcp                    pg_test
     $ psql -h localhost -p 49153 -d docker -U docker --password
@@ -135,7 +135,7 @@ prompt, you can create a table and populate it.
 You can use the defined volumes to inspect the PostgreSQL log files and
 to backup your configuration and data:
 
-    $ docker run --rm --volumes-from pg_test -t -i busybox sh
+    $ sudo docker run --rm --volumes-from pg_test -t -i busybox sh
 
     / # ls
     bin      etc      lib      linuxrc  mnt      proc     run      sys      usr

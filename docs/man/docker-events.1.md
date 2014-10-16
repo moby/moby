@@ -14,6 +14,14 @@ docker-events - Get real time events from the server
 Get event information from the Docker daemon. Information can include historical
 information and real-time information.
 
+Docker containers will report the following events:
+
+    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+
+and Docker images will report:
+
+    untag, delete
+
 # OPTIONS
 **--since**=""
    Show all events created since timestamp
