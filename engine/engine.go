@@ -158,7 +158,6 @@ func (eng *Engine) Shutdown() {
 		eng.l.Unlock()
 		return
 	}
-	eng.shutdown = true
 	eng.l.Unlock()
 	// We don't need to protect the rest with a lock, to allow
 	// for other calls to immediately fail with "shutdown" instead
@@ -197,6 +196,8 @@ func (eng *Engine) Shutdown() {
 	case <-time.After(time.Second * 10):
 	case <-done:
 	}
+        
+        eng.shutdown = true
 	return
 }
 
