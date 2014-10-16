@@ -82,3 +82,13 @@ func TestDaemonRestartWithVolumesRefs(t *testing.T) {
 
 	logDone("daemon - volume refs are restored")
 }
+
+func TestDaemonStartIptablesFalse(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.Start("--iptables=false"); err != nil {
+		t.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)
+	}
+	d.Stop()
+
+	logDone("daemon - started daemon with iptables=false")
+}
