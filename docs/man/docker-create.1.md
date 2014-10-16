@@ -61,7 +61,7 @@ docker-create - Create a new container
    CPUs in which to allow execution (0-3, 0,1)
 
 **--device**=[]
-   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
 **--dns-search**=[]
    Set custom DNS search domains
