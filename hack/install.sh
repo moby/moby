@@ -70,18 +70,19 @@ if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 	lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
 fi
 if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
-	lsb_dist='Debian'
+	lsb_dist='debian'
 fi
 if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
-	lsb_dist='Fedora'
+	lsb_dist='fedora'
 fi
 if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
-	lsb_dist="$(. /etc/os-release && echo "$NAME" | cut -d' ' -f1)"
+	lsb_dist="$(. /etc/os-release && echo "$ID")"
 fi
 
+lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
 case "$lsb_dist" in
-	Amazon|Fedora)
-		if [ "$lsb_dist" = 'Amazon' ]; then
+	amzn|fedora)
+		if [ "$lsb_dist" = 'amzn' ]; then
 			(
 				set -x
 				$sh_c 'sleep 3; yum -y -q install docker'
@@ -111,7 +112,7 @@ case "$lsb_dist" in
 		exit 0
 		;;
 
-	Ubuntu|Debian|LinuxMint)
+	ubuntu|debian|linuxmint)
 		export DEBIAN_FRONTEND=noninteractive
 
 		did_apt_get_update=
@@ -188,7 +189,7 @@ case "$lsb_dist" in
 		exit 0
 		;;
 
-	Gentoo)
+	gentoo)
 		if [ "$url" = "https://test.docker.com/" ]; then
 			echo >&2
 			echo >&2 '  You appear to be trying to install the latest nightly build in Gentoo.'
