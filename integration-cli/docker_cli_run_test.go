@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -2373,4 +2374,19 @@ func TestRunVolumesNotRecreatedOnStart(t *testing.T) {
 	}
 
 	logDone("run - volumes not recreated on start")
+}
+
+func TestRunNoOutputFromPullInStdout(t *testing.T) {
+	defer deleteAllContainers()
+	// just run with unknown image
+	cmd := exec.Command(dockerBinary, "run", "asdfsg")
+	stdout := bytes.NewBuffer(nil)
+	cmd.Stdout = stdout
+	if err := cmd.Run(); err == nil {
+		t.Fatal("Run with unknown image should fail")
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("Stdout contains output from pull: %s", stdout)
+	}
+	logDone("run - no output from pull in stdout")
 }
