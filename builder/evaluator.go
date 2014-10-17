@@ -49,6 +49,7 @@ func init() {
 		"maintainer": maintainer,
 		"add":        add,
 		"copy":       dispatchCopy, // copy() is a go builtin
+		"comment":    comment,
 		"from":       from,
 		"onbuild":    onbuild,
 		"workdir":    workdir,
@@ -95,6 +96,7 @@ type Builder struct {
 	dockerfile  *parser.Node  // the syntax tree of the dockerfile
 	image       string        // image name for commit processing
 	maintainer  string        // maintainer name. could probably be removed.
+	comment     string        // Comment describing the image.
 	cmdSet      bool          // indicates is CMD was set in current Dockerfile
 	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)

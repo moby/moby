@@ -764,7 +764,7 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
 ## import
 
-    Usage: docker import URL|- [REPOSITORY[:TAG]]
+    Usage: docker import [OPTIONS] URL|- [REPOSITORY[:TAG]]
 
     Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
@@ -773,7 +773,15 @@ URLs must start with `http` and point to a single file archive (.tar,
 you would like to import from a local directory or archive, you can use
 the `-` parameter to take the data from `STDIN`.
 
+<<<<<<< HEAD
 #### Examples
+||||||| parent of ec85865... Allow docker import -m to specify the COMMENT field.
+### Examples
+=======
+      -m, --message=""    Commit message
+
+### Examples
+>>>>>>> ec85865... Allow docker import -m to specify the COMMENT field.
 
 **Import from a remote location:**
 
