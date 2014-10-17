@@ -15,6 +15,61 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildEnvEscapes(t *testing.T) {
+	name := "testbuildenvescapes"
+	defer deleteAllContainers()
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`
+    FROM busybox
+    ENV TEST foo
+    CMD echo \$
+    `,
+		true)
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.TrimSpace(out) != "$" {
+		t.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
+	}
+
+	logDone("build - env should handle \\$ properly")
+}
+
+func TestBuildEnvOverwrite(t *testing.T) {
+	name := "testbuildenvoverwrite"
+	defer deleteAllContainers()
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`
+    FROM busybox
+    ENV TEST foo
+    CMD echo \${TEST}
+    `,
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-e", "TEST=bar", "-t", name))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.TrimSpace(out) != "bar" {
+		t.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
+	}
+
+	logDone("build - env should overwrite builder ENV during run")
+}
+
 func TestBuildOnBuildForbiddenMaintainerInSourceImage(t *testing.T) {
 	name := "testbuildonbuildforbiddenmaintainerinsourceimage"
 	defer deleteImages(name)
