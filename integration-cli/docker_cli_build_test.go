@@ -2728,3 +2728,25 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	logDone("build - exotic shell interpolation")
 }
+
+func TestBuildVerifySingleQuoteFails(t *testing.T) {
+	// This testcase is supposed to generate an error because the
+	// JSON array we're passing in on the CMD uses single quotes instead
+	// of double quotes (per the JSON spec). This means we interpret it
+	// as a "string" insead of "JSON array" and pass it on to "sh -c" and
+	// it should barf on it.
+	name := "testbuildsinglequotefails"
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`FROM busybox
+		CMD [ '/bin/sh', '-c', 'echo hi' ]`,
+		true)
+	_, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", name))
+
+	if err == nil {
+		t.Fatal("The image was not supposed to be able to run")
+	}
+
+	logDone("build - verify single quotes fail")
+}
