@@ -20,7 +20,9 @@ func TestBuildOnBuildForbiddenMaintainerInSourceImage(t *testing.T) {
 	defer deleteImages(name)
 	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
 	out, _, _, err := runCommandWithStdoutStderr(createCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
@@ -49,7 +51,9 @@ func TestBuildOnBuildForbiddenFromInSourceImage(t *testing.T) {
 	defer deleteImages(name)
 	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
 	out, _, _, err := runCommandWithStdoutStderr(createCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
@@ -78,7 +82,9 @@ func TestBuildOnBuildForbiddenChainedInSourceImage(t *testing.T) {
 	defer deleteImages(name)
 	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
 	out, _, _, err := runCommandWithStdoutStderr(createCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
@@ -299,11 +305,8 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 
 func TestBuildCopyAddMultipleFiles(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "MultipleFiles")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "MultipleFiles"); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testaddimg")
@@ -620,11 +623,8 @@ func TestBuildCopySingleFileToRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", ".")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -650,9 +650,8 @@ func TestBuildCopySingleFileToWorkdir(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	_, exitCode, err := dockerCmdInDirWithTimeout(5*time.Second, buildDirectory, "build", "-t", "testcopyimg", ".")
-	if err != nil || exitCode != 0 {
-		t.Fatalf("build failed: %s", err)
+	if out, _, err := dockerCmdInDirWithTimeout(5*time.Second, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -662,11 +661,8 @@ func TestBuildCopySingleFileToWorkdir(t *testing.T) {
 
 func TestBuildCopySingleFileToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToExistDir")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToExistDir"); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -676,11 +672,8 @@ func TestBuildCopySingleFileToExistDir(t *testing.T) {
 
 func TestBuildCopySingleFileToNonExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToNonExistDir")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToNonExistDir"); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -690,11 +683,8 @@ func TestBuildCopySingleFileToNonExistDir(t *testing.T) {
 
 func TestBuildCopyDirContentToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToRoot")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToRoot"); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -704,11 +694,8 @@ func TestBuildCopyDirContentToRoot(t *testing.T) {
 
 func TestBuildCopyDirContentToExistDir(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToExistDir")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToExistDir"); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -737,11 +724,8 @@ func TestBuildCopyWholeDirToRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", ".")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -751,11 +735,8 @@ func TestBuildCopyWholeDirToRoot(t *testing.T) {
 
 func TestBuildCopyEtcToRoot(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	out, exitCode, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "EtcToRoot")
-	errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "EtcToRoot"); err != nil {
+		t.Fatalf("build failed to complete: %s, %v", out, err)
 	}
 
 	deleteImages("testcopyimg")
@@ -766,9 +747,7 @@ func TestBuildCopyDisallowRemote(t *testing.T) {
 	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DisallowRemote")
 	buildCmd.Dir = buildDirectory
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-
-	if err == nil || exitCode == 0 {
+	if out, _, err := runCommandWithOutput(buildCmd); err == nil {
 		t.Fatalf("building the image should've failed; output: %s", out)
 	}
 
@@ -790,14 +769,16 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		// This is used to ensure we detect inaccessible files early during build in the cli client
 		pathToFileWithoutReadAccess := filepath.Join(ctx.Dir, "fileWithoutReadAccess")
 
-		err = os.Chown(pathToFileWithoutReadAccess, 0, 0)
-		errorOut(err, t, fmt.Sprintf("failed to chown file to root: %s", err))
-		err = os.Chmod(pathToFileWithoutReadAccess, 0700)
-		errorOut(err, t, fmt.Sprintf("failed to chmod file to 700: %s", err))
+		if err = os.Chown(pathToFileWithoutReadAccess, 0, 0); err != nil {
+			t.Fatalf("failed to chown file to root: %s", err)
+		}
+		if err = os.Chmod(pathToFileWithoutReadAccess, 0700); err != nil {
+			t.Fatalf("failed to chmod file to 700: %s", err)
+		}
 		buildCmd := exec.Command("su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name))
 		buildCmd.Dir = ctx.Dir
-		out, exitCode, err := runCommandWithOutput(buildCmd)
-		if err == nil || exitCode == 0 {
+		out, _, err := runCommandWithOutput(buildCmd)
+		if err == nil {
 			t.Fatalf("build should have failed: %s %s", err, out)
 		}
 
@@ -822,17 +803,20 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		pathToDirectoryWithoutReadAccess := filepath.Join(ctx.Dir, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
 
-		err = os.Chown(pathToDirectoryWithoutReadAccess, 0, 0)
-		errorOut(err, t, fmt.Sprintf("failed to chown directory to root: %s", err))
-		err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444)
-		errorOut(err, t, fmt.Sprintf("failed to chmod directory to 755: %s", err))
-		err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700)
-		errorOut(err, t, fmt.Sprintf("failed to chmod file to 444: %s", err))
+		if err = os.Chown(pathToDirectoryWithoutReadAccess, 0, 0); err != nil {
+			t.Fatalf("failed to chown directory to root: %s", err)
+		}
+		if err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444); err != nil {
+			t.Fatalf("failed to chmod directory to 755: %s", err)
+		}
+		if err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700); err != nil {
+			t.Fatalf("failed to chmod file to 444: %s", err)
+		}
 
 		buildCmd := exec.Command("su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name))
 		buildCmd.Dir = ctx.Dir
-		out, exitCode, err := runCommandWithOutput(buildCmd)
-		if err == nil || exitCode == 0 {
+		out, _, err := runCommandWithOutput(buildCmd)
+		if err == nil {
 			t.Fatalf("build should have failed: %s %s", err, out)
 		}
 
@@ -878,17 +862,19 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		// This is used to ensure we don't try to add inaccessible files when they are ignored by a .dockerignore pattern
 		pathToDirectoryWithoutReadAccess := filepath.Join(ctx.Dir, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
-		err = os.Chown(pathToDirectoryWithoutReadAccess, 0, 0)
-		errorOut(err, t, fmt.Sprintf("failed to chown directory to root: %s", err))
-		err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444)
-		errorOut(err, t, fmt.Sprintf("failed to chmod directory to 755: %s", err))
-		err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700)
-		errorOut(err, t, fmt.Sprintf("failed to chmod file to 444: %s", err))
+		if err = os.Chown(pathToDirectoryWithoutReadAccess, 0, 0); err != nil {
+			t.Fatalf("failed to chown directory to root: %s", err)
+		}
+		if err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444); err != nil {
+			t.Fatalf("failed to chmod directory to 755: %s", err)
+		}
+		if err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700); err != nil {
+			t.Fatalf("failed to chmod file to 444: %s", err)
+		}
 
 		buildCmd := exec.Command("su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name))
 		buildCmd.Dir = ctx.Dir
-		out, exitCode, err := runCommandWithOutput(buildCmd)
-		if err != nil || exitCode != 0 {
+		if out, _, err := runCommandWithOutput(buildCmd); err != nil {
 			t.Fatalf("build should have worked: %s %s", err, out)
 		}
 
@@ -913,10 +899,8 @@ func TestBuildForceRm(t *testing.T) {
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "--force-rm", ".")
 	buildCmd.Dir = ctx.Dir
-	_, exitCode, err := runCommandWithOutput(buildCmd)
-
-	if err == nil || exitCode == 0 {
-		t.Fatal("failed to build the image")
+	if out, _, err := runCommandWithOutput(buildCmd); err == nil {
+		t.Fatal("failed to build the image: %s, %v", out, err)
 	}
 
 	containerCountAfter, err := getContainerCount()
@@ -945,9 +929,9 @@ func TestBuildRm(t *testing.T) {
 			t.Fatalf("failed to get the container count: %s", err)
 		}
 
-		out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "--rm", "-t", name, ".")
+		out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "--rm", "-t", name, ".")
 
-		if err != nil || exitCode != 0 {
+		if err != nil {
 			t.Fatal("failed to build the image", out)
 		}
 
@@ -968,9 +952,9 @@ func TestBuildRm(t *testing.T) {
 			t.Fatalf("failed to get the container count: %s", err)
 		}
 
-		out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name, ".")
+		out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name, ".")
 
-		if err != nil || exitCode != 0 {
+		if err != nil {
 			t.Fatal("failed to build the image", out)
 		}
 
@@ -991,9 +975,9 @@ func TestBuildRm(t *testing.T) {
 			t.Fatalf("failed to get the container count: %s", err)
 		}
 
-		out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "--rm=false", "-t", name, ".")
+		out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "--rm=false", "-t", name, ".")
 
-		if err != nil || exitCode != 0 {
+		if err != nil {
 			t.Fatal("failed to build the image", out)
 		}
 
@@ -1335,7 +1319,9 @@ func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 		}
 
 		out1, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name1, ".")
-		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out1, err))
+		if err != nil {
+			t.Fatalf("build failed to complete: %s, %v", out1, err)
+		}
 		defer deleteImages(name1)
 	}
 	{
@@ -1349,7 +1335,9 @@ func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 		}
 
 		out2, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-t", name2, ".")
-		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out2, err))
+		if err != nil {
+			t.Fatalf("build failed to complete: %s, %v", out2, err)
+		}
 		defer deleteImages(name2)
 	}
 	{
@@ -1363,7 +1351,10 @@ func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 		}
 
 		out3, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-t", name3, ".")
-		errorOut(err, t, fmt.Sprintf("build failed to complete: %v %v", out3, err))
+		if err != nil {
+			t.Fatalf("build failed to complete: %s, %v", out3, err)
+		}
+
 		defer deleteImages(name3)
 	}
 
@@ -1763,8 +1754,7 @@ CMD ["cat", "/foo"]`,
 	defer deleteImages(name)
 	buildCmd.Stdin = context
 
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	if err != nil || exitCode != 0 {
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil {
 		t.Fatalf("build failed to complete: %v %v", out, err)
 	}
 	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", compression))
@@ -1782,13 +1772,11 @@ func TestBuildNoContext(t *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "nocontext", "-")
 	buildCmd.Stdin = strings.NewReader("FROM busybox\nCMD echo ok\n")
 
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	if err != nil || exitCode != 0 {
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil {
 		t.Fatalf("build failed to complete: %v %v", out, err)
 	}
 
-	out, exitCode, err = cmd(t, "run", "nocontext")
-	if out != "ok\n" {
+	if out, _, err := cmd(t, "run", "nocontext"); out != "ok\n" || err != nil {
 		t.Fatalf("run produced invalid output: %q, expected %q", out, "ok")
 	}
 
@@ -2717,7 +2705,7 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-
+		
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]

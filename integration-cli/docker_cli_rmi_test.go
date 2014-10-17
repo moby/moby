@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -13,7 +12,9 @@ func TestRmiWithContainerFails(t *testing.T) {
 	// create a container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to create a container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to create a container: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
