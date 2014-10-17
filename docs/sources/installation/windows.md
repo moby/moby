@@ -21,7 +21,7 @@ virtual machine and runs the Docker daemon.
 
 ## Installation
 
-1. Download the latest release of the [Docker for Windows Installer](https://github.com/boot2docker/windows-installer/releases)
+1. Download the latest release of the [Docker for Windows Installer](https://github.com/boot2docker/windows-installer/releases/latest)
 2. Run the installer, which will install VirtualBox, MSYS-git, the boot2docker Linux ISO,
 and the Boot2Docker management tool.
    ![](/installation/images/windows-installer.png)
@@ -37,7 +37,7 @@ and the Boot2Docker management tool.
 ## Upgrading
 
 1. Download the latest release of the [Docker for Windows Installer](
-   https://github.com/boot2docker/windows-installer/releases)
+   https://github.com/boot2docker/windows-installer/releases/latest)
 
 2. Run the installer, which will update the Boot2Docker management tool.
 

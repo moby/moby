@@ -26,12 +26,13 @@ type Node struct {
 	Next       *Node           // the next item in the current sexp
 	Children   []*Node         // the children of this sexp
 	Attributes map[string]bool // special attributes for this node
+	Original   string          // original line used before parsing
 }
 
 var (
 	dispatch                map[string]func(string) (*Node, map[string]bool, error)
 	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
-	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\$`)
+	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\\s*$`)
 	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
 )
 
@@ -71,7 +72,10 @@ func parseLine(line string) (string, *Node, error) {
 		return line, nil, nil
 	}
 
-	cmd, args := splitCommand(line)
+	cmd, args, err := splitCommand(line)
+	if err != nil {
+		return "", nil, err
+	}
 
 	node := &Node{}
 	node.Value = cmd
@@ -84,6 +88,7 @@ func parseLine(line string) (string, *Node, error) {
 	if sexp.Value != "" || sexp.Next != nil || sexp.Children != nil {
 		node.Next = sexp
 		node.Attributes = attrs
+		node.Original = line
 	}
 
 	return "", node, nil
@@ -96,7 +101,12 @@ func Parse(rwc io.Reader) (*Node, error) {
 	scanner := bufio.NewScanner(rwc)
 
 	for scanner.Scan() {
-		line, child, err := parseLine(strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace))
+		scannedLine := strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace)
+		if stripComments(scannedLine) == "" {
+			continue
+		}
+
+		line, child, err := parseLine(scannedLine)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +115,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 			for scanner.Scan() {
 				newline := scanner.Text()
 
-				if newline == "" {
+				if stripComments(strings.TrimSpace(newline)) == "" {
 					continue
 				}
 

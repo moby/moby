@@ -94,20 +94,41 @@ The Docker daemon is the persistent process that manages containers.
 Docker uses the same binary for both the daemon and client. To run the
 daemon you provide the `-d` flag.
 
-To force Docker to use devicemapper as the storage driver, use
-`docker -d -s devicemapper`.
-
-To set the DNS server for all Docker containers, use
-`docker -d --dns 8.8.8.8`.
-
-To set the DNS search domain for all Docker containers, use
-`docker -d --dns-search example.com`.
 
 To run the daemon with debug output, use `docker -d -D`.
 
-To use lxc as the execution driver, use `docker -d -e lxc`.
+### Daemon socket option
 
-The docker client will also honor the `DOCKER_HOST` environment variable to set
+The Docker daemon can listen for [Docker Remote API](reference/api/docker_remote_api/)
+requests via three different types of Socket: `unix`, `tcp`, and `fd`.
+
+By default, a `unix` domain socket (or IPC socket) is created at `/var/run/docker.sock`,
+requiring either `root` permission, or `docker` group membership.
+
+If you need to access the Docker daemon remotely, you need to enable the `tcp`
+Socket. Beware that the default setup provides un-encrypted and un-authenticated
+direct access to the Docker daemon - and should be secured either using the
+[built in https encrypted socket](/articles/https/), or by putting a secure web
+proxy in front of it. You can listen on port `2375` on all network interfaces
+with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
+address: `-H tcp://192.168.59.103:2375`.
+
+On Systemd based systems, you can communicate with the daemon via 
+[systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
+`docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
+you can also specify individual sockets: `docker -d -H fd://3`. If the
+specified socket activated files aren't found, then Docker will exit. You
+can find examples of using Systemd socket activation with Docker and
+Systemd in the [Docker source tree](
+https://github.com/docker/docker/tree/master/contrib/init/systemd/).
+
+You can configure the Docker daemon to listen to multiple sockets at the same
+time using multiple `-H` options:
+
+    # listen using the default unix socket, and on 2 specific IP addresses on this host.
+    docker -d -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
+
+The Docker client will honor the `DOCKER_HOST` environment variable to set
 the `-H` flag for the client.
 
     $ sudo docker -H tcp://0.0.0.0:2375 ps
@@ -116,18 +137,63 @@ the `-H` flag for the client.
     $ sudo docker ps
     # both are equal
 
+Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than the empty
+string is equivalent to setting the `--tlsverify` flag. The following are equivalent:
+
+    $ sudo docker --tlsverify ps
+    # or
+    $ export DOCKER_TLS_VERIFY=1
+    $ sudo docker ps
+
+### Daemon storage-driver option
+
+The Docker daemon has support for three different image layer storage drivers: `aufs`,
+`devicemapper`, and `btrfs`.
+
+The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
+is unlikely to be merged into the main kernel. These are also known to cause some
+serious kernel crashes. However, `aufs` is also the only storage driver that allows
+containers to share executable and shared library memory, so is a useful choice
+when running thousands of containers with the same program or libraries.
+
+The `devicemapper` driver uses thin provisioning and Copy on Write (CoW) snapshots.
+This driver will create a 100GB sparse file containing all your images and
+containers.  Each container will be limited to a 10 GB thin volume, and either of
+these will require tuning - see [~jpetazzo/Resizing Docker containers with the
+Device Mapper plugin]( http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
+To tell the Docker daemon to use `devicemapper`, use
+`docker -d -s devicemapper`.
+
+The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
+share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
+
+
+### Docker exec-driver option
+
+The Docker daemon uses a specifically built `libcontainer` execution driver as its
+interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
+
+There is still legacy support for the original [LXC userspace tools](
+https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
+not where the primary development of new functionality is taking place.
+Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
+
+
+### Daemon DNS options
+
+To set the DNS server for all Docker containers, use
+`docker -d --dns 8.8.8.8`.
+
+To set the DNS search domain for all Docker containers, use
+`docker -d --dns-search example.com`.
+
+### Miscellaneous options
+
 IP masquerading uses address translation to allow containers without a public IP to talk
 to other machines on the Internet. This may interfere with some network topologies and
 can be disabled with --ip-masq=false.
 
-To run the daemon with [systemd socket activation](
-http://0pointer.de/blog/projects/socket-activation.html), use
-`docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
-you can also specify individual sockets too `docker -d -H fd://3`. If the
-specified socket activated files aren't found then docker will exit. You
-can find examples of using systemd socket activation with docker and
-systemd in the [docker source tree](
-https://github.com/docker/docker/tree/master/contrib/init/systemd/).
+
 
 Docker supports softlinks for the Docker data directory
 (`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:
@@ -136,6 +202,7 @@ Docker supports softlinks for the Docker data directory
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+
 
 ## attach
 
@@ -146,11 +213,14 @@ Docker supports softlinks for the Docker data directory
       --no-stdin=false    Do not attach STDIN
       --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
-The `attach` command will allow you to view or
-interact with any running container, detached (`-d`)
-or interactive (`-i`). You can attach to the same
-container at the same time - screen sharing style, or quickly view the
-progress of your daemonized process.
+The `attach` command lets you view or interact with any running container's
+primary process (`pid 1`).
+
+You can attach to the same contained process multiple times simultaneously, screen
+sharing style, or quickly view the progress of your daemonized process.
+
+> **Note:** This command is not for running a new process in a container.
+> See: [`docker exec`](#exec).
 
 You can detach from the container again (and leave it running) with
 `CTRL-p CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a
@@ -417,7 +487,7 @@ Creates a new container.
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
@@ -456,6 +526,8 @@ container at any point.
 
 This is useful when you want to set up a container configuration ahead
 of time so that it is ready to start when you need it.
+
+Please see the [run command](#run) section for more details.
 
 #### Example
 
@@ -925,9 +997,9 @@ used, which is observable by the process being suspended. With the cgroups freez
 the process is unaware, and unable to capture, that it is being suspended,
 and subsequently resumed.
 
-See the [cgroups freezer documentation]
-(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
-further details.
+See the 
+[cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
+for further details.
 
 ## ps
 
@@ -1115,7 +1187,7 @@ removed before the image is removed.
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
       -d, --detach=false         Detached mode: run the container in the background and print the new container ID
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
@@ -1324,8 +1396,31 @@ option enables that.  For example, a specific block storage device or loop
 device or audio device can be added to an otherwise unprivileged container
 (without the `--privileged` flag) and have the application directly access it.
 
+By default, the container will be able to `read`, `write` and `mknod` these devices.
+This can be overridden using a third `:rwm` set of options to each `--device`
+flag:
+
+
+```
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+	You will not be able to write the partition table.
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+	fdisk: unable to open /dev/xvdc: Operation not permitted
+```
+
 **Note:**
-> `--device` cannot be safely used with ephemeral devices. Block devices that may be removed should not be added to untrusted containers with `--device`.
+> `--device` cannot be safely used with ephemeral devices. Block devices that
+> may be removed should not be added to untrusted containers with `--device`.
 
 **A complete example:**
 
@@ -1367,7 +1462,7 @@ how a container should or should not be restarted on exit.
 
 ** on-failure ** - Restart the container only if it exits with a non zero exit status.
 
-** always ** - Always restart the container reguardless of the exit status.
+** always ** - Always restart the container regardless of the exit status.
 
 You can also specify the maximum amount of times Docker will try to
 restart the container when using the ** on-failure ** policy.  The
@@ -1479,9 +1574,9 @@ them to [*Share Images via Repositories*](
 The `docker unpause` command uses the cgroups freezer to un-suspend all
 processes in a container.
 
-See the [cgroups freezer documentation]
-(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
-further details.
+See the 
+[cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
+for further details.
 
 ## version
 

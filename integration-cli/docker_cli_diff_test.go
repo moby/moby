@@ -85,7 +85,7 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 
 	for _, line := range strings.Split(out, "\n") {
 		if line != "" && !expected[line] {
-			t.Errorf("'%s' is shown in the diff but shouldn't", line)
+			t.Errorf("%q is shown in the diff but shouldn't", line)
 		}
 	}
 

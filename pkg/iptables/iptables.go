@@ -4,11 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/pkg/log"
 )
 
 type Action string
@@ -175,9 +176,7 @@ func Raw(args ...string) ([]byte, error) {
 		args = append([]string{"--wait"}, args...)
 	}
 
-	if os.Getenv("DEBUG") != "" {
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s, %v\n", path, args))
-	}
+	log.Debugf("%s, %v", path, args)
 
 	output, err := exec.Command(path, args...).CombinedOutput()
 	if err != nil {

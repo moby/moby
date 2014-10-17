@@ -9,28 +9,6 @@ GitHub](https://github.com/docker/docker) thanks to post-commit hooks. The
 `docs` branch maps to the "latest" documentation and the `master` (unreleased
 development) branch maps to the "master" documentation.
 
-## Branches
-
-**There are two branches related to editing docs**: `master` and a `docs`
-branch. You should always edit documentation on a local branch of the `master`
-branch, and send a PR against `master`.
-
-That way your fixes will automatically get included in later releases, and docs
-maintainers can easily cherry-pick your changes into the `docs` release branch.
-In the rare case where your change is not forward-compatible, you may need to
-base your changes on the `docs` branch.
-
-Also, now that we have a `docs` branch, we can keep the
-[http://docs.docker.com](http://docs.docker.com) docs up to date with any bugs
-found between Docker code releases.
-
-**Warning**: When *reading* the docs, the
-[http://docs-stage.docker.com](http://docs-stage.docker.com) documentation may
-include features not yet part of any official Docker release. The `beta-docs`
-site should be used only for understanding bleeding-edge development and
-`docs.docker.com` (which points to the `docs` branch`) should be used for the
-latest official release.
-
 ## Contributing
 
 - Follow the contribution guidelines ([see
@@ -46,10 +24,20 @@ changes.
 
 In the root of the `docker` source directory:
 
-    make docs
+    $ make docs
+    .... (lots of output) ....
+    $ docker run --rm -it  -e AWS_S3_BUCKET -p 8000:8000 "docker-docs:master" mkdocs serve
+    Running at: http://0.0.0.0:8000/
+    Live reload enabled.
+    Hold ctrl+c to quit.
 
 If you have any issues you need to debug, you can use `make docs-shell` and then
 run `mkdocs serve`
+
+## Adding a new document
+
+New document (`.md`) files are added to the documentation builds by adding them
+to the menu definition in the `docs/mkdocs.yml` file.
 
 ## Style guide
 
@@ -82,6 +70,28 @@ there can be some differences between GitHub Markdown and [MkDocs
 Markdown](http://www.mkdocs.org/user-guide/writing-your-docs/)).  Just be
 careful not to create many commits. And you must still [sign your
 work!](../CONTRIBUTING.md#sign-your-work)
+
+## Branches
+
+**There are two branches related to editing docs**: `master` and a `docs`
+branch. You should always edit the documentation on a local branch of the `master`
+branch, and send a PR against `master`.
+
+That way your edits will automatically get included in later releases, and docs
+maintainers can easily cherry-pick your changes into the `docs` release branch.
+In the rare case where your change is not forward-compatible, you may need to
+base your changes on the `docs` branch.
+
+Also, now that we have a `docs` branch, we can keep the
+[http://docs.docker.com](http://docs.docker.com) docs up to date with any bugs
+found between Docker code releases.
+
+> **Warning**: When *reading* the docs, the
+> [http://docs-stage.docker.com](http://docs-stage.docker.com) documentation may
+> include features not yet part of any official Docker release. The `beta-docs`
+> site should be used only for understanding bleeding-edge development and
+> `docs.docker.com` (which points to the `docs` branch`) should be used for the
+> latest official release.
 
 ## Publishing Documentation
 

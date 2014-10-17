@@ -14,6 +14,7 @@ RUN echo hello \
 goodbye\
 frog
 RUN echo hello  \  
+world
 RUN echo hi \
  \
  world \
@@ -26,3 +27,10 @@ frog
 RUN echo good\
 bye\
 frog
+
+RUN echo hello \
+# this is a comment
+
+# this is a comment with a blank line surrounding it
+
+this is some more useful stuff

@@ -4,9 +4,12 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 # Docker Remote API
 
- - The Remote API is replacing `rcli`.
  - By default the Docker daemon listens on `unix:///var/run/docker.sock`
    and the client must have `root` access to interact with the daemon.
+ - If the Docker daemon is set to use an encrypted TCP socket (`--tls`,
+   or `--tlsverify`) as with Boot2Docker 1.3.0, then you need to add extra
+   parameters to `curl` when making test API requests:
+   `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
  - The API tends to be REST, but for some complex commands, like attach
