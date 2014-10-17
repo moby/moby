@@ -1071,7 +1071,8 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.")
+	cmd := cli.Subcmd("import", "URL|- [OPTIONS] [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.")
+	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1089,6 +1090,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	v.Set("fromSrc", src)
 	v.Set("repo", repository)
+	v.Set("comment", *flComment)
 
 	if cmd.NArg() == 3 {
 		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")

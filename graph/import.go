@@ -46,7 +46,11 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		defer progressReader.Close()
 		archive = progressReader
 	}
-	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, nil)
+	comment := job.Getenv("comment")
+	if comment == "" {
+		comment = "Imported from " + src
+	}
+	img, err := s.graph.Create(archive, "", "", comment, "", nil, nil)
 	if err != nil {
 		return job.Error(err)
 	}
