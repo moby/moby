@@ -457,7 +457,7 @@ Next we can see each instruction in the `Dockerfile` being executed
 step-by-step. We can see that each step creates a new container, runs
 the instruction inside that container and then commits that change -
 just like the `docker commit` work flow we saw earlier. When all the
-instructions have executed we're left with the `324104cde6ad` image
+instructions have executed we're left with the `97feabe5d2ed` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
