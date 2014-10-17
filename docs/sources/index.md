@@ -77,8 +77,8 @@ The [Understanding Docker section](introduction/understanding-docker.md) will he
 
 ### Installation Guides
 
-The [installation section](/installation/#installation) will show you how to install
-Docker on a variety of platforms.
+The [installation section](/installation/#installation) will show you how to
+install Docker on a variety of platforms.
 
 
 ### Docker User Guide
@@ -91,14 +91,17 @@ implementation, check out the [Docker User Guide](/userguide/).
 **Version 1.3.0**
 
 This version fixes a number of bugs and issues and adds new functions and other
-improvements. These include:
+improvements. The [GitHub 1.3 milestone](https://github.com/docker/docker/issues?q=milestone%3A1.3.0+) has
+more detailed information. Major additions and changes include:
 
 *New command: `docker exec`*
 
 The new `docker exec` command lets you run a process in an existing, active
 container. The command has APIs for both the daemon and the client. With
-`docker exec`, you'll be able to do things like add or remove devices from running containers, debug running containers, and run commands that are not
-part of the container's static specification.
+`docker exec`, you'll be able to do things like add or remove devices from
+running containers, debug running containers, and run commands that are not
+part of the container's static specification. Details in the [command line
+reference](/reference/commandline/cli/#exec).
 
 *New command: `docker create`*
 
@@ -109,6 +112,7 @@ provides more control over management of the container lifecycle, giving you the
 ability to configure things like volumes or port mappings before the container
 is started. For example, in a rapid-response scaling situation, you could use
 `create` to prepare and stage ten containers in anticipation of heavy loads.
+Details in the [command line reference](/reference/commandline/cli/#create).
 
 *Tech preview of new provenance features*
 
@@ -127,7 +131,20 @@ regular, unsigned image.
 
 *Other improvements & changes*
 
-We've added a new security options flag that lets you set SELinux and AppArmor
-labels and profiles. This means you'll no longer have to use `docker run
---privileged` on kernels that support SE Linux or AppArmor.
+* We've added a new security options flag to the `docker run` command,
+`--security-opt`, that lets you set SELinux and AppArmor labels and profiles.
+This means you'll  no longer have to use `docker run --privileged` on kernels
+that support SE Linux or AppArmor. For more information, see the
+[command line reference](/reference/commandline/cli/#run).
 
+* A new flag, `--add-host`, has been added to `docker run` that lets you add
+lines to `/etc/hosts`. This allows you to specify different name
+resolution for the container than it would get via DNS. For more information,
+see the [command line reference](/reference/commandline/cli/#run).
+
+* You can now set a `DOCKER_TLS_VERIFY` environment variable to secure
+connections by default (rather than having to pass the `--tlsverify` flag on
+every call). For more information, see the [https guide](/articles/https).
+
+* Three security issues have been addressed in this release: [CVE-2014-5280,
+CVE-2014-5270, and CVE-2014-5282](https://groups.google.com/forum/#!msg/docker-announce/aQoVmQlcE0A/smPuBNYf8VwJ).
