@@ -2907,3 +2907,22 @@ RUN echo 123`,
 
 	logDone("build - verbose output from commands")
 }
+
+func TestBuildWithTabs(t *testing.T) {
+	name := "testbuildwithtabs"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		"FROM busybox\nRUN echo\tone\t\ttwo", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectFieldJSON(name, "ContainerConfig.Cmd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "[\"/bin/sh\",\"-c\",\"echo\\u0009one\\u0009\\u0009two\"]"
+	if res != expected {
+		t.Fatalf("Missing tabs.\nGot:%s\nExp:%s", res, expected)
+	}
+	logDone("build - with tabs")
+}
