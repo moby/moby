@@ -304,13 +304,40 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 }
 
 func TestBuildCopyAddMultipleFiles(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testaddimg", "MultipleFiles"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopymultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN mkdir /exists
+RUN touch /exists/exists_file
+RUN chown -R dockerio.dockerio /exists
+COPY test_file1 test_file2 /exists/
+ADD test_file3 test_file4 https://docker.com/robots.txt /exists/
+RUN [ $(ls -l / | grep exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/test_file1 | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /exists/test_file2 | awk '{print $3":"$4}') = 'root:root' ]
+
+RUN [ $(ls -l /exists/test_file3 | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /exists/test_file4 | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /exists/robots.txt | awk '{print $3":"$4}') = 'root:root' ]
+
+RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+`,
+		map[string]string{
+			"test_file1": "test1",
+			"test_file2": "test2",
+			"test_file3": "test3",
+			"test_file4": "test4",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	deleteImages("testaddimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - mulitple file copy/add tests")
 }
 
@@ -609,151 +636,205 @@ ADD . /`,
 }
 
 func TestBuildCopySingleFileToRoot(t *testing.T) {
-	testDirName := "SingleFileToRoot"
-	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
-	buildDirectory, err := ioutil.TempDir("", "test-build-add")
-	defer os.RemoveAll(buildDirectory)
-
-	err = copyWithCP(sourceDirectory, buildDirectory)
-	if err != nil {
-		t.Fatalf("failed to copy files to temporary directory: %s", err)
-	}
-
-	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	name := "testcopysinglefiletoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio /exists
+COPY test_file /
+RUN [ $(ls -l /test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /test_file | awk '{print $1}') = '-rw-r--r--' ]
+RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_file": "test1",
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
-
 	logDone("build - copy single file to root")
 }
 
 // Issue #3960: "ADD src ." hangs - adapted for COPY
 func TestBuildCopySingleFileToWorkdir(t *testing.T) {
-	testDirName := "SingleFileToWorkdir"
-	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
-	buildDirectory, err := ioutil.TempDir("", "test-build-add")
-	defer os.RemoveAll(buildDirectory)
-
-	err = copyWithCP(sourceDirectory, buildDirectory)
-	if err != nil {
-		t.Fatalf("failed to copy files to temporary directory: %s", err)
-	}
-
-	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	f, err := os.OpenFile(filepath.Join(buildDirectory, "test_file"), os.O_CREATE, 0644)
+	name := "testcopysinglefiletoworkdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+COPY test_file .`,
+		map[string]string{
+			"test_file": "test1",
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	if out, _, err := dockerCmdInDirWithTimeout(5*time.Second, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	done := make(chan struct{})
+	go func() {
+		if _, err := buildImageFromContext(name, ctx, true); err != nil {
+			t.Fatal(err)
+		}
+		close(done)
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Build with adding to workdir timed out")
+	case <-done:
 	}
-
-	deleteImages("testcopyimg")
-
 	logDone("build - copy single file to workdir")
 }
 
 func TestBuildCopySingleFileToExistDir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToExistDir"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopysinglefiletoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN mkdir /exists
+RUN touch /exists/exists_file
+RUN chown -R dockerio.dockerio /exists
+COPY test_file /exists/
+RUN [ $(ls -l / | grep exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy single file to existing dir")
 }
 
 func TestBuildCopySingleFileToNonExistDir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "SingleFileToNonExistDir"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopysinglefiletononexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio /exists
+COPY test_file /test_dir/
+RUN [ $(ls -l / | grep test_dir | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /test_dir/test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy single file to non-existing dir")
 }
 
 func TestBuildCopyDirContentToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToRoot"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopydircontenttoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio exists
+COPY test_dir /
+RUN [ $(ls -l /test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_dir/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy directory contents to root")
 }
 
 func TestBuildCopyDirContentToExistDir(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "DirContentToExistDir"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopydircontenttoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN mkdir /exists
+RUN touch /exists/exists_file
+RUN chown -R dockerio.dockerio /exists
+COPY test_dir/ /exists/
+RUN [ $(ls -l / | grep exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
+RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]`,
+		map[string]string{
+			"test_dir/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
-
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy directory contents to existing dir")
 }
 
 func TestBuildCopyWholeDirToRoot(t *testing.T) {
-	testDirName := "WholeDirToRoot"
-	sourceDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy", testDirName)
-	buildDirectory, err := ioutil.TempDir("", "test-build-add")
-	defer os.RemoveAll(buildDirectory)
-
-	err = copyWithCP(sourceDirectory, buildDirectory)
+	name := "testcopywholedirtoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio exists
+COPY test_dir /test_dir
+RUN [ $(ls -l / | grep test_dir | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l / | grep test_dir | awk '{print $1}') = 'drwxr-xr-x' ]
+RUN [ $(ls -l /test_dir/test_file | awk '{print $3":"$4}') = 'root:root' ]
+RUN [ $(ls -l /test_dir/test_file | awk '{print $1}') = '-rw-r--r--' ]
+RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
+		map[string]string{
+			"test_dir/test_file": "test1",
+		})
 	if err != nil {
-		t.Fatalf("failed to copy files to temporary directory: %s", err)
-	}
-
-	buildDirectory = filepath.Join(buildDirectory, testDirName)
-	testDir := filepath.Join(buildDirectory, "test_dir")
-	if err := os.MkdirAll(testDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	f, err := os.OpenFile(filepath.Join(testDir, "test_file"), os.O_CREATE, 0644)
-	if err != nil {
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "."); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
-	}
-
-	deleteImages("testcopyimg")
-
 	logDone("build - copy whole directory to root")
 }
 
 func TestBuildCopyEtcToRoot(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	if out, _, err := dockerCmdInDir(t, buildDirectory, "build", "-t", "testcopyimg", "EtcToRoot"); err != nil {
-		t.Fatalf("build failed to complete: %s, %v", out, err)
+	name := "testcopyetctoroot"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+COPY . /`,
+		map[string]string{
+			"etc/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	deleteImages("testcopyimg")
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
 	logDone("build - copy etc directory to root")
 }
 
 func TestBuildCopyDisallowRemote(t *testing.T) {
-	buildDirectory := filepath.Join(workingDirectory, "build_tests", "TestCopy")
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "testcopyimg", "DisallowRemote")
-	buildCmd.Dir = buildDirectory
-	if out, _, err := runCommandWithOutput(buildCmd); err == nil {
-		t.Fatalf("building the image should've failed; output: %s", out)
+	name := "testcopydisallowremote"
+	defer deleteImages(name)
+	_, out, err := buildImageWithOut(name, `FROM scratch
+COPY https://index.docker.io/robots.txt /`,
+		true)
+	if err == nil || !strings.Contains(out, "Source can't be a URL for COPY") {
+		t.Fatal("Error should be about disallowed remote source, got err: %s, out: %q", err, out)
 	}
-
-	deleteImages("testcopyimg")
 	logDone("build - copy - disallow copy from remote")
 }
 
