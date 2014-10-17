@@ -93,6 +93,8 @@ func main() {
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
+		// Avoid fallback to SSL protocols < TLS1.0
+		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
 	if *flTls || *flTlsVerify {
