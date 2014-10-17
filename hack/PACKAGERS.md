@@ -267,6 +267,7 @@ installed and available at runtime:
 
 * iptables version 1.4 or later
 * procps (or similar provider of a "ps" executable)
+* e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, mkfs.xfs, tune2fs)
 * XZ Utils version 4.9 or later
 * a [properly
   mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)
