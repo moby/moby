@@ -9,7 +9,7 @@ page_keywords: API, Docker, rcli, REST, documentation
  - If the Docker daemon is set to use an encrypted TCP socket (`--tls`,
    or `--tlsverify`) as with Boot2Docker 1.3.0, then you need to add extra
    parameters to `curl` when making test API requests:
-   `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
+   `curl --insecure --cert $DOCKER_CERT_PATH/cert.pem --key $DOCKER_CERT_PATH/key.pem https://boot2docker:2376/images/json`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
  - The API tends to be REST, but for some complex commands, like attach
