@@ -619,13 +619,13 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
+		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
 		if err != nil {
 			return err
 		}
 
 		env := engine.Env{}
-		if err := env.Decode(steam); err != nil {
+		if err := env.Decode(stream); err != nil {
 			return err
 		}
 		config := env.GetSubEnv("Config")
@@ -681,7 +681,16 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 				log.Errorf("Error monitoring TTY size: %s", err)
 			}
 		}
-		return <-cErr
+		if attchErr := <-cErr; attchErr != nil {
+			return attchErr
+		}
+		_, status, err := getExitCode(cli, cmd.Arg(0))
+		if err != nil {
+			return err
+		}
+		if status != 0 {
+			return &utils.StatusError{StatusCode: status}
+		}
 	}
 	return nil
 }
