@@ -87,9 +87,10 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error 
 		if err != nil {
 			return err
 		}
+		defer layerData.Close()
 
 		// Wrap with tarsum.
-		tarsumLayerData, err := tarsum.NewTarSum(layerData, true, tarsum.Version0)
+		tarsumLayerData, err := tarsum.NewTarSum(layerData, true, tarsum.VersionDev)
 		if err != nil {
 			return err
 		}
