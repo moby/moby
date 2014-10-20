@@ -55,6 +55,7 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 			return nil, err
 		}
 	}
+	path = filepath.Clean(path)
 
 	path, err = filepath.EvalSymlinks(path)
 	if err != nil {
@@ -126,7 +127,7 @@ func (r *Repository) get(path string) *Volume {
 	if err != nil {
 		return nil
 	}
-	return r.volumes[path]
+	return r.volumes[filepath.Clean(path)]
 }
 
 func (r *Repository) Add(volume *Volume) error {
@@ -160,7 +161,7 @@ func (r *Repository) Delete(path string) error {
 	if err != nil {
 		return err
 	}
-	volume := r.get(path)
+	volume := r.get(filepath.Clean(path))
 	if volume == nil {
 		return fmt.Errorf("Volume %s does not exist", path)
 	}
