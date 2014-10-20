@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -214,7 +215,12 @@ func TestTarWithOptions(t *testing.T) {
 // Failing prevents the archives from being uncompressed during ADD
 func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
 	hdr := tar.Header{Typeflag: tar.TypeXGlobalHeader}
-	err := createTarFile("pax_global_header", "some_dir", &hdr, nil, true)
+	tmpDir, err := ioutil.TempDir("", "docker-test-archive-pax-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,5 +407,189 @@ func BenchmarkTarUntarWithLinks(b *testing.B) {
 			b.Fatal(err)
 		}
 		os.RemoveAll(target)
+	}
+}
+
+func TestUntarInvalidFilenames(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{
+			{
+				Name:     "../victim/dotdot",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{
+			{
+				// Note the leading slash
+				Name:     "/../victim/slash-dotdot",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarInvalidFilenames", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestUntarInvalidHardlink(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{ // try reading victim/hello (../)
+			{
+				Name:     "dotdot",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (/../)
+			{
+				Name:     "slash-dotdot",
+				Typeflag: tar.TypeLink,
+				// Note the leading slash
+				Linkname: "/../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try writing victim/file
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim/file",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (hardlink, symlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "symlink",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // Try reading victim/hello (hardlink, hardlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "hardlink",
+				Typeflag: tar.TypeLink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // Try removing victim directory (hardlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarInvalidHardlink", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestUntarInvalidSymlink(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{ // try reading victim/hello (../)
+			{
+				Name:     "dotdot",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (/../)
+			{
+				Name:     "slash-dotdot",
+				Typeflag: tar.TypeSymlink,
+				// Note the leading slash
+				Linkname: "/../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try writing victim/file
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim/file",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (symlink, symlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "symlink",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (symlink, hardlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "hardlink",
+				Typeflag: tar.TypeLink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try removing victim directory (symlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarInvalidSymlink", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
 	}
 }

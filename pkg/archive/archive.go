@@ -42,6 +42,11 @@ type (
 	Archiver struct {
 		Untar func(io.Reader, string, *TarOptions) error
 	}
+
+	// breakoutError is used to differentiate errors related to breaking out
+	// When testing archive breakout in the unit tests, this error is expected
+	// in order for the test to pass.
+	breakoutError error
 )
 
 var (
