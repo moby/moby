@@ -89,7 +89,6 @@ func (opts *ListOpts) Delete(key string) {
 	}
 }
 
-
 // GetAll returns the values' slice.
 func (opts *ListOpts) GetAll() []string {
 	return (*opts.values)
