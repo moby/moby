@@ -89,19 +89,8 @@ func (opts *ListOpts) Delete(key string) {
 	}
 }
 
-// GetMap returns the content of values in a map in order to avoid
-// duplicates.
-// FIXME: can we remove this?
-func (opts *ListOpts) GetMap() map[string]struct{} {
-	ret := make(map[string]struct{})
-	for _, k := range *opts.values {
-		ret[k] = struct{}{}
-	}
-	return ret
-}
 
 // GetAll returns the values' slice.
-// FIXME: Can we remove this?
 func (opts *ListOpts) GetAll() []string {
 	return (*opts.values)
 }
