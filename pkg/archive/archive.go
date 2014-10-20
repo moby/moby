@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -292,11 +293,23 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeLink:
-		if err := os.Link(filepath.Join(extractDir, hdr.Linkname), path); err != nil {
+		targetPath := filepath.Join(extractDir, hdr.Linkname)
+		// check for hardlink breakout
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid hardlink %q -> %q", targetPath, hdr.Linkname))
+		}
+		if err := os.Link(targetPath, path); err != nil {
 			return err
 		}
 
 	case tar.TypeSymlink:
+		// check for symlink breakout
+		if _, err := symlink.FollowSymlinkInScope(filepath.Join(filepath.Dir(path), hdr.Linkname), extractDir); err != nil {
+			if _, ok := err.(symlink.ErrBreakout); ok {
+				return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
+			}
+			return err
+		}
 		if err := os.Symlink(hdr.Linkname, path); err != nil {
 			return err
 		}
@@ -456,6 +469,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
+	dest = filepath.Clean(dest)
+
 	if options == nil {
 		options = &TarOptions{}
 	}
@@ -493,6 +508,7 @@ loop:
 		}
 
 		// Normalize name, for safety and for a simple is-root check
+		// This keeps "../" as-is, but normalizes "/../" to "/"
 		hdr.Name = filepath.Clean(hdr.Name)
 
 		for _, exclude := range options.Excludes {
@@ -513,7 +529,11 @@ loop:
 			}
 		}
 
+		// Prevent symlink breakout
 		path := filepath.Join(dest, hdr.Name)
+		if !strings.HasPrefix(path, dest) {
+			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		}
 
 		// If path exits we almost always just want to remove and replace it
 		// The only exception is when it is a directory *and* the file from
