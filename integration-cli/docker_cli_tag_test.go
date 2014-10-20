@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -87,4 +88,43 @@ func TestTagValidPrefixedRepo(t *testing.T) {
 		logMessage := fmt.Sprintf("tag - busybox %v", repo)
 		logDone(logMessage)
 	}
+}
+
+// tag an image with an existed tag name without -f option should fail
+func TestTagExistedNameWithoutForce(t *testing.T) {
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+	}
+
+	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
+	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
+	out, _, err := runCommandWithOutput(tagCmd)
+	if err == nil || !strings.Contains(out, "Conflict: Tag test is already set to image") {
+		t.Fatal("tag busybox busybox:test should have failed,because busybox:test is existed")
+	}
+	deleteImages("busybox:test")
+
+	logDone("tag - busybox with an existed tag name without -f option --> must fail")
+}
+
+// tag an image with an existed tag name with -f option should work
+func TestTagExistedNameWithForce(t *testing.T) {
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+	}
+
+	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
+	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	tagCmd = exec.Command(dockerBinary, "tag", "-f", "busybox:latest", "busybox:test")
+	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	deleteImages("busybox:test")
+
+	logDone("tag - busybox with an existed tag name with -f option work")
 }
