@@ -28,7 +28,6 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		size        = job.GetenvBool("size")
 		psFilters   filters.Args
 		filt_exited []int
-		filt_status []string
 	)
 	outs := engine.NewTable("Created", 0)
 
@@ -45,8 +44,6 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			filt_exited = append(filt_exited, code)
 		}
 	}
-
-	filt_status, _ = psFilters["status"]
 
 	names := map[string][]string{}
 	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
@@ -76,6 +73,15 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if !container.Running && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
+
+		if !psFilters.Match("name", container.Name) {
+			return nil
+		}
+
+		if !psFilters.Match("id", container.ID) {
+			return nil
+		}
+
 		if before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
@@ -102,10 +108,9 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return nil
 			}
 		}
-		for _, status := range filt_status {
-			if container.State.StateString() != strings.ToLower(status) {
-				return nil
-			}
+
+		if !psFilters.Match("status", container.State.StateString()) {
+			return nil
 		}
 		displayed++
 		out := &engine.Env{}
