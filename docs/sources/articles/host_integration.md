@@ -4,12 +4,16 @@ page_keywords: systemd, upstart, supervisor, docker, documentation, host integra
 
 # Automatically Start Containers
 
-You can use your Docker containers with process managers like
+If you use `docker run --restart always`, the container will restart 
+after the docker daemon or the host restart.
+
+But you can use your Docker containers with process managers like
 `upstart`, `systemd` and `supervisor`.
 
 ## Introduction
 
-If you want a process manager to manage your containers you will need to
+If you want a process manager to manage your containers 
+(without `--restart always` during `docker run`), you will need to
 run the docker daemon with the `-r=false` so that docker will not
 automatically restart your containers when the host is restarted.
 
