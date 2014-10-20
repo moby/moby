@@ -56,7 +56,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 	case ConnectTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
 			// Set the connect timeout to 5 seconds
-			conn, err := net.DialTimeout(proto, addr, 5*time.Second)
+			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -66,7 +68,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 		}
 	case ReceiveTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			conn, err := net.Dial(proto, addr)
+			d := net.Dialer{DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
