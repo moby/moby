@@ -59,12 +59,8 @@ Create an empty file called `Dockerfile`:
     touch Dockerfile
 
 Open the `Dockerfile` in your favorite text editor
-and add the following line that defines the version of Docker the image
-requires to build (this example uses Docker 0.3.4):
 
-    # DOCKER-VERSION 0.3.4
-
-Next, define the parent image you want to use to build your own image on
+Define the parent image you want to use to build your own image on
 top of. Here, we'll use
 [CentOS](https://registry.hub.docker.com/_/centos/) (tag: `centos6`)
 available on the [Docker Hub](https://hub.docker.com/):
@@ -108,7 +104,6 @@ defines your runtime, i.e. `node`, and the path to our app, i.e. `src/index.js`
 
 Your `Dockerfile` should now look like this:
 
-    # DOCKER-VERSION 0.3.4
     FROM    centos:centos6
 
     # Enable EPEL for Node.js
