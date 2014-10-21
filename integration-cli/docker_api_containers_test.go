@@ -16,20 +16,21 @@ func TestContainerApiGetAll(t *testing.T) {
 		t.Fatalf("Cannot query container count: %v", err)
 	}
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	name := "getall"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
-
-	testContainerId := stripTrailingCharacters(out)
 
 	body, err := sockRequest("GET", "/containers/json?all=1")
 	if err != nil {
 		t.Fatalf("GET all containers sockRequest failed: %v", err)
 	}
 
-	var inspectJSON []map[string]interface{}
+	var inspectJSON []struct {
+		Names []string
+	}
 	if err = json.Unmarshal(body, &inspectJSON); err != nil {
 		t.Fatalf("unable to unmarshal response body: %v", err)
 	}
@@ -37,8 +38,9 @@ func TestContainerApiGetAll(t *testing.T) {
 	if len(inspectJSON) != startCount+1 {
 		t.Fatalf("Expected %d container(s), %d found (started with: %d)", startCount+1, len(inspectJSON), startCount)
 	}
-	if id, _ := inspectJSON[0]["Id"]; id != testContainerId {
-		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", testContainerId, id)
+
+	if actual := inspectJSON[0].Names[0]; actual != "/"+name {
+		t.Fatalf("Container Name mismatch. Expected: %q, received: %q\n", "/"+name, actual)
 	}
 
 	deleteAllContainers()
@@ -47,15 +49,14 @@ func TestContainerApiGetAll(t *testing.T) {
 }
 
 func TestContainerApiGetExport(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "touch", "/test")
+	name := "exportcontainer"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 
-	testContainerId := stripTrailingCharacters(out)
-
-	body, err := sockRequest("GET", "/containers/"+testContainerId+"/export")
+	body, err := sockRequest("GET", "/containers/"+name+"/export")
 	if err != nil {
 		t.Fatalf("GET containers/export sockRequest failed: %v", err)
 	}
@@ -84,15 +85,14 @@ func TestContainerApiGetExport(t *testing.T) {
 }
 
 func TestContainerApiGetChanges(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "rm", "/etc/passwd")
+	name := "changescontainer"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 
-	testContainerId := stripTrailingCharacters(out)
-
-	body, err := sockRequest("GET", "/containers/"+testContainerId+"/changes")
+	body, err := sockRequest("GET", "/containers/"+name+"/changes")
 	if err != nil {
 		t.Fatalf("GET containers/changes sockRequest failed: %v", err)
 	}
