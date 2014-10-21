@@ -151,18 +151,13 @@ earlier. The `--link` flag takes the form:
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.
 
-Next, look at the names of your linked containers by filtering the full output of
-`docker ps` to the last column (NAMES) using `docker ps --no-trunc | awk '{print $NF}'`.
+Next, inspect your linked containers with `docker inspect`:
 
-    $ sudo docker ps --no-trunc | awk '{print $NF}'
-    NAMES
-    db, web/db
-    web
+    $ sudo docker inspect -f "{{ .HostConfig.Links }}" web
+    [/db:/web/db]
 
-You can see your named containers, `db` and `web`, and you can see that the `db`
-container also shows `web/db` in the `NAMES` column. This tells you that the
-`web` container is linked to the `db` container, which allows it to access information
-about the `db` container.
+You can see that the `web` container is now linked to the `db` container
+`web/db`. Which allows it to access information about the `db` container.
 
 So what does linking the containers actually do? You've learned that a link creates a
 source container that can provide information about itself to a recipient container. In
