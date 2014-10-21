@@ -19,11 +19,11 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 	)
 
 	if container == nil {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 
 	if container.IsRunning() {
-		return job.Errorf("Container already started")
+		return engine.NotModifiedError("Container already started")
 	}
 
 	// If no environment was set, then no hostconfig was passed.

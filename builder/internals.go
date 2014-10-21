@@ -110,7 +110,7 @@ type copyInfo struct {
 
 func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
-		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
+		return engine.StatusNotAcceptable("No context given. Impossible to use " + cmdName)
 	}
 
 	if len(args) < 2 {

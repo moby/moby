@@ -150,7 +150,7 @@ func getContainer(eng *engine.Engine, id string, t log.Fataler) *daemon.Containe
 	daemon := mkDaemonFromEngine(eng, t)
 	c := daemon.Get(id)
 	if c == nil {
-		t.Fatal(fmt.Errorf("No such container: %s", id))
+		t.Fatal(engine.NotFoundError{Type: "container", Id: id})
 	}
 	return c
 }

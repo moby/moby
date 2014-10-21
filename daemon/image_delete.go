@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/docker/docker/engine"
@@ -20,7 +19,7 @@ func (daemon *Daemon) ImageDelete(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	if len(imgs.Data) == 0 {
-		return job.Errorf("Conflict, %s wasn't deleted", job.Args[0])
+		return engine.ConflictError(job.Args[0] + " wasn't deleted due to conflict")
 	}
 	if _, err := imgs.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
@@ -44,9 +43,9 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 	img, err := daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if r, _ := daemon.Repositories().Get(repoName); r != nil {
-			return fmt.Errorf("No such image: %s:%s", repoName, tag)
+			return engine.NotFoundError{Type: "image", Id: repoName + ":" + tag}
 		}
-		return fmt.Errorf("No such image: %s", name)
+		return engine.NotFoundError{Type: "image", Id: name}
 	}
 
 	if strings.Contains(img.ID, name) {
@@ -73,7 +72,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 			} else if repoName != parsedRepo && !force {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
-				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
+				return engine.ConflictError(name + " wasn't deleted because it is tagged in multiple repositories, use -f to force")
 			}
 		}
 	} else {
@@ -138,13 +137,14 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 
 		if err := parent.WalkHistory(func(p *image.Image) error {
 			if imgID == p.ID {
+				msg := "cannot delete " + utils.TruncateID(imgID) + " because the container " + utils.TruncateID(container.ID) + " is using it"
 				if container.IsRunning() {
 					if force {
-						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+						return engine.ConflictError(msg + ", stop it and retry")
 					}
-					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return engine.ConflictError(msg + ", stop it and use -f to force")
 				} else if !force {
-					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return engine.ConflictError(msg + ", use -f to force")
 				}
 			}
 			return nil

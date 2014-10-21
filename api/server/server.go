@@ -87,29 +87,38 @@ func parseMultipartForm(r *http.Request) error {
 	return nil
 }
 
-func httpError(w http.ResponseWriter, err error) {
+func httpError(w http.ResponseWriter, r *http.Request, err error) {
 	statusCode := http.StatusInternalServerError
 	// FIXME: this is brittle and should not be necessary.
 	// If we need to differentiate between different possible error types, we should
 	// create appropriate error types with clearly defined meaning.
-	if strings.Contains(err.Error(), "No such") {
+	switch err := err.(type) {
+	case engine.RedirectError:
+		//redirect := engine.RedirectError(err)
+		statusCode = http.StatusTemporaryRedirect
+		location := err.Target.String() + r.URL.Path + "?" + r.URL.RawQuery
+		log.Infof("HTTP Redirect: statusCode=%d, location=%s", statusCode, location)
+		http.Redirect(w, r, location, http.StatusTemporaryRedirect)
+		return
+	case engine.NotFoundError:
 		statusCode = http.StatusNotFound
-	} else if strings.Contains(err.Error(), "Bad parameter") {
+	case engine.BadParameterError:
 		statusCode = http.StatusBadRequest
-	} else if strings.Contains(err.Error(), "Conflict") {
+	case engine.ConflictError:
 		statusCode = http.StatusConflict
-	} else if strings.Contains(err.Error(), "Impossible") {
+	case engine.NotPossibleError:
 		statusCode = http.StatusNotAcceptable
-	} else if strings.Contains(err.Error(), "Wrong login/password") {
+	case engine.AuthenticationError:
 		statusCode = http.StatusUnauthorized
-	} else if strings.Contains(err.Error(), "hasn't been activated") {
+	case engine.AccountDisabledError:
 		statusCode = http.StatusForbidden
+	// default case is generic error
+	default:
 	}
 
-	if err != nil {
-		log.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
-		http.Error(w, err.Error(), statusCode)
-	}
+	log.Errorf("HTTP Error: statusCode=%d, %s ", statusCode, err)
+	http.Error(w, err.Error(), statusCode)
+	return
 }
 
 func writeJSON(w http.ResponseWriter, code int, v engine.Env) error {
@@ -406,7 +415,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	// Validate args here, because we can't return not StatusOK after job.Run() call
 	stdout, stderr := logsJob.GetenvBool("stdout"), logsJob.GetenvBool("stderr")
 	if !(stdout || stderr) {
-		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+		return engine.BadParameterError("Bad parameters: you must choose at least one stream")
 	}
 	if err = inspectJob.Run(); err != nil {
 		return err
@@ -426,6 +435,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	logsJob.Stderr.Set(errStream)
 	if err := logsJob.Run(); err != nil {
 		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
+		return err
 	}
 	return nil
 }
@@ -1050,9 +1060,10 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
 		log.Errorf("%s", err.Error())
-		if strings.Contains(err.Error(), "No such container") {
-			w.WriteHeader(http.StatusNotFound)
+		if _, ok := err.(engine.NotFoundError); ok {
+			return err
 		} else if strings.Contains(err.Error(), "no such file or directory") {
+			// TODO: why isn't this a NotFoundError? seems like it should be BadParameter or NotFound
 			return fmt.Errorf("Could not find the file %s in container %s", origResource, vars["name"])
 		}
 	}
@@ -1205,7 +1216,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
 			log.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
-			httpError(w, err)
+			httpError(w, r, err)
 		}
 	}
 }

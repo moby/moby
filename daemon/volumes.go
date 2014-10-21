@@ -264,7 +264,7 @@ func parseVolumesFromSpec(daemon *Daemon, spec string) (map[string]*Mount, error
 
 	c := daemon.Get(specParts[0])
 	if c == nil {
-		return nil, fmt.Errorf("Container %s not found. Impossible to mount its volumes", specParts[0])
+		return nil, engine.StatusNotAcceptable("Container " + specParts[0] + " not found. Impossible to mount its volumes")
 	}
 
 	mounts := c.VolumeMounts()

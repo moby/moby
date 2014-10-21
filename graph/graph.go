@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
@@ -72,7 +73,13 @@ func (graph *Graph) restore() error {
 // FIXME: Implement error subclass instead of looking at the error text
 // Note: This is the way golang implements os.IsNotExists on Plan9
 func (graph *Graph) IsNotExist(err error) bool {
-	return err != nil && (strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "No such"))
+	// TODO: check the "does not exist" clause is correctly mapped to NotFoundError
+	if err == nil {
+		return false
+	}
+
+	_, t := err.(engine.NotFoundError)
+	return t
 }
 
 // Exists returns true if an image is registered at the given id.
@@ -88,7 +95,7 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, err
+		return nil, engine.NotFoundError{Type: "image", Id: name, Detail: err.Error()}
 	}
 	img, err := image.LoadImage(graph.ImageRoot(id))
 	if err != nil {

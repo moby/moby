@@ -26,7 +26,7 @@ func (daemon *Daemon) ContainerChanges(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 	} else {
-		return job.Errorf("No such container: %s", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	return engine.StatusOK
 }

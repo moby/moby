@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerRestart(job *engine.Job) engine.Status {
 		}
 		container.LogEvent("restart")
 	} else {
-		return job.Errorf("No such container: %s\n", name)
+		return engine.NotFoundError{Type: "container", Id: name}
 	}
 	return engine.StatusOK
 }
