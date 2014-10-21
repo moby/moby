@@ -15,6 +15,41 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildOnBuildLowercase(t *testing.T) {
+	name := "testbuildonbuildlowercase"
+	name2 := "testbuildonbuildlowercase2"
+
+	defer deleteImages(name, name2)
+
+	_, err := buildImage(name,
+		`
+  FROM busybox
+  onbuild run echo quux
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, out, err := buildImageWithOut(name2, fmt.Sprintf(`
+  FROM %s
+  `, name), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "quux") {
+		t.Fatalf("Did not receive the expected echo text, got %s", out)
+	}
+
+	if strings.Contains(out, "ONBUILD ONBUILD") {
+		t.Fatalf("Got an ONBUILD ONBUILD error with no error: got %s", out)
+	}
+
+	logDone("build - handle case-insensitive onbuild statement")
+}
+
 func TestBuildEnvEscapes(t *testing.T) {
 	name := "testbuildenvescapes"
 	defer deleteAllContainers()
