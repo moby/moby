@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	testHttpServer *httptest.Server
+	testHTTPServer *httptest.Server
 	testLayers     = map[string]map[string]string{
 		"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20": {
 			"json": `{"id":"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
@@ -99,7 +99,7 @@ func init() {
 	// /v2/
 	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
 
-	testHttpServer = httptest.NewServer(handlerAccessLog(r))
+	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 }
 
 func handlerAccessLog(handler http.Handler) http.Handler {
@@ -111,7 +111,7 @@ func handlerAccessLog(handler http.Handler) http.Handler {
 }
 
 func makeURL(req string) string {
-	return testHttpServer.URL + req
+	return testHTTPServer.URL + req
 }
 
 func writeHeaders(w http.ResponseWriter) {
@@ -198,8 +198,8 @@ func handlerGetImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeHeaders(w)
-	layer_size := len(layer["layer"])
-	w.Header().Add("X-Docker-Size", strconv.Itoa(layer_size))
+	layerSize := len(layer["layer"])
+	w.Header().Add("X-Docker-Size", strconv.Itoa(layerSize))
 	io.WriteString(w, layer[vars["action"]])
 }
 
@@ -208,16 +208,16 @@ func handlerPutImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	image_id := vars["image_id"]
+	imageID := vars["image_id"]
 	action := vars["action"]
-	layer, exists := testLayers[image_id]
+	layer, exists := testLayers[imageID]
 	if !exists {
 		if action != "json" {
 			http.NotFound(w, r)
 			return
 		}
 		layer = make(map[string]string)
-		testLayers[image_id] = layer
+		testLayers[imageID] = layer
 	}
 	if checksum := r.Header.Get("X-Docker-Checksum"); checksum != "" {
 		if checksum != layer["checksum_simple"] && checksum != layer["checksum_tarsum"] {
@@ -301,7 +301,7 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerImages(w http.ResponseWriter, r *http.Request) {
-	u, _ := url.Parse(testHttpServer.URL)
+	u, _ := url.Parse(testHTTPServer.URL)
 	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
 	if r.Method == "PUT" {
@@ -317,9 +317,9 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	images := []map[string]string{}
-	for image_id, layer := range testLayers {
+	for imageID, layer := range testLayers {
 		image := make(map[string]string)
-		image["id"] = image_id
+		image["id"] = imageID
 		image["checksum"] = layer["checksum_tarsum"]
 		image["Tag"] = "latest"
 		images = append(images, image)

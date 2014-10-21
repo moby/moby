@@ -92,7 +92,7 @@ func httpError(w http.ResponseWriter, err error) {
 	// FIXME: this is brittle and should not be necessary.
 	// If we need to differentiate between different possible error types, we should
 	// create appropriate error types with clearly defined meaning.
-	if strings.Contains(err.Error(), "No such") {
+	if strings.Contains(err.Error(), "no such") {
 		statusCode = http.StatusNotFound
 	} else if strings.Contains(err.Error(), "Bad parameter") {
 		statusCode = http.StatusBadRequest
