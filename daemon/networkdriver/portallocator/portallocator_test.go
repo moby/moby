@@ -214,3 +214,19 @@ func TestPortAllocation(t *testing.T) {
 		t.Fatal("Requesting a dynamic port should never allocate a used port")
 	}
 }
+
+func TestNoDuplicateBPR(t *testing.T) {
+	defer reset()
+
+	if port, err := RequestPort(defaultIP, "tcp", BeginPortRange); err != nil {
+		t.Fatal(err)
+	} else if port != BeginPortRange {
+		t.Fatalf("Expected port %d got %d", BeginPortRange, port)
+	}
+
+	if port, err := RequestPort(defaultIP, "tcp", 0); err != nil {
+		t.Fatal(err)
+	} else if port == BeginPortRange {
+		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
+	}
+}

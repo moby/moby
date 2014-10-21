@@ -14,7 +14,7 @@ type portMap struct {
 
 func newPortMap() *portMap {
 	return &portMap{
-		p: map[int]struct{}{},
+		p:    map[int]struct{}{},
 		last: EndPortRange,
 	}
 }
