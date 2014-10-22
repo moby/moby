@@ -25,7 +25,7 @@ When considering a design proposal, we are looking for:
 * A description of the problem this design proposal solves
 * An issue -- not a pull request -- that describes what you will take action on
   * Please prefix your issue with `Proposal:` in the title
-* Please review [the existing Proposals](https://github.com/dotcloud/docker/issues?direction=asc&labels=Proposal&page=1&sort=created&state=open)
+* Please review [the existing Proposals](https://github.com/docker/docker/issues?direction=asc&labels=Proposal&page=1&sort=created&state=open)
   before reporting a new issue. You can always pair with someone if you both
   have the same idea.
 
