@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -254,8 +255,21 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		fmt.Fprintf(b.OutStream, "\n")
 		tmpFile.Close()
 
-		// Remove the mtime of the newly created tmp file
-		if err := system.UtimesNano(tmpFileName, make([]syscall.Timespec, 2)); err != nil {
+		// Set the mtime to the Last-Modified header value if present
+		// Otherwise just remove atime and mtime
+		times := make([]syscall.Timespec, 2)
+
+		lastMod := resp.Header.Get("Last-Modified")
+		if lastMod != "" {
+			mTime, err := http.ParseTime(lastMod)
+			// If we can't parse it then just let it default to 'zero'
+			// otherwise use the parsed time value
+			if err == nil {
+				times[1] = syscall.NsecToTimespec(mTime.UnixNano())
+			}
+		}
+
+		if err := system.UtimesNano(tmpFileName, times); err != nil {
 			return err
 		}
 
