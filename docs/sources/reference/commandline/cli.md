@@ -1226,6 +1226,9 @@ specified image, and then `starts` it using the specified command. That is,
 previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
 
+There is detailed infortmation about `docker run` in the [Docker run reference](
+/reference/run/).
+
 The `docker run` command can be used in combination with `docker commit` to
 [*change the command that a container runs*](#commit-an-existing-container).
 
