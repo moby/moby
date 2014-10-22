@@ -2266,7 +2266,7 @@ func TestRunRedirectStdout(t *testing.T) {
 		}()
 
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(2 * time.Second):
 			t.Fatal("command timeout")
 		case <-ch:
 		}
