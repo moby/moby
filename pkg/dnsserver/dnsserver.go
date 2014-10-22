@@ -167,22 +167,6 @@ func (ds *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 					answers = append(answers, record)
 				}
 			}
-		case dns.TypeANY:
-			// in the ANY case we return all records that match. In practice, this'll never
-			// return both A and SRV.
-
-			a := ds.GetA(question.Name)
-			if a != nil {
-				answers = append(answers, a)
-			}
-
-			srv := ds.GetSRV(question.Name)
-
-			if srv != nil {
-				for _, record := range srv {
-					answers = append(answers, record)
-				}
-			}
 		}
 	}
 
