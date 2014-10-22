@@ -4,7 +4,16 @@
 FROM 		debian:jessie
 MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-RUN 	apt-get update && apt-get install -y make python-pip python-setuptools vim-tiny git gettext python-dev libssl-dev
+RUN apt-get update && apt-get install -y \
+    gettext \
+    git \
+    libssl-dev \
+    make \
+    python-dev \
+    python-pip \
+    python-setuptools \
+    vim-tiny \
+    --no-install-recommends
 
 RUN	pip install mkdocs
 
