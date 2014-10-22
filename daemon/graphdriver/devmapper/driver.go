@@ -43,7 +43,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home:      home,
 	}
 
-	return d, nil
+	return graphdriver.NaiveDiffDriver(d), nil
 }
 
 func (d *Driver) String() string {
@@ -62,6 +62,9 @@ func (d *Driver) Status() [][2]string {
 		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Total)))},
 		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Used)))},
 		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Total)))},
+	}
+	if vStr, err := GetLibraryVersion(); err == nil {
+		status = append(status, [2]string{"Library Version", vStr})
 	}
 	return status
 }

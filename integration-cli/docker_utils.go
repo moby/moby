@@ -44,11 +44,11 @@ func NewDaemon(t *testing.T) *Daemon {
 	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().Unix()))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
-		t.Fatal("Could not make '%s' an absolute path: %v", dir, err)
+		t.Fatalf("Could not make %q an absolute path: %v", dir, err)
 	}
 
 	if err := os.MkdirAll(filepath.Join(daemonFolder, "graph"), 0600); err != nil {
-		t.Fatal("Could not create %s/graph directory", daemonFolder)
+		t.Fatalf("Could not create %s/graph directory", daemonFolder)
 	}
 
 	return &Daemon{
@@ -92,7 +92,7 @@ func (d *Daemon) Start(arg ...string) error {
 	d.cmd.Stderr = d.logFile
 
 	if err := d.cmd.Start(); err != nil {
-		return fmt.Errorf("Could not start daemon container: %v", err)
+		return fmt.Errorf("could not start daemon container: %v", err)
 	}
 
 	wait := make(chan error)
@@ -172,7 +172,7 @@ func (d *Daemon) StartWithBusybox(arg ...string) error {
 // instantiate a new one with NewDaemon.
 func (d *Daemon) Stop() error {
 	if d.cmd == nil || d.wait == nil {
-		return errors.New("Daemon not started")
+		return errors.New("daemon not started")
 	}
 
 	defer func() {
@@ -184,7 +184,7 @@ func (d *Daemon) Stop() error {
 	tick := time.Tick(time.Second)
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-		return fmt.Errorf("Could not send signal: %v", err)
+		return fmt.Errorf("could not send signal: %v", err)
 	}
 out:
 	for {
@@ -197,7 +197,7 @@ out:
 		case <-tick:
 			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i+1, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-				return fmt.Errorf("Could not send signal: %v", err)
+				return fmt.Errorf("could not send signal: %v", err)
 			}
 			i++
 		}
@@ -267,7 +267,7 @@ func deleteContainer(container string) error {
 	killSplitArgs := strings.Split(killArgs, " ")
 	killCmd := exec.Command(dockerBinary, killSplitArgs...)
 	runCommand(killCmd)
-	rmArgs := fmt.Sprintf("rm %v", container)
+	rmArgs := fmt.Sprintf("rm -v %v", container)
 	rmSplitArgs := strings.Split(rmArgs, " ")
 	rmCmd := exec.Command(dockerBinary, rmSplitArgs...)
 	exitCode, err := runCommand(rmCmd)
@@ -302,8 +302,8 @@ func deleteAllContainers() error {
 	return nil
 }
 
-func deleteImages(images string) error {
-	rmiCmd := exec.Command(dockerBinary, "rmi", images)
+func deleteImages(images ...string) error {
+	rmiCmd := exec.Command(dockerBinary, "rmi", strings.Join(images, " "))
 	exitCode, err := runCommand(rmiCmd)
 	// set error manually if not set
 	if exitCode != 0 && err == nil {
@@ -317,7 +317,7 @@ func imageExists(image string) error {
 	inspectCmd := exec.Command(dockerBinary, "inspect", image)
 	exitCode, err := runCommand(inspectCmd)
 	if exitCode != 0 && err == nil {
-		err = fmt.Errorf("couldn't find image '%s'", image)
+		err = fmt.Errorf("couldn't find image %q", image)
 	}
 	return err
 }
@@ -328,7 +328,7 @@ func pullImageIfNotExist(image string) (err error) {
 		_, exitCode, err := runCommandWithOutput(pullCmd)
 
 		if err != nil || exitCode != 0 {
-			err = fmt.Errorf("image '%s' wasn't found locally and it couldn't be pulled: %s", image, err)
+			err = fmt.Errorf("image %q wasn't found locally and it couldn't be pulled: %s", image, err)
 		}
 	}
 	return
@@ -341,7 +341,18 @@ func cmd(t *testing.T, args ...string) (string, int, error) {
 
 func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		t.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
+	}
+	return out, status, err
+}
+
+// execute a docker ocmmand with a timeout
+func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
+	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
+	if err != nil {
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
 	return out, status, err
 }
 
@@ -350,11 +361,24 @@ func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, err
 	dockerCommand := exec.Command(dockerBinary, args...)
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutput(dockerCommand)
-	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
 	return out, status, err
 }
 
-func findContainerIp(t *testing.T, id string) string {
+// execute a docker command in a directory with a timeout
+func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...string) (string, int, error) {
+	dockerCommand := exec.Command(dockerBinary, args...)
+	dockerCommand.Dir = path
+	out, status, err := runCommandWithOutputAndTimeout(dockerCommand, timeout)
+	if err != nil {
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+	}
+	return out, status, err
+}
+
+func findContainerIP(t *testing.T, id string) string {
 	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -416,6 +440,9 @@ func (f *FakeContext) Close() error {
 func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
 	tmp, err := ioutil.TempDir("", "fake-context")
 	if err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(tmp, 0755); err != nil {
 		return nil, err
 	}
 	ctx := &FakeContext{tmp}
@@ -482,8 +509,48 @@ func inspectFieldJSON(name, field string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+func inspectFieldMap(name, path, field string) (string, error) {
+	format := fmt.Sprintf("{{index .%s %q}}", path, field)
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
+}
+
+// getContainerState returns the exit code of the container
+// and true if it's running
+// the exit code should be ignored if it's running
+func getContainerState(t *testing.T, id string) (int, bool, error) {
+	var (
+		exitStatus int
+		running    bool
+	)
+	out, exitCode, err := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
+	if err != nil || exitCode != 0 {
+		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, err)
+	}
+
+	out = strings.Trim(out, "\n")
+	splitOutput := strings.Split(out, " ")
+	if len(splitOutput) != 2 {
+		return 0, false, fmt.Errorf("failed to get container state: output is broken")
+	}
+	if splitOutput[0] == "true" {
+		running = true
+	}
+	if n, err := strconv.Atoi(splitOutput[1]); err == nil {
+		exitStatus = n
+	} else {
+		return 0, false, fmt.Errorf("failed to get container state: couldn't parse integer")
+	}
+
+	return exitStatus, running, nil
 }
 
 func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
@@ -570,17 +637,17 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	defer os.Chdir(curdir)
 
 	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("Error trying to init repo: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to init repo: %s (%s)", err, output)
 	}
 	err = os.Chdir(ctx.Dir)
 	if err != nil {
 		return nil, err
 	}
 	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("Error trying to add files to repo: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to add files to repo: %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("Error trying to commit to repo: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to commit to repo: %s (%s)", err, output)
 	}
 
 	root, err := ioutil.TempDir("", "docker-test-git-repo")
@@ -590,7 +657,7 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	repoPath := filepath.Join(root, name+".git")
 	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		return nil, fmt.Errorf("Error trying to clone --bare: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to clone --bare: %s (%s)", err, output)
 	}
 	err = os.Chdir(repoPath)
 	if err != nil {
@@ -599,7 +666,7 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	}
 	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		return nil, fmt.Errorf("Error trying to git update-server-info: %s (%s)", err, output)
+		return nil, fmt.Errorf("error trying to git update-server-info: %s (%s)", err, output)
 	}
 	err = os.Chdir(curdir)
 	if err != nil {

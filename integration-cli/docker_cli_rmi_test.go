@@ -1,19 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
 )
 
-func TestImageRemoveWithContainerFails(t *testing.T) {
+func TestRmiWithContainerFails(t *testing.T) {
 	errSubstr := "is using it"
 
 	// create a container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to create a container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to create a container: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
@@ -38,7 +39,7 @@ func TestImageRemoveWithContainerFails(t *testing.T) {
 	logDone("rmi- container using image while rmi, should not remove image name")
 }
 
-func TestImageTagRemove(t *testing.T) {
+func TestRmiTag(t *testing.T) {
 	imagesBefore, _, _ := cmd(t, "images", "-a")
 	cmd(t, "tag", "busybox", "utest:tag1")
 	cmd(t, "tag", "busybox", "utest/docker:tag2")
@@ -74,4 +75,27 @@ func TestImageTagRemove(t *testing.T) {
 
 	}
 	logDone("tag,rmi- tagging the same images multiple times then removing tags")
+}
+
+func TestRmiTagWithExistingContainers(t *testing.T) {
+	container := "test-delete-tag"
+	newtag := "busybox:newtag"
+	bb := "busybox:latest"
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", bb, newtag)); err != nil {
+		t.Fatalf("Could not tag busybox: %v: %s", err, out)
+	}
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", container, bb, "/bin/true")); err != nil {
+		t.Fatalf("Could not run busybox: %v: %s", err, out)
+	}
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rmi", newtag))
+	if err != nil {
+		t.Fatalf("Could not remove tag %s: %v: %s", newtag, err, out)
+	}
+	if d := strings.Count(out, "Untagged: "); d != 1 {
+		t.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("rmi - delete tag with existing containers")
 }

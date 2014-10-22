@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/syncpipe"
@@ -94,6 +95,10 @@ func FinalizeSetns(container *libcontainer.Config, args []string) error {
 
 	if err := FinalizeNamespace(container); err != nil {
 		return err
+	}
+
+	if err := apparmor.ApplyProfile(container.AppArmorProfile); err != nil {
+		return fmt.Errorf("set apparmor profile %s: %s", container.AppArmorProfile, err)
 	}
 
 	if container.ProcessLabel != "" {

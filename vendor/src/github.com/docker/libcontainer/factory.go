@@ -12,13 +12,13 @@ type Factory interface {
 	// Returns the new container with a running process.
 	//
 	// Errors:
-	// id is already in use by a container
-	// id has incorrect format
-	// config is invalid
-	// System error
+	// IdInUse - id is already in use by a container
+	// InvalidIdFormat - id has incorrect format
+	// ConfigInvalid - config is invalid
+	// SystemError - System error
 	//
 	// On error, any partially created container parts are cleaned up (the operation is atomic).
-	Create(id string, config *Config) (Container, error)
+	Create(id string, config *Config) (Container, Error)
 
 	// Load takes an ID for an existing container and reconstructs the container
 	// from the state.
@@ -27,5 +27,6 @@ type Factory interface {
 	// Path does not exist
 	// Container is stopped
 	// System error
-	Load(id string) (Container, error)
+	// TODO: fix description
+	Load(id string) (Container, Error)
 }

@@ -24,6 +24,23 @@ var (
 	CgroupProcesses = "cgroup.procs"
 )
 
+// The absolute path to the root of the cgroup hierarchies.
+var cgroupRoot string
+
+// TODO(vmarmol): Report error here, we'll probably need to wait for the new API.
+func init() {
+	// we can pick any subsystem to find the root
+	cpuRoot, err := cgroups.FindCgroupMountpoint("cpu")
+	if err != nil {
+		return
+	}
+	cgroupRoot = filepath.Dir(cpuRoot)
+
+	if _, err := os.Stat(cgroupRoot); err != nil {
+		return
+	}
+}
+
 type subsystem interface {
 	// Returns the stats, as 'stats', corresponding to the cgroup under 'path'.
 	GetStats(path string, stats *cgroups.Stats) error
@@ -121,15 +138,8 @@ func GetPids(c *cgroups.Cgroup) ([]int, error) {
 }
 
 func getCgroupData(c *cgroups.Cgroup, pid int) (*data, error) {
-	// we can pick any subsystem to find the root
-	cgroupRoot, err := cgroups.FindCgroupMountpoint("cpu")
-	if err != nil {
-		return nil, err
-	}
-	cgroupRoot = filepath.Dir(cgroupRoot)
-
-	if _, err := os.Stat(cgroupRoot); err != nil {
-		return nil, fmt.Errorf("cgroups fs not found")
+	if cgroupRoot == "" {
+		return nil, fmt.Errorf("failed to find the cgroup root")
 	}
 
 	cgroup := c.Name

@@ -64,10 +64,8 @@ List containers
 
 Query Parameters:
 
-     
-
 -   **all** – 1/True/true or 0/False/false, Show all containers.
-        Only running containers are shown by defaul
+        Only running containers are shown by default
 -   **limit** – Show `limit` last created
         containers, include non-running ones.
 -   **since** – Show only containers created since Id, include
@@ -116,7 +114,7 @@ Create a container
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
         Content-Type: application/json
 
         {
@@ -125,8 +123,6 @@ Create a container
         }
 
 Json Parameters:
-
-     
 
 -   **config** – the container's configuration
 
@@ -300,8 +296,6 @@ Stop the container `id`
 
 Query Parameters:
 
-     
-
 -   **t** – number of seconds to wait before killing the container
 
 Status Codes:
@@ -322,11 +316,9 @@ Restart the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **t** – number of seconds to wait before killing the container
 
@@ -348,7 +340,7 @@ Kill the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -374,8 +366,6 @@ Attach to the container `id`
         {{ STREAM }}
 
 Query Parameters:
-
-     
 
 -   **logs** – 1/True/true or 0/False/false, return logs. Defaul
         false
@@ -433,8 +423,6 @@ Remove the container `id` from the filesystem
         HTTP/1.1 204 OK
 
 Query Parameters:
-
-     
 
 -   **v** – 1/True/true or 0/False/false, Remove the volumes
         associated to the container. Default false
@@ -507,8 +495,6 @@ List images `format` could be json or viz (json default)
 
 Query Parameters:
 
-     
-
 -   **all** – 1/True/true or 0/False/false, Show all containers.
         Only running containers are shown by defaul
 
@@ -539,8 +525,6 @@ Create an image, either by pull it from the registry or by importing i
         ...
 
 Query Parameters:
-
-     
 
 -   **fromImage** – name of the image to pull
 -   **fromSrc** – source to import, - means stdin
@@ -699,7 +683,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-        POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+        POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -707,10 +691,9 @@ Tag the image `name` into a repository
 
 Query Parameters:
 
-     
-
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
+-   **tag** - The new tag name
 
 Status Codes:
 
@@ -732,7 +715,7 @@ Remove the image `name` from the filesystem
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -851,6 +834,7 @@ Get the default username and email
 **Example response**:
 
         HTTP/1.1 200 OK
+        Content-Type: text/plain
 
 Status Codes:
 
@@ -939,8 +923,6 @@ Create a new image from a container's changes
 
 Query Parameters:
 
-     
-
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
@@ -962,8 +944,8 @@ Here are the steps of `docker run` :
 
  - Create the container
 
- - If the status code is 404, it means the image doesn't exists:
-        - Try to pull i
+ - If the status code is 404, it means the image doesn't exist:
+        - Try to pull it
         - Then retry to create the container
 
  - Start the container

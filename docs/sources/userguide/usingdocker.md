@@ -25,9 +25,9 @@ The `docker` client is pretty simple. Each action you can take
 with Docker is a command and each command can take a series of
 flags and arguments.
 
-    # Usage:  [sudo] docker [flags] [command] [arguments] ..
+    # Usage:  [sudo] docker [command] [flags] [arguments] ..
     # Example:
-    $ docker run -i -t ubuntu /bin/bash
+    $ sudo docker run -i -t ubuntu /bin/bash
 
 Let's see this in action by using the `docker version` command to return
 version information on the currently installed Docker client and daemon.
@@ -114,8 +114,7 @@ We've specified an image: `training/webapp`. This image is a
 pre-built image we've created that contains a simple Python Flask web
 application.
 
-Lastly, we've specified a command for our container to run: `python app.py`. 
-This launches our web application.
+Lastly, we've specified a command for our container to run: `python app.py`. This launches our web application.
 
 > **Note:** 
 > You can see more detail on the `docker run` command in the [command

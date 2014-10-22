@@ -73,6 +73,15 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if !container.Running && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
+
+		if !psFilters.Match("name", container.Name) {
+			return nil
+		}
+
+		if !psFilters.Match("id", container.ID) {
+			return nil
+		}
+
 		if before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
@@ -98,6 +107,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			if should_skip {
 				return nil
 			}
+		}
+
+		if !psFilters.Match("status", container.State.StateString()) {
+			return nil
 		}
 		displayed++
 		out := &engine.Env{}

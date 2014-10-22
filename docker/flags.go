@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	dockerCertPath = os.Getenv("DOCKER_CERT_PATH")
+	dockerCertPath  = os.Getenv("DOCKER_CERT_PATH")
+	dockerTlsVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""
 )
 
 func init() {
@@ -26,16 +27,21 @@ var (
 	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode\nuse '' (the empty string) to disable setting of a group")
 	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
-	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, false, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
+	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
-	flCa    *string
-	flCert  *string
-	flKey   *string
-	flHosts []string
+	flTrustKey *string
+	flCa       *string
+	flCert     *string
+	flKey      *string
+	flHosts    []string
 )
 
 func init() {
+	// placeholder for trust key flag
+	trustKeyDefault := filepath.Join(dockerCertPath, defaultTrustKeyFile)
+	flTrustKey = &trustKeyDefault
+
 	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerCertPath, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
 	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
 	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
@@ -53,8 +59,10 @@ func init() {
 			{"build", "Build an image from a Dockerfile"},
 			{"commit", "Create a new image from a container's changes"},
 			{"cp", "Copy files/folders from a container's filesystem to the host path"},
+			{"create", "Create a new container"},
 			{"diff", "Inspect changes on a container's filesystem"},
 			{"events", "Get real time events from the server"},
+			{"exec", "Run a command in an existing container"},
 			{"export", "Stream the contents of a container as a tar archive"},
 			{"history", "Show the history of an image"},
 			{"images", "List images"},

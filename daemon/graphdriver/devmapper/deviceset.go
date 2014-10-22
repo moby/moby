@@ -306,6 +306,10 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 		if err != nil {
 			err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
 		}
+		if err != nil {
+			return err
+		}
+		err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
 	default:
 		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
@@ -462,7 +466,13 @@ func minor(device uint64) uint64 {
 func (devices *DeviceSet) ResizePool(size int64) error {
 	dirname := devices.loopbackDir()
 	datafilename := path.Join(dirname, "data")
+	if len(devices.dataDevice) > 0 {
+		datafilename = devices.dataDevice
+	}
 	metadatafilename := path.Join(dirname, "metadata")
+	if len(devices.metadataDevice) > 0 {
+		metadatafilename = devices.metadataDevice
+	}
 
 	datafile, err := os.OpenFile(datafilename, os.O_RDWR, 0)
 	if datafile == nil {
@@ -761,9 +771,14 @@ func (devices *DeviceSet) deactivatePool() error {
 	log.Debugf("[devmapper] deactivatePool()")
 	defer log.Debugf("[devmapper] deactivatePool END")
 	devname := devices.getPoolDevName()
+
 	devinfo, err := getInfo(devname)
 	if err != nil {
 		return err
+	}
+	if d, err := getDeps(devname); err == nil {
+		// Access to more Debug output
+		log.Debugf("[devmapper] getDeps() %s: %#v", devname, d)
 	}
 	if devinfo.Exists != 0 {
 		return removeDevice(devname)
@@ -1130,8 +1145,16 @@ func (devices *DeviceSet) Status() *Status {
 	status := &Status{}
 
 	status.PoolName = devices.getPoolName()
-	status.DataLoopback = path.Join(devices.loopbackDir(), "data")
-	status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
+	if len(devices.dataDevice) > 0 {
+		status.DataLoopback = devices.dataDevice
+	} else {
+		status.DataLoopback = path.Join(devices.loopbackDir(), "data")
+	}
+	if len(devices.metadataDevice) > 0 {
+		status.MetadataLoopback = devices.metadataDevice
+	} else {
+		status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
+	}
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {

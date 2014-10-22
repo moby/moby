@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+var (
+	nsRegexp     = regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
+	searchRegexp = regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
+)
+
 func Get() ([]byte, error) {
 	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
@@ -33,9 +38,8 @@ func getLines(input []byte, commentMarker []byte) [][]byte {
 // GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
 func GetNameservers(resolvConf []byte) []string {
 	nameservers := []string{}
-	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
 	for _, line := range getLines(resolvConf, []byte("#")) {
-		var ns = re.FindSubmatch(line)
+		var ns = nsRegexp.FindSubmatch(line)
 		if len(ns) > 0 {
 			nameservers = append(nameservers, string(ns[1]))
 		}
@@ -58,10 +62,9 @@ func GetNameserversAsCIDR(resolvConf []byte) []string {
 // If more than one search line is encountered, only the contents of the last
 // one is returned.
 func GetSearchDomains(resolvConf []byte) []string {
-	re := regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
 	domains := []string{}
 	for _, line := range getLines(resolvConf, []byte("#")) {
-		match := re.FindSubmatch(line)
+		match := searchRegexp.FindSubmatch(line)
 		if match == nil {
 			continue
 		}

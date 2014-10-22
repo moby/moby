@@ -149,6 +149,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		out.Set("Architecture", image.Architecture)
 		out.Set("Os", image.OS)
 		out.SetInt64("Size", image.Size)
+		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
 		if _, err = out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}

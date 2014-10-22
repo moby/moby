@@ -17,7 +17,7 @@ Stream to a file instead of STDOUT by using **-o**.
 
 # OPTIONS
 **-o**, **--output**=""
-   Write to an file, instead of STDOUT
+   Write to a file, instead of STDOUT
 
 # EXAMPLES
 

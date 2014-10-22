@@ -49,6 +49,7 @@ type HostConfig struct {
 	PublishAllPorts bool
 	Dns             []string
 	DnsSearch       []string
+	ExtraHosts      []string
 	VolumesFrom     []string
 	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
@@ -57,7 +58,27 @@ type HostConfig struct {
 	RestartPolicy   RestartPolicy
 }
 
+// This is used by the create command when you want to set both the
+// Config and the HostConfig in the same call
+type ConfigAndHostConfig struct {
+	Config
+	HostConfig HostConfig
+}
+
+func MergeConfigs(config *Config, hostConfig *HostConfig) *ConfigAndHostConfig {
+	return &ConfigAndHostConfig{
+		*config,
+		*hostConfig,
+	}
+}
+
 func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
+	if job.EnvExists("HostConfig") {
+		hostConfig := HostConfig{}
+		job.GetenvJson("HostConfig", &hostConfig)
+		return &hostConfig
+	}
+
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),
@@ -80,6 +101,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
 		hostConfig.DnsSearch = DnsSearch
+	}
+	if ExtraHosts := job.GetenvList("ExtraHosts"); ExtraHosts != nil {
+		hostConfig.ExtraHosts = ExtraHosts
 	}
 	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
 		hostConfig.VolumesFrom = VolumesFrom

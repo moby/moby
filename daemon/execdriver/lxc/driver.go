@@ -2,6 +2,7 @@ package lxc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -21,11 +22,12 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"
-	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount/nodes"
 )
 
 const DriverName = "lxc"
+
+var ErrExec = errors.New("Unsupported: Exec is not supported by the lxc driver")
 
 type driver struct {
 	root       string // root path for the driver to use
@@ -407,37 +409,24 @@ func rootIsShared() bool {
 }
 
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	var (
-		process, mount string
-		root           = path.Join(d.root, "containers", c.ID, "config.lxc")
-		labels         = c.Config["label"]
-	)
+	root := path.Join(d.root, "containers", c.ID, "config.lxc")
+
 	fo, err := os.Create(root)
 	if err != nil {
 		return "", err
 	}
 	defer fo.Close()
 
-	if len(labels) > 0 {
-		process, mount, err = label.GenLabels(labels[0])
-		if err != nil {
-			return "", err
-		}
-	}
-
 	if err := LxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
-		AppArmor     bool
-		ProcessLabel string
-		MountLabel   string
+		AppArmor bool
 	}{
-		Command:      c,
-		AppArmor:     d.apparmor,
-		ProcessLabel: process,
-		MountLabel:   mount,
+		Command:  c,
+		AppArmor: d.apparmor,
 	}); err != nil {
 		return "", err
 	}
+
 	return root, nil
 }
 
@@ -455,6 +444,11 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	})
 
 	return ioutil.WriteFile(p, data, 0600)
+}
+
+// Clean not implemented for lxc
+func (d *driver) Clean(id string) error {
+	return nil
 }
 
 type TtyConsole struct {
@@ -526,4 +520,8 @@ func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) err
 func (t *TtyConsole) Close() error {
 	t.SlavePty.Close()
 	return t.MasterPty.Close()
+}
+
+func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return -1, ErrExec
 }

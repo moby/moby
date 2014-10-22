@@ -93,6 +93,8 @@ download the `centos` image.
     ef52fb1fe610: Download complete
     . . .
 
+    Status: Downloaded newer image for centos
+
 We can see that each layer of the image has been pulled down and now we
 can run a container from this image and we won't have to wait to
 download the image.
@@ -165,6 +167,8 @@ update and create images.
 
 1. We can update a container created from an image and commit the results to an image.
 2. We can use a `Dockerfile` to specify instructions to create an image.
+
+To learn more, check out the [Dockerfile tutorial](/userguide/level1).
 
 ### Updating and committing an image
 
@@ -453,7 +457,7 @@ Next we can see each instruction in the `Dockerfile` being executed
 step-by-step. We can see that each step creates a new container, runs
 the instruction inside that container and then commits that change -
 just like the `docker commit` work flow we saw earlier. When all the
-instructions have executed we're left with the `324104cde6ad` image
+instructions have executed we're left with the `97feabe5d2ed` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
@@ -468,11 +472,17 @@ We can then create a container from our new image.
     root@8196968dac35:/#
 
 > **Note:** 
-> This is just the briefest introduction to creating images. We've
+> This is just a brief introduction to creating images. We've
 > skipped a whole bunch of other instructions that you can use. We'll see more of
 > those instructions in later sections of the Guide or you can refer to the
 > [`Dockerfile`](/reference/builder/) reference for a
 > detailed description and examples of every instruction.
+> To help you write a clear, readable, maintainable `Dockerfile`, we've also
+> written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
+
+### More
+
+To learn more, check out the [Dockerfile tutorial](/userguide/level1).
 
 ## Setting tags on an image
 
@@ -530,4 +540,5 @@ containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
 Go to [Linking Containers Together](/userguide/dockerlinks).
+
 

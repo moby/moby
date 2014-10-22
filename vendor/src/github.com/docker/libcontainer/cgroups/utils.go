@@ -115,7 +115,7 @@ func GetThisCgroupDir(subsystem string) (string, error) {
 	}
 	defer f.Close()
 
-	return parseCgroupFile(subsystem, f)
+	return ParseCgroupFile(subsystem, f)
 }
 
 func GetInitCgroupDir(subsystem string) (string, error) {
@@ -125,7 +125,7 @@ func GetInitCgroupDir(subsystem string) (string, error) {
 	}
 	defer f.Close()
 
-	return parseCgroupFile(subsystem, f)
+	return ParseCgroupFile(subsystem, f)
 }
 
 func ReadProcsFile(dir string) ([]int, error) {
@@ -152,7 +152,7 @@ func ReadProcsFile(dir string) ([]int, error) {
 	return out, nil
 }
 
-func parseCgroupFile(subsystem string, r io.Reader) (string, error) {
+func ParseCgroupFile(subsystem string, r io.Reader) (string, error) {
 	s := bufio.NewScanner(r)
 
 	for s.Scan() {

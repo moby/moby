@@ -34,10 +34,6 @@ lxc.pts = 1024
 
 # disable the main console
 lxc.console = none
-{{if .ProcessLabel}}
-lxc.se_context = {{ .ProcessLabel}}
-{{end}}
-{{$MOUNTLABEL := .MountLabel}}
 
 # no controlling tty at all
 lxc.tty = 1
@@ -70,8 +66,8 @@ lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noe
 lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
 {{end}}
 
-lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" $MOUNTLABEL}} 0 0
-lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" $MOUNTLABEL}} 0 0
+lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" ""}} 0 0
+lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" ""}} 0 0
 
 {{range $value := .Mounts}}
 {{if $value.Writable}}
@@ -106,8 +102,8 @@ lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
 {{end}}
 {{end}}
 
-{{if .Config.lxc}}
-{{range $value := .Config.lxc}}
+{{if .LxcConfig}}
+{{range $value := .LxcConfig}}
 lxc.{{$value}}
 {{end}}
 {{end}}

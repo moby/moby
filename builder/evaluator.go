@@ -41,25 +41,24 @@ var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
-var evaluateTable map[string]func(*Builder, []string, map[string]bool) error
+var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
-	evaluateTable = map[string]func(*Builder, []string, map[string]bool) error{
-		"env":            env,
-		"maintainer":     maintainer,
-		"add":            add,
-		"copy":           dispatchCopy, // copy() is a go builtin
-		"from":           from,
-		"onbuild":        onbuild,
-		"workdir":        workdir,
-		"docker-version": nullDispatch, // we don't care about docker-version
-		"run":            run,
-		"cmd":            cmd,
-		"entrypoint":     entrypoint,
-		"expose":         expose,
-		"volume":         volume,
-		"user":           user,
-		"insert":         insert,
+	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
+		"env":        env,
+		"maintainer": maintainer,
+		"add":        add,
+		"copy":       dispatchCopy, // copy() is a go builtin
+		"from":       from,
+		"onbuild":    onbuild,
+		"workdir":    workdir,
+		"run":        run,
+		"cmd":        cmd,
+		"entrypoint": entrypoint,
+		"expose":     expose,
+		"volume":     volume,
+		"user":       user,
+		"insert":     insert,
 	}
 }
 
@@ -119,6 +118,12 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		return "", err
 	}
 
+	defer func() {
+		if err := os.RemoveAll(b.contextPath); err != nil {
+			log.Debugf("[BUILDER] failed to remove temporary context: %s", err)
+		}
+	}()
+
 	filename := path.Join(b.contextPath, "Dockerfile")
 
 	fi, err := os.Stat(filename)
@@ -144,7 +149,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	b.dockerfile = ast
 
 	// some initializations that would not have been supplied by the caller.
-	b.Config = &runconfig.Config{Entrypoint: []string{}, Cmd: []string{"/bin/sh", "-c"}}
+	b.Config = &runconfig.Config{Entrypoint: []string{}, Cmd: nil}
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {
@@ -162,10 +167,6 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	if b.image == "" {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
-	}
-
-	if err := os.RemoveAll(b.contextPath); err != nil {
-		log.Debugf("[BUILDER] failed to remove temporary context: %s", err)
 	}
 
 	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -189,6 +190,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 	attrs := ast.Attributes
+	original := ast.Original
 	strs := []string{}
 	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
 
@@ -209,7 +211,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		return f(b, strs, attrs)
+		return f(b, strs, attrs, original)
 	}
 
 	fmt.Fprintf(b.ErrStream, "# Skipping unknown instruction %s\n", strings.ToUpper(cmd))

@@ -135,3 +135,21 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 	node.Value = rest
 	return node, nil, nil
 }
+
+// parseMaybeJSONToList determines if the argument appears to be a JSON array. If
+// so, passes to parseJSON; if not, attmpts to parse it as a whitespace
+// delimited string.
+func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
+	rest = strings.TrimSpace(rest)
+
+	node, attrs, err := parseJSON(rest)
+
+	if err == nil {
+		return node, attrs, nil
+	}
+	if err == errDockerfileJSONNesting {
+		return nil, nil, err
+	}
+
+	return parseStringsWhitespaceDelimited(rest)
+}

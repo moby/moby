@@ -67,7 +67,7 @@ With your mirror running, pull an image that you haven't pulled before (using
 
 Now, remove the image from your local machine:
 
-    $ docker rmi node:latest
+    $ sudo docker rmi node:latest
 
 Finally, re-pull the image:
 

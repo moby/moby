@@ -173,7 +173,7 @@ Replace "..." with the respective credentials:
 ```bash
 docker build -t docker .
 docker run \
-       -e AWS_S3_BUCKET=test.docker.io \
+       -e AWS_S3_BUCKET=test.docker.com \
        -e AWS_ACCESS_KEY="..." \
        -e AWS_SECRET_KEY="..." \
        -e GPG_PASSPHRASE="..." \
@@ -183,11 +183,11 @@ docker run \
 ```
 
 It will run the test suite, build the binaries and packages,
-and upload to the specified bucket (you should use test.docker.io for
-general testing, and once everything is fine, switch to get.docker.io as
+and upload to the specified bucket (you should use test.docker.com for
+general testing, and once everything is fine, switch to get.docker.com as
 noted below).
 
-After the binaries and packages are uploaded to test.docker.io, make sure
+After the binaries and packages are uploaded to test.docker.com, make sure
 they get tested in both Ubuntu and Debian for any obvious installation
 issues or runtime issues.
 
@@ -195,19 +195,19 @@ Announcing on IRC in both `#docker` and `#docker-dev` is a great way to get
 help testing!  An easy way to get some useful links for sharing:
 
 ```bash
-echo "Ubuntu/Debian: https://test.docker.io/ubuntu or curl -sSL https://test.docker.io/ | sh"
-echo "Linux 64bit binary: https://test.docker.io/builds/Linux/x86_64/docker-${VERSION#v}"
-echo "Darwin/OSX 64bit client binary: https://test.docker.io/builds/Darwin/x86_64/docker-${VERSION#v}"
-echo "Darwin/OSX 32bit client binary: https://test.docker.io/builds/Darwin/i386/docker-${VERSION#v}"
-echo "Linux 64bit tgz: https://test.docker.io/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
+echo "Ubuntu/Debian: https://test.docker.com/ubuntu or curl -sSL https://test.docker.com/ | sh"
+echo "Linux 64bit binary: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}"
+echo "Darwin/OSX 64bit client binary: https://test.docker.com/builds/Darwin/x86_64/docker-${VERSION#v}"
+echo "Darwin/OSX 32bit client binary: https://test.docker.com/builds/Darwin/i386/docker-${VERSION#v}"
+echo "Linux 64bit tgz: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
 ```
 
 Once they're tested and reasonably believed to be working, run against
-get.docker.io:
+get.docker.com:
 
 ```bash
 docker run \
-       -e AWS_S3_BUCKET=get.docker.io \
+       -e AWS_S3_BUCKET=get.docker.com \
        -e AWS_ACCESS_KEY="..." \
        -e AWS_SECRET_KEY="..." \
        -e GPG_PASSPHRASE="..." \
@@ -235,7 +235,7 @@ documented and give appropriate warnings.
 ### 9. Apply tag
 
 It's very important that we don't make the tag until after the official
-release is uploaded to get.docker.io!
+release is uploaded to get.docker.com!
 
 ```bash
 git tag -a $VERSION -m $VERSION bump_$VERSION

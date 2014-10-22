@@ -3,7 +3,7 @@
 package main
 
 import (
-	"log"
+	"github.com/docker/docker/pkg/log"
 )
 
 const CanDaemon = false

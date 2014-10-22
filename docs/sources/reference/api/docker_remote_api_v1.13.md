@@ -8,8 +8,8 @@ page_keywords: API, Docker, rcli, REST, documentation
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [*Bind Docker to another host/port or a Unix socket*](
-   /use/basics/#bind-docker).
+   [Bind Docker to another host/port or a Unix socket](
+   /articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
@@ -79,15 +79,11 @@ List containers
 Query Parameters:
 
 -   **all** – 1/True/true or 0/False/false, Show all containers.
-        Only running containers are shown by defaul
--   **limit** – Show `limit` last created
-        containers, include non-running ones.
--   **since** – Show only containers created since Id, include
-        non-running ones.
--   **before** – Show only containers created before Id, include
-        non-running ones.
--   **size** – 1/True/true or 0/False/false, Show the containers
-        sizes
+    Only running containers are shown by default (i.e., this defaults to false)
+-   **limit** – Show `limit` last created containers, include non-running ones.
+-   **since** – Show only containers created since Id, include non-running ones.
+-   **before** – Show only containers created before Id, include non-running ones.
+-   **size** – 1/True/true or 0/False/false, Show the containers sizes
 
 Status Codes:
 
@@ -138,7 +134,7 @@ Create a container
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
         Content-Type: application/json
 
         {
@@ -147,8 +143,6 @@ Create a container
         }
 
 Json Parameters:
-
-     
 
 -   **config** – the container's configuration
 
@@ -289,8 +283,6 @@ List processes running inside the container `id`
 
 Query Parameters:
 
-     
-
 -   **ps_args** – ps arguments to use (e.g., aux)
 
 Status Codes:
@@ -318,14 +310,13 @@ Get stdout and stderr logs from the container ``id``
 
 Query Parameters:
 
-     
-
 -   **follow** – 1/True/true or 0/False/false, return stream. Default false
 -   **stdout** – 1/True/true or 0/False/false, show stdout log. Default false
 -   **stderr** – 1/True/true or 0/False/false, show stderr log. Default false
--   **timestamps** – 1/True/true or 0/False/false, print timestamps for
-        every log line. Default false
--   **tail** – Output specified number of lines at the end of logs: `all` or `<number>`. Default all
+-   **timestamps** – 1/True/true or 0/False/false, print timestamps for every
+    log line. Default false
+-   **tail** – Output specified number of lines at the end of logs: `all` or
+    `<number>`. Default all
 
 Status Codes:
 
@@ -444,11 +435,9 @@ Stop the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **t** – number of seconds to wait before killing the container
 
@@ -471,11 +460,9 @@ Restart the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **t** – number of seconds to wait before killing the container
 
@@ -497,12 +484,12 @@ Kill the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters
 
 -   **signal** - Signal to send to the container: integer or string like "SIGINT".
-        When not set, SIGKILL is assumed and the call will waits for the container to exit.
+    When not set, SIGKILL is assumed and the call will wait for the container to exit.
 
 Status Codes:
 
@@ -522,7 +509,7 @@ Pause the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -542,7 +529,7 @@ Unpause the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -569,18 +556,14 @@ Attach to the container `id`
 
 Query Parameters:
 
-     
-
--   **logs** – 1/True/true or 0/False/false, return logs. Defaul
-        false
--   **stream** – 1/True/true or 0/False/false, return stream.
-        Default false
--   **stdin** – 1/True/true or 0/False/false, if stream=true, attach
-        to stdin. Default false
+-   **logs** – 1/True/true or 0/False/false, return logs. Default false
+-   **stream** – 1/True/true or 0/False/false, return stream. Default false
+-   **stdin** – 1/True/true or 0/False/false, if stream=true, attach to stdin.
+    Default false
 -   **stdout** – 1/True/true or 0/False/false, if logs=true, return
-        stdout log, if stream=true, attach to stdout. Default false
+    stdout log, if stream=true, attach to stdout. Default false
 -   **stderr** – 1/True/true or 0/False/false, if logs=true, return
-        stderr log, if stream=true, attach to stderr. Default false
+    stderr log, if stream=true, attach to stderr. Default false
 
 Status Codes:
 
@@ -631,7 +614,7 @@ Status Codes:
     2.  chose stdout or stderr depending on the first byte
     3.  Extract the frame size from the last 4 byets
     4.  Read the extracted size and output it on the correct output
-    5.  Goto 1)
+    5.  Goto 1
 
 ### Wait a container
 
@@ -668,11 +651,9 @@ Remove the container `id` from the filesystem
 
 **Example response**:
 
-        HTTP/1.1 204 OK
+        HTTP/1.1 204 No Content
 
 Query Parameters:
-
-     
 
 -   **v** – 1/True/true or 0/False/false, Remove the volumes
         associated to the container. Default false
@@ -757,18 +738,14 @@ Status Codes:
 
 Query Parameters:
 
-     
-
 -   **all** – 1/True/true or 0/False/false, default false
--   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
-
-
+-   **filters** – a json encoded value of the filters (a map[string][string]) to process on the images list.
 
 ### Create an image
 
 `POST /images/create`
 
-Create an image, either by pull it from the registry or by importing i
+Create an image, either by pulling it from the registry or by importing it
 
 **Example request**:
 
@@ -790,19 +767,15 @@ Create an image, either by pull it from the registry or by importing i
 
 Query Parameters:
 
-     
-
 -   **fromImage** – name of the image to pull
 -   **fromSrc** – source to import, - means stdin
 -   **repo** – repository
 -   **tag** – tag
 -   **registry** – the registry to pull from
 
-    Request Headers:
+Request Headers:
 
-     
-
--   **X-Registry-Auth** – base64-encoded AuthConfig objec
+-   **X-Registry-Auth** – base64-encoded AuthConfig object
 
 Status Codes:
 
@@ -926,16 +899,11 @@ Push the image `name` on the registry
 
 Query Parameters:
 
-     
-
 -   **tag** – the tag to associate with the image on the registry, optional
 
-    Request Headers:
+Request Headers:
 
-     
-
--   **X-Registry-Auth** – include a base64-encoded AuthConfig
-        object.
+-   **X-Registry-Auth** – include a base64-encoded AuthConfig object.
 
 Status Codes:
 
@@ -951,7 +919,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-        POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+        POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -959,10 +927,9 @@ Tag the image `name` into a repository
 
 Query Parameters:
 
-     
-
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
+-   **tag** - The new tag name
 
 Status Codes:
 
@@ -994,8 +961,6 @@ Remove the image `name` from the filesystem
         ]
 
 Query Parameters:
-
-     
 
 -   **force** – 1/True/true or 0/False/false, default false
 -   **noprune** – 1/True/true or 0/False/false, default false
@@ -1053,8 +1018,6 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 
 Query Parameters:
 
-     
-
 -   **term** – term to search
 
 Status Codes:
@@ -1095,10 +1058,8 @@ Build an image from Dockerfile via stdin
 
 Query Parameters:
 
-     
-
 -   **t** – repository name (and optionally a tag) to be applied to
-        the resulting image in case of success
+    the resulting image in case of success
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 -   **rm** - remove intermediate containers after a successful build (default behavior)
@@ -1106,10 +1067,7 @@ Query Parameters:
 
     Request Headers:
 
-     
-
--   **Content-type** – should be set to
-        `"application/tar"`.
+-   **Content-type** – should be set to `"application/tar"`.
 -   **X-Registry-Config** – base64-encoded ConfigFile objec
 
 Status Codes:
@@ -1222,6 +1180,7 @@ Ping the docker server
 **Example response**:
 
         HTTP/1.1 200 OK
+        Content-Type: text/plain
 
         OK
 
@@ -1238,7 +1197,7 @@ Create a new image from a container's changes
 
 **Example request**:
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
         Content-Type: application/json
 
         {
@@ -1272,27 +1231,23 @@ Create a new image from a container's changes
 
 **Example response**:
 
-        HTTP/1.1 201 OK
-            Content-Type: application/vnd.docker.raw-stream
+        HTTP/1.1 201 Created
+        Content-Type: application/vnd.docker.raw-stream
 
         {"Id":"596069db4bf5"}
 
 Json Parameters:
 
-
-
 -  **config** - the container's configuration
 
 Query Parameters:
 
-     
-
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
--   **m** – commit message
+-   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
-        <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
+    <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
 Status Codes:
 
@@ -1304,8 +1259,16 @@ Status Codes:
 
 `GET /events`
 
-Get events from docker, either in real time via streaming, or
-via polling (using since)
+Get container events from docker, either in real time via streaming, or via
+polling (using since).
+
+Docker containers will report the following events:
+
+    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+
+and Docker images will report:
+
+    untag, delete
 
 **Example request**:
 
@@ -1323,8 +1286,6 @@ via polling (using since)
 
 Query Parameters:
 
-     
-
 -   **since** – timestamp used for polling
 -   **until** – timestamp used for polling
 
@@ -1340,9 +1301,11 @@ Status Codes:
 Get a tarball containing all images and metadata for the repository
 specified by `name`.
 
+See the [image tarball format](#image-tarball-format) for more details.
+
 **Example request**
 
-        GET /images/ubuntu/ge
+        GET /images/ubuntu/get
 
 **Example response**:
 
@@ -1362,6 +1325,8 @@ Status Codes:
 
 Load a set of images and tags into the docker repository.
 
+See the [image tarball format](#image-tarball-format) for more details.
+
 **Example request**
 
         POST /images/load
@@ -1377,26 +1342,47 @@ Status Codes:
 -   **200** – no error
 -   **500** – server error
 
+### Image tarball format
+
+An image tarball contains one directory per image layer (named using its long ID),
+each containing three files:
+
+1. `VERSION`: currently `1.0` - the file format version
+2. `json`: detailed layer information, similar to `docker inspect layer_id`
+3. `layer.tar`: A tarfile containing the filesystem changes in this layer
+
+The `layer.tar` file will contain `aufs` style `.wh..wh.aufs` files and directories
+for storing attribute changes and deletions.
+
+If the tarball defines a repository, there will also be a `repositories` file at
+the root that contains a list of repository and tag names mapped to layer IDs.
+
+```
+{"hello-world":
+    {"latest":"565a9d68a73f6706862bfe8409a7f659776d4d60a8d096eb4a3cbce6999cc2a1"}
+}
+```
+
 # 3. Going further
 
 ## 3.1 Inside `docker run`
 
-Here are the steps of `docker run`:
+As an example, the `docker run` command line makes the following API calls:
 
 - Create the container
 
-- If the status code is 404, it means the image doesn't exists:
-- Try to pull i
-- Then retry to create the container
+- If the status code is 404, it means the image doesn't exist:
+    - Try to pull it
+    - Then retry to create the container
 
 - Start the container
 
 - If you are not in detached mode:
-- Attach to the container, using logs=1 (to have stdout and
+    - Attach to the container, using logs=1 (to have stdout and
       stderr from the container's start) and stream=1
 
 - If in detached mode or only stdin is attached:
-- Display the container's id
+    - Display the container's id
 
 ## 3.2 Hijacking
 
@@ -1406,6 +1392,6 @@ stdout and stderr on the same socket. This might change in the future.
 ## 3.3 CORS Requests
 
 To enable cross origin requests to the remote api add the flag
-"–api-enable-cors" when running docker in daemon mode.
+"--api-enable-cors" when running docker in daemon mode.
 
     $ docker -d -H="192.168.1.9:2375" --api-enable-cors

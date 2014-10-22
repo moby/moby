@@ -46,6 +46,20 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
+// StateString returns a single string to describe state
+func (s *State) StateString() string {
+	if s.Running {
+		if s.Paused {
+			return "paused"
+		}
+		if s.Restarting {
+			return "restarting"
+		}
+		return "running"
+	}
+	return "exited"
+}
+
 func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 	if timeout < 0 {
 		<-waitChan

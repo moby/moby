@@ -36,16 +36,18 @@ type proxyCommand struct {
 
 // execProxy is the reexec function that is registered to start the userland proxies
 func execProxy() {
+	f := os.NewFile(3, "signal-parent")
 	host, container := parseHostContainerAddrs()
 
 	p, err := proxy.NewProxy(host, container)
 	if err != nil {
-		os.Stdout.WriteString("1\n")
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintf(f, "1\n%s", err)
+		f.Close()
 		os.Exit(1)
 	}
 	go handleStopSignals(p)
-	os.Stdout.WriteString("0\n")
+	fmt.Fprint(f, "0\n")
+	f.Close()
 
 	// Run will block until the proxy stops
 	p.Run()
@@ -111,27 +113,24 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 }
 
 func (p *proxyCommand) Start() error {
-	stdout, err := p.cmd.StdoutPipe()
+	r, w, err := os.Pipe()
 	if err != nil {
-		return err
+		return fmt.Errorf("proxy unable to open os.Pipe %s", err)
 	}
-	defer stdout.Close()
-	stderr, err := p.cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	defer stderr.Close()
+	defer r.Close()
+	p.cmd.ExtraFiles = []*os.File{w}
 	if err := p.cmd.Start(); err != nil {
 		return err
 	}
+	w.Close()
 
 	errchan := make(chan error, 1)
 	go func() {
 		buf := make([]byte, 2)
-		stdout.Read(buf)
+		r.Read(buf)
 
 		if string(buf) != "0\n" {
-			errStr, _ := ioutil.ReadAll(stderr)
+			errStr, _ := ioutil.ReadAll(r)
 			errchan <- fmt.Errorf("Error starting userland proxy: %s", errStr)
 			return
 		}

@@ -187,6 +187,12 @@ func (env *Env) Decode(src io.Reader) error {
 }
 
 func (env *Env) SetAuto(k string, v interface{}) {
+	// Issue 7941 - if the value in the incoming JSON is null then treat it
+	// as if they never specified the property at all.
+	if v == nil {
+		return
+	}
+
 	// FIXME: we fix-convert float values to int, because
 	// encoding/json decodes integers to float64, but cannot encode them back.
 	// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)

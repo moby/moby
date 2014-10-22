@@ -40,7 +40,7 @@ func (s *CpuacctGroup) GetStats(path string, stats *cgroups.Stats) error {
 		return err
 	}
 
-	totalUsage, err := getCgroupParamInt(path, "cpuacct.usage")
+	totalUsage, err := getCgroupParamUint(path, "cpuacct.usage")
 	if err != nil {
 		return err
 	}

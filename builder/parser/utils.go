@@ -52,11 +52,14 @@ func (node *Node) Dump() string {
 // performs the dispatch based on the two primal strings, cmd and args. Please
 // look at the dispatch table in parser.go to see how these dispatchers work.
 func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
-	if _, ok := dispatch[cmd]; !ok {
-		return nil, nil, fmt.Errorf("'%s' is not a valid dockerfile command", cmd)
+	fn := dispatch[cmd]
+
+	// Ignore invalid Dockerfile instructions
+	if fn == nil {
+		fn = parseIgnore
 	}
 
-	sexp, attrs, err := dispatch[cmd](args)
+	sexp, attrs, err := fn(args)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,12 +69,17 @@ func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
 
 // splitCommand takes a single line of text and parses out the cmd and args,
 // which are used for dispatching to more exact parsing functions.
-func splitCommand(line string) (string, string) {
+func splitCommand(line string) (string, string, error) {
 	cmdline := TOKEN_WHITESPACE.Split(line, 2)
+
+	if len(cmdline) != 2 {
+		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at %q", line)
+	}
+
 	cmd := strings.ToLower(cmdline[0])
 	// the cmd should never have whitespace, but it's possible for the args to
 	// have trailing whitespace.
-	return cmd, strings.TrimSpace(cmdline[1])
+	return cmd, strings.TrimSpace(cmdline[1]), nil
 }
 
 // covers comments and empty lines. Lines should be trimmed before passing to

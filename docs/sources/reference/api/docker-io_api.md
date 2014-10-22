@@ -142,7 +142,7 @@ Status Codes:
 
 `DELETE /v1/repositories/(repo_name)/`
 
-Delete a library repository with the given `repo_name`. 
+Delete a library repository with the given `repo_name`.
 This is a restricted feature only available to docker admins.
 
 > When namespace is missing, it is assumed to be `library`
@@ -330,7 +330,7 @@ Status Codes:
 
 ## Library Repository
 
-### Authorize a toke for a library
+### Authorize a token for a library
 
 `PUT /v1/repositories/(repo_name)/auth`
 
@@ -363,7 +363,7 @@ Status Codes:
 
 ## User Repository
 
-### Authorize a toke for a user repository
+### Authorize a token for a user repository
 
 `PUT /v1/repositories/(namespace)/(repo_name)/auth`
 
@@ -399,13 +399,13 @@ Status Codes:
 
 ### User Login
 
-`GET /v1/users`
+`GET /v1/users/`
 
 If you want to check your login, you can try this endpoint
 
 **Example Request**:
 
-        GET /v1/users HTTP/1.1
+        GET /v1/users/ HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Authorization: Basic akmklmasadalkm==
@@ -426,13 +426,13 @@ Status Codes:
 
 ### User Register
 
-`POST /v1/users`
+`POST /v1/users/`
 
 Registering a new account.
 
 **Example request**:
 
-        POST /v1/users HTTP/1.1
+        POST /v1/users/ HTTP/1.1
         Host: index.docker.io
         Accept: application/json
         Content-Type: application/json
@@ -503,44 +503,3 @@ Status Codes:
 - **401** – Unauthorized
 - **403** – Account is not Active
 - **404** – User not found
-
-## Search
-
-If you need to search the index, this is the endpoint you would use.
-
-`GET /v1/search`
-
-Search the Index given a search term. It accepts
-
-    [GET](http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3)
-    only.
-
-**Example request**:
-
-        GET /v1/search?q=search_term HTTP/1.1
-        Host: example.com
-        Accept: application/json
-
-**Example response**:
-
-        HTTP/1.1 200 OK
-        Vary: Accept
-        Content-Type: application/json
-
-        {"query":"search_term",
-          "num_results": 3,
-          "results" : [
-             {"name": "ubuntu", "description": "An ubuntu image..."},
-             {"name": "centos", "description": "A centos image..."},
-             {"name": "fedora", "description": "A fedora image..."}
-           ]
-         }
-
-Query Parameters:
-
-- **q** – what you want to search for
-
-Status Codes:
-
-- **200** – no error
-- **500** – server error
