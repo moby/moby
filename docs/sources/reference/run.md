@@ -1,8 +1,8 @@
-page_title: Docker Run Reference
+page_title: Docker run reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
-# Docker Run Reference
+# Docker run reference
 
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its own file system,
@@ -14,7 +14,7 @@ the container from the image. That's the main reason
 [*run*](/reference/commandline/cli/#run) has more options than any
 other `docker` command.
 
-## General Form
+## General form
 
 The basic `docker run` command takes this form:
 
@@ -39,7 +39,7 @@ behavior, allowing them to override all defaults set by
 the developer during `docker build` and nearly all the defaults set by
 the Docker runtime itself.
 
-## Operator Exclusive Options
+## Operator exclusive options
 
 Only the operator (the person executing `docker run`) can set the
 following options.
@@ -55,7 +55,7 @@ following options.
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
 
-## Detached vs Foreground
+## Detached vs foreground
 
 When starting a Docker container, you must first decide if you want to
 run the container in the background in a "detached" mode or in the
@@ -97,7 +97,7 @@ For interactive processes (like a shell) you will typically want a tty
 as well as persistent standard input (`STDIN`), so you'll use `-i -t`
 together in most interactive cases.
 
-## Container Identification
+## Container identification
 
 ### Name (–-name)
 
@@ -116,7 +116,7 @@ add meaning to a container since you can use this name when defining
 other place you need to identify a container). This works for both
 background and foreground Docker containers.
 
-### PID Equivalent
+### PID equivalent
 
 Finally, to help with automation, you can have Docker write the
 container ID out to a file of your choosing. This is similar to how some
@@ -131,7 +131,7 @@ While not strictly a means of identifying a container, you can specify a version
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
 
-## Network Settings
+## Network settings
 
     --dns=[]        : Set custom dns servers for the container
     --net="bridge"  : Set the Network mode for the container
@@ -213,7 +213,7 @@ container itself as well as `localhost` and a few other common things.  The
     ::1	            localhost ip6-localhost ip6-loopback
     86.75.30.9      db-static
 
-## Clean Up (–-rm)
+## Clean up (–-rm)
 
 By default a container's file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
@@ -225,7 +225,7 @@ the container exits**, you can add the `--rm` flag:
 
     --rm=false: Automatically remove the container when it exits (incompatible with -d)
 
-## Security Configuration
+## Security configuration
     --security-opt="label:user:USER"   : Set the label user for the container
     --security-opt="label:role:ROLE"   : Set the label role for the container
     --security-opt="label:type:TYPE"   : Set the label type for the container
@@ -261,7 +261,7 @@ Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
 
-## Runtime Constraints on CPU and Memory
+## Runtime constraints on CPU and memory
 
 The operator can also adjust the performance parameters of the
 container:
@@ -279,7 +279,7 @@ get the same proportion of CPU cycles, but you can tell the kernel to
 give more shares of CPU time to one or more containers when you start
 them via Docker.
 
-## Runtime Privilege, Linux Capabilities, and LXC Configuration
+## Runtime privilege, Linux capabilities, and LXC configuration
 
     --cap-add: Add Linux capabilities
     --cap-drop: Drop Linux capabilities
@@ -347,7 +347,7 @@ Note that in the future, a given host's docker daemon may not use LXC, so this
 is an implementation-specific configuration meant for operators already
 familiar with using LXC directly.
 
-## Overriding Dockerfile Image Defaults
+## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder/#dockerbuilder)
 or when she commits it, the developer can set a number of default parameters
@@ -367,7 +367,7 @@ Dockerfile instruction and how the operator can override that setting.
  - [USER](#user)
  - [WORKDIR](#workdir)
 
-## CMD (Default Command or Options)
+## CMD (default command or options)
 
 Recall the optional `COMMAND` in the Docker
 commandline:
@@ -383,7 +383,7 @@ image), you can override that `CMD` instruction just by specifying a new
 If the image also specifies an `ENTRYPOINT` then the `CMD` or `COMMAND`
 get appended as arguments to the `ENTRYPOINT`.
 
-## ENTRYPOINT (Default Command to Execute at Runtime)
+## ENTRYPOINT (default command to execute at runtime)
 
     --entrypoint="": Overwrite the default entrypoint set by the image
 
@@ -406,7 +406,7 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     $ sudo docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
     $ sudo docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
-## EXPOSE (Incoming Ports)
+## EXPOSE (incoming ports)
 
 The Dockerfile doesn't give much control over networking, only providing
 the `EXPOSE` instruction to give a hint to the operator about what
@@ -446,7 +446,7 @@ then the client container can access the exposed port via a private
 networking interface.  Docker will set some environment variables in the
 client container to help indicate which interface and port to use.
 
-## ENV (Environment Variables)
+## ENV (environment variables)
 
 When a new container is created, Docker will set the following environment
 variables automatically:
@@ -555,7 +555,7 @@ mechanism to communicate with a linked container by its alias:
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
 
-## VOLUME (Shared Filesystems)
+## VOLUME (shared filesystems)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
            If "container-dir" is missing, then docker creates a new volume.
