@@ -434,3 +434,22 @@ func Chcon(fpath string, scon string, recurse bool) error {
 
 	return Setfilecon(fpath, scon)
 }
+
+// DupSecOpt takes an SELinux process label and returns security options that
+// can will set the SELinux Type and Level for future container processes
+func DupSecOpt(src string) []string {
+	if src == "" {
+		return nil
+	}
+	con := NewContext(src)
+	if con["type"] == "" || con["level"] == "" {
+		return nil
+	}
+	return []string{"label:type:" + con["type"], "label:level:" + con["level"]}
+}
+
+// DisableSecOpt returns a security opt that can be used to disabling SELinux
+// labeling support for future container processes
+func DisableSecOpt() []string {
+	return []string{"label:disable"}
+}

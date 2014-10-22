@@ -47,6 +47,9 @@ type Config struct {
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks,omitempty"`
 
+	// Ipc specifies the container's ipc setup to be created
+	IpcNsPath string `json:"ipc,omitempty"`
+
 	// Routes can be specified to create entries in the route table as the container is started
 	Routes []*Route `json:"routes,omitempty"`
 

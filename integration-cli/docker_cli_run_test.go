@@ -2446,3 +2446,89 @@ func TestRunVolumesCleanPaths(t *testing.T) {
 
 	logDone("run - volume paths are cleaned")
 }
+
+func getIpcField(out string) string {
+	out = strings.Trim(out, "\r\n")
+	s := strings.Split(out, " ")
+	return s[len(s)-1]
+}
+
+func TestRunModeIpcHost(t *testing.T) {
+	cmd := exec.Command("ls", "-l", "/proc/self/ns/ipc")
+
+	out1, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out1)
+	}
+
+	out1 = getIpcField(out1)
+
+	cmd = exec.Command(dockerBinary, "run", "--ipc=host", "busybox", "ls", "-l", "/proc/self/ns/ipc")
+
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+	out2 = getIpcField(out2)
+
+	if out1 != out2 {
+		t.Fatalf("IPC different with --ipc=host %s != %s\n", out1, out2)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "ls", "-l", "/proc/self/ns/ipc")
+
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+	out2 = getIpcField(out2)
+
+	if out1 == out2 {
+		t.Fatalf("IPC should be different without --ipc=host %s != %s\n", out1, out2)
+	}
+	deleteAllContainers()
+
+	logDone("run - hostname and several network modes")
+}
+
+func TestRunModeIpcContainer(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	state, err := inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "true" {
+		t.Fatal("Container state is 'not running'")
+	}
+	pid1, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command("ls", "-l", fmt.Sprintf("/proc/%s/ns/ipc", pid1))
+
+	out1, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out1)
+	}
+	out1 = getIpcField(out1)
+
+	cmd = exec.Command(dockerBinary, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "ls", "-l", "/proc/self/ns/ipc")
+
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+	out2 = getIpcField(out2)
+
+	if out1 != out2 {
+		t.Fatalf("IPC different with --ipc=container:%s %s != %s\n", id, out1, out2)
+	}
+	deleteAllContainers()
+
+	logDone("run - hostname and several network modes")
+}
