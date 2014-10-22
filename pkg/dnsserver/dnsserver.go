@@ -15,6 +15,10 @@ type SRVRecord struct {
 	host string
 }
 
+func (s SRVRecord) Equal(s2 SRVRecord) bool {
+	return s.port == s2.port && s.host == s2.host
+}
+
 // Struct which describes the DNS server.
 type DNSServer struct {
 	Domain     string                 // using the constructor, this will always end in a '.', making it a FQDN.
@@ -51,7 +55,7 @@ func (ds *DNSServer) composeHost(host string) string {
 
 // Convenience function to ensure that SRV names are well-formed.
 func (ds *DNSServer) qualifySrv(service, protocol string) string {
-	return fmt.Sprintf("_%s._%s.", service, protocol)
+	return fmt.Sprintf("_%s._%s.%s", service, protocol, ds.Domain)
 }
 
 // Receives a FQDN; looks up and supplies the A record.
@@ -112,7 +116,7 @@ func (ds *DNSServer) GetSRV(spec string) []*dns.SRV {
 				Priority: 0,
 				Weight:   0,
 				Port:     record.port,
-				Target:   ds.composeHost(record.host),
+				Target:   record.host,
 			}
 
 			records = append(records, srvRecord)
@@ -157,6 +161,7 @@ func (ds *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		case dns.TypeSRV:
 			srv := ds.GetSRV(question.Name)
+
 			if srv != nil {
 				for _, record := range srv {
 					answers = append(answers, record)
@@ -172,6 +177,7 @@ func (ds *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			srv := ds.GetSRV(question.Name)
+
 			if srv != nil {
 				for _, record := range srv {
 					answers = append(answers, record)
