@@ -131,7 +131,7 @@ will add the libraries here.
     <tr class="row-odd">
       <td>Python</td>
       <td>docker-py</td>
-      <td><a class="reference external" href="https://github.com/dotcloud/docker-py">https://github.com/dotcloud/docker-py</a></td>
+      <td><a class="reference external" href="https://github.com/docker/docker-py">https://github.com/docker/docker-py</a></td>
       <td>Active</td>
     </tr>
     <tr class="row-even">
