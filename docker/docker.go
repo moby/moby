@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -15,6 +16,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libtrust"
 )
 
 const (
@@ -77,6 +79,23 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
+	err := os.MkdirAll(path.Dir(*flTrustKey), 0700)
+	if err != nil {
+		log.Fatal(err)
+	}
+	trustKey, err := libtrust.LoadKeyFile(*flTrustKey)
+	if err == libtrust.ErrKeyFileDoesNotExist {
+		trustKey, err = libtrust.GenerateECP256PrivateKey()
+		if err != nil {
+			log.Fatalf("Error generating key: %s", err)
+		}
+		if err := libtrust.SaveKey(*flTrustKey, trustKey); err != nil {
+			log.Fatalf("Error saving key file: %s", err)
+		}
+	} else if err != nil {
+		log.Fatalf("Error loading key file: %s", err)
+	}
+
 	var (
 		cli       *client.DockerCli
 		tlsConfig tls.Config
@@ -118,9 +137,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
