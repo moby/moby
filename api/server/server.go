@@ -25,6 +25,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/engine"
+	images "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
@@ -495,6 +496,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 
 	var (
 		image = r.Form.Get("fromImage")
+		meta  images.MetaData
 		repo  = r.Form.Get("repo")
 		tag   = r.Form.Get("tag")
 		job   *engine.Job
@@ -528,6 +530,13 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 			repo, tag = parsers.ParseRepositoryTag(repo)
 		}
 		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
+
+		if r.Form.Get("meta") != "" {
+			if err := json.Unmarshal([]byte(r.Form.Get("meta")), &meta); err != nil {
+				return fmt.Errorf("META Data must be specified in valid json format: %s", err)
+			}
+			job.SetenvJson("meta", meta)
+		}
 		job.Stdin.Add(r.Body)
 	}
 

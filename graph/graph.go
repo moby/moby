@@ -114,10 +114,11 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
+func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config, meta *image.MetaData) (*image.Image, error) {
 	img := &image.Image{
 		ID:            utils.GenerateRandomID(),
 		Comment:       comment,
+		Meta:          meta,
 		Created:       time.Now().UTC(),
 		DockerVersion: dockerversion.VERSION,
 		Author:        author,

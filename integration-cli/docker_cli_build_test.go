@@ -15,6 +15,39 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildMeta(t *testing.T) {
+	var (
+		result map[string]string
+		name   = "testbuildmeta"
+		value  = "Hello, is there anyone in there?"
+	)
+	defer deleteImages(name)
+	meta := fmt.Sprintf("{ \"%s\" : \"%s\" }", name, value)
+
+	_, err := buildImage(name, fmt.Sprintf(`
+FROM busybox
+META %s
+`, meta), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Meta")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = unmarshalJSON([]byte(res), &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result[name] != value {
+		t.Fatal("Meta did not match the one provided.", result)
+	}
+}
+
 func TestBuildOnBuildLowercase(t *testing.T) {
 	name := "testbuildonbuildlowercase"
 	name2 := "testbuildonbuildlowercase2"

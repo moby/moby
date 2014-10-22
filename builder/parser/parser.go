@@ -49,6 +49,7 @@ func init() {
 		"workdir":    parseString,
 		"env":        parseEnv,
 		"maintainer": parseString,
+		"meta":       parseMaybeJSON,
 		"from":       parseString,
 		"add":        parseStringsWhitespaceDelimited,
 		"copy":       parseStringsWhitespaceDelimited,

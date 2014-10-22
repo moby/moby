@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
@@ -47,6 +48,7 @@ func init() {
 	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
 		"env":        env,
 		"maintainer": maintainer,
+		"meta":       meta,
 		"add":        add,
 		"copy":       dispatchCopy, // copy() is a go builtin
 		"from":       from,
@@ -92,12 +94,13 @@ type Builder struct {
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 
-	dockerfile  *parser.Node  // the syntax tree of the dockerfile
-	image       string        // image name for commit processing
-	maintainer  string        // maintainer name. could probably be removed.
-	cmdSet      bool          // indicates is CMD was set in current Dockerfile
-	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
-	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)
+	dockerfile  *parser.Node   // the syntax tree of the dockerfile
+	image       string         // image name for commit processing
+	maintainer  string         // maintainer name. could probably be removed.
+	meta        image.MetaData // meta data about the image. Json format data descibing the image.
+	cmdSet      bool           // indicates is CMD was set in current Dockerfile
+	context     tarsum.TarSum  // the context is a tarball that is uploaded by the client
+	contextPath string         // the path of the temporary directory the local context is unpacked to (server side)
 
 }
 

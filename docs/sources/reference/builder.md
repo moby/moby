@@ -280,6 +280,22 @@ default specified in `CMD`.
 > the result; `CMD` does not execute anything at build time, but specifies
 > the intended command for the image.
 
+## META
+   META [JSON]
+
+ --The `META` instruction allows you to describe the image your Dockerfile
+is building. META Data has to be specified in the JSON format. This data can 
+be retrieved using the docker inspect command
+
+
+META { "Description" : "This image is used to start the foobar executable", \
+       "vendor" : "ACME Products", \
+       "Version" : "1.0" }
+
+This is yielded from the API as well; from the output of `docker inspect [IMAGE]`,
+in the "Config" section, there is a "Description" element that corresponds to 
+this string.
+
 ## EXPOSE
 
     EXPOSE <port> [<port>...]
@@ -631,6 +647,10 @@ For example you might add something like this:
 
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
+
+    META { "Description" : "This image is used to start the foobar executable", \
+    	    "vendor" : "ACME Products", \
+   	    "Version" : "1.0" }
 
     RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
