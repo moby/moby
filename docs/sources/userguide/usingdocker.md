@@ -25,7 +25,7 @@ The `docker` client is pretty simple. Each action you can take
 with Docker is a command and each command can take a series of
 flags and arguments.
 
-    # Usage:  [sudo] docker [flags] [command] [arguments] ..
+    # Usage:  [sudo] docker [command] [flags] [arguments] ..
     # Example:
     $ sudo docker run -i -t ubuntu /bin/bash
 
