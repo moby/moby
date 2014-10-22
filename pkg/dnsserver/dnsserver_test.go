@@ -72,11 +72,11 @@ func TestARecordCRUD(t *testing.T) {
 		}
 	}
 
-	for host, _ := range table {
+	for host := range table {
 		server.DeleteA(host)
 	}
 
-	for host, _ := range table {
+	for host := range table {
 		msg, err := msgClient(fmt.Sprintf("%s.docker.", host), dns.TypeA)
 
 		if err != nil {
@@ -91,8 +91,8 @@ func TestARecordCRUD(t *testing.T) {
 
 func TestSRVRecordCRUD(t *testing.T) {
 	table := map[string][]SRVRecord{
-		"test":  []SRVRecord{{80, "test.docker."}},
-		"test2": []SRVRecord{{81, "test2.docker."}},
+		"test":  {{80, "test.docker."}},
+		"test2": {{81, "test2.docker."}},
 	}
 
 	// do this in independent parts so both records exist. This tests some
@@ -138,11 +138,11 @@ func TestSRVRecordCRUD(t *testing.T) {
 		}
 	}
 
-	for name, _ := range table {
+	for name := range table {
 		server.DeleteSRV(name, "tcp")
 	}
 
-	for name, _ := range table {
+	for name := range table {
 		msg, err := msgClient(fmt.Sprintf("_%s._tcp.docker.", name), dns.TypeSRV)
 
 		if err != nil {
