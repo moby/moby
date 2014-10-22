@@ -2195,7 +2195,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		config.StdinOnce = false
 	}
 
-	// Disable flSigProxy in case on TTY
+	// Disable flSigProxy when in TTY mode
 	sigProxy := *flSigProxy
 	if config.Tty {
 		sigProxy = false
@@ -2217,7 +2217,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	)
 
 	if !config.AttachStdout && !config.AttachStderr {
-		// Make this asynchrone in order to let the client write to stdin before having to read the ID
+		// Make this asynchronous to allow the client to write to stdin before having to read the ID
 		waitDisplayId = make(chan struct{})
 		go func() {
 			defer close(waitDisplayId)
@@ -2229,7 +2229,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
 
-	// We need to instanciate the chan because the select needs it. It can
+	// We need to instantiate the chan because the select needs it. It can
 	// be closed but can't be uninitialized.
 	hijacked := make(chan io.Closer)
 
@@ -2276,8 +2276,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// Acknowledge the hijack before starting
 	select {
 	case closer := <-hijacked:
-		// Make sure that hijack gets closed when returning. (result
-		// in closing hijack chan and freeing server's goroutines.
+		// Make sure that the hijack gets closed when returning (results
+		// in closing the hijack chan and freeing server's goroutines)
 		if closer != nil {
 			defer closer.Close()
 		}
@@ -2329,15 +2329,15 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 	} else {
+		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
-			// In non-tty mode, we can't dettach, so we know we need to wait.
+			// In non-TTY mode, we can't detach, so we must wait for container exit
 			if status, err = waitForExit(cli, runResult.Get("Id")); err != nil {
 				return err
 			}
 		} else {
-			// In TTY mode, there is a race. If the process dies too slowly, the state can be update after the getExitCode call
-			// and result in a wrong exit code.
-			// No Autoremove: Simply retrieve the exit code
+			// In TTY mode, there is a race: if the process dies too slowly, the state could
+			// be updated after the getExitCode call and result in the wrong exit code being reported
 			if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
 				return err
 			}
