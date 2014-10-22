@@ -139,6 +139,11 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		mirrors = s.mirrors
 	}
 
+	logName := localName
+	if tag != "" {
+		logName += ":" + tag
+	}
+
 	if len(mirrors) == 0 && (isOfficial || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
@@ -146,6 +151,9 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		}
 
 		if err := s.pullV2Repository(job.Eng, r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel")); err == nil {
+			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
+				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
+			}
 			return engine.StatusOK
 		} else if err != registry.ErrDoesNotExist {
 			log.Errorf("Error from V2 registry: %s", err)
@@ -154,6 +162,10 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 
 	if err = s.pullRepository(r, job.Stdout, localName, remoteName, tag, sf, job.GetenvBool("parallel"), mirrors); err != nil {
 		return job.Error(err)
+	}
+
+	if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
+		log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
 	}
 
 	return engine.StatusOK

@@ -215,3 +215,57 @@ func TestEventsRedirectStdout(t *testing.T) {
 
 	logDone("events - redirect stdout")
 }
+
+func TestEventsImagePull(t *testing.T) {
+	since := time.Now().Unix()
+	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
+	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
+		t.Fatal("pulling the scratch image from has failed: %s, %v", out, err)
+	}
+
+	eventsCmd := exec.Command(dockerBinary, "events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, _, _ := runCommandWithOutput(eventsCmd)
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	event := strings.TrimSpace(events[len(events)-1])
+
+	if !strings.HasSuffix(event, "scratch:latest: pull") {
+		t.Fatalf("Missing pull event - got:%q", event)
+	}
+
+	logDone("events - image pull is logged")
+}
+
+func TestEventsImageImport(t *testing.T) {
+	since := time.Now().Unix()
+
+	server, err := fileServer(map[string]string{
+		"/cirros.tar.gz": "/cirros.tar.gz",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	fileURL := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
+	importCmd := exec.Command(dockerBinary, "import", fileURL)
+	out, _, err := runCommandWithOutput(importCmd)
+	if err != nil {
+		t.Errorf("import failed with errors: %v, output: %q", err, out)
+	}
+
+	eventsCmd := exec.Command(dockerBinary, "events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", time.Now().Unix()))
+	out, _, _ = runCommandWithOutput(eventsCmd)
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	event := strings.TrimSpace(events[len(events)-1])
+
+	if !strings.HasSuffix(event, ": import") {
+		t.Fatalf("Missing pull event - got:%q", event)
+	}
+
+	logDone("events - image import is logged")
+}
