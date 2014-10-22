@@ -432,6 +432,65 @@ func TestAllocateAllIps(t *testing.T) {
 	}
 
 	assertIPEquals(t, first, again)
+
+	// ensure that alloc.last == alloc.begin won't result in dead loop
+	if _, err := RequestIP(network, nil); err != ErrNoAvailableIPs {
+		t.Fatal(err)
+	}
+
+	// Test by making alloc.last the only free ip and ensure we get it back
+	// #1. first of the range, (alloc.last == ipToInt(first) already)
+	if err := ReleaseIP(network, first); err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertIPEquals(t, first, ret)
+
+	// #2. last of the range, note that current is the last one
+	last := net.IPv4(192, 168, 0, 254)
+	setLastTo(t, network, last)
+
+	ret, err = RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertIPEquals(t, last, ret)
+
+	// #3. middle of the range
+	mid := net.IPv4(192, 168, 0, 7)
+	setLastTo(t, network, mid)
+
+	ret, err = RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertIPEquals(t, mid, ret)
+}
+
+// make sure the pool is full when calling setLastTo.
+// we don't cheat here
+func setLastTo(t *testing.T, network *net.IPNet, ip net.IP) {
+	if err := ReleaseIP(network, ip); err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := RequestIP(network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertIPEquals(t, ip, ret)
+
+	if err := ReleaseIP(network, ip); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestAllocateDifferentSubnets(t *testing.T) {
