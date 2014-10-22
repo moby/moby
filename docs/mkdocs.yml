@@ -26,6 +26,7 @@ pages:
 
 # Introduction:
 - ['index.md', 'About', 'Docker']
+- ['release-notes.md', 'About', 'Release Notes']
 - ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 
