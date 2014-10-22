@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -160,6 +161,7 @@ func spawnGlobalDaemon() {
 		}
 		job := eng.Job("serveapi", listenURL.String())
 		job.SetenvBool("Logging", true)
+		job.SetenvBool("Insecure", true)
 		if err := job.Run(); err != nil {
 			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
@@ -215,6 +217,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 		job.Setenv("TlsCa", cacert)
 		job.Setenv("TlsCert", cert)
 		job.Setenv("TlsKey", key)
+		job.Setenv("TrustKey", path.Join(unitTestStoreBase, ".docker", "key.json"))
 		if err := job.Run(); err != nil {
 			log.Fatalf("Unable to spawn the test daemon: %s", err)
 		}

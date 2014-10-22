@@ -82,11 +82,14 @@ func mainDaemon() {
 	job.Setenv("Version", dockerversion.VERSION)
 	job.Setenv("SocketGroup", *flSocketGroup)
 
+	job.SetenvBool("Insecure", *flInsecure)
 	job.SetenvBool("Tls", *flTls)
 	job.SetenvBool("TlsVerify", *flTlsVerify)
 	job.Setenv("TlsCa", *flCa)
 	job.Setenv("TlsCert", *flCert)
 	job.Setenv("TlsKey", *flKey)
+	job.Setenv("TrustKey", *flTrustKey)
+	job.Setenv("TrustClients", *flTrustClients)
 	job.SetenvBool("BufferRequests", true)
 	if err := job.Run(); err != nil {
 		log.Fatal(err)
