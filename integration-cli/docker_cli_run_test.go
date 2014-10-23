@@ -1611,7 +1611,7 @@ func TestRunCopyVolumeContent(t *testing.T) {
 	}
 
 	// Test that the content is copied from the image to the volume
-	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "sh", "-c", "find", "/hello")
+	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "find", "/hello")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)

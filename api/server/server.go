@@ -92,17 +92,18 @@ func httpError(w http.ResponseWriter, err error) {
 	// FIXME: this is brittle and should not be necessary.
 	// If we need to differentiate between different possible error types, we should
 	// create appropriate error types with clearly defined meaning.
-	if strings.Contains(err.Error(), "no such") {
+	errStr := strings.ToLower(err.Error())
+	if strings.Contains(errStr, "no such") {
 		statusCode = http.StatusNotFound
-	} else if strings.Contains(err.Error(), "Bad parameter") {
+	} else if strings.Contains(errStr, "bad parameter") {
 		statusCode = http.StatusBadRequest
-	} else if strings.Contains(err.Error(), "Conflict") {
+	} else if strings.Contains(errStr, "conflict") {
 		statusCode = http.StatusConflict
-	} else if strings.Contains(err.Error(), "Impossible") {
+	} else if strings.Contains(errStr, "impossible") {
 		statusCode = http.StatusNotAcceptable
-	} else if strings.Contains(err.Error(), "Wrong login/password") {
+	} else if strings.Contains(errStr, "wrong login/password") {
 		statusCode = http.StatusUnauthorized
-	} else if strings.Contains(err.Error(), "hasn't been activated") {
+	} else if strings.Contains(errStr, "hasn't been activated") {
 		statusCode = http.StatusForbidden
 	}
 
@@ -1050,7 +1051,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
 		log.Errorf("%s", err.Error())
-		if strings.Contains(err.Error(), "No such container") {
+		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {
 			return fmt.Errorf("Could not find the file %s in container %s", origResource, vars["name"])
