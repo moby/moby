@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/docker/docker/nat"
@@ -129,7 +130,7 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
-	original = strings.TrimSpace(strings.TrimLeft(original, "ONBUILD"))
+	original = regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(original, "")
 
 	b.Config.OnBuild = append(b.Config.OnBuild, original)
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("ONBUILD %s", original))

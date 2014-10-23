@@ -195,17 +195,18 @@ __docker_subcommand () {
             ;;
         (build)
             _arguments \
-                '--force-rm[Always remove intermediate containers, even after unsuccessful builds]' \
+                '--force-rm[Always remove intermediate containers]' \
                 '--no-cache[Do not use cache when building the image]' \
-                '-q[Suppress verbose build output]' \
+                {-q,--quiet}'[Suppress verbose build output]' \
                 '--rm[Remove intermediate containers after a successful build]' \
-                '-t:repository:__docker_repositories_with_tags' \
+                {-t,--tag=-}'[Repository, name and tag to be applied]:repository:__docker_repositories_with_tags' \
                 ':path or URL:_directories'
             ;;
         (commit)
             _arguments \
-                '--author=-[Author]:author: ' \
-                '-m[Commit message]:message: ' \
+                {-a,--author=-}'[Author]:author: ' \
+                {-m,--message=-}'[Commit message]:message: ' \
+                {-p,--pause}'[Pause container during commit]' \
                 '--run=-[Configuration automatically applied when the image is run]:configuration: ' \
                 ':container:__docker_containers' \
                 ':repository:__docker_repositories_with_tags'
@@ -224,60 +225,40 @@ __docker_subcommand () {
                     ;;
             esac
             ;;
-        (create)
-            _arguments \
-                '-P[Publish all exposed ports to the host]' \
-                '-a[Attach to stdin, stdout or stderr]' \
-                '-c=-[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
-                '--cidfile=-[Write the container ID to the file]:CID file:_files' \
-                '*--dns=-[Set custom dns servers]:dns server: ' \
-                '*-e=-[Set environment variables]:environment variable: ' \
-                '--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
-                '*--expose=-[Expose a port from the container without publishing it]: ' \
-                '-h=-[Container host name]:hostname:_hosts' \
-                '-i[Keep stdin open even if not attached]' \
-                '--link=-[Add link to another container]:link:->link' \
-                '--lxc-conf=-[Add custom lxc options]:lxc options: ' \
-                '-m=-[Memory limit (in bytes)]:limit: ' \
-                '--name=-[Container name]:name: ' \
-                '*-p=-[Expose a container'"'"'s port to the host]:port:_ports' \
-                '--privileged[Give extended privileges to this container]' \
-                '-t[Allocate a pseudo-tty]' \
-                '-u=-[Username or UID]:user:_users' \
-                '*-v=-[Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)]:volume: '\
-                '--volumes-from=-[Mount volumes from the specified container]:volume: ' \
-                '-w=-[Working directory inside the container]:directory:_directories' \
-                '(-):images:__docker_images' \
-                '(-):command: _command_names -e' \
-                '*::arguments: _normal'
         (diff|export)
             _arguments '*:containers:__docker_containers'
             ;;
+        (events)
+            _arguments \
+                '--since=-[Events created since this timestamp]:timestamp: ' \
+                '--until=-[Events created until this timestamp]:timestamp: '
+            ;;
         (exec)
             _arguments \
-                '-d[Detached mode: leave the container running in the background]' \
-                '-i[Keep stdin open even if not attached]' \
-                '-t[Allocate a pseudo-tty]' \
+                {-d,--detach}'[Detached mode: leave the container running in the background]' \
+                {-i,--interactive}'[Keep stdin open even if not attached]' \
+                {-t,--tty}'[Allocate a pseudo-tty]' \
                 ':containers:__docker_runningcontainers'
             ;;
         (history)
             _arguments \
                 '--no-trunc[Do not truncate output]' \
-                '-q[Only show numeric IDs]' \
+                {-q,--quiet}'[Only show numeric IDs]' \
                 '*:images:__docker_images'
             ;;
         (images)
             _arguments \
-                '-a[Show all images]' \
+                {-a,--all}'[Show all images]' \
+                '*'{-f,--filter=-}'[Filter values]:filter: ' \
                 '--no-trunc[Do not truncate output]' \
-                '-q[Only show numeric IDs]' \
+                {-q,--quiet}'[Only show numeric IDs]' \
                 '--tree[Output graph in tree format]' \
                 '--viz[Output graph in graphviz format]' \
                 ':repository:__docker_repositories'
             ;;
         (inspect)
             _arguments \
-                '--format=-[Format the output using the given go template]:template: ' \
+                {-f,--format=-}'[Format the output using the given go template]:template: ' \
                 '*:containers:__docker_containers'
             ;;
         (import)
@@ -298,20 +279,29 @@ __docker_subcommand () {
                        '3:file:_files'
             ;;
         (kill)
-            _arguments '*:containers:__docker_runningcontainers'
+            _arguments \
+                {-s,--signal=-}'[Signal to send]:signal:_signals' \
+                '*:containers:__docker_runningcontainers'
             ;;
         (load)
+            _arguments \
+                {-i,--input=-}'[Read from tar archive file]:tar:_files'
             ;;
         (login)
             _arguments \
-                '-e[Email]:email: ' \
-                '-p[Password]:password: ' \
-                '-u[Username]:username: ' \
+                {-e,--email=-}'[Email]:email: ' \
+                {-p,--password=-}'[Password]:password: ' \
+                {-u,--user=-}'[Username]:username: ' \
+                ':server: '
+            ;;
+        (logout)
+            _arguments \
                 ':server: '
             ;;
         (logs)
             _arguments \
-                '-f[Follow log output]' \
+                {-f,--follow}'[Follow log output]' \
+                {-t,--timestamps}'[Show timestamps]' \
                 '*:containers:__docker_containers'
             ;;
         (port)
@@ -319,24 +309,32 @@ __docker_subcommand () {
                 '1:containers:__docker_runningcontainers' \
                 '2:port:_ports'
             ;;
+        (pause|unpause)
+            _arguments \
+                '1:containers:__docker_runningcontainers'
+            ;;
         (start)
             _arguments \
-                '-a[Attach container'"'"'s stdout/stderr and forward all signals]' \
-                '-i[Attach container'"'"'s stding]' \
+                {-a,--attach}'[Attach container'"'"'s stdout/stderr and forward all signals]' \
+                {-i,--interactive}'[Attach container'"'"'s stding]' \
                 '*:containers:__docker_stoppedcontainers'
             ;;
         (rm)
             _arguments \
-                '--link[Remove the specified link and not the underlying container]' \
-                '-v[Remove the volumes associated to the container]' \
+                {-f,--force}'[Force removal]' \
+                {-l,--link}'[Remove the specified link and not the underlying container]' \
+                {-v,--volumes}'[Remove the volumes associated to the container]' \
                 '*:containers:__docker_stoppedcontainers'
             ;;
         (rmi)
             _arguments \
+                {-f,--force}'[Force removal]' \
+                '--no-prune[Do not delete untagged parents]' \
                 '*:images:__docker_images'
             ;;
         (restart|stop)
-            _arguments '-t[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)' \
+            _arguments \
+                {-t,--time=-}'[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)' \
                 '*:containers:__docker_runningcontainers'
             ;;
         (top)
@@ -352,47 +350,58 @@ __docker_subcommand () {
             ;;
         (ps)
             _arguments \
-                '-a[Show all containers]' \
+                {-a,--all}'[Show all containers]' \
                 '--before=-[Show only container created before...]:containers:__docker_containers' \
-                '-l[Show only the latest created container]' \
+                '*'{-f,--filter=-}'[Filter values]:filter: ' \
+                {-l,--latest}'[Show only the latest created container]' \
                 '-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)' \
                 '--no-trunc[Do not truncate output]' \
-                '-q[Only show numeric IDs]' \
-                '-s[Display sizes]' \
+                {-q,--quiet}'[Only show numeric IDs]' \
+                {-s,--size}'[Display sizes]' \
                 '--since=-[Show only containers created since...]:containers:__docker_containers'
             ;;
         (tag)
             _arguments \
-                '-f[force]'\
+                {-f,--force}'[force]'\
                 ':image:__docker_images'\
                 ':repository:__docker_repositories_with_tags'
             ;;
-        (run)
+        (create|run)
             _arguments \
-                '-P[Publish all exposed ports to the host]' \
-                '-a[Attach to stdin, stdout or stderr]' \
-                '-c[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
+                {-a,--attach}'[Attach to stdin, stdout or stderr]' \
+                '*--add-host=-[Add a custom host-to-IP mapping]:host\:ip mapping: ' \
+                {-c,--cpu-shares=-}'[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
+                '*--cap-add=-[Add Linux capabilities]:capability: ' \
+                '*--cap-drop=-[Drop Linux capabilities]:capability: ' \
                 '--cidfile=-[Write the container ID to the file]:CID file:_files' \
-                '-d[Detached mode: leave the container running in the background]' \
+                '--cpuset=-[CPUs in which to allow execution]:CPU set: ' \
+                {-d,--detach}'[Detached mode: leave the container running in the background]' \
+                '*--device=-[Add a host device to the container]:device:_files' \
                 '*--dns=-[Set custom dns servers]:dns server: ' \
-                '*-e[Set environment variables]:environment variable: ' \
+                '*--dns-search=-[Set custom DNS search domains]:dns domains: ' \
+                '*'{-e,--environment=-}'[Set environment variables]:environment variable: ' \
                 '--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
+                '*--env-file=-[Read environment variables from a file]:environment file:_files' \
                 '*--expose=-[Expose a port from the container without publishing it]: ' \
-                '-h[Container host name]:hostname:_hosts' \
-                '-i[Keep stdin open even if not attached]' \
-                '--link=-[Add link to another container]:link:->link' \
-                '--lxc-conf=-[Add custom lxc options]:lxc options: ' \
+                {-h,--hostname=-}'[Container host name]:hostname:_hosts' \
+                {-i,--interactive}'[Keep stdin open even if not attached]' \
+                '*--link=-[Add link to another container]:link:->link' \
+                '*--lxc-conf=-[Add custom lxc options]:lxc options: ' \
                 '-m[Memory limit (in bytes)]:limit: ' \
                 '--name=-[Container name]:name: ' \
-                '*-p[Expose a container'"'"'s port to the host]:port:_ports' \
+                '--net=-[Network mode]:network mode:(bridge none container: host)' \
+                {-P,--publish-all}'[Publish all exposed ports]' \
+                '*'{-p,--publish=-}'[Expose a container'"'"'s port to the host]:port:_ports' \
                 '--privileged[Give extended privileges to this container]' \
+                '--restart=-[Restart policy]:restart policy:(no on-failure always)' \
                 '--rm[Remove intermediate containers when it exits]' \
+                '*--security-opt=-[Security options]:security option: ' \
                 '--sig-proxy[Proxify all received signal]' \
-                '-t[Allocate a pseudo-tty]' \
-                '-u[Username or UID]:user:_users' \
-                '*-v[Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)]:volume: '\
-                '--volumes-from=-[Mount volumes from the specified container]:volume: ' \
-                '-w[Working directory inside the container]:directory:_directories' \
+                {-t,--tty}'[Allocate a pseudo-tty]' \
+                {-u,--user=-}'[Username or UID]:user:_users' \
+                '*-v[Bind mount a volume]:volume: '\
+                '*--volumes-from=-[Mount volumes from the specified container]:volume: ' \
+                {-w,--workdir=-}'[Working directory inside the container]:directory:_directories' \
                 '(-):images:__docker_images' \
                 '(-):command: _command_names -e' \
                 '*::arguments: _normal'
@@ -416,6 +425,7 @@ __docker_subcommand () {
             ;;
         (save)
             _arguments \
+                {-o,--output=-}'[Write to file]:file:_files' \
                 ':images:__docker_images'
             ;;
         (wait)

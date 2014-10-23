@@ -834,12 +834,17 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	var filter []string
-
 	basePath, err := container.getResourcePath(resource)
 	if err != nil {
 		container.Unmount()
 		return nil, err
+	}
+
+	// Check if this is actually in a volume
+	for _, mnt := range container.VolumeMounts() {
+		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
+			return mnt.Export(resource)
+		}
 	}
 
 	stat, err := os.Stat(basePath)
@@ -847,6 +852,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		container.Unmount()
 		return nil, err
 	}
+	var filter []string
 	if !stat.IsDir() {
 		d, f := path.Split(basePath)
 		basePath = d

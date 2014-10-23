@@ -34,6 +34,7 @@ type (
 		Excludes    []string
 		Compression Compression
 		NoLchown    bool
+		Name        string
 	}
 )
 
@@ -359,6 +360,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		twBuf := pools.BufioWriter32KPool.Get(nil)
 		defer pools.BufioWriter32KPool.Put(twBuf)
 
+		var renamedRelFilePath string // For when tar.Options.Name is set
 		for _, include := range options.Includes {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
@@ -382,6 +384,15 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 						return filepath.SkipDir
 					}
 					return nil
+				}
+
+				// Rename the base resource
+				if options.Name != "" && filePath == srcPath+"/"+filepath.Base(relFilePath) {
+					renamedRelFilePath = relFilePath
+				}
+				// Set this to make sure the items underneath also get renamed
+				if options.Name != "" {
+					relFilePath = strings.Replace(relFilePath, renamedRelFilePath, options.Name, 1)
 				}
 
 				if err := addTarFile(filePath, relFilePath, tw, twBuf); err != nil {

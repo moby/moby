@@ -10,13 +10,15 @@ import (
 
 func TestExec(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	execCmd := exec.Command(dockerBinary, "exec", "testing", "cat", "/tmp/file")
-
-	out, _, err = runCommandWithOutput(execCmd)
-	errorOut(err, t, out)
+	out, _, err := runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	out = strings.Trim(out, "\r\n")
 
@@ -31,8 +33,9 @@ func TestExec(t *testing.T) {
 
 func TestExecInteractive(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	execCmd := exec.Command(dockerBinary, "exec", "-i", "testing", "sh")
 	stdin, err := execCmd.StdinPipe()
@@ -84,17 +87,22 @@ func TestExecInteractive(t *testing.T) {
 func TestExecAfterContainerRestart(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
 	runCmd = exec.Command(dockerBinary, "restart", cleanedContainerID)
-	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	runCmd = exec.Command(dockerBinary, "exec", cleanedContainerID, "echo", "hello")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	outStr := strings.TrimSpace(out)
 	if outStr != "hello" {
