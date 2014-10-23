@@ -59,7 +59,7 @@ RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-RUN	curl -sSL https://golang.org/dl/go1.3.1.src.tar.gz | tar -v -C /usr/local -xz
+RUN	curl -sSL https://golang.org/dl/go1.3.3.src.tar.gz | tar -v -C /usr/local -xz
 ENV	PATH	/usr/local/go/bin:$PATH
 ENV	GOPATH	/go:/go/src/github.com/docker/docker/vendor
 ENV PATH /go/bin:$PATH
@@ -89,8 +89,11 @@ RUN mkdir -p /go/src/github.com/cpuguy83 \
 # Get the "busybox" image source so we can build locally instead of pulling
 RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
 
+# Get the "cirros" image source so we can import it instead of fetching it during tests
+RUN	curl -sSL -o /cirros.tar.gz https://github.com/ewindisch/docker-cirros/raw/1cded459668e8b9dbf4ef976c94c05add9bbd8e9/cirros-0.3.0-x86_64-lxc.tar.gz
+
 # Setup s3cmd config
-RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > /.s3cfg
+RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > $HOME/.s3cfg
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN	git config --global user.email 'docker-dummy@example.com'

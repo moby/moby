@@ -4,12 +4,12 @@ all:
 
 test: 
 	# we need NET_ADMIN for the netlink tests and SYS_ADMIN for mounting
-	docker run --rm -it --cap-add NET_ADMIN --cap-add SYS_ADMIN docker/libcontainer
+	docker run --rm -it --privileged docker/libcontainer
 
 sh:
-	docker run --rm -it --cap-add NET_ADMIN --cap-add SYS_ADMIN -w /busybox docker/libcontainer nsinit exec sh
+	docker run --rm -it --privileged -w /busybox docker/libcontainer nsinit exec sh
 
-GO_PACKAGES = $(shell find . -not \( -wholename ./vendor -prune \) -name '*.go' -print0 | xargs -0n1 dirname | sort -u)
+GO_PACKAGES = $(shell find . -not \( -wholename ./vendor -prune -o -wholename ./.git -prune \) -name '*.go' -print0 | xargs -0n1 dirname | sort -u)
 
 direct-test:
 	go test -cover -v $(GO_PACKAGES)

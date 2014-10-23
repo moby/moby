@@ -7,8 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 )
@@ -19,10 +19,9 @@ import (
 // name is the set of tags to export.
 // out is the writer where the images are written to.
 func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s IMAGE\n", job.Name)
+	if len(job.Args) < 1 {
+		return job.Errorf("Usage: %s IMAGE [IMAGE...]\n", job.Name)
 	}
-	name := job.Args[0]
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
@@ -30,49 +29,71 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	}
 	defer os.RemoveAll(tempdir)
 
-	log.Debugf("Serializing %s", name)
-
 	rootRepoMap := map[string]Repository{}
-	rootRepo, err := s.Get(name)
-	if err != nil {
-		return job.Error(err)
-	}
-	if rootRepo != nil {
-		// this is a base repo name, like 'busybox'
+	for _, name := range job.Args {
+		log.Debugf("Serializing %s", name)
+		rootRepo := s.Repositories[name]
+		if rootRepo != nil {
+			// this is a base repo name, like 'busybox'
+			for _, id := range rootRepo {
+				if _, ok := rootRepoMap[name]; !ok {
+					rootRepoMap[name] = rootRepo
+				} else {
+					log.Debugf("Duplicate key [%s]", name)
+					if rootRepoMap[name].Contains(rootRepo) {
+						log.Debugf("skipping, because it is present [%s:%q]", name, rootRepo)
+						continue
+					}
+					log.Debugf("updating [%s]: [%q] with [%q]", name, rootRepoMap[name], rootRepo)
+					rootRepoMap[name].Update(rootRepo)
+				}
 
-		for _, id := range rootRepo {
-			if err := s.exportImage(job.Eng, id, tempdir); err != nil {
-				return job.Error(err)
-			}
-		}
-		rootRepoMap[name] = rootRepo
-	} else {
-		img, err := s.LookupImage(name)
-		if err != nil {
-			return job.Error(err)
-		}
-		if img != nil {
-			// This is a named image like 'busybox:latest'
-			repoName, repoTag := parsers.ParseRepositoryTag(name)
-			if err := s.exportImage(job.Eng, img.ID, tempdir); err != nil {
-				return job.Error(err)
-			}
-			// check this length, because a lookup of a truncated has will not have a tag
-			// and will not need to be added to this map
-			if len(repoTag) > 0 {
-				rootRepoMap[repoName] = Repository{repoTag: img.ID}
+				if err := s.exportImage(job.Eng, id, tempdir); err != nil {
+					return job.Error(err)
+				}
 			}
 		} else {
-			// this must be an ID that didn't get looked up just right?
-			if err := s.exportImage(job.Eng, name, tempdir); err != nil {
+			img, err := s.LookupImage(name)
+			if err != nil {
 				return job.Error(err)
 			}
+
+			if img != nil {
+				// This is a named image like 'busybox:latest'
+				repoName, repoTag := parsers.ParseRepositoryTag(name)
+
+				// check this length, because a lookup of a truncated has will not have a tag
+				// and will not need to be added to this map
+				if len(repoTag) > 0 {
+					if _, ok := rootRepoMap[repoName]; !ok {
+						rootRepoMap[repoName] = Repository{repoTag: img.ID}
+					} else {
+						log.Debugf("Duplicate key [%s]", repoName)
+						newRepo := Repository{repoTag: img.ID}
+						if rootRepoMap[repoName].Contains(newRepo) {
+							log.Debugf("skipping, because it is present [%s:%q]", repoName, newRepo)
+							continue
+						}
+						log.Debugf("updating [%s]: [%q] with [%q]", repoName, rootRepoMap[repoName], newRepo)
+						rootRepoMap[repoName].Update(newRepo)
+					}
+				}
+				if err := s.exportImage(job.Eng, img.ID, tempdir); err != nil {
+					return job.Error(err)
+				}
+
+			} else {
+				// this must be an ID that didn't get looked up just right?
+				if err := s.exportImage(job.Eng, name, tempdir); err != nil {
+					return job.Error(err)
+				}
+			}
 		}
+		log.Debugf("End Serializing %s", name)
 	}
 	// write repositories, if there is something to write
 	if len(rootRepoMap) > 0 {
 		rootRepoJson, _ := json.Marshal(rootRepoMap)
-
 		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.FileMode(0644)); err != nil {
 			return job.Error(err)
 		}
@@ -89,7 +110,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
 		return job.Error(err)
 	}
-	log.Debugf("End Serializing %s", name)
+	log.Debugf("End export job: %s", job.Name)
 	return engine.StatusOK
 }
 

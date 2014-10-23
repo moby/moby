@@ -7,6 +7,7 @@ page_keywords: Docker, Docker documentation, installation, debian
 Docker is supported on the following versions of Debian:
 
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-8-64-bit)
+ - [*Debian 7.5 Wheezy (64-bit)*](#debian-wheezy-7-64-bit)
 
 ## Debian Jessie 8.0 (64-bit)
 
@@ -34,7 +35,35 @@ Which should download the `ubuntu` image, and then start `bash` in a container.
 > If you want to enable memory and swap accounting see
 > [this](/installation/ubuntulinux/#memory-and-swap-accounting).
 
-### Giving non-root access
+## Debian Wheezy/Stable 7.x (64-bit)
+
+Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details
+on why 3.8 is required, see discussion on
+[bug #407](https://github.com/docker/docker/issues/407%20kernel%20versions)).
+
+Fortunately, wheezy-backports currently has [Kernel 3.14
+](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
+which is officially supported by Docker.
+
+### Installation
+
+1. Install Kernel 3.14 from wheezy-backports
+ 
+    Add the following line to your `/etc/apt/sources.list`
+
+    `deb http://http.debian.net/debian wheezy-backports main`
+
+    then install the `linux-image-amd64` package (note the use of
+    `-t wheezy-backports`)
+ 
+        $ sudo apt-get update
+        $ sudo apt-get install -t wheezy-backports linux-image-amd64
+
+2. Install Docker using the get.docker.com script:
+ 
+    `curl -sSL https://get.docker.com/ | sh`
+
+## Giving non-root access
 
 The `docker` daemon always runs as the `root` user and the `docker`
 daemon binds to a Unix socket instead of a TCP port. By default that
@@ -68,7 +97,7 @@ use the `-G` flag to specify an alternative group.
     # Restart the Docker daemon.
     $ sudo service docker restart
 
+
 ## What next?
 
 Continue with the [User Guide](/userguide/).
-

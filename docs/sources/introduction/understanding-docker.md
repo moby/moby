@@ -198,7 +198,7 @@ then run.
 Either by using the `docker` binary or via the API, the Docker client tells the Docker
 daemon to run a container.
 
-    $ docker run -i -t ubuntu /bin/bash
+    $ sudo docker run -i -t ubuntu /bin/bash
 
 Let's break down this command. The Docker client is launched using the `docker`
 binary with the `run` option telling it to launch a new container. The bare

@@ -17,6 +17,12 @@ var (
 	ErrNotADeviceNode = errors.New("not a device node")
 )
 
+// Testing dependencies
+var (
+	osLstat       = os.Lstat
+	ioutilReadDir = ioutil.ReadDir
+)
+
 type Device struct {
 	Type              rune        `json:"type,omitempty"`
 	Path              string      `json:"path,omitempty"`               // It is fine if this is an empty string in the case that you are using Wildcards
@@ -24,6 +30,8 @@ type Device struct {
 	MinorNumber       int64       `json:"minor_number,omitempty"`       // Use the wildcard constant for wildcards.
 	CgroupPermissions string      `json:"cgroup_permissions,omitempty"` // Typically just "rwm"
 	FileMode          os.FileMode `json:"file_mode,omitempty"`          // The permission bits of the file's mode
+	Uid               uint32      `json:"uid,omitempty"`
+	Gid               uint32      `json:"gid,omitempty"`
 }
 
 func GetDeviceNumberString(deviceNumber int64) string {
@@ -40,7 +48,7 @@ func (device *Device) GetCgroupAllowString() string {
 
 // Given the path to a device and it's cgroup_permissions(which cannot be easilly queried) look up the information about a linux device and return that information as a Device struct.
 func GetDevice(path, cgroupPermissions string) (*Device, error) {
-	fileInfo, err := os.Lstat(path)
+	fileInfo, err := osLstat(path)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +83,8 @@ func GetDevice(path, cgroupPermissions string) (*Device, error) {
 		MinorNumber:       Minor(devNumber),
 		CgroupPermissions: cgroupPermissions,
 		FileMode:          fileModePermissionBits,
+		Uid:               stat_t.Uid,
+		Gid:               stat_t.Gid,
 	}, nil
 }
 
@@ -83,7 +93,7 @@ func GetHostDeviceNodes() ([]*Device, error) {
 }
 
 func getDeviceNodes(path string) ([]*Device, error) {
-	files, err := ioutil.ReadDir(path)
+	files, err := ioutilReadDir(path)
 	if err != nil {
 		return nil, err
 	}

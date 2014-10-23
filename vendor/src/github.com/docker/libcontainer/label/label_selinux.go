@@ -67,20 +67,17 @@ func FormatMountLabel(src, mountLabel string) string {
 // SetProcessLabel takes a process label and tells the kernel to assign the
 // label to the next program executed by the current process.
 func SetProcessLabel(processLabel string) error {
-	if selinux.SelinuxEnabled() {
-		return selinux.Setexeccon(processLabel)
+	if processLabel == "" {
+		return nil
 	}
-	return nil
+	return selinux.Setexeccon(processLabel)
 }
 
 // GetProcessLabel returns the process label that the kernel will assign
 // to the next program executed by the current process.  If "" is returned
 // this indicates that the default labeling will happen for the process.
 func GetProcessLabel() (string, error) {
-	if selinux.SelinuxEnabled() {
-		return selinux.Getexeccon()
-	}
-	return "", nil
+	return selinux.Getexeccon()
 }
 
 // SetFileLabel modifies the "path" label to the specified file label
@@ -110,9 +107,6 @@ func Relabel(path string, fileLabel string, relabel string) error {
 
 // GetPidLabel will return the label of the process running with the specified pid
 func GetPidLabel(pid int) (string, error) {
-	if !selinux.SelinuxEnabled() {
-		return "", nil
-	}
 	return selinux.Getpidcon(pid)
 }
 
@@ -126,5 +120,13 @@ func Init() {
 // container
 func ReserveLabel(label string) error {
 	selinux.ReserveLabel(label)
+	return nil
+}
+
+// UnreserveLabel will remove the reservation of the MCS label.
+// This will allow InitLabels to use the MCS label in a newly created
+// containers
+func UnreserveLabel(label string) error {
+	selinux.FreeLxcContexts(label)
 	return nil
 }

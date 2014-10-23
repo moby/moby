@@ -67,6 +67,8 @@ Once you've found the image you want, you can download it with `docker pull <ima
     511136ea3c5a: Download complete
     7064731afe90: Download complete
 
+    Status: Downloaded newer image for centos
+
 You now have an image from which you can run containers.
 
 ## Contributing to Docker Hub
@@ -124,7 +126,7 @@ triggering a build and update when you push a commit.
 
 1.  Create a [Docker Hub account](https://hub.docker.com/) and login.
 2.  Link your GitHub or BitBucket account through the ["Link Accounts"](https://registry.hub.docker.com/account/accounts/) menu.
-3.  [Configure an Automated Build](https://registry.hub.docker.com/builds/).
+3.  [Configure an Automated Build](https://registry.hub.docker.com/builds/add/).
 4.  Pick a GitHub or BitBucket project that has a `Dockerfile` that you want to build.
 5.  Pick the branch you want to build (the default is the `master` branch).
 6.  Give the Automated Build a name.

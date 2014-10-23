@@ -94,7 +94,7 @@ your image with the docker build command, e.g.,
 Start the container with `apache2` and `sshd` running and managed, forwarding
 a port to our SSH instance:
 
-    $ docker run -p 127.0.0.1:222:22 -d managed_image "/usr/sbin/sshd" "/etc/init.d/apache2 start"
+    $ sudo docker run -p 127.0.0.1:222:22 -d managed_image "/usr/sbin/sshd" "/etc/init.d/apache2 start"
 
 We now clearly see one of the benefits of the cfe-docker integration: it
 allows to start several processes as part of a normal `docker run` command.

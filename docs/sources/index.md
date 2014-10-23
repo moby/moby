@@ -83,51 +83,45 @@ Docker on a variety of platforms.
 
 ### Docker User Guide
 
-To learn about Docker in more detail and to answer questions about usage and implementation, check out the [Docker User Guide](/userguide/).
+To learn about Docker in more detail and to answer questions about usage and
+implementation, check out the [Docker User Guide](/userguide/).
 
 ## Release Notes
 
-<b>Version 1.1.0</b>
+**Version 1.3.0**
 
-### New Features
+This version fixes a number of bugs and issues and adds new functions and other
+improvements. These include:
 
-*`.dockerignore` support*
+*New command: `docker exec`*
 
-You can now add a `.dockerignore` file next to your `Dockerfile` and Docker will ignore files and directories specified in that file when sending the build context to the daemon. 
-Example: https://github.com/docker/docker/blob/master/.dockerignore
+The new `docker exec` command lets you run a process in an existing, active
+container. The command has APIs for both the daemon and the client. With
+`docker exec`, you'll be able to do things like add or remove devices from running containers, debug running containers, and run commands that are not
+part of the container's static specification.
 
-*Pause containers during commit*
+*New command: `docker create`*
 
-Doing a commit on a running container was not recommended because you could end up with files in an inconsistent state (for example, if they were being written during the commit). Containers are now paused when a commit is made to them.
-You can disable this feature by doing a `docker commit --pause=false <container_id>`
+Traditionally, the `docker run` command has been used to both create a
+container and spawn a process to run it. The new `docker create` command breaks
+this apart, letting you set up a container without actually starting it. This
+provides more control over management of the container lifecycle, giving you the
+ability to configure things like volumes or port mappings before the container
+is started. For example, in a rapid-response scaling situation, you could use
+`create` to prepare and stage ten containers in anticipation of heavy loads.
 
-*Tailing logs*
+*New provenance features*
 
-You can now tail the logs of a container. For example, you can get the last ten lines of a log by using `docker logs --tail 10 <container_id>`. You can also follow the logs of a container without having to read the whole log file with `docker logs --tail 0 -f <container_id>`.
-
-*Allow a tar file as context for docker build*
-
-You can now pass a tar archive to `docker build` as context. This can be used to automate docker builds, for example: `cat context.tar | docker build -` or `docker run builder_image | docker build -`
-
-*Bind mounting your whole filesystem in a container*
-
-`/` is now allowed as source of `--volumes`. This means you can bind-mount your whole system in a container if you need to. For example: `docker run -v /:/my_host ubuntu:ro ls /my_host`. However, it is now forbidden to mount to /.
+Official images are now signed by Docker, Inc. to improve your confidence and
+security. Look for the blue ribbons on the [Docker Hub](https://hub.docker.com/).
+The Docker Engine has been updated to automatically verify that a given Official
+Repo has a current, valid signature. If no valid signature is detected, Docker
+Engine will use a prior image.
 
 
-### Other Improvements & Changes
+*Other improvements & changes*
 
-* Port allocation has been improved. In the previous release, Docker could prevent you from starting a container with previously allocated ports which seemed to be in use when in fact they were not. This has been fixed.
-
-* A bug in `docker save` was introduced in the last release. The `docker save` command could produce images with invalid metadata. The command now produces images with correct metadata.
-
-* Running `docker inspect` in a container now returns which containers it is linked to.
-
-* Parsing of the `docker commit` flag has improved validation, to better prevent you from committing an image with a name such as  `-m`. Image names with dashes in them potentially conflict with command line flags.
-
-* The API now has Improved status codes for  `start` and `stop`. Trying to start a running container will now return a 304 error.
-
-* Performance has been improved overall. Starting the daemon is faster than in previous releases. The daemon’s performance has also been improved when it is working with large numbers of images and containers.
-
-* Fixed an issue with white-spaces and multi-lines in Dockerfiles. 
-
+We've added a new security options flag that lets you set SELinux and AppArmor
+labels and profiles. This means you'll longer have to use `docker run
+--privileged on kernels that support SE Linux or AppArmor.
 

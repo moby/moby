@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0 (2014-10-14)
+
+#### Notable features since 1.2.0
++ Docker `exec` allows you to run additional processes inside existing containers
++ Docker `create` gives you the ability to create a container via the CLI without executing a process
++ `--security-opts` options to allow user to customize container labels and apparmor profiles
++ Docker `ps` filters
+- Wildcard support to COPY/ADD
++ Move production URLs to get.docker.com from get.docker.io
++ Allocate IP address on the bridge inside a valid CIDR
++ Use drone.io for PR and CI testing
++ Ability to setup an official registry mirror
++ Ability to save multiple images with docker `save`
+
 ## 1.2.0 (2014-08-20)
 
 #### Runtime

@@ -188,5 +188,4 @@ Now you can call your app using `curl` (install if needed via:
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at
-[https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
-
+[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).

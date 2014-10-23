@@ -49,11 +49,18 @@ unix://[/path/to/socket] to use.
 **-g**=""
   Path to use as the root of the Docker runtime. Default is `/var/lib/docker`.
 
+
+**--fixed-cidr**=""
+  IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
+
 **--icc**=*true*|*false*
   Enable inter\-container communication. Default is true.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
+
+**--ip-masq**=*true*|*false*
+  Enable IP masquerading for bridge's IP range. Default is true.
 
 **--iptables**=*true*|*false*
   Disable Docker's addition of iptables rules. Default is true.
@@ -63,6 +70,9 @@ unix://[/path/to/socket] to use.
 
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
+
+**--registry-mirror=<scheme>://<host>
+  Prepend a registry mirror to be used for image pulls. May be specified multiple times.
 
 **-s**=""
   Force the Docker runtime to use a specific storage driver.
@@ -86,12 +96,17 @@ unix://[/path/to/socket] to use.
 **docker-cp(1)**
   Copy files/folders from a container's filesystem to the host at path
 
+**docker-create(1)**
+  Create a new container
+
 **docker-diff(1)**
   Inspect changes on a container's filesystem
 
-
 **docker-events(1)**
   Get real time events from the server
+
+**docker-exec(1)**
+  Run a command in a running container
 
 **docker-export(1)**
   Stream the contents of a container as a tar archive

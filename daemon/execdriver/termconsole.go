@@ -8,10 +8,10 @@ import (
 type StdConsole struct {
 }
 
-func NewStdConsole(command *Command, pipes *Pipes) (*StdConsole, error) {
+func NewStdConsole(processConfig *ProcessConfig, pipes *Pipes) (*StdConsole, error) {
 	std := &StdConsole{}
 
-	if err := std.AttachPipes(&command.Cmd, pipes); err != nil {
+	if err := std.AttachPipes(&processConfig.Cmd, pipes); err != nil {
 		return nil, err
 	}
 	return std, nil

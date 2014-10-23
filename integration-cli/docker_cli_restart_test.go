@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestDockerRestartStoppedContainer(t *testing.T) {
+func TestRestartStoppedContainer(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "foobar")
 	out, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
@@ -43,7 +43,7 @@ func TestDockerRestartStoppedContainer(t *testing.T) {
 	logDone("restart - echo foobar for stopped container")
 }
 
-func TestDockerRestartRunningContainer(t *testing.T) {
+func TestRestartRunningContainer(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
 	out, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
@@ -80,7 +80,7 @@ func TestDockerRestartRunningContainer(t *testing.T) {
 }
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
-func TestDockerRestartWithVolumes(t *testing.T) {
+func TestRestartWithVolumes(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-v", "/test", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, out)

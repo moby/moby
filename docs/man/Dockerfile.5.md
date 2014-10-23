@@ -97,7 +97,7 @@ or
   **FROM ubuntu**
   **CMD echo "This is a test." | wc -**
   If you run <command> without a shell, then you must express the command as a
-  JSON arry and give the full path to the executable. This array form is the
+  JSON array and give the full path to the executable. This array form is the
   preferred form of CMD. All additional parameters must be individually expressed
   as strings in the array:
   **FROM ubuntu**
@@ -131,12 +131,13 @@ or
  interactively, as with the following command: **docker run -t -i image bash**
 
 **ADD**
- --**ADD <src> <dest>** The ADD instruction copies new files from <src> and adds them
-  to the filesystem of the container at path <dest>.  <src> must be the path to a
-  file or directory relative to the source directory that is being built (the
-  context of the build) or a remote file URL.  <dest> is the absolute path to
-  which the source is copied inside the target container.  All new files and
-  directories are created with mode 0755, with uid and gid 0.
+ --**ADD <src>... <dest>** The ADD instruction copies new files, directories
+ or remote file URLs to the filesystem of the container at path <dest>.  
+ Mutliple <src> resources may be specified but if they are files or directories
+ then they must be relative to the source directory that is being built 
+ (the context of the build).  <dest> is the absolute path to
+ which the source is copied inside the target container.  All new files and
+ directories are created with mode 0755, with uid and gid 0.
 
 **ENTRYPOINT**
  --**ENTRYPOINT** has two forms: ENTRYPOINT ["executable", "param1", "param2"]
@@ -177,7 +178,7 @@ or
  -- **WORKDIR /path/to/workdir**
  The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, and **ENTRYPOINT** Dockerfile commands that follow it.
  It can be used multiple times in a single Dockerfile. Relative paths are defined relative to the path of the previous **WORKDIR** instruction. For example:
- **WORKDIR /a WORKDIR /b WORKDIR c RUN pwd** 
+ **WORKDIR /a WORKDIR b WORKDIR c RUN pwd** 
  In the above example, the output of the **pwd** command is **a/b/c**.
 
 **ONBUILD**

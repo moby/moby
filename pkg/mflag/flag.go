@@ -317,8 +317,13 @@ func (p flagSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 // sortFlags returns the flags as a slice in lexicographical sorted order.
 func sortFlags(flags map[string]*Flag) []*Flag {
 	var list flagSlice
-	for _, f := range flags {
+
+	// The sorted list is based on the first name, when flag map might use the other names.
+	nameMap := make(map[string]string)
+
+	for n, f := range flags {
 		fName := strings.TrimPrefix(f.Names[0], "#")
+		nameMap[fName] = n
 		if len(f.Names) == 1 {
 			list = append(list, fName)
 			continue
@@ -338,7 +343,7 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 	sort.Sort(list)
 	result := make([]*Flag, len(list))
 	for i, name := range list {
-		result[i] = flags[name]
+		result[i] = flags[nameMap[name]]
 	}
 	return result
 }
@@ -470,6 +475,23 @@ func defaultUsage(f *FlagSet) {
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
+}
+
+// FlagCount returns the number of flags that have been defined.
+func (f *FlagSet) FlagCount() int { return len(sortFlags(f.formal)) }
+
+// FlagCountUndeprecated returns the number of undeprecated flags that have been defined.
+func (f *FlagSet) FlagCountUndeprecated() int {
+	count := 0
+	for _, flag := range sortFlags(f.formal) {
+		for _, name := range flag.Names {
+			if name[0] != '#' {
+				count++
+				break
+			}
+		}
+	}
+	return count
 }
 
 // NFlag returns the number of flags that have been set.

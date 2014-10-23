@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -356,6 +358,8 @@ func TestPostContainersCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+
 	r := httptest.NewRecorder()
 	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
 		t.Fatal(err)
@@ -376,6 +380,110 @@ func TestPostContainersCreate(t *testing.T) {
 
 	if !containerFileExists(eng, containerID, "test", t) {
 		t.Fatal("Test file was not created")
+	}
+}
+
+func TestPostJsonVerify(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkDaemonFromEngine(eng, t).Nuke()
+
+	configJSON, err := json.Marshal(&runconfig.Config{
+		Image:  unitTestImageID,
+		Memory: 33554432,
+		Cmd:    []string{"touch", "/test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/create", bytes.NewReader(configJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+
+	// Don't add Content-Type header
+	// req.Header.Set("Content-Type", "application/json")
+
+	err = server.ServeRequest(eng, api.APIVERSION, r, req)
+	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
+		t.Fatal("Create should have failed due to no Content-Type header - got:", r)
+	}
+
+	// Now add header but with wrong type and retest
+	req.Header.Set("Content-Type", "application/xml")
+
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
+		t.Fatal("Create should have failed due to wrong Content-Type header - got:", r)
+	}
+}
+
+// Issue 7941 - test to make sure a "null" in JSON is just ignored.
+// W/o this fix a null in JSON would be parsed into a string var as "null"
+func TestPostCreateNull(t *testing.T) {
+	eng := NewTestEngine(t)
+	daemon := mkDaemonFromEngine(eng, t)
+	defer daemon.Nuke()
+
+	configStr := fmt.Sprintf(`{
+		"Hostname":"",
+		"Domainname":"",
+		"Memory":0,
+		"MemorySwap":0,
+		"CpuShares":0,
+		"Cpuset":null,
+		"AttachStdin":true,
+		"AttachStdout":true,
+		"AttachStderr":true,
+		"PortSpecs":null,
+		"ExposedPorts":{},
+		"Tty":true,
+		"OpenStdin":true,
+		"StdinOnce":true,
+		"Env":[],
+		"Cmd":"ls",
+		"Image":"%s",
+		"Volumes":{},
+		"WorkingDir":"",
+		"Entrypoint":null,
+		"NetworkDisabled":false,
+		"OnBuild":null}`, unitTestImageID)
+
+	req, err := http.NewRequest("POST", "/containers/create", strings.NewReader(configStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	r := httptest.NewRecorder()
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+	if r.Code != http.StatusCreated {
+		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
+	}
+
+	var apiRun engine.Env
+	if err := apiRun.Decode(r.Body); err != nil {
+		t.Fatal(err)
+	}
+	containerID := apiRun.Get("Id")
+
+	containerAssertExists(eng, containerID, t)
+
+	c := daemon.Get(containerID)
+	if c.Config.Cpuset != "" {
+		t.Fatalf("Cpuset should have been empty - instead its:" + c.Config.Cpuset)
 	}
 }
 
@@ -961,6 +1069,86 @@ func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
 	}
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("404 expected for id_not_found Container, received %v", r.Code)
+	}
+}
+
+// Regression test for https://github.com/docker/docker/issues/6231
+func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
+	eng := NewTestEngine(t)
+	defer mkDaemonFromEngine(eng, t).Nuke()
+
+	r := httptest.NewRecorder()
+
+	var testData engine.Env
+	testData.Set("Image", "docker-test-image")
+	testData.SetAuto("Volumes", map[string]struct{}{"/foo": {}})
+	testData.Set("Cmd", "true")
+	jsonData := bytes.NewBuffer(nil)
+	if err := testData.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest("POST", "/containers/create?name=chunk_test", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	var testData2 engine.Env
+	testData2.SetAuto("Binds", []string{"/tmp:/foo"})
+	jsonData = bytes.NewBuffer(nil)
+	if err := testData2.Encode(jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	req, err = http.NewRequest("POST", "/containers/chunk_test/start", jsonData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	// This is a cheat to make the http request do chunked encoding
+	// Otherwise (just setting the Content-Encoding to chunked) net/http will overwrite
+	// http://golang.org/src/pkg/net/http/request.go?s=11980:12172
+	req.ContentLength = -1
+	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	type config struct {
+		HostConfig struct {
+			Binds []string
+		}
+	}
+
+	req, err = http.NewRequest("GET", "/containers/chunk_test/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r2 := httptest.NewRecorder()
+	req.Header.Add("Content-Type", "application/json")
+	if err := server.ServeRequest(eng, api.APIVERSION, r2, req); err != nil {
+		t.Fatal(err)
+	}
+	assertHttpNotError(r, t)
+
+	c := config{}
+
+	json.Unmarshal(r2.Body.Bytes(), &c)
+
+	if len(c.HostConfig.Binds) == 0 {
+		t.Fatal("Chunked Encoding not handled")
+	}
+
+	if c.HostConfig.Binds[0] != "/tmp:/foo" {
+		t.Fatal("Chunked encoding not properly handled, execpted binds to be /tmp:/foo, got:", c.HostConfig.Binds[0])
 	}
 }
 

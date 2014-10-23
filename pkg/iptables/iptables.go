@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -141,10 +142,27 @@ func (c *Chain) Remove() error {
 
 // Check if an existing rule exists
 func Exists(args ...string) bool {
-	if _, err := Raw(append([]string{"-C"}, args...)...); err != nil {
-		return false
+	// iptables -C, --check option was added in v.1.4.11
+	// http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
+
+	// try -C
+	// if exit status is 0 then return true, the rule exists
+	if _, err := Raw(append([]string{"-C"}, args...)...); err == nil {
+		return true
 	}
-	return true
+
+	// parse iptables-save for the rule
+	rule := strings.Replace(strings.Join(args, " "), "-t nat ", "", -1)
+	existingRules, _ := exec.Command("iptables-save").Output()
+
+	// regex to replace ips in rule
+	// because MASQUERADE rule will not be exactly what was passed
+	re := regexp.MustCompile(`[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}`)
+
+	return strings.Contains(
+		re.ReplaceAllString(string(existingRules), "?"),
+		re.ReplaceAllString(rule, "?"),
+	)
 }
 
 func Raw(args ...string) ([]byte, error) {

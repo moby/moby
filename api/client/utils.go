@@ -16,11 +16,13 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -34,30 +36,46 @@ func (cli *DockerCli) HTTPClient() *http.Client {
 	tr := &http.Transport{
 		TLSClientConfig: cli.tlsConfig,
 		Dial: func(network, addr string) (net.Conn, error) {
-			return net.Dial(cli.proto, cli.addr)
+			// Why 32? See issue 8035
+			return net.DialTimeout(cli.proto, cli.addr, 32*time.Second)
 		},
+	}
+	if cli.proto == "unix" {
+		// XXX workaround for net/http Transport which caches connections, but is
+		// intended for tcp connections, not unix sockets.
+		tr.DisableKeepAlives = true
+
+		// no need in compressing for local communications
+		tr.DisableCompression = true
 	}
 	return &http.Client{Transport: tr}
 }
 
-func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {
+func (cli *DockerCli) encodeData(data interface{}) (*bytes.Buffer, error) {
 	params := bytes.NewBuffer(nil)
 	if data != nil {
 		if env, ok := data.(engine.Env); ok {
 			if err := env.Encode(params); err != nil {
-				return nil, -1, err
+				return nil, err
 			}
 		} else {
 			buf, err := json.Marshal(data)
 			if err != nil {
-				return nil, -1, err
+				return nil, err
 			}
 			if _, err := params.Write(buf); err != nil {
-				return nil, -1, err
+				return nil, err
 			}
 		}
 	}
+	return params, nil
+}
 
+func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {
+	params, err := cli.encodeData(data)
+	if err != nil {
+		return nil, -1, err
+	}
 	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
 	if err != nil {
 		return nil, -1, err
@@ -108,6 +126,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		}
 		return nil, resp.StatusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
 	}
+
 	return resp.Body, resp.StatusCode, nil
 }
 
@@ -120,7 +139,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 		in = bytes.NewReader([]byte{})
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("http://v%s%s", api.APIVERSION, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), in)
 	if err != nil {
 		return err
 	}
@@ -157,14 +176,14 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	}
 
 	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
-		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.terminalFd, cli.isTerminal)
+		return utils.DisplayJSONMessagesStream(resp.Body, stdout, cli.outFd, cli.isTerminalOut)
 	}
 	if stdout != nil || stderr != nil {
 		// When TTY is ON, use regular copy
 		if setRawTerminal {
 			_, err = io.Copy(stdout, resp.Body)
 		} else {
-			_, err = utils.StdCopy(stdout, stderr, resp.Body)
+			_, err = stdcopy.StdCopy(stdout, stderr, resp.Body)
 		}
 		log.Debugf("[stream] End of stdout")
 		return err
@@ -172,7 +191,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	return nil
 }
 
-func (cli *DockerCli) resizeTty(id string) {
+func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	height, width := cli.getTtySize()
 	if height == 0 && width == 0 {
 		return
@@ -180,7 +199,15 @@ func (cli *DockerCli) resizeTty(id string) {
 	v := url.Values{}
 	v.Set("h", strconv.Itoa(height))
 	v.Set("w", strconv.Itoa(width))
-	if _, _, err := readBody(cli.call("POST", "/containers/"+id+"/resize?"+v.Encode(), nil, false)); err != nil {
+
+	path := ""
+	if !isExec {
+		path = "/containers/" + id + "/resize?"
+	} else {
+		path = "/exec/" + id + "/resize?"
+	}
+
+	if _, _, err := readBody(cli.call("POST", path+v.Encode(), nil, false)); err != nil {
 		log.Debugf("Error resize: %s", err)
 	}
 }
@@ -219,24 +246,24 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	return state.GetBool("Running"), state.GetInt("ExitCode"), nil
 }
 
-func (cli *DockerCli) monitorTtySize(id string) error {
-	cli.resizeTty(id)
+func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
+	cli.resizeTty(id, isExec)
 
 	sigchan := make(chan os.Signal, 1)
 	gosignal.Notify(sigchan, syscall.SIGWINCH)
 	go func() {
 		for _ = range sigchan {
-			cli.resizeTty(id)
+			cli.resizeTty(id, isExec)
 		}
 	}()
 	return nil
 }
 
 func (cli *DockerCli) getTtySize() (int, int) {
-	if !cli.isTerminal {
+	if !cli.isTerminalOut {
 		return 0, 0
 	}
-	ws, err := term.GetWinsize(cli.terminalFd)
+	ws, err := term.GetWinsize(cli.outFd)
 	if err != nil {
 		log.Debugf("Error getting size: %s", err)
 		if ws == nil {

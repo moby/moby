@@ -2,7 +2,6 @@ package runconfig
 
 import (
 	"fmt"
-	"io/ioutil"
 	"path"
 	"strconv"
 	"strings"
@@ -17,28 +16,15 @@ import (
 )
 
 var (
-	ErrInvalidWorkingDirectory            = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
-	ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
-	ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
-	ErrConflictNetworkHostname            = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
-	ErrConflictHostNetworkAndLinks        = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
-	ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
+	ErrInvalidWorkingDirectory          = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
+	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
+	ErrConflictContainerNetworkAndDns   = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
+	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	ErrConflictHostNetworkAndDns        = fmt.Errorf("Conflicting options: --net=host can't be used with --dns. This configuration is invalid.")
+	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
 
-//FIXME Only used in tests
-func Parse(args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
-	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
-	cmd.SetOutput(ioutil.Discard)
-	cmd.Usage = nil
-	return parseRun(cmd, args, sysInfo)
-}
-
-// FIXME: this maps the legacy commands.go code. It should be merged with Parse to only expose a single parse function.
-func ParseSubcommand(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
-	return parseRun(cmd, args, sysInfo)
-}
-
-func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
+func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
@@ -51,14 +37,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
+		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
 		flLxcOpts     = opts.NewListOpts(nil)
 		flEnvFile     = opts.NewListOpts(nil)
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
+		flSecurityOpt = opts.NewListOpts(nil)
 
-		flAutoRemove      = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits (incompatible with -d)")
-		flDetach          = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run container in the background and print new container ID")
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to the host interfaces")
@@ -73,16 +59,14 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure, always)")
-		// For documentation purpose
-		_ = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.")
-		_ = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
+		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure[:max-retry], always)")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container in the form of name:alias")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)")
+
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
 
@@ -90,11 +74,13 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
+	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "(lxc exec-driver only) Add custom lxc options --lxc-conf=\"lxc.cgroup.cpuset.cpus = 0,1\"")
 
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
+	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
@@ -106,15 +92,15 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 	}
 
 	// Validate input params
-	if *flDetach && flAttach.Len() > 0 {
-		return nil, nil, cmd, ErrConflictAttachDetach
-	}
 	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
 	}
-	if *flDetach && *flAutoRemove {
-		return nil, nil, cmd, ErrConflictDetachAutoRemove
-	}
+
+	var (
+		attachStdin  = flAttach.Get("stdin")
+		attachStdout = flAttach.Get("stdout")
+		attachStderr = flAttach.Get("stderr")
+	)
 
 	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
@@ -124,14 +110,24 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
 	}
 
+	if *flNetMode == "container" && flLinks.Len() > 0 {
+		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
+	}
+
+	if *flNetMode == "host" && flDns.Len() > 0 {
+		return nil, nil, cmd, ErrConflictHostNetworkAndDns
+	}
+
+	if *flNetMode == "container" && flDns.Len() > 0 {
+		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
+	}
+
 	// If neither -d or -a are set, attach to everything by default
-	if flAttach.Len() == 0 && !*flDetach {
-		if !*flDetach {
-			flAttach.Set("stdout")
-			flAttach.Set("stderr")
-			if *flStdin {
-				flAttach.Set("stdin")
-			}
+	if flAttach.Len() == 0 {
+		attachStdout = true
+		attachStderr = true
+		if *flStdin {
+			attachStdin = true
 		}
 	}
 
@@ -239,10 +235,6 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		return nil, nil, cmd, err
 	}
 
-	if *flAutoRemove && (restartPolicy.Name == "always" || restartPolicy.Name == "on-failure") {
-		return nil, nil, cmd, ErrConflictRestartPolicyAndAutoRemove
-	}
-
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -255,15 +247,16 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		Memory:          flMemory,
 		CpuShares:       *flCpuShares,
 		Cpuset:          *flCpuset,
-		AttachStdin:     flAttach.Get("stdin"),
-		AttachStdout:    flAttach.Get("stdout"),
-		AttachStderr:    flAttach.Get("stderr"),
+		AttachStdin:     attachStdin,
+		AttachStdout:    attachStdout,
+		AttachStderr:    attachStderr,
 		Env:             envVariables,
 		Cmd:             runCmd,
 		Image:           image,
 		Volumes:         flVolumes.GetMap(),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
+		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	hostConfig := &HostConfig{
@@ -276,6 +269,7 @@ func parseRun(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Conf
 		PublishAllPorts: *flPublishAll,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),
+		ExtraHosts:      flExtraHosts.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
 		Devices:         deviceMappings,

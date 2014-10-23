@@ -198,7 +198,7 @@ It will also add it to the [Docker Hub](https://hub.docker.com) for the Docker
 community (for public repos) or approved team members/orgs (for private repos)
 to see on the repository page.
 
-## README.md
+### README.md
 
 If you have a `README.md` file in your repository, it will be used as the
 repository's full description.The build process will look for a

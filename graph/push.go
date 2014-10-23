@@ -7,8 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/docker/archive"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -18,8 +18,8 @@ import (
 func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string) ([]string, map[string][]string, error) {
 	var (
 		imageList   []string
-		imagesSeen  map[string]bool     = make(map[string]bool)
-		tagsByImage map[string][]string = make(map[string][]string)
+		imagesSeen  = make(map[string]bool)
+		tagsByImage = make(map[string][]string)
 	)
 
 	for tag, id := range localRepo {
@@ -214,7 +214,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	endpoint, err := registry.ExpandAndVerifyRegistryUrl(hostname)
+	endpoint, err := registry.NewEndpoint(hostname)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -243,7 +243,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 
 	var token []string
 	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", localName))
-	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint, token, sf); err != nil {
+	if _, err := s.pushImage(r, job.Stdout, remoteName, img.ID, endpoint.String(), token, sf); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
