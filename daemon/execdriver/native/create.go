@@ -132,6 +132,19 @@ func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 	if err != nil {
 		return err
 	}
+
+	// remove /dev/console from the mknod list
+	// since /dev/console might be a pts and items from
+	// the devpts fs are unusable if mknod'd
+	i := 0
+	for i < len(hostDeviceNodes) {
+		if hostDeviceNodes[i].Path == "/dev/console" {
+			hostDeviceNodes = append(hostDeviceNodes[:i], hostDeviceNodes[i+1:]...)
+		} else {
+			i = i + 1
+		}
+	}
+
 	container.MountConfig.DeviceNodes = hostDeviceNodes
 
 	container.RestrictSys = false
