@@ -7,6 +7,7 @@ docker-run - Run a command in a new container
 # SYNOPSIS
 **docker run**
 [**-a**|**--attach**[=*[]*]]
+[**--add-host**[=*[]*]]
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
@@ -22,6 +23,7 @@ docker-run - Run a command in a new container
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
+[**--security-opt**[=*[]*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
@@ -63,6 +65,10 @@ and attach the console to the process’s standard input, output, and standard
 error. It can even pretend to be a TTY (this is what most commandline
 executables expect) and pass along signals. The **-a** option can be set for
 each of stdin, stdout, and stderr.
+
+**--add-host**=*hostname*:*ip*
+   Add a line to /etc/hosts. The format is hostname:ip.  The **--add-host**
+option can be set multiple times.
 
 **-c**, **--cpu-shares**=0
    CPU shares in relative weight. You can increase the priority of a container
@@ -138,6 +144,13 @@ container can be started with the **--link**.
 **-i**, **--interactive**=*true*|*false*
    When set to true, keep stdin open even if not attached. The default is false.
 
+**--security-opt**=*secdriver*:*name*:*value*
+    "label:user:USER"   : Set the label user for the container
+    "label:role:ROLE"   : Set the label role for the container
+    "label:type:TYPE"   : Set the label type for the container
+    "label:level:LEVEL" : Set the label level for the container
+    "label:disable"     : Turn off label confinement for the container
+
 **--link**=*name*:*alias*
    Add link to another container. The format is name:alias. If the operator
 uses **--link** when starting the new client container, then the client
@@ -181,12 +194,13 @@ and foreground Docker containers.
    When set to true publish all exposed ports to the host interfaces. The
 default is false. If the operator uses -P (or -p) then Docker will make the
 exposed port accessible on the host and the ports will be available to any
-client that can reach the host. To find the map between the host ports and the
-exposed ports, use **docker port**.
+client that can reach the host. When using -P, Docker will bind the exposed 
+ports to a random port on the host between 49153 and 65535. To find the 
+mapping between the host ports and the exposed ports, use **docker port**.
 
 **-p**, **--publish**=[]
    Publish a container's port to the host (format: ip:hostPort:containerPort |
-ip::containerPort | hostPort:containerPort) (use **docker port** to see the
+ip::containerPort | hostPort:containerPort | containerPort) (use **docker port** to see the
 actual mapping)
 
 **--privileged**=*true*|*false*
@@ -329,7 +343,7 @@ to create a secure tunnel for the parent to access.
 ## Mapping Ports for External Usage
 
 The exposed port of an application can be mapped to a host port using the **-p**
-flag. For example a httpd port 80 can be mapped to the host port 8080 using the
+flag. For example, a httpd port 80 can be mapped to the host port 8080 using the
 following:
 
     # docker run -p 8080:80 -d -i -t fedora/httpd
@@ -376,6 +390,35 @@ to the host directory:
 
 Now, writing to the /data1 volume in the container will be allowed and the
 changes will also be reflected on the host in /var/db.
+
+## Using alternative security labeling
+
+You can override the default labeling scheme for each container by specifying
+the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
+requirement for MLS systems. Specifying the level in the following command
+allows you to share the same content between containers.
+
+    # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
+
+An MLS example might be:
+
+    # docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+
+To disable the security labeling for this container versus running with the
+`--permissive` flag, use the following command:
+
+    # docker run --security-opt label:disable -i -t fedora bash
+
+If you want a tighter security policy on the processes within a container,
+you can specify an alternate type for the container. You could run a container
+that is only allowed to listen on Apache ports by executing the following
+command:
+
+    # docker run --security-opt label:type:svirt_apache_t -i -t centos bash
+
+Note:
+
+You would have to write policy defining a `svirt_apache_t` type.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

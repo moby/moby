@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 )
 
 var defaultContent = map[string]string{
@@ -40,4 +41,13 @@ func Build(path, IP, hostname, domainname string, extraContent *map[string]strin
 	}
 
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
+}
+
+func Update(path, IP, hostname string) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)", regexp.QuoteMeta(hostname)))
+	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2")), 0644)
 }

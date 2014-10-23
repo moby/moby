@@ -74,7 +74,7 @@ func (s *TagStore) CmdSet(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	if err := s.graph.Register(imgJSON, layer, img); err != nil {
+	if err := s.graph.Register(img, imgJSON, layer); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
@@ -149,6 +149,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		out.Set("Architecture", image.Architecture)
 		out.Set("Os", image.OS)
 		out.SetInt64("Size", image.Size)
+		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
 		if _, err = out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}
@@ -170,12 +171,11 @@ func (s *TagStore) CmdTarLayer(job *engine.Job) engine.Status {
 		}
 		defer fs.Close()
 
-		if written, err := io.Copy(job.Stdout, fs); err != nil {
+		written, err := io.Copy(job.Stdout, fs)
+		if err != nil {
 			return job.Error(err)
-		} else {
-			log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		}
-
+		log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		return engine.StatusOK
 	}
 	return job.Errorf("No such image: %s", name)

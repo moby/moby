@@ -83,6 +83,8 @@ var (
 
 func init() {
 	r := mux.NewRouter()
+
+	// /v1/
 	r.HandleFunc("/v1/_ping", handlerGetPing).Methods("GET")
 	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|ancestry}", handlerGetImage).Methods("GET")
 	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|checksum}", handlerPutImage).Methods("PUT")
@@ -93,6 +95,10 @@ func init() {
 	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods("GET", "PUT", "DELETE")
 	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
 	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
+
+	// /v2/
+	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
+
 	testHttpServer = httptest.NewServer(handlerAccessLog(r))
 }
 
@@ -236,6 +242,7 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
+		return
 	}
 	if r.Method == "DELETE" {
 		delete(testRepositories, repositoryName)
@@ -255,10 +262,12 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
+		return
 	}
 	tag, exists := tags[tagName]
 	if !exists {
 		apiError(w, "Tag not found", 404)
+		return
 	}
 	writeResponse(w, tag, 200)
 }

@@ -27,7 +27,7 @@ flags and arguments.
 
     # Usage:  [sudo] docker [flags] [command] [arguments] ..
     # Example:
-    $ docker run -i -t ubuntu /bin/bash
+    $ sudo docker run -i -t ubuntu /bin/bash
 
 Let's see this in action by using the `docker version` command to return
 version information on the currently installed Docker client and daemon.
@@ -114,8 +114,7 @@ We've specified an image: `training/webapp`. This image is a
 pre-built image we've created that contains a simple Python Flask web
 application.
 
-Lastly, we've specified a command for our container to run: `python
-app.py`. This launches our web application.
+Lastly, we've specified a command for our container to run: `python app.py`. This launches our web application.
 
 > **Note:** 
 > You can see more detail on the `docker run` command in the [command
@@ -156,9 +155,9 @@ In this case Docker has exposed port 5000 (the default Python Flask
 port) on port 49155.
 
 Network port bindings are very configurable in Docker. In our last
-example the `-P` flag is a shortcut for `-p 5000` that makes port 5000
-inside the container to a high port (from the range 49000 to 49900) on
-the local Docker host. We can also bind Docker container's to specific
+example the `-P` flag is a shortcut for `-p 5000` that maps port 5000
+inside the container to a high port (from the range 49153 to 65535) on
+the local Docker host. We can also bind Docker containers to specific
 ports using the `-p` flag, for example:
 
     $ sudo docker run -d -p 5000:5000 training/webapp python app.py

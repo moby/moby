@@ -11,6 +11,11 @@ Docker image. By calling `docker build` from your terminal, you can have
 Docker build your image step by step, executing the instructions
 successively.
 
+This page discusses the specifics of all the instructions you can use in your
+`Dockerfile`. To further help you write a clear, readable, maintainable
+`Dockerfile`, we've also written a [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices).
+
 ## Usage
 
 To [*build*](../commandline/cli/#cli-build) an image from a source repository,
@@ -55,9 +60,11 @@ to be created - so `RUN cd /tmp` will not have any effect on the next
 instructions.
 
 Whenever possible, Docker will re-use the intermediate images,
-accelerating `docker build` significantly (indicated by `Using cache`):
+accelerating `docker build` significantly (indicated by `Using cache` -
+see the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information):
 
-    $ docker build -t SvenDowideit/ambassador .
+    $ sudo docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
     Uploading context
     Step 1 : FROM docker-ut
@@ -109,7 +116,7 @@ The following example shows the use of the `.dockerignore` file to exclude the
 `.git` directory from the context. Its effect can be seen in the changed size of
 the uploaded context.
 
-    $ docker build .
+    $ sudo docker build .
     Uploading context 18.829 MB
     Uploading context
     Step 0 : FROM busybox
@@ -119,7 +126,7 @@ the uploaded context.
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
     $ echo ".git" > .dockerignore
-    $ docker build .
+    $ sudo docker build .
     Uploading context  6.76 MB
     Uploading context
     Step 0 : FROM busybox
@@ -163,7 +170,7 @@ generated images.
 
 RUN has 2 forms:
 
-- `RUN <command>` (the command is run in a shell - `/bin/sh -c`)
+- `RUN <command>` (the command is run in a shell - `/bin/sh -c` - *shell* form)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
@@ -182,11 +189,25 @@ commands using a base image that does not contain `/bin/sh`.
 > passing in the desired shell. For example,
 > `RUN ["/bin/bash", "-c", "echo hello"]`
 
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
+
 The cache for `RUN` instructions isn't invalidated automatically during
-the next build. The cache for an instruction like `RUN apt-get
-dist-upgrade -y` will be reused during the next build.  The cache for
-`RUN` instructions can be invalidated by using the `--no-cache` flag,
-for example `docker build --no-cache`.
+the next build. The cache for an instruction like 
+`RUN apt-get dist-upgrade -y` will be reused during the next build.  The 
+cache for `RUN` instructions can be invalidated by using the `--no-cache` 
+flag, for example `docker build --no-cache`.
+
+See the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -202,9 +223,9 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 
 The `CMD` instruction has three forms:
 
-- `CMD ["executable","param1","param2"]` (like an *exec*, this is the preferred form)
+- `CMD ["executable","param1","param2"]` (*exec* form, this is the preferred form)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
-- `CMD command param1 param2` (as a *shell*)
+- `CMD command param1 param2` (*shell* form)
 
 There can only be one `CMD` instruction in a `Dockerfile`. If you list more than one `CMD`
 then only the last `CMD` will take effect.
@@ -218,6 +239,17 @@ instruction as well.
 > If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
 > instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
 > with the JSON array format.
+
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
@@ -255,7 +287,10 @@ default specified in `CMD`.
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see the [Docker User
-Guide](/userguide/dockerlinks)).
+Guide](/userguide/dockerlinks)). Note that `EXPOSE` only works for
+inter-container links. It doesn't make ports accessible from the host. To
+expose ports to the host, at runtime, 
+[use the `-p` flag](/userguide/dockerlinks).
 
 ## ENV
 
@@ -276,15 +311,24 @@ change them using `docker run --env <key>=<value>`.
 
 ## ADD
 
-    ADD <src> <dest>
+    ADD <src>... <dest>
 
-The `ADD` instruction will copy new files from `<src>` and add them to the
-container's filesystem at path `<dest>`.
+The `ADD` instruction copies new files,directories or remote file URLs to 
+the filesystem of the container  from `<src>` and add them to the at 
+path `<dest>`.  
 
-`<src>` must be the path to a file or directory relative to the source directory
-being built (also called the *context* of the build) or a remote file URL.
+Multiple `<src>` resource may be specified but if they are files or 
+directories then they must be relative to the source directory that is 
+being built (the context of the build).
 
-`<dest>` is the absolute path to which the source will be copied inside the
+Each `<src>` may contain wildcards and matching will be done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+For most command line uses this should act as expected, for example:
+
+    ADD hom* /mydir/        # adds all files starting with "hom"
+    ADD hom?.txt /mydir/    # ? is replaced with any single character
+
+The `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
 All new files and directories are created with a UID and GID of 0.
@@ -310,6 +354,9 @@ have permissions of 600.
 > The first encountered `ADD` instruction will invalidate the cache for all
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
+> See the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+
 
 The copy obeys the following rules:
 
@@ -345,6 +392,10 @@ The copy obeys the following rules:
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
 
+- If multiple `<src>` resources are specified, either directly or due to the
+  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  a slash `/`.
+
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.
 
@@ -353,15 +404,24 @@ The copy obeys the following rules:
 
 ## COPY
 
-    COPY <src> <dest>
+    COPY <src>... <dest>
 
-The `COPY` instruction will copy new files from `<src>` and add them to the
-container's filesystem at path `<dest>`.
+The `COPY` instruction copies new files,directories or remote file URLs to 
+the filesystem of the container  from `<src>` and add them to the at 
+path `<dest>`. 
 
-`<src>` must be the path to a file or directory relative to the source directory
-being built (also called the *context* of the build).
+Multiple `<src>` resource may be specified but if they are files or 
+directories then they must be relative to the source directory that is being 
+built (the context of the build).
 
-`<dest>` is the absolute path to which the source will be copied inside the
+Each `<src>` may contain wildcards and matching will be done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+For most command line uses this should act as expected, for example:
+
+    COPY hom* /mydir/        # adds all files starting with "hom"
+    COPY hom?.txt /mydir/    # ? is replaced with any single character
+
+The `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
 All new files and directories are created with a UID and GID of 0.
@@ -385,6 +445,10 @@ The copy obeys the following rules:
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
 
+- If multiple `<src>` resources are specified, either directly or due to the
+  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  a slash `/`.
+
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.
 
@@ -396,9 +460,9 @@ The copy obeys the following rules:
 ENTRYPOINT has two forms:
 
 - `ENTRYPOINT ["executable", "param1", "param2"]`
-  (like an *exec*, the preferred form)
+  (*exec* form, the preferred form)
 - `ENTRYPOINT command param1 param2`
-  (as a *shell*)
+  (*shell* form)
 
 There can only be one `ENTRYPOINT` in a `Dockerfile`. If you have more
 than one `ENTRYPOINT`, then only the last one in the `Dockerfile` will
@@ -435,6 +499,17 @@ optional but default, you could use a `CMD` instruction:
     ENTRYPOINT ["ls"]
 
 > **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
+
+> **Note**:
 > It is preferable to use the JSON array format for specifying
 > `ENTRYPOINT` instructions.
 
@@ -445,9 +520,14 @@ optional but default, you could use a `CMD` instruction:
 The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
-string, `VOLUME /var/log`. For more information/examples and mounting
-instructions via the Docker client, refer to [*Share Directories via Volumes*](
-/userguide/dockervolumes/#volume-def) documentation.
+string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
+/var/db`.  For more information/examples and mounting instructions via the
+Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def)
+documentation.
+
+> **Note**:
+> The list is parsed a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
 
 ## USER
 
@@ -472,8 +552,18 @@ instruction. For example:
     WORKDIR c
     RUN pwd
 
-The output of the final `pwd` command in this Dockerfile would be
+The output of the final `pwd` command in this `Dockerfile` would be
 `/a/b/c`.
+
+The `WORKDIR` instruction can resolve environment variables previously set using
+`ENV`. You can only use environment variables explicitly set in the `Dockerfile`.
+For example:
+
+    ENV DIRPATH /path
+    WORKDIR $DIRPATH/$DIRNAME
+
+The output of the final `pwd` command in this `Dockerfile` would be
+`/path/$DIRNAME`
 
 ## ONBUILD
 

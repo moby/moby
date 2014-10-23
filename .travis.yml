@@ -17,6 +17,15 @@ sudo: false
 install:
   - export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs exclude_graphdriver_devicemapper' # btrfs and devicemapper fail to compile thanks to a couple missing headers (which we can't install thanks to "sudo: false")
   - export AUTO_GOPATH=1
+# some of Docker's unit tests don't work inside Travis (yet!), so we purge those test files for now
+  - rm -f daemon/graphdriver/btrfs/*_test.go # fails to compile (missing header)
+  - rm -f daemon/graphdriver/devmapper/*_test.go # fails to compile (missing header)
+  - rm -f daemon/execdriver/lxc/*_test.go # fails to run (missing "lxc-start")
+  - rm -f daemon/graphdriver/aufs/*_test.go # fails to run ("backing file system is unsupported for this graph driver")
+  - rm -f daemon/graphdriver/vfs/*_test.go # fails to run (not root, which these tests assume "/var/tmp/... no owned by uid 0")
+  - rm -f daemon/networkdriver/bridge/*_test.go # fails to run ("Failed to initialize network driver")
+  - rm -f graph/*_test.go # fails to run ("mkdir /tmp/docker-test.../vfs/dir/foo/etc/postgres: permission denied")
+  - rm -f pkg/mount/*_test.go # fails to run ("permission denied")
 
 before_script:
   - env | sort
@@ -24,7 +33,7 @@ before_script:
 script:
   - hack/make.sh validate-dco
   - hack/make.sh validate-gofmt
-  - ./hack/make.sh dynbinary
   - DOCKER_CLIENTONLY=1 ./hack/make.sh dynbinary
+  - ./hack/make.sh dynbinary dyntest-unit
 
 # vim:set sw=2 ts=2:

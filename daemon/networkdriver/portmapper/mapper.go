@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/pkg/iptables"
+	"github.com/docker/docker/pkg/log"
 )
 
 type mapping struct {
@@ -96,16 +97,25 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		return nil, err
 	}
 
-	m.userlandProxy = proxy
-	currentMappings[key] = m
-
-	if err := proxy.Start(); err != nil {
+	cleanup := func() error {
 		// need to undo the iptables rules before we return
+		proxy.Stop()
 		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		if err := portallocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+			return err
+		}
 
-		return nil, err
+		return nil
 	}
 
+	if err := proxy.Start(); err != nil {
+		if err := cleanup(); err != nil {
+			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
+		}
+		return nil, err
+	}
+	m.userlandProxy = proxy
+	currentMappings[key] = m
 	return m.host, nil
 }
 
@@ -126,20 +136,15 @@ func Unmap(host net.Addr) error {
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
 	if err := forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		return err
+		log.Errorf("Error on iptables delete: %s", err)
 	}
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		if err := portallocator.ReleasePort(a.IP, "tcp", a.Port); err != nil {
-			return err
-		}
+		return portallocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		if err := portallocator.ReleasePort(a.IP, "udp", a.Port); err != nil {
-			return err
-		}
+		return portallocator.ReleasePort(a.IP, "udp", a.Port)
 	}
-
 	return nil
 }
 

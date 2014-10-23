@@ -11,6 +11,7 @@ type PortMapping map[string]string // Deprecated
 type NetworkSettings struct {
 	IPAddress   string
 	IPPrefixLen int
+	MacAddress  string
 	Gateway     string
 	Bridge      string
 	PortMapping map[string]PortMapping // Deprecated

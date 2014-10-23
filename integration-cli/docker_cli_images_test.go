@@ -20,44 +20,6 @@ func TestImagesEnsureImageIsListed(t *testing.T) {
 	logDone("images - busybox should be listed")
 }
 
-func TestCLIImageTagRemove(t *testing.T) {
-	imagesBefore, _, _ := cmd(t, "images", "-a")
-	cmd(t, "tag", "busybox", "utest:tag1")
-	cmd(t, "tag", "busybox", "utest/docker:tag2")
-	cmd(t, "tag", "busybox", "utest:5000/docker:tag3")
-	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+3 {
-			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
-		}
-	}
-	cmd(t, "rmi", "utest/docker:tag2")
-	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+2 {
-			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
-		}
-
-	}
-	cmd(t, "rmi", "utest:5000/docker:tag3")
-	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+1 {
-			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
-		}
-
-	}
-	cmd(t, "rmi", "utest:tag1")
-	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+0 {
-			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
-		}
-
-	}
-	logDone("tag,rmi- tagging the same images multiple times then removing tags")
-}
-
 func TestImagesOrderedByCreationDate(t *testing.T) {
 	defer deleteImages("order:test_a")
 	defer deleteImages("order:test_c")

@@ -101,8 +101,6 @@ something like this
     --- PASS: TestParseRepositoryTag (0.00 seconds)
     === RUN TestGetResolvConf
     --- PASS: TestGetResolvConf (0.00 seconds)
-    === RUN TestCheckLocalDns
-    --- PASS: TestCheckLocalDns (0.00 seconds)
     === RUN TestParseRelease
     --- PASS: TestParseRelease (0.00 seconds)
     === RUN TestDependencyGraphCircular
@@ -115,7 +113,7 @@ something like this
 If $TESTFLAGS is set in the environment, it is passed as extra arguments
 to `go test`. You can use this to select certain tests to run, e.g.,
 
-    $ TESTFLAGS=`-run \^TestBuild\$` make test
+    $ TESTFLAGS='-test.run \^TestBuild\$' make test
 
 If the output indicates "FAIL" and you see errors like this:
 

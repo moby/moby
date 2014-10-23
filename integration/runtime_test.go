@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/runconfig"
@@ -141,7 +142,7 @@ func setupBaseImage() {
 	if err := job.Run(); err != nil || img.Get("Id") != unitTestImageID {
 		// Retrieve the Image
 		job = eng.Job("pull", unitTestImageName)
-		job.Stdout.Add(utils.NopWriteCloser(os.Stdout))
+		job.Stdout.Add(ioutils.NopWriteCloser(os.Stdout))
 		if err := job.Run(); err != nil {
 			log.Fatalf("Unable to pull the test image: %s", err)
 		}
@@ -265,6 +266,7 @@ func TestDaemonCreate(t *testing.T) {
 		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"ls", "-al"},
 	},
+		&runconfig.HostConfig{},
 		"",
 	)
 	if err != nil {
@@ -308,14 +310,15 @@ func TestDaemonCreate(t *testing.T) {
 			Image: GetTestImage(daemon).ID,
 			Cmd:   []string{"ls", "-al"},
 		},
+		&runconfig.HostConfig{},
 		"conflictname",
 	)
-	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: []string{"ls", "-al"}}, testContainer.Name); err == nil || !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
+	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: []string{"ls", "-al"}}, &runconfig.HostConfig{}, testContainer.Name); err == nil || !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
 		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %s", err.Error())
 	}
 
 	// Make sure create with bad parameters returns an error
-	if _, _, err = daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID}, ""); err == nil {
+	if _, _, err = daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID}, &runconfig.HostConfig{}, ""); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is missing")
 	}
 
@@ -324,6 +327,7 @@ func TestDaemonCreate(t *testing.T) {
 			Image: GetTestImage(daemon).ID,
 			Cmd:   []string{},
 		},
+		&runconfig.HostConfig{},
 		"",
 	); err == nil {
 		t.Fatal("Builder.Create should throw an error when Cmd is empty")
@@ -334,7 +338,7 @@ func TestDaemonCreate(t *testing.T) {
 		Cmd:       []string{"/bin/ls"},
 		PortSpecs: []string{"80"},
 	}
-	container, _, err = daemon.Create(config, "")
+	container, _, err = daemon.Create(config, &runconfig.HostConfig{}, "")
 
 	_, err = daemon.Commit(container, "testrepo", "testtag", "", "", true, config)
 	if err != nil {
@@ -347,6 +351,7 @@ func TestDaemonCreate(t *testing.T) {
 		Cmd:       []string{"ls", "-al"},
 		PortSpecs: []string{"80:8000"},
 	},
+		&runconfig.HostConfig{},
 		"",
 	)
 	if err != nil {
@@ -364,7 +369,9 @@ func TestDestroy(t *testing.T) {
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"ls", "-al"},
-	}, "")
+	},
+		&runconfig.HostConfig{},
+		"")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,13 +499,13 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 	}
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for !container.State.IsRunning() {
+		for !container.IsRunning() {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
 
 	// Even if the state is running, lets give some time to lxc to spawn the process
-	container.State.WaitStop(500 * time.Millisecond)
+	container.WaitStop(500 * time.Millisecond)
 
 	strPort = container.NetworkSettings.Ports[p][0].HostPort
 	return daemon, container, strPort
@@ -606,17 +613,17 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.IsRunning() {
+	if !container2.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
 	cStdin, _ := container2.StdinPipe()
 	cStdin.Close()
-	if _, err := container2.State.WaitStop(2 * time.Second); err != nil {
+	if _, err := container2.WaitStop(2 * time.Second); err != nil {
 		t.Fatal(err)
 	}
-	container2.State.SetRunning(42)
+	container2.SetRunning(42)
 	container2.ToDisk()
 
 	if len(daemon1.List()) != 2 {
@@ -626,7 +633,7 @@ func TestRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !container2.State.IsRunning() {
+	if !container2.IsRunning() {
 		t.Fatalf("Container %v should appear as running but isn't", container2.ID)
 	}
 
@@ -639,7 +646,7 @@ func TestRestore(t *testing.T) {
 	}
 	runningCount := 0
 	for _, c := range daemon2.List() {
-		if c.State.IsRunning() {
+		if c.IsRunning() {
 			t.Errorf("Running container found: %v (%v)", c.ID, c.Path)
 			runningCount++
 		}
@@ -654,7 +661,7 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container2.State.SetStopped(0)
+	container2.SetStopped(0)
 }
 
 func TestDefaultContainerName(t *testing.T) {
@@ -662,7 +669,7 @@ func TestDefaultContainerName(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -686,7 +693,7 @@ func TestRandomContainerName(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := runconfig.Parse([]string{GetTestImage(daemon).ID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{GetTestImage(daemon).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -717,7 +724,7 @@ func TestContainerNameValidation(t *testing.T) {
 		{"abc-123_AAA.1", true},
 		{"\000asdf", false},
 	} {
-		config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
+		config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
 		if err != nil {
 			if !test.Valid {
 				continue
@@ -758,7 +765,7 @@ func TestLinkChildContainer(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -774,7 +781,7 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
 	}
 
-	config, _, _, err = runconfig.Parse([]string{GetTestImage(daemon).ID, "echo test"}, nil)
+	config, _, _, err = parseRun([]string{GetTestImage(daemon).ID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -800,7 +807,7 @@ func TestGetAllChildren(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -816,7 +823,7 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
 	}
 
-	config, _, _, err = runconfig.Parse([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err = parseRun([]string{unitTestImageID, "echo test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -856,7 +863,9 @@ func TestDestroyWithInitLayer(t *testing.T) {
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
 		Cmd:   []string{"ls", "-al"},
-	}, "")
+	},
+		&runconfig.HostConfig{},
+		"")
 
 	if err != nil {
 		t.Fatal(err)

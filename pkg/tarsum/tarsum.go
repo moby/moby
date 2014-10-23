@@ -16,40 +16,94 @@ import (
 	"github.com/docker/docker/pkg/log"
 )
 
-type TarSum struct {
+const (
+	buf8K  = 8 * 1024
+	buf16K = 16 * 1024
+	buf32K = 32 * 1024
+)
+
+// NewTarSum creates a new interface for calculating a fixed time checksum of a
+// tar archive.
+//
+// This is used for calculating checksums of layers of an image, in some cases
+// including the byte payload of the image's json metadata as well, and for
+// calculating the checksums for buildcache.
+func NewTarSum(r io.Reader, dc bool, v Version) (TarSum, error) {
+	if _, ok := tarSumVersions[v]; !ok {
+		return nil, ErrVersionNotImplemented
+	}
+	return &tarSum{Reader: r, DisableCompression: dc, tarSumVersion: v}, nil
+}
+
+// Create a new TarSum, providing a THash to use rather than the DefaultTHash
+func NewTarSumHash(r io.Reader, dc bool, v Version, tHash THash) (TarSum, error) {
+	if _, ok := tarSumVersions[v]; !ok {
+		return nil, ErrVersionNotImplemented
+	}
+	return &tarSum{Reader: r, DisableCompression: dc, tarSumVersion: v, tHash: tHash}, nil
+}
+
+// TarSum is the generic interface for calculating fixed time
+// checksums of a tar archive
+type TarSum interface {
+	io.Reader
+	GetSums() FileInfoSums
+	Sum([]byte) string
+	Version() Version
+	Hash() THash
+}
+
+// tarSum struct is the structure for a Version0 checksum calculation
+type tarSum struct {
 	io.Reader
 	tarR               *tar.Reader
 	tarW               *tar.Writer
-	gz                 writeCloseFlusher
+	writer             writeCloseFlusher
 	bufTar             *bytes.Buffer
-	bufGz              *bytes.Buffer
-	bufData            [8192]byte
+	bufWriter          *bytes.Buffer
+	bufData            []byte
 	h                  hash.Hash
-	sums               map[string]string
+	tHash              THash
+	sums               FileInfoSums
+	fileCounter        int64
 	currentFile        string
 	finished           bool
 	first              bool
-	DisableCompression bool
+	DisableCompression bool    // false by default. When false, the output gzip compressed.
+	tarSumVersion      Version // this field is not exported so it can not be mutated during use
 }
 
-type writeCloseFlusher interface {
-	io.WriteCloser
-	Flush() error
+func (ts tarSum) Hash() THash {
+	return ts.tHash
 }
 
-type nopCloseFlusher struct {
-	io.Writer
+func (ts tarSum) Version() Version {
+	return ts.tarSumVersion
 }
 
-func (n *nopCloseFlusher) Close() error {
-	return nil
+// A hash.Hash type generator and its name
+type THash interface {
+	Hash() hash.Hash
+	Name() string
 }
 
-func (n *nopCloseFlusher) Flush() error {
-	return nil
+// Convenience method for creating a THash
+func NewTHash(name string, h func() hash.Hash) THash {
+	return simpleTHash{n: name, h: h}
 }
 
-func (ts *TarSum) encodeHeader(h *tar.Header) error {
+// TarSum default is "sha256"
+var DefaultTHash = NewTHash("sha256", sha256.New)
+
+type simpleTHash struct {
+	n string
+	h func() hash.Hash
+}
+
+func (sth simpleTHash) Name() string    { return sth.n }
+func (sth simpleTHash) Hash() hash.Hash { return sth.h() }
+
+func (ts tarSum) selectHeaders(h *tar.Header, v Version) (set [][2]string) {
 	for _, elem := range [][2]string{
 		{"name", h.Name},
 		{"mode", strconv.Itoa(int(h.Mode))},
@@ -63,42 +117,81 @@ func (ts *TarSum) encodeHeader(h *tar.Header) error {
 		{"gname", h.Gname},
 		{"devmajor", strconv.Itoa(int(h.Devmajor))},
 		{"devminor", strconv.Itoa(int(h.Devminor))},
-		// {"atime", strconv.Itoa(int(h.AccessTime.UTC().Unix()))},
-		// {"ctime", strconv.Itoa(int(h.ChangeTime.UTC().Unix()))},
 	} {
+		if v >= VersionDev && elem[0] == "mtime" {
+			continue
+		}
+		set = append(set, elem)
+	}
+	return
+}
+
+func (ts *tarSum) encodeHeader(h *tar.Header) error {
+	for _, elem := range ts.selectHeaders(h, ts.Version()) {
 		if _, err := ts.h.Write([]byte(elem[0] + elem[1])); err != nil {
 			return err
+		}
+	}
+
+	// include the additional pax headers, from an ordered list
+	if ts.Version() >= VersionDev {
+		var keys []string
+		for k := range h.Xattrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if _, err := ts.h.Write([]byte(k + h.Xattrs[k])); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (ts *TarSum) Read(buf []byte) (int, error) {
-	if ts.gz == nil {
-		ts.bufTar = bytes.NewBuffer([]byte{})
-		ts.bufGz = bytes.NewBuffer([]byte{})
-		ts.tarR = tar.NewReader(ts.Reader)
-		ts.tarW = tar.NewWriter(ts.bufTar)
-		if !ts.DisableCompression {
-			ts.gz = gzip.NewWriter(ts.bufGz)
-		} else {
-			ts.gz = &nopCloseFlusher{Writer: ts.bufGz}
+func (ts *tarSum) initTarSum() error {
+	ts.bufTar = bytes.NewBuffer([]byte{})
+	ts.bufWriter = bytes.NewBuffer([]byte{})
+	ts.tarR = tar.NewReader(ts.Reader)
+	ts.tarW = tar.NewWriter(ts.bufTar)
+	if !ts.DisableCompression {
+		ts.writer = gzip.NewWriter(ts.bufWriter)
+	} else {
+		ts.writer = &nopCloseFlusher{Writer: ts.bufWriter}
+	}
+	if ts.tHash == nil {
+		ts.tHash = DefaultTHash
+	}
+	ts.h = ts.tHash.Hash()
+	ts.h.Reset()
+	ts.first = true
+	ts.sums = FileInfoSums{}
+	return nil
+}
+
+func (ts *tarSum) Read(buf []byte) (int, error) {
+	if ts.writer == nil {
+		if err := ts.initTarSum(); err != nil {
+			return 0, err
 		}
-		ts.h = sha256.New()
-		ts.h.Reset()
-		ts.first = true
-		ts.sums = make(map[string]string)
 	}
 
 	if ts.finished {
-		return ts.bufGz.Read(buf)
+		return ts.bufWriter.Read(buf)
 	}
-	var buf2 []byte
-	if len(buf) > 8192 {
-		buf2 = make([]byte, len(buf), cap(buf))
-	} else {
-		buf2 = ts.bufData[:len(buf)-1]
+	if len(ts.bufData) < len(buf) {
+		switch {
+		case len(buf) <= buf8K:
+			ts.bufData = make([]byte, buf8K)
+		case len(buf) <= buf16K:
+			ts.bufData = make([]byte, buf16K)
+		case len(buf) <= buf32K:
+			ts.bufData = make([]byte, buf32K)
+		default:
+			ts.bufData = make([]byte, len(buf))
+		}
 	}
+	buf2 := ts.bufData[:len(buf)]
 
 	n, err := ts.tarR.Read(buf2)
 	if err != nil {
@@ -107,7 +200,8 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 				return 0, err
 			}
 			if !ts.first {
-				ts.sums[ts.currentFile] = hex.EncodeToString(ts.h.Sum(nil))
+				ts.sums = append(ts.sums, fileInfoSum{name: ts.currentFile, sum: hex.EncodeToString(ts.h.Sum(nil)), pos: ts.fileCounter})
+				ts.fileCounter++
 				ts.h.Reset()
 			} else {
 				ts.first = false
@@ -116,7 +210,13 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 			currentHeader, err := ts.tarR.Next()
 			if err != nil {
 				if err == io.EOF {
-					if err := ts.gz.Close(); err != nil {
+					if err := ts.tarW.Close(); err != nil {
+						return 0, err
+					}
+					if _, err := io.Copy(ts.writer, ts.bufTar); err != nil {
+						return 0, err
+					}
+					if err := ts.writer.Close(); err != nil {
 						return 0, err
 					}
 					ts.finished = true
@@ -135,12 +235,12 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 				return 0, err
 			}
 			ts.tarW.Flush()
-			if _, err := io.Copy(ts.gz, ts.bufTar); err != nil {
+			if _, err := io.Copy(ts.writer, ts.bufTar); err != nil {
 				return 0, err
 			}
-			ts.gz.Flush()
+			ts.writer.Flush()
 
-			return ts.bufGz.Read(buf)
+			return ts.bufWriter.Read(buf)
 		}
 		return n, err
 	}
@@ -156,35 +256,30 @@ func (ts *TarSum) Read(buf []byte) (int, error) {
 	}
 	ts.tarW.Flush()
 
-	// Filling the gz writter
-	if _, err = io.Copy(ts.gz, ts.bufTar); err != nil {
+	// Filling the output writer
+	if _, err = io.Copy(ts.writer, ts.bufTar); err != nil {
 		return 0, err
 	}
-	ts.gz.Flush()
+	ts.writer.Flush()
 
-	return ts.bufGz.Read(buf)
+	return ts.bufWriter.Read(buf)
 }
 
-func (ts *TarSum) Sum(extra []byte) string {
-	var sums []string
-
-	for _, sum := range ts.sums {
-		sums = append(sums, sum)
-	}
-	sort.Strings(sums)
-	h := sha256.New()
+func (ts *tarSum) Sum(extra []byte) string {
+	ts.sums.SortBySums()
+	h := ts.tHash.Hash()
 	if extra != nil {
 		h.Write(extra)
 	}
-	for _, sum := range sums {
-		log.Infof("-->%s<--", sum)
-		h.Write([]byte(sum))
+	for _, fis := range ts.sums {
+		log.Debugf("-->%s<--", fis.Sum())
+		h.Write([]byte(fis.Sum()))
 	}
-	checksum := "tarsum+sha256:" + hex.EncodeToString(h.Sum(nil))
-	log.Infof("checksum processed: %s", checksum)
+	checksum := ts.Version().String() + "+" + ts.tHash.Name() + ":" + hex.EncodeToString(h.Sum(nil))
+	log.Debugf("checksum processed: %s", checksum)
 	return checksum
 }
 
-func (ts *TarSum) GetSums() map[string]string {
+func (ts *tarSum) GetSums() FileInfoSums {
 	return ts.sums
 }

@@ -28,6 +28,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		size        = job.GetenvBool("size")
 		psFilters   filters.Args
 		filt_exited []int
+		filt_status []string
 	)
 	outs := engine.NewTable("Created", 0)
 
@@ -44,6 +45,8 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			filt_exited = append(filt_exited, code)
 		}
 	}
+
+	filt_status, _ = psFilters["status"]
 
 	names := map[string][]string{}
 	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
@@ -70,7 +73,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	writeCont := func(container *Container) error {
 		container.Lock()
 		defer container.Unlock()
-		if !container.State.IsRunning() && !all && n <= 0 && since == "" && before == "" {
+		if !container.Running && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
 		if before != "" && !foundBefore {
@@ -87,15 +90,20 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 && !container.State.IsRunning() {
+		if len(filt_exited) > 0 && !container.Running {
 			should_skip := true
 			for _, code := range filt_exited {
-				if code == container.State.GetExitCode() {
+				if code == container.GetExitCode() {
 					should_skip = false
 					break
 				}
 			}
 			if should_skip {
+				return nil
+			}
+		}
+		for _, status := range filt_status {
+			if container.State.StateString() != strings.ToLower(status) {
 				return nil
 			}
 		}

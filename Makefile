@@ -12,7 +12,7 @@ DOCKER_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_MOUNT := $(if $(BINDDIR),-v "$(CURDIR)/$(BINDDIR):/go/src/github.com/docker/docker/$(BINDDIR)")
 
-DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TESTFLAGS -e TESTDIRS -e DOCKER_GRAPHDRIVER -e DOCKER_EXECDRIVER $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
+DOCKER_RUN_DOCKER := docker run --rm -it --privileged -e TIMEOUT -e BUILDFLAGS -e TESTFLAGS -e TESTDIRS -e DOCKER_GRAPHDRIVER -e DOCKER_EXECDRIVER $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
 # to allow `make DOCSDIR=docs docs-shell`
 DOCKER_RUN_DOCS := docker run --rm -it $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR)) -e AWS_S3_BUCKET
 

@@ -11,8 +11,10 @@ import (
 
 type Env []string
 
+// Get returns the last value associated with the given key. If there are no
+// values associated with the key, Get returns the empty string.
 func (env *Env) Get(key string) (value string) {
-	// FIXME: use Map()
+	// not using Map() because of the extra allocations https://github.com/docker/docker/pull/7488#issuecomment-51638315
 	for _, kv := range *env {
 		if strings.Index(kv, "=") == -1 {
 			continue
@@ -185,6 +187,12 @@ func (env *Env) Decode(src io.Reader) error {
 }
 
 func (env *Env) SetAuto(k string, v interface{}) {
+	// Issue 7941 - if the value in the incoming JSON is null then treat it
+	// as if they never specified the property at all.
+	if v == nil {
+		return
+	}
+
 	// FIXME: we fix-convert float values to int, because
 	// encoding/json decodes integers to float64, but cannot encode them back.
 	// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)

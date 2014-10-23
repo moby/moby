@@ -38,7 +38,9 @@ exec > >(tee -a $DEST/test.log) 2>&1
 
 	bundle_test_integration_cli
 
-	DOCKERD_PID=$(set -x; cat $DEST/docker.pid)
-	( set -x; kill $DOCKERD_PID )
-	wait $DOCKERD_PID || true
+	for pid in $(find "$DEST" -name docker.pid); do
+		DOCKER_PID=$(set -x; cat "$pid")
+		( set -x; kill $DOCKER_PID )
+		wait $DOCKERD_PID || true
+	done
 )
