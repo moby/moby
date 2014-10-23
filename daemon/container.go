@@ -474,6 +474,13 @@ func (container *Container) allocateNetwork() error {
 			return err
 		}
 	}
+
+	job = eng.Job("allocate_outgoing_nat", container.ID)
+
+	if err = job.Run(); err != nil {
+		return err
+	}
+
 	container.WriteHostConfig()
 
 	container.NetworkSettings.Ports = bindings
