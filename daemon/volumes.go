@@ -191,15 +191,20 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 func (container *Container) applyVolumesFrom() error {
 	volumesFrom := container.hostConfig.VolumesFrom
 
+	mountGroups := make([]map[string]*Mount, 0, len(volumesFrom))
+
 	for _, spec := range volumesFrom {
-		mounts, err := parseVolumesFromSpec(container.daemon, spec)
+		mountGroup, err := parseVolumesFromSpec(container.daemon, spec)
 		if err != nil {
 			return err
 		}
+		mountGroups = append(mountGroups, mountGroup)
+	}
 
+	for _, mounts := range mountGroups {
 		for _, mnt := range mounts {
 			mnt.container = container
-			if err = mnt.initialize(); err != nil {
+			if err := mnt.initialize(); err != nil {
 				return err
 			}
 		}
