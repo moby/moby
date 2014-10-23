@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/fileutils"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -143,32 +143,32 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
 		}
-		var excludes []string
-		ignore, err := ioutil.ReadFile(path.Join(root, ".dockerignore"))
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Error reading .dockerignore: '%s'", err)
+		var includes []string = []string{"."}
+
+		excludes, err := utils.ReadDockerIgnore(path.Join(root, ".dockerignore"))
+		if err != nil {
+			return err
 		}
-		for _, pattern := range strings.Split(string(ignore), "\n") {
-			pattern = strings.TrimSpace(pattern)
-			if pattern == "" {
-				continue
-			}
-			pattern = filepath.Clean(pattern)
-			ok, err := filepath.Match(pattern, "Dockerfile")
-			if err != nil {
-				return fmt.Errorf("Bad .dockerignore pattern: '%s', error: %s", pattern, err)
-			}
-			if ok {
-				return fmt.Errorf("Dockerfile was excluded by .dockerignore pattern '%s'", pattern)
-			}
-			excludes = append(excludes, pattern)
+
+		// If .dockerignore mentions .dockerignore or Dockerfile
+		// then make sure we send both files over to the daemon
+		// because Dockerfile is, obviously, needed no matter what, and
+		// .dockerignore is needed to know if either one needs to be
+		// removed.  The deamon will remove them for us, if needed, after it
+		// parses the Dockerfile.
+		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
+		keepThem2, _ := fileutils.Matches("Dockerfile", excludes)
+		if keepThem1 || keepThem2 {
+			includes = append(includes, ".dockerignore", "Dockerfile")
 		}
+
 		if err = utils.ValidateContextDirectory(root, excludes); err != nil {
 			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
 		}
 		options := &archive.TarOptions{
-			Compression: archive.Uncompressed,
-			Excludes:    excludes,
+			Compression:     archive.Uncompressed,
+			ExcludePatterns: excludes,
+			IncludeFiles:    includes,
 		}
 		context, err = archive.TarWithOptions(root, options)
 		if err != nil {

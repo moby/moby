@@ -10,14 +10,13 @@ import (
 )
 
 func TestEventsUntag(t *testing.T) {
-	out, _, _ := dockerCmd(t, "images", "-q")
-	image := strings.Split(out, "\n")[0]
+	image := "busybox"
 	dockerCmd(t, "tag", image, "utest:tag1")
 	dockerCmd(t, "tag", image, "utest:tag2")
 	dockerCmd(t, "rmi", "utest:tag1")
 	dockerCmd(t, "rmi", "utest:tag2")
 	eventsCmd := exec.Command("timeout", "0.2", dockerBinary, "events", "--since=1")
-	out, _, _ = runCommandWithOutput(eventsCmd)
+	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we

@@ -40,7 +40,7 @@ func TestChrootTarUntar(t *testing.T) {
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := Untar(stream, dest, &archive.TarOptions{Excludes: []string{"lolo"}}); err != nil {
+	if err := Untar(stream, dest, &archive.TarOptions{ExcludePatterns: []string{"lolo"}}); err != nil {
 		t.Fatal(err)
 	}
 }

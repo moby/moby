@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -136,29 +137,9 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		}
 	}()
 
-	filename := path.Join(b.contextPath, "Dockerfile")
-
-	fi, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("Cannot build a directory without a Dockerfile")
-	}
-	if fi.Size() == 0 {
-		return "", ErrDockerfileEmpty
-	}
-
-	f, err := os.Open(filename)
-	if err != nil {
+	if err := b.readDockerfile("Dockerfile"); err != nil {
 		return "", err
 	}
-
-	defer f.Close()
-
-	ast, err := parser.Parse(f)
-	if err != nil {
-		return "", err
-	}
-
-	b.dockerfile = ast
 
 	// some initializations that would not have been supplied by the caller.
 	b.Config = &runconfig.Config{}
@@ -183,6 +164,53 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
 	return b.image, nil
+}
+
+// Reads a Dockerfile from the current context. It assumes that the
+// 'filename' is a relative path from the root of the context
+func (b *Builder) readDockerfile(filename string) error {
+	filename = path.Join(b.contextPath, filename)
+
+	fi, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("Cannot build a directory without a Dockerfile")
+	}
+	if fi.Size() == 0 {
+		return ErrDockerfileEmpty
+	}
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	b.dockerfile, err = parser.Parse(f)
+	f.Close()
+
+	if err != nil {
+		return err
+	}
+
+	// After the Dockerfile has been parsed, we need to check the .dockerignore
+	// file for either "Dockerfile" or ".dockerignore", and if either are
+	// present then erase them from the build context. These files should never
+	// have been sent from the client but we did send them to make sure that
+	// we had the Dockerfile to actually parse, and then we also need the
+	// .dockerignore file to know whether either file should be removed.
+	// Note that this assumes the Dockerfile has been read into memory and
+	// is now safe to be removed.
+
+	excludes, _ := utils.ReadDockerIgnore(path.Join(b.contextPath, ".dockerignore"))
+	if rm, _ := fileutils.Matches(".dockerignore", excludes); rm == true {
+		os.Remove(path.Join(b.contextPath, ".dockerignore"))
+		b.context.(tarsum.BuilderContext).Remove(".dockerignore")
+	}
+	if rm, _ := fileutils.Matches("Dockerfile", excludes); rm == true {
+		os.Remove(path.Join(b.contextPath, "Dockerfile"))
+		b.context.(tarsum.BuilderContext).Remove("Dockerfile")
+	}
+
+	return nil
 }
 
 // This method is the entrypoint to all statement handling routines.

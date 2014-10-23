@@ -390,7 +390,15 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 	for _, fileInfo := range b.context.GetSums() {
 		absFile := path.Join(b.contextPath, fileInfo.Name())
-		if strings.HasPrefix(absFile, absOrigPath) || absFile == absOrigPathNoSlash {
+		// Any file in the context that starts with the given path will be
+		// picked up and its hashcode used.  However, we'll exclude the
+		// root dir itself.  We do this for a coupel of reasons:
+		// 1 - ADD/COPY will not copy the dir itself, just its children
+		//     so there's no reason to include it in the hash calc
+		// 2 - the metadata on the dir will change when any child file
+		//     changes.  This will lead to a miss in the cache check if that
+		//     child file is in the .dockerignore list.
+		if strings.HasPrefix(absFile, absOrigPath) && absFile != absOrigPathNoSlash {
 			subfiles = append(subfiles, fileInfo.Sum())
 		}
 	}
