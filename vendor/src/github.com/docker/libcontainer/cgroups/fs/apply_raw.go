@@ -73,6 +73,19 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	return d, nil
 }
 
+// Symmetrical public function to update device based cgroups.  Also available
+// in the systemd implementation.
+func ApplyDevices(c *cgroups.Cgroup, pid int) error {
+	d, err := getCgroupData(c, pid)
+	if err != nil {
+		return err
+	}
+
+	devices := subsystems["devices"]
+
+	return devices.Set(d)
+}
+
 func Cleanup(c *cgroups.Cgroup) error {
 	d, err := getCgroupData(c, 0)
 	if err != nil {
