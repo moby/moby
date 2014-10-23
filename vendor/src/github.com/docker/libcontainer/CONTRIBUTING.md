@@ -6,7 +6,7 @@ feels wrong or incomplete.
 
 ## Reporting Issues
 
-When reporting [issues](https://github.com/docker/libcontainer/issues) 
+When reporting [issues](https://github.com/docker/libcontainer/issues)
 on GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc),
 the output of `uname -a`. Please include the steps required to reproduce
 the problem if possible and applicable.
@@ -14,7 +14,60 @@ This information will help us review and fix your issue faster.
 
 ## Development Environment
 
-*Add instructions on setting up the development environment.*
+### Requirements
+
+For best results, use a Linux development environment.
+The following packages are required to compile libcontainer natively.
+
+- Golang 1.3
+- GCC
+- git
+- cgutils
+
+You can develop on OSX, but you are limited to Dockerfile-based builds only.
+
+### Building libcontainer from Dockerfile
+
+    make all
+
+This is the easiest way of building libcontainer.
+As this build is done using Docker, you can even run this from [OSX](https://github.com/boot2docker/boot2docker)
+
+### Testing changes with "nsinit"
+
+    make sh
+
+This will create an container that runs `nsinit exec sh` on a busybox rootfs with the configuration from ['minimal.json'](https://github.com/docker/libcontainer/blob/master/sample_configs/minimal.json).
+Like the previous command, you can run this on OSX too!
+
+### Building libcontainer directly
+
+> Note: You should add the `vendor` directory to your GOPATH to use the vendored libraries
+
+    ./update-vendor.sh
+    go get -d ./...
+    make direct-build
+    # Run the tests
+    make direct-test-short | egrep --color 'FAIL|$'
+    # Run all the test
+    make direct-test | egrep --color 'FAIL|$'
+
+### Testing Changes with "nsinit" directly
+
+To test a change:
+
+    # Install nsinit
+    make direct-install
+
+    # Optional, add a docker0 bridge
+    ip link add docker0 type bridge
+    ifconfig docker0 172.17.0.1/16 up
+
+    mkdir testfs
+    curl -sSL https://github.com/jpetazzo/docker-busybox/raw/buildroot-2014.02/rootfs.tar | tar -xC testfs
+    cd testfs
+    cp <your-sample-config.json> container.json
+    nsinit exec sh
 
 ## Contribution Guidelines
 

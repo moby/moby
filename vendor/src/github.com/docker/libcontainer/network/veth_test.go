@@ -15,7 +15,7 @@ func TestGenerateVethNames(t *testing.T) {
 
 	prefix := "veth"
 
-	name1, name2, err := createVethPair(prefix)
+	name1, name2, err := createVethPair(prefix, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,13 +36,13 @@ func TestCreateDuplicateVethPair(t *testing.T) {
 
 	prefix := "veth"
 
-	name1, name2, err := createVethPair(prefix)
+	name1, name2, err := createVethPair(prefix, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// retry to create the name interfaces and make sure that we get the correct error
-	err = CreateVethPair(name1, name2)
+	err = CreateVethPair(name1, name2, 0)
 	if err == nil {
 		t.Fatal("expected error to not be nil with duplicate interface")
 	}
