@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
@@ -512,25 +511,19 @@ func (b *Builder) create() (*daemon.Container, error) {
 }
 
 func (b *Builder) run(c *daemon.Container) error {
-	var errCh chan error
-	if b.Verbose {
-		errCh = promise.Go(func() error {
-			// FIXME: call the 'attach' job so that daemon.Attach can be made private
-			//
-			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
-			// but without hijacking for stdin. Also, with attach there can be race
-			// condition because of some output already was printed before it.
-			return <-b.Daemon.Attach(&c.StreamConfig, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, nil, nil, b.OutStream, b.ErrStream)
-		})
-	}
-
 	//start the container
 	if err := c.Start(); err != nil {
 		return err
 	}
 
-	if errCh != nil {
-		if err := <-errCh; err != nil {
+	if b.Verbose {
+		logsJob := b.Engine.Job("logs", c.ID)
+		logsJob.Setenv("follow", "1")
+		logsJob.Setenv("stdout", "1")
+		logsJob.Setenv("stderr", "1")
+		logsJob.Stdout.Add(b.OutStream)
+		logsJob.Stderr.Add(b.ErrStream)
+		if err := logsJob.Run(); err != nil {
 			return err
 		}
 	}

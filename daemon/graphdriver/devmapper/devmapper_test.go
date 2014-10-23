@@ -3,8 +3,9 @@
 package devmapper
 
 import (
-	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver/graphtest"
 )
 
 func init() {

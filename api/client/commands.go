@@ -619,13 +619,13 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
+		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
 		if err != nil {
 			return err
 		}
 
 		env := engine.Env{}
-		if err := env.Decode(steam); err != nil {
+		if err := env.Decode(stream); err != nil {
 			return err
 		}
 		config := env.GetSubEnv("Config")
@@ -681,7 +681,16 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 				log.Errorf("Error monitoring TTY size: %s", err)
 			}
 		}
-		return <-cErr
+		if attchErr := <-cErr; attchErr != nil {
+			return attchErr
+		}
+		_, status, err := getExitCode(cli, cmd.Arg(0))
+		if err != nil {
+			return err
+		}
+		if status != 0 {
+			return &utils.StatusError{StatusCode: status}
+		}
 	}
 	return nil
 }
@@ -1986,6 +1995,10 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 func (cli *DockerCli) pullImage(image string) error {
+	return cli.pullImageCustomOut(image, cli.out)
+}
+
+func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	v := url.Values{}
 	repos, tag := parsers.ParseRepositoryTag(image)
 	// pull only the image tagged 'latest' if no tag was specified
@@ -2014,7 +2027,7 @@ func (cli *DockerCli) pullImage(image string) error {
 	registryAuthHeader := []string{
 		base64.URLEncoding.EncodeToString(buf),
 	}
-	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
+	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, out, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
 		return err
 	}
 	return nil
@@ -2081,7 +2094,8 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	if statusCode == 404 {
 		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", config.Image)
 
-		if err = cli.pullImage(config.Image); err != nil {
+		// we don't want to write to stdout anything apart from container.ID
+		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
 			return nil, err
 		}
 		// Retry
@@ -2181,7 +2195,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		config.StdinOnce = false
 	}
 
-	// Disable flSigProxy in case on TTY
+	// Disable flSigProxy when in TTY mode
 	sigProxy := *flSigProxy
 	if config.Tty {
 		sigProxy = false
@@ -2203,7 +2217,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	)
 
 	if !config.AttachStdout && !config.AttachStderr {
-		// Make this asynchrone in order to let the client write to stdin before having to read the ID
+		// Make this asynchronous to allow the client to write to stdin before having to read the ID
 		waitDisplayId = make(chan struct{})
 		go func() {
 			defer close(waitDisplayId)
@@ -2215,7 +2229,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
 
-	// We need to instanciate the chan because the select needs it. It can
+	// We need to instantiate the chan because the select needs it. It can
 	// be closed but can't be uninitialized.
 	hijacked := make(chan io.Closer)
 
@@ -2262,8 +2276,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// Acknowledge the hijack before starting
 	select {
 	case closer := <-hijacked:
-		// Make sure that hijack gets closed when returning. (result
-		// in closing hijack chan and freeing server's goroutines.
+		// Make sure that the hijack gets closed when returning (results
+		// in closing the hijack chan and freeing server's goroutines)
 		if closer != nil {
 			defer closer.Close()
 		}
@@ -2315,15 +2329,15 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 	} else {
+		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
-			// In non-tty mode, we can't dettach, so we know we need to wait.
+			// In non-TTY mode, we can't detach, so we must wait for container exit
 			if status, err = waitForExit(cli, runResult.Get("Id")); err != nil {
 				return err
 			}
 		} else {
-			// In TTY mode, there is a race. If the process dies too slowly, the state can be update after the getExitCode call
-			// and result in a wrong exit code.
-			// No Autoremove: Simply retrieve the exit code
+			// In TTY mode, there is a race: if the process dies too slowly, the state could
+			// be updated after the getExitCode call and result in the wrong exit code being reported
 			if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
 				return err
 			}

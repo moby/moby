@@ -102,7 +102,7 @@ func TestRmContainerOrphaning(t *testing.T) {
 		t.Fatalf("%v: %s", err, out)
 	}
 	if !strings.Contains(out, img1) {
-		t.Fatalf("Orphaned container (could not find '%s' in docker images): %s", img1, out)
+		t.Fatalf("Orphaned container (could not find %q in docker images): %s", img1, out)
 	}
 
 	deleteAllContainers()

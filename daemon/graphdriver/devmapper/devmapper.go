@@ -51,6 +51,7 @@ var (
 	ErrTaskSetRo              = errors.New("dm_task_set_ro failed")
 	ErrTaskAddTarget          = errors.New("dm_task_add_target failed")
 	ErrTaskSetSector          = errors.New("dm_task_set_sector failed")
+	ErrTaskGetDeps            = errors.New("dm_task_get_deps failed")
 	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
 	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
 	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
@@ -74,6 +75,11 @@ var (
 type (
 	Task struct {
 		unmanaged *CDmTask
+	}
+	Deps struct {
+		Count  uint32
+		Filler uint32
+		Device []uint64
 	}
 	Info struct {
 		Exists        int
@@ -169,6 +175,14 @@ func (t *Task) AddTarget(start, size uint64, ttype, params string) error {
 		return ErrTaskAddTarget
 	}
 	return nil
+}
+
+func (t *Task) GetDeps() (*Deps, error) {
+	var deps *Deps
+	if deps = DmTaskGetDeps(t.unmanaged); deps == nil {
+		return nil, ErrTaskGetDeps
+	}
+	return deps, nil
 }
 
 func (t *Task) GetInfo() (*Info, error) {
@@ -390,6 +404,17 @@ func createTask(t TaskType, name string) (*Task, error) {
 		return nil, fmt.Errorf("Can't set task name %s", name)
 	}
 	return task, nil
+}
+
+func getDeps(name string) (*Deps, error) {
+	task, err := createTask(DeviceDeps, name)
+	if task == nil {
+		return nil, err
+	}
+	if err := task.Run(); err != nil {
+		return nil, err
+	}
+	return task.GetDeps()
 }
 
 func getInfo(name string) (*Info, error) {

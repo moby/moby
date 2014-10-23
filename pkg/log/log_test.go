@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+var reRFC3339NanoFixed = "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}.([0-9]{2}:[0-9]{2})?"
+
 func TestLogFatalf(t *testing.T) {
 	var output *bytes.Buffer
 
@@ -16,15 +18,15 @@ func TestLogFatalf(t *testing.T) {
 		Values          []interface{}
 		ExpectedPattern string
 	}{
-		{fatal, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[fatal\\] testing.go:\\d+ 1 \\+ 1 = 2"},
-		{error, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[error\\] testing.go:\\d+ 1 \\+ 1 = 2"},
-		{info, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[info\\] 1 \\+ 1 = 2"},
-		{debug, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[debug\\] testing.go:\\d+ 1 \\+ 1 = 2"},
+		{fatalPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[fatal\\] testing.go:\\d+ 1 \\+ 1 = 2"},
+		{errorPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[error\\] testing.go:\\d+ 1 \\+ 1 = 2"},
+		{infoPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[info\\] 1 \\+ 1 = 2"},
+		{debugPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[debug\\] testing.go:\\d+ 1 \\+ 1 = 2"},
 	}
 
 	for i, test := range tests {
 		output = &bytes.Buffer{}
-		logf(output, test.Level, test.Format, test.Values...)
+		DefaultLogger.logf(output, test.Level, test.Format, test.Values...)
 
 		expected := regexp.MustCompile(test.ExpectedPattern)
 		if !expected.MatchString(output.String()) {

@@ -487,7 +487,7 @@ Creates a new container.
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
@@ -526,6 +526,8 @@ container at any point.
 
 This is useful when you want to set up a container configuration ahead
 of time so that it is ready to start when you need it.
+
+Please see the [run command](#run) section for more details.
 
 #### Example
 
@@ -640,7 +642,7 @@ This will create a container named `ubuntu_bash` and start a Bash session.
 This will create a new file `/tmp/execWorks` inside the running container
 `ubuntu_bash`, in the background.
 
-    $ sudo docker exec ubuntu_bash -it bash
+    $ sudo docker exec -it ubuntu_bash bash
 
 This will create a new Bash session in the container `ubuntu_bash`.
 
@@ -1185,7 +1187,7 @@ removed before the image is removed.
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
       -d, --detach=false         Detached mode: run the container in the background and print the new container ID
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
@@ -1223,6 +1225,9 @@ specified image, and then `starts` it using the specified command. That is,
 `/containers/(id)/start`. A stopped container can be restarted with all its
 previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
+
+There is detailed infortmation about `docker run` in the [Docker run reference](
+/reference/run/).
 
 The `docker run` command can be used in combination with `docker commit` to
 [*change the command that a container runs*](#commit-an-existing-container).
@@ -1394,8 +1399,31 @@ option enables that.  For example, a specific block storage device or loop
 device or audio device can be added to an otherwise unprivileged container
 (without the `--privileged` flag) and have the application directly access it.
 
+By default, the container will be able to `read`, `write` and `mknod` these devices.
+This can be overridden using a third `:rwm` set of options to each `--device`
+flag:
+
+
+```
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+	You will not be able to write the partition table.
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+	fdisk: unable to open /dev/xvdc: Operation not permitted
+```
+
 **Note:**
-> `--device` cannot be safely used with ephemeral devices. Block devices that may be removed should not be added to untrusted containers with `--device`.
+> `--device` cannot be safely used with ephemeral devices. Block devices that
+> may be removed should not be added to untrusted containers with `--device`.
 
 **A complete example:**
 

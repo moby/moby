@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"testing"
 )
@@ -10,7 +9,9 @@ import (
 func TestInspectApiContainerResponse(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to create a container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to create a container: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 

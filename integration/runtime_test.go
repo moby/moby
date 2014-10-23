@@ -79,15 +79,6 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 	return nil
 }
 
-func layerArchive(tarfile string) (io.Reader, error) {
-	// FIXME: need to close f somewhere
-	f, err := os.Open(tarfile)
-	if err != nil {
-		return nil, err
-	}
-	return f, nil
-}
-
 func init() {
 	// Always use the same driver (vfs) for all integration tests.
 	// To test other drivers, we need a dedicated driver validation suite.

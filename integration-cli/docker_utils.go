@@ -44,7 +44,7 @@ func NewDaemon(t *testing.T) *Daemon {
 	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().Unix()))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
-		t.Fatalf("Could not make '%s' an absolute path: %v", dir, err)
+		t.Fatalf("Could not make %q an absolute path: %v", dir, err)
 	}
 
 	if err := os.MkdirAll(filepath.Join(daemonFolder, "graph"), 0600); err != nil {
@@ -317,7 +317,7 @@ func imageExists(image string) error {
 	inspectCmd := exec.Command(dockerBinary, "inspect", image)
 	exitCode, err := runCommand(inspectCmd)
 	if exitCode != 0 && err == nil {
-		err = fmt.Errorf("couldn't find image '%s'", image)
+		err = fmt.Errorf("couldn't find image %q", image)
 	}
 	return err
 }
@@ -328,7 +328,7 @@ func pullImageIfNotExist(image string) (err error) {
 		_, exitCode, err := runCommandWithOutput(pullCmd)
 
 		if err != nil || exitCode != 0 {
-			err = fmt.Errorf("image '%s' wasn't found locally and it couldn't be pulled: %s", image, err)
+			err = fmt.Errorf("image %q wasn't found locally and it couldn't be pulled: %s", image, err)
 		}
 	}
 	return
@@ -341,7 +341,9 @@ func cmd(t *testing.T, args ...string) (string, int, error) {
 
 func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		t.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
+	}
 	return out, status, err
 }
 
@@ -349,7 +351,7 @@ func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
 	if err != nil {
-		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -360,7 +362,7 @@ func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, err
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutput(dockerCommand)
 	if err != nil {
-		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -371,7 +373,7 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutputAndTimeout(dockerCommand, timeout)
 	if err != nil {
-		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -507,6 +509,16 @@ func inspectFieldJSON(name, field string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+func inspectFieldMap(name, path, field string) (string, error) {
+	format := fmt.Sprintf("{{index .%s %q}}", path, field)
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 func getIDByName(name string) (string, error) {
 	return inspectField(name, "Id")
 }
@@ -521,7 +533,7 @@ func getContainerState(t *testing.T, id string) (int, bool, error) {
 	)
 	out, exitCode, err := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
 	if err != nil || exitCode != 0 {
-		return 0, false, fmt.Errorf("'%s' doesn't exist: %s", id, err)
+		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, err)
 	}
 
 	out = strings.Trim(out, "\n")

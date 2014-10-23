@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -22,6 +23,18 @@ type Mount struct {
 	volume      *volumes.Volume
 	Writable    bool
 	copyData    bool
+}
+
+func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
+	var name string
+	if resource == mnt.MountToPath[1:] {
+		name = filepath.Base(resource)
+	}
+	path, err := filepath.Rel(mnt.MountToPath[1:], resource)
+	if err != nil {
+		return nil, err
+	}
+	return mnt.volume.Export(path, name)
 }
 
 func (container *Container) prepareVolumes() error {
@@ -133,6 +146,7 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 	// Get the rest of the volumes
 	for path := range container.Config.Volumes {
 		// Check if this is already added as a bind-mount
+		path = filepath.Clean(path)
 		if _, exists := mounts[path]; exists {
 			continue
 		}
@@ -182,6 +196,8 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 		return "", "", false, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", path)
 	}
 
+	path = filepath.Clean(path)
+	mountToPath = filepath.Clean(mountToPath)
 	return path, mountToPath, writable, nil
 }
 
