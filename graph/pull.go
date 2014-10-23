@@ -137,7 +137,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		mirrors = s.mirrors
 	}
 
-	if isOfficial || endpoint.Version == registry.APIVersion2 {
+	if len(mirrors) == 0 && (isOfficial || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
 			return job.Errorf("error updating trust base graph: %s", err)
