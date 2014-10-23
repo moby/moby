@@ -44,28 +44,31 @@ func (p priority) String() string {
 	return ""
 }
 
-var DefaultLogger = Logger{Out: os.Stdout, Err: os.Stderr}
+var std = Logger{Out: os.Stdout, Err: os.Stderr}
 
 // Debug function, if the debug flag is set, then display. Do nothing otherwise
 // If Docker is in damon mode, also send the debug info on the socket
 func Debugf(format string, a ...interface{}) (int, error) {
-	return DefaultLogger.Debugf(format, a...)
+	if os.Getenv("DEBUG") != "" {
+		return std.log(debugPriority, fmt.Sprintf(format, a...))
+	}
+	return 0, nil
 }
 
 func Infof(format string, a ...interface{}) (int, error) {
-	return DefaultLogger.Infof(format, a...)
+	return std.log(infoPriority, fmt.Sprintf(format, a...))
 }
 
 func Errorf(format string, a ...interface{}) (int, error) {
-	return DefaultLogger.Errorf(format, a...)
+	return std.log(errorPriority, fmt.Sprintf(format, a...))
 }
 
 func Fatal(a ...interface{}) {
-	DefaultLogger.Fatalf("%s", a...)
+	std.log(fatalPriority, fmt.Sprint(a...))
 }
 
 func Fatalf(format string, a ...interface{}) {
-	DefaultLogger.Fatalf(format, a...)
+	std.log(fatalPriority, fmt.Sprintf(format, a...))
 }
 
 type Logger struct {
@@ -75,27 +78,40 @@ type Logger struct {
 
 func (l Logger) Debugf(format string, a ...interface{}) (int, error) {
 	if os.Getenv("DEBUG") != "" {
-		return l.logf(l.Err, debugPriority, format, a...)
+		return l.log(debugPriority, fmt.Sprintf(format, a))
 	}
 	return 0, nil
 }
 
 func (l Logger) Infof(format string, a ...interface{}) (int, error) {
-	return l.logf(l.Out, infoPriority, format, a...)
+	return l.log(infoPriority, fmt.Sprintf(format, a...))
 }
 
 func (l Logger) Errorf(format string, a ...interface{}) (int, error) {
-	return l.logf(l.Err, errorPriority, format, a...)
+	return l.log(errorPriority, fmt.Sprintf(format, a...))
 }
 
 func (l Logger) Fatalf(format string, a ...interface{}) {
-	l.logf(l.Err, fatalPriority, format, a...)
-	os.Exit(1)
+	l.log(fatalPriority, fmt.Sprintf(format, a...))
 }
 
-func (l Logger) logf(stream io.Writer, level priority, format string, a ...interface{}) (int, error) {
-	var prefix string
+func (l Logger) getStream(level priority) io.Writer {
+	switch level {
+	case infoPriority:
+		return l.Out
+	default:
+		return l.Err
+	}
+}
 
+func (l Logger) log(level priority, s string) (int, error) {
+	ts := time.Now().Format(timeutils.RFC3339NanoFixed)
+	stream := l.getStream(level)
+	defer func() {
+		if level == fatalPriority {
+			os.Exit(1)
+		}
+	}()
 	if level <= errorPriority || level == debugPriority {
 		// Retrieve the stack infos
 		_, file, line, ok := runtime.Caller(2)
@@ -105,10 +121,7 @@ func (l Logger) logf(stream io.Writer, level priority, format string, a ...inter
 		} else {
 			file = file[strings.LastIndex(file, "/")+1:]
 		}
-		prefix = fmt.Sprintf(errorFormat, time.Now().Format(timeutils.RFC3339NanoFixed), level.String(), file, line, format)
-	} else {
-		prefix = fmt.Sprintf(logFormat, time.Now().Format(timeutils.RFC3339NanoFixed), level.String(), format)
+		return fmt.Fprintf(stream, errorFormat, ts, level.String(), file, line, s)
 	}
-
-	return fmt.Fprintf(stream, prefix, a...)
+	return fmt.Fprintf(stream, logFormat, ts, level.String(), s)
 }
