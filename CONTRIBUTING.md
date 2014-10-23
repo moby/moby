@@ -310,7 +310,7 @@ do need a fair way to deal with people who are making our community suck.
   will be addressed immediately and are not subject to 3 strikes or
   forgiveness.
 
-* Contact james@docker.com to report abuse or appeal violations. In the case of
+* Contact abuse@docker.com to report abuse or appeal violations. In the case of
   appeals, we know that mistakes happen, and we'll work with you to come up with
   a fair solution if there has been a misunderstanding.
 
