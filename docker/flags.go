@@ -64,6 +64,7 @@ func init() {
 			{"events", "Get real time events from the server"},
 			{"exec", "Run a command in an existing container"},
 			{"export", "Stream the contents of a container as a tar archive"},
+			{"flatten", "Flatten images and create a new image from them"},
 			{"history", "Show the history of an image"},
 			{"images", "List images"},
 			{"import", "Create a new filesystem image from the contents of a tarball"},

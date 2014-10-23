@@ -1121,6 +1121,39 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	return cli.stream("POST", "/images/create?"+v.Encode(), in, cli.out, nil)
 }
 
+func (cli *DockerCli) CmdFlatten(args ...string) error {
+	cmd := cli.Subcmd("flatten", "PARENT_IMAGE IMAGE [REPOSITORY[:TAG]]", "Flatten all layers between parent and image, create a new image from it")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 2 {
+		cmd.Usage()
+		return nil
+	}
+
+	var (
+		v          = url.Values{}
+		parent     = cmd.Arg(0)
+		name       = cmd.Arg(1)
+		repository = cmd.Arg(2)
+	)
+
+	v.Set("parent", parent)
+	v.Set("name", name)
+	v.Set("repo", repository)
+
+	if repository != "" {
+		//Check if the given image name can be resolved
+		repo, _ := parsers.ParseRepositoryTag(repository)
+		if _, _, err := registry.ResolveRepositoryName(repo); err != nil {
+			return err
+		}
+	}
+
+	return cli.stream("GET", "/images/flatten?"+v.Encode(), nil, cli.out, nil)
+}
+
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {
