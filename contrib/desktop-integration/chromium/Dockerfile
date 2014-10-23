@@ -20,8 +20,6 @@
 #   docker run --volumes-from chromium-data -v /tmp/.X11-unix:/tmp/.X11-unix \
 #   -e DISPLAY=unix$DISPLAY chromium
 
-DOCKER_VERSION 1.3
-
 # Base docker image
 FROM debian:jessie
 MAINTAINER Jessica Frazelle <jess@docker.com>
