@@ -53,6 +53,8 @@ clone hg code.google.com/p/gosqlite 74691fb6f837
 
 clone git github.com/docker/libtrust d273ef2565ca
 
+clone git github.com/Sirupsen/logrus v0.5.1
+
 # get Go tip's archive/tar, for xattr support and improved performance
 # TODO after Go 1.4 drops, bump our minimum supported version and drop this vendored dep
 if [ "$1" = '--go' ]; then
