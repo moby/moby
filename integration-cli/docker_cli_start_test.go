@@ -68,3 +68,44 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 
 	logDone("start - correct exit code returned with -a")
 }
+
+func TestStartRecordError(t *testing.T) {
+	defer deleteAllContainers()
+
+	// when container runs successfully, we should not have state.Error
+	cmd(t, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
+	stateErr, err := inspectField("test", "State.Error")
+	if err != nil {
+		t.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)
+	}
+	if stateErr != "" {
+		t.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
+	}
+
+	// Expect this to fail and records error because of ports conflict
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top"))
+	if err == nil {
+		t.Fatalf("Expected error but got none, output %q", out)
+	}
+	stateErr, err = inspectField("test2", "State.Error")
+	if err != nil {
+		t.Fatalf("Failed to inspect %q state's error, got error %q", "test2", err)
+	}
+	expected := "port is already allocated"
+	if stateErr == "" || !strings.Contains(stateErr, expected) {
+		t.Fatalf("State.Error(%q) does not include %q", stateErr, expected)
+	}
+
+	// Expect the conflict to be resolved when we stop the initial container
+	cmd(t, "stop", "test")
+	cmd(t, "start", "test2")
+	stateErr, err = inspectField("test2", "State.Error")
+	if err != nil {
+		t.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)
+	}
+	if stateErr != "" {
+		t.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
+	}
+
+	logDone("start - set state error when start fails")
+}
