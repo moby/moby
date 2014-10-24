@@ -1,13 +1,15 @@
 package runconfig
 
 import (
-	"github.com/dotcloud/docker/nat"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/nat"
 )
 
 func parse(t *testing.T, args string) (*Config, *HostConfig, error) {
-	config, hostConfig, _, err := Parse(strings.Split(args+" ubuntu bash", " "), nil)
+	config, hostConfig, _, err := parseRun(strings.Split(args+" ubuntu bash", " "), nil)
 	return config, hostConfig, err
 }
 
@@ -17,6 +19,18 @@ func mustParse(t *testing.T, args string) (*Config, *HostConfig) {
 		t.Fatal(err)
 	}
 	return config, hostConfig
+}
+
+// check if (a == c && b == d) || (a == d && b == c)
+// because maps are randomized
+func compareRandomizedStrings(a, b, c, d string) error {
+	if a == c && b == d {
+		return nil
+	}
+	if a == d && b == c {
+		return nil
+	}
+	return fmt.Errorf("strings don't match")
 }
 
 func TestParseRunLinks(t *testing.T) {
@@ -93,32 +107,20 @@ func TestParseRunVolumes(t *testing.T) {
 		t.Fatalf("Error parsing volume flags, `-v /var` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp` should mount-bind /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" || hostConfig.Binds[1] != "/hostVar:/containerVar" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp", "/hostVar:/containerVar") != nil {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /hostVar:/containerVar` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerTmp` is missing from volumes. Received %v", config.Volumes)
-	} else if _, exists := config.Volumes["/containerVar"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp:ro" || hostConfig.Binds[1] != "/hostVar:/containerVar:rw" {
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:ro", "/hostVar:/containerVar:rw") != nil {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerTmp` is missing from volumes. Received %v", config.Volumes)
-	} else if _, exists := config.Volumes["/containerVar"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}
 
 	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /containerVar"); hostConfig.Binds == nil || len(hostConfig.Binds) > 1 || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /containerVar` should mount-bind only /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
-	} else if _, exists := config.Volumes["/containerTmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /containerTmp` is missing from volumes. Received %v", config.Volumes)
 	} else if _, exists := config.Volumes["/containerVar"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}

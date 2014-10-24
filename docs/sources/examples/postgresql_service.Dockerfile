@@ -1,5 +1,5 @@
 #
-# example Dockerfile for http://docs.docker.io/en/latest/examples/postgresql_service/
+# example Dockerfile for http://docs.docker.com/examples/postgresql_service/
 #
 
 FROM ubuntu
@@ -13,17 +13,13 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys B97B0AFCAA
 #     of PostgreSQL, ``9.3``.
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
-# Update the Ubuntu and PostgreSQL repository indexes
-RUN apt-get update
-
 # Install ``python-software-properties``, ``software-properties-common`` and PostgreSQL 9.3
 #  There are some warnings (in red) that show up during the build. You can hide
 #  them by prefixing each apt-get statement with DEBIAN_FRONTEND=noninteractive
-RUN apt-get -y -q install python-software-properties software-properties-common
-RUN apt-get -y -q install postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3
+RUN apt-get update && apt-get install -y python-software-properties software-properties-common postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3
 
 # Note: The official Debian and Ubuntu images automatically ``apt-get clean``
-# after each ``apt-get`` 
+# after each ``apt-get``
 
 # Run the rest of the commands as the ``postgres`` user created by the ``postgres-9.3`` package when it was ``apt-get installed``
 USER postgres

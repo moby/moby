@@ -3,10 +3,13 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/pkg/term"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/timeutils"
+	"github.com/docker/docker/pkg/units"
 )
 
 type JSONError struct {
@@ -41,14 +44,19 @@ func (p *JSONProgress) String() string {
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
-	current := HumanSize(int64(p.Current))
+	current := units.HumanSize(int64(p.Current))
 	if p.Total <= 0 {
 		return fmt.Sprintf("%8v", current)
 	}
-	total := HumanSize(int64(p.Total))
+	total := units.HumanSize(int64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
 	if width > 110 {
-		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", 50-percentage))
+		// this number can't be negetive gh#7136
+		numSpaces := 0
+		if 50-percentage > 0 {
+			numSpaces = 50 - percentage
+		}
+		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
@@ -85,7 +93,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return jm.Error
 	}
 	var endl string
-	if isTerminal && jm.Stream == "" {
+	if isTerminal && jm.Stream == "" && jm.Progress != nil {
 		// <ESC>[2K = erase entire current line
 		fmt.Fprintf(out, "%c[2K\r", 27)
 		endl = "\r"
@@ -93,7 +101,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return nil
 	}
 	if jm.Time != 0 {
-		fmt.Fprintf(out, "[%s] ", time.Unix(jm.Time, 0))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(timeutils.RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)
@@ -136,7 +144,9 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			if !ok {
 				line = len(ids)
 				ids[jm.ID] = line
-				fmt.Fprintf(out, "\n")
+				if isTerminal {
+					fmt.Fprintf(out, "\n")
+				}
 				diff = 0
 			} else {
 				diff = len(ids) - line

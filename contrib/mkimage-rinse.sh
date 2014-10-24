@@ -8,6 +8,10 @@
 
 set -e
 
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/rinse'
+echo >&2
+
 repo="$1"
 distro="$2"
 mirror="$3"
@@ -35,7 +39,7 @@ if [ ! "$repo" ] || [ ! "$distro" ]; then
 	exit 1
 fi
 
-target="/tmp/docker-rootfs-rinse-$distro-$$-$RANDOM"
+target="${TMPDIR:-/var/tmp}/docker-rootfs-rinse-$distro-$$-$RANDOM"
 
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"

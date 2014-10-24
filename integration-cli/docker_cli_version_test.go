@@ -24,9 +24,8 @@ func TestVersionEnsureSucceeds(t *testing.T) {
 		"Git commit (client):",
 		"Server version:",
 		"Server API version:",
-		"Git commit (server):",
 		"Go version (server):",
-		"Last stable version:",
+		"Git commit (server):",
 	}
 
 	for _, linePrefix := range stringsToCheck {

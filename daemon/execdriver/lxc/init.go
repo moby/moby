@@ -2,21 +2,116 @@ package lxc
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/netlink"
-	"github.com/dotcloud/docker/pkg/user"
-	"github.com/syndtr/gocapability/capability"
+	"github.com/docker/docker/reexec"
+	"github.com/docker/libcontainer/netlink"
 )
 
+// Args provided to the init function for a driver
+type InitArgs struct {
+	User       string
+	Gateway    string
+	Ip         string
+	WorkDir    string
+	Privileged bool
+	Env        []string
+	Args       []string
+	Mtu        int
+	Console    string
+	Pipe       int
+	Root       string
+	CapAdd     string
+	CapDrop    string
+}
+
+func init() {
+	// like always lxc requires a hack to get this to work
+	reexec.Register("/.dockerinit", dockerInititalizer)
+}
+
+func dockerInititalizer() {
+	initializer()
+}
+
+// initializer is the lxc driver's init function that is run inside the namespace to setup
+// additional configurations
+func initializer() {
+	runtime.LockOSThread()
+
+	args := getArgs()
+
+	if err := setupNamespace(args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func setupNamespace(args *InitArgs) error {
+	if err := setupEnv(args); err != nil {
+		return err
+	}
+	if err := setupHostname(args); err != nil {
+		return err
+	}
+	if err := setupNetworking(args); err != nil {
+		return err
+	}
+	if err := finalizeNamespace(args); err != nil {
+		return err
+	}
+
+	path, err := exec.LookPath(args.Args[0])
+	if err != nil {
+		log.Printf("Unable to locate %v", args.Args[0])
+		os.Exit(127)
+	}
+
+	if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
+		return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
+	}
+
+	return nil
+}
+
+func getArgs() *InitArgs {
+	var (
+		// Get cmdline arguments
+		user       = flag.String("u", "", "username or uid")
+		gateway    = flag.String("g", "", "gateway address")
+		ip         = flag.String("i", "", "ip address")
+		workDir    = flag.String("w", "", "workdir")
+		privileged = flag.Bool("privileged", false, "privileged mode")
+		mtu        = flag.Int("mtu", 1500, "interface mtu")
+		capAdd     = flag.String("cap-add", "", "capabilities to add")
+		capDrop    = flag.String("cap-drop", "", "capabilities to drop")
+	)
+
+	flag.Parse()
+
+	return &InitArgs{
+		User:       *user,
+		Gateway:    *gateway,
+		Ip:         *ip,
+		WorkDir:    *workDir,
+		Privileged: *privileged,
+		Args:       flag.Args(),
+		Mtu:        *mtu,
+		CapAdd:     *capAdd,
+		CapDrop:    *capDrop,
+	}
+}
+
 // Clear environment pollution introduced by lxc-start
-func setupEnv(args *execdriver.InitArgs) error {
+func setupEnv(args *InitArgs) error {
 	// Get env
 	var env []string
 	content, err := ioutil.ReadFile(".dockerenv")
@@ -43,7 +138,7 @@ func setupEnv(args *execdriver.InitArgs) error {
 	return nil
 }
 
-func setupHostname(args *execdriver.InitArgs) error {
+func setupHostname(args *InitArgs) error {
 	hostname := getEnv(args, "HOSTNAME")
 	if hostname == "" {
 		return nil
@@ -52,7 +147,7 @@ func setupHostname(args *execdriver.InitArgs) error {
 }
 
 // Setup networking
-func setupNetworking(args *execdriver.InitArgs) error {
+func setupNetworking(args *InitArgs) error {
 	if args.Ip != "" {
 		// eth0
 		iface, err := net.InterfaceByName("eth0")
@@ -88,7 +183,7 @@ func setupNetworking(args *execdriver.InitArgs) error {
 			return fmt.Errorf("Unable to set up networking, %s is not a valid gateway IP", args.Gateway)
 		}
 
-		if err := netlink.AddDefaultGw(gw); err != nil {
+		if err := netlink.AddDefaultGw(gw.String(), "eth0"); err != nil {
 			return fmt.Errorf("Unable to set up networking: %v", err)
 		}
 	}
@@ -97,7 +192,7 @@ func setupNetworking(args *execdriver.InitArgs) error {
 }
 
 // Setup working directory
-func setupWorkingDirectory(args *execdriver.InitArgs) error {
+func setupWorkingDirectory(args *InitArgs) error {
 	if args.WorkDir == "" {
 		return nil
 	}
@@ -107,66 +202,7 @@ func setupWorkingDirectory(args *execdriver.InitArgs) error {
 	return nil
 }
 
-// Takes care of dropping privileges to the desired user
-func changeUser(args *execdriver.InitArgs) error {
-	uid, gid, suppGids, err := user.GetUserGroupSupplementary(
-		args.User,
-		syscall.Getuid(), syscall.Getgid(),
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := syscall.Setgroups(suppGids); err != nil {
-		return fmt.Errorf("Setgroups failed: %v", err)
-	}
-	if err := syscall.Setgid(gid); err != nil {
-		return fmt.Errorf("Setgid failed: %v", err)
-	}
-	if err := syscall.Setuid(uid); err != nil {
-		return fmt.Errorf("Setuid failed: %v", err)
-	}
-
-	return nil
-}
-
-func setupCapabilities(args *execdriver.InitArgs) error {
-	if args.Privileged {
-		return nil
-	}
-
-	drop := []capability.Cap{
-		capability.CAP_SETPCAP,
-		capability.CAP_SYS_MODULE,
-		capability.CAP_SYS_RAWIO,
-		capability.CAP_SYS_PACCT,
-		capability.CAP_SYS_ADMIN,
-		capability.CAP_SYS_NICE,
-		capability.CAP_SYS_RESOURCE,
-		capability.CAP_SYS_TIME,
-		capability.CAP_SYS_TTY_CONFIG,
-		capability.CAP_AUDIT_WRITE,
-		capability.CAP_AUDIT_CONTROL,
-		capability.CAP_MAC_OVERRIDE,
-		capability.CAP_MAC_ADMIN,
-		capability.CAP_NET_ADMIN,
-		capability.CAP_SYSLOG,
-	}
-
-	c, err := capability.NewPid(os.Getpid())
-	if err != nil {
-		return err
-	}
-
-	c.Unset(capability.CAPS|capability.BOUNDS, drop...)
-
-	if err := c.Apply(capability.CAPS | capability.BOUNDS); err != nil {
-		return err
-	}
-	return nil
-}
-
-func getEnv(args *execdriver.InitArgs, key string) string {
+func getEnv(args *InitArgs, key string) string {
 	for _, kv := range args.Env {
 		parts := strings.SplitN(kv, "=", 2)
 		if parts[0] == key && len(parts) == 2 {

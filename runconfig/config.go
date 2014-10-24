@@ -1,8 +1,8 @@
 package runconfig
 
 import (
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/nat"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 )
 
 // Note: the Config structure should hold only portable information about the container.
@@ -12,9 +12,10 @@ type Config struct {
 	Hostname        string
 	Domainname      string
 	User            string
-	Memory          int64 // Memory limit (in bytes)
-	MemorySwap      int64 // Total memory usage (memory + swap); set `-1' to disable swap
-	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	Memory          int64  // Memory limit (in bytes)
+	MemorySwap      int64  // Total memory usage (memory + swap); set `-1' to disable swap
+	CpuShares       int64  // CPU shares (relative weight vs. other containers)
+	Cpuset          string // Cpuset 0-2, 0,1
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
@@ -31,6 +32,7 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	OnBuild         []string
+	SecurityOpt     []string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -41,6 +43,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Memory:          job.GetenvInt64("Memory"),
 		MemorySwap:      job.GetenvInt64("MemorySwap"),
 		CpuShares:       job.GetenvInt64("CpuShares"),
+		Cpuset:          job.Getenv("Cpuset"),
 		AttachStdin:     job.GetenvBool("AttachStdin"),
 		AttachStdout:    job.GetenvBool("AttachStdout"),
 		AttachStderr:    job.GetenvBool("AttachStderr"),
@@ -53,6 +56,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	}
 	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
 	job.GetenvJson("Volumes", &config.Volumes)
+	config.SecurityOpt = job.GetenvList("SecurityOpt")
 	if PortSpecs := job.GetenvList("PortSpecs"); PortSpecs != nil {
 		config.PortSpecs = PortSpecs
 	}

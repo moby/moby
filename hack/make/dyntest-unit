@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+INIT=$DEST/../dynbinary/dockerinit-$VERSION
+
+if [ ! -x "$INIT" ]; then
+	echo >&2 'error: dynbinary must be run before dyntest-unit'
+	false
+fi
+
+(
+	export TEST_DOCKERINIT_PATH="$INIT"
+	export LDFLAGS_STATIC_DOCKER="
+		-X $DOCKER_PKG/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"
+	"
+	source "$(dirname "$BASH_SOURCE")/test-unit"
+)

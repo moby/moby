@@ -16,7 +16,7 @@ Docker's build environment itself is a Docker container, so the first
 step is to install Docker on your system.
 
 You can follow the [install instructions most relevant to your
-system](https://docs.docker.io/installation/). Make sure you
+system](https://docs.docker.com/installation/). Make sure you
 have a working, up-to-date docker installation, then continue to the
 next step.
 
@@ -32,7 +32,7 @@ Again, you can do it in other ways but you need to do more work.
 
 ## Check out the Source
 
-    $ git clone https://git@github.com/dotcloud/docker
+    $ git clone https://git@github.com/docker/docker
     $ cd docker
 
 To checkout a different revision just use `git checkout`
@@ -49,6 +49,13 @@ This command will take some time to complete when you first execute it.
 
 If the build is successful, congratulations! You have produced a clean
 build of docker, neatly encapsulated in a standard build environment.
+
+> **Note**:
+> On Mac OS X, make targets such as `build`, `binary`, and `test`
+> must **not** be built under root. So, for example, instead of the above
+> command, issue:
+> 
+>     $ make build
 
 ## Build the Docker Binary
 
@@ -94,8 +101,6 @@ something like this
     --- PASS: TestParseRepositoryTag (0.00 seconds)
     === RUN TestGetResolvConf
     --- PASS: TestGetResolvConf (0.00 seconds)
-    === RUN TestCheckLocalDns
-    --- PASS: TestCheckLocalDns (0.00 seconds)
     === RUN TestParseRelease
     --- PASS: TestParseRelease (0.00 seconds)
     === RUN TestDependencyGraphCircular
@@ -103,12 +108,12 @@ something like this
     === RUN TestDependencyGraph
     --- PASS: TestDependencyGraph (0.00 seconds)
     PASS
-    ok      github.com/dotcloud/docker/utils        0.017s
+    ok      github.com/docker/docker/utils        0.017s
 
 If $TESTFLAGS is set in the environment, it is passed as extra arguments
-to `go test`. You can use this to select certain tests to run, e.g.
+to `go test`. You can use this to select certain tests to run, e.g.,
 
-    $ TESTFLAGS=`-run \^TestBuild\$` make test
+    $ TESTFLAGS='-test.run \^TestBuild\$' make test
 
 If the output indicates "FAIL" and you see errors like this:
 

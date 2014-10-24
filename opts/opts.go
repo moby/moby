@@ -2,27 +2,67 @@ package opts
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/docker/docker/api"
+	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/parsers"
 )
+
+var (
+	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
+	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+)
+
+func ListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, nil), names, usage)
+}
+
+func HostListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, api.ValidateHost), names, usage)
+}
+
+func IPListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateIPAddress), names, usage)
+}
+
+func DnsSearchListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateDnsSearch), names, usage)
+}
+
+func IPVar(value *net.IP, names []string, defaultValue, usage string) {
+	flag.Var(NewIpOpt(value, defaultValue), names, usage)
+}
+
+func MirrorListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateMirror), names, usage)
+}
 
 // ListOpts type
 type ListOpts struct {
-	values    []string
+	values    *[]string
 	validator ValidatorFctType
 }
 
 func NewListOpts(validator ValidatorFctType) ListOpts {
-	return ListOpts{
+	var values []string
+	return *newListOptsRef(&values, validator)
+}
+
+func newListOptsRef(values *[]string, validator ValidatorFctType) *ListOpts {
+	return &ListOpts{
+		values:    values,
 		validator: validator,
 	}
 }
 
 func (opts *ListOpts) String() string {
-	return fmt.Sprintf("%v", []string(opts.values))
+	return fmt.Sprintf("%v", []string((*opts.values)))
 }
 
 // Set validates if needed the input value and add it to the
@@ -35,15 +75,15 @@ func (opts *ListOpts) Set(value string) error {
 		}
 		value = v
 	}
-	opts.values = append(opts.values, value)
+	(*opts.values) = append((*opts.values), value)
 	return nil
 }
 
 // Delete remove the given element from the slice.
 func (opts *ListOpts) Delete(key string) {
-	for i, k := range opts.values {
+	for i, k := range *opts.values {
 		if k == key {
-			opts.values = append(opts.values[:i], opts.values[i+1:]...)
+			(*opts.values) = append((*opts.values)[:i], (*opts.values)[i+1:]...)
 			return
 		}
 	}
@@ -54,7 +94,7 @@ func (opts *ListOpts) Delete(key string) {
 // FIXME: can we remove this?
 func (opts *ListOpts) GetMap() map[string]struct{} {
 	ret := make(map[string]struct{})
-	for _, k := range opts.values {
+	for _, k := range *opts.values {
 		ret[k] = struct{}{}
 	}
 	return ret
@@ -63,12 +103,12 @@ func (opts *ListOpts) GetMap() map[string]struct{} {
 // GetAll returns the values' slice.
 // FIXME: Can we remove this?
 func (opts *ListOpts) GetAll() []string {
-	return opts.values
+	return (*opts.values)
 }
 
 // Get checks the existence of the given key.
 func (opts *ListOpts) Get(key string) bool {
-	for _, k := range opts.values {
+	for _, k := range *opts.values {
 		if k == key {
 			return true
 		}
@@ -78,21 +118,24 @@ func (opts *ListOpts) Get(key string) bool {
 
 // Len returns the amount of element in the slice.
 func (opts *ListOpts) Len() int {
-	return len(opts.values)
+	return len((*opts.values))
 }
 
 // Validators
 type ValidatorFctType func(val string) (string, error)
 
 func ValidateAttach(val string) (string, error) {
-	if val != "stdin" && val != "stdout" && val != "stderr" {
-		return val, fmt.Errorf("Unsupported stream name: %s", val)
+	s := strings.ToLower(val)
+	for _, str := range []string{"stdin", "stdout", "stderr"} {
+		if s == str {
+			return s, nil
+		}
 	}
-	return val, nil
+	return val, fmt.Errorf("valid streams are STDIN, STDOUT and STDERR.")
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := utils.PartParser("name:alias", val); err != nil {
+	if _, err := parsers.PartParser("name:alias", val); err != nil {
 		return val, err
 	}
 	return val, nil
@@ -128,24 +171,59 @@ func ValidateEnv(val string) (string, error) {
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
 }
 
-func ValidateIp4Address(val string) (string, error) {
-	re := regexp.MustCompile(`^(([0-9]+\.){3}([0-9]+))\s*$`)
-	var ns = re.FindSubmatch([]byte(val))
-	if len(ns) > 0 {
-		return string(ns[1]), nil
+func ValidateIPAddress(val string) (string, error) {
+	var ip = net.ParseIP(strings.TrimSpace(val))
+	if ip != nil {
+		return ip.String(), nil
 	}
-	return "", fmt.Errorf("%s is not an ip4 address", val)
+	return "", fmt.Errorf("%s is not an ip address", val)
 }
 
-func ValidateDomain(val string) (string, error) {
-	alpha := regexp.MustCompile(`[a-zA-Z]`)
-	if alpha.FindString(val) == "" {
+// Validates domain for resolvconf search configuration.
+// A zero length domain is represented by .
+func ValidateDnsSearch(val string) (string, error) {
+	if val = strings.Trim(val, " "); val == "." {
+		return val, nil
+	}
+	return validateDomain(val)
+}
+
+func validateDomain(val string) (string, error) {
+	if alphaRegexp.FindString(val) == "" {
 		return "", fmt.Errorf("%s is not a valid domain", val)
 	}
-	re := regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
-	ns := re.FindSubmatch([]byte(val))
+	ns := domainRegexp.FindSubmatch([]byte(val))
 	if len(ns) > 0 {
 		return string(ns[1]), nil
 	}
 	return "", fmt.Errorf("%s is not a valid domain", val)
+}
+
+func ValidateExtraHost(val string) (string, error) {
+	arr := strings.Split(val, ":")
+	if len(arr) != 2 || len(arr[0]) == 0 {
+		return "", fmt.Errorf("bad format for add-host: %s", val)
+	}
+	if _, err := ValidateIPAddress(arr[1]); err != nil {
+		return "", fmt.Errorf("bad format for add-host: %s", val)
+	}
+	return val, nil
+}
+
+// Validates an HTTP(S) registry mirror
+func ValidateMirror(val string) (string, error) {
+	uri, err := url.Parse(val)
+	if err != nil {
+		return "", fmt.Errorf("%s is not a valid URI", val)
+	}
+
+	if uri.Scheme != "http" && uri.Scheme != "https" {
+		return "", fmt.Errorf("Unsupported scheme %s", uri.Scheme)
+	}
+
+	if uri.Path != "" || uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
+	}
+
+	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
 }

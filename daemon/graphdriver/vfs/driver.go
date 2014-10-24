@@ -1,22 +1,25 @@
 package vfs
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/libcontainer/label"
 )
 
 func init() {
 	graphdriver.Register("vfs", Init)
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
-	return d, nil
+	return graphdriver.NaiveDiffDriver(d), nil
 }
 
 type Driver struct {
@@ -35,8 +38,24 @@ func (d *Driver) Cleanup() error {
 	return nil
 }
 
+func isGNUcoreutils() bool {
+	if stdout, err := exec.Command("cp", "--version").Output(); err == nil {
+		return bytes.Contains(stdout, []byte("GNU coreutils"))
+	}
+
+	return false
+}
+
 func copyDir(src, dst string) error {
-	if output, err := exec.Command("cp", "-aT", "--reflink=auto", src, dst).CombinedOutput(); err != nil {
+	argv := make([]string, 0, 4)
+
+	if isGNUcoreutils() {
+		argv = append(argv, "-aT", "--reflink=auto", src, dst)
+	} else {
+		argv = append(argv, "-a", src+"/.", dst+"/.")
+	}
+
+	if output, err := exec.Command("cp", argv...).CombinedOutput(); err != nil {
 		return fmt.Errorf("Error VFS copying directory: %s (%s)", err, output)
 	}
 	return nil
@@ -47,8 +66,12 @@ func (d *Driver) Create(id, parent string) error {
 	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
 		return err
 	}
-	if err := os.Mkdir(dir, 0700); err != nil {
+	if err := os.Mkdir(dir, 0755); err != nil {
 		return err
+	}
+	opts := []string{"level:s0"}
+	if _, mountLabel, err := label.InitLabels(opts); err == nil {
+		label.Relabel(dir, mountLabel, "")
 	}
 	if parent == "" {
 		return nil

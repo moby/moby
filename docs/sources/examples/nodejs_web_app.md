@@ -1,14 +1,10 @@
-page_title: Running a Node.js app on CentOS
-page_description: Installing and running a Node.js app on CentOS
+page_title: Dockerizing a Node.js Web App
+page_description: Installing and running a Node.js app with Docker
 page_keywords: docker, example, package installation, node, centos
 
-# Node.js Web App
+# Dockerizing a Node.js Web App
 
 > **Note**: 
-> 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#dockergroup)
 
@@ -16,7 +12,7 @@ The goal of this example is to show you how you can build your own
 Docker images from a parent image using a `Dockerfile`
 . We will do that by making a simple Node.js hello world web
 application running on CentOS. You can get the full source code at
-[https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
+[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).
 
 ## Create Node.js app
 
@@ -28,7 +24,7 @@ describes your app and its dependencies:
       "name": "docker-centos-hello",
       "private": true,
       "version": "0.0.1",
-      "description": "Node.js Hello World app on CentOS using docker",
+      "description": "Node.js Hello world app on CentOS using docker",
       "author": "Daniel Gasienica <daniel@gasienica.ch>",
       "dependencies": {
         "express": "3.2.4"
@@ -46,7 +42,7 @@ app using the [Express.js](http://expressjs.com/) framework:
     // App
     var app = express();
     app.get('/', function (req, res) {
-      res.send('Hello World\n');
+      res.send('Hello world\n');
     });
 
     app.listen(PORT);
@@ -69,11 +65,11 @@ requires to build (this example uses Docker 0.3.4):
     # DOCKER-VERSION 0.3.4
 
 Next, define the parent image you want to use to build your own image on
-top of. Here, we'll use [CentOS](https://index.docker.io/_/centos/)
-(tag: `6.4`) available on the [Docker
-index](https://index.docker.io/):
+top of. Here, we'll use
+[CentOS](https://registry.hub.docker.com/_/centos/) (tag: `centos6`)
+available on the [Docker Hub](https://hub.docker.com/):
 
-    FROM    centos:6.4
+    FROM    centos:centos6
 
 Since we're building a Node.js app, you'll have to install Node.js as
 well as npm on your CentOS image. Node.js is required to run your app
@@ -88,11 +84,11 @@ via-package-manager#rhelcentosscientific-linux-6):
     # Install Node.js and npm
     RUN     yum install -y npm
 
-To bundle your app's source code inside the Docker image, use the `ADD`
+To bundle your app's source code inside the Docker image, use the `COPY`
 instruction:
 
     # Bundle app source
-    ADD . /src
+    COPY . /src
 
 Install your app dependencies using the `npm` binary:
 
@@ -113,7 +109,7 @@ defines your runtime, i.e. `node`, and the path to our app, i.e. `src/index.js`
 Your `Dockerfile` should now look like this:
 
     # DOCKER-VERSION 0.3.4
-    FROM    centos:6.4
+    FROM    centos:centos6
 
     # Enable EPEL for Node.js
     RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
@@ -121,7 +117,7 @@ Your `Dockerfile` should now look like this:
     RUN     yum install -y npm
 
     # Bundle app source
-    ADD . /src
+    COPY . /src
     # Install app dependencies
     RUN cd /src; npm install
 
@@ -131,7 +127,7 @@ Your `Dockerfile` should now look like this:
 ## Building your image
 
 Go to the directory that has your `Dockerfile` and run the following command
-to build a Docker image. The `-t` flag let's you tag your image so it's easier
+to build a Docker image. The `-t` flag lets you tag your image so it's easier
 to find later using the `docker images` command:
 
     $ sudo docker build -t <your username>/centos-node-hello .
@@ -141,9 +137,9 @@ Your image will now be listed by Docker:
     $ sudo docker images
 
     # Example
-    REPOSITORY                 TAG       ID              CREATED
-    centos                     6.4       539c0211cd76    8 weeks ago
-    gasi/centos-node-hello     latest    d64d3505b0d2    2 hours ago
+    REPOSITORY                          TAG        ID              CREATED
+    centos                              centos6    539c0211cd76    8 weeks ago
+    <your username>/centos-node-hello   latest     d64d3505b0d2    2 hours ago
 
 ## Run the image
 
@@ -171,8 +167,8 @@ To test your app, get the the port of your app that Docker mapped:
     $ sudo docker ps
 
     # Example
-    ID            IMAGE                          COMMAND              ...   PORTS
-    ecce33b30ebf  gasi/centos-node-hello:latest  node /src/index.js         49160->8080
+    ID            IMAGE                                     COMMAND              ...   PORTS
+    ecce33b30ebf  <your username>/centos-node-hello:latest  node /src/index.js         49160->8080
 
 In the example above, Docker mapped the `8080` port of the container to `49160`.
 
@@ -187,11 +183,9 @@ Now you can call your app using `curl` (install if needed via:
     Content-Length: 12
     Date: Sun, 02 Jun 2013 03:53:22 GMT
     Connection: keep-alive
-    
-    Hello World
+
+    Hello world
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at
-[https://github.com/gasi/docker-node-hello](https://github.com/gasi/docker-node-hello).
-
-Continue to [*Redis Service*](../running_redis_service/#running-redis-service).
+[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).

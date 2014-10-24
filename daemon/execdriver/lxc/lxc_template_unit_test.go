@@ -1,9 +1,10 @@
+// +build linux
+
 package lxc
 
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/daemon/execdriver"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -11,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/libcontainer/devices"
 )
 
 func TestLXCConfig(t *testing.T) {
@@ -33,7 +37,7 @@ func TestLXCConfig(t *testing.T) {
 		cpu    = cpuMin + rand.Intn(cpuMax-cpuMin)
 	)
 
-	driver, err := NewDriver(root, false)
+	driver, err := NewDriver(root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,6 +51,8 @@ func TestLXCConfig(t *testing.T) {
 			Mtu:       1500,
 			Interface: nil,
 		},
+		AllowedDevices: make([]*devices.Device, 0),
+		ProcessConfig:  execdriver.ProcessConfig{},
 	}
 	p, err := driver.generateLXCConfig(command)
 	if err != nil {
@@ -68,23 +74,24 @@ func TestCustomLxcConfig(t *testing.T) {
 
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
 
-	driver, err := NewDriver(root, false)
+	driver, err := NewDriver(root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	command := &execdriver.Command{
-		ID:         "1",
+	processConfig := execdriver.ProcessConfig{
 		Privileged: false,
-		Config: map[string][]string{
-			"lxc": {
-				"lxc.utsname = docker",
-				"lxc.cgroup.cpuset.cpus = 0,1",
-			},
+	}
+	command := &execdriver.Command{
+		ID: "1",
+		LxcConfig: []string{
+			"lxc.utsname = docker",
+			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
 		Network: &execdriver.Network{
 			Mtu:       1500,
 			Interface: nil,
 		},
+		ProcessConfig: processConfig,
 	}
 
 	p, err := driver.generateLXCConfig(command)

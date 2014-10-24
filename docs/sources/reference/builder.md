@@ -4,18 +4,25 @@ page_keywords: builder, docker, Dockerfile, automation, image creation
 
 # Dockerfile Reference
 
-**Docker can act as a builder** and read instructions from a text *Dockerfile*
-to automate the steps you would otherwise take manually to create an image.
-Executing `docker build` will run your steps and commit them along the way,
-giving you a final image.
+**Docker can build images automatically** by reading the instructions
+from a `Dockerfile`. A `Dockerfile` is a text document that contains all
+the commands you would normally execute manually in order to build a
+Docker image. By calling `docker build` from your terminal, you can have
+Docker build your image step by step, executing the instructions
+successively.
+
+This page discusses the specifics of all the instructions you can use in your
+`Dockerfile`. To further help you write a clear, readable, maintainable
+`Dockerfile`, we've also written a [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices).
 
 ## Usage
 
 To [*build*](../commandline/cli/#cli-build) an image from a source repository,
-create a description file called Dockerfile at the root of your repository.
+create a description file called `Dockerfile` at the root of your repository.
 This file will describe the steps to assemble the image.
 
-Then call `docker build` with the path of you source repository as argument
+Then call `docker build` with the path of your source repository as the argument
 (for example, `.`):
 
     $ sudo docker build .
@@ -23,7 +30,20 @@ Then call `docker build` with the path of you source repository as argument
 The path to the source repository defines where to find the *context* of
 the build. The build is run by the Docker daemon, not by the CLI, so the
 whole context must be transferred to the daemon. The Docker CLI reports
-"Uploading context" when the context is sent to the daemon.
+"Sending build context to Docker daemon" when the context is sent to the daemon.
+
+> **Warning**
+> Avoid using your root directory, `/`, as the root of the source repository. The 
+> `docker build` command will use whatever directory contains the Dockerfile as the build
+> context (including all of its subdirectories). The build context will be sent to the
+> Docker daemon before building the image, which means if you use `/` as the source
+> repository, the entire contents of your hard drive will get sent to the daemon (and
+> thus to the machine running the daemon). You probably don't want that.
+
+In most cases, it's best to put each Dockerfile in an empty directory, and then add only
+the files needed for building that Dockerfile to that directory. To further speed up the
+build, you can exclude files and directories by adding a `.dockerignore` file to the same
+directory.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
@@ -40,9 +60,11 @@ to be created - so `RUN cd /tmp` will not have any effect on the next
 instructions.
 
 Whenever possible, Docker will re-use the intermediate images,
-accelerating `docker build` significantly (indicated by `Using cache`):
+accelerating `docker build` significantly (indicated by `Using cache` -
+see the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information):
 
-    $ docker build -t SvenDowideit/ambassador .
+    $ sudo docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
     Uploading context
     Step 1 : FROM docker-ut
@@ -55,13 +77,12 @@ accelerating `docker build` significantly (indicated by `Using cache`):
      ---> 1a5ffc17324d
     Successfully built 1a5ffc17324d
 
-When you're done with your build, you're ready to look into
-[*Pushing a repository to its registry*](
-/use/workingwithrepository/#image-push).
+When you're done with your build, you're ready to look into [*Pushing a
+repository to its registry*]( /userguide/dockerrepos/#image-push).
 
 ## Format
 
-Here is the format of the Dockerfile:
+Here is the format of the `Dockerfile`:
 
     # Comment
     INSTRUCTION arguments
@@ -69,8 +90,8 @@ Here is the format of the Dockerfile:
 The Instruction is not case-sensitive, however convention is for them to
 be UPPERCASE in order to distinguish them from arguments more easily.
 
-Docker evaluates the instructions in a Dockerfile in order. **The first
-instruction must be \`FROM\`** in order to specify the [*Base
+Docker runs the instructions in a `Dockerfile` in order. **The
+first instruction must be \`FROM\`** in order to specify the [*Base
 Image*](/terms/image/#base-image-def) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
@@ -80,8 +101,40 @@ be treated as an argument. This allows statements like:
     # Comment
     RUN echo 'we are running some # of cool things'
 
-Here is the set of instructions you can use in a Dockerfile
-for building images.
+Here is the set of instructions you can use in a `Dockerfile` for building
+images.
+
+## The `.dockerignore` file
+
+If a file named `.dockerignore` exists in the source repository, then it
+is interpreted as a newline-separated list of exclusion patterns.
+Exclusion patterns match files or directories relative to the source repository
+that will be excluded from the context. Globbing is done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+
+The following example shows the use of the `.dockerignore` file to exclude the
+`.git` directory from the context. Its effect can be seen in the changed size of
+the uploaded context.
+
+    $ sudo docker build .
+    Uploading context 18.829 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
+    $ echo ".git" > .dockerignore
+    $ sudo docker build .
+    Uploading context  6.76 MB
+    Uploading context
+    Step 0 : FROM busybox
+     ---> 769b9341d937
+    Step 1 : CMD echo Hello World
+     ---> Using cache
+     ---> 99cc1ad10469
+    Successfully built 99cc1ad10469
 
 ## FROM
 
@@ -92,15 +145,15 @@ Or
     FROM <image>:<tag>
 
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
-for subsequent instructions. As such, a valid Dockerfile must have `FROM` as
+for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
-/use/workingwithrepository/#using-public-repositories).
+/userguide/dockerrepos/#using-public-repositories).
 
-`FROM` must be the first non-comment instruction in the Dockerfile.
+`FROM` must be the first non-comment instruction in the `Dockerfile`.
 
-`FROM` can appear multiple times within a single Dockerfile in order to create
-multiple images. Simply make a note of the last image id output by the commit
+`FROM` can appear multiple times within a single `Dockerfile` in order to create
+multiple images. Simply make a note of the last image ID output by the commit
 before each new `FROM` command.
 
 If no `tag` is given to the `FROM` instruction, `latest` is assumed. If the
@@ -117,12 +170,12 @@ generated images.
 
 RUN has 2 forms:
 
-- `RUN <command>` (the command is run in a shell - `/bin/sh -c`)
+- `RUN <command>` (the command is run in a shell - `/bin/sh -c` - *shell* form)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
 current image and commit the results. The resulting committed image will be
-used for the next step in the Dockerfile.
+used for the next step in the `Dockerfile`.
 
 Layering `RUN` instructions and generating commits conforms to the core
 concepts of Docker where commits are cheap and containers can be created from
@@ -131,34 +184,77 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+> **Note**:
+> To use a different shell, other than '/bin/sh', use the *exec* form
+> passing in the desired shell. For example,
+> `RUN ["/bin/bash", "-c", "echo hello"]`
+
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
+
+The cache for `RUN` instructions isn't invalidated automatically during
+the next build. The cache for an instruction like 
+`RUN apt-get dist-upgrade -y` will be reused during the next build.  The 
+cache for `RUN` instructions can be invalidated by using the `--no-cache` 
+flag, for example `docker build --no-cache`.
+
+See the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+
+The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
+[below](#add) for details.
+
 ### Known Issues (RUN)
 
-- [Issue 783](https://github.com/dotcloud/docker/issues/783) is about file
+- [Issue 783](https://github.com/docker/docker/issues/783) is about file
   permissions problems that can occur when using the AUFS file system. You
   might notice it during an attempt to `rm` a file, for example. The issue
   describes a workaround.
-- [Issue 2424](https://github.com/dotcloud/docker/issues/2424) Locale will
-  not be set automatically.
 
 ## CMD
 
-CMD has three forms:
+The `CMD` instruction has three forms:
 
-- `CMD ["executable","param1","param2"]` (like an *exec*, preferred form)
+- `CMD ["executable","param1","param2"]` (*exec* form, this is the preferred form)
 - `CMD ["param1","param2"]` (as *default parameters to ENTRYPOINT*)
-- `CMD command param1 param2` (as a *shell*)
+- `CMD command param1 param2` (*shell* form)
 
-There can only be one CMD in a Dockerfile. If you list more than one CMD
-then only the last CMD will take effect.
+There can only be one `CMD` instruction in a `Dockerfile`. If you list more than one `CMD`
+then only the last `CMD` will take effect.
 
-**The main purpose of a CMD is to provide defaults for an executing
+**The main purpose of a `CMD` is to provide defaults for an executing
 container.** These defaults can include an executable, or they can omit
-the executable, in which case you must specify an ENTRYPOINT as well.
+the executable, in which case you must specify an `ENTRYPOINT`
+instruction as well.
+
+> **Note**:
+> If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
+> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
+> with the JSON array format.
+
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
 
-If you use the *shell* form of the CMD, then the `<command>` will execute in
+If you use the *shell* form of the `CMD`, then the `<command>` will execute in
 `/bin/sh -c`:
 
     FROM ubuntu
@@ -166,7 +262,7 @@ If you use the *shell* form of the CMD, then the `<command>` will execute in
 
 If you want to **run your** `<command>` **without a shell** then you must
 express the command as a JSON array and give the full path to the executable.
-**This array form is the preferred format of CMD.** Any additional parameters
+**This array form is the preferred format of `CMD`.** Any additional parameters
 must be individually expressed as strings in the array:
 
     FROM ubuntu
@@ -177,7 +273,7 @@ you should consider using `ENTRYPOINT` in combination with `CMD`. See
 [*ENTRYPOINT*](#entrypoint).
 
 If the user specifies arguments to `docker run` then they will override the
-default specified in CMD.
+default specified in `CMD`.
 
 > **Note**:
 > don't confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
@@ -190,10 +286,11 @@ default specified in CMD.
 
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
-containers using links (see
-[*links*](/use/working_with_links_names/#working-with-links-names)),
-and to setup port redirection on the host system (see [*Redirect Ports*](
-/use/port_redirection/#port-redirection)).
+containers using links (see the [Docker User
+Guide](/userguide/dockerlinks)). Note that `EXPOSE` only works for
+inter-container links. It doesn't make ports accessible from the host. To
+expose ports to the host, at runtime, 
+[use the `-p` flag](/userguide/dockerlinks).
 
 ## ENV
 
@@ -208,35 +305,58 @@ from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
 
 > **Note**:
-> One example where this can cause unexpected consequenses, is setting
+> One example where this can cause unexpected consequences, is setting
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
 ## ADD
 
-    ADD <src> <dest>
+    ADD <src>... <dest>
 
-The `ADD` instruction will copy new files from `<src>` and add them to the
-container's filesystem at path `<dest>`.
+The `ADD` instruction copies new files,directories or remote file URLs to 
+the filesystem of the container  from `<src>` and add them to the at 
+path `<dest>`.  
 
-`<src>` must be the path to a file or directory relative to the source directory
-being built (also called the *context* of the build) or a remote file URL.
+Multiple `<src>` resource may be specified but if they are files or 
+directories then they must be relative to the source directory that is 
+being built (the context of the build).
 
-`<dest>` is the absolute path to which the source will be copied inside the
+Each `<src>` may contain wildcards and matching will be done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+For most command line uses this should act as expected, for example:
+
+    ADD hom* /mydir/        # adds all files starting with "hom"
+    ADD hom?.txt /mydir/    # ? is replaced with any single character
+
+The `<dest>` is the absolute path to which the source will be copied inside the
 destination container.
 
-All new files and directories are created with mode 0755, uid and gid 0.
+All new files and directories are created with a UID and GID of 0.
+
+In the case where `<src>` is a remote file URL, the destination will
+have permissions of 600.
 
 > **Note**:
-> If you build using STDIN (`docker build - < somefile`), there is no
-> build context, so the Dockerfile can only contain an URL based ADD
-> statement.
+> If you build by passing a `Dockerfile` through STDIN (`docker
+> build - < somefile`), there is no build context, so the `Dockerfile`
+> can only contain a URL based `ADD` instruction. You can also pass a
+> compressed archive through STDIN: (`docker build - < archive.tar.gz`),
+> the `Dockerfile` at the root of the archive and the rest of the
+> archive will get used at the context of the build.
 
 > **Note**:
-> If your URL files are protected using authentication, you will need to
-> use an `RUN wget` , `RUN curl`
-> or other tool from within the container as ADD does not support
+> If your URL files are protected using authentication, you
+> will need to use `RUN wget`, `RUN curl` or use another tool from
+> within the container as the `ADD` instruction does not support
 > authentication.
+
+> **Note**:
+> The first encountered `ADD` instruction will invalidate the cache for all
+> following instructions from the Dockerfile if the contents of `<src>` have
+> changed. This includes invalidating the cache for `RUN` instructions.
+> See the [`Dockerfile` Best Practices
+guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+
 
 The copy obeys the following rules:
 
@@ -263,14 +383,71 @@ The copy obeys the following rules:
   from *remote* URLs are **not** decompressed. When a directory is copied or
   unpacked, it has the same behavior as `tar -x`: the result is the union of:
 
-    1. whatever existed at the destination path and
-    2. the contents of the source tree, with conflicts resolved in favor of 
-       "2." on a file-by-file basis.
+    1. Whatever existed at the destination path and
+    2. The contents of the source tree, with conflicts resolved in favor
+       of "2." on a file-by-file basis.
 
 - If `<src>` is any other kind of file, it is copied individually along with
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
+
+- If multiple `<src>` resources are specified, either directly or due to the
+  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  a slash `/`.
+
+- If `<dest>` does not end with a trailing slash, it will be considered a
+  regular file and the contents of `<src>` will be written at `<dest>`.
+
+- If `<dest>` doesn't exist, it is created along with all missing directories
+  in its path.
+
+## COPY
+
+    COPY <src>... <dest>
+
+The `COPY` instruction copies new files,directories or remote file URLs to 
+the filesystem of the container  from `<src>` and add them to the at 
+path `<dest>`. 
+
+Multiple `<src>` resource may be specified but if they are files or 
+directories then they must be relative to the source directory that is being 
+built (the context of the build).
+
+Each `<src>` may contain wildcards and matching will be done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+For most command line uses this should act as expected, for example:
+
+    COPY hom* /mydir/        # adds all files starting with "hom"
+    COPY hom?.txt /mydir/    # ? is replaced with any single character
+
+The `<dest>` is the absolute path to which the source will be copied inside the
+destination container.
+
+All new files and directories are created with a UID and GID of 0.
+
+> **Note**:
+> If you build using STDIN (`docker build - < somefile`), there is no
+> build context, so `COPY` can't be used.
+
+The copy obeys the following rules:
+
+- The `<src>` path must be inside the *context* of the build;
+  you cannot `COPY ../something /something`, because the first step of a
+  `docker build` is to send the context directory (and subdirectories) to the
+  docker daemon.
+
+- If `<src>` is a directory, the entire directory is copied, including
+  filesystem metadata.
+
+- If `<src>` is any other kind of file, it is copied individually along with
+  its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
+  will be considered a directory and the contents of `<src>` will be written
+  at `<dest>/base(<src>)`.
+
+- If multiple `<src>` resources are specified, either directly or due to the
+  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
   regular file and the contents of `<src>` will be written at `<dest>`.
@@ -303,41 +480,58 @@ one will have an effect for the next `RUN` commands.
 ENTRYPOINT has two forms:
 
 - `ENTRYPOINT ["executable", "param1", "param2"]`
-  (like an *exec*, preferred form)
+  (*exec* form, the preferred form)
 - `ENTRYPOINT command param1 param2`
-  (as a *shell*)
+  (*shell* form)
 
-There can only be one `ENTRYPOINT` in a Dockerfile. If you have more than one
-`ENTRYPOINT`, then only the last one in the Dockerfile will have an effect.
+There can only be one `ENTRYPOINT` in a `Dockerfile`. If you have more
+than one `ENTRYPOINT`, then only the last one in the `Dockerfile` will
+have an effect.
 
-An `ENTRYPOINT` helps you to configure a container that you can run as an
-executable. That is, when you specify an `ENTRYPOINT`, then the whole container
-runs as if it was just that executable.
+An `ENTRYPOINT` helps you to configure a container that you can run as
+an executable. That is, when you specify an `ENTRYPOINT`, then the whole
+container runs as if it was just that executable.
 
-The `ENTRYPOINT` instruction adds an entry command that will **not** be
-overwritten when arguments are passed to `docker run`, unlike the behavior
-of `CMD`. This allows arguments to be passed to the entrypoint. i.e. 
-`docker run <image> -d` will pass the "-d" argument to the ENTRYPOINT.
+Unlike the behavior of the `CMD` instruction, The `ENTRYPOINT`
+instruction adds an entry command that will **not** be overwritten when
+arguments are passed to `docker run`. This allows arguments to be passed
+to the entry point, i.e.  `docker run <image> -d` will pass the `-d`
+argument to the entry point.
 
-You can specify parameters either in the ENTRYPOINT JSON array (as in
-"like an exec" above), or by using a CMD statement. Parameters in the
-ENTRYPOINT will not be overridden by the `docker run`
-arguments, but parameters specified via CMD will be overridden
-by `docker run` arguments.
+You can specify parameters either in the `ENTRYPOINT` JSON array (as in
+"like an exec" above), or by using a `CMD` instruction. Parameters in
+the `ENTRYPOINT` instruction will not be overridden by the `docker run`
+arguments, but parameters specified via a `CMD` instruction will be
+overridden by `docker run` arguments.
 
-Like a `CMD`, you can specify a plain string for the `ENTRYPOINT` and it will
-execute in `/bin/sh -c`:
-
-    FROM ubuntu
-    ENTRYPOINT wc -l -
-
-For example, that Dockerfile's image will *always* take stdin as input
-("-") and print the number of lines ("-l"). If you wanted to make this
-optional but default, you could use a CMD:
+Like a `CMD`, you can specify a plain string for the `ENTRYPOINT` and it
+will execute in `/bin/sh -c`:
 
     FROM ubuntu
-    CMD ["-l", "-"]
-    ENTRYPOINT ["/usr/bin/wc"]
+    ENTRYPOINT ls -l
+
+For example, that `Dockerfile`'s image will *always* take a directory as
+an input and return a directory listing. If you wanted to make this
+optional but default, you could use a `CMD` instruction:
+
+    FROM ubuntu
+    CMD ["-l"]
+    ENTRYPOINT ["ls"]
+
+> **Note**:
+> The *exec* form is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+> **Note**:
+> Unlike the *shell* form, the *exec* form does not invoke a command shell.
+> This means that normal shell processing does not happen. For example,
+> `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
+> If you want shell processing then either use the *shell* form or execute 
+> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
+
+> **Note**:
+> It is preferable to use the JSON array format for specifying
+> `ENTRYPOINT` instructions.
 
 ## VOLUME
 
@@ -345,41 +539,61 @@ optional but default, you could use a CMD:
 
 The `VOLUME` instruction will create a mount point with the specified name
 and mark it as holding externally mounted volumes from native host or other
-containers. For more information/examples and mounting instructions via docker
-client, refer to [*Share Directories via Volumes*](
-/use/working_with_volumes/#volume-def) documentation.
+containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
+string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
+/var/db`.  For more information/examples and mounting instructions via the
+Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def)
+documentation.
+
+> **Note**:
+> The list is parsed a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
 
 ## USER
 
     USER daemon
 
-The `USER` instruction sets the username or UID to use when running the image.
+The `USER` instruction sets the user name or UID to use when running the image
+and for any following `RUN` directives.
 
 ## WORKDIR
 
     WORKDIR /path/to/workdir
 
-The `WORKDIR` instruction sets the working directory for the `RUN`, `CMD` and
-`ENTRYPOINT` Dockerfile commands that follow it.
+The `WORKDIR` instruction sets the working directory for any `RUN`, `CMD` and
+`ENTRYPOINT` instructions that follow it in the `Dockerfile`.
 
-It can be used multiple times in the one Dockerfile. If a relative path
+It can be used multiple times in the one `Dockerfile`. If a relative path
 is provided, it will be relative to the path of the previous `WORKDIR`
 instruction. For example:
 
-    WORKDIR /a WORKDIR b WORKDIR c RUN pwd
+    WORKDIR /a
+    WORKDIR b
+    WORKDIR c
+    RUN pwd
 
-The output of the final `pwd` command in this
-Dockerfile would be `/a/b/c`.
+The output of the final `pwd` command in this `Dockerfile` would be
+`/a/b/c`.
+
+The `WORKDIR` instruction can resolve environment variables previously set using
+`ENV`. You can only use environment variables explicitly set in the `Dockerfile`.
+For example:
+
+    ENV DIRPATH /path
+    WORKDIR $DIRPATH/$DIRNAME
+
+The output of the final `pwd` command in this `Dockerfile` would be
+`/path/$DIRNAME`
 
 ## ONBUILD
 
     ONBUILD [INSTRUCTION]
 
-The `ONBUILD` instruction adds to the image a
-"trigger" instruction to be executed at a later time, when the image is
-used as the base for another build. The trigger will be executed in the
-context of the downstream build, as if it had been inserted immediately
-after the *FROM* instruction in the downstream Dockerfile.
+The `ONBUILD` instruction adds to the image a *trigger* instruction to
+be executed at a later time, when the image is used as the base for
+another build. The trigger will be executed in the context of the
+downstream build, as if it had been inserted immediately after the
+`FROM` instruction in the downstream `Dockerfile`.
 
 Any build instruction can be registered as a trigger.
 
@@ -387,33 +601,33 @@ This is useful if you are building an image which will be used as a base
 to build other images, for example an application build environment or a
 daemon which may be customized with user-specific configuration.
 
-For example, if your image is a reusable python application builder, it
+For example, if your image is a reusable Python application builder, it
 will require application source code to be added in a particular
 directory, and it might require a build script to be called *after*
-that. You can't just call *ADD* and *RUN* now, because you don't yet
+that. You can't just call `ADD` and `RUN` now, because you don't yet
 have access to the application source code, and it will be different for
 each application build. You could simply provide application developers
-with a boilerplate Dockerfile to copy-paste into their application, but
+with a boilerplate `Dockerfile` to copy-paste into their application, but
 that is inefficient, error-prone and difficult to update because it
 mixes with application-specific code.
 
-The solution is to use *ONBUILD* to register in advance instructions to
+The solution is to use `ONBUILD` to register advance instructions to
 run later, during the next build stage.
 
 Here's how it works:
 
-1. When it encounters an *ONBUILD* instruction, the builder adds a
+1. When it encounters an `ONBUILD` instruction, the builder adds a
    trigger to the metadata of the image being built. The instruction
    does not otherwise affect the current build.
 2. At the end of the build, a list of all triggers is stored in the
-   image manifest, under the key *OnBuild*. They can be inspected with
-   *docker inspect*.
+   image manifest, under the key `OnBuild`. They can be inspected with
+   the `docker inspect` command.
 3. Later the image may be used as a base for a new build, using the
-   *FROM* instruction. As part of processing the *FROM* instruction,
-   the downstream builder looks for *ONBUILD* triggers, and executes
+   `FROM` instruction. As part of processing the `FROM` instruction,
+   the downstream builder looks for `ONBUILD` triggers, and executes
    them in the same order they were registered. If any of the triggers
-   fail, the *FROM* instruction is aborted which in turn causes the
-   build to fail. If all triggers succeed, the FROM instruction
+   fail, the `FROM` instruction is aborted which in turn causes the
+   build to fail. If all triggers succeed, the `FROM` instruction
    completes and the build continues as usual.
 4. Triggers are cleared from the final image after being executed. In
    other words they are not inherited by "grand-children" builds.
@@ -425,9 +639,9 @@ For example you might add something like this:
     ONBUILD RUN /usr/local/bin/python-build --dir /app/src
     [...]
 
-> **Warning**: Chaining ONBUILD instructions using ONBUILD ONBUILD isn't allowed.
+> **Warning**: Chaining `ONBUILD` instructions using `ONBUILD ONBUILD` isn't allowed.
 
-> **Warning**: ONBUILD may not trigger FROM or MAINTAINER instructions.
+> **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
 
 ## Dockerfile Examples
 
@@ -436,25 +650,18 @@ For example you might add something like this:
     # VERSION               0.0.1
 
     FROM      ubuntu
-    MAINTAINER Guillaume J. Charmes <guillaume@docker.com>
+    MAINTAINER Victor Vieux <victor@docker.com>
 
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
-
-    RUN apt-get install -y inotify-tools nginx apache2 openssh-server
+    RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC
     #
     # VERSION               0.3
 
     FROM ubuntu
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
 
     # Install vnc, xvfb in order to create a 'fake' display and firefox
-    RUN apt-get install -y x11vnc xvfb firefox
+    RUN apt-get update && apt-get install -y x11vnc xvfb firefox
     RUN mkdir /.vnc
     # Setup a password
     RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
@@ -478,3 +685,4 @@ For example you might add something like this:
 
     # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.
+

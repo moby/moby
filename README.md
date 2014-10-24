@@ -18,7 +18,13 @@ It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
 
-![Docker L](docs/theme/mkdocs/img/logo_compressed.png "Docker")
+![Docker L](docs/theme/mkdocs/images/docker-logo-compressed.png "Docker")
+
+## Security Disclosure
+
+Security is very important to us.  If you have any issue regarding security, 
+please disclose the information responsibly by sending an email to 
+security@docker.com and not by creating a github issue.
 
 ## Better than VMs
 
@@ -125,9 +131,8 @@ Here's a typical Docker build process:
 
 ```bash
 FROM ubuntu:12.04
-RUN apt-get update
-RUN apt-get install -q -y python python-pip curl
-RUN curl -L https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
+RUN apt-get update && apt-get install -y python python-pip curl
+RUN curl -sSL https://github.com/shykes/helloflask/archive/master.tar.gz | tar -xzv
 RUN cd helloflask-master && pip install -r requirements.txt
 ```
 
@@ -142,11 +147,10 @@ Docker can be installed on your local machine as well as servers - both
 bare metal and virtualized.  It is available as a binary on most modern
 Linux systems, or as a VM on Windows, Mac and other systems.
 
-We also offer an interactive tutorial for quickly learning the basics of
-using Docker.
+We also offer an [interactive tutorial](http://www.docker.com/tryit/)
+for quickly learning the basics of using Docker.
 
-For up-to-date install instructions and online tutorials, see the
-[Getting Started page](http://www.docker.io/gettingstarted/).
+For up-to-date install instructions, see the [Docs](http://docs.docker.com).
 
 Usage examples
 ==============
@@ -155,7 +159,7 @@ Docker can be used to run short-lived commands, long-running daemons
 (app servers, databases etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](http://docs.docker.io/en/latest/examples/) in the
+examples](http://docs.docker.com/examples/) in the
 documentation.
 
 Under the hood
@@ -172,6 +176,9 @@ Under the hood, Docker is built on the following components:
 
 Contributing to Docker
 ======================
+
+[![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
+[![Travis](https://travis-ci.org/docker/docker.svg?branch=master)](https://travis-ci.org/docker/docker)
 
 Want to hack on Docker? Awesome! There are instructions to get you
 started [here](CONTRIBUTING.md).
@@ -190,3 +197,9 @@ It is your responsibility to ensure that your use and/or transfer does not
 violate applicable laws. 
 
 For more information, please see http://www.bis.doc.gov
+
+
+Licensing
+=========
+Docker is licensed under the Apache License, Version 2.0. See LICENSE for full license text.
+

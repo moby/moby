@@ -14,8 +14,8 @@ paying.
 ### What open source license are you using?
 
 We are using the Apache License Version 2.0, see it here:
-[https://github.com/dotcloud/docker/blob/master/LICENSE](
-https://github.com/dotcloud/docker/blob/master/LICENSE)
+[https://github.com/docker/docker/blob/master/LICENSE](
+https://github.com/docker/docker/blob/master/LICENSE)
 
 ### Does Docker run on Mac OS X or Windows?
 
@@ -96,7 +96,7 @@ functionalities:
    all your future projects. And so on.
 
  - *Sharing.*
-   Docker has access to a [public registry](http://index.docker.io) where
+   Docker has access to a [public registry](https://hub.docker.com) where
    thousands of people have uploaded useful containers: anything from Redis,
    CouchDB, Postgres to IRC bouncers to Rails app servers to Hadoop to
    base images for various Linux distros. The
@@ -122,8 +122,7 @@ functionalities:
 ### What is different between a Docker container and a VM?
 
 There's a great StackOverflow answer [showing the differences](
-http://stackoverflow.com/questions/16047306/
-how-is-docker-io-different-from-a-normal-virtual-machine).
+http://stackoverflow.com/questions/16047306/how-is-docker-io-different-from-a-normal-virtual-machine).
 
 ### Do I lose my data when the container exits?
 
@@ -142,12 +141,11 @@ running in parallel.
 ### How do I connect Docker containers?
 
 Currently the recommended way to link containers is via the link
-primitive. You can see details of how to [work with links here](
-http://docs.docker.io/use/working_with_links_names/).
+primitive. You can see details of how to [work with links
+here](/userguide/dockerlinks).
 
 Also of useful when enabling more flexible service portability is the
-[Ambassador linking pattern](
-http://docs.docker.io/use/ambassador_pattern_linking/).
+[Ambassador linking pattern](/articles/ambassador_pattern_linking/).
 
 ### How do I run more than one process in a Docker container?
 
@@ -156,8 +154,7 @@ http://supervisord.org/), runit, s6, or daemontools can do the trick.
 Docker will start up the process management daemon which will then fork
 to run additional processes. As long as the processor manager daemon continues
 to run, the container will continue to as well. You can see a more substantial
-example [that uses supervisord here](
-http://docs.docker.io/examples/using_supervisord/).
+example [that uses supervisord here](/articles/using_supervisord/).
 
 ### What platforms does Docker run on?
 
@@ -181,19 +178,88 @@ Cloud:
 ### How do I report a security issue with Docker?
 
 You can learn about the project's security policy
-[here](https://www.docker.io/security/) and report security issues to
+[here](https://www.docker.com/security/) and report security issues to
 this [mailbox](mailto:security@docker.com).
 
 ### Why do I need to sign my commits to Docker with the DCO?
 
 Please read [our blog post](
-http://blog.docker.io/2014/01/
-docker-code-contributions-require-developer-certificate-of-origin/)
+http://blog.docker.com/2014/01/docker-code-contributions-require-developer-certificate-of-origin/)
 on the introduction of the DCO.
+
+### When building an image, should I prefer system libraries or bundled ones?
+
+*This is a summary of a discussion on the [docker-dev mailing list](
+https://groups.google.com/forum/#!topic/docker-dev/L2RBSPDu1L0).*
+
+Virtually all programs depend on third-party libraries. Most frequently,
+they will use dynamic linking and some kind of package dependency, so
+that when multiple programs need the same library, it is installed only once.
+
+Some programs, however, will bundle their third-party libraries, because
+they rely on very specific versions of those libraries. For instance,
+Node.js bundles OpenSSL; MongoDB bundles V8 and Boost (among others).
+
+When creating a Docker image, is it better to use the bundled libraries,
+or should you build those programs so that they use the default system
+libraries instead?
+
+The key point about system libraries is not about saving disk or memory
+space. It is about security. All major distributions handle security
+seriously, by having dedicated security teams, following up closely
+with published vulnerabilities, and disclosing advisories themselves.
+(Look at the [Debian Security Information](https://www.debian.org/security/)
+for an example of those procedures.) Upstream developers, however,
+do not always implement similar practices.
+
+Before setting up a Docker image to compile a program from source,
+if you want to use bundled libraries, you should check if the upstream
+authors provide a convenient way to announce security vulnerabilities,
+and if they update their bundled libraries in a timely manner. If they
+don't, you are exposing yourself (and the users of your image) to
+security vulnerabilities.
+
+Likewise, before using packages built by others, you should check if the
+channels providing those packages implement similar security best practices.
+Downloading and installing an "all-in-one" .deb or .rpm sounds great at first,
+except if you have no way to figure out that it contains a copy of the
+OpenSSL library vulnerable to the [Heartbleed](http://heartbleed.com/) bug.
+
+### Why is `DEBIAN_FRONTEND=noninteractive` discouraged in Dockerfiles?
+
+When building Docker images on Debian and Ubuntu you may have seen errors like:
+
+    unable to initialize frontend: Dialog
+
+These errors don't stop the image from being built but inform you that the
+installation process tried to open a dialog box, but was unable to. 
+Generally, these errors are safe to ignore.
+
+Some people circumvent these errors by changing the `DEBIAN_FRONTEND` 
+environment variable inside the Dockerfile using:
+
+    ENV DEBIAN_FRONTEND=noninteractive
+
+This prevents the installer from opening dialog boxes during installation 
+which stops the errors.
+
+While this may sound like a good idea, it *may* have side effects. 
+The `DEBIAN_FRONTEND` environment variable will be inherited by all 
+images and containers built from your image, effectively changing
+their behavior. People using those images will run into problems when
+installing software interactively, because installers will not show
+any dialog boxes.
+
+Because of this, and because setting `DEBIAN_FRONTEND` to `noninteractive` is
+mainly a 'cosmetic' change, we *discourage* changing it.
+
+If you *really* need to change its setting, make sure to change it
+back to its [default value](https://www.debian.org/releases/stable/i386/ch05s03.html.en) 
+afterwards.
 
 ### Can I help by adding some questions and answers?
 
-Definitely! You can fork [the repo](https://github.com/dotcloud/docker) and
+Definitely! You can fork [the repo](https://github.com/docker/docker) and
 edit the documentation sources.
 
 ### Where can I find more answers?
@@ -203,9 +269,9 @@ You can find more answers on:
 - [Docker user mailinglist](https://groups.google.com/d/forum/docker-user)
 - [Docker developer mailinglist](https://groups.google.com/d/forum/docker-dev)
 - [IRC, docker on freenode](irc://chat.freenode.net#docker)
-- [GitHub](https://github.com/dotcloud/docker)
+- [GitHub](https://github.com/docker/docker)
 - [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 
-Looking for something else to read? Checkout the [*Hello World*](
-../examples/hello_world/#hello-world) example.
+Looking for something else to read? Checkout the [User
+Guide](/userguide/).

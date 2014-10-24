@@ -12,7 +12,7 @@ fi
 (
 	export TEST_DOCKERINIT_PATH="$INIT"
 	export LDFLAGS_STATIC_DOCKER="
-		-X github.com/dotcloud/docker/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"
+		-X $DOCKER_PKG/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"
 	"
 	source "$(dirname "$BASH_SOURCE")/test-integration"
 )

@@ -3,5 +3,5 @@
 package daemon
 
 import (
-	_ "github.com/dotcloud/docker/daemon/graphdriver/btrfs"
+	_ "github.com/docker/docker/daemon/graphdriver/btrfs"
 )

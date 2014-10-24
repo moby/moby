@@ -7,7 +7,7 @@ package mflag_test
 import (
 	"bytes"
 	"fmt"
-	. "github.com/dotcloud/docker/pkg/mflag"
+	. "github.com/docker/docker/pkg/mflag"
 	"os"
 	"sort"
 	"strings"
@@ -173,6 +173,12 @@ func testParse(f *FlagSet, t *testing.T) {
 	uintFlag := f.Uint([]string{"uint"}, 0, "uint value")
 	uint64Flag := f.Uint64([]string{"-uint64"}, 0, "uint64 value")
 	stringFlag := f.String([]string{"string"}, "0", "string value")
+	singleQuoteFlag := f.String([]string{"squote"}, "", "single quoted value")
+	doubleQuoteFlag := f.String([]string{"dquote"}, "", "double quoted value")
+	mixedQuoteFlag := f.String([]string{"mquote"}, "", "mixed quoted value")
+	mixed2QuoteFlag := f.String([]string{"mquote2"}, "", "mixed2 quoted value")
+	nestedQuoteFlag := f.String([]string{"nquote"}, "", "nested quoted value")
+	nested2QuoteFlag := f.String([]string{"nquote2"}, "", "nested2 quoted value")
 	float64Flag := f.Float64([]string{"float64"}, 0, "float64 value")
 	durationFlag := f.Duration([]string{"duration"}, 5*time.Second, "time.Duration value")
 	extra := "one-extra-argument"
@@ -184,6 +190,12 @@ func testParse(f *FlagSet, t *testing.T) {
 		"-uint", "24",
 		"--uint64", "25",
 		"-string", "hello",
+		"-squote='single'",
+		`-dquote="double"`,
+		`-mquote='mixed"`,
+		`-mquote2="mixed2'`,
+		`-nquote="'single nested'"`,
+		`-nquote2='"double nested"'`,
 		"-float64", "2718e28",
 		"-duration", "2m",
 		extra,
@@ -214,6 +226,24 @@ func testParse(f *FlagSet, t *testing.T) {
 	}
 	if *stringFlag != "hello" {
 		t.Error("string flag should be `hello`, is ", *stringFlag)
+	}
+	if *singleQuoteFlag != "single" {
+		t.Error("single quote string flag should be `single`, is ", *singleQuoteFlag)
+	}
+	if *doubleQuoteFlag != "double" {
+		t.Error("double quote string flag should be `double`, is ", *doubleQuoteFlag)
+	}
+	if *mixedQuoteFlag != `'mixed"` {
+		t.Error("mixed quote string flag should be `'mixed\"`, is ", *mixedQuoteFlag)
+	}
+	if *mixed2QuoteFlag != `"mixed2'` {
+		t.Error("mixed2 quote string flag should be `\"mixed2'`, is ", *mixed2QuoteFlag)
+	}
+	if *nestedQuoteFlag != "'single nested'" {
+		t.Error("nested quote string flag should be `'single nested'`, is ", *nestedQuoteFlag)
+	}
+	if *nested2QuoteFlag != `"double nested"` {
+		t.Error("double quote string flag should be `\"double nested\"`, is ", *nested2QuoteFlag)
 	}
 	if *float64Flag != 2718e28 {
 		t.Error("float64 flag should be 2718e28, is ", *float64Flag)
@@ -396,5 +426,81 @@ func TestHelp(t *testing.T) {
 	}
 	if helpCalled {
 		t.Fatal("help was called; should not have been for defined help flag")
+	}
+}
+
+// Test the flag count functions.
+func TestFlagCounts(t *testing.T) {
+	fs := NewFlagSet("help test", ContinueOnError)
+	var flag bool
+	fs.BoolVar(&flag, []string{"flag1"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"#deprecated1"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"f", "flag2"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"#d", "#deprecated2"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"flag3"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"g", "#flag4", "-flag4"}, false, "regular flag")
+
+	if fs.FlagCount() != 6 {
+		t.Fatal("FlagCount wrong. ", fs.FlagCount())
+	}
+	if fs.FlagCountUndeprecated() != 4 {
+		t.Fatal("FlagCountUndeprecated wrong. ", fs.FlagCountUndeprecated())
+	}
+	if fs.NFlag() != 0 {
+		t.Fatal("NFlag wrong. ", fs.NFlag())
+	}
+	err := fs.Parse([]string{"-fd", "-g", "-flag4"})
+	if err != nil {
+		t.Fatal("expected no error for defined -help; got ", err)
+	}
+	if fs.NFlag() != 4 {
+		t.Fatal("NFlag wrong. ", fs.NFlag())
+	}
+}
+
+// Show up bug in sortFlags
+func TestSortFlags(t *testing.T) {
+	fs := NewFlagSet("help TestSortFlags", ContinueOnError)
+
+	var err error
+
+	var b bool
+	fs.BoolVar(&b, []string{"b", "-banana"}, false, "usage")
+
+	err = fs.Parse([]string{"--banana=true"})
+	if err != nil {
+		t.Fatal("expected no error; got ", err)
+	}
+
+	count := 0
+
+	fs.VisitAll(func(flag *Flag) {
+		count++
+		if flag == nil {
+			t.Fatal("VisitAll should not return a nil flag")
+		}
+	})
+	flagcount := fs.FlagCount()
+	if flagcount != count {
+		t.Fatalf("FlagCount (%d) != number (%d) of elements visited", flagcount, count)
+	}
+	// Make sure its idempotent
+	if flagcount != fs.FlagCount() {
+		t.Fatalf("FlagCount (%d) != fs.FlagCount() (%d) of elements visited", flagcount, fs.FlagCount())
+	}
+
+	count = 0
+	fs.Visit(func(flag *Flag) {
+		count++
+		if flag == nil {
+			t.Fatal("Visit should not return a nil flag")
+		}
+	})
+	nflag := fs.NFlag()
+	if nflag != count {
+		t.Fatalf("NFlag (%d) != number (%d) of elements visited", nflag, count)
+	}
+	if nflag != fs.NFlag() {
+		t.Fatalf("NFlag (%d) != fs.NFlag() (%d) of elements visited", nflag, fs.NFlag())
 	}
 }

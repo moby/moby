@@ -36,36 +36,38 @@ func setupConn(t *testing.T) *Conn {
 	return conn
 }
 
+func findFixture(target string, t *testing.T) string {
+	abs, err := filepath.Abs("../fixtures/" + target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return abs
+}
+
 func setupUnit(target string, conn *Conn, t *testing.T) {
 	// Blindly stop the unit in case it is running
 	conn.StopUnit(target, "replace")
 
 	// Blindly remove the symlink in case it exists
 	targetRun := filepath.Join("/run/systemd/system/", target)
-	err := os.Remove(targetRun)
+	os.Remove(targetRun)
+}
 
-	// 1. Enable the unit
-	abs, err := filepath.Abs("../fixtures/" + target)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func linkUnit(target string, conn *Conn, t *testing.T) {
+	abs := findFixture(target, t)
 	fixture := []string{abs}
 
-	install, changes, err := conn.EnableUnitFiles(fixture, true, true)
+	changes, err := conn.LinkUnitFiles(fixture, true, true)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if install != false {
-		t.Fatal("Install was true")
 	}
 
 	if len(changes) < 1 {
 		t.Fatalf("Expected one change, got %v", changes)
 	}
 
-	if changes[0].Filename != targetRun {
+	runPath := filepath.Join("/run/systemd/system/", target)
+	if changes[0].Filename != runPath {
 		t.Fatal("Unexpected target filename")
 	}
 }
@@ -76,6 +78,7 @@ func TestStartStopUnit(t *testing.T) {
 	conn := setupConn(t)
 
 	setupUnit(target, conn, t)
+	linkUnit(target, conn, t)
 
 	// 2. Start the unit
 	job, err := conn.StartUnit(target, "replace")
@@ -84,7 +87,7 @@ func TestStartStopUnit(t *testing.T) {
 	}
 
 	if job != "done" {
-		t.Fatal("Job is not done, %v", job)
+		t.Fatal("Job is not done:", job)
 	}
 
 	units, err := conn.ListUnits()
@@ -130,28 +133,41 @@ func TestEnableDisableUnit(t *testing.T) {
 	conn := setupConn(t)
 
 	setupUnit(target, conn, t)
+	abs := findFixture(target, t)
+	runPath := filepath.Join("/run/systemd/system/", target)
 
-	abs, err := filepath.Abs("../fixtures/" + target)
+	// 1. Enable the unit
+	install, changes, err := conn.EnableUnitFiles([]string{abs}, true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path := filepath.Join("/run/systemd/system/", target)
+	if install != false {
+		t.Fatal("Install was true")
+	}
+
+	if len(changes) < 1 {
+		t.Fatalf("Expected one change, got %v", changes)
+	}
+
+	if changes[0].Filename != runPath {
+		t.Fatal("Unexpected target filename")
+	}
 
 	// 2. Disable the unit
-	changes, err := conn.DisableUnitFiles([]string{abs}, true)
+	dChanges, err := conn.DisableUnitFiles([]string{abs}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(changes) != 1 {
-		t.Fatalf("Changes should include the path, %v", changes)
+	if len(dChanges) != 1 {
+		t.Fatalf("Changes should include the path, %v", dChanges)
 	}
-	if changes[0].Filename != path {
-		t.Fatalf("Change should include correct filename, %+v", changes[0])
+	if dChanges[0].Filename != runPath {
+		t.Fatalf("Change should include correct filename, %+v", dChanges[0])
 	}
-	if changes[0].Destination != "" {
-		t.Fatalf("Change destination should be empty, %+v", changes[0])
+	if dChanges[0].Destination != "" {
+		t.Fatalf("Change destination should be empty, %+v", dChanges[0])
 	}
 }
 
@@ -230,7 +246,7 @@ func TestSetUnitProperties(t *testing.T) {
 
 	value := info["CPUShares"].(uint64)
 	if value != 1023 {
-		t.Fatal("CPUShares of unit is not 1023, %s", value)
+		t.Fatal("CPUShares of unit is not 1023:", value)
 	}
 }
 
@@ -250,7 +266,7 @@ func TestStartStopTransientUnit(t *testing.T) {
 	}
 
 	if job != "done" {
-		t.Fatal("Job is not done, %v", job)
+		t.Fatal("Job is not done:", job)
 	}
 
 	units, err := conn.ListUnits()
@@ -295,6 +311,7 @@ func TestConnJobListener(t *testing.T) {
 	conn := setupConn(t)
 
 	setupUnit(target, conn, t)
+	linkUnit(target, conn, t)
 
 	jobSize := len(conn.jobListener.jobs)
 

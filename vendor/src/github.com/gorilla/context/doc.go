@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package gorilla/context stores values shared during a request lifetime.
+Package context stores values shared during a request lifetime.
 
 For example, a router can set variables extracted from the URL and later
 application handlers can access those values, or it can be used to store

@@ -1,15 +1,16 @@
 package portmapper
 
 import (
-	"github.com/dotcloud/docker/pkg/iptables"
-	"github.com/dotcloud/docker/pkg/proxy"
 	"net"
 	"testing"
+
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
+	"github.com/docker/docker/pkg/iptables"
 )
 
 func init() {
 	// override this func to mock out the proxy server
-	newProxy = proxy.NewStubProxy
+	NewProxy = NewMockProxyCommand
 }
 
 func reset() {
@@ -44,19 +45,26 @@ func TestMapPorts(t *testing.T) {
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
 	srcAddr2 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.2")}
 
-	if err := Map(srcAddr1, dstIp1, 80); err != nil {
+	addrEqual := func(addr1, addr2 net.Addr) bool {
+		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
+	}
+
+	if host, err := Map(srcAddr1, dstIp1, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
+	} else if !addrEqual(dstAddr1, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if Map(srcAddr1, dstIp1, 80) == nil {
+	if _, err := Map(srcAddr1, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
 	}
 
-	if Map(srcAddr2, dstIp1, 80) == nil {
+	if _, err := Map(srcAddr2, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
 	}
 
-	if err := Map(srcAddr2, dstIp2, 80); err != nil {
+	if _, err := Map(srcAddr2, dstIp2, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
 	}
 
@@ -103,5 +111,42 @@ func TestGetUDPIPAndPort(t *testing.T) {
 
 	if ep := 53; port != ep {
 		t.Fatalf("expected port %d got %d", ep, port)
+	}
+}
+
+func TestMapAllPortsSingleInterface(t *testing.T) {
+	dstIp1 := net.ParseIP("0.0.0.0")
+	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
+
+	hosts := []net.Addr{}
+	var host net.Addr
+	var err error
+
+	defer func() {
+		for _, val := range hosts {
+			Unmap(val)
+		}
+	}()
+
+	for i := 0; i < 10; i++ {
+		for i := portallocator.BeginPortRange; i < portallocator.EndPortRange; i++ {
+			if host, err = Map(srcAddr1, dstIp1, 0); err != nil {
+				t.Fatal(err)
+			}
+
+			hosts = append(hosts, host)
+		}
+
+		if _, err := Map(srcAddr1, dstIp1, portallocator.BeginPortRange); err == nil {
+			t.Fatalf("Port %d should be bound but is not", portallocator.BeginPortRange)
+		}
+
+		for _, val := range hosts {
+			if err := Unmap(val); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		hosts = []net.Addr{}
 	}
 }

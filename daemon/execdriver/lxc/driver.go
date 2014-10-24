@@ -2,9 +2,10 @@ package lxc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -14,65 +15,37 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dotcloud/docker/daemon/execdriver"
-	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/pkg/label"
-	"github.com/dotcloud/docker/pkg/system"
-	"github.com/dotcloud/docker/utils"
+	"github.com/kr/pty"
+
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/mount/nodes"
 )
 
 const DriverName = "lxc"
 
-func init() {
-	execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-		if err := setupEnv(args); err != nil {
-			return err
-		}
-		if err := setupHostname(args); err != nil {
-			return err
-		}
-		if err := setupNetworking(args); err != nil {
-			return err
-		}
-		if err := setupCapabilities(args); err != nil {
-			return err
-		}
-		if err := setupWorkingDirectory(args); err != nil {
-			return err
-		}
-		if err := system.CloseFdsFrom(3); err != nil {
-			return err
-		}
-		if err := changeUser(args); err != nil {
-			return err
-		}
-
-		path, err := exec.LookPath(args.Args[0])
-		if err != nil {
-			log.Printf("Unable to locate %v", args.Args[0])
-			os.Exit(127)
-		}
-		if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
-			return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
-		}
-		panic("Unreachable")
-	})
-}
+var ErrExec = errors.New("Unsupported: Exec is not supported by the lxc driver")
 
 type driver struct {
 	root       string // root path for the driver to use
+	initPath   string
 	apparmor   bool
 	sharedRoot bool
 }
 
-func NewDriver(root string, apparmor bool) (*driver, error) {
+func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
 	}
+
 	return &driver{
 		apparmor:   apparmor,
 		root:       root,
+		initPath:   initPath,
 		sharedRoot: rootIsShared(),
 	}, nil
 }
@@ -83,9 +56,25 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	if err := execdriver.SetTerminal(c, pipes); err != nil {
-		return -1, err
+	var (
+		term execdriver.Terminal
+		err  error
+	)
+
+	if c.ProcessConfig.Tty {
+		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
+	c.ProcessConfig.Terminal = term
+
+	c.Mounts = append(c.Mounts, execdriver.Mount{
+		Source:      d.initPath,
+		Destination: c.InitPath,
+		Writable:    false,
+		Private:     true,
+	})
+
 	if err := d.generateEnvConfig(c); err != nil {
 		return -1, err
 	}
@@ -99,8 +88,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"-f", configPath,
 		"--",
 		c.InitPath,
-		"-driver",
-		DriverName,
 	}
 
 	if c.Network.Interface != nil {
@@ -113,11 +100,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"-mtu", strconv.Itoa(c.Network.Mtu),
 	)
 
-	if c.User != "" {
-		params = append(params, "-u", c.User)
+	if c.ProcessConfig.User != "" {
+		params = append(params, "-u", c.ProcessConfig.User)
 	}
 
-	if c.Privileged {
+	if c.ProcessConfig.Privileged {
 		if d.apparmor {
 			params[0] = path.Join(d.root, "lxc-start-unconfined")
 
@@ -129,8 +116,16 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		params = append(params, "-w", c.WorkingDir)
 	}
 
-	params = append(params, "--", c.Entrypoint)
-	params = append(params, c.Arguments...)
+	if len(c.CapAdd) > 0 {
+		params = append(params, fmt.Sprintf("-cap-add=%s", strings.Join(c.CapAdd, ":")))
+	}
+
+	if len(c.CapDrop) > 0 {
+		params = append(params, fmt.Sprintf("-cap-drop=%s", strings.Join(c.CapDrop, ":")))
+	}
+
+	params = append(params, "--", c.ProcessConfig.Entrypoint)
+	params = append(params, c.ProcessConfig.Arguments...)
 
 	if d.sharedRoot {
 		// lxc-start really needs / to be non-shared, or all kinds of stuff break
@@ -156,10 +151,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err != nil {
 		aname = name
 	}
-	c.Path = aname
-	c.Args = append([]string{name}, arg...)
+	c.ProcessConfig.Path = aname
+	c.ProcessConfig.Args = append([]string{name}, arg...)
 
-	if err := c.Start(); err != nil {
+	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
+		return -1, err
+	}
+
+	if err := c.ProcessConfig.Start(); err != nil {
 		return -1, err
 	}
 
@@ -167,8 +166,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		waitErr  error
 		waitLock = make(chan struct{})
 	)
+
 	go func() {
-		if err := c.Wait(); err != nil {
+		if err := c.ProcessConfig.Wait(); err != nil {
 			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
 				waitErr = err
 			}
@@ -179,15 +179,17 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// Poll lxc for RUNNING status
 	pid, err := d.waitForStart(c, waitLock)
 	if err != nil {
-		if c.Process != nil {
-			c.Process.Kill()
+		if c.ProcessConfig.Process != nil {
+			c.ProcessConfig.Process.Kill()
+			c.ProcessConfig.Wait()
 		}
 		return -1, err
 	}
+
 	c.ContainerPid = pid
 
 	if startCallback != nil {
-		startCallback(c)
+		startCallback(&c.ProcessConfig, pid)
 	}
 
 	<-waitLock
@@ -198,14 +200,38 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 /// Return the exit code of the process
 // if the process has not exited -1 will be returned
 func getExitCode(c *execdriver.Command) int {
-	if c.ProcessState == nil {
+	if c.ProcessConfig.ProcessState == nil {
 		return -1
 	}
-	return c.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	return c.ProcessConfig.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return KillLxc(c.ID, sig)
+}
+
+func (d *driver) Pause(c *execdriver.Command) error {
+	_, err := exec.LookPath("lxc-freeze")
+	if err == nil {
+		output, errExec := exec.Command("lxc-freeze", "-n", c.ID).CombinedOutput()
+		if errExec != nil {
+			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+		}
+	}
+
+	return err
+}
+
+func (d *driver) Unpause(c *execdriver.Command) error {
+	_, err := exec.LookPath("lxc-unfreeze")
+	if err == nil {
+		output, errExec := exec.Command("lxc-unfreeze", "-n", c.ID).CombinedOutput()
+		if errExec != nil {
+			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+		}
+	}
+
+	return err
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
@@ -268,18 +294,14 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (in
 		}
 
 		output, err = d.getInfo(c.ID)
-		if err != nil {
-			output, err = d.getInfo(c.ID)
+		if err == nil {
+			info, err := parseLxcInfo(string(output))
 			if err != nil {
 				return -1, err
 			}
-		}
-		info, err := parseLxcInfo(string(output))
-		if err != nil {
-			return -1, err
-		}
-		if info.Running {
-			return info.Pid, nil
+			if info.Running {
+				return info.Pid, nil
+			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -300,7 +322,7 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		utils.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		log.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
 		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {
@@ -387,47 +409,119 @@ func rootIsShared() bool {
 }
 
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	var (
-		process, mount string
-		root           = path.Join(d.root, "containers", c.ID, "config.lxc")
-		labels         = c.Config["label"]
-	)
+	root := path.Join(d.root, "containers", c.ID, "config.lxc")
+
 	fo, err := os.Create(root)
 	if err != nil {
 		return "", err
 	}
 	defer fo.Close()
 
-	if len(labels) > 0 {
-		process, mount, err = label.GenLabels(labels[0])
-		if err != nil {
-			return "", err
-		}
-	}
-
 	if err := LxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
-		AppArmor     bool
-		ProcessLabel string
-		MountLabel   string
+		AppArmor bool
 	}{
-		Command:      c,
-		AppArmor:     d.apparmor,
-		ProcessLabel: process,
-		MountLabel:   mount,
+		Command:  c,
+		AppArmor: d.apparmor,
 	}); err != nil {
 		return "", err
 	}
+
 	return root, nil
 }
 
 func (d *driver) generateEnvConfig(c *execdriver.Command) error {
-	data, err := json.Marshal(c.Env)
+	data, err := json.Marshal(c.ProcessConfig.Env)
 	if err != nil {
 		return err
 	}
 	p := path.Join(d.root, "containers", c.ID, "config.env")
-	c.Mounts = append(c.Mounts, execdriver.Mount{p, "/.dockerenv", false, true})
+	c.Mounts = append(c.Mounts, execdriver.Mount{
+		Source:      p,
+		Destination: "/.dockerenv",
+		Writable:    false,
+		Private:     true,
+	})
 
 	return ioutil.WriteFile(p, data, 0600)
+}
+
+// Clean not implemented for lxc
+func (d *driver) Clean(id string) error {
+	return nil
+}
+
+type TtyConsole struct {
+	MasterPty *os.File
+	SlavePty  *os.File
+}
+
+func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes) (*TtyConsole, error) {
+	// lxc is special in that we cannot create the master outside of the container without
+	// opening the slave because we have nothing to provide to the cmd.  We have to open both then do
+	// the crazy setup on command right now instead of passing the console path to lxc and telling it
+	// to open up that console.  we save a couple of openfiles in the native driver because we can do
+	// this.
+	ptyMaster, ptySlave, err := pty.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	tty := &TtyConsole{
+		MasterPty: ptyMaster,
+		SlavePty:  ptySlave,
+	}
+
+	if err := tty.AttachPipes(&processConfig.Cmd, pipes); err != nil {
+		tty.Close()
+		return nil, err
+	}
+
+	processConfig.Console = tty.SlavePty.Name()
+
+	return tty, nil
+}
+
+func (t *TtyConsole) Master() *os.File {
+	return t.MasterPty
+}
+
+func (t *TtyConsole) Resize(h, w int) error {
+	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+}
+
+func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
+	command.Stdout = t.SlavePty
+	command.Stderr = t.SlavePty
+
+	go func() {
+		if wb, ok := pipes.Stdout.(interface {
+			CloseWriters() error
+		}); ok {
+			defer wb.CloseWriters()
+		}
+
+		io.Copy(pipes.Stdout, t.MasterPty)
+	}()
+
+	if pipes.Stdin != nil {
+		command.Stdin = t.SlavePty
+		command.SysProcAttr.Setctty = true
+
+		go func() {
+			io.Copy(t.MasterPty, pipes.Stdin)
+
+			pipes.Stdin.Close()
+		}()
+	}
+	return nil
+}
+
+func (t *TtyConsole) Close() error {
+	t.SlavePty.Close()
+	return t.MasterPty.Close()
+}
+
+func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	return -1, ErrExec
 }

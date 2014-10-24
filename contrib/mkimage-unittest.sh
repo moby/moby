@@ -15,7 +15,7 @@ SOCAT=$(which socat)
 
 shopt -s extglob
 set -ex
-ROOTFS=`mktemp -d /tmp/rootfs-busybox.XXXXXXXXXX`
+ROOTFS=`mktemp -d ${TMPDIR:-/var/tmp}/rootfs-busybox.XXXXXXXXXX`
 trap "rm -rf $ROOTFS" INT QUIT TERM
 cd $ROOTFS
 

@@ -2,8 +2,8 @@
 set -e
 
 # DinD: a wrapper script which allows docker to be run inside a docker container.
-# Original version by Jerome Petazzoni <jerome@dotcloud.com>
-# See the blog post: http://blog.docker.io/2013/09/docker-can-now-run-within-docker/
+# Original version by Jerome Petazzoni <jerome@docker.com>
+# See the blog post: http://blog.docker.com/2013/09/docker-can-now-run-within-docker/
 #
 # This script should be executed inside a docker container in privilieged mode
 # ('docker run --privileged', introduced in docker 0.6).
@@ -14,7 +14,7 @@ set -e
 export container=docker
 
 # First, make sure that cgroups are mounted correctly.
-CGROUP=/sys/fs/cgroup
+CGROUP=/cgroup
 
 mkdir -p "$CGROUP"
 

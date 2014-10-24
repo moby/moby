@@ -1,28 +1,36 @@
 page_title: Installation on Red Hat Enterprise Linux
-page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_description: Installation instructions for Docker on Red Hat Enterprise Linux.
 page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos
 
-# Red Hat Enterprise Linux
+# Red Hat Enterprise Linux 7
 
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
+**Red Hat Enterprise Linux 7** has [shipped with
+Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
+An overview and some guidance can be found in the [Release
+Notes](https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/7.0_Release_Notes/chap-Red_Hat_Enterprise_Linux-7.0_Release_Notes-Linux_Containers_with_Docker_Format.html).
 
-> **Note**:
-> This is a community contributed installation path. The only `official`
-> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-> installation path. This version may be out of date because it depends on
-> some binaries to be updated and published
+Docker is located in the *extras* channel. To install Docker:
 
-Docker is available for **RHEL** on EPEL. These instructions should work
-for both RHEL and CentOS. They will likely work for other binary
-compatible EL6 distributions as well, but they haven't been tested.
+1. Enable the *extras* channel:
 
-Please note that this package is part of [Extra Packages for Enterprise
-Linux (EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort
-to create and maintain additional packages for the RHEL distribution.
+        $ sudo subscription-manager repos --enable=rhel-7-server-extras-rpms
+
+2. Install Docker:
+
+        $ sudo yum install docker 
+
+Additional installation, configuration, and usage information,
+including a [Get Started with Docker Containers in Red Hat
+Enterprise Linux 7](https://access.redhat.com/site/articles/881893)
+guide, can be found by Red Hat customers on the [Red Hat Customer
+Portal](https://access.redhat.com/).
+
+# Red Hat Enterprise Linux 6
+
+Docker is available for **RHEL** on EPEL. Please note that
+this package is part of [Extra Packages for Enterprise Linux
+(EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
+create and maintain additional packages for the RHEL distribution.
 
 Also note that due to the current Docker limitations, Docker is able to
 run only on the **64 bit** architecture.
@@ -67,8 +75,13 @@ Now let's verify that Docker is working.
 
     $ sudo docker run -i -t fedora /bin/bash
 
+> Note: If you get a `Cannot start container` error mentioning SELinux
+> or permission denied, you may need to update the SELinux policies.
+> This can be done using `sudo yum upgrade selinux-policy` and then rebooting.
+
 **Done!**
-Now continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
+
+Continue with the [User Guide](/userguide/).
 
 ## Issues?
 

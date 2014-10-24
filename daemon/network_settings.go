@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"github.com/dotcloud/docker/engine"
-	"github.com/dotcloud/docker/nat"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 )
 
 // FIXME: move deprecated port stuff to nat to clean up the core.
@@ -11,6 +11,7 @@ type PortMapping map[string]string // Deprecated
 type NetworkSettings struct {
 	IPAddress   string
 	IPPrefixLen int
+	MacAddress  string
 	Gateway     string
 	Bridge      string
 	PortMapping map[string]PortMapping // Deprecated
@@ -23,7 +24,7 @@ func (settings *NetworkSettings) PortMappingAPI() *engine.Table {
 		p, _ := nat.ParsePort(port.Port())
 		if len(bindings) == 0 {
 			out := &engine.Env{}
-			out.SetInt("PublicPort", p)
+			out.SetInt("PrivatePort", p)
 			out.Set("Type", port.Proto())
 			outs.Add(out)
 			continue

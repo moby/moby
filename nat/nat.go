@@ -5,14 +5,16 @@ package nat
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
+	"net"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/pkg/parsers"
 )
 
 const (
 	PortSpecTemplate       = "ip:hostPort:containerPort"
-	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort"
+	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort"
 )
 
 type PortBinding struct {
@@ -59,17 +61,34 @@ func (p Port) Int() int {
 	return i
 }
 
-// Splits a port in the format of port/proto
+// Splits a port in the format of proto/port
 func SplitProtoPort(rawPort string) (string, string) {
+	var port string
+	var proto string
+
 	parts := strings.Split(rawPort, "/")
-	l := len(parts)
-	if l == 0 {
-		return "", ""
+
+	if len(parts) == 0 || parts[0] == "" { // we have "" or ""/
+		port = ""
+		proto = ""
+	} else { // we have # or #/  or #/...
+		port = parts[0]
+		if len(parts) > 1 && parts[1] != "" {
+			proto = parts[1] // we have #/...
+		} else {
+			proto = "tcp" // we have # or #/
+		}
 	}
-	if l == 1 {
-		return "tcp", rawPort
+	return proto, port
+}
+
+func validateProto(proto string) bool {
+	for _, availableProto := range []string{"tcp", "udp"} {
+		if availableProto == proto {
+			return true
+		}
 	}
-	return parts[1], parts[0]
+	return false
 }
 
 // We will receive port specs in the format of ip:public:private/proto and these need to be
@@ -93,7 +112,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := utils.PartParser(PortSpecTemplate, rawPort)
+		parts, err := parsers.PartParser(PortSpecTemplate, rawPort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -104,6 +123,9 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			hostPort      = parts["hostPort"]
 		)
 
+		if rawIp != "" && net.ParseIP(rawIp) == nil {
+			return nil, nil, fmt.Errorf("Invalid ip address: %s", rawIp)
+		}
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
 		}
@@ -112,6 +134,10 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		}
 		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
 			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+		}
+
+		if !validateProto(proto) {
+			return nil, nil, fmt.Errorf("Invalid proto: %s", proto)
 		}
 
 		port := NewPort(proto, containerPort)

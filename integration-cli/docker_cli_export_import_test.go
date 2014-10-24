@@ -29,7 +29,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	out, _, err = runCommandWithOutput(exportCmd)
 	errorOut(err, t, fmt.Sprintf("failed to export container: %v %v", out, err))
 
-	importCmdFinal := `cat /tmp/testexp.tar | docker import - testexp`
+	importCmdFinal := `cat /tmp/testexp.tar | docker import - repo/testexp:v1`
 	importCmd := exec.Command("bash", "-c", importCmdFinal)
 	out, _, err = runCommandWithOutput(importCmd)
 	errorOut(err, t, fmt.Sprintf("failed to import image: %v %v", out, err))
@@ -41,7 +41,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	errorOut(err, t, fmt.Sprintf("output should've been an image id: %v %v", out, err))
 
 	deleteContainer(cleanedContainerID)
-	deleteImages("testexp")
+	deleteImages("repo/testexp:v1")
 
 	os.Remove("/tmp/testexp.tar")
 

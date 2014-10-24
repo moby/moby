@@ -37,7 +37,7 @@ if [ ! -e "manager/$script" ]; then
 	exit 1
 fi
 
-# TODO https://github.com/dotcloud/docker/issues/734 (docker inspect formatting)
+# TODO https://github.com/docker/docker/issues/734 (docker inspect formatting)
 #if command -v docker > /dev/null 2>&1; then
 #	image="$(docker inspect -f '{{.Image}}' "$cid")"
 #	if [ "$image" ]; then

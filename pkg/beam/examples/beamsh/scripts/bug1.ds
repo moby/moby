@@ -1,5 +1,0 @@
-#!/usr/bin/env beamsh
-
-trace {
-	exec ls -l
-}

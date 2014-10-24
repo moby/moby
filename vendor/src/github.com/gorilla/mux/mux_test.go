@@ -8,16 +8,19 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/gorilla/context"
 )
 
 type routeTest struct {
-	title       string            // title of the test
-	route       *Route            // the route being tested
-	request     *http.Request     // a request to test the route
-	vars        map[string]string // the expected vars of the match
-	host        string            // the expected host of the match
-	path        string            // the expected path of the match
-	shouldMatch bool              // whether the request is expected to match the route at all
+	title          string            // title of the test
+	route          *Route            // the route being tested
+	request        *http.Request     // a request to test the route
+	vars           map[string]string // the expected vars of the match
+	host           string            // the expected host of the match
+	path           string            // the expected path of the match
+	shouldMatch    bool              // whether the request is expected to match the route at all
+	shouldRedirect bool              // whether the request should result in a redirect
 }
 
 func TestHost(t *testing.T) {
@@ -150,6 +153,33 @@ func TestPath(t *testing.T) {
 			shouldMatch: true,
 		},
 		{
+			title:       "Path route, match with trailing slash in request and path",
+			route:       new(Route).Path("/111/"),
+			request:     newRequest("GET", "http://localhost/111/"),
+			vars:        map[string]string{},
+			host:        "",
+			path:        "/111/",
+			shouldMatch: true,
+		},
+		{
+			title:       "Path route, do not match with trailing slash in path",
+			route:       new(Route).Path("/111/"),
+			request:     newRequest("GET", "http://localhost/111"),
+			vars:        map[string]string{},
+			host:        "",
+			path:        "/111",
+			shouldMatch: false,
+		},
+		{
+			title:       "Path route, do not match with trailing slash in request",
+			route:       new(Route).Path("/111"),
+			request:     newRequest("GET", "http://localhost/111/"),
+			vars:        map[string]string{},
+			host:        "",
+			path:        "/111/",
+			shouldMatch: false,
+		},
+		{
 			title:       "Path route, wrong path in request in request URL",
 			route:       new(Route).Path("/111/222/333"),
 			request:     newRequest("GET", "http://localhost/1/2/3"),
@@ -210,6 +240,15 @@ func TestPathPrefix(t *testing.T) {
 			vars:        map[string]string{},
 			host:        "",
 			path:        "/111",
+			shouldMatch: true,
+		},
+		{
+			title:       "PathPrefix route, match substring",
+			route:       new(Route).PathPrefix("/1"),
+			request:     newRequest("GET", "http://localhost/111/222/333"),
+			vars:        map[string]string{},
+			host:        "",
+			path:        "/1",
 			shouldMatch: true,
 		},
 		{
@@ -415,6 +454,15 @@ func TestQueries(t *testing.T) {
 			shouldMatch: true,
 		},
 		{
+			title:       "Queries route, match with a query string",
+			route:       new(Route).Host("www.example.com").Path("/api").Queries("foo", "bar", "baz", "ding"),
+			request:     newRequest("GET", "http://www.example.com/api?foo=bar&baz=ding"),
+			vars:        map[string]string{},
+			host:        "",
+			path:        "",
+			shouldMatch: true,
+		},
+		{
 			title:       "Queries route, bad query",
 			route:       new(Route).Queries("foo", "bar", "baz", "ding"),
 			request:     newRequest("GET", "http://localhost?foo=bar&baz=dong"),
@@ -568,26 +616,74 @@ func TestNamedRoutes(t *testing.T) {
 }
 
 func TestStrictSlash(t *testing.T) {
-	var r *Router
-	var req *http.Request
-	var route *Route
-	var match *RouteMatch
-	var matched bool
-
-	// StrictSlash should be ignored for path prefix.
-	// So we register a route ending in slash but it doesn't attempt to add
-	// the slash for a path not ending in slash.
-	r = NewRouter()
+	r := NewRouter()
 	r.StrictSlash(true)
-	route = r.NewRoute().PathPrefix("/static/")
-	req, _ = http.NewRequest("GET", "http://localhost/static/logo.png", nil)
-	match = new(RouteMatch)
-	matched = r.Match(req, match)
-	if !matched {
-		t.Errorf("Should match request %q -- %v", req.URL.Path, getRouteTemplate(route))
+
+	tests := []routeTest{
+		{
+			title:          "Redirect path without slash",
+			route:          r.NewRoute().Path("/111/"),
+			request:        newRequest("GET", "http://localhost/111"),
+			vars:           map[string]string{},
+			host:           "",
+			path:           "/111/",
+			shouldMatch:    true,
+			shouldRedirect: true,
+		},
+		{
+			title:          "Do not redirect path with slash",
+			route:          r.NewRoute().Path("/111/"),
+			request:        newRequest("GET", "http://localhost/111/"),
+			vars:           map[string]string{},
+			host:           "",
+			path:           "/111/",
+			shouldMatch:    true,
+			shouldRedirect: false,
+		},
+		{
+			title:          "Redirect path with slash",
+			route:          r.NewRoute().Path("/111"),
+			request:        newRequest("GET", "http://localhost/111/"),
+			vars:           map[string]string{},
+			host:           "",
+			path:           "/111",
+			shouldMatch:    true,
+			shouldRedirect: true,
+		},
+		{
+			title:          "Do not redirect path without slash",
+			route:          r.NewRoute().Path("/111"),
+			request:        newRequest("GET", "http://localhost/111"),
+			vars:           map[string]string{},
+			host:           "",
+			path:           "/111",
+			shouldMatch:    true,
+			shouldRedirect: false,
+		},
+		{
+			title:          "Propagate StrictSlash to subrouters",
+			route:          r.NewRoute().PathPrefix("/static/").Subrouter().Path("/images/"),
+			request:        newRequest("GET", "http://localhost/static/images"),
+			vars:           map[string]string{},
+			host:           "",
+			path:           "/static/images/",
+			shouldMatch:    true,
+			shouldRedirect: true,
+		},
+		{
+			title:          "Ignore StrictSlash for path prefix",
+			route:          r.NewRoute().PathPrefix("/static/"),
+			request:        newRequest("GET", "http://localhost/static/logo.png"),
+			vars:           map[string]string{},
+			host:           "",
+			path:           "/static/",
+			shouldMatch:    true,
+			shouldRedirect: false,
+		},
 	}
-	if match.Handler != nil {
-		t.Errorf("Should not redirect")
+
+	for _, test := range tests {
+		testRoute(t, test)
 	}
 }
 
@@ -616,6 +712,7 @@ func testRoute(t *testing.T, test routeTest) {
 	host := test.host
 	path := test.path
 	url := test.host + test.path
+	shouldRedirect := test.shouldRedirect
 
 	var match RouteMatch
 	ok := route.Match(request, &match)
@@ -653,6 +750,84 @@ func testRoute(t *testing.T, test routeTest) {
 				return
 			}
 		}
+		if shouldRedirect && match.Handler == nil {
+			t.Errorf("(%v) Did not redirect", test.title)
+			return
+		}
+		if !shouldRedirect && match.Handler != nil {
+			t.Errorf("(%v) Unexpected redirect", test.title)
+			return
+		}
+	}
+}
+
+// Tests that the context is cleared or not cleared properly depending on
+// the configuration of the router
+func TestKeepContext(t *testing.T) {
+	func1 := func(w http.ResponseWriter, r *http.Request) {}
+
+	r := NewRouter()
+	r.HandleFunc("/", func1).Name("func1")
+
+	req, _ := http.NewRequest("GET", "http://localhost/", nil)
+	context.Set(req, "t", 1)
+
+	res := new(http.ResponseWriter)
+	r.ServeHTTP(*res, req)
+
+	if _, ok := context.GetOk(req, "t"); ok {
+		t.Error("Context should have been cleared at end of request")
+	}
+
+	r.KeepContext = true
+
+	req, _ = http.NewRequest("GET", "http://localhost/", nil)
+	context.Set(req, "t", 1)
+
+	r.ServeHTTP(*res, req)
+	if _, ok := context.GetOk(req, "t"); !ok {
+		t.Error("Context should NOT have been cleared at end of request")
+	}
+
+}
+
+type TestA301ResponseWriter struct {
+	hh     http.Header
+	status int
+}
+
+func (ho TestA301ResponseWriter) Header() http.Header {
+	return http.Header(ho.hh)
+}
+
+func (ho TestA301ResponseWriter) Write(b []byte) (int, error) {
+	return 0, nil
+}
+
+func (ho TestA301ResponseWriter) WriteHeader(code int) {
+	ho.status = code
+}
+
+func Test301Redirect(t *testing.T) {
+	m := make(http.Header)
+
+	func1 := func(w http.ResponseWriter, r *http.Request) {}
+	func2 := func(w http.ResponseWriter, r *http.Request) {}
+
+	r := NewRouter()
+	r.HandleFunc("/api/", func2).Name("func2")
+	r.HandleFunc("/", func1).Name("func1")
+
+	req, _ := http.NewRequest("GET", "http://localhost//api/?abc=def", nil)
+
+	res := TestA301ResponseWriter{
+		hh:     m,
+		status: 0,
+	}
+	r.ServeHTTP(&res, req)
+
+	if "http://localhost/api/?abc=def" != res.hh["Location"][0] {
+		t.Errorf("Should have complete URL with query string")
 	}
 }
 

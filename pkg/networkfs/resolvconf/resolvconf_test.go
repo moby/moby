@@ -131,3 +131,28 @@ func TestBuild(t *testing.T) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
+
+func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "nameserver ns1\nnameserver ns2\nnameserver ns3\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+	if notExpected := "search ."; bytes.Contains(content, []byte(notExpected)) {
+		t.Fatalf("Expected to not find '%s' got '%s'", notExpected, content)
+	}
+}

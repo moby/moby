@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+set -e
 
 if [ $# -ne 1 ]; then
 	echo >&2 "Usage: $0 PATH"
@@ -34,6 +35,7 @@ while true; do
 				fi
 			done;
 		} < MAINTAINERS
+		break
 	fi
 	if [ -d .git ]; then
 		break
@@ -46,13 +48,15 @@ done
 
 PRIMARY="${MAINTAINERS[0]}"
 PRIMARY_FIRSTNAME=$(echo $PRIMARY | cut -d' ' -f1)
+LGTM_COUNT=${#MAINTAINERS[@]}
+LGTM_COUNT=$((LGTM_COUNT%2 +1))
 
 firstname() {
 	echo $1 | cut -d' ' -f1
 }
 
-echo "--- $PRIMARY is the PRIMARY MAINTAINER of $1. Assign pull requests to him."
-echo "$(firstname $PRIMARY) may assign pull requests to the following secondary maintainers:"
+echo "A pull request in $1 will need $LGTM_COUNT LGTM's to be merged."
+echo "--- $PRIMARY is the PRIMARY MAINTAINER of $1."
 for SECONDARY in "${MAINTAINERS[@]:1}"; do
 	echo "--- $SECONDARY"
 done

@@ -2,12 +2,6 @@ package graph
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/dockerversion"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/runconfig"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,12 +11,21 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
 	Root    string
-	idIndex *utils.TruncIndex
+	idIndex *truncindex.TruncIndex
 	driver  graphdriver.Driver
 }
 
@@ -40,7 +43,7 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 
 	graph := &Graph{
 		Root:    abspath,
-		idIndex: utils.NewTruncIndex([]string{}),
+		idIndex: truncindex.NewTruncIndex([]string{}),
 		driver:  driver,
 	}
 	if err := graph.restore(); err != nil {
@@ -61,8 +64,8 @@ func (graph *Graph) restore() error {
 			ids = append(ids, id)
 		}
 	}
-	graph.idIndex = utils.NewTruncIndex(ids)
-	utils.Debugf("Restored %d elements", len(dir))
+	graph.idIndex = truncindex.NewTruncIndex(ids)
+	log.Debugf("Restored %d elements", len(dir))
 	return nil
 }
 
@@ -87,7 +90,6 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	// FIXME: return nil when the image doesn't exist, instead of an error
 	img, err := image.LoadImage(graph.ImageRoot(id))
 	if err != nil {
 		return nil, err
@@ -98,27 +100,9 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	img.SetGraph(graph)
 
 	if img.Size < 0 {
-		rootfs, err := graph.driver.Get(img.ID, "")
+		size, err := graph.driver.DiffSize(img.ID, img.Parent)
 		if err != nil {
-			return nil, fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
-		}
-		defer graph.driver.Put(img.ID)
-
-		var size int64
-		if img.Parent == "" {
-			if size, err = utils.TreeSize(rootfs); err != nil {
-				return nil, err
-			}
-		} else {
-			parentFs, err := graph.driver.Get(img.Parent, "")
-			if err != nil {
-				return nil, err
-			}
-			changes, err := archive.ChangesDirs(rootfs, parentFs)
-			if err != nil {
-				return nil, err
-			}
-			size = archive.ChangesSize(rootfs, changes)
+			return nil, fmt.Errorf("unable to calculate size of image id %q: %s", img.ID, err)
 		}
 
 		img.Size = size
@@ -141,20 +125,21 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 		Architecture:  runtime.GOARCH,
 		OS:            runtime.GOOS,
 	}
+
 	if containerID != "" {
 		img.Parent = containerImage
 		img.Container = containerID
 		img.ContainerConfig = *containerConfig
 	}
-	if err := graph.Register(nil, layerData, img); err != nil {
+
+	if err := graph.Register(img, nil, layerData); err != nil {
 		return nil, err
 	}
 	return img, nil
 }
 
 // Register imports a pre-existing image into the graph.
-// FIXME: pass img as first argument
-func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, img *image.Image) (err error) {
+func (graph *Graph) Register(img *image.Image, jsonData []byte, layerData archive.ArchiveReader) (err error) {
 	defer func() {
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.
@@ -194,14 +179,9 @@ func (graph *Graph) Register(jsonData []byte, layerData archive.ArchiveReader, i
 	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
-	// Mount the root filesystem so we can apply the diff/layer
-	rootfs, err := graph.driver.Get(img.ID, "")
-	if err != nil {
-		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
-	}
-	defer graph.driver.Put(img.ID)
+	// Apply the diff/layer
 	img.SetGraph(graph)
-	if err := image.StoreImage(img, jsonData, layerData, tmp, rootfs); err != nil {
+	if err := image.StoreImage(img, jsonData, layerData, tmp); err != nil {
 		return err
 	}
 	// Commit
@@ -262,8 +242,6 @@ func SetupInitLayer(initLayer string) error {
 		"/etc/hostname":    "file",
 		"/dev/console":     "file",
 		"/etc/mtab":        "/proc/mounts",
-		// "var/run": "dir",
-		// "var/lock": "dir",
 	} {
 		parts := strings.Split(pth, "/")
 		prev := "/"
@@ -324,13 +302,17 @@ func (graph *Graph) Delete(name string) error {
 		return err
 	}
 	tmp, err := graph.Mktemp("")
-	if err != nil {
-		return err
-	}
 	graph.idIndex.Delete(id)
-	err = os.Rename(graph.ImageRoot(id), tmp)
-	if err != nil {
-		return err
+	if err == nil {
+		err = os.Rename(graph.ImageRoot(id), tmp)
+		// On err make tmp point to old dir and cleanup unused tmp dir
+		if err != nil {
+			os.RemoveAll(tmp)
+			tmp = graph.ImageRoot(id)
+		}
+	} else {
+		// On err make tmp point to old dir for cleanup
+		tmp = graph.ImageRoot(id)
 	}
 	// Remove rootfs data from the driver
 	graph.driver.Remove(id)

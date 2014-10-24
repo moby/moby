@@ -1,14 +1,8 @@
 page_title: Installation on Rackspace Cloud
-page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_description: Installation instructions for Docker on Rackspace Cloud.
 page_keywords: Rackspace Cloud, installation, docker, linux, ubuntu
 
 # Rackspace Cloud
-
-> **Note**:
-> This is a community contributed installation path. The only `official`
-> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-> installation path. This version may be out of date because it depends on
-> some binaries to be updated and published
 
 Installing Docker on Ubuntu provided by Rackspace is pretty
 straightforward, and you should mostly be able to follow the
@@ -21,7 +15,7 @@ will need to install it. And this is a little more difficult on
 Rackspace.
 
 Rackspace boots their servers using grub's `menu.lst`
-and does not like non `virtual` packages (e.g. Xen compatible)
+and does not like non `virtual` packages (e.g., Xen compatible)
 kernels there, although they do work. This results in
 `update-grub` not having the expected result, and
 you will need to set the kernel manually.

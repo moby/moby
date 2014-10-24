@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-type NameChecker interface {
-	Exists(name string) bool
-}
-
 var (
 	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious", "berserk", "high", "romantic", "prickly", "evil"}
 	// Docker 0.7.x generates names from notable scientists and hackers.
@@ -65,6 +61,7 @@ var (
 	// Rachel Carson - American marine biologist and conservationist, her book Silent Spring and other writings are credited with advancing the global environmental movement. http://en.wikipedia.org/wiki/Rachel_Carson
 	// Radia Perlman is a software designer and network engineer and most famous for her invention of the spanning-tree protocol (STP). http://en.wikipedia.org/wiki/Radia_Perlman
 	// Richard Feynman was a key contributor to quantum mechanics and particle physics. http://en.wikipedia.org/wiki/Richard_Feynman
+	// Richard Matthew Stallman - the founder of the Free Software movement, the GNU project, the Free Software Foundation, and the League for Programming Freedom. He also invented the concept of copyleft to protect the ideals of this movement, and enshrined this concept in the widely-used GPL (General Public License) for software. http://en.wikiquote.org/wiki/Richard_Stallman
 	// Rob Pike was a key contributor to Unix, Plan 9, the X graphic system, utf-8, and the Go programming language. http://en.wikipedia.org/wiki/Rob_Pike
 	// Rosalind Franklin - British biophysicist and X-ray crystallographer whose research was critical to the understanding of DNA - http://en.wikipedia.org/wiki/Rosalind_Franklin
 	// Sophie Kowalevski - Russian mathematician responsible for important original contributions to analysis, differential equations and mechanics - http://en.wikipedia.org/wiki/Sofia_Kovalevskaya
@@ -76,19 +73,20 @@ var (
 	//	http://en.wikipedia.org/wiki/John_Bardeen
 	//	http://en.wikipedia.org/wiki/Walter_Houser_Brattain
 	//	http://en.wikipedia.org/wiki/William_Shockley
-	right = [...]string{"lovelace", "franklin", "tesla", "einstein", "bohr", "davinci", "pasteur", "nobel", "curie", "darwin", "turing", "ritchie", "torvalds", "pike", "thompson", "wozniak", "galileo", "euclid", "newton", "fermat", "archimedes", "poincare", "heisenberg", "feynman", "hawking", "fermi", "pare", "mccarthy", "engelbart", "babbage", "albattani", "ptolemy", "bell", "wright", "lumiere", "morse", "mclean", "brown", "bardeen", "brattain", "shockley", "goldstine", "hoover", "hopper", "bartik", "sammet", "jones", "perlman", "wilson", "kowalevski", "hypatia", "goodall", "mayer", "elion", "blackwell", "lalande", "kirch", "ardinghelli", "colden", "almeida", "leakey", "meitner", "mestorf", "rosalind", "sinoussi", "carson", "mcclintock", "yonath"}
+	right = [...]string{"albattani", "almeida", "archimedes", "ardinghelli", "babbage", "bardeen", "bartik", "bell", "blackwell", "bohr", "brattain", "brown", "carson", "colden", "curie", "darwin", "davinci", "einstein", "elion", "engelbart", "euclid", "fermat", "fermi", "feynman", "franklin", "galileo", "goldstine", "goodall", "hawking", "heisenberg", "hoover", "hopper", "hypatia", "jones", "kirch", "kowalevski", "lalande", "leakey", "lovelace", "lumiere", "mayer", "mccarthy", "mcclintock", "mclean", "meitner", "mestorf", "morse", "newton", "nobel", "pare", "pasteur", "perlman", "pike", "poincare", "ptolemy", "ritchie", "rosalind", "sammet", "shockley", "sinoussi", "stallman", "tesla", "thompson", "torvalds", "turing", "wilson", "wozniak", "wright", "yonath"}
 )
 
-func GenerateRandomName(checker NameChecker) (string, error) {
-	retry := 5
+func GetRandomName(retry int) string {
 	rand.Seed(time.Now().UnixNano())
+
+begin:
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
-	for checker != nil && checker.Exists(name) && retry > 0 || name == "boring_wozniak" /* Steve Wozniak is not boring */ {
+	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
+		goto begin
+	}
+
+	if retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
-		retry = retry - 1
 	}
-	if retry == 0 {
-		return name, fmt.Errorf("Error generating random name")
-	}
-	return name, nil
+	return name
 }

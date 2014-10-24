@@ -66,7 +66,7 @@ func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 }
 
 func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sleep 0")
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sleep", "0")
 	cid, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, fmt.Sprintf("%s", err))
 	cleanCID := stripTrailingCharacters(cid)
@@ -88,4 +88,6 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 			t.Errorf("'%s' is shown in the diff but shouldn't", line)
 		}
 	}
+
+	logDone("diff - ensure that only kmsg and ptmx in diff")
 }

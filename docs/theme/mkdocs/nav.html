@@ -1,34 +1,13 @@
-{% include "docker_io_nav.html" %}
-<nav id="nav_menu" class="navbar navbar-default navbar-static-top affix" role="navigation">
-  <div id="docsnav" class="container container-better">
-    <span id="mobile_menu_button" class="dd_menu">Sections <b class="caret"></b>
-      <ul class="dd_submenu">
-        <li>
-          <a href="/">Home</a>
-        </li>
-      {% for menu in nav %}
-      {% if menu.title != '**HIDDEN**' %}
-        <li {% if menu.active %}class="active"{% endif %}>
-          {% if menu.children %}
-            {% for item in menu.children[:1] %}
-              <a href="{{ item.url }}">{{ menu.title }}</a>
-            {% endfor %}
-          {% endif %}
-        </li>
-      {% endif %}
-      {% endfor %}
-      </ul>
-    </span>
-    <b class="arrow pull-left"><img src="/img/docs_nav_menu_arrow_1x.png"></b>
+<nav id="nav_menu" class="clearfix navbar navbar-default navbar-static-top affix" role="navigation">
+  <div id="docsnav">
     <ul id="main-nav" class="pull-left">
-      <li class="home pull-left">
-        <a href="/"><i class="glyphicon glyphicon-home"></i></span></a>
-      </li>
       {% for menu in nav %}
       {% if menu.title != '**HIDDEN**' %}
       <li class="dd_menu pull-left{% if menu.active %} active{% endif %}">
-        <span>{{ menu.title }} <b class="caret"></b></span>
-        <ul class="dd_submenu">
+        {% for first_item in menu.children[:1] %}
+        <a href="{{ first_item.url }}">{{ menu.title }}</a>
+        {% endfor %}
+        <ul class="dd_submenu" style="max-height: 75px;">
         {% for menu in menu.children %}
           <li {% if menu.active %}class="active"{% endif %}>
             <a href="{{ menu.url }}">{{ menu.title }}</a>
@@ -39,13 +18,9 @@
       {% endif %}
       {% endfor %}
     </ul>
-    <a href="/jsearch" id="nav_search_toggle" type="button" class="btn btn-default btn-sm pull-right">
-      <span class="glyphicon glyphicon-search"></span>
-    </a>
     <form id="nav_search" class="pull-right" action="/jsearch/">
       <span role="status" aria-live="polite" class="ui-helper-hidden-accessible"></span>
       <input name="q" id="tipue_search_input" type="text" class="search_input search-query ui-autocomplete-input" placeholder="Search the Docs" autocomplete="off">
     </form>
   </div>
-  <div style="clear: both;"></div>
 </nav>

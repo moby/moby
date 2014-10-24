@@ -1,31 +1,29 @@
 package template
 
 import (
-	"github.com/dotcloud/docker/pkg/apparmor"
-	"github.com/dotcloud/docker/pkg/cgroups"
-	"github.com/dotcloud/docker/pkg/libcontainer"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/apparmor"
+	"github.com/docker/libcontainer/cgroups"
 )
 
 // New returns the docker default configuration for libcontainer
-func New() *libcontainer.Container {
-	container := &libcontainer.Container{
-		CapabilitiesMask: map[string]bool{
-			"SETPCAP":        false,
-			"SYS_MODULE":     false,
-			"SYS_RAWIO":      false,
-			"SYS_PACCT":      false,
-			"SYS_ADMIN":      false,
-			"SYS_NICE":       false,
-			"SYS_RESOURCE":   false,
-			"SYS_TIME":       false,
-			"SYS_TTY_CONFIG": false,
-			"AUDIT_WRITE":    false,
-			"AUDIT_CONTROL":  false,
-			"MAC_OVERRIDE":   false,
-			"MAC_ADMIN":      false,
-			"NET_ADMIN":      false,
-			"MKNOD":          true,
-			"SYSLOG":         false,
+func New() *libcontainer.Config {
+	container := &libcontainer.Config{
+		Capabilities: []string{
+			"CHOWN",
+			"DAC_OVERRIDE",
+			"FSETID",
+			"FOWNER",
+			"MKNOD",
+			"NET_RAW",
+			"SETGID",
+			"SETUID",
+			"SETFCAP",
+			"SETPCAP",
+			"NET_BIND_SERVICE",
+			"SYS_CHROOT",
+			"KILL",
+			"AUDIT_WRITE",
 		},
 		Namespaces: map[string]bool{
 			"NEWNS":  true,
@@ -35,13 +33,15 @@ func New() *libcontainer.Container {
 			"NEWNET": true,
 		},
 		Cgroups: &cgroups.Cgroup{
-			Parent:       "docker",
-			DeviceAccess: false,
+			Parent:          "docker",
+			AllowAllDevices: false,
 		},
-		Context: libcontainer.Context{},
+		MountConfig: &libcontainer.MountConfig{},
 	}
+
 	if apparmor.IsEnabled() {
-		container.Context["apparmor_profile"] = "docker-default"
+		container.AppArmorProfile = "docker-default"
 	}
+
 	return container
 }

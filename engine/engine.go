@@ -3,11 +3,15 @@ package engine
 import (
 	"bufio"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io"
 	"os"
 	"sort"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/utils"
 )
 
 // Installer is a standard interface for objects which can "install" themselves
@@ -42,14 +46,18 @@ func unregister(name string) {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	handlers map[string]Handler
-	catchall Handler
-	hack     Hack // data for temporary hackery (see hack.go)
-	id       string
-	Stdout   io.Writer
-	Stderr   io.Writer
-	Stdin    io.Reader
-	Logging  bool
+	handlers   map[string]Handler
+	catchall   Handler
+	hack       Hack // data for temporary hackery (see hack.go)
+	id         string
+	Stdout     io.Writer
+	Stderr     io.Writer
+	Stdin      io.Reader
+	Logging    bool
+	tasks      sync.WaitGroup
+	l          sync.RWMutex // lock for shutdown
+	shutdown   bool
+	onShutdown []func() // shutdown handlers
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
@@ -107,16 +115,17 @@ func (eng *Engine) commands() []string {
 // This function mimics `Command` from the standard os/exec package.
 func (eng *Engine) Job(name string, args ...string) *Job {
 	job := &Job{
-		Eng:    eng,
-		Name:   name,
-		Args:   args,
-		Stdin:  NewInput(),
-		Stdout: NewOutput(),
-		Stderr: NewOutput(),
-		env:    &Env{},
+		Eng:     eng,
+		Name:    name,
+		Args:    args,
+		Stdin:   NewInput(),
+		Stdout:  NewOutput(),
+		Stderr:  NewOutput(),
+		env:     &Env{},
+		closeIO: true,
 	}
 	if eng.Logging {
-		job.Stderr.Add(utils.NopWriteCloser(eng.Stderr))
+		job.Stderr.Add(ioutils.NopWriteCloser(eng.Stderr))
 	}
 
 	// Catchall is shadowed by specific Register.
@@ -127,6 +136,77 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		job.handler = eng.catchall
 	}
 	return job
+}
+
+// OnShutdown registers a new callback to be called by Shutdown.
+// This is typically used by services to perform cleanup.
+func (eng *Engine) OnShutdown(h func()) {
+	eng.l.Lock()
+	eng.onShutdown = append(eng.onShutdown, h)
+	eng.l.Unlock()
+}
+
+// Shutdown permanently shuts down eng as follows:
+// - It refuses all new jobs, permanently.
+// - It waits for all active jobs to complete (with no timeout)
+// - It calls all shutdown handlers concurrently (if any)
+// - It returns when all handlers complete, or after 15 seconds,
+//	whichever happens first.
+func (eng *Engine) Shutdown() {
+	eng.l.Lock()
+	if eng.shutdown {
+		eng.l.Unlock()
+		return
+	}
+	eng.shutdown = true
+	eng.l.Unlock()
+	// We don't need to protect the rest with a lock, to allow
+	// for other calls to immediately fail with "shutdown" instead
+	// of hanging for 15 seconds.
+	// This requires all concurrent calls to check for shutdown, otherwise
+	// it might cause a race.
+
+	// Wait for all jobs to complete.
+	// Timeout after 5 seconds.
+	tasksDone := make(chan struct{})
+	go func() {
+		eng.tasks.Wait()
+		close(tasksDone)
+	}()
+	select {
+	case <-time.After(time.Second * 5):
+	case <-tasksDone:
+	}
+
+	// Call shutdown handlers, if any.
+	// Timeout after 10 seconds.
+	var wg sync.WaitGroup
+	for _, h := range eng.onShutdown {
+		wg.Add(1)
+		go func(h func()) {
+			defer wg.Done()
+			h()
+		}(h)
+	}
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-time.After(time.Second * 10):
+	case <-done:
+	}
+	return
+}
+
+// IsShutdown returns true if the engine is in the process
+// of shutting down, or already shut down.
+// Otherwise it returns false.
+func (eng *Engine) IsShutdown() bool {
+	eng.l.RLock()
+	defer eng.l.RUnlock()
+	return eng.shutdown
 }
 
 // ParseJob creates a new job from a text description using a shell-like syntax.

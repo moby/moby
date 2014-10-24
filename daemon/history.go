@@ -26,5 +26,8 @@ func (history *History) Swap(i, j int) {
 
 func (history *History) Add(container *Container) {
 	*history = append(*history, container)
+}
+
+func (history *History) Sort() {
 	sort.Sort(history)
 }

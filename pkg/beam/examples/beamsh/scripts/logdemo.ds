@@ -1,9 +1,0 @@
-#!/usr/bin/env beamsh
-
-trace {
-	log {
-		exec ls -l
-		exec ls /tmp/jhsdfkjhsdjkfhsdjkfhsdjkkhsdjkf
-		echo hello world
-	}
-}

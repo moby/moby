@@ -2,10 +2,10 @@ package daemon
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/pkg/namesgenerator"
-	"github.com/dotcloud/docker/runconfig"
 	"strings"
+
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/runconfig"
 )
 
 func migratePortMappings(config *runconfig.Config, hostConfig *runconfig.HostConfig) error {
@@ -32,33 +32,22 @@ func migratePortMappings(config *runconfig.Config, hostConfig *runconfig.HostCon
 	return nil
 }
 
-func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig, driverConfig map[string][]string) {
+func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) []string {
 	if hostConfig == nil {
-		return
+		return nil
 	}
+
+	out := []string{}
 
 	// merge in the lxc conf options into the generic config map
 	if lxcConf := hostConfig.LxcConf; lxcConf != nil {
-		lxc := driverConfig["lxc"]
 		for _, pair := range lxcConf {
 			// because lxc conf gets the driver name lxc.XXXX we need to trim it off
 			// and let the lxc driver add it back later if needed
 			parts := strings.SplitN(pair.Key, ".", 2)
-			lxc = append(lxc, fmt.Sprintf("%s=%s", parts[1], pair.Value))
+			out = append(out, fmt.Sprintf("%s=%s", parts[1], pair.Value))
 		}
-		driverConfig["lxc"] = lxc
 	}
-}
 
-type checker struct {
-	daemon *Daemon
-}
-
-func (c *checker) Exists(name string) bool {
-	return c.daemon.containerGraph.Exists("/" + name)
-}
-
-// Generate a random and unique name
-func generateRandomName(daemon *Daemon) (string, error) {
-	return namesgenerator.GenerateRandomName(&checker{daemon})
+	return out
 }

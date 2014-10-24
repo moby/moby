@@ -10,7 +10,7 @@
 	Define flags using flag.String(), Bool(), Int(), etc.
 
 	This declares an integer flag, -f or --flagname, stored in the pointer ip, with type *int.
-		import "flag /github.com/dotcloud/docker/pkg/mflag"
+		import "flag /github.com/docker/docker/pkg/mflag"
 		var ip = flag.Int([]string{"f", "-flagname"}, 1234, "help message for flagname")
 	If you like, you can bind the flag to a variable using the Var() functions.
 		var flagvar int
@@ -51,6 +51,8 @@
 	Command line flag syntax:
 		-flag
 		-flag=x
+		-flag="x"
+		-flag='x'
 		-flag x  // non-boolean flags only
 	One or two minus signs may be used; they are equivalent.
 	The last form is not permitted for boolean flags because the
@@ -303,12 +305,10 @@ type flagSlice []string
 
 func (p flagSlice) Len() int { return len(p) }
 func (p flagSlice) Less(i, j int) bool {
-	pi, pj := strings.ToLower(p[i]), strings.ToLower(p[j])
-	if pi[0] == '-' {
-		pi = pi[1:]
-	}
-	if pj[0] == '-' {
-		pj = pj[1:]
+	pi, pj := strings.TrimPrefix(p[i], "-"), strings.TrimPrefix(p[j], "-")
+	lpi, lpj := strings.ToLower(pi), strings.ToLower(pj)
+	if lpi != lpj {
+		return lpi < lpj
 	}
 	return pi < pj
 }
@@ -317,8 +317,13 @@ func (p flagSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 // sortFlags returns the flags as a slice in lexicographical sorted order.
 func sortFlags(flags map[string]*Flag) []*Flag {
 	var list flagSlice
-	for _, f := range flags {
+
+	// The sorted list is based on the first name, when flag map might use the other names.
+	nameMap := make(map[string]string)
+
+	for n, f := range flags {
 		fName := strings.TrimPrefix(f.Names[0], "#")
+		nameMap[fName] = n
 		if len(f.Names) == 1 {
 			list = append(list, fName)
 			continue
@@ -338,7 +343,7 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 	sort.Sort(list)
 	result := make([]*Flag, len(list))
 	for i, name := range list {
-		result[i] = flags[name]
+		result[i] = flags[nameMap[name]]
 	}
 	return result
 }
@@ -441,8 +446,6 @@ func (f *FlagSet) PrintDefaults() {
 				}
 				fmt.Fprintln(writer, "\t", line)
 			}
-			//			start := fmt.Sprintf(format, strings.Join(names, ", -"), flag.DefValue)
-			//			fmt.Fprintln(f.out(), start, strings.Replace(flag.Usage, "\n", "\n"+strings.Repeat(" ", len(start)+1), -1))
 		}
 	})
 	writer.Flush()
@@ -472,6 +475,23 @@ func defaultUsage(f *FlagSet) {
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
+}
+
+// FlagCount returns the number of flags that have been defined.
+func (f *FlagSet) FlagCount() int { return len(sortFlags(f.formal)) }
+
+// FlagCountUndeprecated returns the number of undeprecated flags that have been defined.
+func (f *FlagSet) FlagCountUndeprecated() int {
+	count := 0
+	for _, flag := range sortFlags(f.formal) {
+		for _, name := range flag.Names {
+			if name[0] != '#' {
+				count++
+				break
+			}
+		}
+	}
+	return count
 }
 
 // NFlag returns the number of flags that have been set.
@@ -775,6 +795,40 @@ func (f *FlagSet) usage() {
 	}
 }
 
+func trimQuotes(str string) string {
+	if len(str) == 0 {
+		return str
+	}
+	type quote struct {
+		start, end byte
+	}
+
+	// All valid quote types.
+	quotes := []quote{
+		// Double quotes
+		{
+			start: '"',
+			end:   '"',
+		},
+
+		// Single quotes
+		{
+			start: '\'',
+			end:   '\'',
+		},
+	}
+
+	for _, quote := range quotes {
+		// Only strip if outermost match.
+		if str[0] == quote.start && str[len(str)-1] == quote.end {
+			str = str[1 : len(str)-1]
+			break
+		}
+	}
+
+	return str
+}
+
 // parseOne parses one flag. It reports whether a flag was seen.
 func (f *FlagSet) parseOne() (bool, string, error) {
 	if len(f.args) == 0 {
@@ -797,14 +851,12 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 	f.args = f.args[1:]
 	has_value := false
 	value := ""
-	for i := 1; i < len(name); i++ { // equals cannot be first
-		if name[i] == '=' {
-			value = name[i+1:]
-			has_value = true
-			name = name[0:i]
-			break
-		}
+	if i := strings.Index(name, "="); i != -1 {
+		value = trimQuotes(name[i+1:])
+		has_value = true
+		name = name[:i]
 	}
+
 	m := f.formal
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {

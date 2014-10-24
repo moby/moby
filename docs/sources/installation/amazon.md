@@ -1,14 +1,8 @@
 page_title: Installation on Amazon EC2
-page_description: Please note this project is currently under heavy development. It should not be used in production. 
+page_description: Installation instructions for Docker on Amazon EC2.
 page_keywords: amazon ec2, virtualization, cloud, docker, documentation, installation
 
 # Amazon EC2
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
 
 There are several ways to install Docker on AWS EC2:
 
@@ -38,7 +32,7 @@ course.**
    - When you're on the "Configure Instance Details" step, expand the
      "Advanced Details" section.
    - Under "User data", select "As text".
-   - Enter `#include https://get.docker.io` into
+   - Enter `#include https://get.docker.com` into
      the instance *User Data*.
      [CloudInit](https://help.ubuntu.com/community/CloudInit) is part
      of the Ubuntu image you chose; it will bootstrap Docker by
@@ -52,15 +46,14 @@ Security Group to allow SSH.** By default all incoming ports to your new
 instance will be blocked by the AWS Security Group, so you might just
 get timeouts when you try to connect.
 
-Installing with `get.docker.io` (as above) will
+Installing with `get.docker.com` (as above) will
 create a service named `lxc-docker`. It will also
 set up a [*docker group*](../binaries/#dockergroup) and you may want to
 add the *ubuntu* user to it so that you don't have to use
 `sudo` for every Docker command.
 
 Once you`ve got Docker installed, you're ready to try it out – head on
-over to the [*First steps with Docker*](/use/basics/) or
-[*Examples*](/examples/) section.
+over to the [User Guide](/userguide).
 
 ## Amazon QuickStart (Release Candidate - March 2014)
 
@@ -100,4 +93,4 @@ QuickStart*](#amazon-quickstart) to pick an image (or use one of your
 own) and skip the step with the *User Data*. Then continue with the
 [*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions.
 
-Continue with the [*Hello World*](/examples/hello_world/#hello-world) example.
+Continue with the [User Guide](/userguide/).

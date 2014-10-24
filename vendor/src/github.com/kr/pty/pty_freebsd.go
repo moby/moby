@@ -1,53 +1,73 @@
 package pty
 
 import (
+	"errors"
 	"os"
-	"strconv"
 	"syscall"
 	"unsafe"
 )
 
-const (
-	sys_TIOCGPTN   = 0x4004740F
-	sys_TIOCSPTLCK = 0x40045431
-)
+func posix_openpt(oflag int) (fd int, err error) {
+	r0, _, e1 := syscall.Syscall(syscall.SYS_POSIX_OPENPT, uintptr(oflag), 0, 0)
+	fd = int(r0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
 
 func open() (pty, tty *os.File, err error) {
-	p, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
+	fd, err := posix_openpt(syscall.O_RDWR | syscall.O_CLOEXEC)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	p := os.NewFile(uintptr(fd), "/dev/pts")
 	sname, err := ptsname(p)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	t, err := os.OpenFile(sname, os.O_RDWR|syscall.O_NOCTTY, 0)
+	t, err := os.OpenFile("/dev/"+sname, os.O_RDWR, 0)
 	if err != nil {
 		return nil, nil, err
 	}
 	return p, t, nil
 }
 
+func isptmaster(fd uintptr) (bool, error) {
+	err := ioctl(fd, syscall.TIOCPTMASTER, 0)
+	return err == nil, err
+}
+
+var (
+	emptyFiodgnameArg fiodgnameArg
+	ioctl_FIODGNAME   = _IOW('f', 120, unsafe.Sizeof(emptyFiodgnameArg))
+)
+
 func ptsname(f *os.File) (string, error) {
-	var n int
-	err := ioctl(f.Fd(), sys_TIOCGPTN, &n)
+	master, err := isptmaster(f.Fd())
 	if err != nil {
 		return "", err
 	}
-	return "/dev/pts/" + strconv.Itoa(n), nil
-}
-
-func ioctl(fd uintptr, cmd uintptr, data *int) error {
-	_, _, e := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		fd,
-		cmd,
-		uintptr(unsafe.Pointer(data)),
-	)
-	if e != 0 {
-		return syscall.ENOTTY
+	if !master {
+		return "", syscall.EINVAL
 	}
-	return nil
+
+	const n = _C_SPECNAMELEN + 1
+	var (
+		buf = make([]byte, n)
+		arg = fiodgnameArg{Len: n, Buf: (*byte)(unsafe.Pointer(&buf[0]))}
+	)
+	err = ioctl(f.Fd(), ioctl_FIODGNAME, uintptr(unsafe.Pointer(&arg)))
+	if err != nil {
+		return "", err
+	}
+
+	for i, c := range buf {
+		if c == 0 {
+			return string(buf[:i]), nil
+		}
+	}
+	return "", errors.New("FIODGNAME string not NUL-terminated")
 }

@@ -2,15 +2,16 @@ package graph
 
 import (
 	"bytes"
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	_ "github.com/dotcloud/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
-	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	_ "github.com/docker/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/utils"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 const (
@@ -19,11 +20,19 @@ const (
 )
 
 func fakeTar() (io.Reader, error) {
+	uid := os.Getuid()
+	gid := os.Getgid()
+
 	content := []byte("Hello world!\n")
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
 	for _, name := range []string{"/etc/postgres/postgres.conf", "/etc/passwd", "/var/log/postgres/postgres.conf"} {
 		hdr := new(tar.Header)
+
+		// Leaving these fields blank requires root privileges
+		hdr.Uid = uid
+		hdr.Gid = gid
+
 		hdr.Size = int64(len(content))
 		hdr.Name = name
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -36,7 +45,7 @@ func fakeTar() (io.Reader, error) {
 }
 
 func mkTestTagStore(root string, t *testing.T) *TagStore {
-	driver, err := graphdriver.New(root)
+	driver, err := graphdriver.New(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +53,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := NewTagStore(path.Join(root, "tags"), graph)
+	store, err := NewTagStore(path.Join(root, "tags"), graph, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,9 +62,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &image.Image{ID: testImageID}
-	// FIXME: this fails on Darwin with:
-	// tags_unit_test.go:36: mkdir /var/folders/7g/b3ydb5gx4t94ndr_cljffbt80000gq/T/docker-test569b-tRunner-075013689/vfs/dir/foo/etc/postgres: permission denied
-	if err := graph.Register(nil, archive, img); err != nil {
+	if err := graph.Register(img, nil, archive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Set(testImageName, "", testImageID, false); err != nil {
@@ -106,5 +113,38 @@ func TestLookupImage(t *testing.T) {
 		t.Fatal(err)
 	} else if img == nil {
 		t.Errorf("Expected 1 image, none found")
+	}
+}
+
+func TestValidTagName(t *testing.T) {
+	validTags := []string{"9", "foo", "foo-test", "bar.baz.boo"}
+	for _, tag := range validTags {
+		if err := ValidateTagName(tag); err != nil {
+			t.Errorf("'%s' should've been a valid tag", tag)
+		}
+	}
+}
+
+func TestInvalidTagName(t *testing.T) {
+	validTags := []string{"-9", ".foo", "-test", ".", "-"}
+	for _, tag := range validTags {
+		if err := ValidateTagName(tag); err == nil {
+			t.Errorf("'%s' shouldn't have been a valid tag", tag)
+		}
+	}
+}
+
+func TestOfficialName(t *testing.T) {
+	names := map[string]bool{
+		"library/ubuntu":    true,
+		"nonlibrary/ubuntu": false,
+		"ubuntu":            true,
+		"other/library":     false,
+	}
+	for name, isOfficial := range names {
+		result := isOfficialName(name)
+		if result != isOfficial {
+			t.Errorf("Unexpected result for %s\n\tExpecting: %v\n\tActual: %v", name, isOfficial, result)
+		}
 	}
 }

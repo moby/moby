@@ -1,9 +1,10 @@
 package runconfig
 
 import (
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/utils"
 	"strings"
+
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/log"
 )
 
 func Merge(userConf, imageConf *Config) error {
@@ -19,7 +20,7 @@ func Merge(userConf, imageConf *Config) error {
 	if userConf.CpuShares == 0 {
 		userConf.CpuShares = imageConf.CpuShares
 	}
-	if userConf.ExposedPorts == nil || len(userConf.ExposedPorts) == 0 {
+	if len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
 	} else if imageConf.ExposedPorts != nil {
 		if userConf.ExposedPorts == nil {
@@ -32,7 +33,7 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if userConf.PortSpecs != nil && len(userConf.PortSpecs) > 0 {
+	if len(userConf.PortSpecs) > 0 {
 		if userConf.ExposedPorts == nil {
 			userConf.ExposedPorts = make(nat.PortSet)
 		}
@@ -47,9 +48,9 @@ func Merge(userConf, imageConf *Config) error {
 		}
 		userConf.PortSpecs = nil
 	}
-	if imageConf.PortSpecs != nil && len(imageConf.PortSpecs) > 0 {
+	if len(imageConf.PortSpecs) > 0 {
 		// FIXME: I think we can safely remove this. Leaving it for now for the sake of reverse-compat paranoia.
-		utils.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
+		log.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
 		if userConf.ExposedPorts == nil {
 			userConf.ExposedPorts = make(nat.PortSet)
 		}
@@ -65,16 +66,7 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if !userConf.Tty {
-		userConf.Tty = imageConf.Tty
-	}
-	if !userConf.OpenStdin {
-		userConf.OpenStdin = imageConf.OpenStdin
-	}
-	if !userConf.StdinOnce {
-		userConf.StdinOnce = imageConf.StdinOnce
-	}
-	if userConf.Env == nil || len(userConf.Env) == 0 {
+	if len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
 		for _, imageEnv := range imageConf.Env {
@@ -91,16 +83,17 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
-	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
-		userConf.Cmd = imageConf.Cmd
-	}
-	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
+
+	if len(userConf.Entrypoint) == 0 {
+		if len(userConf.Cmd) == 0 {
+			userConf.Cmd = imageConf.Cmd
+		}
 		userConf.Entrypoint = imageConf.Entrypoint
 	}
 	if userConf.WorkingDir == "" {
 		userConf.WorkingDir = imageConf.WorkingDir
 	}
-	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
+	if len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes
 	} else {
 		for k, v := range imageConf.Volumes {

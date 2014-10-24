@@ -1,10 +1,13 @@
-// +build linux,amd64
+// +build linux
 
 package devmapper
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/utils"
+	"os"
+	"syscall"
+
+	"github.com/docker/docker/pkg/log"
 )
 
 func stringToLoopName(src string) [LoNameSize]uint8 {
@@ -14,7 +17,7 @@ func stringToLoopName(src string) [LoNameSize]uint8 {
 }
 
 func getNextFreeLoopbackIndex() (int, error) {
-	f, err := osOpenFile("/dev/loop-control", osORdOnly, 0644)
+	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
 	if err != nil {
 		return 0, err
 	}
@@ -27,29 +30,29 @@ func getNextFreeLoopbackIndex() (int, error) {
 	return index, err
 }
 
-func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile, err error) {
+func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.File, err error) {
 	// Start looking for a free /dev/loop
 	for {
 		target := fmt.Sprintf("/dev/loop%d", index)
 		index++
 
-		fi, err := osStat(target)
+		fi, err := os.Stat(target)
 		if err != nil {
-			if osIsNotExist(err) {
-				utils.Errorf("There are no more loopback device available.")
+			if os.IsNotExist(err) {
+				log.Errorf("There are no more loopback devices available.")
 			}
 			return nil, ErrAttachLoopbackDevice
 		}
 
-		if fi.Mode()&osModeDevice != osModeDevice {
-			utils.Errorf("Loopback device %s is not a block device.", target)
+		if fi.Mode()&os.ModeDevice != os.ModeDevice {
+			log.Errorf("Loopback device %s is not a block device.", target)
 			continue
 		}
 
 		// OpenFile adds O_CLOEXEC
-		loopFile, err = osOpenFile(target, osORdWr, 0644)
+		loopFile, err = os.OpenFile(target, os.O_RDWR, 0644)
 		if err != nil {
-			utils.Errorf("Error openning loopback device: %s", err)
+			log.Errorf("Error opening loopback device: %s", err)
 			return nil, ErrAttachLoopbackDevice
 		}
 
@@ -58,8 +61,8 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 			loopFile.Close()
 
 			// If the error is EBUSY, then try the next loopback
-			if err != sysEBusy {
-				utils.Errorf("Cannot set up loopback device %s: %s", target, err)
+			if err != syscall.EBUSY {
+				log.Errorf("Cannot set up loopback device %s: %s", target, err)
 				return nil, ErrAttachLoopbackDevice
 			}
 
@@ -72,7 +75,7 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 
 	// This can't happen, but let's be sure
 	if loopFile == nil {
-		utils.Errorf("Unreachable code reached! Error attaching %s to a loopback device.", sparseFile.Name())
+		log.Errorf("Unreachable code reached! Error attaching %s to a loopback device.", sparseFile.Name())
 		return nil, ErrAttachLoopbackDevice
 	}
 
@@ -80,21 +83,21 @@ func openNextAvailableLoopback(index int, sparseFile *osFile) (loopFile *osFile,
 }
 
 // attachLoopDevice attaches the given sparse file to the next
-// available loopback device. It returns an opened *osFile.
-func attachLoopDevice(sparseName string) (loop *osFile, err error) {
+// available loopback device. It returns an opened *os.File.
+func attachLoopDevice(sparseName string) (loop *os.File, err error) {
 
 	// Try to retrieve the next available loopback device via syscall.
 	// If it fails, we discard error and start loopking for a
 	// loopback from index 0.
 	startIndex, err := getNextFreeLoopbackIndex()
 	if err != nil {
-		utils.Debugf("Error retrieving the next available loopback: %s", err)
+		log.Debugf("Error retrieving the next available loopback: %s", err)
 	}
 
 	// OpenFile adds O_CLOEXEC
-	sparseFile, err := osOpenFile(sparseName, osORdWr, 0644)
+	sparseFile, err := os.OpenFile(sparseName, os.O_RDWR, 0644)
 	if err != nil {
-		utils.Errorf("Error openning sparse file %s: %s", sparseName, err)
+		log.Errorf("Error opening sparse file %s: %s", sparseName, err)
 		return nil, ErrAttachLoopbackDevice
 	}
 	defer sparseFile.Close()
@@ -112,11 +115,11 @@ func attachLoopDevice(sparseName string) (loop *osFile, err error) {
 	}
 
 	if err := ioctlLoopSetStatus64(loopFile.Fd(), loopInfo); err != nil {
-		utils.Errorf("Cannot set up loopback device info: %s", err)
+		log.Errorf("Cannot set up loopback device info: %s", err)
 
 		// If the call failed, then free the loopback device
 		if err := ioctlLoopClrFd(loopFile.Fd()); err != nil {
-			utils.Errorf("Error while cleaning up the loopback device")
+			log.Errorf("Error while cleaning up the loopback device")
 		}
 		loopFile.Close()
 		return nil, ErrAttachLoopbackDevice

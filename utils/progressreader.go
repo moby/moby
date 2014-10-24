@@ -32,7 +32,7 @@ func (r *progressReader) Read(p []byte) (n int, err error) {
 		r.lastUpdate = r.progress.Current
 	}
 	// Send newline when complete
-	if r.newLine && err != nil {
+	if r.newLine && err != nil && read == 0 {
 		r.output.Write(r.sf.FormatStatus("", ""))
 	}
 	return read, err

@@ -1,56 +1,72 @@
-page_title: Running an SSH service
-page_description: Installing and running an sshd service
+page_title: Dockerizing an SSH service
+page_description: Installing and running an SSHd service on Docker
 page_keywords: docker, example, package installation, networking
 
-# SSH Daemon Service
+# Dockerizing an SSH Daemon Service
 
-> **Note:** 
-> - This example assumes you have Docker running in daemon mode. For
->   more information please see [*Check your Docker
->   install*](../hello_world/#running-examples).
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#dockergroup)
+## Build an `eg_sshd` image
 
-The following Dockerfile sets up an sshd service in a container that you
+The following `Dockerfile` sets up an SSHd service in a container that you
 can use to connect to and inspect other container's volumes, or to get
 quick access to a test container.
 
     # sshd
     #
-    # VERSION               0.0.1
+    # VERSION               0.0.2
 
-    FROM     ubuntu
-    MAINTAINER Thatcher R. Peskens "thatcher@dotcloud.com"
+    FROM ubuntu:14.04
+    MAINTAINER Sven Dowideit <SvenDowideit@docker.com>
 
-    # make sure the package repository is up to date
-    RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-    RUN apt-get update
+    RUN apt-get update && apt-get install -y openssh-server
+    RUN mkdir /var/run/sshd
+    RUN echo 'root:screencast' | chpasswd
+    RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-    RUN apt-get install -y openssh-server
-    RUN mkdir /var/run/sshd 
-    RUN echo 'root:screencast' |chpasswd
+    # SSH login fix. Otherwise user is kicked off after login
+    RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+    ENV NOTVISIBLE "in users profile"
+    RUN echo "export VISIBLE=now" >> /etc/profile
 
     EXPOSE 22
-    CMD    /usr/sbin/sshd -D
+    CMD ["/usr/sbin/sshd", "-D"]
 
 Build the image using:
 
-    $ sudo docker build -rm -t eg_sshd .
+    $ sudo docker build -t eg_sshd .
 
-Then run it. You can then use `docker port` to find
-out what host port the container's port 22 is mapped to:
+## Run a `test_sshd` container
 
-    $ sudo docker run -d -P -name test_sshd eg_sshd
+Then run it. You can then use `docker port` to find out what host port
+the container's port 22 is mapped to:
+
+    $ sudo docker run -d -P --name test_sshd eg_sshd
     $ sudo docker port test_sshd 22
     0.0.0.0:49154
 
-And now you can ssh to port `49154` on the Docker
-daemon's host IP address (`ip address` or
-`ifconfig` can tell you that):
+And now you can ssh as `root` on the container's IP address (you can find it
+with `docker inspect`) or on port `49154` of the Docker daemon's host IP address
+(`ip address` or `ifconfig` can tell you that):
 
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.
     $$
+
+## Environment variables
+
+Using the `sshd` daemon to spawn shells makes it complicated to pass environment
+variables to the user's shell via the simple Docker mechanisms, as `sshd` scrubs
+the environment before it starts the shell.
+
+If you're setting values in the Dockerfile using `ENV`, you'll need to push them
+to a shell initialisation file like the `/etc/profile` example in the Dockerfile
+above.
+
+If you need to pass`docker run -e ENV=value` values, you will need to write a
+short script to do the same before you start `sshd -D` - and then replace the
+`CMD` with that script.
+
+## Clean up
 
 Finally, clean up after your test by stopping and removing the
 container, and then removing the image.
@@ -58,3 +74,4 @@ container, and then removing the image.
     $ sudo docker stop test_sshd
     $ sudo docker rm test_sshd
     $ sudo docker rmi eg_sshd
+

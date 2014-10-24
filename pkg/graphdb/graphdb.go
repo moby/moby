@@ -64,6 +64,11 @@ func IsNonUniqueNameError(err error) bool {
 	if strings.Contains(str, "UNIQUE constraint failed") && strings.Contains(str, "edge.name") {
 		return true
 	}
+	// sqlite-3.6.20-1.el6 returns:
+	// Set failure: Abort due to constraint violation: constraint failed
+	if strings.HasSuffix(str, "constraint failed") {
+		return true
+	}
 	return false
 }
 
@@ -276,6 +281,18 @@ func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
 	return db.children(e, name, depth, nil)
 }
 
+// Return the parents of a specified entity
+func (db *Database) Parents(name string) ([]string, error) {
+	db.mux.RLock()
+	defer db.mux.RUnlock()
+
+	e, err := db.get(name)
+	if err != nil {
+		return nil, err
+	}
+	return db.parents(e)
+}
+
 // Return the refrence count for a specified id
 func (db *Database) Refs(id string) int {
 	db.mux.RLock()
@@ -459,6 +476,28 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 	}
 
 	return entities, nil
+}
+
+func (db *Database) parents(e *Entity) (parents []string, err error) {
+	if e == nil {
+		return parents, nil
+	}
+
+	rows, err := db.conn.Query("SELECT parent_id FROM edge where entity_id = ?;", e.id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var parentId string
+		if err := rows.Scan(&parentId); err != nil {
+			return nil, err
+		}
+		parents = append(parents, parentId)
+	}
+
+	return parents, nil
 }
 
 // Return the entity based on the parent path and name

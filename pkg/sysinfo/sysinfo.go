@@ -1,11 +1,12 @@
 package sysinfo
 
 import (
-	"github.com/dotcloud/docker/pkg/cgroups"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+
+	"github.com/docker/libcontainer/cgroups"
 )
 
 type SysInfo struct {

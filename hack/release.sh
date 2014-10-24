@@ -27,10 +27,10 @@ To run, I need:
 - a generous amount of good will and nice manners.
 The canonical way to run me is to run the image produced by the Dockerfile: e.g.:"
 
-docker run -e AWS_S3_BUCKET=get-staging.docker.io \
-           -e AWS_ACCESS_KEY=AKI1234... \
-           -e AWS_SECRET_KEY=sEs4mE... \
-           -e GPG_PASSPHRASE=m0resEs4mE... \
+docker run -e AWS_S3_BUCKET=test.docker.com \
+           -e AWS_ACCESS_KEY=... \
+           -e AWS_SECRET_KEY=... \
+           -e GPG_PASSPHRASE=... \
            -i -t --privileged \
            docker ./hack/release.sh
 EOF
@@ -41,8 +41,8 @@ EOF
 [ "$AWS_ACCESS_KEY" ] || usage
 [ "$AWS_SECRET_KEY" ] || usage
 [ "$GPG_PASSPHRASE" ] || usage
-[ -d /go/src/github.com/dotcloud/docker ] || usage
-cd /go/src/github.com/dotcloud/docker
+[ -d /go/src/github.com/docker/docker ] || usage
+cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
 
 RELEASE_BUNDLES=(
@@ -64,9 +64,9 @@ VERSION=$(cat VERSION)
 BUCKET=$AWS_S3_BUCKET
 
 # These are the 2 keys we've used to sign the deb's
-#   release (get.docker.io)
+#   release (get.docker.com)
 #	GPG_KEY="36A1D7869245C8950F966E92D8576A8BA88D21E9"
-#   test    (test.docker.io)
+#   test    (test.docker.com)
 #	GPG_KEY="740B314AE3941731B942C66ADF4FD13717AAD7D6"
 
 setup_s3() {
@@ -92,7 +92,7 @@ write_to_s3() {
 
 s3_url() {
 	case "$BUCKET" in
-		get.docker.io|test.docker.io)
+		get.docker.com|test.docker.com)
 			echo "https://$BUCKET"
 			;;
 		*)
@@ -274,6 +274,11 @@ EOF
 	gpg --armor --export releasedocker > bundles/$VERSION/ubuntu/gpg
 	s3cmd --acl-public put bundles/$VERSION/ubuntu/gpg s3://$BUCKET/gpg
 
+	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
+	if [[ $BUCKET == test* ]]; then
+		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
+	fi
+
 	# Upload repo
 	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
@@ -282,12 +287,16 @@ if [ ! -e /usr/lib/apt/methods/https ]; then
 	apt-get update
 	apt-get install -y apt-transport-https
 fi
+
 # Add the repository to your APT sources
 echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
+
 # Then import the repository key
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys $gpgFingerprint
+
 # Install docker
-apt-get update ; apt-get install -y lxc-docker
+apt-get update
+apt-get install -y lxc-docker
 
 #
 # Alternatively, just use the curl-able install.sh script provided at $(s3_url)
@@ -318,7 +327,7 @@ release_binaries() {
 
 	cat <<EOF | write_to_s3 s3://$BUCKET/builds/index
 # To install, run the following command as root:
-curl -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
+curl -sSL -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
 # Then start docker in daemon mode:
 sudo /usr/local/bin/docker -d
 EOF
@@ -335,7 +344,7 @@ EOF
 
 # Upload the index script
 release_index() {
-	sed "s,url='https://get.docker.io/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
+	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
 }
 
 release_test() {
@@ -354,7 +363,7 @@ Key-Type: RSA
 Key-Length: 4096
 Passphrase: $GPG_PASSPHRASE
 Name-Real: Docker Release Tool
-Name-Email: docker@dotcloud.com
+Name-Email: docker@docker.com
 Name-Comment: releasedocker
 Expire-Date: 0
 %commit

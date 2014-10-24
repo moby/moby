@@ -1,9 +1,0 @@
-#!/usr/bin/env beamsh
-
-multiprint {
-	trace {
-		listen tcp://localhost:7676 &
-		listen tcp://localhost:8787 &
-	}
-}
-

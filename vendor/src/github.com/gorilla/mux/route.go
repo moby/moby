@@ -259,7 +259,8 @@ func (r *Route) Methods(methods ...string) *Route {
 // Path -----------------------------------------------------------------------
 
 // Path adds a matcher for the URL path.
-// It accepts a template with zero or more URL variables enclosed by {}.
+// It accepts a template with zero or more URL variables enclosed by {}. The
+// template must start with a "/".
 // Variables can define an optional regexp pattern to me matched:
 //
 // - {name} matches anything until the next slash.
@@ -283,9 +284,16 @@ func (r *Route) Path(tpl string) *Route {
 
 // PathPrefix -----------------------------------------------------------------
 
-// PathPrefix adds a matcher for the URL path prefix.
+// PathPrefix adds a matcher for the URL path prefix. This matches if the given
+// template is a prefix of the full URL path. See Route.Path() for details on
+// the tpl argument.
+//
+// Note that it does not treat slashes specially ("/foobar/" will be matched by
+// the prefix "/foo") so you may want to use a trailing slash here.
+//
+// Also note that the setting of Router.StrictSlash() has no effect on routes
+// with a PathPrefix matcher.
 func (r *Route) PathPrefix(tpl string) *Route {
-	r.strictSlash = false
 	r.err = r.addRegexpMatcher(tpl, false, true)
 	return r
 }
@@ -328,7 +336,7 @@ func (m schemeMatcher) Match(r *http.Request, match *RouteMatch) bool {
 }
 
 // Schemes adds a matcher for URL schemes.
-// It accepts a sequence schemes to be matched, e.g.: "http", "https".
+// It accepts a sequence of schemes to be matched, e.g.: "http", "https".
 func (r *Route) Schemes(schemes ...string) *Route {
 	for k, v := range schemes {
 		schemes[k] = strings.ToLower(v)

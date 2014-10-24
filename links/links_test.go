@@ -1,10 +1,40 @@
 package links
 
 import (
-	"github.com/dotcloud/docker/nat"
+	"github.com/docker/docker/nat"
 	"strings"
 	"testing"
 )
+
+func TestLinkNaming(t *testing.T) {
+	ports := make(nat.PortSet)
+	ports[nat.Port("6379/tcp")] = struct{}{}
+
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, ports, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawEnv := link.ToEnv()
+	env := make(map[string]string, len(rawEnv))
+	for _, e := range rawEnv {
+		parts := strings.Split(e, "=")
+		if len(parts) != 2 {
+			t.FailNow()
+		}
+		env[parts[0]] = parts[1]
+	}
+
+	value, ok := env["DOCKER_1_PORT"]
+
+	if !ok {
+		t.Fatalf("DOCKER_1_PORT not found in env")
+	}
+
+	if value != "tcp://172.0.17.2:6379" {
+		t.Fatalf("Expected 172.0.17.2:6379, got %s", env["DOCKER_1_PORT"])
+	}
+}
 
 func TestLinkNew(t *testing.T) {
 	ports := make(nat.PortSet)

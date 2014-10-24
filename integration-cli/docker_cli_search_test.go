@@ -9,7 +9,7 @@ import (
 
 // search for repos named  "registry" on the central registry
 func TestSearchOnCentralRegistry(t *testing.T) {
-	searchCmd := exec.Command(dockerBinary)
+	searchCmd := exec.Command(dockerBinary, "search", "busybox")
 	out, exitCode, err := runCommandWithOutput(searchCmd)
 	errorOut(err, t, fmt.Sprintf("encountered error while searching: %v", err))
 
@@ -17,9 +17,9 @@ func TestSearchOnCentralRegistry(t *testing.T) {
 		t.Fatal("failed to search on the central registry")
 	}
 
-	if !strings.Contains(out, "registry") {
-		t.Fatal("couldn't find any repository named (or containing) 'registry'")
+	if !strings.Contains(out, "Busybox base image.") {
+		t.Fatal("couldn't find any repository named (or containing) 'Busybox base image.'")
 	}
 
-	logDone("search - search for repositories named (or containing) 'registry'")
+	logDone("search - search for repositories named (or containing) 'Busybox base image.'")
 }

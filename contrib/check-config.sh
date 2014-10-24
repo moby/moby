@@ -100,7 +100,7 @@ echo
 echo 'Generally Necessary:'
 
 echo -n '- '
-cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)([, ]|$)/ && $8 == "cgroup" { print $5 }' /proc/$$/mountinfo | head -n1)"
+cgroupSubsystemDir="$(awk '/[, ](cpu|cpuacct|cpuset|devices|freezer|memory)[, ]/ && $3 == "cgroup" { print $2 }' /proc/mounts | head -n1)"
 cgroupDir="$(dirname "$cgroupSubsystemDir")"
 if [ -d "$cgroupDir/cpu" -o -d "$cgroupDir/cpuacct" -o -d "$cgroupDir/cpuset" -o -d "$cgroupDir/devices" -o -d "$cgroupDir/freezer" -o -d "$cgroupDir/memory" ]; then
 	echo "$(wrap_good 'cgroup hierarchy' 'properly mounted') [$cgroupDir]"
@@ -113,10 +113,27 @@ else
 	echo "    $(wrap_color '(see https://github.com/tianon/cgroupfs-mount)' yellow)"
 fi
 
+if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
+	echo -n '- '
+	if command -v apparmor_parser &> /dev/null; then
+		echo "$(wrap_good 'apparmor' 'enabled and tools installed')"
+	else
+		echo "$(wrap_bad 'apparmor' 'enabled, but apparmor_parser missing')"
+		echo -n '    '
+		if command -v apt-get &> /dev/null; then
+			echo "$(wrap_color '(use "apt-get install apparmor" to fix this)')"
+		elif command -v yum &> /dev/null; then
+			echo "$(wrap_color '(your best bet is "yum install apparmor-parser")')"
+		else
+			echo "$(wrap_color '(look for an "apparmor" package for your distribution)')"
+		fi
+	fi
+fi
+
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES
-	CGROUPS CGROUP_DEVICE
+	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED
 	MACVLAN VETH BRIDGE
 	NF_NAT_IPV4 IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
@@ -129,13 +146,14 @@ echo 'Optional Features:'
 flags=(
 	MEMCG_SWAP
 	RESOURCE_COUNTERS
+	CGROUP_PERF
 )
 check_flags "${flags[@]}"
 
 echo '- Storage Drivers:'
 {
 	echo '- "'$(wrap_color 'aufs' blue)'":'
-	check_flags AUFS_FS | sed 's/^/  /'
+	check_flags AUFS_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 	if ! is_set AUFS_FS && grep -q aufs /proc/filesystems; then
 		echo "    $(wrap_color '(note that some kernels include AUFS patches but not the AUFS_FS flag)' bold black)"
 	fi
@@ -144,7 +162,7 @@ echo '- Storage Drivers:'
 	check_flags BTRFS_FS | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
-	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS | sed 's/^/  /'
+	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 } | sed 's/^/  /'
 echo
 

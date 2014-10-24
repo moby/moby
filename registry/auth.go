@@ -5,21 +5,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/docker/docker/utils"
 )
 
-// Where we store the config file
-const CONFIGFILE = ".dockercfg"
+const (
+	// Where we store the config file
+	CONFIGFILE = ".dockercfg"
 
-// Only used for user auth + account creation
-const INDEXSERVER = "https://index.docker.io/v1/"
+	// Only used for user auth + account creation
+	INDEXSERVER    = "https://index.docker.io/v1/"
+	REGISTRYSERVER = "https://registry-1.docker.io/v1/"
 
-//const INDEXSERVER = "https://indexstaging-docker.dotcloud.com/v1/"
+	// INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
+)
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
@@ -152,10 +156,16 @@ func SaveConfig(configFile *ConfigFile) error {
 // try to register/login to the registry server
 func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
 	var (
-		status        string
-		reqBody       []byte
-		err           error
-		client        = &http.Client{}
+		status  string
+		reqBody []byte
+		err     error
+		client  = &http.Client{
+			Transport: &http.Transport{
+				DisableKeepAlives: true,
+				Proxy:             http.ProxyFromEnvironment,
+			},
+			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+		}
 		reqStatusCode = 0
 		serverAddress = authConfig.ServerAddress
 	)

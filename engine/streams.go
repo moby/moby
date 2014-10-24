@@ -1,8 +1,7 @@
 package engine
 
 import (
-	"bufio"
-	"container/ring"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +13,28 @@ type Output struct {
 	dests []io.Writer
 	tasks sync.WaitGroup
 	used  bool
+}
+
+// Tail returns the n last lines of a buffer
+// stripped out of the last \n, if any
+// if n <= 0, returns an empty string
+func Tail(buffer *bytes.Buffer, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	bytes := buffer.Bytes()
+	if len(bytes) > 0 && bytes[len(bytes)-1] == '\n' {
+		bytes = bytes[:len(bytes)-1]
+	}
+	for i := buffer.Len() - 2; i >= 0; i-- {
+		if bytes[i] == '\n' {
+			n--
+			if n == 0 {
+				return string(bytes[i+1:])
+			}
+		}
+	}
+	return string(bytes)
 }
 
 // NewOutput returns a new Output object with no destinations attached.
@@ -58,42 +79,6 @@ func (o *Output) AddPipe() (io.Reader, error) {
 	return r, nil
 }
 
-// AddTail starts a new goroutine which will read all subsequent data written to the output,
-// line by line, and append the last `n` lines to `dst`.
-func (o *Output) AddTail(dst *[]string, n int) error {
-	src, err := o.AddPipe()
-	if err != nil {
-		return err
-	}
-	o.tasks.Add(1)
-	go func() {
-		defer o.tasks.Done()
-		Tail(src, n, dst)
-	}()
-	return nil
-}
-
-// AddString starts a new goroutine which will read all subsequent data written to the output,
-// line by line, and store the last line into `dst`.
-func (o *Output) AddString(dst *string) error {
-	src, err := o.AddPipe()
-	if err != nil {
-		return err
-	}
-	o.tasks.Add(1)
-	go func() {
-		defer o.tasks.Done()
-		lines := make([]string, 0, 1)
-		Tail(src, 1, &lines)
-		if len(lines) == 0 {
-			*dst = ""
-		} else {
-			*dst = lines[0]
-		}
-	}()
-	return nil
-}
-
 // Write writes the same data to all registered destinations.
 // This method is thread-safe.
 func (o *Output) Write(p []byte) (n int, err error) {
@@ -118,7 +103,7 @@ func (o *Output) Close() error {
 	defer o.Unlock()
 	var firstErr error
 	for _, dst := range o.dests {
-		if closer, ok := dst.(io.WriteCloser); ok {
+		if closer, ok := dst.(io.Closer); ok {
 			err := closer.Close()
 			if err != nil && firstErr == nil {
 				firstErr = err
@@ -154,7 +139,7 @@ func (i *Input) Read(p []byte) (n int, err error) {
 // Not thread safe on purpose
 func (i *Input) Close() error {
 	if i.src != nil {
-		if closer, ok := i.src.(io.WriteCloser); ok {
+		if closer, ok := i.src.(io.Closer); ok {
 			return closer.Close()
 		}
 	}
@@ -172,26 +157,6 @@ func (i *Input) Add(src io.Reader) error {
 	}
 	i.src = src
 	return nil
-}
-
-// Tail reads from `src` line per line, and returns the last `n` lines as an array.
-// A ring buffer is used to only store `n` lines at any time.
-func Tail(src io.Reader, n int, dst *[]string) {
-	scanner := bufio.NewScanner(src)
-	r := ring.New(n)
-	for scanner.Scan() {
-		if n == 0 {
-			continue
-		}
-		r.Value = scanner.Text()
-		r = r.Next()
-	}
-	r.Do(func(v interface{}) {
-		if v == nil {
-			return
-		}
-		*dst = append(*dst, v.(string))
-	})
 }
 
 // AddEnv starts a new goroutine which will decode all subsequent data

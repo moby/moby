@@ -1,4 +1,4 @@
-// +build linux,amd64
+// +build linux
 
 package btrfs
 
@@ -11,18 +11,20 @@ import "C"
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"os"
 	"path"
 	"syscall"
 	"unsafe"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/mount"
 )
 
 func init() {
 	graphdriver.Register("btrfs", Init)
 }
 
-func Init(home string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (graphdriver.Driver, error) {
 	rootdir := path.Dir(home)
 
 	var buf syscall.Statfs_t
@@ -30,13 +32,23 @@ func Init(home string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if buf.Type != 0x9123683E {
-		return nil, fmt.Errorf("%s is not a btrfs filesystem", rootdir)
+	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicBtrfs {
+		return nil, graphdriver.ErrPrerequisites
 	}
 
-	return &Driver{
+	if err := os.MkdirAll(home, 0700); err != nil {
+		return nil, err
+	}
+
+	if err := graphdriver.MakePrivate(home); err != nil {
+		return nil, err
+	}
+
+	driver := &Driver{
 		home: home,
-	}, nil
+	}
+
+	return graphdriver.NaiveDiffDriver(driver), nil
 }
 
 type Driver struct {
@@ -52,7 +64,7 @@ func (d *Driver) Status() [][2]string {
 }
 
 func (d *Driver) Cleanup() error {
-	return nil
+	return mount.Unmount(d.home)
 }
 
 func free(p *C.char) {

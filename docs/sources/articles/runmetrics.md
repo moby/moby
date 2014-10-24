@@ -35,7 +35,7 @@ known to the system, the hierarchy they belong to, and how many groups they cont
 
 You can also look at `/proc/<pid>/cgroup` to see which control groups a process
 belongs to. The control group will be shown as a path relative to the root of
-the hierarchy mountpoint; e.g. `/` means “this process has not been assigned into
+the hierarchy mountpoint; e.g., `/` means “this process has not been assigned into
 a particular group”, while `/lxc/pumpkin` means that the process is likely to be
 a member of a container named `pumpkin`.
 
@@ -50,7 +50,7 @@ For Docker containers using cgroups, the container name will be the full
 ID or long ID of the container. If a container shows up as ae836c95b4c3
 in `docker ps`, its long ID might be something like
 `ae836c95b4c3c9e9179e0e91015512da89fdec91612f63cebae57df9a5444c79`. You can
-look it up with `docker inspect` or `docker ps -notrunc`.
+look it up with `docker inspect` or `docker ps --no-trunc`.
 
 Putting everything together to look at the memory metrics for a Docker
 container, take a look at `/sys/fs/cgroup/memory/lxc/<longid>/`.
@@ -106,9 +106,9 @@ to the processes within the cgroup, excluding sub-cgroups. The second half
 (with the `total_` prefix) includes sub-cgroups as well.
 
 Some metrics are "gauges", i.e. values that can increase or decrease
-(e.g. swap, the amount of swap space used by the members of the cgroup).
+(e.g., swap, the amount of swap space used by the members of the cgroup).
 Some others are "counters", i.e. values that can only go up, because
-they represent occurrences of a specific event (e.g. pgfault, which
+they represent occurrences of a specific event (e.g., pgfault, which
 indicates the number of page faults which happened since the creation of
 the cgroup; this number can never decrease).
 
@@ -310,8 +310,8 @@ layer; you will also have to add traffic going through the userland
 proxy.
 
 Then, you will need to check those counters on a regular basis. If you
-happen to use `collectd`, there is a nice plugin to
-automate iptables counters collection.
+happen to use `collectd`, there is a [nice plugin](https://collectd.org/wiki/index.php/Plugin:IPTables)
+to automate iptables counters collection.
 
 ### Interface-level counters
 
@@ -363,9 +363,9 @@ container, we need to:
 - Execute `ip netns exec <somename> ....`
 
 Please review [*Enumerating Cgroups*](#enumerating-cgroups) to learn how to find
-the cgroup of a pprocess running in the container of which you want to
+the cgroup of a process running in the container of which you want to
 measure network usage. From there, you can examine the pseudo-file named
-`tasks`, which containes the PIDs that are in the
+`tasks`, which contains the PIDs that are in the
 control group (i.e. in the container). Pick any one of them.
 
 Putting everything together, if the "short ID" of a container is held in
@@ -410,7 +410,7 @@ used.
 
 Docker makes this difficult because it relies on `lxc-start`, which
 carefully cleans up after itself, but it is still possible. It is
-usually easier to collect metrics at regular intervals (e.g. every
+usually easier to collect metrics at regular intervals (e.g., every
 minute, with the collectd LXC plugin) and rely on that instead.
 
 But, if you'd still like to gather the stats when a container stops,

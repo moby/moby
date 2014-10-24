@@ -10,53 +10,6 @@ import (
 	"testing"
 )
 
-func TestOutputAddString(t *testing.T) {
-	var testInputs = [][2]string{
-		{
-			"hello, world!",
-			"hello, world!",
-		},
-
-		{
-			"One\nTwo\nThree",
-			"Three",
-		},
-
-		{
-			"",
-			"",
-		},
-
-		{
-			"A line\nThen another nl-terminated line\n",
-			"Then another nl-terminated line",
-		},
-
-		{
-			"A line followed by an empty line\n\n",
-			"",
-		},
-	}
-	for _, testData := range testInputs {
-		input := testData[0]
-		expectedOutput := testData[1]
-		o := NewOutput()
-		var output string
-		if err := o.AddString(&output); err != nil {
-			t.Error(err)
-		}
-		if n, err := o.Write([]byte(input)); err != nil {
-			t.Error(err)
-		} else if n != len(input) {
-			t.Errorf("Expected %d, got %d", len(input), n)
-		}
-		o.Close()
-		if output != expectedOutput {
-			t.Errorf("Last line is not stored as return string.\nInput:   '%s'\nExpected: '%s'\nGot:       '%s'", input, expectedOutput, output)
-		}
-	}
-}
-
 type sentinelWriteCloser struct {
 	calledWrite bool
 	calledClose bool
@@ -145,59 +98,24 @@ func TestOutputAddPipe(t *testing.T) {
 }
 
 func TestTail(t *testing.T) {
-	var tests = make(map[string][][]string)
-	tests["hello, world!"] = [][]string{
-		{},
-		{"hello, world!"},
-		{"hello, world!"},
-		{"hello, world!"},
+	var tests = make(map[string][]string)
+	tests["hello, world!"] = []string{
+		"",
+		"hello, world!",
+		"hello, world!",
+		"hello, world!",
 	}
-	tests["One\nTwo\nThree"] = [][]string{
-		{},
-		{"Three"},
-		{"Two", "Three"},
-		{"One", "Two", "Three"},
-	}
-	for input, outputs := range tests {
-		for n, expectedOutput := range outputs {
-			var output []string
-			Tail(strings.NewReader(input), n, &output)
-			if fmt.Sprintf("%v", output) != fmt.Sprintf("%v", expectedOutput) {
-				t.Errorf("Tail n=%d returned wrong result.\nExpected: '%s'\nGot     : '%s'", expectedOutput, output)
-			}
-		}
-	}
-}
-
-func TestOutputAddTail(t *testing.T) {
-	var tests = make(map[string][][]string)
-	tests["hello, world!"] = [][]string{
-		{},
-		{"hello, world!"},
-		{"hello, world!"},
-		{"hello, world!"},
-	}
-	tests["One\nTwo\nThree"] = [][]string{
-		{},
-		{"Three"},
-		{"Two", "Three"},
-		{"One", "Two", "Three"},
+	tests["One\nTwo\nThree"] = []string{
+		"",
+		"Three",
+		"Two\nThree",
+		"One\nTwo\nThree",
 	}
 	for input, outputs := range tests {
 		for n, expectedOutput := range outputs {
-			o := NewOutput()
-			var output []string
-			if err := o.AddTail(&output, n); err != nil {
-				t.Error(err)
-			}
-			if n, err := o.Write([]byte(input)); err != nil {
-				t.Error(err)
-			} else if n != len(input) {
-				t.Errorf("Expected %d, got %d", len(input), n)
-			}
-			o.Close()
-			if fmt.Sprintf("%v", output) != fmt.Sprintf("%v", expectedOutput) {
-				t.Errorf("Tail(%d) returned wrong result.\nExpected: %v\nGot:      %v", n, expectedOutput, output)
+			output := Tail(bytes.NewBufferString(input), n)
+			if output != expectedOutput {
+				t.Errorf("Tail n=%d returned wrong result.\nExpected: '%s'\nGot     : '%s'", n, expectedOutput, output)
 			}
 		}
 	}
@@ -223,7 +141,7 @@ func TestOutputAdd(t *testing.T) {
 		t.Fatalf("Expected %d, got %d", len(input), n)
 	}
 	if output := b.String(); output != input {
-		t.Fatal("Received wrong data from Add.\nExpected: '%s'\nGot:     '%s'", input, output)
+		t.Fatalf("Received wrong data from Add.\nExpected: '%s'\nGot:     '%s'", input, output)
 	}
 }
 

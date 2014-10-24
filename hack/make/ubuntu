@@ -8,8 +8,8 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
-PACKAGE_URL="http://www.docker.io/"
-PACKAGE_MAINTAINER="docker@dotcloud.com"
+PACKAGE_URL="http://www.docker.com/"
+PACKAGE_MAINTAINER="support@docker.com"
 PACKAGE_DESCRIPTION="Linux container runtime
 Docker complements LXC with a high-level API which operates at the process
 level. It runs unix processes with strong guarantees of isolation and
@@ -36,7 +36,7 @@ bundle_ubuntu() {
 	mkdir -p $DIR/etc/default
 	cp contrib/init/sysvinit-debian/docker.default $DIR/etc/default/docker
 	mkdir -p $DIR/lib/systemd/system
-	cp contrib/init/systemd/docker.service $DIR/lib/systemd/system/
+	cp contrib/init/systemd/docker.{service,socket} $DIR/lib/systemd/system/
 
 	# Include contributed completions
 	mkdir -p $DIR/etc/bash_completion.d
@@ -47,10 +47,10 @@ bundle_ubuntu() {
 	cp contrib/completion/fish/docker.fish $DIR/etc/fish/completions/
 
 	# Include contributed man pages
-	contrib/man/md/md2man-all.sh -q
+	docs/man/md2man-all.sh -q
 	manRoot="$DIR/usr/share/man"
 	mkdir -p "$manRoot"
-	for manDir in contrib/man/man*; do
+	for manDir in docs/man/man?; do
 		manBase="$(basename "$manDir")" # "man1"
 		for manFile in "$manDir"/*; do
 			manName="$(basename "$manFile")" # "docker-build.1"

@@ -29,8 +29,11 @@ func Mounted(mountpoint string) (bool, error) {
 // the target is not mounted
 // Options must be specified as fstab style
 func Mount(device, target, mType, options string) error {
-	if mounted, err := Mounted(target); err != nil || mounted {
-		return err
+	flag, _ := parseOptions(options)
+	if flag&REMOUNT != REMOUNT {
+		if mounted, err := Mounted(target); err != nil || mounted {
+			return err
+		}
 	}
 	return ForceMount(device, target, mType, options)
 }

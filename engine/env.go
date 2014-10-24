@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sort"
 	"strconv"
 	"strings"
 )
 
 type Env []string
 
+// Get returns the last value associated with the given key. If there are no
+// values associated with the key, Get returns the empty string.
 func (env *Env) Get(key string) (value string) {
-	// FIXME: use Map()
+	// not using Map() because of the extra allocations https://github.com/docker/docker/pull/7488#issuecomment-51638315
 	for _, kv := range *env {
 		if strings.Index(kv, "=") == -1 {
 			continue
@@ -186,6 +187,12 @@ func (env *Env) Decode(src io.Reader) error {
 }
 
 func (env *Env) SetAuto(k string, v interface{}) {
+	// Issue 7941 - if the value in the incoming JSON is null then treat it
+	// as if they never specified the property at all.
+	if v == nil {
+		return
+	}
+
 	// FIXME: we fix-convert float values to int, because
 	// encoding/json decodes integers to float64, but cannot encode them back.
 	// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
@@ -200,6 +207,22 @@ func (env *Env) SetAuto(k string, v interface{}) {
 	}
 }
 
+func changeFloats(v interface{}) interface{} {
+	switch v := v.(type) {
+	case float64:
+		return int(v)
+	case map[string]interface{}:
+		for key, val := range v {
+			v[key] = changeFloats(val)
+		}
+	case []interface{}:
+		for idx, val := range v {
+			v[idx] = changeFloats(val)
+		}
+	}
+	return v
+}
+
 func (env *Env) Encode(dst io.Writer) error {
 	m := make(map[string]interface{})
 	for k, v := range env.Map() {
@@ -208,10 +231,7 @@ func (env *Env) Encode(dst io.Writer) error {
 			// FIXME: we fix-convert float values to int, because
 			// encoding/json decodes integers to float64, but cannot encode them back.
 			// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
-			if fval, isFloat := val.(float64); isFloat {
-				val = int(fval)
-			}
-			m[k] = val
+			m[k] = changeFloats(val)
 		} else {
 			m[k] = v
 		}
@@ -252,134 +272,26 @@ func (env *Env) Map() map[string]string {
 	return m
 }
 
-type Table struct {
-	Data    []*Env
-	sortKey string
-	Chan    chan *Env
-}
-
-func NewTable(sortKey string, sizeHint int) *Table {
-	return &Table{
-		make([]*Env, 0, sizeHint),
-		sortKey,
-		make(chan *Env),
+// MultiMap returns a representation of env as a
+// map of string arrays, keyed by string.
+// This is the same structure as http headers for example,
+// which allow each key to have multiple values.
+func (env *Env) MultiMap() map[string][]string {
+	m := make(map[string][]string)
+	for _, kv := range *env {
+		parts := strings.SplitN(kv, "=", 2)
+		m[parts[0]] = append(m[parts[0]], parts[1])
 	}
+	return m
 }
 
-func (t *Table) SetKey(sortKey string) {
-	t.sortKey = sortKey
-}
-
-func (t *Table) Add(env *Env) {
-	t.Data = append(t.Data, env)
-}
-
-func (t *Table) Len() int {
-	return len(t.Data)
-}
-
-func (t *Table) Less(a, b int) bool {
-	return t.lessBy(a, b, t.sortKey)
-}
-
-func (t *Table) lessBy(a, b int, by string) bool {
-	keyA := t.Data[a].Get(by)
-	keyB := t.Data[b].Get(by)
-	intA, errA := strconv.ParseInt(keyA, 10, 64)
-	intB, errB := strconv.ParseInt(keyB, 10, 64)
-	if errA == nil && errB == nil {
-		return intA < intB
-	}
-	return keyA < keyB
-}
-
-func (t *Table) Swap(a, b int) {
-	tmp := t.Data[a]
-	t.Data[a] = t.Data[b]
-	t.Data[b] = tmp
-}
-
-func (t *Table) Sort() {
-	sort.Sort(t)
-}
-
-func (t *Table) ReverseSort() {
-	sort.Sort(sort.Reverse(t))
-}
-
-func (t *Table) WriteListTo(dst io.Writer) (n int64, err error) {
-	if _, err := dst.Write([]byte{'['}); err != nil {
-		return -1, err
-	}
-	n = 1
-	for i, env := range t.Data {
-		bytes, err := env.WriteTo(dst)
-		if err != nil {
-			return -1, err
-		}
-		n += bytes
-		if i != len(t.Data)-1 {
-			if _, err := dst.Write([]byte{','}); err != nil {
-				return -1, err
-			}
-			n += 1
+// InitMultiMap removes all values in env, then initializes
+// new values from the contents of m.
+func (env *Env) InitMultiMap(m map[string][]string) {
+	(*env) = make([]string, 0, len(m))
+	for k, vals := range m {
+		for _, v := range vals {
+			env.Set(k, v)
 		}
 	}
-	if _, err := dst.Write([]byte{']'}); err != nil {
-		return -1, err
-	}
-	return n + 1, nil
-}
-
-func (t *Table) ToListString() (string, error) {
-	buffer := bytes.NewBuffer(nil)
-	if _, err := t.WriteListTo(buffer); err != nil {
-		return "", err
-	}
-	return buffer.String(), nil
-}
-
-func (t *Table) WriteTo(dst io.Writer) (n int64, err error) {
-	for _, env := range t.Data {
-		bytes, err := env.WriteTo(dst)
-		if err != nil {
-			return -1, err
-		}
-		n += bytes
-	}
-	return n, nil
-}
-
-func (t *Table) ReadListFrom(src []byte) (n int64, err error) {
-	var array []interface{}
-
-	if err := json.Unmarshal(src, &array); err != nil {
-		return -1, err
-	}
-
-	for _, item := range array {
-		if m, ok := item.(map[string]interface{}); ok {
-			env := &Env{}
-			for key, value := range m {
-				env.SetAuto(key, value)
-			}
-			t.Add(env)
-		}
-	}
-
-	return int64(len(src)), nil
-}
-
-func (t *Table) ReadFrom(src io.Reader) (n int64, err error) {
-	decoder := NewDecoder(src)
-	for {
-		env, err := decoder.Decode()
-		if err == io.EOF {
-			return 0, nil
-		} else if err != nil {
-			return -1, err
-		}
-		t.Add(env)
-	}
-	return 0, nil
 }

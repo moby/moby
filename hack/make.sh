@@ -6,7 +6,7 @@ set -e
 #
 # Requirements:
 # - The current directory should be a checkout of the docker source code
-#   (http://github.com/dotcloud/docker). Whatever version is checked out
+#   (http://github.com/docker/docker). Whatever version is checked out
 #   will be built.
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
@@ -18,14 +18,16 @@ set -e
 # - The right way to call this script is to invoke "make" from
 #   your checkout of the Docker repository.
 #   the Makefile will do a "docker build -t docker ." and then
-#   "docker run hack/make.sh" in the resulting container image.
+#   "docker run hack/make.sh" in the resulting image.
 #
 
 set -o pipefail
 
+export DOCKER_PKG='github.com/docker/docker'
+
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$(pwd)" != '/go/src/github.com/dotcloud/docker' ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+if [ "$(pwd)" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in the Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
@@ -42,17 +44,17 @@ echo
 DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
-	
+
 	binary
-	
+
 	test-unit
 	test-integration
 	test-integration-cli
-	
+
 	dynbinary
-	dyntest
+	dyntest-unit
 	dyntest-integration
-	
+
 	cover
 	cross
 	tgz
@@ -77,8 +79,8 @@ fi
 
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
-	mkdir -p .gopath/src/github.com/dotcloud
-	ln -sf ../../../.. .gopath/src/github.com/dotcloud/docker
+	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
+	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
 fi
 
@@ -88,22 +90,32 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
+if [ -z "$DOCKER_CLIENTONLY" ]; then
+	DOCKER_BUILDTAGS+=" daemon"
+fi
+
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-w
-	-X github.com/dotcloud/docker/dockerversion.GITCOMMIT "'$GITCOMMIT'"
-	-X github.com/dotcloud/docker/dockerversion.VERSION "'$VERSION'"
+	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
 '
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
-BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
+# ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
+# with options like -race.
+ORIG_BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" )
+BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
+# Test timeout.
+: ${TIMEOUT:=30m}
+TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
 # PLEASE do not use these anywhere else.
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
-	-X github.com/dotcloud/docker/dockerversion.IAMSTATIC true
+	-X $DOCKER_PKG/dockerversion.IAMSTATIC true
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 
@@ -150,7 +162,8 @@ go_test_dir() {
 		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
-		echo '+ go test' $TESTFLAGS "github.com/dotcloud/docker${dir#.}"
+		export DEST
+		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
@@ -170,6 +183,7 @@ find_dirs() {
 			-o -wholename './.git' \
 			-o -wholename './bundles' \
 			-o -wholename './docs' \
+			-o -wholename './pkg/libcontainer/nsinit' \
 		\) \
 		-prune \
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u

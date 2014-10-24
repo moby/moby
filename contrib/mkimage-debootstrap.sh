@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/debootstrap'
+echo >&2
+
 variant='minbase'
 include='iproute,iputils-ping'
 arch='amd64' # intentionally undocumented for now
@@ -114,7 +118,7 @@ fi
 # will be filled in later, if [ -z "$skipDetection" ]
 lsbDist=''
 
-target="/tmp/docker-rootfs-debootstrap-$suite-$$-$RANDOM"
+target="${TMPDIR:-/var/tmp}/docker-rootfs-debootstrap-$suite-$$-$RANDOM"
 
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 returnTo="$(pwd -P)"
@@ -140,7 +144,7 @@ if [ -z "$strictDebootstrap" ]; then
 	#  initctl (for some pesky upstart scripts)
 	sudo chroot . dpkg-divert --local --rename --add /sbin/initctl
 	sudo ln -sf /bin/true sbin/initctl
-	# see https://github.com/dotcloud/docker/issues/446#issuecomment-16953173
+	# see https://github.com/docker/docker/issues/446#issuecomment-16953173
 	
 	# shrink the image, since apt makes us fat (wheezy: ~157.5MB vs ~120MB)
 	sudo chroot . apt-get clean

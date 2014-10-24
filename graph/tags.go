@@ -3,26 +3,58 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker/image"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/utils"
 )
 
 const DEFAULTTAG = "latest"
 
+var (
+	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
+)
+
 type TagStore struct {
 	path         string
 	graph        *Graph
+	mirrors      []string
 	Repositories map[string]Repository
+	sync.Mutex
+	// FIXME: move push/pull-related fields
+	// to a helper type
+	pullingPool map[string]chan struct{}
+	pushingPool map[string]chan struct{}
 }
 
 type Repository map[string]string
 
-func NewTagStore(path string, graph *Graph) (*TagStore, error) {
+// update Repository mapping with content of u
+func (r Repository) Update(u Repository) {
+	for k, v := range u {
+		r[k] = v
+	}
+}
+
+// return true if the contents of u Repository, are wholly contained in r Repository
+func (r Repository) Contains(u Repository) bool {
+	for k, v := range u {
+		// if u's key is not present in r OR u's key is present, but not the same value
+		if rv, ok := r[k]; !ok || (ok && rv != v) {
+			return false
+		}
+	}
+	return true
+}
+
+func NewTagStore(path string, graph *Graph, mirrors []string) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -30,11 +62,14 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	store := &TagStore{
 		path:         abspath,
 		graph:        graph,
+		mirrors:      mirrors,
 		Repositories: make(map[string]Repository),
+		pullingPool:  make(map[string]chan struct{}),
+		pushingPool:  make(map[string]chan struct{}),
 	}
 	// Load the json file if it exists, otherwise create it.
-	if err := store.Reload(); os.IsNotExist(err) {
-		if err := store.Save(); err != nil {
+	if err := store.reload(); os.IsNotExist(err) {
+		if err := store.save(); err != nil {
 			return nil, err
 		}
 	} else if err != nil {
@@ -43,7 +78,7 @@ func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	return store, nil
 }
 
-func (store *TagStore) Save() error {
+func (store *TagStore) save() error {
 	// Store the json ball
 	jsonData, err := json.Marshal(store)
 	if err != nil {
@@ -55,7 +90,7 @@ func (store *TagStore) Save() error {
 	return nil
 }
 
-func (store *TagStore) Reload() error {
+func (store *TagStore) reload() error {
 	jsonData, err := ioutil.ReadFile(store.path)
 	if err != nil {
 		return err
@@ -69,11 +104,13 @@ func (store *TagStore) Reload() error {
 func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 	// (so we can pass all errors here)
-	repos, tag := utils.ParseRepositoryTag(name)
+	repos, tag := parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = DEFAULTTAG
 	}
 	img, err := store.GetImage(repos, tag)
+	store.Lock()
+	defer store.Unlock()
 	if err != nil {
 		return nil, err
 	} else if img == nil {
@@ -87,6 +124,8 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 // Return a reverse-lookup table of all the names which refer to each image
 // Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
 func (store *TagStore) ByID() map[string][]string {
+	store.Lock()
+	defer store.Unlock()
 	byID := make(map[string][]string)
 	for repoName, repository := range store.Repositories {
 		for tag, id := range repository {
@@ -130,8 +169,10 @@ func (store *TagStore) DeleteAll(id string) error {
 }
 
 func (store *TagStore) Delete(repoName, tag string) (bool, error) {
+	store.Lock()
+	defer store.Unlock()
 	deleted := false
-	if err := store.Reload(); err != nil {
+	if err := store.reload(); err != nil {
 		return false, err
 	}
 	if r, exists := store.Repositories[repoName]; exists {
@@ -150,13 +191,15 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 			deleted = true
 		}
 	} else {
-		fmt.Errorf("No such repository: %s", repoName)
+		return false, fmt.Errorf("No such repository: %s", repoName)
 	}
-	return deleted, store.Save()
+	return deleted, store.save()
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	img, err := store.LookupImage(imageName)
+	store.Lock()
+	defer store.Unlock()
 	if err != nil {
 		return err
 	}
@@ -166,10 +209,10 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	if err := validateRepoName(repoName); err != nil {
 		return err
 	}
-	if err := validateTagName(tag); err != nil {
+	if err := ValidateTagName(tag); err != nil {
 		return err
 	}
-	if err := store.Reload(); err != nil {
+	if err := store.reload(); err != nil {
 		return err
 	}
 	var repo Repository
@@ -183,11 +226,13 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		store.Repositories[repoName] = repo
 	}
 	repo[tag] = img.ID
-	return store.Save()
+	return store.save()
 }
 
 func (store *TagStore) Get(repoName string) (Repository, error) {
-	if err := store.Reload(); err != nil {
+	store.Lock()
+	defer store.Unlock()
+	if err := store.reload(); err != nil {
 		return nil, err
 	}
 	if r, exists := store.Repositories[repoName]; exists {
@@ -198,6 +243,8 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 
 func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) {
 	repo, err := store.Get(repoName)
+	store.Lock()
+	defer store.Unlock()
 	if err != nil {
 		return nil, err
 	} else if repo == nil {
@@ -215,6 +262,34 @@ func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) 
 	return nil, nil
 }
 
+func (store *TagStore) GetRepoRefs() map[string][]string {
+	store.Lock()
+	reporefs := make(map[string][]string)
+
+	for name, repository := range store.Repositories {
+		for tag, id := range repository {
+			shortID := utils.TruncateID(id)
+			reporefs[shortID] = append(reporefs[shortID], fmt.Sprintf("%s:%s", name, tag))
+		}
+	}
+	store.Unlock()
+	return reporefs
+}
+
+// isOfficialName returns whether a repo name is considered an official
+// repository.  Official repositories are repos with names within
+// the library namespace or which default to the library namespace
+// by not providing one.
+func isOfficialName(name string) bool {
+	if strings.HasPrefix(name, "library/") {
+		return true
+	}
+	if strings.IndexRune(name, '/') == -1 {
+		return true
+	}
+	return false
+}
+
 // Validate the name of a repository
 func validateRepoName(name string) error {
 	if name == "" {
@@ -224,12 +299,55 @@ func validateRepoName(name string) error {
 }
 
 // Validate the name of a tag
-func validateTagName(name string) error {
+func ValidateTagName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Tag name can't be empty")
 	}
-	if strings.Contains(name, "/") || strings.Contains(name, ":") {
-		return fmt.Errorf("Illegal tag name: %s", name)
+	if !validTagName.MatchString(name) {
+		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 2, maximum 30 in length", name)
+	}
+	return nil
+}
+
+func (store *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
+	store.Lock()
+	defer store.Unlock()
+
+	if c, exists := store.pullingPool[key]; exists {
+		return c, fmt.Errorf("pull %s is already in progress", key)
+	}
+	if c, exists := store.pushingPool[key]; exists {
+		return c, fmt.Errorf("push %s is already in progress", key)
+	}
+
+	c := make(chan struct{})
+	switch kind {
+	case "pull":
+		store.pullingPool[key] = c
+	case "push":
+		store.pushingPool[key] = c
+	default:
+		return nil, fmt.Errorf("Unknown pool type")
+	}
+	return c, nil
+}
+
+func (store *TagStore) poolRemove(kind, key string) error {
+	store.Lock()
+	defer store.Unlock()
+	switch kind {
+	case "pull":
+		if c, exists := store.pullingPool[key]; exists {
+			close(c)
+			delete(store.pullingPool, key)
+		}
+	case "push":
+		if c, exists := store.pushingPool[key]; exists {
+			close(c)
+			delete(store.pushingPool, key)
+		}
+	default:
+		return fmt.Errorf("Unknown pool type")
 	}
 	return nil
 }

@@ -1,20 +1,8 @@
 page_title: Installation on openSUSE
-page_description: Please note this project is currently under heavy development. It should not be used in production.
+page_description: Installation instructions for Docker on openSUSE.
 page_keywords: openSUSE, virtualbox, docker, documentation, installation
 
 # openSUSE
-
-> **Note**:
-> Docker is still under heavy development! We don't recommend using it in
-> production yet, but we're getting closer with each release. Please see
-> our blog post, [Getting to Docker 1.0](
-> http://blog.docker.io/2013/08/getting-to-docker-1-0/)
-
-> **Note**:
-> This is a community contributed installation path. The only `official`
-> installation is using the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
-> installation path. This version may be out of date because it depends on
-> some binaries to be updated and published
 
 Docker is available in **openSUSE 12.3 and later**. Please note that due
 to the current Docker limitations Docker is able to run only on the **64
@@ -31,9 +19,11 @@ repository.
 
     # openSUSE 12.3
     $ sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_12.3/ Virtualization
+    $ sudo rpm --import http://download.opensuse.org/repositories/Virtualization/openSUSE_12.3/repodata/repomd.xml.key
 
     # openSUSE 13.1
     $ sudo zypper ar -f http://download.opensuse.org/repositories/Virtualization/openSUSE_13.1/ Virtualization
+    $ sudo rpm --import http://download.opensuse.org/repositories/Virtualization/openSUSE_13.1/repodata/repomd.xml.key
 
 Install the Docker package.
 
@@ -55,10 +45,31 @@ If we want Docker to start at boot, we should also:
 
 The docker package creates a new group named docker. Users, other than
 root user, need to be part of this group in order to interact with the
-Docker daemon.
+Docker daemon. You can add users with:
 
-    $ sudo usermod -G docker <username>
+    $ sudo /usr/sbin/usermod -a -G docker <username>
+
+To verify that everything has worked as expected:
+
+    $ sudo docker run --rm -i -t opensuse /bin/bash
+
+This should download and import the `opensuse` image, and then start `bash` in
+a container. To exit the container type `exit`.
+
+If you want your containers to be able to access the external network you must
+enable the `net.ipv4.ip_forward` rule.
+This can be done using YaST by browsing to the
+`Network Devices -> Network Settings -> Routing` menu and ensuring that the
+`Enable IPv4 Forwarding` box is checked.
+
+This option cannot be changed when networking is handled by the Network Manager.
+In such cases the `/etc/sysconfig/SuSEfirewall2` file needs to be edited by
+hand to ensure the `FW_ROUTE` flag is set to `yes` like so:
+
+    FW_ROUTE="yes"
+
 
 **Done!**
-Now continue with the [*Hello World*](
-/examples/hello_world/#hello-world) example.
+
+Continue with the [User Guide](/userguide/).
+
