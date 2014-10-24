@@ -91,4 +91,6 @@ RUN apt-get install -y <input id="gcc" class="l_fill" type="text"><br>
 <p>
 Thanks for going through our tutorial! We will be posting Level 3 in the future. 
 
+To improve your Dockerfile writing skills even further, visit the <a href="https://docs.docker.com/articles/dockerfile_best-practices/">Dockerfile best practices page</a>.
+
 <a title="creating our own images" class="btn btn-primary" href="/userguide/dockerimages/#creating-our-own-images">Back to the Docs!</a>
