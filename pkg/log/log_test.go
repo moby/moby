@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 
 	"testing"
@@ -9,7 +10,7 @@ import (
 
 var reRFC3339NanoFixed = "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}.([0-9]{2}:[0-9]{2})?"
 
-func TestLogFatalf(t *testing.T) {
+func TestLog(t *testing.T) {
 	var output *bytes.Buffer
 
 	tests := []struct {
@@ -18,7 +19,6 @@ func TestLogFatalf(t *testing.T) {
 		Values          []interface{}
 		ExpectedPattern string
 	}{
-		{fatalPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[fatal\\] testing.go:\\d+ 1 \\+ 1 = 2"},
 		{errorPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[error\\] testing.go:\\d+ 1 \\+ 1 = 2"},
 		{infoPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[info\\] 1 \\+ 1 = 2"},
 		{debugPriority, "%d + %d = %d", []interface{}{1, 1, 2}, "\\[" + reRFC3339NanoFixed + "\\] \\[debug\\] testing.go:\\d+ 1 \\+ 1 = 2"},
@@ -26,7 +26,9 @@ func TestLogFatalf(t *testing.T) {
 
 	for i, test := range tests {
 		output = &bytes.Buffer{}
-		DefaultLogger.logf(output, test.Level, test.Format, test.Values...)
+		std.Err = output
+		std.Out = output
+		std.log(test.Level, fmt.Sprintf(test.Format, test.Values...))
 
 		expected := regexp.MustCompile(test.ExpectedPattern)
 		if !expected.MatchString(output.String()) {
