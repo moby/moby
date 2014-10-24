@@ -65,7 +65,7 @@ So when we run a container we refer to a tagged image like so:
 
     $ sudo docker run -t -i ubuntu:14.04 /bin/bash
 
-If instead we wanted to build an Ubuntu 12.04 image we'd use:
+If instead we wanted to run an Ubuntu 12.04 image we'd use:
 
     $ sudo docker run -t -i ubuntu:12.04 /bin/bash
 
