@@ -1362,6 +1362,49 @@ func TestBuildExpose(t *testing.T) {
 	logDone("build - expose")
 }
 
+func TestBuildEmptyEntrypointInheritance(t *testing.T) {
+	name := "testbuildentrypointinheritance"
+	name2 := "testbuildentrypointinheritance2"
+	defer deleteImages(name, name2)
+
+	_, err := buildImage(name,
+		`FROM busybox
+        ENTRYPOINT ["/bin/echo"]`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "[/bin/echo]"
+	if res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+
+	_, err = buildImage(name2,
+		fmt.Sprintf(`FROM %s
+        ENTRYPOINT []`, name),
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = inspectField(name2, "Config.Entrypoint")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = "[]"
+
+	if res != expected {
+		t.Fatalf("Entrypoint %s, expected %s", res, expected)
+	}
+
+	logDone("build - empty entrypoint inheritance")
+}
+
 func TestBuildEmptyEntrypoint(t *testing.T) {
 	name := "testbuildentrypoint"
 	defer deleteImages(name)
