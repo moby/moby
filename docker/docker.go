@@ -5,13 +5,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"log" // see gh#8745, client needs to use go log pkg
 	"os"
 	"strings"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/log"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/utils"
@@ -106,7 +106,7 @@ func main() {
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
 			if sterr.Status != "" {
-				log.Infof("%s", sterr.Status)
+				log.Println("%s", sterr.Status)
 			}
 			os.Exit(sterr.StatusCode)
 		}
