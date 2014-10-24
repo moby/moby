@@ -14,7 +14,8 @@ type portMap struct {
 
 func newPortMap() *portMap {
 	return &portMap{
-		p: map[int]struct{}{},
+		p:    map[int]struct{}{},
+		last: EndPortRange,
 	}
 }
 
@@ -135,12 +136,6 @@ func ReleaseAll() error {
 }
 
 func (pm *portMap) findPort() (int, error) {
-	if pm.last == 0 {
-		pm.p[BeginPortRange] = struct{}{}
-		pm.last = BeginPortRange
-		return BeginPortRange, nil
-	}
-
 	for port := pm.last + 1; port != pm.last; port++ {
 		if port > EndPortRange {
 			port = BeginPortRange
