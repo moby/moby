@@ -34,7 +34,7 @@ docs-shell: docs-build
 	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" bash
 
 docs-release: docs-build
-	$(DOCKER_RUN_DOCS) -e BUILD_ROOT "$(DOCKER_DOCS_IMAGE)" ./release.sh
+	$(DOCKER_RUN_DOCS) -e OPTIONS -e BUILD_ROOT "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration test-integration-cli
