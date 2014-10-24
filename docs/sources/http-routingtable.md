@@ -44,7 +44,7 @@
      [`POST /containers/(id)/wait`](../reference/api/docker_remote_api_v1.9/#post--containers-(id)-wait)                                                           **
      [`POST /containers/create`](../reference/api/docker_remote_api_v1.9/#post--containers-create)                                                                 **
      [`GET /containers/json`](../reference/api/docker_remote_api_v1.9/#get--containers-json)                                                                       **
-     [`GET /containers/resize`](../reference/api/docker_remote_api_v1.9/#get--containers-resize)                                                                       **
+     [`POST /containers/(id)/resize`](../reference/api/docker_remote_api_v1.9/#get--containers-resize)                                                                  **
                                                                                                                                                                           
      **/events**                                                                                                                                                          
      [`GET /events`](../reference/api/docker_remote_api_v1.9/#get--events)                                                                                         **

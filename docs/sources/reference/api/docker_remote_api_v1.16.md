@@ -471,13 +471,13 @@ Status Codes:
 
 ### Resize a container TTY
 
-`GET /containers/(id)/resize?h=<height>&w=<width>`
+`POST /containers/(id)/resize?h=<height>&w=<width>`
 
-Resize the TTY of container `id`
+Resize the TTY for container with  `id`. The container must be restarted for the resize to take effect.
 
 **Example request**:
 
-        GET /containers/4fa6e0f0c678/resize?h=40&w=80 HTTP/1.1
+        POST /containers/4fa6e0f0c678/resize?h=40&w=80 HTTP/1.1
 
 **Example response**:
 
@@ -489,7 +489,7 @@ Status Codes:
 
 -   **200** – no error
 -   **404** – No such container
--   **500** – bad file descriptor
+-   **500** – Cannot resize container
 
 ### Start a container
 
