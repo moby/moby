@@ -14,6 +14,8 @@ If you're publishing the current release's documentation, also set `BUILD_ROOT=y
 make AWS_S3_BUCKET=docs-stage.docker.com docs-release
 
 will then push the documentation site to your s3 bucket.
+
+ Note: you can add `OPTIONS=--dryrun` to see what will be done without sending to the server
 EOF
 	exit 1
 }
@@ -22,7 +24,7 @@ EOF
 
 VERSION=$(cat VERSION)
 
-if [ "$$AWS_S3_BUCKET" == "docs.docker.com" ]; then
+if [ "$AWS_S3_BUCKET" == "docs.docker.com" ]; then
 	if [ "${VERSION%-dev}" != "$VERSION" ]; then
 		echo "Please do not push '-dev' documentation to docs.docker.com ($VERSION)"
 		exit 1
@@ -96,7 +98,7 @@ upload_current_documentation() {
 		done
 		include="--include *.$i $include"
 		echo "uploading *.$i"
-		run="aws s3 sync --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read \
+		run="aws s3 sync $OPTIONS --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read \
 			$include \
 			--exclude *.text* \
 			--exclude *.*~ \
@@ -118,7 +120,9 @@ upload_current_documentation() {
 	done
 }
 
-setup_s3
+if [ "$OPTIONS" != "--dryrun" ]; then
+	setup_s3
+fi
 
 # Default to only building the version specific docs so we don't clober the latest by accident with old versions
 if [ "$BUILD_ROOT" == "yes" ]; then
