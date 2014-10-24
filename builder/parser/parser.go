@@ -87,9 +87,10 @@ func parseLine(line string) (string, *Node, error) {
 
 	if sexp.Value != "" || sexp.Next != nil || sexp.Children != nil {
 		node.Next = sexp
-		node.Attributes = attrs
-		node.Original = line
 	}
+
+	node.Attributes = attrs
+	node.Original = line
 
 	return "", node, nil
 }
