@@ -14,7 +14,8 @@ successively.
 This page discusses the specifics of all the instructions you can use in your
 `Dockerfile`. To further help you write a clear, readable, maintainable
 `Dockerfile`, we've also written a [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices).
+guide](/articles/dockerfile_best-practices). Lastly, you can test your
+Dockerfile knowledge with the [Dockerfile tutorial](/userguide/level1).
 
 ## Usage
 

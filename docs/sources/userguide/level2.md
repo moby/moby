@@ -89,9 +89,6 @@ RUN apt-get install -y <input id="gcc" class="l_fill" type="text"><br>
     
 ## What's next?
 <p>
-Thanks for going through our tutorial! We will be posting Level 3 shortly. Follow us on twitter<br>
-<a href="https://twitter.com/docker" class="twitter-follow-button" data-show-count="false">Follow @docker</a>
-<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
-</p>
-<p>In the meantime, check out this <a href="http://crosbymichael.com/dockerfile-best-practices.html">blog post</a> by Michael Crosby that describes Dockerfile Best Practices.</p>
+Thanks for going through our tutorial! We will be posting Level 3 in the future. 
+
 <a title="creating our own images" class="btn btn-primary" href="/userguide/dockerimages/#creating-our-own-images">Back to the Docs!</a>
