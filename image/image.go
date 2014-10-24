@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )

@@ -8,8 +8,17 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/timeutils"
 )
+
+func init() {
+	log.SetOutput(os.Stderr)
+	log.SetLevel(log.InfoLevel)
+	if os.Getenv("DEBUG") != "" {
+		log.SetLevel(log.DebugLevel)
+	}
+}
 
 type priority int
 

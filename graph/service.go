@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {

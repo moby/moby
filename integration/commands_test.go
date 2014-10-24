@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
