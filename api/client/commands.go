@@ -481,6 +481,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
 	fmt.Fprintf(cli.out, "Operating System: %s\n", remoteInfo.Get("OperatingSystem"))
 
+	if remoteInfo.Exists("NCPU") {
+		fmt.Fprintf(cli.out, "CPUs: %d\n", remoteInfo.GetInt("NCPU"))
+	}
+	if remoteInfo.Exists("MemTotal") {
+		fmt.Fprintf(cli.out, "Total Memory: %s\n", units.BytesSize(float64(remoteInfo.GetInt64("MemTotal"))))
+	}
+
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", remoteInfo.GetBool("Debug"))
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")

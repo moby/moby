@@ -812,6 +812,8 @@ For example:
     Execution Driver: native-0.2
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
+    CPUs: 1
+    Total Memory: 2 GiB
     Debug mode (server): false
     Debug mode (client): true
     Fds: 10
