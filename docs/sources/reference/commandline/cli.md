@@ -985,6 +985,35 @@ just a specific mapping:
     $ sudo docker port test 7890
     0.0.0.0:4321
 
+## modify
+
+    Usage: docker modify CONTAINER ACTION ARGUMENTS
+
+    Modifies the configuration of a running container.  At present this only supports adding and removing devices from the container.
+
+    The action can be one of:
+        **device-add** Adds a new device to the container.  The permissions and device information are gathered from the host filesystem.
+        **device-remove** Removes a device from the container.
+
+    The arguments are a list of one or more devices, separated by a comma, that will be added or removed from the container.
+        <host device file>:[<container device file>]:[<cgroup permissions>]
+
+> **Note:**
+> Note that the host device file is required even when removing because
+> the device information must be gathered from the host.
+
+    Some examples of using this feature:
+
+        docker modify happy_bell device-add /dev/loop0
+
+        docker modify happy_bell device-add /dev/loop0:/dev/sd0
+
+        docker modify happy_bell device-add /dev/loop0:/dev/sd0:rwm
+
+        docker modify happy_bell device-add /dev/loop0:/dev/sd0:rwm,/dev/loop1:/dev/sd1:rwm
+
+        docker modify happy_bell device-remove /dev/loop0,/dev/loop1
+
 ## pause
 
     Usage: docker pause CONTAINER

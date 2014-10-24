@@ -142,6 +142,9 @@ inside it)
 **docker-logs(1)**
   Fetch the logs of a container
 
+**docker-modify(1)**
+  Modify a running container
+
 **docker-pause(1)**
   Pause all processes within a container
 

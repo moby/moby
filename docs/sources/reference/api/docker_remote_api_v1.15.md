@@ -535,6 +535,34 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
+### Modify a container
+
+`PUT /containers/(id)/modify`
+
+Modify the container `id`
+
+**Example requests**:
+
+        PUT /containers/e90e34656806/modify?action=device-add&arguments=/dev/loop0:/dev/sd0:rwm
+        PUT /containers/e90e34656806/modify?action=device-remove&arguments=/dev/loop0:/dev/sd0
+
+Query Parameters
+
+-   **action** - The modification action. Currently supported actions are device-add and device-remove
+-   **arguments** - The arguments for the action. For the device-add and
+        device-remove actions, the following are acceptable arguments:
+        <host device file>:[<container device file>]:[<cgroup permissions>]
+
+**Example response**:
+
+        HTTP/1.1 204 No Content
+
+Status Codes:
+
+-   **204** – no error
+-   **404** – no such container
+-   **500** – server error
+
 ### Pause a container
 
 `POST /containers/(id)/pause`
