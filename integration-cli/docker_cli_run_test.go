@@ -1897,37 +1897,25 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		deleteAllContainers()
 
-		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s; while true; do sleep 1; done", fn)))
-		if err != nil {
-			t.Fatal(err, out)
-		}
-
-		time.Sleep(1 * time.Second)
-
-		contID := strings.TrimSpace(out)
-
-		f, err := os.Open(filepath.Join("/var/lib/docker/containers", contID, fn))
+		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s; while true; do sleep 1; done", fn)))
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		content, err := ioutil.ReadAll(f)
-		f.Close()
 
 		if strings.TrimSpace(string(content)) != "success" {
 			t.Fatal("Content was not what was modified in the container", string(content))
 		}
 
-		out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "sh", "-c", fmt.Sprintf("while true; do cat /etc/%s; sleep 1; done", fn)))
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "sh", "-c", fmt.Sprintf("while true; do cat /etc/%s; sleep 1; done", fn)))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		contID = strings.TrimSpace(out)
+		contID := strings.TrimSpace(out)
 
-		resolvConfPath := filepath.Join("/var/lib/docker/containers", contID, fn)
+		resolvConfPath := containerStorageFile(contID, fn)
 
-		f, err = os.OpenFile(resolvConfPath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		f, err := os.OpenFile(resolvConfPath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
