@@ -254,7 +254,8 @@ func sockRequest(method, endpoint string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received status != 200 OK: %s", resp.Status)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
 	}
 
 	return ioutil.ReadAll(resp.Body)
