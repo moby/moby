@@ -736,10 +736,11 @@ func containerStorageFile(containerId, basename string) string {
 	return filepath.Join("/var/lib/docker/containers", containerId, basename)
 }
 
+// docker commands that use this function must be run with the '-d' switch.
 func runCommandAndReadContainerFile(filename string, cmd *exec.Cmd) ([]byte, error) {
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %q", err, out)
 	}
 
 	time.Sleep(1 * time.Second)
