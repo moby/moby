@@ -7,10 +7,10 @@ import (
 	"os"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	log "github.com/Sirupsen/logrus"
 )
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.

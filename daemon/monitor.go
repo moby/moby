@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/daemon/execdriver"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/runconfig"
 )
 

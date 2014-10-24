@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/pkg/timeutils"
 )

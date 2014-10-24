@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/jsonlog"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/jsonlog"
 )
 
 // BroadcastWriter accumulate multiple io.WriteCloser by stream.

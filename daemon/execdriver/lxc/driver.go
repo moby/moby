@@ -17,8 +17,8 @@ import (
 
 	"github.com/kr/pty"
 
-	"github.com/docker/docker/daemon/execdriver"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"

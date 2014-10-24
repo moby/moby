@@ -6,9 +6,9 @@ import (
 	"net"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/pkg/iptables"
-	log "github.com/Sirupsen/logrus"
 )
 
 type mapping struct {

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/docker/docker/engine"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/engine"
 )
 
 func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {

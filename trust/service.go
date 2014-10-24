@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/engine"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/engine"
 	"github.com/docker/libtrust"
 )
 

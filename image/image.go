@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/pkg/archive"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )

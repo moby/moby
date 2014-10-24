@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/daemon/graphdriver"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/libcontainer/label"

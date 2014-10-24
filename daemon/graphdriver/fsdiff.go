@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 )
 

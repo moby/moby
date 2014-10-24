@@ -3,8 +3,8 @@ package runconfig
 import (
 	"strings"
 
-	"github.com/docker/docker/nat"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/nat"
 )
 
 func Merge(userConf, imageConf *Config) error {

@@ -16,12 +16,12 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/ioutils"
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
