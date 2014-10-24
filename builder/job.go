@@ -3,7 +3,6 @@ package builder
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,6 +20,18 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
+
+// whitelist of commands allowed for a commit
+var validCommitCommands = map[string]bool{
+	"entrypoint": true,
+	"cmd":        true,
+	"user":       true,
+	"workdir":    true,
+	"env":        true,
+	"volume":     true,
+	"expose":     true,
+	"onbuild":    true,
+}
 
 type BuilderJob struct {
 	Engine *engine.Engine
@@ -149,18 +160,8 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 	if len(job.Args) != 0 {
 		return job.Errorf("Usage: %s\n", job.Name)
 	}
-	var (
-		validCmd = map[string]struct{}{
-			"entrypoint": {},
-			"cmd":        {},
-			"user":       {},
-			"workdir":    {},
-			"env":        {},
-			"volume":     {},
-			"expose":     {},
-			"onbuild":    {},
-		}
 
+	var (
 		changes   = job.Getenv("changes")
 		newConfig runconfig.Config
 	)
@@ -174,6 +175,13 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
+	// ensure that the commands are valid
+	for _, n := range ast.Children {
+		if !validCommitCommands[n.Value] {
+			return job.Errorf("%s is not a valid change command", n.Value)
+		}
+	}
+
 	builder := &Builder{
 		Daemon:        b.Daemon,
 		Engine:        b.Engine,
@@ -184,13 +192,8 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 	}
 
 	for i, n := range ast.Children {
-		cmd := n.Value
-		if _, ok := validCmd[cmd]; ok {
-			if err := builder.dispatch(i, n); err != nil {
-				return job.Error(err)
-			}
-		} else {
-			fmt.Fprintf(builder.ErrStream, "# Skipping serialization of instruction %s\n", strings.ToUpper(cmd))
+		if err := builder.dispatch(i, n); err != nil {
+			return job.Error(err)
 		}
 	}
 
