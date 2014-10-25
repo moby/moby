@@ -110,6 +110,7 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 		//		generic description field which it isn't. On deprecation shortlist.
 		res.SetAuto("Created", img.Created)
 		res.Set("Author", img.Author)
+		res.SetJson("Meta", img.Meta)
 		res.Set("Os", img.OS)
 		res.Set("Architecture", img.Architecture)
 		res.Set("DockerVersion", img.DockerVersion)
@@ -140,6 +141,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		out.Set("Id", image.ID)
 		out.Set("Parent", image.Parent)
 		out.Set("Comment", image.Comment)
+		out.SetJson("Meta", image.Meta)
 		out.SetAuto("Created", image.Created)
 		out.Set("Container", image.Container)
 		out.SetJson("ContainerConfig", image.ContainerConfig)

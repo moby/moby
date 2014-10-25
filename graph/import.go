@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/utils"
 )
@@ -20,6 +21,7 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		sf      = utils.NewStreamFormatter(job.GetenvBool("json"))
 		archive archive.ArchiveReader
 		resp    *http.Response
+		meta    *image.MetaData
 	)
 	if len(job.Args) > 2 {
 		tag = job.Args[2]
@@ -46,7 +48,9 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		defer progressReader.Close()
 		archive = progressReader
 	}
-	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, nil)
+	job.GetenvJson("meta", &meta)
+
+	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, nil, meta)
 	if err != nil {
 		return job.Error(err)
 	}

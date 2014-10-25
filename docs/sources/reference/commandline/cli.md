@@ -438,6 +438,7 @@ schema.
 
       -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
       -m, --message=""    Commit message
+      --meta=             META data about the image, must be specified in json format
       -p, --pause=true    Pause container during commit
 
 It can be useful to commit a container's file changes or settings into a
@@ -764,7 +765,7 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
 ## import
 
-    Usage: docker import URL|- [REPOSITORY[:TAG]]
+    Usage: docker import [OPTIONS] URL|- [REPOSITORY[:TAG]]
 
     Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
@@ -772,6 +773,8 @@ URLs must start with `http` and point to a single file archive (.tar,
 .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
 you would like to import from a local directory or archive, you can use
 the `-` parameter to take the data from `STDIN`.
+
+      --meta=             META data about the image, must be specified in json format
 
 #### Examples
 

@@ -20,6 +20,7 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 	var (
 		config    = container.Config
 		newConfig runconfig.Config
+		meta      image.MetaData
 	)
 
 	if err := job.GetenvJson("config", &newConfig); err != nil {
@@ -29,8 +30,8 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 	if err := runconfig.Merge(&newConfig, config); err != nil {
 		return job.Error(err)
 	}
-
-	img, err := daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), job.GetenvBool("pause"), &newConfig)
+	job.GetenvJson("meta", &meta)
+	img, err := daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), job.GetenvBool("pause"), &newConfig, &meta)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -40,7 +41,7 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
+func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config, meta *image.MetaData) (*image.Image, error) {
 	if pause {
 		container.Pause()
 		defer container.Unpause()
@@ -69,7 +70,7 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 		containerConfig = container.Config
 	}
 
-	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
+	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config, meta)
 	if err != nil {
 		return nil, err
 	}

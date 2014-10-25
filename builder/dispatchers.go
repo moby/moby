@@ -8,6 +8,7 @@ package builder
 // package.
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -58,6 +59,21 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 
 	b.maintainer = args[0]
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
+}
+
+// META some json data describing the image
+//
+// Sets the image metadata.
+func meta(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("META requires only one argument")
+	}
+	meta := args[0]
+	if err := json.Unmarshal([]byte(meta), &b.meta); err != nil {
+		return fmt.Errorf("META Data must be specified in valid json format: %s", err)
+	}
+
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("META %s", meta))
 }
 
 // ADD foo /path

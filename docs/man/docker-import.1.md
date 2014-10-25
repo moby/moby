@@ -6,6 +6,7 @@ docker-import - Create an empty filesystem image and import the contents of the 
 
 # SYNOPSIS
 **docker import**
+[**--meta**[=*JSONMETADATA*]]
 URL|- [REPOSITORY[:TAG]]
 
 # DESCRIPTION
@@ -13,7 +14,8 @@ Create a new filesystem image from the contents of a tarball (`.tar`,
 `.tar.gz`, `.tgz`, `.bzip`, `.tar.xz`, `.txz`) into it, then optionally tag it.
 
 # OPTIONS
-There are no available options.
+**--meta**=""
+   META data about the image, must be specified in json format
 
 # EXAMPLES
 
@@ -32,6 +34,12 @@ Import to docker via pipe and stdin:
 Import to docker via pipe and stdin:
 
     # cat exampleimageV2.tgz | docker import - example/imagelocal:V-2.0
+
+Import to docker via pipe and stdin:
+
+    # cat exampleimageV2.tgz | docker import \
+      --meta '{ "Application" : "example", "Version" : "2.0" }' \
+      - example/imagelocal:V-2.0
 
 ## Import from a local directory
 

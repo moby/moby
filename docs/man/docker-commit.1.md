@@ -8,6 +8,7 @@ docker-commit - Create a new image from a container's changes
 **docker commit**
 [**-a**|**--author**[=*AUTHOR*]]
 [**-m**|**--message**[=*MESSAGE*]]
+[**--meta**[=*JSONMETADATA*]]
 [**-p**|**--pause**[=*true*]]
  CONTAINER [REPOSITORY[:TAG]]
 
@@ -21,6 +22,9 @@ Using an existing container's name or ID you can create a new image.
 **-m**, **--message**=""
    Commit message
 
+**--meta**=""
+   META data about the image, must be specified in json format
+
 **-p**, **--pause**=*true*|*false*
    Pause container during commit. The default is *true*.
 
@@ -32,6 +36,7 @@ in interactive mode with the bash shell. Apache is also running. To
 create a new image run docker ps to find the container's ID and then run:
 
     # docker commit -m="Added Apache to Fedora base image" \
+      --meta '{ "Application" : "Apache", "Version" : "2.0" }' \
       -a="A D Ministrator" 98bd7fc99854 fedora/fedora_httpd:20
 
 # HISTORY

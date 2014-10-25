@@ -20,10 +20,13 @@ import (
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
 const MaxImageDepth = 127
 
+type MetaData map[string]string
+
 type Image struct {
 	ID              string            `json:"id"`
 	Parent          string            `json:"parent,omitempty"`
 	Comment         string            `json:"comment,omitempty"`
+	Meta            *MetaData         `json:"meta,omitempty"`
 	Created         time.Time         `json:"created"`
 	Container       string            `json:"container,omitempty"`
 	ContainerConfig runconfig.Config  `json:"container_config,omitempty"`
