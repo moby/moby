@@ -211,6 +211,8 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 	// Remove exec from daemon and container.
 	defer d.unregisterExecCommand(execConfig)
 
+	container.State.SetModified()
+
 	go func() {
 		err := container.Exec(execConfig)
 		if err != nil {
