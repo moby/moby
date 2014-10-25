@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
@@ -330,11 +331,27 @@ func (container *Container) Start() (err error) {
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
+	if err := container.setupSecretFiles(); err != nil {
+		return err
+	}
 	if err := container.setupMounts(); err != nil {
 		return err
 	}
 
-	return container.waitForStart()
+	if err := container.waitForStart(); err != nil {
+		return err
+	}
+
+	// Now the container is running, unmount the secrets on the host
+	secretsPath, err := container.secretsPath()
+	if err != nil {
+		return err
+	}
+	if err := mount.Unmount(secretsPath); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -575,6 +592,14 @@ func (container *Container) cleanup() {
 		}
 	}
 
+	if secretsPath, err := container.secretsPath(); err == nil {
+		// Ignore errors here as it may not be mounted anymore
+		mount.Unmount(secretsPath)
+	} else {
+		// but log for good measure
+		log.Errorf("%s: Error getting secretsPath: %s", container.ID, err)
+	}
+
 	if err := container.Unmount(); err != nil {
 		log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
@@ -780,6 +805,10 @@ func (container *Container) hostConfigPath() (string, error) {
 
 func (container *Container) jsonPath() (string, error) {
 	return container.getRootResourcePath("config.json")
+}
+
+func (container *Container) secretsPath() (string, error) {
+	return container.getRootResourcePath("secrets")
 }
 
 // This method must be exported to be used from the lxc template
@@ -1051,6 +1080,34 @@ func (container *Container) verifyDaemonSettings() {
 	if container.daemon.sysInfo.IPv4ForwardingDisabled {
 		log.Infof("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
+}
+
+func (container *Container) setupSecretFiles() error {
+	secretsPath, err := container.secretsPath()
+	if err != nil {
+		return fmt.Errorf("failed to get secretsPath: %s", err)
+	}
+
+	if err := os.MkdirAll(secretsPath, 0700); err != nil {
+		return err
+	}
+
+	if err := mount.Mount("tmpfs", secretsPath, "tmpfs", "nosuid,nodev,noexec"); err != nil {
+		return fmt.Errorf("mounting secret tmpfs: %s", err)
+	}
+
+	for _, granted := range container.hostConfig.GrantSecrets {
+		data, err := container.daemon.secrets.GetData(granted)
+		if err != nil {
+			return err
+		}
+
+		for _, s := range data {
+			s.SaveTo(secretsPath)
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) setupLinkedContainers() ([]string, error) {

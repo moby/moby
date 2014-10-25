@@ -92,6 +92,8 @@ type Builder struct {
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 
+	GrantSecrets []string
+
 	dockerfile  *parser.Node  // the syntax tree of the dockerfile
 	image       string        // image name for commit processing
 	maintainer  string        // maintainer name. could probably be removed.

@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -496,6 +497,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.SetHostConfig(&runconfig.HostConfig{GrantSecrets: b.GrantSecrets})
 	for _, warning := range warnings {
 		fmt.Fprintf(b.OutStream, " ---> [Warning] %s\n", warning)
 	}

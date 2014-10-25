@@ -85,6 +85,7 @@ func init() {
 			{"run", "Run a command in a new container"},
 			{"save", "Save an image to a tar archive"},
 			{"search", "Search for an image on the Docker Hub"},
+			{"secret", "Maintain a database of secrets"},
 			{"start", "Start a stopped container"},
 			{"stop", "Stop a running container"},
 			{"tag", "Tag an image into a repository"},
