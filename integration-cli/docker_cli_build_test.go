@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -14,6 +15,186 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 )
+
+func TestBuildEnvironmentReplacementUser(t *testing.T) {
+	name := "testbuildenvironmentreplacement"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM scratch
+  ENV user foo
+  USER ${user}
+  `, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.User")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res != `"foo"` {
+		t.Fatal("User foo from environment not in Config.User on image")
+	}
+
+	logDone("build - user environment replacement")
+}
+
+func TestBuildEnvironmentReplacementVolume(t *testing.T) {
+	name := "testbuildenvironmentreplacement"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM scratch
+  ENV volume /quux
+  VOLUME ${volume}
+  `, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var volumes map[string]interface{}
+
+	if err := json.Unmarshal([]byte(res), &volumes); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := volumes["/quux"]; !ok {
+		t.Fatal("Volume /quux from environment not in Config.Volumes on image")
+	}
+
+	logDone("build - volume environment replacement")
+}
+
+func TestBuildEnvironmentReplacementExpose(t *testing.T) {
+	name := "testbuildenvironmentreplacement"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM scratch
+  ENV port 80
+  EXPOSE ${port}
+  `, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var exposedPorts map[string]interface{}
+
+	if err := json.Unmarshal([]byte(res), &exposedPorts); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := exposedPorts["80/tcp"]; !ok {
+		t.Fatal("Exposed port 80 from environment not in Config.ExposedPorts on image")
+	}
+
+	logDone("build - expose environment replacement")
+}
+
+func TestBuildEnvironmentReplacementWorkdir(t *testing.T) {
+	name := "testbuildenvironmentreplacement"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  ENV MYWORKDIR /work
+  RUN mkdir ${MYWORKDIR}
+  WORKDIR ${MYWORKDIR}
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	logDone("build - workdir environment replacement")
+}
+
+func TestBuildEnvironmentReplacementAddCopy(t *testing.T) {
+	name := "testbuildenvironmentreplacement"
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(`
+  FROM scratch
+  ENV baz foo
+  ENV quux bar
+  ENV dot .
+
+  ADD ${baz} ${dot}
+  COPY ${quux} ${dot}
+  `,
+		map[string]string{
+			"foo": "test1",
+			"bar": "test2",
+		})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+
+	logDone("build - add/copy environment replacement")
+}
+
+func TestBuildEnvironmentReplacementEnv(t *testing.T) {
+	name := "testbuildenvironmentreplacement"
+
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`
+  FROM scratch
+  ENV foo foo
+  ENV bar ${foo}
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	envResult := []string{}
+
+	if err = unmarshalJSON([]byte(res), &envResult); err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+
+	for _, env := range envResult {
+		parts := strings.SplitN(env, "=", 2)
+		if parts[0] == "bar" {
+			found = true
+			if parts[1] != "foo" {
+				t.Fatal("Could not find replaced var for env `bar`: got %q instead of `foo`", parts[1])
+			}
+		}
+	}
+
+	if !found {
+		t.Fatal("Never found the `bar` env variable")
+	}
+
+	logDone("build - env environment replacement")
+}
 
 func TestBuildHandleEscapes(t *testing.T) {
 	name := "testbuildhandleescapes"
@@ -170,7 +351,7 @@ func TestBuildEnvOverwrite(t *testing.T) {
 		`
     FROM busybox
     ENV TEST foo
-    CMD echo \${TEST}
+    CMD echo ${TEST}
     `,
 		true)
 
@@ -2618,6 +2799,7 @@ func TestBuildEnvUsage(t *testing.T) {
 	name := "testbuildenvusage"
 	defer deleteImages(name)
 	dockerfile := `FROM busybox
+ENV    HOME /root
 ENV    PATH $HOME/bin:$PATH
 ENV    PATH /tmp:$PATH
 RUN    [ "$PATH" = "/tmp:$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" ]
