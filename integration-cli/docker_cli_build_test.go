@@ -15,6 +15,92 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildHandleEscapes(t *testing.T) {
+	name := "testbuildhandleescapes"
+
+	defer deleteImages(name)
+
+	_, err := buildImage(name,
+		`
+  FROM scratch
+  ENV FOO bar
+  VOLUME ${FOO}
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result map[string]map[string]struct{}
+
+	res, err := inspectFieldJSON(name, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := result["bar"]; !ok {
+		t.Fatal("Could not find volume bar set from env foo in volumes table")
+	}
+
+	_, err = buildImage(name,
+		`
+  FROM scratch
+  ENV FOO bar
+  VOLUME \${FOO}
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = inspectFieldJSON(name, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := result["${FOO}"]; !ok {
+		t.Fatal("Could not find volume ${FOO} set from env foo in volumes table")
+	}
+
+	// this test in particular provides *7* backslashes and expects 6 to come back.
+	// Like above, the first escape is swallowed and the rest are treated as
+	// literals, this one is just less obvious because of all the character noise.
+
+	_, err = buildImage(name,
+		`
+  FROM scratch
+  ENV FOO bar
+  VOLUME \\\\\\\${FOO}
+  `, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = inspectFieldJSON(name, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := result[`\\\\\\${FOO}`]; !ok {
+		t.Fatal(`Could not find volume \\\\\\${FOO} set from env foo in volumes table`)
+	}
+
+	logDone("build - handle escapes")
+}
+
 func TestBuildOnBuildLowercase(t *testing.T) {
 	name := "testbuildonbuildlowercase"
 	name2 := "testbuildonbuildlowercase2"

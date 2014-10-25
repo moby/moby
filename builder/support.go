@@ -24,8 +24,9 @@ func (b *Builder) replaceEnv(str string) string {
 				continue
 			}
 
+			prefix := match[:idx]
 			stripped := match[idx+2:]
-			str = strings.Replace(str, match, "$"+stripped, -1)
+			str = strings.Replace(str, match, prefix+"$"+stripped, -1)
 			continue
 		}
 
