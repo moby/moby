@@ -29,8 +29,9 @@ To install the latest Ubuntu package (may not be the latest Docker release):
 
     $ sudo apt-get update
     $ sudo apt-get install docker.io
-    $ sudo ln -sf /usr/bin/docker.io /usr/local/bin/docker
-    $ sudo sed -i '$acomplete -F _docker docker' /etc/bash_completion.d/docker.io
+
+Then, to enable tab-completion of Docker commands in BASH, either restart BASH or:
+
     $ source /etc/bash_completion.d/docker.io
 
 If you'd like to try the latest version of Docker:
@@ -202,7 +203,18 @@ Type `exit` to exit
 
 **Done!**, now continue with the [User Guide](/userguide/).
 
-### Giving non-root access
+### Upgrade
+
+To install the latest version of Docker, use the standard
+`apt-get` method:
+
+    # update your sources list
+    $ sudo apt-get update
+
+    # install the latest
+    $ sudo apt-get install lxc-docker
+
+## Giving non-root access
 
 The `docker` daemon always runs as the `root` user, and since Docker
 version 0.5.2, the `docker` daemon binds to a Unix socket instead of a
@@ -221,7 +233,7 @@ alternative group.
 > **Warning**: 
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) details.
+> /articles/security/#dockersecurity-daemon) for details.
 
 **Example:**
 
@@ -237,17 +249,6 @@ alternative group.
     # Restart the Docker daemon.
     # If you are in Ubuntu 14.04, use docker.io instead of docker
     $ sudo service docker restart
-
-### Upgrade
-
-To install the latest version of docker, use the standard
-`apt-get` method:
-
-    # update your sources list
-    $ sudo apt-get update
-
-    # install the latest
-    $ sudo apt-get install lxc-docker
 
 ## Memory and Swap Accounting
 
