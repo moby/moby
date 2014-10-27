@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 )
 
 // scans string for api version in the URL path. returns the trimmed hostname, if version found, string and API version.

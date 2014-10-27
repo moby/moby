@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"

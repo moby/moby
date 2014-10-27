@@ -18,12 +18,15 @@ import (
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/log"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
+
+type Fataler interface {
+	Fatal(...interface{})
+}
 
 // This file contains utility functions for docker's unit test suite.
 // It has to be named XXX_test.go, apparently, in other to access private functions
@@ -31,7 +34,7 @@ import (
 
 // Create a temporary daemon suitable for unit testing.
 // Call t.Fatal() at the first error.
-func mkDaemon(f log.Fataler) *daemon.Daemon {
+func mkDaemon(f Fataler) *daemon.Daemon {
 	eng := newTestEngine(f, false, "")
 	return mkDaemonFromEngine(eng, f)
 	// FIXME:
@@ -40,7 +43,7 @@ func mkDaemon(f log.Fataler) *daemon.Daemon {
 	// [...]
 }
 
-func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f log.Fataler, name string) (shortId string) {
+func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler, name string) (shortId string) {
 	job := eng.Job("create", name)
 	if err := job.ImportEnv(config); err != nil {
 		f.Fatal(err)
@@ -53,23 +56,23 @@ func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f lo
 	return engine.Tail(outputBuffer, 1)
 }
 
-func createTestContainer(eng *engine.Engine, config *runconfig.Config, f log.Fataler) (shortId string) {
+func createTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler) (shortId string) {
 	return createNamedTestContainer(eng, config, f, "")
 }
 
-func startContainer(eng *engine.Engine, id string, t log.Fataler) {
+func startContainer(eng *engine.Engine, id string, t Fataler) {
 	job := eng.Job("start", id)
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func containerRun(eng *engine.Engine, id string, t log.Fataler) {
+func containerRun(eng *engine.Engine, id string, t Fataler) {
 	startContainer(eng, id, t)
 	containerWait(eng, id, t)
 }
 
-func containerFileExists(eng *engine.Engine, id, dir string, t log.Fataler) bool {
+func containerFileExists(eng *engine.Engine, id, dir string, t Fataler) bool {
 	c := getContainer(eng, id, t)
 	if err := c.Mount(); err != nil {
 		t.Fatal(err)
@@ -84,7 +87,7 @@ func containerFileExists(eng *engine.Engine, id, dir string, t log.Fataler) bool
 	return true
 }
 
-func containerAttach(eng *engine.Engine, id string, t log.Fataler) (io.WriteCloser, io.ReadCloser) {
+func containerAttach(eng *engine.Engine, id string, t Fataler) (io.WriteCloser, io.ReadCloser) {
 	c := getContainer(eng, id, t)
 	i, err := c.StdinPipe()
 	if err != nil {
@@ -97,31 +100,31 @@ func containerAttach(eng *engine.Engine, id string, t log.Fataler) (io.WriteClos
 	return i, o
 }
 
-func containerWait(eng *engine.Engine, id string, t log.Fataler) int {
+func containerWait(eng *engine.Engine, id string, t Fataler) int {
 	ex, _ := getContainer(eng, id, t).WaitStop(-1 * time.Second)
 	return ex
 }
 
-func containerWaitTimeout(eng *engine.Engine, id string, t log.Fataler) error {
+func containerWaitTimeout(eng *engine.Engine, id string, t Fataler) error {
 	_, err := getContainer(eng, id, t).WaitStop(500 * time.Millisecond)
 	return err
 }
 
-func containerKill(eng *engine.Engine, id string, t log.Fataler) {
+func containerKill(eng *engine.Engine, id string, t Fataler) {
 	if err := eng.Job("kill", id).Run(); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func containerRunning(eng *engine.Engine, id string, t log.Fataler) bool {
+func containerRunning(eng *engine.Engine, id string, t Fataler) bool {
 	return getContainer(eng, id, t).IsRunning()
 }
 
-func containerAssertExists(eng *engine.Engine, id string, t log.Fataler) {
+func containerAssertExists(eng *engine.Engine, id string, t Fataler) {
 	getContainer(eng, id, t)
 }
 
-func containerAssertNotExists(eng *engine.Engine, id string, t log.Fataler) {
+func containerAssertNotExists(eng *engine.Engine, id string, t Fataler) {
 	daemon := mkDaemonFromEngine(eng, t)
 	if c := daemon.Get(id); c != nil {
 		t.Fatal(fmt.Errorf("Container %s should not exist", id))
@@ -130,7 +133,7 @@ func containerAssertNotExists(eng *engine.Engine, id string, t log.Fataler) {
 
 // assertHttpNotError expect the given response to not have an error.
 // Otherwise the it causes the test to fail.
-func assertHttpNotError(r *httptest.ResponseRecorder, t log.Fataler) {
+func assertHttpNotError(r *httptest.ResponseRecorder, t Fataler) {
 	// Non-error http status are [200, 400)
 	if r.Code < http.StatusOK || r.Code >= http.StatusBadRequest {
 		t.Fatal(fmt.Errorf("Unexpected http error: %v", r.Code))
@@ -139,14 +142,14 @@ func assertHttpNotError(r *httptest.ResponseRecorder, t log.Fataler) {
 
 // assertHttpError expect the given response to have an error.
 // Otherwise the it causes the test to fail.
-func assertHttpError(r *httptest.ResponseRecorder, t log.Fataler) {
+func assertHttpError(r *httptest.ResponseRecorder, t Fataler) {
 	// Non-error http status are [200, 400)
 	if !(r.Code < http.StatusOK || r.Code >= http.StatusBadRequest) {
 		t.Fatal(fmt.Errorf("Unexpected http success code: %v", r.Code))
 	}
 }
 
-func getContainer(eng *engine.Engine, id string, t log.Fataler) *daemon.Container {
+func getContainer(eng *engine.Engine, id string, t Fataler) *daemon.Container {
 	daemon := mkDaemonFromEngine(eng, t)
 	c := daemon.Get(id)
 	if c == nil {
@@ -155,7 +158,7 @@ func getContainer(eng *engine.Engine, id string, t log.Fataler) *daemon.Containe
 	return c
 }
 
-func mkDaemonFromEngine(eng *engine.Engine, t log.Fataler) *daemon.Daemon {
+func mkDaemonFromEngine(eng *engine.Engine, t Fataler) *daemon.Daemon {
 	iDaemon := eng.Hack_GetGlobalVar("httpapi.daemon")
 	if iDaemon == nil {
 		panic("Legacy daemon field not set in engine")
@@ -167,7 +170,7 @@ func mkDaemonFromEngine(eng *engine.Engine, t log.Fataler) *daemon.Daemon {
 	return daemon
 }
 
-func newTestEngine(t log.Fataler, autorestart bool, root string) *engine.Engine {
+func newTestEngine(t Fataler, autorestart bool, root string) *engine.Engine {
 	if root == "" {
 		if dir, err := newTestDirectory(unitTestStoreBase); err != nil {
 			t.Fatal(err)
@@ -200,7 +203,7 @@ func newTestEngine(t log.Fataler, autorestart bool, root string) *engine.Engine 
 	return eng
 }
 
-func NewTestEngine(t log.Fataler) *engine.Engine {
+func NewTestEngine(t Fataler) *engine.Engine {
 	return newTestEngine(t, false, "")
 }
 

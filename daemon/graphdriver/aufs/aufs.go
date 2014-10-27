@@ -30,9 +30,9 @@ import (
 	"sync"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/log"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"

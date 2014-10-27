@@ -4,9 +4,9 @@ import (
 	"os"
 	"runtime"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/registry"

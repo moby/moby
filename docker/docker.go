@@ -28,6 +28,7 @@ func main() {
 	if reexec.Init() {
 		return
 	}
+
 	flag.Parse()
 	// FIXME: validate daemon flags here
 
@@ -38,6 +39,8 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
+
+	initLogging(*flDebug)
 
 	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")

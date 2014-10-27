@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 )
 
 type DevmapperLogger interface {

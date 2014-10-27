@@ -27,10 +27,10 @@ import (
 	"path"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"

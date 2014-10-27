@@ -23,6 +23,7 @@ import (
 	"text/template"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
@@ -30,7 +31,6 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/log"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
