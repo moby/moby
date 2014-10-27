@@ -2,12 +2,13 @@ package proxy
 
 import (
 	"encoding/binary"
-	"log"
 	"net"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
