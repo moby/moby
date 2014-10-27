@@ -1229,6 +1229,38 @@ func postContainersSweep(eng *engine.Engine, version version.Version, w http.Res
 	return nil
 }
 
+func postContainersLimit(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	var job = eng.Job("limit", vars["name"])
+
+	var data engine.Env
+
+	if contentType := r.Header.Get("Content-Type"); api.MatchesContentType(contentType, "application/json") {
+		if err := data.Decode(r.Body); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Content-Type not supported: %s", contentType)
+	}
+
+	job.SetenvInt64("memory", data.GetInt64("memory"))
+	job.SetenvInt64("cpuShares", data.GetInt64("cpuShares"))
+	job.Setenv("cpuset", data.Get("cpuset"))
+	job.Setenv("saveChanges", r.Form.Get("saveChanges"))
+
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1357,6 +1389,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/exec/{name:.*}/resize":        postContainerExecResize,
 			"/containers/{name:.*}/cgroup":  postContainersCgroup,
 			"/containers/{name:.*}/sweep":   postContainersSweep,
+			"/containers/{name:.*}/limit":   postContainersLimit,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

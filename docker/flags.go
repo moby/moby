@@ -71,6 +71,7 @@ func init() {
 			{"info", "Display system-wide information"},
 			{"inspect", "Return low-level information on a container"},
 			{"kill", "Kill a running container"},
+			{"limit", "change resource limitation in one or more containers"},
 			{"load", "Load an image from a tar archive"},
 			{"login", "Register or log in to a Docker registry server"},
 			{"logout", "Log out from a Docker registry server"},

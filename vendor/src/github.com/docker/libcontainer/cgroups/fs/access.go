@@ -19,6 +19,11 @@ var (
 		"memory":  []string{"memory.limit_in_bytes", "memory.soft_limit_in_bytes", "memory.memsw.limit_in_bytes"},
 		"freezer": []string{"freezer.state"},
 	}
+	supportedSubsystems = map[string]subsystem{
+		"memory": &MemoryGroup{},
+		"cpu":    &CpuGroup{},
+		"cpuset": &CpusetGroup{},
+	}
 	ErrCanNotAccess = errors.New("this subsystem can not be accessed")
 )
 
@@ -79,4 +84,19 @@ func getPath(id, driver, subsystem string) (string, error) {
 		return "", fmt.Errorf("%s not found", path)
 	}
 	return path, nil
+}
+
+func SetResources(c *cgroups.Cgroup, pid int) (*data, error) {
+	d, err := getCgroupData(c, pid)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, sys := range supportedSubsystems {
+		if err := sys.Set(d); err != nil {
+			return nil, err
+		}
+	}
+
+	return d, nil
 }

@@ -2644,3 +2644,54 @@ func (cli *DockerCli) CmdSweep(args ...string) error {
 
 	return encounteredError
 }
+
+func (cli *DockerCli) CmdLimit(args ...string) error {
+	cmd := cli.Subcmd("limit", "CONTAINER [CONTAINER...]", "change resource limitation in one or more containers")
+	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
+	flCpuShares := cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+	flCpuset := cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+	saveChanges := cmd.Bool([]string{"s", "-save-changes"}, false, "save changes to config file")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var data engine.Env
+
+	if *flMemoryString != "" {
+		parsedMemory, err := units.RAMInBytes(*flMemoryString)
+		if err != nil {
+			return err
+		}
+		data.SetInt64("memory", parsedMemory)
+	}
+	if *flCpuShares != 0 {
+		data.SetInt64("cpuShares", *flCpuShares)
+	}
+	if *flCpuset != "" {
+		data.Set("cpuset", *flCpuset)
+	}
+
+	v := url.Values{}
+
+	if *saveChanges {
+		v.Set("saveChanges", "1")
+	}
+
+	var encounteredError error
+	for _, name := range cmd.Args() {
+		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/limit?"+v.Encode(), data, false))
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to limit resources in one or more containers")
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+
+	return encounteredError
+}

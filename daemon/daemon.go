@@ -133,6 +133,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"cgroup":            daemon.ContainerCgroup,
 		"metric":            daemon.ContainerMetric,
 		"sweep":             daemon.ContainerSweep,
+		"limit":             daemon.ContainerLimit,
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err
