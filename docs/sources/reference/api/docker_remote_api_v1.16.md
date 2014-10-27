@@ -136,6 +136,7 @@ Create a container
                      "22/tcp": {}
              },
              "SecurityOpts": [""],
+             "BuildOnly": false
              "HostConfig": {
                "Binds":["/tmp:/tmp"],
                "Links":["redis3:redis"],
