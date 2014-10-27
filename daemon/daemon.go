@@ -41,8 +41,6 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
-	"github.com/docker/metricdriver"
-	_ "github.com/docker/metricdriver/lxc"
 )
 
 var (
@@ -102,7 +100,6 @@ type Daemon struct {
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
 	trustStore     *trust.TrustStore
-	metricDriver   metricdriver.Driver
 }
 
 // Install installs daemon capabilities to eng.
@@ -918,7 +915,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		execDriver:     ed,
 		eng:            eng,
 		trustStore:     t,
-		metricDriver:   md,
 	}
 	if err := daemon.restore(); err != nil {
 		return nil, err

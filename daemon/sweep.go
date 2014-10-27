@@ -14,7 +14,7 @@ func (daemon *Daemon) ContainerSweep(job *engine.Job) engine.Status {
 		if !container.State.IsRunning() {
 			return job.Errorf("Container already stopped")
 		}
-		if err := container.Sweep(); err != nil {
+		if err := container.Sweep(job.Eng); err != nil {
 			return job.Errorf("Cannot cleanup container %s: %s\n", name, err)
 		}
 		container.LogEvent("sweep")

@@ -23,6 +23,8 @@ type CpuUsage struct {
 	// Time spent by tasks of the cgroup in user mode.
 	// Units: nanoseconds.
 	UsageInUsermode uint64 `json:"usage_in_usermode"`
+
+	CurrentUsage float64 `json:"current_usage,omitempty"`
 }
 
 type CpuStats struct {

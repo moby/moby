@@ -362,14 +362,14 @@ func Allocate(job *engine.Job) engine.Status {
 		settings    engine.Env
 	)
 
-	if requestedIP != nil {
+	if requestedIP != "" {
 		settings, err = networkdriver.ParseNetworkSettings(requestedIP)
 		if err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
 		ipNet := net.ParseIP(settings.Get("IP"))
-		ip, err = ipallocator.RequestIP(bridgeNetwork, &ipNet)
+		ip, err = ipallocator.RequestIP(bridgeNetwork, ipNet)
 	} else {
 		settings = engine.Env{}
 		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
@@ -382,13 +382,6 @@ func Allocate(job *engine.Job) engine.Status {
 	if mac, err = net.ParseMAC(job.Getenv("RequestedMac")); err != nil {
 		mac = generateMacAddr(ip)
 	}
-
-	out := engine.Env{}
-	out.Set("IP", ip.String())
-	out.Set("Mask", bridgeNetwork.Mask.String())
-	out.Set("Gateway", bridgeNetwork.IP.String())
-	out.Set("MacAddress", mac.String())
-	out.Set("Bridge", bridgeIface)
 
 	size, _ := bridgeNetwork.Mask.Size()
 
@@ -413,6 +406,7 @@ func Allocate(job *engine.Job) engine.Status {
 	out.Set("Gateway", settings.Get("Gateway"))
 	out.Set("Bridge", settings.Get("Bridge"))
 	out.SetInt("IPPrefixLen", settings.GetInt("IPPrefixLen"))
+	out.Set("MacAddress", mac.String())
 
 	currentInterfaces.Set(id, &networkInterface{
 		IP: ip,

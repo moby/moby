@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/sweep"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
@@ -1031,6 +1032,10 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	}
 	log.Debugf("[devmapper] Unmount done")
 
+	if sweep.InSweepStore(hash) {
+		sweep.DeleteFromSweepStore(hash)
+		return nil
+	}
 	if err := devices.deactivateDevice(info); err != nil {
 		return err
 	}

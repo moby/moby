@@ -104,6 +104,8 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(err.Error(), "hasn't been activated") {
 		statusCode = http.StatusForbidden
+	} else if strings.Contains(err.Error(), "Device is busy") {
+		statusCode = 599
 	}
 
 	if err != nil {
@@ -725,10 +727,6 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	job.Setenv("removeLink", r.Form.Get("link"))
 	job.Setenv("checkDevice", r.Form.Get("checkDevice"))
 	if err := job.Run(); err != nil {
-		if err.Error() == "Device is busy" {
-			w.WriteHeader(599) // A pseudo HTTP Response Code
-			return nil
-		}
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

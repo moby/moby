@@ -1,11 +1,14 @@
 package fs
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/system"
@@ -50,10 +53,16 @@ func (s *CpuacctGroup) GetStats(path string, stats *cgroups.Stats) error {
 		return err
 	}
 
+	currentUsage, err := getCurrentUsage(path)
+	if err != nil {
+		return err
+	}
+
 	stats.CpuStats.CpuUsage.TotalUsage = totalUsage
 	stats.CpuStats.CpuUsage.PercpuUsage = percpuUsage
 	stats.CpuStats.CpuUsage.UsageInUsermode = userModeUsage
 	stats.CpuStats.CpuUsage.UsageInKernelmode = kernelModeUsage
+	stats.CpuStats.CpuUsage.CurrentUsage = currentUsage
 	return nil
 }
 
@@ -107,4 +116,60 @@ func getPercpuUsage(path string) ([]uint64, error) {
 		percpuUsage = append(percpuUsage, value)
 	}
 	return percpuUsage, nil
+}
+
+func getSystemCpuUsage() (uint64, error) {
+
+	f, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		parts := strings.Fields(sc.Text())
+		switch parts[0] {
+		case "cpu":
+			if len(parts) < 8 {
+				return 0, fmt.Errorf("invalid number of cpu fields")
+			}
+
+			var total uint64
+			for _, i := range parts[1:8] {
+				v, err := strconv.ParseUint(i, 10, 64)
+				if err != nil {
+					return 0.0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
+				}
+				total += v
+			}
+			return total, nil
+		default:
+			continue
+		}
+	}
+	return 0, fmt.Errorf("invalid stat format")
+}
+
+func getCurrentUsage(path string) (float64, error) {
+	var (
+		err                   error
+		startUsage, lastUsage uint64
+	)
+	startUsageTime := time.Now()
+	if startUsage, err = getCgroupParamUint(path, "cpuacct.usage"); err != nil {
+		return 0, err
+	}
+	// sample for 100ms
+	time.Sleep(100 * time.Millisecond)
+	usageSampleDuration := time.Since(startUsageTime)
+	if lastUsage, err = getCgroupParamUint(path, "cpuacct.usage"); err != nil {
+		return 0, err
+	}
+
+	var deltaUsage = lastUsage - startUsage
+
+	// Delta usage is in nanoseconds of CPU time so get the usage (in cores) over the sample time.
+	currentUsage := float64(deltaUsage) / float64(usageSampleDuration.Nanoseconds())
+	return currentUsage, nil
 }

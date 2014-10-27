@@ -17,10 +17,21 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
 	forceRemove := job.GetenvBool("forceRemove")
+	checkDevice := job.GetenvBool("checkDevice")
 	container := daemon.Get(name)
 
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
+	}
+
+	if checkDevice {
+		if deviceIsBusy, err := container.DeviceIsBusy(); err != nil {
+			return job.Errorf("%v", err)
+		} else {
+			if deviceIsBusy {
+				return job.Errorf("Device is busy: %s", name)
+			}
+		}
 	}
 
 	if removeLink {

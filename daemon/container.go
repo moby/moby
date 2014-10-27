@@ -576,6 +576,10 @@ func (container *Container) cleanup() {
 		}
 	}
 
+	// if container.InSweepStore() {
+	// 	container.DeleteFromSweepStore()
+	// 	return
+	// }
 	if err := container.Unmount(); err != nil {
 		log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
