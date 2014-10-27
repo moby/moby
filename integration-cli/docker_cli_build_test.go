@@ -16,6 +16,40 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildShCmdJSONEntrypoint(t *testing.T) {
+	name := "testbuildshcmdjsonentrypoint"
+	defer deleteImages(name)
+
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    ENTRYPOINT ["/bin/echo"]
+    CMD echo test
+    `,
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(
+		exec.Command(
+			dockerBinary,
+			"run",
+			name))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.TrimSpace(out) != "/bin/sh -c echo test" {
+		t.Fatal("CMD did not contain /bin/sh -c")
+	}
+
+	logDone("build - CMD should always contain /bin/sh -c when specified without JSON")
+}
+
 func TestBuildEnvironmentReplacementUser(t *testing.T) {
 	name := "testbuildenvironmentreplacement"
 	defer deleteImages(name)
