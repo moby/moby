@@ -27,6 +27,7 @@ installs Docker 0.9.1 and all its prerequisites from Ubuntu's repository.
 
 To install the latest Ubuntu package (may not be the latest Docker release):
 
+    $ /bin/bash      # the following assumes we are in the bash shell
     $ sudo apt-get update
     $ sudo apt-get install docker.io
     $ sudo ln -sf /usr/bin/docker.io /usr/local/bin/docker
