@@ -2290,7 +2290,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/start", hostConfig, false)); err != nil {
+	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/start", nil, false)); err != nil {
 		return err
 	}
 
