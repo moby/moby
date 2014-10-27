@@ -70,7 +70,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, root string) error {
+func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error {
 	// Store the layer
 	var (
 		size   int64
@@ -90,20 +90,14 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 		return err
 	}
 
-	// If raw json is provided, then use it
-	if jsonData != nil {
-		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-			return err
-		}
-	} else {
-		if jsonData, err = json.Marshal(img); err != nil {
-			return err
-		}
-		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-			return err
-		}
+	f, err := os.OpenFile(jsonPath(root), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+	if err != nil {
+		return err
 	}
-	return nil
+
+	defer f.Close()
+
+	return json.NewEncoder(f).Encode(img)
 }
 
 func (img *Image) SetGraph(graph Graph) {
