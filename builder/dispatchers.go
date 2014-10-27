@@ -234,7 +234,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
 	b.Config.Cmd = handleJsonArgs(args, attributes)
 
-	if !attributes["json"] && len(b.Config.Entrypoint) == 0 {
+	if !attributes["json"] {
 		b.Config.Cmd = append([]string{"/bin/sh", "-c"}, b.Config.Cmd...)
 	}
 
