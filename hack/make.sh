@@ -238,8 +238,12 @@ main() {
 		bundles=(${DEFAULT_BUNDLES[@]})
 	else
 		bundles=($@)
-	fi
+    fi
 	for bundle in ${bundles[@]}; do
+        if [ $bundle == "test-integration" ] && [ ! -x "bundles/$VERSION/dynbinary/dockerinit-$VERSION" ]; then
+            bundle $SCRIPTDIR/make/dynbinary
+            bundle $SCRIPTDIR/make/dyntest-integration
+        fi
 		bundle $SCRIPTDIR/make/$bundle
 		echo
 	done
