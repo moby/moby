@@ -230,11 +230,7 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 		}
 
 		result := make(map[string]string)
-		rawJSON, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal(rawJSON, &result); err != nil {
+		if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -305,12 +301,8 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", r.indexEndpoint.URL.Scheme, req.URL.Host))
 	}
 
-	checksumsJSON, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
 	remoteChecksums := []*ImgData{}
-	if err := json.Unmarshal(checksumsJSON, &remoteChecksums); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&remoteChecksums); err != nil {
 		return nil, err
 	}
 
@@ -590,12 +582,8 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	if res.StatusCode != 200 {
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
 	}
-	rawData, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
 	result := new(SearchResults)
-	err = json.Unmarshal(rawData, result)
+	err = json.NewDecoder(res.Body).Decode(result)
 	return result, err
 }
 
