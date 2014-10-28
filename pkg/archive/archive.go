@@ -193,7 +193,6 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 			hdr.Devmajor = int64(major(uint64(stat.Rdev)))
 			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 		}
-
 	}
 
 	// if it's a regular file and has more than 1 link,
@@ -228,6 +227,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		}
 
 		ta.Buffer.Reset(ta.TarWriter)
+		defer ta.Buffer.Reset(nil)
 		_, err = io.Copy(ta.Buffer, file)
 		file.Close()
 		if err != nil {
@@ -237,7 +237,6 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		if err != nil {
 			return err
 		}
-		ta.Buffer.Reset(nil)
 	}
 
 	return nil

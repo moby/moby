@@ -333,6 +333,8 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 		newRoot, err2 = collectFileInfo(newDir)
 		errs <- err2
 	}()
+
+	// block until both routines have returned
 	for i := 0; i < 2; i++ {
 		if err := <-errs; err != nil {
 			return nil, err
@@ -409,7 +411,9 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 		if err := ta.TarWriter.Close(); err != nil {
 			log.Debugf("Can't close layer: %s", err)
 		}
-		writer.Close()
+		if err := writer.Close(); err != nil {
+			log.Debugf("failed close Changes writer: %s", err)
+		}
 	}()
 	return reader, nil
 }
