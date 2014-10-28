@@ -44,6 +44,12 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /info`
+
+**New!**
+`info` now returns the number of CPUs available on the machine (`NCPU`) and
+total memory available (`MemTotal`).
+
 ## v1.15
 
 ### Full Documentation

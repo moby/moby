@@ -37,6 +37,8 @@ Here is a sample output:
     Execution Driver: native-0.2
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
+    CPUs: 1
+    Total Memory: 2 GiB
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

@@ -1164,6 +1164,8 @@ Display system-wide information
              "Driver":"btrfs",
              "ExecutionDriver":"native-0.1",
              "KernelVersion":"3.12.0-1-amd64"
+             "NCPU":1,
+             "MemTotal":2099236864,
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
