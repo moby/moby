@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -34,5 +35,124 @@ func TestExecPS(t *testing.T) {
 	actual := strings.Trim(lines[1], "\n ")
 	if actual != expected {
 		t.Fatalf("expected output %q but received %q", expected, actual)
+	}
+}
+
+func TestIPCPrivate(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootFs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	l, err := os.Readlink("/proc/1/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := newTemplateConfig(rootfs)
+	config.Namespaces["NEWIPC"] = true
+	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exitCode != 0 {
+		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
+	}
+
+	if actual := strings.Trim(buffers.Stdout.String(), "\n"); actual == l {
+		t.Fatalf("ipc link should be private to the conatiner but equals host %q %q", actual, l)
+	}
+}
+
+func TestIPCHost(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootFs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	l, err := os.Readlink("/proc/1/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := newTemplateConfig(rootfs)
+	config.Namespaces["NEWIPC"] = false
+	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exitCode != 0 {
+		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
+	}
+
+	if actual := strings.Trim(buffers.Stdout.String(), "\n"); actual != l {
+		t.Fatalf("ipc link not equal to host link %q %q", actual, l)
+	}
+}
+
+func TestIPCJoinPath(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootFs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	l, err := os.Readlink("/proc/1/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := newTemplateConfig(rootfs)
+	config.Namespaces["NEWIPC"] = false
+	config.IpcNsPath = "/proc/1/ns/ipc"
+
+	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exitCode != 0 {
+		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
+	}
+
+	if actual := strings.Trim(buffers.Stdout.String(), "\n"); actual != l {
+		t.Fatalf("ipc link not equal to host link %q %q", actual, l)
+	}
+}
+
+func TestIPCBadPath(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootFs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+	config.Namespaces["NEWIPC"] = false
+	config.IpcNsPath = "/proc/1/ns/ipcc"
+
+	_, _, err = runContainer(config, "", "true")
+	if err == nil {
+		t.Fatal("container succeded with bad ipc path")
 	}
 }
