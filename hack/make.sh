@@ -95,7 +95,11 @@ if [ -z "$DOCKER_CLIENTONLY" ]; then
 fi
 
 # Use these flags when compiling the tests and final binary
-LDFLAGS='-w'
+LDFLAGS='
+	-w
+	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
+	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
+'
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
