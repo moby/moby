@@ -28,6 +28,30 @@ func (n NetworkMode) IsNone() bool {
 	return n == "none"
 }
 
+type IpcMode string
+
+// IsPrivate indicates whether container use it's private ipc stack
+func (n IpcMode) IsPrivate() bool {
+	return !(n.IsHost() || n.IsContainer())
+}
+
+func (n IpcMode) IsHost() bool {
+	return n == "host"
+}
+
+func (n IpcMode) IsContainer() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
+func (n IpcMode) Container() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
 type DeviceMapping struct {
 	PathOnHost        string
 	PathInContainer   string
@@ -53,6 +77,7 @@ type HostConfig struct {
 	VolumesFrom     []string
 	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
+	IpcMode         IpcMode
 	CapAdd          []string
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
@@ -84,6 +109,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
+		IpcMode:         IpcMode(job.Getenv("IpcMode")),
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)

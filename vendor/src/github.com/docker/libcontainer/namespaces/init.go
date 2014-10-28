@@ -11,6 +11,7 @@ import (
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/console"
+	"github.com/docker/libcontainer/ipc"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount"
 	"github.com/docker/libcontainer/netlink"
@@ -65,6 +66,9 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 		if err := system.Setctty(); err != nil {
 			return fmt.Errorf("setctty %s", err)
 		}
+	}
+	if err := ipc.Initialize(container.IpcNsPath); err != nil {
+		return fmt.Errorf("setup IPC %s", err)
 	}
 	if err := setupNetwork(container, networkState); err != nil {
 		return fmt.Errorf("setup networking %s", err)

@@ -33,7 +33,7 @@ func TestInit(t *testing.T) {
 			t.Fatal(err)
 		}
 		if plabel != "user_u:user_r:user_t:s0:c1,c15" || mlabel != "user_u:object_r:svirt_sandbox_file_t:s0:c1,c15" {
-			t.Log("InitLabels User Failed")
+			t.Log("InitLabels User Match Failed")
 			t.Log(plabel, mlabel)
 			t.Fatal(err)
 		}
@@ -44,5 +44,19 @@ func TestInit(t *testing.T) {
 			t.Log("InitLabels Bad Failed")
 			t.Fatal(err)
 		}
+	}
+}
+func TestDuplicateLabel(t *testing.T) {
+	secopt := DupSecOpt("system_u:system_r:svirt_lxc_net_t:s0:c1,c2")
+	t.Log(secopt)
+	if secopt[0] != "label:type:svirt_lxc_net_t" {
+		t.Errorf("DupSecOpt Failed type incorrect")
+	}
+	if secopt[1] != "label:level:s0:c1,c2" {
+		t.Errorf("DupSecOpt Failed level incorrect")
+	}
+	secopt = DisableSecOpt()
+	if secopt[0] != "label:disable" {
+		t.Errorf("DisableSecOpt Failed level incorrect")
 	}
 }
