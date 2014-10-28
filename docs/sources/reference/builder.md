@@ -104,6 +104,47 @@ be treated as an argument. This allows statements like:
 Here is the set of instructions you can use in a `Dockerfile` for building
 images.
 
+### Environment Replacement
+
+**Note:** prior to 1.3, `Dockerfile` environment variables were handled
+similarly, in that they would be replaced as described below. However, there
+was no formal definition on as to which instructions handled environment
+replacement at the time. After 1.3 this behavior will be preserved and
+canonical.
+
+Environment variables (declared with the `ENV` statement) can also be used in
+certain instructions as variables to be interpreted by the `Dockerfile`. Escapes
+are also handled for including variable-like syntax into a statement literally.
+
+Environment variables are notated in the `Dockerfile` either with
+`$variable_name` or `${variable_name}`. They are treated equivalently and the
+brace syntax is typically used to address issues with variable names with no
+whitespace, like `${foo}_bar`.
+
+Escaping is possible by adding a `\` before the variable: `\$foo` or `\${foo}`,
+for example, will translate to `$foo` and `${foo}` literals respectively.
+ 
+Example (parsed representation is displayed after the `#`):
+
+    FROM busybox
+    ENV foo /bar
+    WORKDIR ${foo}   # WORKDIR /bar
+    ADD . $foo       # ADD . /bar
+    COPY \$foo /quux # COPY $foo /quux
+
+The instructions that handle environment variables in the `Dockerfile` are:
+
+* `ENV`
+* `ADD`
+* `COPY`
+* `WORKDIR`
+* `EXPOSE`
+* `VOLUME`
+* `USER`
+
+`ONBUILD` instructions are **NOT** supported for environment replacement, even
+the instructions above.
+
 ## The `.dockerignore` file
 
 If a file named `.dockerignore` exists in the source repository, then it
