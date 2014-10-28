@@ -21,6 +21,12 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+const (
+	// NoBaseImageSpecifier is the symbol used by the FROM
+	// command to specify that no base image is to be used.
+	NoBaseImageSpecifier string = "scratch"
+)
+
 // dispatch with no layer / parsing. This is effectively not a command.
 func nullDispatch(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return nil
@@ -115,6 +121,12 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
+	if name == NoBaseImageSpecifier {
+		b.image = ""
+		b.noBaseImage = true
+		return nil
+	}
+
 	image, err := b.Daemon.Repositories().LookupImage(name)
 	if b.Pull {
 		image, err = b.pullImage(name)
@@ -191,7 +203,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if b.image == "" {
+	if b.image == "" && !b.noBaseImage {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 

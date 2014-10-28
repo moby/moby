@@ -230,9 +230,9 @@ func TestEventsRedirectStdout(t *testing.T) {
 
 func TestEventsImagePull(t *testing.T) {
 	since := time.Now().Unix()
-	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
+	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		t.Fatalf("pulling the scratch image from has failed: %s, %v", out, err)
+		t.Fatalf("pulling the hello-world image from has failed: %s, %v", out, err)
 	}
 
 	eventsCmd := exec.Command(dockerBinary, "events",
@@ -243,7 +243,7 @@ func TestEventsImagePull(t *testing.T) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
 
-	if !strings.HasSuffix(event, "scratch:latest: pull") {
+	if !strings.HasSuffix(event, "hello-world:latest: pull") {
 		t.Fatalf("Missing pull event - got:%q", event)
 	}
 

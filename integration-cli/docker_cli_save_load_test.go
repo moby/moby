@@ -270,7 +270,7 @@ func TestSaveSingleTag(t *testing.T) {
 func TestSaveImageId(t *testing.T) {
 	repoName := "foobar-save-image-id-test"
 
-	tagCmdFinal := fmt.Sprintf("%v tag scratch:latest %v:latest", dockerBinary, repoName)
+	tagCmdFinal := fmt.Sprintf("%v tag emptyfs:latest %v:latest", dockerBinary, repoName)
 	tagCmd := exec.Command("bash", "-c", tagCmdFinal)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
@@ -370,7 +370,7 @@ func TestSaveMultipleNames(t *testing.T) {
 	repoName := "foobar-save-multi-name-test"
 
 	// Make one image
-	tagCmdFinal := fmt.Sprintf("%v tag scratch:latest %v-one:latest", dockerBinary, repoName)
+	tagCmdFinal := fmt.Sprintf("%v tag emptyfs:latest %v-one:latest", dockerBinary, repoName)
 	tagCmd := exec.Command("bash", "-c", tagCmdFinal)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
@@ -378,7 +378,7 @@ func TestSaveMultipleNames(t *testing.T) {
 	defer deleteImages(repoName + "-one")
 
 	// Make two images
-	tagCmdFinal = fmt.Sprintf("%v tag scratch:latest %v-two:latest", dockerBinary, repoName)
+	tagCmdFinal = fmt.Sprintf("%v tag emptyfs:latest %v-two:latest", dockerBinary, repoName)
 	tagCmd = exec.Command("bash", "-c", tagCmdFinal)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)

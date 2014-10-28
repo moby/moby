@@ -298,6 +298,9 @@ func validateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}
+	if name == "scratch" {
+		return fmt.Errorf("'scratch' is a reserved name")
+	}
 	return nil
 }
 
