@@ -116,6 +116,7 @@ BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
 : ${TIMEOUT:=30m}
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
+GCCGOFLAGS="-O3 -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
 # PLEASE do not use these anywhere else.
@@ -124,6 +125,7 @@ LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
+GCCGOFLAGS_STATIC="-static"
 
 if [ "$(uname -s)" = 'FreeBSD' ]; then
 	# Tell cgo the compiler is Clang, not GCC
