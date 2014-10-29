@@ -35,16 +35,7 @@ func scanForAPIVersion(hostname string) (string, APIVersion) {
 }
 
 func NewEndpoint(hostname string) (*Endpoint, error) {
-	var (
-		endpoint        Endpoint
-		trimmedHostname string
-		err             error
-	)
-	if !strings.HasPrefix(hostname, "http") {
-		hostname = "https://" + hostname
-	}
-	trimmedHostname, endpoint.Version = scanForAPIVersion(hostname)
-	endpoint.URL, err = url.Parse(trimmedHostname)
+	endpoint, err := newEndpoint(hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +50,22 @@ func NewEndpoint(hostname string) (*Endpoint, error) {
 		}
 	}
 
+	return endpoint, nil
+}
+func newEndpoint(hostname string) (*Endpoint, error) {
+	var (
+		endpoint        Endpoint
+		trimmedHostname string
+		err             error
+	)
+	if !strings.HasPrefix(hostname, "http") {
+		hostname = "https://" + hostname
+	}
+	trimmedHostname, endpoint.Version = scanForAPIVersion(hostname)
+	endpoint.URL, err = url.Parse(trimmedHostname)
+	if err != nil {
+		return nil, err
+	}
 	return &endpoint, nil
 }
 
