@@ -2,7 +2,7 @@ page_title: Docker Images Test
 page_description: How to work with Docker images.
 page_keywords: documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub, collaboration
 
-<a title="back" class="btn btn-primary back" href="/userguide/dockerimages/#creating-our-own-images">Back</a>
+<a title="back" class="dockerfile back" href="/userguide/dockerimages/#creating-our-own-images">Back</a>
 
 # Dockerfile Tutorial
 
