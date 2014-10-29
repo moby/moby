@@ -50,9 +50,11 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 		authConfig.ServerAddress = endpoint.String()
 	}
 
-	if _, err := Login(authConfig, HTTPRequestFactory(nil)); err != nil {
+	status, err := Login(authConfig, HTTPRequestFactory(nil))
+	if err != nil {
 		return job.Error(err)
 	}
+	job.Printf("%s\n", status)
 
 	return engine.StatusOK
 }
