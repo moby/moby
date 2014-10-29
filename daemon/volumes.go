@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volumes"
@@ -302,7 +302,7 @@ func copyExistingContents(source, destination string) error {
 
 		if len(srcList) == 0 {
 			// If the source volume is empty copy files from the root into the volume
-			if err := archive.CopyWithTar(source, destination); err != nil {
+			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 				return err
 			}
 		}

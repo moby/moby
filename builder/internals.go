@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/promise"
@@ -46,7 +47,9 @@ func (b *Builder) readContext(context io.Reader) error {
 	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version0); err != nil {
 		return err
 	}
-	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
+
+	os.MkdirAll(tmpdirPath, 0700)
+	if err := chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return err
 	}
 
@@ -620,7 +623,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		}
 
 		// try to successfully untar the orig
-		if err := archive.UntarPath(origPath, tarDest); err == nil {
+		if err := chrootarchive.UntarPath(origPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
 			log.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
@@ -630,7 +633,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 		return err
 	}
-	if err := archive.CopyWithTar(origPath, destPath); err != nil {
+	if err := chrootarchive.CopyWithTar(origPath, destPath); err != nil {
 		return err
 	}
 
@@ -643,7 +646,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 }
 
 func copyAsDirectory(source, destination string, destinationExists bool) error {
-	if err := archive.CopyWithTar(source, destination); err != nil {
+	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 		return err
 	}
 

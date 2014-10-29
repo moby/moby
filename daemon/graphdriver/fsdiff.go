@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
@@ -120,7 +121,7 @@ func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveRea
 
 	start := time.Now().UTC()
 	log.Debugf("Start untar layer")
-	if err = archive.ApplyLayer(layerFs, diff); err != nil {
+	if err = chrootarchive.ApplyLayer(layerFs, diff); err != nil {
 		return
 	}
 	log.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
