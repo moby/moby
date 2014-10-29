@@ -62,7 +62,7 @@ docs](http://docs.docker.com/contributing/devenvironment/).
 ### Pull requests are always welcome
 
 We are always thrilled to receive pull requests, and do our best to
-process them as fast as possible. Not sure if that typo is worth a pull
+process them as quickly as possible. Not sure if that typo is worth a pull
 request? Do it! We will appreciate it.
 
 If your pull request is not accepted on the first try, don't be
