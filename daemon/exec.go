@@ -155,7 +155,6 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
-		cStdinCloser     io.Closer
 		execName         = job.Args[0]
 	)
 
@@ -183,10 +182,10 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
+			defer log.Debugf("Closing buffered stdin pipe")
 			io.Copy(w, job.Stdin)
 		}()
 		cStdin = r
-		cStdinCloser = job.Stdin
 	}
 	if execConfig.OpenStdout {
 		cStdout = job.Stdout
@@ -204,7 +203,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		execConfig.StreamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 
-	attachErr := d.attach(&execConfig.StreamConfig, execConfig.OpenStdin, false, execConfig.ProcessConfig.Tty, cStdin, cStdinCloser, cStdout, cStderr)
+	attachErr := d.attach(&execConfig.StreamConfig, execConfig.OpenStdin, false, execConfig.ProcessConfig.Tty, cStdin, cStdout, cStderr)
 
 	execErr := make(chan error)
 
