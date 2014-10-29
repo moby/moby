@@ -168,7 +168,6 @@ update and create images.
 1. We can update a container created from an image and commit the results to an image.
 2. We can use a `Dockerfile` to specify instructions to create an image.
 
-To learn more, check out the [Dockerfile tutorial](/userguide/level1).
 
 ### Updating and committing an image
 
@@ -538,6 +537,9 @@ Let's delete the `training/sinatra` image as we don't need it anymore.
 Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
+
+Test your Dockerfile knowledge with the
+[Dockerfile tutorial](/userguide/level1).
 
 Go to [Linking Containers Together](/userguide/dockerlinks).
 
