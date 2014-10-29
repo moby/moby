@@ -113,7 +113,7 @@ proxy in front of it. You can listen on port `2375` on all network interfaces
 with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
 address: `-H tcp://192.168.59.103:2375`.
 
-On Systemd based systems, you can communicate with the daemon via 
+On Systemd based systems, you can communicate with the daemon via
 [systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
 `docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
 you can also specify individual sockets: `docker -d -H fd://3`. If the
@@ -999,7 +999,7 @@ used, which is observable by the process being suspended. With the cgroups freez
 the process is unaware, and unable to capture, that it is being suspended,
 and subsequently resumed.
 
-See the 
+See the
 [cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
 for further details.
 
@@ -1191,7 +1191,7 @@ removed before the image is removed.
       -d, --detach=false         Detached mode: run the container in the background and print the new container ID
       --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
-      --dns-search=[]            Set custom DNS search domains
+      --dns-search=[]            Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
@@ -1579,7 +1579,7 @@ them to [*Share Images via Repositories*](
 The `docker unpause` command uses the cgroups freezer to un-suspend all
 processes in a container.
 
-See the 
+See the
 [cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
 for further details.
 
