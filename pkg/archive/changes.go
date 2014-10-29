@@ -333,6 +333,8 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 		newRoot, err2 = collectFileInfo(newDir)
 		errs <- err2
 	}()
+
+	// block until both routines have returned
 	for i := 0; i < 2; i++ {
 		if err := <-errs; err != nil {
 			return nil, err
@@ -368,11 +370,15 @@ func minor(device uint64) uint64 {
 // ExportChanges produces an Archive from the provided changes, relative to dir.
 func ExportChanges(dir string, changes []Change) (Archive, error) {
 	reader, writer := io.Pipe()
-	tw := tar.NewWriter(writer)
-
 	go func() {
-		twBuf := pools.BufioWriter32KPool.Get(nil)
-		defer pools.BufioWriter32KPool.Put(twBuf)
+		ta := &tarAppender{
+			TarWriter: tar.NewWriter(writer),
+			Buffer:    pools.BufioWriter32KPool.Get(nil),
+			SeenFiles: make(map[uint64]string),
+		}
+		// this buffer is needed for the duration of this piped stream
+		defer pools.BufioWriter32KPool.Put(ta.Buffer)
+
 		// In general we log errors here but ignore them because
 		// during e.g. a diff operation the container can continue
 		// mutating the filesystem and we can see transient errors
@@ -390,22 +396,24 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					AccessTime: timestamp,
 					ChangeTime: timestamp,
 				}
-				if err := tw.WriteHeader(hdr); err != nil {
+				if err := ta.TarWriter.WriteHeader(hdr); err != nil {
 					log.Debugf("Can't write whiteout header: %s", err)
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
-				if err := addTarFile(path, change.Path[1:], tw, twBuf); err != nil {
+				if err := ta.addTarFile(path, change.Path[1:]); err != nil {
 					log.Debugf("Can't add file %s to tar: %s", path, err)
 				}
 			}
 		}
 
 		// Make sure to check the error on Close.
-		if err := tw.Close(); err != nil {
+		if err := ta.TarWriter.Close(); err != nil {
 			log.Debugf("Can't close layer: %s", err)
 		}
-		writer.Close()
+		if err := writer.Close(); err != nil {
+			log.Debugf("failed close Changes writer: %s", err)
+		}
 	}()
 	return reader, nil
 }
