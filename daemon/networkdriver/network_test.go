@@ -122,9 +122,6 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("192.168.0.255")) {
 		t.Error(last.String())
 	}
-	if size := NetworkSize(network.Mask); size != 256 {
-		t.Error(size)
-	}
 
 	// Class A test
 	_, network, _ = net.ParseCIDR("10.0.0.1/8")
@@ -134,9 +131,6 @@ func TestNetworkRange(t *testing.T) {
 	}
 	if !last.Equal(net.ParseIP("10.255.255.255")) {
 		t.Error(last.String())
-	}
-	if size := NetworkSize(network.Mask); size != 16777216 {
-		t.Error(size)
 	}
 
 	// Class A, random IP address
@@ -158,9 +152,6 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("10.1.2.3")) {
 		t.Error(last.String())
 	}
-	if size := NetworkSize(network.Mask); size != 1 {
-		t.Error(size)
-	}
 
 	// 31bit mask
 	_, network, _ = net.ParseCIDR("10.1.2.3/31")
@@ -171,9 +162,6 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("10.1.2.3")) {
 		t.Error(last.String())
 	}
-	if size := NetworkSize(network.Mask); size != 2 {
-		t.Error(size)
-	}
 
 	// 26bit mask
 	_, network, _ = net.ParseCIDR("10.1.2.3/26")
@@ -183,8 +171,5 @@ func TestNetworkRange(t *testing.T) {
 	}
 	if !last.Equal(net.ParseIP("10.1.2.63")) {
 		t.Error(last.String())
-	}
-	if size := NetworkSize(network.Mask); size != 64 {
-		t.Error(size)
 	}
 }
