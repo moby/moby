@@ -64,6 +64,45 @@ Please also include the steps required to reproduce the problem if
 possible and applicable.  This information will help us review and fix
 your issue faster.
 
+### Template
+
+```
+Description of problem:
+
+
+`docker version`:
+
+
+`docker info`:
+
+
+`uname -a`:
+
+
+Environment details (AWS, VirtualBox, physical, etc.):
+
+
+How reproducible:
+
+
+Steps to Reproduce:
+1.
+2.
+3.
+
+
+Actual Results:
+
+
+Expected Results:
+
+
+Additional info:
+
+
+
+```
+
 ## Build Environment
 
 For instructions on setting up your development environment, please
