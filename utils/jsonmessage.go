@@ -23,17 +23,18 @@ func (e *JSONError) Error() string {
 
 type JSONProgress struct {
 	terminalFd uintptr
-	Current    int   `json:"current,omitempty"`
-	Total      int   `json:"total,omitempty"`
-	Start      int64 `json:"start,omitempty"`
+	Current    int    `json:"current,omitempty"`
+	Speed      string `json:"speed,omitempty"`
+	Total      int    `json:"total,omitempty"`
+	Start      int64  `json:"start,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
 	var (
-		width       = 200
-		pbBox       string
-		numbersBox  string
-		timeLeftBox string
+		width      = 200
+		pbBox      string
+		numbersBox string
+		speedBox   string
 	)
 
 	ws, err := term.GetWinsize(p.terminalFd)
@@ -60,17 +61,11 @@ func (p *JSONProgress) String() string {
 	}
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
-	if p.Current > 0 && p.Start > 0 && percentage < 50 {
-		fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
-		perEntry := fromStart / time.Duration(p.Current)
-		left := time.Duration(p.Total-p.Current) * perEntry
-		left = (left / time.Second) * time.Second
-
-		if width > 50 {
-			timeLeftBox = " " + left.String()
-		}
+	if p.Current > 0 && p.Start > 0 && percentage < 50 && width > 50 {
+		speedBox = " " + p.Speed
 	}
-	return pbBox + numbersBox + timeLeftBox
+
+	return pbBox + numbersBox + speedBox
 }
 
 type JSONMessage struct {
