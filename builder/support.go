@@ -10,13 +10,26 @@ var (
 	// `\$` - match literal $
 	// `[[:alnum:]_]+` - match things like `$SOME_VAR`
 	// `{[[:alnum:]_]+}` - match things like `${SOME_VAR}`
-	tokenEnvInterpolation = regexp.MustCompile(`(\\\\+|[^\\]|\b|\A)\$([[:alnum:]_]+|{[[:alnum:]_]+})`)
+	tokenEnvInterpolation = regexp.MustCompile(`(\\|\\\\+|[^\\]|\b|\A)\$([[:alnum:]_]+|{[[:alnum:]_]+})`)
 	// this intentionally punts on more exotic interpolations like ${SOME_VAR%suffix} and lets the shell handle those directly
 )
 
 // handle environment replacement. Used in dispatcher.
 func (b *Builder) replaceEnv(str string) string {
 	for _, match := range tokenEnvInterpolation.FindAllString(str, -1) {
+		idx := strings.Index(match, "\\$")
+		if idx != -1 {
+			if idx+2 >= len(match) {
+				str = strings.Replace(str, match, "\\$", -1)
+				continue
+			}
+
+			prefix := match[:idx]
+			stripped := match[idx+2:]
+			str = strings.Replace(str, match, prefix+"$"+stripped, -1)
+			continue
+		}
+
 		match = match[strings.Index(match, "$"):]
 		matchKey := strings.Trim(match, "${}")
 

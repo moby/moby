@@ -4,7 +4,9 @@ page_keywords: docker, registry, api, hub
 
 # The Docker Hub and the Registry spec
 
-## The 3 roles
+## The three roles
+
+There are three major components playing a role in the Docker ecosystem.
 
 ### Docker Hub
 
@@ -21,12 +23,14 @@ The Docker Hub has different components:
  - Authentication service
  - Tokenization
 
-The Docker Hub is authoritative for those information.
+The Docker Hub is authoritative for that information.
 
-We expect that there will be only one instance of the Docker Hub, run and
+There is only one instance of the Docker Hub, run and
 managed by Docker Inc.
 
 ### Registry
+
+The registry has the following characteristics:
 
  - It stores the images and the graph for a set of repositories
  - It does not have user accounts data
@@ -37,35 +41,35 @@ managed by Docker Inc.
  - It doesn't have a local database
  - [Source Code](https://github.com/docker/docker-registry)
 
-We expect that there will be multiple registries out there. To help to
+We expect that there will be multiple registries out there. To help you
 grasp the context, here are some examples of registries:
 
  - **sponsor registry**: such a registry is provided by a third-party
    hosting infrastructure as a convenience for their customers and the
-   docker community as a whole. Its costs are supported by the third
+   Docker community as a whole. Its costs are supported by the third
    party, but the management and operation of the registry are
-   supported by dotCloud. It features read/write access, and delegates
+   supported by Docker, Inc. It features read/write access, and delegates
    authentication and authorization to the Docker Hub.
  - **mirror registry**: such a registry is provided by a third-party
    hosting infrastructure but is targeted at their customers only. Some
    mechanism (unspecified to date) ensures that public images are
    pulled from a sponsor registry to the mirror registry, to make sure
-   that the customers of the third-party provider can “docker pull”
+   that the customers of the third-party provider can `docker pull`
    those images locally.
  - **vendor registry**: such a registry is provided by a software
-   vendor, who wants to distribute docker images. It would be operated
+   vendor who wants to distribute docker images. It would be operated
    and managed by the vendor. Only users authorized by the vendor would
    be able to get write access. Some images would be public (accessible
    for anyone), others private (accessible only for authorized users).
    Authentication and authorization would be delegated to the Docker Hub.
-   The goal of vendor registries is to let someone do “docker pull
-   basho/riak1.3” and automatically push from the vendor registry
-   (instead of a sponsor registry); i.e. get all the convenience of a
+   The goal of vendor registries is to let someone do `docker pull
+   basho/riak1.3` and automatically push from the vendor registry
+   (instead of a sponsor registry); i.e., vendors get all the convenience of a
    sponsor registry, while retaining control on the asset distribution.
  - **private registry**: such a registry is located behind a firewall,
    or protected by an additional security layer (HTTP authorization,
    SSL client-side certificates, IP address authorization...). The
-   registry is operated by a private entity, outside of dotCloud's
+   registry is operated by a private entity, outside of Docker's
    control. It can optionally delegate additional authorization to the
    Docker Hub, but it is not mandatory.
 
@@ -77,7 +81,7 @@ grasp the context, here are some examples of registries:
 > - local mount point;
 > - remote docker addressed through SSH.
 
-The latter would only require two new commands in docker, e.g.,
+The latter would only require two new commands in Docker, e.g.,
 `registryget` and `registryput`,
 wrapping access to the local filesystem (and optionally doing
 consistency checks). Authentication and authorization are then delegated
