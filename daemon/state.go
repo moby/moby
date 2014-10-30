@@ -17,6 +17,7 @@ type State struct {
 	ExitCode   int
 	Error      string // contains last known error when starting the container
 	StartedAt  time.Time
+	ModifiedAt time.Time
 	FinishedAt time.Time
 	waitChan   chan struct{}
 }
@@ -145,6 +146,7 @@ func (s *State) setRunning(pid int) {
 	s.ExitCode = 0
 	s.Pid = pid
 	s.StartedAt = time.Now().UTC()
+	s.ModifiedAt = s.StartedAt
 	close(s.waitChan) // fire waiters for start
 	s.waitChan = make(chan struct{})
 }
@@ -212,4 +214,14 @@ func (s *State) IsPaused() bool {
 	res := s.Paused
 	s.Unlock()
 	return res
+}
+
+func (s *State) SetModified() {
+	s.Lock()
+	s.setModified()
+	s.Unlock()
+}
+
+func (s *State) setModified() {
+	s.ModifiedAt = time.Now().UTC()
 }
