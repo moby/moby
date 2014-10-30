@@ -31,16 +31,12 @@ func NewState() *State {
 
 // String returns a human-readable description of the state
 func (s *State) String() string {
-	oomInfo := ""
-	if s.OOMKilled {
-		oomInfo = "possibly due to lack of memory"
-	}
 	if s.Running {
 		if s.Paused {
 			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 		}
 		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago %s", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)), oomInfo)
+			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
@@ -50,7 +46,7 @@ func (s *State) String() string {
 		return ""
 	}
 
-	return fmt.Sprintf("Exited (%d) %s ago %s", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)), oomInfo)
+	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
 // StateString returns a single string to describe state
@@ -167,10 +163,7 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.ExitCode = exitStatus.ExitCode
-	s.OOMKilled = false
-	if exitStatus.OOMKilled {
-		s.OOMKilled = true
-	}
+	s.OOMKilled = exitStatus.OOMKilled
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 }
@@ -186,9 +179,7 @@ func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.ExitCode = exitStatus.ExitCode
-	if exitStatus.OOMKilled {
-		s.OOMKilled = true
-	}
+	s.OOMKilled = exitStatus.OOMKilled
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 	s.Unlock()

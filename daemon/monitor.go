@@ -100,7 +100,7 @@ func (m *containerMonitor) Close() error {
 func (m *containerMonitor) Start() error {
 	var (
 		err        error
-		exitStatus *execdriver.ExitStatus
+		exitStatus execdriver.ExitStatus
 		// this variable indicates where we in execution flow:
 		// before Run or after
 		afterRun bool
@@ -110,7 +110,7 @@ func (m *containerMonitor) Start() error {
 	defer func() {
 		if afterRun {
 			m.container.Lock()
-			m.container.setStopped(exitStatus)
+			m.container.setStopped(&exitStatus)
 			defer m.container.Unlock()
 		}
 		m.Close()
@@ -138,7 +138,7 @@ func (m *containerMonitor) Start() error {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
-				m.container.ExitCode = exitStatus
+				m.container.ExitCode = -1
 				m.resetContainer(false)
 
 				return err
@@ -153,7 +153,7 @@ func (m *containerMonitor) Start() error {
 		m.resetMonitor(err == nil && exitStatus.ExitCode == 0)
 
 		if m.shouldRestart(exitStatus.ExitCode) {
-			m.container.SetRestarting(exitStatus)
+			m.container.SetRestarting(&exitStatus)
 			m.container.LogEvent("die")
 			m.resetContainer(true)
 
@@ -164,12 +164,12 @@ func (m *containerMonitor) Start() error {
 			// we need to check this before reentering the loop because the waitForNextRestart could have
 			// been terminated by a request from a user
 			if m.shouldStop {
-				m.container.ExitCode = exitStatus
+				m.container.ExitCode = exitStatus.ExitCode
 				return err
 			}
 			continue
 		}
-		m.container.ExitCode = exitStatus
+		m.container.ExitCode = exitStatus.ExitCode
 		m.container.LogEvent("die")
 		m.resetContainer(true)
 		return err

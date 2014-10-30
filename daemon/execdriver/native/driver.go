@@ -70,11 +70,11 @@ type execOutput struct {
 	err      error
 }
 
-func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (*execdriver.ExitStatus, error) {
+func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c)
 	if err != nil {
-		return nil, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 
 	var term execdriver.Terminal
@@ -85,7 +85,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
 	if err != nil {
-		return nil, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 	c.ProcessConfig.Terminal = term
 
@@ -102,16 +102,16 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	)
 
 	if err := d.createContainerRoot(c.ID); err != nil {
-		return nil, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 	defer d.cleanContainer(c.ID)
 
 	if err := d.writeContainerFile(container, c.ID); err != nil {
-		return nil, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 
-	execOutputChan := make(chan execOutput, 0)
-	waitForStart := make(chan struct{}, 0)
+	execOutputChan := make(chan execOutput, 1)
+	waitForStart := make(chan struct{})
 
 	go func() {
 		exitCode, err := namespaces.Exec(container, c.ProcessConfig.Stdin, c.ProcessConfig.Stdout, c.ProcessConfig.Stderr, c.ProcessConfig.Console, dataPath, args, func(container *libcontainer.Config, console, dataPath, init string, child *os.File, args []string) *exec.Cmd {
@@ -146,26 +146,22 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	select {
 	case execOutput := <-execOutputChan:
-		return &execdriver.ExitStatus{execOutput.exitCode, false}, execOutput.err
+		return execdriver.ExitStatus{execOutput.exitCode, false}, execOutput.err
 	case <-waitForStart:
 		break
 	}
 
 	oomKill := false
-	go func() {
-		oomKillNotification, err := d.notifyOnOOM(container)
-		if err == nil {
-			if _, ok := <-oomKillNotification; ok {
-				oomKill = true
-			}
-		} else {
-			log.Infof("WARNING: Your kernel does not support OOM notifications: %s", err)
-		}
-	}()
+	oomKillNotification, err := d.notifyOnOOM(container)
+	if err == nil {
+		_, oomKill = <-oomKillNotification
+	} else {
+		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+	}
 	// wait for the container to exit.
 	execOutput := <-execOutputChan
 
-	return &execdriver.ExitStatus{execOutput.exitCode, oomKill}, execOutput.err
+	return execdriver.ExitStatus{execOutput.exitCode, oomKill}, execOutput.err
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
