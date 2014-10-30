@@ -5,11 +5,58 @@ page_keywords: docker, docs, article, example, https, daemon, tls, ca, certifica
 # Running Docker with https
 
 By default, Docker runs via a non-networked Unix socket. It can also
-optionally communicate using a HTTP socket.
+optionally communicate using a HTTP socket.  Enabling communication
+through HTTP will by default use TLS and require daemon configuration
+to allow client connections.
 
-If you need Docker to be reachable via the network in a safe manner, you can
-enable TLS by specifying the `tlsverify` flag and pointing Docker's
-`tlscacert` flag to a trusted CA certificate.
+
+There are two different ways of authenticating connections between Docker
+client and daemon, both of which use secure TLS connections.
+
+ - **Host-based authentication** uses an authorized keys list on the daemon
+to whitelist client connections.  The client must also accept the daemon's key
+and remember it for future connections.
+ - **Certificate-based authentication** uses a certificate authority to
+authorize connections.  Using this method requires additional setup to enable
+client authentication.
+
+The authentication method is selected using the `--auth` flag with values
+ `host`, `cert`, or `none` . `host` is the default method and `none`
+should only be used with caution.
+
+## Host-based authentication
+
+Host-based authentication is similar to how SSH does authentication. When
+connecting to a daemon for the first time, a client will ask whether a user
+trusts a fingerprint of the daemon’s public key. If they do, the public key will
+be stored so it does not prompt on subsequent connections. For the daemon
+to authenticate the client, each client automatically generates its own
+key (~/.docker/key.json) which is presented to the daemon and checked
+against a list of keys authorized to connect (~/.docker/authorized_keys.json).
+
+To enable host-based authentication, add the flag `--auth=host`.  The default
+identity and authorization files may be overridden through the flags:
+
+ - `--identity` specifies the key file to use.  This file contains the client's private
+key and its fingerprint is used by the daemon to identify the client.  This file
+should be secured.
+ - `--auth-authorized-keys` - specifies the client whitelist.  This is a daemon
+configuration and should have its write permissions restricted.
+ - `--auth-allowed-host` - specifies the list of daemon public key fingerprints
+which have been approved by the user and the host name associated with
+each fingerprint.
+
+## Certificate-based authentication
+
+Certificate-based authentication uses TLS certificates provided by a
+certificate authority. This is for advanced usage where you may want to
+integrate Docker with other TLS-compatible tools or you may already use PKI
+within your organisation. You can just get the client to verify the server’s
+certificate against a CA, or do full two-way authentication by getting the
+server to also verify the client’s certificate.
+
+To enable certificate-based authentication, add the flag `--auth=cert` and
+point the `--tlscacert` flag to a trusted CA certificate.
 
 In the daemon mode, it will only allow connections from clients
 authenticated by a certificate signed by that CA. In the client mode,
@@ -24,7 +71,7 @@ it will only connect to servers with a certificate signed by that CA.
 > Mac OS X comes with a version of OpenSSL that is incompatible with the
 > certificates that Docker requires.
 
-## Create a CA, server and client keys with OpenSSL
+### Create a CA, server and client keys with OpenSSL
 
 First generate CA private and public keys:
 
@@ -135,17 +182,17 @@ Docker will now connect securely by default:
 
     $ docker ps
 
-## Other modes
+### Other certificate-based modes
 
 If you don't want to have complete two-way authentication, you can run
 Docker in various other modes by mixing the flags.
 
-### Daemon modes
+#### Daemon modes
 
  - `tlsverify`, `tlscacert`, `tlscert`, `tlskey` set: Authenticate clients
  - `tls`, `tlscert`, `tlskey`: Do not authenticate clients
 
-### Client modes
+#### Client modes
 
  - `tls`: Authenticate server based on public/default CA pool
  - `tlsverify`, `tlscacert`: Authenticate server based on given CA
@@ -162,7 +209,7 @@ location using the environment variable `DOCKER_CERT_PATH`.
     $ export DOCKER_CERT_PATH=${HOME}/.docker/zone1/
     $ docker --tlsverify ps
 
-### Connecting to the Secure Docker port using `curl`
+#### Connecting to the Secure Docker port using `curl`
 
 To use `curl` to make test API requests, you need to use three extra command line
 flags:
