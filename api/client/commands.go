@@ -2183,7 +2183,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 		flName = cmd.String([]string{"-name"}, "", "Assign a name to the container")
 	)
 
-	config, hostConfig, cmd, err := runconfig.Parse(cmd, args, nil)
+	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
 		return err
 	}
@@ -2219,7 +2219,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
-	config, hostConfig, cmd, err := runconfig.Parse(cmd, args, nil)
+	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
 		return err
 	}
