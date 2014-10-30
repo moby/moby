@@ -2474,19 +2474,3 @@ func TestRunSlowStdoutConsumer(t *testing.T) {
 
 	logDone("run - slow consumer")
 }
-
-func consumeSlow(reader io.Reader, chunkSize int, interval time.Duration) (n int, err error) {
-	buffer := make([]byte, chunkSize)
-	for {
-		var readBytes int
-		readBytes, err = reader.Read(buffer)
-		n += readBytes
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
-			return
-		}
-		time.Sleep(interval)
-	}
-}
