@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/proxy"
-	"github.com/docker/docker/reexec"
+	"github.com/docker/docker/pkg/reexec"
 )
 
 const userlandProxyCommandName = "docker-proxy"
