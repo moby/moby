@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -2462,7 +2461,7 @@ func TestRunSlowStdoutConsumer(t *testing.T) {
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
-	n, err := consumeSlow(stdout, 10000, 5*time.Millisecond)
+	n, err := consumeWithSpeed(stdout, 10000, 5*time.Millisecond, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

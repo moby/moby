@@ -254,18 +254,25 @@ func makeRandomString(n int) string {
 	return string(b)
 }
 
-func consumeSlow(reader io.Reader, chunkSize int, interval time.Duration) (n int, err error) {
+// Reads chunkSize bytes from reader after every interval.
+// Returns total read bytes.
+func consumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
 	buffer := make([]byte, chunkSize)
 	for {
-		var readBytes int
-		readBytes, err = reader.Read(buffer)
-		n += readBytes
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
+		select {
+		case <-stop:
 			return
+		default:
+			var readBytes int
+			readBytes, err = reader.Read(buffer)
+			n += readBytes
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				return
+			}
+			time.Sleep(interval)
 		}
-		time.Sleep(interval)
 	}
 }
