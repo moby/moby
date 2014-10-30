@@ -34,7 +34,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if err := graphdriver.MakePrivate(home); err != nil {
+	if err := mount.MakePrivate(home); err != nil {
 		return nil, err
 	}
 
