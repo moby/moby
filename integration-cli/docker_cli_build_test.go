@@ -3366,4 +3366,3 @@ RUN [ "$(cat /context-second/test_file)" = 1111 ]`,
 	}
 	logDone("build - bindcontext used multiple times")
 }
-
