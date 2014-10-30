@@ -637,7 +637,7 @@ You'll need two shells for this example.
 
     Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 
-    Run a command in an existing container
+    Run a command in a running container
 
       -d, --detach=false         Detached mode: run command in the background
       -i, --interactive=false    Keep STDIN open even if not attached
