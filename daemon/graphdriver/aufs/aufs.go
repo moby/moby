@@ -300,11 +300,14 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression: archive.Uncompressed,
+		Excludes:    []string{".wh..wh.*"},
 	})
 }
 
 func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
-	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
+	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
+		Excludes: []string{".wh..wh."},
+	})
 }
 
 // DiffSize calculates the changes between the specified id

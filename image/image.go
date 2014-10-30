@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -32,6 +33,7 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
+	Checksum        string            `json:"checksum"`
 	Size            int64
 
 	graph Graph
@@ -70,7 +72,7 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
-func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, root string) error {
+func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error {
 	// Store the layer
 	var (
 		size   int64
@@ -80,9 +82,26 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		if size, err = driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+		// Autodetect compression of the layer data.
+		layerData, err := archive.DecompressStream(layerData)
+		if err != nil {
 			return err
 		}
+		defer layerData.Close()
+
+		// Wrap with tarsum.
+		tarsumLayerData, err := tarsum.NewTarSum(layerData, true, tarsum.VersionDev)
+		if err != nil {
+			return err
+		}
+
+		// Extract the archive to the file system driver.
+		if size, err = driver.ApplyDiff(img.ID, img.Parent, tarsumLayerData); err != nil {
+			return err
+		}
+
+		// Get the resulting tarsum.
+		img.Checksum = tarsumLayerData.Sum(nil)
 	}
 
 	img.Size = size
@@ -90,19 +109,16 @@ func StoreImage(img *Image, jsonData []byte, layerData archive.ArchiveReader, ro
 		return err
 	}
 
-	// If raw json is provided, then use it
-	if jsonData != nil {
-		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-			return err
-		}
-	} else {
-		if jsonData, err = json.Marshal(img); err != nil {
-			return err
-		}
-		if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
-			return err
-		}
+	var jsonData []byte
+
+	if jsonData, err = json.Marshal(img); err != nil {
+		return err
 	}
+
+	if err := ioutil.WriteFile(jsonPath(root), jsonData, 0600); err != nil {
+		return err
+	}
+
 	return nil
 }
 
