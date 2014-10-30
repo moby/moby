@@ -80,6 +80,10 @@ Trusted Builds and private repositories.
 
 Go to [Working with Docker Hub](/userguide/dockerrepos).
 
+## Getting started with Docker Cluster
+
+Go to [Getting started with Docker Cluster](/userguide/cluster).
+
 ## Getting help
 
 * [Docker homepage](http://www.docker.com/)

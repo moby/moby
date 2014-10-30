@@ -61,6 +61,7 @@ pages:
 - ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
 - ['userguide/level1.md', '**HIDDEN**' ]
 - ['userguide/level2.md', '**HIDDEN**' ]
+- ['userguide/cluster.md', 'User Guide', 'Getting started with Docker Cluster' ]
 
 # Docker Hub docs:
 - ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
