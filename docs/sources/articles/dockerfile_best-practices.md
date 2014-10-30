@@ -313,8 +313,9 @@ beginning user will then be forced to learn about `ENTRYPOINT` and
 `--entrypoint`.
 
 In order to avoid a situation where commands are run without clear visibility
-to the user, make sure your script ends with something like `exec "$@"`. After
-the entrypoint completes, the script will transparently bootstrap the command
+to the user, make sure your script ends with something like `exec "$@"` (see
+[the exec builtin command](http://wiki.bash-hackers.org/commands/builtin/exec)).
+After the entrypoint completes, the script will transparently bootstrap the command
 invoked by the user, making what has been run clear to the user (for example,
 `docker run -it mysql mysqld --some --flags` will transparently run
 `mysqld --some --flags` after `ENTRYPOINT` runs `initdb`).
