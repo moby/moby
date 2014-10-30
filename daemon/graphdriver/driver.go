@@ -7,7 +7,6 @@ import (
 	"path"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/mount"
 )
 
 type FsMagic uint64
@@ -138,19 +137,4 @@ func New(root string, options []string) (driver Driver, err error) {
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
-}
-
-func MakePrivate(mountPoint string) error {
-	mounted, err := mount.Mounted(mountPoint)
-	if err != nil {
-		return err
-	}
-
-	if !mounted {
-		if err := mount.Mount(mountPoint, mountPoint, "none", "bind,rw"); err != nil {
-			return err
-		}
-	}
-
-	return mount.ForceMount("", mountPoint, "none", "private")
 }
