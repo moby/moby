@@ -17,6 +17,7 @@ import (
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/label"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
@@ -25,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
@@ -297,6 +297,8 @@ func (container *Container) Start() (err error) {
 	// setup has been cleaned up properly
 	defer func() {
 		if err != nil {
+			container.setError(err)
+			container.toDisk()
 			container.cleanup()
 		}
 	}()
@@ -691,6 +693,9 @@ func (container *Container) Restart(seconds int) error {
 }
 
 func (container *Container) Resize(h, w int) error {
+	if !container.IsRunning() {
+		return fmt.Errorf("Cannot resize container %s, container is not running", container.ID)
+	}
 	return container.command.ProcessConfig.Terminal.Resize(h, w)
 }
 
@@ -826,12 +831,17 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	var filter []string
-
 	basePath, err := container.getResourcePath(resource)
 	if err != nil {
 		container.Unmount()
 		return nil, err
+	}
+
+	// Check if this is actually in a volume
+	for _, mnt := range container.VolumeMounts() {
+		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
+			return mnt.Export(resource)
+		}
 	}
 
 	stat, err := os.Stat(basePath)
@@ -839,6 +849,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		container.Unmount()
 		return nil, err
 	}
+	var filter []string
 	if !stat.IsDir() {
 		d, f := path.Split(basePath)
 		basePath = d

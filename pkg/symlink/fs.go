@@ -35,7 +35,6 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 
 	for _, p := range strings.Split(link, "/") {
 		prev = filepath.Join(prev, p)
-		prev = filepath.Clean(prev)
 
 		loopCounter := 0
 		for {
@@ -72,7 +71,7 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 				} else {
 					prev, _ = filepath.Abs(prev)
 
-					if prev = filepath.Clean(filepath.Join(filepath.Dir(prev), dest)); len(prev) < len(root) {
+					if prev = filepath.Join(filepath.Dir(prev), dest); len(prev) < len(root) {
 						prev = filepath.Join(root, filepath.Base(dest))
 					}
 				}

@@ -270,7 +270,7 @@ EOF
 	done
 
 	# Upload keys
-	s3cmd sync /.gnupg/ s3://$BUCKET/ubuntu/.gnupg/
+	s3cmd sync $HOME/.gnupg/ s3://$BUCKET/ubuntu/.gnupg/
 	gpg --armor --export releasedocker > bundles/$VERSION/ubuntu/gpg
 	s3cmd --acl-public put bundles/$VERSION/ubuntu/gpg s3://$BUCKET/gpg
 
@@ -355,8 +355,8 @@ release_test() {
 
 setup_gpg() {
 	# Make sure that we have our keys
-	mkdir -p /.gnupg/
-	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
+	mkdir -p $HOME/.gnupg/
+	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ $HOME/.gnupg/ || true
 	gpg --list-keys releasedocker >/dev/null || {
 		gpg --gen-key --batch <<EOF
 Key-Type: RSA

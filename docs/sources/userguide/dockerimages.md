@@ -65,7 +65,7 @@ So when we run a container we refer to a tagged image like so:
 
     $ sudo docker run -t -i ubuntu:14.04 /bin/bash
 
-If instead we wanted to build an Ubuntu 12.04 image we'd use:
+If instead we wanted to run an Ubuntu 12.04 image we'd use:
 
     $ sudo docker run -t -i ubuntu:12.04 /bin/bash
 
@@ -168,7 +168,6 @@ update and create images.
 1. We can update a container created from an image and commit the results to an image.
 2. We can use a `Dockerfile` to specify instructions to create an image.
 
-To learn more, check out the [Dockerfile tutorial](/userguide/level1).
 
 ### Updating and committing an image
 
@@ -457,7 +456,7 @@ Next we can see each instruction in the `Dockerfile` being executed
 step-by-step. We can see that each step creates a new container, runs
 the instruction inside that container and then commits that change -
 just like the `docker commit` work flow we saw earlier. When all the
-instructions have executed we're left with the `324104cde6ad` image
+instructions have executed we're left with the `97feabe5d2ed` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
@@ -538,6 +537,9 @@ Let's delete the `training/sinatra` image as we don't need it anymore.
 Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
+
+Test your Dockerfile knowledge with the
+[Dockerfile tutorial](/userguide/level1).
 
 Go to [Linking Containers Together](/userguide/dockerlinks).
 

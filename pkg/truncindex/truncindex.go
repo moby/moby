@@ -10,7 +10,9 @@ import (
 )
 
 var (
-	ErrNoID = errors.New("prefix can't be empty")
+	// ErrNoID is thrown when attempting to use empty prefixes
+	ErrNoID        = errors.New("prefix can't be empty")
+	errDuplicateID = errors.New("multiple IDs were found")
 )
 
 func init() {
@@ -27,56 +29,62 @@ type TruncIndex struct {
 	ids  map[string]struct{}
 }
 
+// NewTruncIndex creates a new TruncIndex and initializes with a list of IDs
 func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	idx = &TruncIndex{
 		ids:  make(map[string]struct{}),
 		trie: patricia.NewTrie(),
 	}
 	for _, id := range ids {
-		idx.addId(id)
+		idx.addID(id)
 	}
 	return
 }
 
-func (idx *TruncIndex) addId(id string) error {
+func (idx *TruncIndex) addID(id string) error {
 	if strings.Contains(id, " ") {
-		return fmt.Errorf("Illegal character: ' '")
+		return fmt.Errorf("illegal character: ' '")
 	}
 	if id == "" {
 		return ErrNoID
 	}
 	if _, exists := idx.ids[id]; exists {
-		return fmt.Errorf("Id already exists: '%s'", id)
+		return fmt.Errorf("id already exists: '%s'", id)
 	}
 	idx.ids[id] = struct{}{}
 	if inserted := idx.trie.Insert(patricia.Prefix(id), struct{}{}); !inserted {
-		return fmt.Errorf("Failed to insert id: %s", id)
+		return fmt.Errorf("failed to insert id: %s", id)
 	}
 	return nil
 }
 
+// Add adds a new ID to the TruncIndex
 func (idx *TruncIndex) Add(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
-	if err := idx.addId(id); err != nil {
+	if err := idx.addID(id); err != nil {
 		return err
 	}
 	return nil
 }
 
+// Delete removes an ID from the TruncIndex. If there are multiple IDs
+// with the given prefix, an error is thrown.
 func (idx *TruncIndex) Delete(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
 	if _, exists := idx.ids[id]; !exists || id == "" {
-		return fmt.Errorf("No such id: '%s'", id)
+		return fmt.Errorf("no such id: '%s'", id)
 	}
 	delete(idx.ids, id)
 	if deleted := idx.trie.Delete(patricia.Prefix(id)); !deleted {
-		return fmt.Errorf("No such id: '%s'", id)
+		return fmt.Errorf("no such id: '%s'", id)
 	}
 	return nil
 }
 
+// Get retrieves an ID from the TruncIndex. If there are multiple IDs
+// with the given prefix, an error is thrown.
 func (idx *TruncIndex) Get(s string) (string, error) {
 	idx.RLock()
 	defer idx.RUnlock()
@@ -90,17 +98,17 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 		if id != "" {
 			// we haven't found the ID if there are two or more IDs
 			id = ""
-			return fmt.Errorf("we've found two entries")
+			return errDuplicateID
 		}
 		id = string(prefix)
 		return nil
 	}
 
 	if err := idx.trie.VisitSubtree(patricia.Prefix(s), subTreeVisitFunc); err != nil {
-		return "", fmt.Errorf("No such id: %s", s)
+		return "", fmt.Errorf("no such id: %s", s)
 	}
 	if id != "" {
 		return id, nil
 	}
-	return "", fmt.Errorf("No such id: %s", s)
+	return "", fmt.Errorf("no such id: %s", s)
 }

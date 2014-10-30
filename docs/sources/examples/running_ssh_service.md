@@ -46,7 +46,8 @@ the container's port 22 is mapped to:
 
 And now you can ssh as `root` on the container's IP address (you can find it
 with `docker inspect`) or on port `49154` of the Docker daemon's host IP address
-(`ip address` or `ifconfig` can tell you that):
+(`ip address` or `ifconfig` can tell you that) or `localhost` if on the
+Docker daemon host:
 
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.
@@ -55,15 +56,15 @@ with `docker inspect`) or on port `49154` of the Docker daemon's host IP address
 ## Environment variables
 
 Using the `sshd` daemon to spawn shells makes it complicated to pass environment
-variables to the user's shell via the simple Docker mechanisms, as `sshd` scrubs
+variables to the user's shell via the normal Docker mechanisms, as `sshd` scrubs
 the environment before it starts the shell.
 
-If you're setting values in the Dockerfile using `ENV`, you'll need to push them
-to a shell initialisation file like the `/etc/profile` example in the Dockerfile
+If you're setting values in the `Dockerfile` using `ENV`, you'll need to push them
+to a shell initialization file like the `/etc/profile` example in the `Dockerfile`
 above.
 
 If you need to pass`docker run -e ENV=value` values, you will need to write a
-short script to do the same before you start `sshd -D` - and then replace the
+short script to do the same before you start `sshd -D` and then replace the
 `CMD` with that script.
 
 ## Clean up

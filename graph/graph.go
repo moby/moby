@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -72,7 +72,7 @@ func (graph *Graph) restore() error {
 // FIXME: Implement error subclass instead of looking at the error text
 // Note: This is the way golang implements os.IsNotExists on Plan9
 func (graph *Graph) IsNotExist(err error) bool {
-	return err != nil && (strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "No such"))
+	return err != nil && (strings.Contains(strings.ToLower(err.Error()), "does not exist") || strings.Contains(strings.ToLower(err.Error()), "no such"))
 }
 
 // Exists returns true if an image is registered at the given id.

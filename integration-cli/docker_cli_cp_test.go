@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -370,4 +371,110 @@ func TestCpUnprivilegedUser(t *testing.T) {
 	}
 
 	logDone("cp - unprivileged user")
+}
+
+func TestCpVolumePath(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	outDir, err := ioutil.TempDir("", "cp-test-volumepath-out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(outDir)
+	_, err = os.Create(tmpDir + "/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, exitCode, err := cmd(t, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = cmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	// Copy actual volume path
+	_, _, err = cmd(t, "cp", cleanedContainerID+":/foo", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from volume path: %s:%s %v", cleanedContainerID, "/foo", err)
+	}
+	stat, err := os.Stat(outDir + "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stat.IsDir() {
+		t.Fatal("expected copied content to be dir")
+	}
+	stat, err = os.Stat(outDir + "/foo/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat.IsDir() {
+		t.Fatal("Expected file `bar` to be a file")
+	}
+
+	// Copy file nested in volume
+	_, _, err = cmd(t, "cp", cleanedContainerID+":/foo/bar", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from volume path: %s:%s %v", cleanedContainerID, "/foo", err)
+	}
+	stat, err = os.Stat(outDir + "/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat.IsDir() {
+		t.Fatal("Expected file `bar` to be a file")
+	}
+
+	// Copy Bind-mounted dir
+	_, _, err = cmd(t, "cp", cleanedContainerID+":/baz", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from bind-mounted volume path: %s:%s %v", cleanedContainerID, "/baz", err)
+	}
+	stat, err = os.Stat(outDir + "/baz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stat.IsDir() {
+		t.Fatal("Expected `baz` to be a dir")
+	}
+
+	// Copy file nested in bind-mounted dir
+	_, _, err = cmd(t, "cp", cleanedContainerID+":/baz/test", outDir)
+	fb, err := ioutil.ReadFile(outDir + "/baz/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fb2, err := ioutil.ReadFile(tmpDir + "/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(fb, fb2) {
+		t.Fatalf("Expected copied file to be duplicate of bind-mounted file")
+	}
+
+	// Copy bind-mounted file
+	_, _, err = cmd(t, "cp", cleanedContainerID+":/test", outDir)
+	fb, err = ioutil.ReadFile(outDir + "/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fb2, err = ioutil.ReadFile(tmpDir + "/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(fb, fb2) {
+		t.Fatalf("Expected copied file to be duplicate of bind-mounted file")
+	}
+
+	logDone("cp - volume path")
 }

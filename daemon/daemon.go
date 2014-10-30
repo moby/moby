@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/libcontainer/label"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
@@ -29,7 +30,6 @@ import (
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -304,7 +304,7 @@ func (daemon *Daemon) restore() error {
 	)
 
 	if !debug {
-		log.Infof("Loading containers: ")
+		log.Infof("Loading containers: start.")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
 	if err != nil {
@@ -392,7 +392,8 @@ func (daemon *Daemon) restore() error {
 	}
 
 	if !debug {
-		log.Infof(": done.")
+		fmt.Println()
+		log.Infof("Loading containers: done.")
 	}
 
 	return nil
@@ -731,7 +732,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
 	if !config.EnableIptables && config.EnableIpMasq {
-		return nil, fmt.Errorf("You specified --iptables=false with --ipmasq=true. IP masquerading uses iptables to function. Please set --ipmasq to false or --iptables to true.")
+		config.EnableIpMasq = false
 	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 

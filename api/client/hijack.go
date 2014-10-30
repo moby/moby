@@ -11,9 +11,9 @@ import (
 	"runtime"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"

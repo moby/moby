@@ -1,7 +1,6 @@
 package networkdriver
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -56,25 +55,21 @@ func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
 
 // Calculates the first and last IP addresses in an IPNet
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
-	var (
-		netIP   = network.IP.To4()
-		firstIP = netIP.Mask(network.Mask)
-		lastIP  = net.IPv4(0, 0, 0, 0).To4()
-	)
+	var netIP net.IP
+	if network.IP.To4() != nil {
+		netIP = network.IP.To4()
+	} else if network.IP.To16() != nil {
+		netIP = network.IP.To16()
+	} else {
+		return nil, nil
+	}
 
-	for i := 0; i < len(lastIP); i++ {
+	lastIP := make([]byte, len(netIP), len(netIP))
+
+	for i := 0; i < len(netIP); i++ {
 		lastIP[i] = netIP[i] | ^network.Mask[i]
 	}
-	return firstIP, lastIP
-}
-
-// Given a netmask, calculates the number of available hosts
-func NetworkSize(mask net.IPMask) int32 {
-	m := net.IPv4Mask(0, 0, 0, 0)
-	for i := 0; i < net.IPv4len; i++ {
-		m[i] = ^mask[i]
-	}
-	return int32(binary.BigEndian.Uint32(m)) + 1
+	return netIP.Mask(network.Mask), net.IP(lastIP)
 }
 
 // Return the IPv4 address of a network interface
@@ -90,7 +85,7 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 	var addrs4 []net.Addr
 	for _, addr := range addrs {
 		ip := (addr.(*net.IPNet)).IP
-		if ip4 := ip.To4(); len(ip4) == net.IPv4len {
+		if ip4 := ip.To4(); ip4 != nil {
 			addrs4 = append(addrs4, addr)
 		}
 	}

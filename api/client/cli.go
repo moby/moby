@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
 	"text/template"
+	"time"
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
@@ -34,6 +37,7 @@ type DockerCli struct {
 	isTerminalIn bool
 	// isTerminalOut describes if client's STDOUT is a TTY
 	isTerminalOut bool
+	transport     *http.Transport
 }
 
 var funcMap = template.FuncMap{
@@ -131,6 +135,19 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 		err = out
 	}
 
+	// The transport is created here for reuse during the client session
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Dial: func(dial_network, dial_addr string) (net.Conn, error) {
+			// Why 32? See issue 8035
+			return net.DialTimeout(proto, addr, 32*time.Second)
+		},
+	}
+	if proto == "unix" {
+		// no need in compressing for local communications
+		tr.DisableCompression = true
+	}
+
 	return &DockerCli{
 		proto:         proto,
 		addr:          addr,
@@ -144,5 +161,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 		isTerminalOut: isTerminalOut,
 		tlsConfig:     tlsConfig,
 		scheme:        scheme,
+		transport:     tr,
 	}
 }

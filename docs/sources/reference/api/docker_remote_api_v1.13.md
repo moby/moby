@@ -1197,7 +1197,7 @@ Create a new image from a container's changes
 
 **Example request**:
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
         Content-Type: application/json
 
         {
@@ -1245,7 +1245,7 @@ Query Parameters:
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
--   **m** – commit message
+-   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
     <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 

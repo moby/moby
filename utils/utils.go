@@ -20,10 +20,10 @@ import (
 	"sync"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 )
 
 type KeyValuePair struct {

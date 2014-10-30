@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -141,8 +143,6 @@ func TestRunPingGoogle(t *testing.T) {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	errorOut(err, t, "container should've been able to ping 8.8.8.8")
-
 	deleteAllContainers()
 
 	logDone("run - ping 8.8.8.8")
@@ -152,11 +152,8 @@ func TestRunPingGoogle(t *testing.T) {
 // some versions of lxc might make this test fail
 func TestRunExitCodeZero(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "busybox", "true")
-	exitCode, err := runCommand(runCmd)
-	errorOut(err, t, fmt.Sprintf("%s", err))
-
-	if exitCode != 0 {
-		t.Errorf("container should've exited with exit code 0")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Errorf("container should've exited with exit code 0: %s, %v", out, err)
 	}
 
 	deleteAllContainers()
@@ -193,26 +190,31 @@ func TestRunStdinPipe(t *testing.T) {
 	out = stripTrailingCharacters(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", out)
-	inspectOut, _, err := runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("out should've been a container id: %s %s", out, inspectOut))
+	if out, _, err := runCommandWithOutput(inspectCmd); err != nil {
+		t.Fatalf("out should've been a container id: %s %v", out, err)
+	}
 
 	waitCmd := exec.Command(dockerBinary, "wait", out)
-	_, _, err = runCommandWithOutput(waitCmd)
-	errorOut(err, t, fmt.Sprintf("error thrown while waiting for container: %s", out))
+	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
+	}
 
 	logsCmd := exec.Command(dockerBinary, "logs", out)
-	containerLogs, _, err := runCommandWithOutput(logsCmd)
-	errorOut(err, t, fmt.Sprintf("error thrown while trying to get container logs: %s", err))
+	logsOut, _, err := runCommandWithOutput(logsCmd)
+	if err != nil {
+		t.Fatalf("error thrown while trying to get container logs: %s, %v", logsOut, err)
+	}
 
-	containerLogs = stripTrailingCharacters(containerLogs)
+	containerLogs := stripTrailingCharacters(logsOut)
 
 	if containerLogs != "blahblah" {
 		t.Errorf("logs didn't print the container's logs %s", containerLogs)
 	}
 
 	rmCmd := exec.Command(dockerBinary, "rm", out)
-	_, _, err = runCommandWithOutput(rmCmd)
-	errorOut(err, t, fmt.Sprintf("rm failed to remove container %s", err))
+	if out, _, err = runCommandWithOutput(rmCmd); err != nil {
+		t.Fatalf("rm failed to remove container: %s, %v", out, err)
+	}
 
 	deleteAllContainers()
 
@@ -230,16 +232,20 @@ func TestRunDetachedContainerIDPrinting(t *testing.T) {
 	out = stripTrailingCharacters(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", out)
-	inspectOut, _, err := runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("out should've been a container id: %s %s", out, inspectOut))
+	if inspectOut, _, err := runCommandWithOutput(inspectCmd); err != nil {
+		t.Fatalf("out should've been a container id: %s %v", inspectOut, err)
+	}
 
 	waitCmd := exec.Command(dockerBinary, "wait", out)
-	_, _, err = runCommandWithOutput(waitCmd)
-	errorOut(err, t, fmt.Sprintf("error thrown while waiting for container: %s", out))
+	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
+	}
 
 	rmCmd := exec.Command(dockerBinary, "rm", out)
 	rmOut, _, err := runCommandWithOutput(rmCmd)
-	errorOut(err, t, "rm failed to remove container")
+	if err != nil {
+		t.Fatalf("rm failed to remove container: %s, %v", rmOut, err)
+	}
 
 	rmOut = stripTrailingCharacters(rmOut)
 	if rmOut != out {
@@ -267,7 +273,9 @@ func TestRunWorkingDirectory(t *testing.T) {
 
 	runCmd = exec.Command(dockerBinary, "run", "--workdir", "/root", "busybox", "pwd")
 	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	out = stripTrailingCharacters(out)
 
@@ -1182,7 +1190,7 @@ func TestRunModeHostname(t *testing.T) {
 		t.Fatal(err)
 	}
 	if actual := strings.Trim(out, "\r\n"); actual != hostname {
-		t.Fatalf("expected %q, but says: '%s'", hostname, actual)
+		t.Fatalf("expected %q, but says: %q", hostname, actual)
 	}
 
 	deleteAllContainers()
@@ -1357,11 +1365,11 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 
 	actualSearch := resolvconf.GetSearchDomains([]byte(out))
 	if len(actualSearch) != len(hostSearch) {
-		t.Fatalf("expected %q search domain(s), but it has: '%s'", len(hostSearch), len(actualSearch))
+		t.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
 	}
 	for i := range actualSearch {
 		if actualSearch[i] != hostSearch[i] {
-			t.Fatalf("expected %q domain, but says: '%s'", actualSearch[i], hostSearch[i])
+			t.Fatalf("expected %q domain, but says: %q", actualSearch[i], hostSearch[i])
 		}
 	}
 
@@ -1373,11 +1381,11 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 
 	actualNameservers := resolvconf.GetNameservers([]byte(out))
 	if len(actualNameservers) != len(hostNamservers) {
-		t.Fatalf("expected %q nameserver(s), but it has: '%s'", len(hostNamservers), len(actualNameservers))
+		t.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNamservers), len(actualNameservers))
 	}
 	for i := range actualNameservers {
 		if actualNameservers[i] != hostNamservers[i] {
-			t.Fatalf("expected %q nameserver, but says: '%s'", actualNameservers[i], hostNamservers[i])
+			t.Fatalf("expected %q nameserver, but says: %q", actualNameservers[i], hostNamservers[i])
 		}
 	}
 
@@ -1421,7 +1429,7 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 	}
 	for i := range actualSearch {
 		if actualSearch[i] != hostSearch[i] {
-			t.Fatalf("expected %q domain, but says: '%s'", actualSearch[i], hostSearch[i])
+			t.Fatalf("expected %q domain, but says: %q", actualSearch[i], hostSearch[i])
 		}
 	}
 
@@ -1604,7 +1612,7 @@ func TestRunCopyVolumeContent(t *testing.T) {
 	}
 
 	// Test that the content is copied from the image to the volume
-	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "sh", "-c", "find", "/hello")
+	cmd := exec.Command(dockerBinary, "run", "--rm", "-v", "/hello", name, "find", "/hello")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
@@ -2259,7 +2267,7 @@ func TestRunRedirectStdout(t *testing.T) {
 		}()
 
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatal("command timeout")
 		case <-ch:
 		}
@@ -2373,4 +2381,112 @@ func TestRunVolumesNotRecreatedOnStart(t *testing.T) {
 	}
 
 	logDone("run - volumes not recreated on start")
+}
+
+func TestRunNoOutputFromPullInStdout(t *testing.T) {
+	defer deleteAllContainers()
+	// just run with unknown image
+	cmd := exec.Command(dockerBinary, "run", "asdfsg")
+	stdout := bytes.NewBuffer(nil)
+	cmd.Stdout = stdout
+	if err := cmd.Run(); err == nil {
+		t.Fatal("Run with unknown image should fail")
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("Stdout contains output from pull: %s", stdout)
+	}
+	logDone("run - no output from pull in stdout")
+}
+
+func TestRunVolumesCleanPaths(t *testing.T) {
+	defer deleteAllContainers()
+
+	if _, err := buildImage("run_volumes_clean_paths",
+		`FROM busybox
+		 VOLUME /foo/`,
+		true); err != nil {
+		t.Fatal(err)
+	}
+	defer deleteImages("run_volumes_clean_paths")
+
+	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(err, out)
+	}
+
+	out, err := inspectFieldMap("dark_helmet", "Volumes", "/foo/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "<no value>" {
+		t.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
+	}
+
+	out, err = inspectFieldMap("dark_helmet", "Volumes", "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, volumesStoragePath) {
+		t.Fatalf("Volume was not defined for /foo\n%q", out)
+	}
+
+	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "<no value>" {
+		t.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
+	}
+	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, volumesStoragePath) {
+		t.Fatalf("Volume was not defined for /bar\n%q", out)
+	}
+
+	logDone("run - volume paths are cleaned")
+}
+
+// Regression test for #3631
+func TestRunSlowStdoutConsumer(t *testing.T) {
+	defer deleteAllContainers()
+
+	c := exec.Command("/bin/bash", "-c", dockerBinary+` run --rm -i busybox /bin/sh -c "dd if=/dev/zero of=/foo bs=1024 count=2000 &>/dev/null; catv /foo"`)
+
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	n, err := consumeSlow(stdout, 10000, 5*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := 2 * 1024 * 2000
+	if n != expected {
+		t.Fatalf("Expected %d, got %d", expected, n)
+	}
+
+	logDone("run - slow consumer")
+}
+
+func consumeSlow(reader io.Reader, chunkSize int, interval time.Duration) (n int, err error) {
+	buffer := make([]byte, chunkSize)
+	for {
+		var readBytes int
+		readBytes, err = reader.Read(buffer)
+		n += readBytes
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+		time.Sleep(interval)
+	}
 }

@@ -36,7 +36,11 @@ const (
 )
 
 func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
-	tlsConfig := tls.Config{RootCAs: roots}
+	tlsConfig := tls.Config{
+		RootCAs: roots,
+		// Avoid fallback to SSL protocols < TLS1.0
+		MinVersion: tls.VersionTLS10,
+	}
 
 	if cert != nil {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
@@ -52,7 +56,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 	case ConnectTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
 			// Set the connect timeout to 5 seconds
-			conn, err := net.DialTimeout(proto, addr, 5*time.Second)
+			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +68,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 		}
 	case ReceiveTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			conn, err := net.Dial(proto, addr)
+			d := net.Dialer{DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -143,7 +151,10 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType) (*htt
 		client := newClient(jar, pool, cert, timeout)
 		res, err := client.Do(req)
 		// If this is the last cert, otherwise, continue to next cert if 403 or 5xx
-		if i == len(certs)-1 || err == nil && res.StatusCode != 403 && res.StatusCode < 500 {
+		if i == len(certs)-1 || err == nil &&
+			res.StatusCode != 403 &&
+			res.StatusCode != 404 &&
+			res.StatusCode < 500 {
 			return res, client, err
 		}
 	}

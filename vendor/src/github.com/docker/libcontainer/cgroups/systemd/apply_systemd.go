@@ -327,6 +327,12 @@ func joinDevices(c *cgroups.Cgroup, pid int) error {
 	return nil
 }
 
+// Symmetrical public function to update device based cgroups.  Also available
+// in the fs implementation.
+func ApplyDevices(c *cgroups.Cgroup, pid int) error {
+	return joinDevices(c, pid)
+}
+
 func joinMemory(c *cgroups.Cgroup, pid int) error {
 	memorySwap := c.MemorySwap
 

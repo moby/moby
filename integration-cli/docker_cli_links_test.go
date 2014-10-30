@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -14,7 +13,9 @@ import (
 func TestLinksEtcHostsRegularFile(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !strings.HasPrefix(out, "-") {
 		t.Errorf("/etc/hosts should be a regular file")
@@ -28,7 +29,9 @@ func TestLinksEtcHostsRegularFile(t *testing.T) {
 func TestLinksEtcHostsContentMatch(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	hosts, err := ioutil.ReadFile("/etc/hosts")
 	if os.IsNotExist(err) {
@@ -51,7 +54,7 @@ func TestLinksPingUnlinkedContainers(t *testing.T) {
 	if exitCode == 0 {
 		t.Fatal("run ping did not fail")
 	} else if exitCode != 1 {
-		errorOut(err, t, fmt.Sprintf("run ping failed with errors: %v", err))
+		t.Fatalf("run ping failed with errors: %v", err)
 	}
 
 	logDone("links - ping unlinked container")

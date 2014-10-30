@@ -1,2 +1,0 @@
-FROM scratch
-COPY . /

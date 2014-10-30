@@ -5,53 +5,59 @@ import (
 	"strings"
 )
 
+// Version provides utility methods for comparing versions.
 type Version string
 
-func (me Version) compareTo(other Version) int {
+func (v Version) compareTo(other Version) int {
 	var (
-		meTab    = strings.Split(string(me), ".")
+		currTab  = strings.Split(string(v), ".")
 		otherTab = strings.Split(string(other), ".")
 	)
 
-	max := len(meTab)
+	max := len(currTab)
 	if len(otherTab) > max {
 		max = len(otherTab)
 	}
 	for i := 0; i < max; i++ {
-		var meInt, otherInt int
+		var currInt, otherInt int
 
-		if len(meTab) > i {
-			meInt, _ = strconv.Atoi(meTab[i])
+		if len(currTab) > i {
+			currInt, _ = strconv.Atoi(currTab[i])
 		}
 		if len(otherTab) > i {
 			otherInt, _ = strconv.Atoi(otherTab[i])
 		}
-		if meInt > otherInt {
+		if currInt > otherInt {
 			return 1
 		}
-		if otherInt > meInt {
+		if otherInt > currInt {
 			return -1
 		}
 	}
 	return 0
 }
 
-func (me Version) LessThan(other Version) bool {
-	return me.compareTo(other) == -1
+// LessThan checks if a version is less than another version
+func (v Version) LessThan(other Version) bool {
+	return v.compareTo(other) == -1
 }
 
-func (me Version) LessThanOrEqualTo(other Version) bool {
-	return me.compareTo(other) <= 0
+// LessThanOrEqualTo checks if a version is less than or equal to another
+func (v Version) LessThanOrEqualTo(other Version) bool {
+	return v.compareTo(other) <= 0
 }
 
-func (me Version) GreaterThan(other Version) bool {
-	return me.compareTo(other) == 1
+// GreaterThan checks if a version is greater than another one
+func (v Version) GreaterThan(other Version) bool {
+	return v.compareTo(other) == 1
 }
 
-func (me Version) GreaterThanOrEqualTo(other Version) bool {
-	return me.compareTo(other) >= 0
+// GreaterThanOrEqualTo checks ia version is greater than or equal to another
+func (v Version) GreaterThanOrEqualTo(other Version) bool {
+	return v.compareTo(other) >= 0
 }
 
-func (me Version) Equal(other Version) bool {
-	return me.compareTo(other) == 0
+// Equal checks if a version is equal to another
+func (v Version) Equal(other Version) bool {
+	return v.compareTo(other) == 0
 }

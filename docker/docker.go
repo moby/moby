@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"log" // see gh#8745, client needs to use go log pkg
 	"os"
 	"strings"
 
@@ -28,6 +28,7 @@ func main() {
 	if reexec.Init() {
 		return
 	}
+
 	flag.Parse()
 	// FIXME: validate daemon flags here
 
@@ -38,6 +39,8 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 	}
+
+	initLogging(*flDebug)
 
 	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
@@ -93,6 +96,8 @@ func main() {
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
+		// Avoid fallback to SSL protocols < TLS1.0
+		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
 	if *flTls || *flTlsVerify {
@@ -104,7 +109,7 @@ func main() {
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
 			if sterr.Status != "" {
-				log.Println(sterr.Status)
+				log.Println("%s", sterr.Status)
 			}
 			os.Exit(sterr.StatusCode)
 		}

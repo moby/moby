@@ -20,6 +20,10 @@ func GetPids(c *cgroups.Cgroup) ([]int, error) {
 	return nil, fmt.Errorf("Systemd not supported")
 }
 
+func ApplyDevices(c *cgroups.Cgroup, pid int) error {
+	return fmt.Errorf("Systemd not supported")
+}
+
 func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
 	return fmt.Errorf("Systemd not supported")
 }

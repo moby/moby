@@ -290,7 +290,7 @@ func TestCreateVethPair(t *testing.T) {
 		name2 = "veth2"
 	)
 
-	if err := NetworkCreateVethPair(name1, name2); err != nil {
+	if err := NetworkCreateVethPair(name1, name2, 0); err != nil {
 		t.Fatalf("Could not create veth pair %s %s: %s", name1, name2, err)
 	}
 	defer NetworkLinkDel(name1)

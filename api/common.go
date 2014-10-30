@@ -5,14 +5,14 @@ import (
 	"mime"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/version"
 )
 
 const (
-	APIVERSION        version.Version = "1.15"
+	APIVERSION        version.Version = "1.16"
 	DEFAULTHTTPHOST                   = "127.0.0.1"
 	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
 )

@@ -3,8 +3,7 @@
 package main
 
 import (
-	"log"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
@@ -60,7 +59,7 @@ func mainDaemon() {
 		}
 	}()
 	// TODO actually have a resolved graphdriver to show?
-	log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+	log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
 		dockerversion.VERSION,
 		dockerversion.GITCOMMIT,
 		daemonCfg.ExecDriver,
