@@ -9,7 +9,7 @@ import (
 )
 
 func parse(t *testing.T, args string) (*Config, *HostConfig, error) {
-	config, hostConfig, _, err := parseRun(strings.Split(args+" ubuntu bash", " "), nil)
+	config, hostConfig, _, err := parseRun(strings.Split(args+" ubuntu bash", " "))
 	return config, hostConfig, err
 }
 

@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/utils"
 )
@@ -24,7 +23,7 @@ var (
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
 
-func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config, *HostConfig, *flag.FlagSet, error) {
+func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
@@ -86,11 +85,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, nil, cmd, err
-	}
-
-	// Check if the kernel supports memory limit cgroup.
-	if sysInfo != nil && *flMemoryString != "" && !sysInfo.MemoryLimit {
-		*flMemoryString = ""
 	}
 
 	// Validate input params
@@ -300,11 +294,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),
 		RestartPolicy:   restartPolicy,
-	}
-
-	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
-		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		config.MemorySwap = -1
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
