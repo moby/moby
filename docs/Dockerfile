@@ -49,7 +49,7 @@ RUN VERSION=$(cat VERSION) \
 	&& BUILD_DATE=$(date) \
 	&& sed -i "s/\$VERSION/$VERSION/g" theme/mkdocs/base.html \
 	&& sed -i "s/\$MAJOR_MINOR/v$MAJOR_MINOR/g" theme/mkdocs/base.html \
-	&& sed -i "s/\$GITCOMMIT/$GITCOMMIT/g" .heme/mkdocs/base.html \
+	&& sed -i "s/\$GITCOMMIT/$GITCOMMIT/g" theme/mkdocs/base.html \
 	&& sed -i "s/\$GIT_BRANCH/$GIT_BRANCH/g" theme/mkdocs/base.html \
 	&& sed -i "s/\$BUILD_DATE/$BUILD_DATE/g" theme/mkdocs/base.html \
 	&& sed -i "s/\$AWS_S3_BUCKET/$AWS_S3_BUCKET/g" theme/mkdocs/base.html
