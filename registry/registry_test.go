@@ -339,3 +339,24 @@ func TestIsSecure(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSecure(t *testing.T) {
+	tests := []struct {
+		addr               string
+		insecureRegistries []string
+		expected           bool
+	}{
+		{"localhost", []string{}, false},
+		{"localhost:5000", []string{}, false},
+		{"127.0.0.1", []string{}, false},
+		{"localhost", []string{"example.com"}, true},
+		{"127.0.0.1", []string{"example.com"}, true},
+		{"example.com", []string{}, true},
+		{"example.com", []string{"example.com"}, false},
+	}
+	for _, tt := range tests {
+		if sec := IsSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
+			t.Errorf("IsSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
+		}
+	}
+}
