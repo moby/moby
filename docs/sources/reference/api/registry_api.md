@@ -70,7 +70,7 @@ are then delegated to SSH (e.g., with public keys).
 > **Note**:
 > Private registry servers that expose an HTTP endpoint need to be secured with
 > TLS (preferably TLSv1.2, but at least TLSv1.0). Make sure to put the CA
-> certificate at /etc/docker/certs.d/my.registry.com:5000/ca.crt on the Docker
+> certificate at /etc/docker/certs.d/my.registry.com/ca.crt on the Docker
 > host, so that the daemon can securely access the private registry.
 > Support for SSLv3 and lower is not available due to security issues.
 
