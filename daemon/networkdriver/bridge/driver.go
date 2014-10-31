@@ -94,6 +94,8 @@ func InitDriver(job *engine.Job) engine.Status {
 		defaultBindingIP = net.ParseIP(defaultIP)
 	}
 
+	iptable := iptables.GetTable(useIpv6)
+
 	bridgeIface = job.Getenv("BridgeIface")
 	usingDefaultBridge := false
 	if bridgeIface == "" {
@@ -101,18 +103,18 @@ func InitDriver(job *engine.Job) engine.Status {
 		bridgeIface = DefaultNetworkBridge
 	}
 
-	addr, err := networkdriver.GetIfaceAddr(bridgeIface, !useIpv6, useIpv6)
+	addr, err := networkdriver.GetIfaceAddr(bridgeIface, useIpv6)
 	if err != nil {
 		// If we're not using the default bridge, fail without trying to create it
 		if !usingDefaultBridge {
 			return job.Error(err)
 		}
 		// If the bridge interface is not found (or has no address), try to create it and/or add an address
-		if err := configureBridge(bridgeIP); err != nil {
+		if err := configureBridge(useIpv6, bridgeIP); err != nil {
 			return job.Error(err)
 		}
 
-		addr, err = networkdriver.GetIfaceAddr(bridgeIface, !useIpv6, useIpv6)
+		addr, err = networkdriver.GetIfaceAddr(bridgeIface, useIpv6)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -133,7 +135,7 @@ func InitDriver(job *engine.Job) engine.Status {
 
 	// Configure iptables for link support
 	if enableIPTables {
-		if err := setupIPTables(addr, icc, ipMasq); err != nil {
+		if err := setupIPTables(iptable, addr, icc, ipMasq); err != nil {
 			return job.Error(err)
 		}
 	}
@@ -146,12 +148,12 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	// We can always try removing the iptables
-	if err := iptables.RemoveExistingChain(useIpv6, "DOCKER"); err != nil {
+	if err := iptable.RemoveExistingChain("DOCKER"); err != nil {
 		return job.Error(err)
 	}
 
 	if enableIPTables {
-		chain, err := iptables.NewChain(useIpv6, "DOCKER", bridgeIface)
+		chain, err := iptable.NewChain("DOCKER", bridgeIface)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -186,27 +188,14 @@ func InitDriver(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func IsIpv6Addr(addr net.Addr) bool {
-	ip := (addr.(*net.IPNet)).IP
-	return IsIpv6(ip)
-}
-
-func IsIpv6(ip net.IP) bool {
-	// To16 returns != nil for (IPv4 or IPv6)
-	// To4 returns nil for IPv6 (but not IPv4)
-	return ip.To4() == nil && ip.To16() != nil
-}
-
-func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
+func setupIPTables(iptable *iptables.Table, addr net.Addr, icc, ipmasq bool) error {
 	// Enable NAT
-
-	useIpv6 := IsIpv6Addr(addr)
 
 	if ipmasq {
 		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
-		if !iptables.Exists(useIpv6, natArgs...) {
-			if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, natArgs...)...); err != nil {
+		if !iptable.Exists(natArgs...) {
+			if output, err := iptable.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error iptables postrouting: %s", output)
@@ -221,22 +210,22 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	)
 
 	if !icc {
-		iptables.Raw(useIpv6, append([]string{"-D"}, acceptArgs...)...)
+		iptable.Raw(append([]string{"-D"}, acceptArgs...)...)
 
-		if !iptables.Exists(useIpv6, dropArgs...) {
+		if !iptable.Exists(dropArgs...) {
 			log.Debugf("Disable inter-container communication")
-			if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, dropArgs...)...); err != nil {
+			if output, err := iptable.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
 			}
 		}
 	} else {
-		iptables.Raw(useIpv6, append([]string{"-D"}, dropArgs...)...)
+		iptable.Raw(append([]string{"-D"}, dropArgs...)...)
 
-		if !iptables.Exists(useIpv6, acceptArgs...) {
+		if !iptable.Exists(acceptArgs...) {
 			log.Debugf("Enable inter-container communication")
-			if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, acceptArgs...)...); err != nil {
+			if output, err := iptable.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
@@ -246,8 +235,8 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 	// Accept all non-intercontainer outgoing packets
 	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
-	if !iptables.Exists(useIpv6, outgoingArgs...) {
-		if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, outgoingArgs...)...); err != nil {
+	if !iptable.Exists(outgoingArgs...) {
+		if output, err := iptable.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error iptables allow outgoing: %s", output)
@@ -257,8 +246,8 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Accept incoming packets for existing connections
 	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
 
-	if !iptables.Exists(useIpv6, existingArgs...) {
-		if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, existingArgs...)...); err != nil {
+	if !iptable.Exists(existingArgs...) {
+		if output, err := iptable.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error iptables allow incoming: %s", output)
@@ -272,7 +261,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 // If the bridge `ifaceName` already exists, it will only perform the IP address association with the existing
 // bridge (fixes issue #8444)
 // If an address which doesn't conflict with existing interfaces can't be found, an error is returned.
-func configureBridge(bridgeIP string) error {
+func configureBridge(useIpv6 bool, bridgeIP string) error {
 	nameservers := []string{}
 	resolvConf, _ := resolvconf.Get()
 	// we don't check for an error here, because we don't really care
@@ -329,7 +318,7 @@ func configureBridge(bridgeIP string) error {
 		return err
 	}
 
-	if IsIpv6(ipAddr) {
+	if useIpv6 {
 		// Enable IPv6 on the bridge
 		procFile := "/proc/sys/net/ipv6/conf/" + iface.Name + "/disable_ipv6"
 		if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
@@ -539,9 +528,12 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ports        = job.GetenvList("Ports")
 		useIpv6      = job.GetenvBool("UseIpv6")
 	)
+
+        iptable := iptables.GetTable(useIpv6)
+
 	for _, value := range ports {
 		port := nat.Port(value)
-		if output, err := iptables.Raw(useIpv6, action, "FORWARD",
+		if output, err := iptable.Raw(useIpv6, action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", port.Proto(),
 			"-s", parentIP,
@@ -553,7 +545,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 			return job.Errorf("Error toggle iptables forward: %s", output)
 		}
 
-		if output, err := iptables.Raw(useIpv6, action, "FORWARD",
+		if output, err := iptable.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", port.Proto(),
 			"-s", childIP,
