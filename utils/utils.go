@@ -304,6 +304,10 @@ func IsGIT(str string) bool {
 	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
+func ValidGitTransport(str string) bool {
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "git@") || IsURL(str)
+}
+
 var (
 	localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
 )
