@@ -93,7 +93,7 @@ func TestRequestNewIpV6(t *testing.T) {
 
 	var ip net.IP
 	var err error
-	for i := 1; i < 10; i++ {
+	for i := 2; i < 10; i++ {
 		ip, err = RequestIP(network, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -457,11 +457,11 @@ func TestAllocateDifferentSubnets(t *testing.T) {
 		1: net.IPv4(192, 168, 0, 3),
 		2: net.IPv4(127, 0, 0, 2),
 		3: net.IPv4(127, 0, 0, 3),
-		4: net.ParseIP("2a00:1450::1"),
-		5: net.ParseIP("2a00:1450::2"),
-		6: net.ParseIP("2a00:1450::3"),
-		7: net.ParseIP("2a00:1632::1"),
-		8: net.ParseIP("2a00:1632::2"),
+		4: net.ParseIP("2a00:1450::2"),
+		5: net.ParseIP("2a00:1450::3"),
+		6: net.ParseIP("2a00:1450::4"),
+		7: net.ParseIP("2a00:1632::2"),
+		8: net.ParseIP("2a00:1632::3"),
 	}
 
 	ip11, err := RequestIP(network1, nil)
