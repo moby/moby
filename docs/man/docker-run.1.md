@@ -103,7 +103,7 @@ stopping the process by pressing the keys CTRL-P CTRL-Q.
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
 **--dns-search**=[]
-   Set custom DNS search domains
+   Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
 
 **--dns**=*IP-address*
    Set custom DNS servers. This option can be used to override the DNS
@@ -195,8 +195,8 @@ and foreground Docker containers.
    When set to true publish all exposed ports to the host interfaces. The
 default is false. If the operator uses -P (or -p) then Docker will make the
 exposed port accessible on the host and the ports will be available to any
-client that can reach the host. When using -P, Docker will bind the exposed 
-ports to a random port on the host between 49153 and 65535. To find the 
+client that can reach the host. When using -P, Docker will bind the exposed
+ports to a random port on the host between 49153 and 65535. To find the
 mapping between the host ports and the exposed ports, use **docker port**.
 
 **-p**, **--publish**=[]
@@ -232,11 +232,11 @@ interactive shell. The default is value is false.
 
 
 **-v**, **--volume**=*volume*[:ro|:rw]
-   Bind mount a volume to the container. 
+   Bind mount a volume to the container.
 
 The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
-used in other containers using the **--volumes-from** option. 
+used in other containers using the **--volumes-from** option.
 
 The volume may be optionally suffixed with :ro or :rw to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
@@ -247,11 +247,11 @@ read-write. See examples.
 Once a volume is mounted in a one container it can be shared with other
 containers using the **--volumes-from** option when running those other
 containers. The volumes can be shared even if the original container with the
-mount is not running. 
+mount is not running.
 
-The container ID may be optionally suffixed with :ro or 
-:rw to mount the volumes in read-only or read-write mode, respectively. By 
-default, the volumes are mounted in the same mode (read write or read only) as 
+The container ID may be optionally suffixed with :ro or
+:rw to mount the volumes in read-only or read-write mode, respectively. By
+default, the volumes are mounted in the same mode (read write or read only) as
 the reference container.
 
 
