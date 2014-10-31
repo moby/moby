@@ -13,12 +13,15 @@ import (
 //  'pull': Download images from any registry (TODO)
 //  'push': Upload images to any registry (TODO)
 type Service struct {
+	insecureRegistries []string
 }
 
 // NewService returns a new instance of Service ready to be
 // installed no an engine.
-func NewService() *Service {
-	return &Service{}
+func NewService(insecureRegistries []string) *Service {
+	return &Service{
+		insecureRegistries: insecureRegistries,
+	}
 }
 
 // Install installs registry capabilities to eng.
@@ -32,15 +35,12 @@ func (s *Service) Install(eng *engine.Engine) error {
 // and returns OK if authentication was sucessful.
 // It can be used to verify the validity of a client's credentials.
 func (s *Service) Auth(job *engine.Job) engine.Status {
-	var (
-		err        error
-		authConfig = &AuthConfig{}
-	)
+	var authConfig = new(AuthConfig)
 
 	job.GetenvJson("authConfig", authConfig)
-	// TODO: this is only done here because auth and registry need to be merged into one pkg
+
 	if addr := authConfig.ServerAddress; addr != "" && addr != IndexServerAddress() {
-		endpoint, err := NewEndpoint(addr)
+		endpoint, err := NewEndpoint(addr, IsSecure(addr, s.insecureRegistries))
 		if err != nil {
 			return job.Error(err)
 		}
@@ -49,11 +49,13 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 		}
 		authConfig.ServerAddress = endpoint.String()
 	}
+
 	status, err := Login(authConfig, HTTPRequestFactory(nil))
 	if err != nil {
 		return job.Error(err)
 	}
 	job.Printf("%s\n", status)
+
 	return engine.StatusOK
 }
 
@@ -89,7 +91,10 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	endpoint, err := NewEndpoint(hostname)
+
+	secure := IsSecure(hostname, s.insecureRegistries)
+
+	endpoint, err := NewEndpoint(hostname, secure)
 	if err != nil {
 		return job.Error(err)
 	}

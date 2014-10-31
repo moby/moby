@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.1 (2014-10-28)
+
+#### Security
+* Prevent fallback to SSL protocols < TLS 1.0 for client, daemon and registry
++ Secure HTTPS connection to registries with certificate verification and without HTTP fallback unless `--insecure-registry` is specified
+
+#### Runtime
+- Fix issue where volumes would not be shared
+
+#### Client
+- Fix issue with `--iptables=false` not automatically setting `--ip-masq=false`
+- Fix docker run output to non-TTY stdout
+
+#### Builder
+- Fix escaping `$` for environment variables
+- Fix issue with lowercase `onbuild` Dockerfile instruction
+- Restrict envrionment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`, `EXPOSE`, `VOLUME` and `USER`
+
 ## 1.3.0 (2014-10-14)
 
 #### Notable features since 1.2.0

@@ -70,6 +70,7 @@ expect an integer, and they can only be specified once.
       -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
       -H, --host=[]                              The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
       --icc=true                                 Enable inter-container communication
+      --insecure-registry=[]                     Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback)
       --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
@@ -111,7 +112,12 @@ direct access to the Docker daemon - and should be secured either using the
 [built in https encrypted socket](/articles/https/), or by putting a secure web
 proxy in front of it. You can listen on port `2375` on all network interfaces
 with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
-address: `-H tcp://192.168.59.103:2375`.
+address: `-H tcp://192.168.59.103:2375`. It is conventional to use port `2375`
+for un-encrypted, and port `2376` for encrypted communication with the daemon.
+
+> **Note** If you're using an HTTPS encrypted socket, keep in mind that only TLS1.0
+> and greater are supported. Protocols SSLv3 and under are not supported anymore
+> for security reasons.
 
 On Systemd based systems, you can communicate with the daemon via 
 [systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
@@ -193,6 +199,16 @@ IP masquerading uses address translation to allow containers without a public IP
 to other machines on the Internet. This may interfere with some network topologies and
 can be disabled with --ip-masq=false.
 
+
+By default, Docker will assume all registries are secured via TLS with certificate verification
+enabled. Prior versions of Docker used an auto fallback if a registry did not support TLS
+(or if the TLS connection failed). This introduced the opportunity for Man In The Middle (MITM)
+attacks, so as of Docker 1.3.1, the user must now specify the `--insecure-registry` daemon flag
+for each insecure registry. An insecure registry is either not using TLS (i.e. plain text HTTP),
+or is using TLS with a CA certificate not known by the Docker daemon (i.e. certification
+verification disabled). For example, if there is a registry listening for HTTP at 127.0.0.1:5000,
+as of Docker 1.3.1 you are required to specify `--insecure-registry 127.0.0.1:5000` when starting
+the Docker daemon.
 
 
 Docker supports softlinks for the Docker data directory

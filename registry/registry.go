@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 )
 
@@ -35,7 +36,7 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
+func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
 	tlsConfig := tls.Config{
 		RootCAs: roots,
 		// Avoid fallback to SSL protocols < TLS1.0
@@ -44,6 +45,10 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 
 	if cert != nil {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
+	}
+
+	if !secure {
+		tlsConfig.InsecureSkipVerify = true
 	}
 
 	httpTransport := &http.Transport{
@@ -86,69 +91,76 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 	}
 }
 
-func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType) (*http.Response, *http.Client, error) {
-	hasFile := func(files []os.FileInfo, name string) bool {
-		for _, f := range files {
-			if f.Name() == name {
-				return true
-			}
-		}
-		return false
-	}
-
-	hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
-	fs, err := ioutil.ReadDir(hostDir)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, nil, err
-	}
-
+func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
 	var (
 		pool  *x509.CertPool
 		certs []*tls.Certificate
 	)
 
-	for _, f := range fs {
-		if strings.HasSuffix(f.Name(), ".crt") {
-			if pool == nil {
-				pool = x509.NewCertPool()
+	if secure && req.URL.Scheme == "https" {
+		hasFile := func(files []os.FileInfo, name string) bool {
+			for _, f := range files {
+				if f.Name() == name {
+					return true
+				}
 			}
-			data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
-			if err != nil {
-				return nil, nil, err
-			}
-			pool.AppendCertsFromPEM(data)
+			return false
 		}
-		if strings.HasSuffix(f.Name(), ".cert") {
-			certName := f.Name()
-			keyName := certName[:len(certName)-5] + ".key"
-			if !hasFile(fs, keyName) {
-				return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
-			}
-			cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
-			if err != nil {
-				return nil, nil, err
-			}
-			certs = append(certs, &cert)
+
+		hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
+		log.Debugf("hostDir: %s", hostDir)
+		fs, err := ioutil.ReadDir(hostDir)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, nil, err
 		}
-		if strings.HasSuffix(f.Name(), ".key") {
-			keyName := f.Name()
-			certName := keyName[:len(keyName)-4] + ".cert"
-			if !hasFile(fs, certName) {
-				return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+
+		for _, f := range fs {
+			if strings.HasSuffix(f.Name(), ".crt") {
+				if pool == nil {
+					pool = x509.NewCertPool()
+				}
+				log.Debugf("crt: %s", hostDir+"/"+f.Name())
+				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
+				if err != nil {
+					return nil, nil, err
+				}
+				pool.AppendCertsFromPEM(data)
+			}
+			if strings.HasSuffix(f.Name(), ".cert") {
+				certName := f.Name()
+				keyName := certName[:len(certName)-5] + ".key"
+				log.Debugf("cert: %s", hostDir+"/"+f.Name())
+				if !hasFile(fs, keyName) {
+					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+				}
+				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
+				if err != nil {
+					return nil, nil, err
+				}
+				certs = append(certs, &cert)
+			}
+			if strings.HasSuffix(f.Name(), ".key") {
+				keyName := f.Name()
+				certName := keyName[:len(keyName)-4] + ".cert"
+				log.Debugf("key: %s", hostDir+"/"+f.Name())
+				if !hasFile(fs, certName) {
+					return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+				}
 			}
 		}
 	}
 
 	if len(certs) == 0 {
-		client := newClient(jar, pool, nil, timeout)
+		client := newClient(jar, pool, nil, timeout, secure)
 		res, err := client.Do(req)
 		if err != nil {
 			return nil, nil, err
 		}
 		return res, client, nil
 	}
+
 	for i, cert := range certs {
-		client := newClient(jar, pool, cert, timeout)
+		client := newClient(jar, pool, cert, timeout, secure)
 		res, err := client.Do(req)
 		// If this is the last cert, otherwise, continue to next cert if 403 or 5xx
 		if i == len(certs)-1 || err == nil &&
