@@ -74,6 +74,10 @@ func TestLinksPingLinkedContainers(t *testing.T) {
 	logDone("links - ping linked container")
 }
 
+func isIpv6(ip string) bool {
+	return strings.Contains(ip, ":")
+}
+
 func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	cmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
 	cmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
@@ -83,12 +87,14 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 
 	sourceRule := []string{"FORWARD", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
 	destinationRule := []string{"FORWARD", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
-	if !iptables.Exists(sourceRule...) || !iptables.Exists(destinationRule...) {
+
+	iptable := iptables.GetTable(isIpv6(childIP))
+	if !iptable.Exists(sourceRule...) || !iptable.Exists(destinationRule...) {
 		t.Fatal("Iptables rules not found")
 	}
 
 	cmd(t, "rm", "--link", "parent/http")
-	if iptables.Exists(sourceRule...) || iptables.Exists(destinationRule...) {
+	if iptable.Exists(sourceRule...) || iptable.Exists(destinationRule...) {
 		t.Fatal("Iptables rules should be removed when unlink")
 	}
 

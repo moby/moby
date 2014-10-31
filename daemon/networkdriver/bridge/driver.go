@@ -529,7 +529,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		useIpv6      = job.GetenvBool("UseIpv6")
 	)
 
-        iptable := iptables.GetTable(useIpv6)
+	iptable := iptables.GetTable(useIpv6)
 
 	for _, value := range ports {
 		port := nat.Port(value)
