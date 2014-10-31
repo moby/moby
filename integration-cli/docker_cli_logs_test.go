@@ -284,3 +284,54 @@ func TestLogsFollowStopped(t *testing.T) {
 	deleteContainer(cleanedContainerID)
 	logDone("logs - logs follow stopped container")
 }
+
+// Regression test for #8832
+func TestLogsFollowSlowStdoutConsumer(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 200000;yes X | head -c 200000`)
+
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	stopSlowRead := make(chan bool)
+
+	go func() {
+		exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+		stopSlowRead <- true
+	}()
+
+	logCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
+
+	stdout, err := logCmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := logCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// First read slowly
+	bytes1, err := consumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// After the container has finished we can continue reading fast
+	bytes2, err := consumeWithSpeed(stdout, 32*1024, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := bytes1 + bytes2
+	expected := 200000
+	if actual != expected {
+		t.Fatalf("Invalid bytes read: %d, expected %d", actual, expected)
+	}
+
+	logDone("logs - follow slow consumer")
+}
