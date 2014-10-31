@@ -73,7 +73,7 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 }
 
 // Return the IPv4 address of a network interface
-func GetIfaceAddr(name string, ipv4 bool, ipv6 bool) (net.Addr, error) {
+func GetIfaceAddr(name string, ipv6 bool) (net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func GetIfaceAddr(name string, ipv4 bool, ipv6 bool) (net.Addr, error) {
 			addrs6 = append(addrs6, addr)
 		}
 	}
-	if ipv4 && len(addrs4) != 0 {
+	if !ipv6 && len(addrs4) != 0 {
 		if len(addrs4) > 1 {
 			fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
 				name, (addrs4[0].(*net.IPNet)).IP)
