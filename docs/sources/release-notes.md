@@ -1,6 +1,6 @@
-page_title: Docker 1.x Series Release Notes page_description: Release Notes for
-Docker 1.x. page_keywords: docker, documentation, about, technology,
-understanding, release
+page_title: Docker 1.x Series Release Notes
+page_description: Release Notes for Docker 1.x.
+page_keywords: docker, documentation, about, technology, understanding, release
 
 #Release Notes
 
@@ -11,25 +11,26 @@ This release fixes some bugs and addresses some security issues.
 
 *Security fixes*
 
-Patches and changes were made to address CVE-2014-5277 and CVE-2014-3566. Specifically, changes were made to:
+Patches and changes were made to address [CVE-2014-5277 and CVE-2014-3566](https://groups.google.com/forum/#!topic/docker-user/oYm0i3xShJU).
+Specifically, changes were made to:
+
 * Prevent fallback to SSL protocols < TLS 1.0 for client, daemon and registry
-* Secure HTTPS connection to registries with certificate verification and without HTTP fallback unless `--insecure-registry` is specified.
+* Secure HTTPS connection to registries with certificate verification and without HTTP fallback unless [`--insecure-registry`](/reference/commandline/cli/#run) is specified.
 
 *Runtime fixes*
 
-* Fixed issue where volumes would not be shared
+* Fixed issue where volumes would not be shared.
 
 *Client fixes*
 
 * Fixed issue with `--iptables=false` not automatically setting
-`--ip-masq=false`
-* Fixed docker run output to non-TTY stdout
+`--ip-masq=false`.
+* Fixed docker run output to non-TTY stdout.
 
 *Builder fixes*
 
-* Fixed escaping `$` for environment variables
-* Fixed issue with lowercase `onbuild` Dockerfile instruction
-
+* Fixed escaping `$` for environment variables.
+* Fixed issue with lowercase `onbuild` instruction in a `Dockerfile`.
 
 ##Version 1.3.0
 
