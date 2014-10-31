@@ -20,13 +20,9 @@ type allocatedMap struct {
 
 func newAllocatedMap(network *net.IPNet) *allocatedMap {
 	firstIP, lastIP := networkdriver.NetworkRange(network)
-	begin := big.NewInt(0).Add(ipToBigInt(firstIP), big.NewInt(1))
+	// Skip the first IP, reserving it for the bridge
+	begin := big.NewInt(0).Add(ipToBigInt(firstIP), big.NewInt(2))
 	end := big.NewInt(0).Sub(ipToBigInt(lastIP), big.NewInt(1))
-
-	// if IPv4 network, then allocation range starts at begin + 1 because begin is bridge IP
-	if len(firstIP) == 4 {
-		begin = begin.Add(begin, big.NewInt(1))
-	}
 
 	return &allocatedMap{
 		p:     make(map[string]struct{}),
