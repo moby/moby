@@ -323,6 +323,14 @@ func configureBridge(bridgeIP string) error {
 		return err
 	}
 
+	if ipAddr.To16() != nil {
+		// Enable IPv6 on the bridge
+		procFile := "/proc/sys/net/ipv6/conf/" + iface.Name + "/disable_ipv6"
+		if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
+			return fmt.Errorf("Unable to enable IPv6 addresses on bridge: %s\n", err)
+		}
+	}
+
 	if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
 		return fmt.Errorf("Unable to add private network: %s", err)
 	}
