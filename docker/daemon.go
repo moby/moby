@@ -52,6 +52,13 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+			dockerversion.VERSION,
+			dockerversion.GITCOMMIT,
+			d.ExecutionDriver().Name(),
+			d.GraphDriver().String(),
+		)
+
 		if err := d.Install(eng); err != nil {
 			log.Fatal(err)
 		}
@@ -65,13 +72,6 @@ func mainDaemon() {
 			log.Fatal(err)
 		}
 	}()
-	// TODO actually have a resolved graphdriver to show?
-	log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
-		dockerversion.VERSION,
-		dockerversion.GITCOMMIT,
-		daemonCfg.ExecDriver,
-		daemonCfg.GraphDriver,
-	)
 
 	// Serve api
 	job := eng.Job("serveapi", flHosts...)
