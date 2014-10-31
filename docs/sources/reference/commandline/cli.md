@@ -1054,6 +1054,7 @@ than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bi
 
 Current filters:
  * exited (int - the code of exited containers. Only useful with '--all')
+ * status (restarting|running|paused|exited)
 
 ##### Successfully exited containers
 
