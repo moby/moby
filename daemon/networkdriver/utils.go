@@ -73,7 +73,7 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 }
 
 // Return the IPv4 address of a network interface
-func GetIfaceAddr(name string) (net.Addr, error) {
+func GetIfaceAddr(name string, ipv4 bool, ipv6 bool) (net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
 		return nil, err
@@ -83,20 +83,31 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 		return nil, err
 	}
 	var addrs4 []net.Addr
+	var addrs6 []net.Addr
 	for _, addr := range addrs {
 		ip := (addr.(*net.IPNet)).IP
 		if ip4 := ip.To4(); ip4 != nil {
 			addrs4 = append(addrs4, addr)
 		}
+		if ip6 := ip.To16(); ip6 != nil {
+			addrs6 = append(addrs6, addr)
+		}
 	}
-	switch {
-	case len(addrs4) == 0:
-		return nil, fmt.Errorf("Interface %v has no IP addresses", name)
-	case len(addrs4) > 1:
-		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
-			name, (addrs4[0].(*net.IPNet)).IP)
+	if ipv4 && len(addrs4) != 0 {
+		if len(addrs4) > 1 {
+			fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
+				name, (addrs4[0].(*net.IPNet)).IP)
+		}
+		return addrs4[0], nil
 	}
-	return addrs4[0], nil
+	if ipv6 && len(addrs6) != 0 {
+		if len(addrs6) > 1 {
+			fmt.Printf("Interface %v has more than 1 IPv6 address. Defaulting to using %v\n",
+				name, (addrs6[0].(*net.IPNet)).IP)
+		}
+		return addrs6[0], nil
+	}
+	return nil, fmt.Errorf("Interface %v has no IP addresses", name)
 }
 
 func GetDefaultRouteIface() (*net.Interface, error) {
