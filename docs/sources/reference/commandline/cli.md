@@ -489,7 +489,7 @@ Creates a new container.
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
       --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
-      --dns-search=[]            Set custom DNS search domains
+      --dns-search=[]            Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
