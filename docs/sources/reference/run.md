@@ -413,7 +413,7 @@ the `EXPOSE` instruction to give a hint to the operator about what
 incoming ports might provide services. The following options work with
 or override the Dockerfile's exposed defaults:
 
-    --expose=[]: Expose a port from the container
+    --expose=[]: Expose a port or a range of ports from the container
                 without publishing it to your host
     -P=false   : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port to the host (format:
@@ -422,7 +422,7 @@ or override the Dockerfile's exposed defaults:
                  (use 'docker port' to see the actual mapping)
     --link=""  : Add link to another container (name:alias)
 
-As mentioned previously, `EXPOSE` (and `--expose`) make a port available
+As mentioned previously, `EXPOSE` (and `--expose`) makes ports available
 **in** a container for incoming connections. The port number on the
 inside of the container (where the service listens) does not need to be
 the same number as the port exposed on the outside of the container

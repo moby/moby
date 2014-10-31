@@ -76,13 +76,13 @@ func TestSplitProtoPort(t *testing.T) {
 	proto, port = SplitProtoPort("")
 
 	if proto != "" || port != "" {
-		t.Fatal("parsing an empty string yielded surprising results")
+		t.Fatal("parsing an empty string yielded surprising results", proto, port)
 	}
 
 	proto, port = SplitProtoPort("1234")
 
 	if proto != "tcp" || port != "1234" {
-		t.Fatal("tcp is not the default protocol for portspec '1234'")
+		t.Fatal("tcp is not the default protocol for portspec '1234'", proto, port)
 	}
 
 	proto, port = SplitProtoPort("1234/")

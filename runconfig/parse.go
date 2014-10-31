@@ -71,7 +71,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
 
 	cmd.Var(&flPublish, []string{"p", "-publish"}, fmt.Sprintf("Publish a container's port to the host\nformat: %s\n(use 'docker port' to see the actual mapping)", nat.PortSpecTemplateFormat))
-	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port from the container without publishing it to your host")
+	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
@@ -197,9 +197,24 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		if strings.Contains(e, ":") {
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
-		p := nat.NewPort(nat.SplitProtoPort(e))
-		if _, exists := ports[p]; !exists {
-			ports[p] = struct{}{}
+		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
+		if strings.Contains(e, "-") {
+			proto, port := nat.SplitProtoPort(e)
+			//parse the start and end port and create a sequence of ports to expose
+			parts := strings.Split(port, "-")
+			start, _ := strconv.Atoi(parts[0])
+			end, _ := strconv.Atoi(parts[1])
+			for i := start; i <= end; i++ {
+				p := nat.NewPort(proto, strconv.Itoa(i))
+				if _, exists := ports[p]; !exists {
+					ports[p] = struct{}{}
+				}
+			}
+		} else {
+			p := nat.NewPort(nat.SplitProtoPort(e))
+			if _, exists := ports[p]; !exists {
+				ports[p] = struct{}{}
+			}
 		}
 	}
 

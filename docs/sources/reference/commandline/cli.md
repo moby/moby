@@ -509,7 +509,7 @@ Creates a new container.
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
-      --expose=[]                Expose a port from the container without publishing it to your host
+      --expose=[]                Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
       --link=[]                  Add link to another container in the form of name:alias
@@ -1212,7 +1212,7 @@ removed before the image is removed.
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
-      --expose=[]                Expose a port from the container without publishing it to your host
+      --expose=[]                Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
       --link=[]                  Add link to another container in the form of name:alias
