@@ -11,7 +11,14 @@ const (
 	NODIRATIME  = 0
 	NOEXEC      = 0
 	NOSUID      = 0
+	UNBINDABLE  = 0
+	RUNBINDABLE = 0
 	PRIVATE     = 0
+	RPRIVATE    = 0
+	SHARED      = 0
+	RSHARED     = 0
+	SLAVE       = 0
+	RSLAVE      = 0
 	RBIND       = 0
 	RELATIME    = 0
 	RELATIVE    = 0
