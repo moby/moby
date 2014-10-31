@@ -86,10 +86,10 @@ func GetIfaceAddr(name string, ipv4 bool, ipv6 bool) (net.Addr, error) {
 	var addrs6 []net.Addr
 	for _, addr := range addrs {
 		ip := (addr.(*net.IPNet)).IP
-		if ip4 := ip.To4(); ip4 != nil {
+		isIpv4 := ip.To4() != nil
+		if isIpv4 {
 			addrs4 = append(addrs4, addr)
-		}
-		if ip6 := ip.To16(); ip6 != nil {
+		} else {
 			addrs6 = append(addrs6, addr)
 		}
 	}

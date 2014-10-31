@@ -186,15 +186,21 @@ func InitDriver(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func IsIpv6(addr net.Addr) bool {
+func IsIpv6Addr(addr net.Addr) bool {
 	ip := (addr.(*net.IPNet)).IP
-	return ip.To16() != nil
+	return IsIpv6(ip)
+}
+
+func IsIpv6(ip net.IP) bool {
+	// To16 returns != nil for (IPv4 or IPv6)
+	// To4 returns nil for IPv6 (but not IPv4)
+	return ip.To4() == nil && ip.To16() != nil
 }
 
 func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Enable NAT
 
-	useIpv6 := IsIpv6(addr)
+	useIpv6 := IsIpv6Addr(addr)
 
 	if ipmasq {
 		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
@@ -323,7 +329,7 @@ func configureBridge(bridgeIP string) error {
 		return err
 	}
 
-	if ipAddr.To16() != nil {
+	if IsIpv6(ipAddr) {
 		// Enable IPv6 on the bridge
 		procFile := "/proc/sys/net/ipv6/conf/" + iface.Name + "/disable_ipv6"
 		if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
