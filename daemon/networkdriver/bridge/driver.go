@@ -82,6 +82,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		network        *net.IPNet
 		enableIPTables = job.GetenvBool("EnableIptables")
 		icc            = job.GetenvBool("InterContainerCommunication")
+		useIpv6        = job.GetenvBool("UseIpv6")
 		ipMasq         = job.GetenvBool("EnableIpMasq")
 		ipForward      = job.GetenvBool("EnableIpForward")
 		bridgeIP       = job.Getenv("BridgeIP")
@@ -99,7 +100,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		bridgeIface = DefaultNetworkBridge
 	}
 
-	addr, err := networkdriver.GetIfaceAddr(bridgeIface)
+	addr, err := networkdriver.GetIfaceAddr(bridgeIface, !useIpv6, useIpv6)
 	if err != nil {
 		// If we're not using the default bridge, fail without trying to create it
 		if !usingDefaultBridge {
@@ -110,7 +111,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 
-		addr, err = networkdriver.GetIfaceAddr(bridgeIface)
+		addr, err = networkdriver.GetIfaceAddr(bridgeIface, !useIpv6, useIpv6)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -144,12 +145,12 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	// We can always try removing the iptables
-	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
+	if err := iptables.RemoveExistingChain(useIpv6, "DOCKER"); err != nil {
 		return job.Error(err)
 	}
 
 	if enableIPTables {
-		chain, err := iptables.NewChain("DOCKER", bridgeIface)
+		chain, err := iptables.NewChain(useIpv6, "DOCKER", bridgeIface)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -184,14 +185,21 @@ func InitDriver(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func IsIpv6(addr net.Addr) bool {
+	ip := (addr.(*net.IPNet)).IP
+	return ip.To16() != nil
+}
+
 func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Enable NAT
+
+	useIpv6 := IsIpv6(addr)
 
 	if ipmasq {
 		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
-		if !iptables.Exists(natArgs...) {
-			if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
+		if !iptables.Exists(useIpv6, natArgs...) {
+			if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error iptables postrouting: %s", output)
@@ -206,22 +214,22 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	)
 
 	if !icc {
-		iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
+		iptables.Raw(useIpv6, append([]string{"-D"}, acceptArgs...)...)
 
-		if !iptables.Exists(dropArgs...) {
+		if !iptables.Exists(useIpv6, dropArgs...) {
 			log.Debugf("Disable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
+			if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
 			}
 		}
 	} else {
-		iptables.Raw(append([]string{"-D"}, dropArgs...)...)
+		iptables.Raw(useIpv6, append([]string{"-D"}, dropArgs...)...)
 
-		if !iptables.Exists(acceptArgs...) {
+		if !iptables.Exists(useIpv6, acceptArgs...) {
 			log.Debugf("Enable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
+			if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
@@ -231,8 +239,8 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 	// Accept all non-intercontainer outgoing packets
 	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
-	if !iptables.Exists(outgoingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
+	if !iptables.Exists(useIpv6, outgoingArgs...) {
+		if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error iptables allow outgoing: %s", output)
@@ -242,8 +250,8 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Accept incoming packets for existing connections
 	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
 
-	if !iptables.Exists(existingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
+	if !iptables.Exists(useIpv6, existingArgs...) {
+		if output, err := iptables.Raw(useIpv6, append([]string{"-I"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error iptables allow incoming: %s", output)
@@ -514,6 +522,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
+		useIpv6      = job.GetenvBool("UseIpv6")
 	)
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
@@ -522,7 +531,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 	for _, p := range ports {
 		port, proto := split(p)
-		if output, err := iptables.Raw(action, "FORWARD",
+		if output, err := iptables.Raw(useIpv6, action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", proto,
 			"-s", parentIP,
@@ -534,7 +543,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 			return job.Errorf("Error toggle iptables forward: %s", output)
 		}
 
-		if output, err := iptables.Raw(action, "FORWARD",
+		if output, err := iptables.Raw(useIpv6, action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", proto,
 			"-s", childIP,

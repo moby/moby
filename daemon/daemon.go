@@ -851,6 +851,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 
 		job.SetenvBool("EnableIptables", config.EnableIptables)
 		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
+		job.SetenvBool("UseIpv6", config.UseIpv6)
 		job.SetenvBool("EnableIpForward", config.EnableIpForward)
 		job.SetenvBool("EnableIpMasq", config.EnableIpMasq)
 		job.Setenv("BridgeIface", config.BridgeIface)
