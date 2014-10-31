@@ -157,3 +157,63 @@ func TestLinksInspectLinksStopped(t *testing.T) {
 
 	logDone("link - links in stopped container inspect")
 }
+
+func TestLinksEnvVars(t *testing.T) {
+	defer deleteAllContainers()
+
+	// First setup some containers that we'll link to later
+	cmd(t, "run", "-d", "--name", "c0", "busybox", "sleep", "10")
+	cmd(t, "run", "-d", "--expose", "81", "--name", "c1", "busybox", "sleep", "10")
+	cmd(t, "run", "-d", "--expose", "92", "--expose", "93/udp", "--name", "c2", "busybox", "sleep", "10")
+
+	// We're not going to check the full list of env vars set, the unit
+	// testcases should already cover those.  Instead, we're just going to
+	// check to make sure the top-level env vars are there - meaning
+	// ones like DOCKER_LINKS, *_PORTS and *_NAME
+
+	// First make sure DOCKER_LINKS isn't set when we're not linked
+	out, _, _ := cmd(t, "exec", "c1", "env")
+	if strings.Contains(out, "DOCKER_LINKS") {
+		t.Fatal("DOCKER_LINKS was not supposed to be set: %s", out)
+	}
+
+	// Now do some linking and check the env list each time
+
+	// Linking to a container w/o any exposed ports
+	out, _, _ = cmd(t, "run", "--link", "c0:c0", "--name", "p1", "busybox", "env")
+	if !strings.Contains(out, "DOCKER_LINKS=c0") ||
+		!strings.Contains(out, "C0_NAME=/p1/c0") ||
+		strings.Contains(out, "C0_PORTS") {
+		t.Fatal("P1 - Unexpected output: %s", out)
+	}
+
+	// Link to container with one exposed port
+	out, _, _ = cmd(t, "run", "--link", "c1:c1", "--name", "p2", "busybox", "env")
+	if !strings.Contains(out, "DOCKER_LINKS=c1") ||
+		!strings.Contains(out, "C1_NAME=/p2/c1") ||
+		!strings.Contains(out, "C1_PORTS=81/tcp") {
+		t.Fatal("P2 - Unexpected output: %s", out)
+	}
+
+	// Link to container with two exposed ports
+	out, _, _ = cmd(t, "run", "--link", "c2:c2", "--name", "p3", "busybox", "env")
+	if !strings.Contains(out, "DOCKER_LINKS=c2") ||
+		!strings.Contains(out, "C2_NAME=/p3/c2") ||
+		!strings.Contains(out, "C2_PORTS=92/tcp 93/udp") {
+		t.Fatal("P3 - Unexpected output: %s", out)
+	}
+
+	// Link to all containers
+	out, _, _ = cmd(t, "run", "--link", "c0:c0", "--link", "c1:c1", "--link", "c2:c2", "--name", "p4", "busybox", "env")
+	if !strings.Contains(out, "DOCKER_LINKS=c0 c1 c2") ||
+		!strings.Contains(out, "C0_NAME=/p4/c0") ||
+		!strings.Contains(out, "C1_NAME=/p4/c1") ||
+		!strings.Contains(out, "C2_NAME=/p4/c2") ||
+		strings.Contains(out, "C0_PORTS") ||
+		!strings.Contains(out, "C1_PORTS=81/tcp") ||
+		!strings.Contains(out, "C2_PORTS=92/tcp 93/udp") {
+		t.Fatal("P4 - Unexpected output: %s", out)
+	}
+
+	logDone("link - verify env vars")
+}

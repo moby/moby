@@ -325,16 +325,18 @@ Running the **env** command in the linker container shows environment variables
     # env
     HOSTNAME=668231cb0978
     TERM=xterm
+    DOCKER_LINKS=lt
+    LT_NAME=/linker/lt
+    LT_PORTS=80/tcp
     LT_PORT_80_TCP=tcp://172.17.0.3:80
+    LT_PORT_80_TCP_ADDR=172.17.0.3
     LT_PORT_80_TCP_PORT=80
     LT_PORT_80_TCP_PROTO=tcp
     LT_PORT=tcp://172.17.0.3:80
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     PWD=/
-    LT_NAME=/linker/lt
     SHLVL=1
     HOME=/
-    LT_PORT_80_TCP_ADDR=172.17.0.3
     _=/usr/bin/env
 
 When linking two containers Docker will use the exposed ports of the container

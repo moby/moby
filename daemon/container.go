@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -1075,6 +1076,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 			container.activeLinks = nil
 		}
 
+		aliases := []string{}
 		for linkAlias, child := range children {
 			if !child.IsRunning() {
 				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
@@ -1099,9 +1101,16 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 				return nil, err
 			}
 
+			alias := strings.Replace(link.Alias(), "-", "_", -1)
+			aliases = append(aliases, alias)
+
 			for _, envVar := range link.ToEnv() {
 				env = append(env, envVar)
 			}
+		}
+		if len(aliases) > 0 {
+			sort.Strings(aliases) // just so it looks nice to the user
+			env = append(env, "DOCKER_LINKS="+strings.Join(aliases, " "))
 		}
 	}
 	return env, nil
