@@ -154,7 +154,7 @@ We've identified a suitable image, `training/sinatra`, and now we can download i
 
     $ sudo docker pull training/sinatra
 
-The team can now use this image by run their own containers.
+The team can now use this image by running their own containers.
 
     $ sudo docker run -t -i training/sinatra /bin/bash
     root@a8cb6ce02d85:/#
