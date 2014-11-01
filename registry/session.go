@@ -531,8 +531,13 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody), res)
 		}
-		if res.Header.Get("X-Docker-Token") != "" {
+
+		if r.authConfig.Type == "Basic" {
+			tokens = []string{"Basic "+encodeAuth(r.authConfig)}
+			log.Debugf("Auth basic: %v", tokens)
+		} else if res.Header.Get("X-Docker-Token") != "" {
 			tokens = res.Header["X-Docker-Token"]
+			tokens[0] = "Token "+tokens[0]
 			log.Debugf("Auth token: %v", tokens)
 		} else {
 			return nil, fmt.Errorf("Index response didn't contain an access token")
@@ -601,6 +606,6 @@ func (r *Session) GetAuthConfig(withPasswd bool) *AuthConfig {
 
 func setTokenAuth(req *http.Request, token []string) {
 	if req.Header.Get("Authorization") == "" { // Don't override
-		req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
+		req.Header.Set("Authorization", strings.Join(token, ","))
 	}
 }

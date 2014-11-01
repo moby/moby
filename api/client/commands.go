@@ -241,6 +241,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
 	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
 	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
+	var basicAuth = cmd.Bool([]string{"-basic"}, false, "Use Basic auth")
+
 	err := cmd.Parse(args)
 	if err != nil {
 		return nil
@@ -321,6 +323,9 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.Password = password
 	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
+	if *basicAuth {
+		authconfig.Type = "Basic"
+	}
 	cli.configFile.Configs[serverAddress] = authconfig
 
 	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false)
