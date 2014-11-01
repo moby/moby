@@ -159,8 +159,8 @@ Next, inspect your linked containers with `docker inspect`:
 You can see that the `web` container is now linked to the `db` container
 `web/db`. Which allows it to access information about the `db` container.
 
-So what does linking the containers actually do? You've learned that a link creates a
-source container that can provide information about itself to a recipient container. In
+So what does linking the containers actually do? You've learned that a link allows a
+source container to provide information about itself to a recipient container. In
 our example, the recipient, `web`, can access information about the source `db`. To do
 this, Docker creates a secure tunnel between the containers that doesn't need to
 expose any ports externally on the container; you'll note when we started the
