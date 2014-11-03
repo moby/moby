@@ -2027,11 +2027,11 @@ func TestRunSetMacAddress(t *testing.T) {
 	}
 	actualMac := strings.TrimSpace(out)
 	if actualMac != mac {
-		t.Fatalf("Set Mac Address with --mac-address failed. The container has an incorrect MAC address: %q, expected: %q", actualMac, mac)
+		t.Fatalf("Set MAC address with --mac-address failed. The container has an incorrect MAC address: %q, expected: %q", actualMac, mac)
 	}
 
 	deleteAllContainers()
-	logDone("run - setting Mac Address with --mac-address")
+	logDone("run - setting MAC address with --mac-address")
 }
 
 func TestRunInspectMacAddress(t *testing.T) {
@@ -2047,10 +2047,10 @@ func TestRunInspectMacAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	if inspectedMac != mac {
-		t.Fatalf("Inspecting Mac Address with failed. docker inspect shows incorrect MacAddress: %q, actual Mac: %q", inspectedMac, mac)
+		t.Fatalf("docker inspect outputs wrong MAC address: %q, should be: %q", inspectedMac, mac)
 	}
 	deleteAllContainers()
-	logDone("run - inspecting Mac Address")
+	logDone("run - inspecting MAC address")
 }
 
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {

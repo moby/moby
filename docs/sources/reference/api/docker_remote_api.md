@@ -54,7 +54,7 @@ total memory available (`MemTotal`).
 
 `POST /containers/create`
 **New!**
-You can define the container's MAC address by providing a MacAddress key-value pair.
+You can set the new container's MAC address explicitly.
 
 ## v1.15
 

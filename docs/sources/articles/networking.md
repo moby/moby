@@ -105,7 +105,7 @@ Finally, several networking options can only be provided when calling
     [How Docker networks a container](#container-networking)
 
  *  `--mac-address=MACADDRESS...` — see
-    [How docker networks a container](#container-networking)
+    [How Docker networks a container](#container-networking)
 
  *  `-p SPEC` or `--publish=SPEC` — see
     [Binding container ports](#binding-ports)
@@ -540,13 +540,13 @@ The steps with which Docker configures a container are:
     separate and unique network interface namespace, there are no
     physical interfaces with which this name could collide.
 
-4.  Set the interface's mac address according to the `--mac-address`
+4.  Set the interface's MAC address according to the `--mac-address`
     parameter or generate a random one.
 
 5.  Give the container's `eth0` a new IP address from within the
     bridge's range of network addresses, and set its default route to
     the IP address that the Docker host owns on the bridge. If available
-    the IP address is generated from the MAC address. This prevents arp
+    the IP address is generated from the MAC address. This prevents ARP
     cache invalidation problems, when a new container comes up with an
     IP used in the past by another container with another MAC.
 

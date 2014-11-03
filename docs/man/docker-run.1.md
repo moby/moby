@@ -192,7 +192,7 @@ and foreground Docker containers.
    Set the MAC address for the container's ethernet device:
     --mac-address=12:34:56:78:9a:bc
 
-Remember that the MAC address in an ethernet network must be unique.
+Remember that the MAC address in an Ethernet network must be unique.
 The IPv6 link-local address will be based on the device's MAC address
 according to RFC4862.
 
