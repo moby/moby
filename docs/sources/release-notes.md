@@ -31,6 +31,8 @@ Specifically, changes were made to:
 
 * Fixed escaping `$` for environment variables.
 * Fixed issue with lowercase `onbuild` instruction in a `Dockerfile`.
+* Restricted environment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`,
+`EXPOSE`, `VOLUME`, and `USER`
 
 ##Version 1.3.0
 
