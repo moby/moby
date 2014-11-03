@@ -21,6 +21,16 @@ func TestImagesEnsureImageIsListed(t *testing.T) {
 	logDone("images - busybox should be listed")
 }
 
+func TestImagesErrorWithInvalidFilterNameTest(t *testing.T) {
+	imagesCmd := exec.Command(dockerBinary, "images", "-f", "FOO=123")
+	out, _, err := runCommandWithOutput(imagesCmd)
+	if !strings.Contains(out, "invalid filter name") {
+		t.Fatalf("error should occur when listing images with invalid filter name FOO, %s, %v", out, err)
+	}
+
+	logDone("images - invalid filter name check working")
+}
+
 func TestImagesOrderedByCreationDate(t *testing.T) {
 	defer deleteImages("order:test_a")
 	defer deleteImages("order:test_c")

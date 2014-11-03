@@ -48,6 +48,10 @@ const (
 	tarHeaderSize = 512
 )
 
+var (
+	acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
+)
+
 func (cli *DockerCli) CmdHelp(args ...string) error {
 	if len(args) > 1 {
 		method, exists := cli.getMethod(args[:2]...)
@@ -1305,12 +1309,25 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.
-	imageFilterArgs := filters.Args{}
+	rawImageFilterArgs := filters.Args{}
 	for _, f := range flFilter.GetAll() {
 		var err error
-		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
+		rawImageFilterArgs, err = filters.ParseFlag(f, rawImageFilterArgs)
 		if err != nil {
 			return err
+		}
+	}
+
+	// change filter names to lowercase for case insesitivity
+	imageFilterArgs := filters.Args{}
+	for name, values := range rawImageFilterArgs {
+		newName := strings.ToLower(name)
+		imageFilterArgs[newName] = values
+	}
+
+	for name := range imageFilterArgs {
+		if _, ok := acceptedImageFilterTags[name]; !ok {
+			return fmt.Errorf("Filter containing invalid filter name %s", name)
 		}
 	}
 
