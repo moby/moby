@@ -35,6 +35,7 @@ type AuthConfig struct {
 	Auth          string `json:"auth"`
 	Email         string `json:"email"`
 	ServerAddress string `json:"serveraddress,omitempty"`
+	AllowInsecure bool   `json:"allowinsecure,omitempty"`
 }
 
 type ConfigFile struct {
