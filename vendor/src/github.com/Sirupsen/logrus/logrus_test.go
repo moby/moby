@@ -3,6 +3,8 @@ package logrus
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,6 +23,31 @@ func LogAndAssertJSON(t *testing.T, log func(*Logger), assertions func(fields Fi
 	err := json.Unmarshal(buffer.Bytes(), &fields)
 	assert.Nil(t, err)
 
+	assertions(fields)
+}
+
+func LogAndAssertText(t *testing.T, log func(*Logger), assertions func(fields map[string]string)) {
+	var buffer bytes.Buffer
+
+	logger := New()
+	logger.Out = &buffer
+	logger.Formatter = &TextFormatter{
+		DisableColors: true,
+	}
+
+	log(logger)
+
+	fields := make(map[string]string)
+	for _, kv := range strings.Split(buffer.String(), " ") {
+		if !strings.Contains(kv, "=") {
+			continue
+		}
+		kvArr := strings.Split(kv, "=")
+		key := strings.TrimSpace(kvArr[0])
+		val, err := strconv.Unquote(kvArr[1])
+		assert.NoError(t, err)
+		fields[key] = val
+	}
 	assertions(fields)
 }
 
@@ -163,6 +190,20 @@ func TestUserSuppliedLevelFieldHasPrefix(t *testing.T) {
 	})
 }
 
+func TestDefaultFieldsAreNotPrefixed(t *testing.T) {
+	LogAndAssertText(t, func(log *Logger) {
+		ll := log.WithField("herp", "derp")
+		ll.Info("hello")
+		ll.Info("bye")
+	}, func(fields map[string]string) {
+		for _, fieldName := range []string{"fields.level", "fields.time", "fields.msg"} {
+			if _, ok := fields[fieldName]; ok {
+				t.Fatalf("should not have prefixed %q: %v", fieldName, fields)
+			}
+		}
+	})
+}
+
 func TestConvertLevelToString(t *testing.T) {
 	assert.Equal(t, "debug", DebugLevel.String())
 	assert.Equal(t, "info", InfoLevel.String())
@@ -170,4 +211,37 @@ func TestConvertLevelToString(t *testing.T) {
 	assert.Equal(t, "error", ErrorLevel.String())
 	assert.Equal(t, "fatal", FatalLevel.String())
 	assert.Equal(t, "panic", PanicLevel.String())
+}
+
+func TestParseLevel(t *testing.T) {
+	l, err := ParseLevel("panic")
+	assert.Nil(t, err)
+	assert.Equal(t, PanicLevel, l)
+
+	l, err = ParseLevel("fatal")
+	assert.Nil(t, err)
+	assert.Equal(t, FatalLevel, l)
+
+	l, err = ParseLevel("error")
+	assert.Nil(t, err)
+	assert.Equal(t, ErrorLevel, l)
+
+	l, err = ParseLevel("warn")
+	assert.Nil(t, err)
+	assert.Equal(t, WarnLevel, l)
+
+	l, err = ParseLevel("warning")
+	assert.Nil(t, err)
+	assert.Equal(t, WarnLevel, l)
+
+	l, err = ParseLevel("info")
+	assert.Nil(t, err)
+	assert.Equal(t, InfoLevel, l)
+
+	l, err = ParseLevel("debug")
+	assert.Nil(t, err)
+	assert.Equal(t, DebugLevel, l)
+
+	l, err = ParseLevel("invalid")
+	assert.Equal(t, "not a valid logrus Level: \"invalid\"", err.Error())
 }

@@ -3,13 +3,16 @@ package logrus
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
-type JSONFormatter struct {
-}
+type JSONFormatter struct{}
 
 func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 	prefixFieldClashes(entry)
+	entry.Data["time"] = entry.Time.Format(time.RFC3339)
+	entry.Data["msg"] = entry.Message
+	entry.Data["level"] = entry.Level.String()
 
 	serialized, err := json.Marshal(entry.Data)
 	if err != nil {

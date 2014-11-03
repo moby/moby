@@ -1,6 +1,7 @@
 package logrus
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -28,6 +29,27 @@ func (level Level) String() string {
 	}
 
 	return "unknown"
+}
+
+// ParseLevel takes a string level and returns the Logrus log level constant.
+func ParseLevel(lvl string) (Level, error) {
+	switch lvl {
+	case "panic":
+		return PanicLevel, nil
+	case "fatal":
+		return FatalLevel, nil
+	case "error":
+		return ErrorLevel, nil
+	case "warn", "warning":
+		return WarnLevel, nil
+	case "info":
+		return InfoLevel, nil
+	case "debug":
+		return DebugLevel, nil
+	}
+
+	var l Level
+	return l, fmt.Errorf("not a valid logrus Level: %q", lvl)
 }
 
 // These are the different logging levels. You can set the logging level to log
