@@ -2669,6 +2669,29 @@ func TestBuildDockerignore(t *testing.T) {
 	logDone("build - test .dockerignore")
 }
 
+func TestBuildDockerignoreCleanPaths(t *testing.T) {
+	name := "testbuilddockerignorecleanpaths"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+        ADD . /tmp/
+        RUN (! ls /tmp/foo) && (! ls /tmp/foo2) && (! ls /tmp/dir1/foo)`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo":           "foo",
+		"foo2":          "foo2",
+		"dir1/foo":      "foo in dir1",
+		".dockerignore": "./foo\ndir1//foo\n./dir1/../foo2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - test .dockerignore with clean paths")
+}
+
 func TestBuildDockerignoringDockerfile(t *testing.T) {
 	name := "testbuilddockerignoredockerfile"
 	defer deleteImages(name)
@@ -2678,13 +2701,20 @@ func TestBuildDockerignoringDockerfile(t *testing.T) {
 		"Dockerfile":    "FROM scratch",
 		".dockerignore": "Dockerfile\n",
 	})
-	defer ctx.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
 	if _, err = buildImageFromContext(name, ctx, true); err == nil {
 		t.Fatalf("Didn't get expected error from ignoring Dockerfile")
 	}
+
+	// now try it with ./Dockerfile
+	ctx.Add(".dockerignore", "./Dockerfile\n")
+	if _, err = buildImageFromContext(name, ctx, true); err == nil {
+		t.Fatalf("Didn't get expected error from ignoring ./Dockerfile")
+	}
+
 	logDone("build - test .dockerignore of Dockerfile")
 }
 
