@@ -48,7 +48,7 @@ const (
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
-	if job.Eng.IsShutdown() {
+	if job.Eng.IsShutdown() && !job.GetenvBool("overrideShutdown") {
 		return fmt.Errorf("engine is shutdown")
 	}
 	// FIXME: this is a temporary workaround to avoid Engine.Shutdown

@@ -527,7 +527,9 @@ func (container *Container) ReleaseNetwork() {
 	}
 	eng := container.daemon.eng
 
-	eng.Job("release_interface", container.ID).Run()
+	job := eng.Job("release_interface", container.ID)
+	job.SetenvBool("overrideShutdown", true)
+	job.Run()
 	container.NetworkSettings = &NetworkSettings{}
 }
 
