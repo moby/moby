@@ -197,11 +197,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		if strings.Contains(e, "-") {
 			proto, port := nat.SplitProtoPort(e)
 			//parse the start and end port and create a sequence of ports to expose
-			parts := strings.Split(port, "-")
-			start, _ := strconv.Atoi(parts[0])
-			end, _ := strconv.Atoi(parts[1])
+			start, end, err := parsers.ParsePortRange(port)
+			if err != nil {
+				return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+			}
 			for i := start; i <= end; i++ {
-				p := nat.NewPort(proto, strconv.Itoa(i))
+				p := nat.NewPort(proto, strconv.FormatUint(i, 10))
 				if _, exists := ports[p]; !exists {
 					ports[p] = struct{}{}
 				}

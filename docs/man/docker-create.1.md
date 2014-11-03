@@ -121,8 +121,10 @@ IMAGE [COMMAND] [ARG...]
    Publish all exposed ports to the host interfaces. The default is *false*.
 
 **-p**, **--publish**=[]
-   Publish a container's port to the host
+   Publish a container's port, or a range of ports, to the host
                                format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                               Both hostPort and containerPort can be specified as a range of ports. 
+                               When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
 
 **--privileged**=*true*|*false*

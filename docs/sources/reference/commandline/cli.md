@@ -686,8 +686,10 @@ Creates a new container.
                                    'container:<name|id>': reuses another container network stack
                                    'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
       -P, --publish-all=false    Publish all exposed ports to the host interfaces
-      -p, --publish=[]           Publish a container's port to the host
+      -p, --publish=[]           Publish a container's port, or a range of ports (e.g., `-p 3300-3310`), to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                                   Both hostPort and containerPort can be specified as a range of ports. 
+                                   When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
@@ -1514,6 +1516,8 @@ removed before the image is removed.
       -P, --publish-all=false    Publish all exposed ports to the host interfaces
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                                   Both hostPort and containerPort can be specified as a range of ports. 
+                                   When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

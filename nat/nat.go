@@ -122,31 +122,48 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
 		}
-		if _, err := strconv.ParseUint(containerPort, 10, 16); err != nil {
+
+		startPort, endPort, err := parsers.ParsePortRange(containerPort)
+		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
 		}
-		if _, err := strconv.ParseUint(hostPort, 10, 16); hostPort != "" && err != nil {
-			return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+
+		var startHostPort, endHostPort uint64 = 0, 0
+		if len(hostPort) > 0 {
+			startHostPort, endHostPort, err = parsers.ParsePortRange(hostPort)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
+			}
+		}
+
+		if hostPort != "" && (endPort-startPort) != (endHostPort-startHostPort) {
+			return nil, nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
 		}
 
 		if !validateProto(proto) {
 			return nil, nil, fmt.Errorf("Invalid proto: %s", proto)
 		}
 
-		port := NewPort(proto, containerPort)
-		if _, exists := exposedPorts[port]; !exists {
-			exposedPorts[port] = struct{}{}
-		}
+		for i := uint64(0); i <= (endPort - startPort); i++ {
+			containerPort = strconv.FormatUint(startPort+i, 10)
+			if len(hostPort) > 0 {
+				hostPort = strconv.FormatUint(startHostPort+i, 10)
+			}
+			port := NewPort(proto, containerPort)
+			if _, exists := exposedPorts[port]; !exists {
+				exposedPorts[port] = struct{}{}
+			}
 
-		binding := PortBinding{
-			HostIp:   rawIp,
-			HostPort: hostPort,
+			binding := PortBinding{
+				HostIp:   rawIp,
+				HostPort: hostPort,
+			}
+			bslice, exists := bindings[port]
+			if !exists {
+				bslice = []PortBinding{}
+			}
+			bindings[port] = append(bslice, binding)
 		}
-		bslice, exists := bindings[port]
-		if !exists {
-			bslice = []PortBinding{}
-		}
-		bindings[port] = append(bslice, binding)
 	}
 	return exposedPorts, bindings, nil
 }
