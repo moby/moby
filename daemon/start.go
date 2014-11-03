@@ -44,6 +44,9 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+	if err := parseSecurityOpt(container, hostConfig); err != nil {
+		return err
+	}
 	// Validate the HostConfig binds. Make sure that:
 	// the source exists
 	for _, bind := range hostConfig.Binds {

@@ -256,7 +256,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		Volumes:         flVolumes.GetMap(),
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	hostConfig := &HostConfig{
@@ -276,6 +275,7 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),
 		RestartPolicy:   restartPolicy,
+		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	if sysInfo != nil && flMemory > 0 && !sysInfo.SwapLimit {
