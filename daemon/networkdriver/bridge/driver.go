@@ -533,7 +533,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 	for _, value := range ports {
 		port := nat.Port(value)
-		if output, err := iptable.Raw(useIpv6, action, "FORWARD",
+		if output, err := iptable.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", port.Proto(),
 			"-s", parentIP,
