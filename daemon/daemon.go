@@ -151,11 +151,21 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (daemon *Daemon) Get(name string) *Container {
-	if id, err := daemon.idIndex.Get(name); err == nil {
+	var (
+		id  string
+		err error
+	)
+
+	if id, err = daemon.idIndex.Get(name); err == nil {
 		return daemon.containers.Get(id)
 	}
+
 	if c, _ := daemon.GetByName(name); c != nil {
 		return c
+	}
+
+	if err == truncindex.ErrDuplicateID {
+		log.Errorf("Short ID %s is ambiguous: please retry with more characters or use the full ID.\n", name)
 	}
 	return nil
 }

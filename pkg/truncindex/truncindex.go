@@ -11,8 +11,9 @@ import (
 
 var (
 	// ErrNoID is thrown when attempting to use empty prefixes
-	ErrNoID        = errors.New("prefix can't be empty")
-	errDuplicateID = errors.New("multiple IDs were found")
+	ErrNoID = errors.New("prefix can't be empty")
+	// ErrDuplicateID is thrown when a duplicated id was found
+	ErrDuplicateID = errors.New("multiple IDs were found")
 )
 
 func init() {
@@ -98,7 +99,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 		if id != "" {
 			// we haven't found the ID if there are two or more IDs
 			id = ""
-			return errDuplicateID
+			return ErrDuplicateID
 		}
 		id = string(prefix)
 		return nil
