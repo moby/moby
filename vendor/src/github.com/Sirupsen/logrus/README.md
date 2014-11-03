@@ -81,7 +81,7 @@ func init() {
 
   // Use the Airbrake hook to report errors that have Error severity or above to
   // an exception tracker. You can create custom hooks, see the Hooks section.
-  log.AddHook(logrus_airbrake.AirbrakeHook)
+  log.AddHook(&logrus_airbrake.AirbrakeHook{})
 
   // Output to stderr instead of stdout, could also be a file.
   log.SetOutput(os.Stderr)
@@ -126,7 +126,7 @@ func main() {
   // exported logger. See Godoc.
   log.Out = os.Stderr
 
-  log.WithFields(log.Fields{
+  log.WithFields(logrus.Fields{
     "animal": "walrus",
     "size":   10,
   }).Info("A group of walrus emerges from the ocean")
@@ -214,13 +214,19 @@ func init() {
 }
 ```
 
-* [`github.com/Sirupsen/logrus/hooks/airbrake`](https://github.com/Sirupsen/logrus/blob/master/hooks/airbrake/airbrake.go).
+* [`github.com/Sirupsen/logrus/hooks/airbrake`](https://github.com/Sirupsen/logrus/blob/master/hooks/airbrake/airbrake.go)
   Send errors to an exception tracking service compatible with the Airbrake API.
   Uses [`airbrake-go`](https://github.com/tobi/airbrake-go) behind the scenes.
 
-* [`github.com/Sirupsen/logrus/hooks/syslog`](https://github.com/Sirupsen/logrus/blob/master/hooks/syslog/syslog.go).
+* [`github.com/Sirupsen/logrus/hooks/papertrail`](https://github.com/Sirupsen/logrus/blob/master/hooks/papertrail/papertrail.go)
+  Send errors to the Papertrail hosted logging service via UDP.
+
+* [`github.com/Sirupsen/logrus/hooks/syslog`](https://github.com/Sirupsen/logrus/blob/master/hooks/syslog/syslog.go)
   Send errors to remote syslog server.
   Uses standard library `log/syslog` behind the scenes.
+
+* [`github.com/nubo/hiprus`](https://github.com/nubo/hiprus)
+  Send errors to a channel in hipchat.
 
 #### Level logging
 
@@ -295,7 +301,7 @@ The built-in logging formatters are:
 * `logrus.TextFormatter`. Logs the event in colors if stdout is a tty, otherwise
   without colors.
   * *Note:* to force colored output when there is no TTY, set the `ForceColors`
-    field to `true`.  To force no colored output even if there is a TTY  set the 
+    field to `true`.  To force no colored output even if there is a TTY  set the
     `DisableColors` field to `true`
 * `logrus.JSONFormatter`. Logs fields as JSON.
 
