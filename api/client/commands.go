@@ -1197,6 +1197,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry")
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
+	allowInsecure := cmd.Bool([]string{"i", "-allow-insecure"}, false, "Allow insecure repository")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1230,6 +1231,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	// Resolve the Auth config relevant for this server
 	authConfig := cli.configFile.ResolveAuthConfig(hostname)
+	authConfig.AllowInsecure = *allowInsecure
 
 	pull := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
