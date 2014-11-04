@@ -74,7 +74,7 @@ func (s *TagStore) CmdSet(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	if err := s.graph.Register(img, imgJSON, layer); err != nil {
+	if err := s.graph.Register(img, layer); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
