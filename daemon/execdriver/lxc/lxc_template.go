@@ -1,11 +1,11 @@
 package lxc
 
 import (
-	"strings"
-	"text/template"
-
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/libcontainer/label"
+	"os"
+	"strings"
+	"text/template"
 )
 
 const LxcTemplate = `
@@ -70,10 +70,11 @@ lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMo
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" ""}} 0 0
 
 {{range $value := .Mounts}}
+{{$createVal := isDirectory $value.Source}}
 {{if $value.Writable}}
-lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,rw 0 0
+lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,rw,create={{$createVal}} 0 0
 {{else}}
-lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,ro 0 0
+lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,ro,create={{$createVal}} 0 0
 {{end}}
 {{end}}
 
@@ -117,6 +118,20 @@ func escapeFstabSpaces(field string) string {
 	return strings.Replace(field, " ", "\\040", -1)
 }
 
+func isDirectory(source string) string {
+	f, err := os.Stat(source)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "dir"
+		}
+		return ""
+	}
+	if f.IsDir() {
+		return "dir"
+	}
+	return "file"
+}
+
 func getMemorySwap(v *execdriver.Resources) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.
@@ -143,6 +158,7 @@ func init() {
 		"getMemorySwap":     getMemorySwap,
 		"escapeFstabSpaces": escapeFstabSpaces,
 		"formatMountLabel":  label.FormatMountLabel,
+		"isDirectory":       isDirectory,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {

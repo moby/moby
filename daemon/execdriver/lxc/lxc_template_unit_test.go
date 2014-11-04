@@ -140,3 +140,91 @@ func TestEscapeFstabSpaces(t *testing.T) {
 		}
 	}
 }
+
+func TestIsDirectory(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "TestIsDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempFile, err := ioutil.TempFile(tempDir, "TestIsDirFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if isDirectory(tempDir) != "dir" {
+		t.Logf("Could not identify %s as a directory", tempDir)
+		t.Fail()
+	}
+
+	if isDirectory(tempFile.Name()) != "file" {
+		t.Logf("Could not identify %s as a file", tempFile.Name())
+		t.Fail()
+	}
+}
+
+func TestCustomLxcConfigMounts(t *testing.T) {
+	root, err := ioutil.TempDir("", "TestCustomLxcConfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+	tempDir, err := ioutil.TempDir("", "TestIsDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempFile, err := ioutil.TempFile(tempDir, "TestIsDirFile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
+
+	driver, err := NewDriver(root, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	processConfig := execdriver.ProcessConfig{
+		Privileged: false,
+	}
+	mounts := []execdriver.Mount{
+		{
+			Source:      tempDir,
+			Destination: tempDir,
+			Writable:    false,
+			Private:     true,
+		},
+		{
+			Source:      tempFile.Name(),
+			Destination: tempFile.Name(),
+			Writable:    true,
+			Private:     true,
+		},
+	}
+	command := &execdriver.Command{
+		ID: "1",
+		LxcConfig: []string{
+			"lxc.utsname = docker",
+			"lxc.cgroup.cpuset.cpus = 0,1",
+		},
+		Network: &execdriver.Network{
+			Mtu:       1500,
+			Interface: nil,
+		},
+		Mounts:        mounts,
+		ProcessConfig: processConfig,
+	}
+
+	p, err := driver.generateLXCConfig(command)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	grepFile(t, p, "lxc.utsname = docker")
+	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
+
+	grepFile(t, p, fmt.Sprintf("lxc.mount.entry = %s %s none rbind,ro,create=%s 0 0", tempDir, "/"+tempDir, "dir"))
+	grepFile(t, p, fmt.Sprintf("lxc.mount.entry = %s %s none rbind,rw,create=%s 0 0", tempFile.Name(), "/"+tempFile.Name(), "file"))
+}
