@@ -14,6 +14,7 @@ type FsMagic uint64
 const (
 	FsMagicBtrfs = FsMagic(0x9123683E)
 	FsMagicAufs  = FsMagic(0x61756673)
+	FsMagicZfs   = FsMagic(0x2fc12fc1)
 )
 
 type InitFunc func(root string, options []string) (Driver, error)
@@ -78,6 +79,7 @@ var (
 	priority = []string{
 		"aufs",
 		"btrfs",
+		"zfs",
 		"devicemapper",
 		"vfs",
 	}
