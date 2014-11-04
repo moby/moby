@@ -104,6 +104,9 @@ Finally, several networking options can only be provided when calling
  *  `--net=bridge|none|container:NAME_or_ID|host` — see
     [How Docker networks a container](#container-networking)
 
+ *  `--mac-address=MACADDRESS...` — see
+    [How Docker networks a container](#container-networking)
+
  *  `-p SPEC` or `--publish=SPEC` — see
     [Binding container ports](#binding-ports)
 
@@ -537,9 +540,15 @@ The steps with which Docker configures a container are:
     separate and unique network interface namespace, there are no
     physical interfaces with which this name could collide.
 
-4.  Give the container's `eth0` a new IP address from within the
+4.  Set the interface's MAC address according to the `--mac-address`
+    parameter or generate a random one.
+
+5.  Give the container's `eth0` a new IP address from within the
     bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge.
+    the IP address that the Docker host owns on the bridge. If available
+    the IP address is generated from the MAC address. This prevents ARP
+    cache invalidation problems, when a new container comes up with an
+    IP used in the past by another container with another MAC.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with
@@ -621,6 +630,7 @@ Docker do all of the configuration:
 
     $ sudo ip link set B netns $pid
     $ sudo ip netns exec $pid ip link set dev B name eth0
+    $ sudo ip netns exec $pid ip link set eth0 address 12:34:56:78:9a:bc
     $ sudo ip netns exec $pid ip link set eth0 up
     $ sudo ip netns exec $pid ip addr add 172.17.42.99/16 dev eth0
     $ sudo ip netns exec $pid ip route add default via 172.17.42.1

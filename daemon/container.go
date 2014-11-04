@@ -457,6 +457,7 @@ func (container *Container) AllocateNetwork() error {
 	)
 
 	job := eng.Job("allocate_interface", container.ID)
+	job.Setenv("RequestedMac", container.Config.MacAddress)
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}

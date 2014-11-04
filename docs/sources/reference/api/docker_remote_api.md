@@ -52,6 +52,10 @@ You can still call an old version of the API using
 `info` now returns the number of CPUs available on the machine (`NCPU`) and
 total memory available (`MemTotal`).
 
+`POST /containers/create`
+**New!**
+You can set the new container's MAC address explicitly.
+
 ## v1.15
 
 ### Full Documentation
