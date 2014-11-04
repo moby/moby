@@ -52,12 +52,13 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
-			dockerversion.VERSION,
-			dockerversion.GITCOMMIT,
-			d.ExecutionDriver().Name(),
-			d.GraphDriver().String(),
-		)
+
+		logFields := log.Fields{
+			"version":     dockerversion.VERSION,
+			"gitcommit":   dockerversion.GITCOMMIT,
+			"execdriver":  d.ExecutionDriver().Name(),
+			"graphdriver": d.GraphDriver().String()}
+		log.WithFields(logFields).Info("Docker daemon starting")
 
 		if err := d.Install(eng); err != nil {
 			log.Fatal(err)

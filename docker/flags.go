@@ -28,6 +28,7 @@ var (
 	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
 	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
+	flLogFormat   = flag.String([]string{"-log-format"}, "std", "Log format (std or json)")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	flTrustKey *string

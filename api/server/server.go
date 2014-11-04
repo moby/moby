@@ -108,7 +108,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		log.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		log.WithFields(log.Fields{"error": err, "statusCode": statusCode}).Error("HTTP error")
 		http.Error(w, err.Error(), statusCode)
 	}
 }
@@ -922,7 +922,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		job.Stdout.Add(ws)
 		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
-			log.Errorf("Error attaching websocket: %s", err)
+			log.WithField("error", err).Error("Error attaching websocket")
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -1182,13 +1182,13 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		log.Debugf("Calling %s %s", localMethod, localRoute)
 
 		if logging {
-			log.Infof("%s %s", r.Method, r.RequestURI)
+			log.WithFields(log.Fields{"method": r.Method, "uri": r.RequestURI, "remoteAddr": r.RemoteAddr}).Info("API Call")
 		}
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				log.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
+				log.WithFields(log.Fields{"clientVersion": userAgent[1], "serverVersion": dockerVersion}).Debug("Warning: client and server versions mismatch")
 			}
 		}
 		version := version.Version(mux.Vars(r)["version"])
@@ -1205,7 +1205,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
-			log.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			log.WithFields(log.Fields{"error": err, "method": localMethod, "route": localRoute}).Error("HTTP handler error")
 			httpError(w, err)
 		}
 	}
@@ -1298,7 +1298,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			log.Debugf("Registering %s, %s", method, route)
+			log.WithFields(log.Fields{"method": method, "route": route}).Debug("Registering API endpoint")
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localFct := fct
@@ -1388,7 +1388,7 @@ func changeGroup(addr string, nameOrGid string) error {
 		return err
 	}
 
-	log.Debugf("%s group found. gid: %d", nameOrGid, gid)
+	log.WithFields(log.Fields{"nameOrGid": nameOrGid, "gid": gid}).Debug("Group found")
 	return os.Chown(addr, 0, gid)
 }
 
@@ -1505,7 +1505,7 @@ func ServeApi(job *engine.Job) engine.Status {
 			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 		}
 		go func() {
-			log.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
+			log.WithFields(log.Fields{"proto": protoAddrParts[0], "address": protoAddrParts[1]}).Info("Listening for HTTP")
 			chErrors <- ListenAndServe(protoAddrParts[0], protoAddrParts[1], job)
 		}()
 	}
