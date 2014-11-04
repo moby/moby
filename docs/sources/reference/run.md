@@ -140,7 +140,7 @@ example, `docker run ubuntu:14.04`.
                                   'container:<name|id>': reuses another container network stack
                                   'host': use the host network stack inside the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
-    --mac-address="" : Sets the container's ethernet device's MAC address
+    --mac-address="" : Sets the container's Ethernet device's MAC address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking

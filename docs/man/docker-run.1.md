@@ -189,7 +189,7 @@ and foreground Docker containers.
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **--mac-address**=*macaddress*
-   Set the MAC address for the container's ethernet device:
+   Set the MAC address for the container's Ethernet device:
     --mac-address=12:34:56:78:9a:bc
 
 Remember that the MAC address in an Ethernet network must be unique.
