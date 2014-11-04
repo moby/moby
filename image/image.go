@@ -38,14 +38,18 @@ type Image struct {
 }
 
 func LoadImage(root string) (*Image, error) {
-	// Load the json data
-	jsonData, err := ioutil.ReadFile(jsonPath(root))
+	// Open the JSON file to decode by streaming
+	jsonSource, err := os.Open(jsonPath(root))
 	if err != nil {
 		return nil, err
 	}
-	img := &Image{}
+	defer jsonSource.Close()
 
-	if err := json.Unmarshal(jsonData, img); err != nil {
+	img := &Image{}
+	dec := json.NewDecoder(jsonSource)
+
+	// Decode the JSON data
+	if err := dec.Decode(img); err != nil {
 		return nil, err
 	}
 	if err := utils.ValidateID(img.ID); err != nil {
