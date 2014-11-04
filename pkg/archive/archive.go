@@ -397,7 +397,9 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				relFilePath, err := filepath.Rel(srcPath, filePath)
-				if err != nil {
+				if err != nil || (relFilePath == "." && f.IsDir()) {
+					// Error getting relative path OR we are looking
+					// at the root path. Skip in both situations.
 					return nil
 				}
 
