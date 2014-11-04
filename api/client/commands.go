@@ -2054,16 +2054,15 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 }
 
 func (cli *DockerCli) pullImage(image string) error {
-	return cli.pullImageCustomOut(image, cli.out)
-}
-
-func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
-	v := url.Values{}
 	repos, tag := parsers.ParseRepositoryTag(image)
-	// pull only the image tagged 'latest' if no tag was specified
 	if tag == "" {
 		tag = graph.DEFAULTTAG
 	}
+	return cli.pullImageCustomOut(repos, tag, cli.out)
+}
+
+func (cli *DockerCli) pullImageCustomOut(repos string, tag string, out io.Writer) error {
+	v := url.Values{}
 	v.Set("fromImage", repos)
 	v.Set("tag", tag)
 
@@ -2151,10 +2150,14 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, false)
 	//if image not found try to pull it
 	if statusCode == 404 {
-		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", config.Image)
+		repos, tag := parsers.ParseRepositoryTag(config.Image)
+		if tag == "" {
+			tag = graph.DEFAULTTAG
+		}
+		fmt.Fprintf(cli.err, "Unable to find image '%s:%s' locally\n", repos, tag)
 
 		// we don't want to write to stdout anything apart from container.ID
-		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
+		if err = cli.pullImageCustomOut(repos, tag, cli.err); err != nil {
 			return nil, err
 		}
 		// Retry
