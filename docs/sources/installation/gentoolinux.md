@@ -39,8 +39,8 @@ IRC channel on the Freenode network.
 
 | USE Flag      | Default | Description |
 | ------------- |:-------:|:------------|
-| aufs          |         |Enables dependencies for the "aufs" graph driver, including necessary kernel flags.|
-| btrfs         |         |Enables dependencies for the "btrfs" graph driver, including necessary kernel flags.|
+| aufs          |         |Enables dependencies for the "aufs" filesystem, including necessary kernel flags.|
+| btrfs         |         |Enables dependencies for the "btrfs" filesystem, including necessary kernel flags.|
 | contrib       |  Yes    |Install additional contributed scripts and components.|
 | device-mapper |  Yes    |Enables dependencies for the "devicemapper" graph driver, including necessary kernel flags.|
 | doc           |         |Add extra documentation (API, Javadoc, etc). It is recommended to enable per package instead of globally.|
