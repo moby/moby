@@ -185,8 +185,13 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 
 	hdr.Name = name
 
-	stat, ok := fi.Sys().(*syscall.Stat_t)
-	if ok {
+	var (
+		nlink uint32
+		inode uint64
+	)
+	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+		nlink = uint32(stat.Nlink)
+		inode = uint64(stat.Ino)
 		// Currently go does not fill in the major/minors
 		if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
 			stat.Mode&syscall.S_IFCHR == syscall.S_IFCHR {
@@ -194,19 +199,17 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
 		}
 	}
-
 	// if it's a regular file and has more than 1 link,
 	// it's hardlinked, so set the type flag accordingly
-	if fi.Mode().IsRegular() && stat.Nlink > 1 {
+	if fi.Mode().IsRegular() && nlink > 1 {
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive
-		ino := uint64(stat.Ino)
-		if oldpath, ok := ta.SeenFiles[ino]; ok {
+		if oldpath, ok := ta.SeenFiles[inode]; ok {
 			hdr.Typeflag = tar.TypeLink
 			hdr.Linkname = oldpath
 			hdr.Size = 0 // This Must be here for the writer math to add up!
 		} else {
-			ta.SeenFiles[ino] = name
+			ta.SeenFiles[inode] = name
 		}
 	}
 
