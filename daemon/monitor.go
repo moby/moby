@@ -138,6 +138,7 @@ func (m *containerMonitor) Start() error {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
+				m.container.ExitCode = exitStatus
 				m.resetContainer(false)
 
 				return err
@@ -163,10 +164,12 @@ func (m *containerMonitor) Start() error {
 			// we need to check this before reentering the loop because the waitForNextRestart could have
 			// been terminated by a request from a user
 			if m.shouldStop {
+				m.container.ExitCode = exitStatus
 				return err
 			}
 			continue
 		}
+		m.container.ExitCode = exitStatus
 		m.container.LogEvent("die")
 		m.resetContainer(true)
 		return err
