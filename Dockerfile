@@ -78,7 +78,7 @@ RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do
 RUN	go get code.google.com/p/go.tools/cmd/cover
 
 # TODO replace FPM with some very minimal debhelper stuff
-RUN	gem install --no-rdoc --no-ri fpm --version 1.0.2
+RUN	gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install man page generator
 RUN mkdir -p /go/src/github.com/cpuguy83 \
