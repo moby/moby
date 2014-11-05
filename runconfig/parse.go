@@ -2,7 +2,6 @@ package runconfig
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -62,7 +61,6 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container\n'bridge': creates a new network stack for the container on the docker bridge\n'none': no networking for this container\n'container:<name|id>': reuses another container network stack\n'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure[:max-retry], always)")
-		help              = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
@@ -85,15 +83,10 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 1)
+
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, nil, cmd, err
-	}
-	if *help {
-		cmd.Usage()
-		return nil, nil, cmd, nil
-	}
-	if cmd.BadArgs(flag.Min, 1) {
-		os.Exit(1)
 	}
 
 	// Check if the kernel supports memory limit cgroup.
