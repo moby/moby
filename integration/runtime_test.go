@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -30,27 +29,22 @@ import (
 )
 
 const (
-	unitTestImageName        = "docker-test-image"
-	unitTestImageID          = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
-	unitTestImageIDShort     = "83599e29c455"
-	unitTestNetworkBridge    = "testdockbr0"
-	unitTestStoreBase        = "/var/lib/docker/unit-tests"
-	unitTestDockerTmpdir     = "/var/lib/docker/tmp"
-	testDaemonAddr           = "127.0.0.1:4270"
-	testDaemonProto          = "tcp"
-	testDaemonHttpsProto     = "tcp"
-	testDaemonHttpsAddr      = "localhost:4271"
-	testDaemonRogueHttpsAddr = "localhost:4272"
+	unitTestImageName     = "docker-test-image"
+	unitTestImageID       = "83599e29c455eb719f77d799bc7c51521b9551972f5a850d7ad265bc1b5292f6" // 1.0
+	unitTestImageIDShort  = "83599e29c455"
+	unitTestNetworkBridge = "testdockbr0"
+	unitTestStoreBase     = "/var/lib/docker/unit-tests"
+	unitTestDockerTmpdir  = "/var/lib/docker/tmp"
+	testDaemonAddr        = "127.0.0.1:4270"
+	testDaemonProto       = "tcp"
 )
 
 var (
 	// FIXME: globalDaemon is deprecated by globalEngine. All tests should be converted.
-	globalDaemon           *daemon.Daemon
-	globalEngine           *engine.Engine
-	globalHttpsEngine      *engine.Engine
-	globalRogueHttpsEngine *engine.Engine
-	startFds               int
-	startGoroutines        int
+	globalDaemon    *daemon.Daemon
+	globalEngine    *engine.Engine
+	startFds        int
+	startGoroutines int
 )
 
 // FIXME: nuke() is deprecated by Daemon.Nuke()
@@ -122,8 +116,6 @@ func init() {
 
 	// Create the "global daemon" with a long-running daemons for integration tests
 	spawnGlobalDaemon()
-	spawnLegitHttpsDaemon()
-	spawnRogueHttpsDaemon()
 	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
@@ -174,62 +166,6 @@ func spawnGlobalDaemon() {
 	if err := eng.Job("acceptconnections").Run(); err != nil {
 		log.Fatalf("Unable to accept connections for test api: %s", err)
 	}
-}
-
-func spawnLegitHttpsDaemon() {
-	if globalHttpsEngine != nil {
-		return
-	}
-	globalHttpsEngine = spawnHttpsDaemon(testDaemonHttpsAddr, "fixtures/https/ca.pem",
-		"fixtures/https/server-cert.pem", "fixtures/https/server-key.pem")
-}
-
-func spawnRogueHttpsDaemon() {
-	if globalRogueHttpsEngine != nil {
-		return
-	}
-	globalRogueHttpsEngine = spawnHttpsDaemon(testDaemonRogueHttpsAddr, "fixtures/https/ca.pem",
-		"fixtures/https/server-rogue-cert.pem", "fixtures/https/server-rogue-key.pem")
-}
-
-func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
-	t := std_log.New(os.Stderr, "", 0)
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: here we don't use NewTestEngine because it configures the daemon with Autorestart=false,
-	// and we want to set it to true.
-
-	eng := newTestEngine(t, true, root)
-
-	// Spawn a Daemon
-	go func() {
-		log.Debugf("Spawning https daemon for integration tests")
-		listenURL := &url.URL{
-			Scheme: testDaemonHttpsProto,
-			Host:   addr,
-		}
-		job := eng.Job("serveapi", listenURL.String())
-		job.SetenvBool("Logging", true)
-		job.SetenvBool("Tls", true)
-		job.SetenvBool("TlsVerify", true)
-		job.Setenv("TlsCa", cacert)
-		job.Setenv("TlsCert", cert)
-		job.Setenv("TlsKey", key)
-		job.Setenv("TrustKey", path.Join(unitTestStoreBase, ".docker", "key.json"))
-		if err := job.Run(); err != nil {
-			log.Fatalf("Unable to spawn the test daemon: %s", err)
-		}
-	}()
-
-	// Give some time to ListenAndServer to actually start
-	time.Sleep(time.Second)
-
-	if err := eng.Job("acceptconnections").Run(); err != nil {
-		log.Fatalf("Unable to accept connections for test api: %s", err)
-	}
-	return eng
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output
