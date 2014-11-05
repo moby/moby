@@ -99,7 +99,7 @@ together in most interactive cases.
 
 ## Container identification
 
-### Name (–-name)
+### Name (--name)
 
 The operator can identify a container in three ways:
 
@@ -218,7 +218,7 @@ container itself as well as `localhost` and a few other common things.  The
     ::1	            localhost ip6-localhost ip6-loopback
     86.75.30.9      db-static
 
-## Clean up (–-rm)
+## Clean up (--rm)
 
 By default a container's file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
