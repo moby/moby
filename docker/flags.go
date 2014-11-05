@@ -10,6 +10,15 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
+const (
+	defaultTrustKeyFile   = "key.json"
+	defaultHostKeysFile   = "allowed_hosts.json"
+	defaultClientKeysFile = "authorized_keys.json"
+	defaultCaFile         = "ca.pem"
+	defaultKeyFile        = "key.pem"
+	defaultCertFile       = "cert.pem"
+)
+
 var (
 	dockerCertPath  = os.Getenv("DOCKER_CERT_PATH")
 	dockerTlsVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""

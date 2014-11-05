@@ -21,15 +21,6 @@ import (
 	"github.com/docker/libtrust"
 )
 
-const (
-	defaultTrustKeyFile   = "key.json"
-	defaultHostKeysFile   = "allowed_hosts.json"
-	defaultClientKeysFile = "authorized_keys.json"
-	defaultCaFile         = "ca.pem"
-	defaultKeyFile        = "key.pem"
-	defaultCertFile       = "cert.pem"
-)
-
 func main() {
 	if reexec.Init() {
 		return
