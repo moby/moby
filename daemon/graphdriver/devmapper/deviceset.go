@@ -68,7 +68,7 @@ type DeviceSet struct {
 	devicePrefix     string
 	TransactionId    uint64
 	NewTransactionId uint64
-	nextDeviceId     int
+	NextDeviceId     int
 
 	// Options
 	dataLoopbackSize     int64
@@ -407,7 +407,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	log.Debugf("Initializing base device-manager snapshot")
 
-	id := devices.nextDeviceId
+	id := devices.NextDeviceId
 
 	// Create initial device
 	if err := createDevice(devices.getPoolDevName(), &id); err != nil {
@@ -415,7 +415,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	// Ids are 24bit, so wrap around
-	devices.nextDeviceId = (id + 1) & 0xffffff
+	devices.NextDeviceId = (id + 1) & 0xffffff
 
 	log.Debugf("Registering base device (id %v) with FS size %v", id, devices.baseFsSize)
 	info, err := devices.registerDevice(id, "", devices.baseFsSize)
@@ -703,7 +703,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 		return fmt.Errorf("device %s already exists", hash)
 	}
 
-	deviceId := devices.nextDeviceId
+	deviceId := devices.NextDeviceId
 
 	if err := createSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 		log.Debugf("Error creating snap device: %s", err)
@@ -711,7 +711,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	}
 
 	// Ids are 24bit, so wrap around
-	devices.nextDeviceId = (deviceId + 1) & 0xffffff
+	devices.NextDeviceId = (deviceId + 1) & 0xffffff
 
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
 		deleteDevice(devices.getPoolDevName(), deviceId)
