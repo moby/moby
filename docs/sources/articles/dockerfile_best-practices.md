@@ -113,12 +113,6 @@ the command string itself will be used to find a match.
 Once the cache is invalidated, all subsequent `Dockerfile` commands will
 generate new images and the cache will not be used.
 
-        bzr \
-        cvs \
-        git \
-        mercurial \
-        subversion
-
 ## The Dockerfile instructions
 
 Below you'll find recommendations for the best way to write the
