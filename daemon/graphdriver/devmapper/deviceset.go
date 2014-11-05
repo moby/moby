@@ -200,11 +200,8 @@ func (devices *DeviceSet) removeMetadata(info *DevInfo) error {
 	return nil
 }
 
-func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
-	jsonData, err := json.Marshal(info)
-	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
-	}
+// Given json data and file path, write it to disk
+func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
 	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
 	if err != nil {
 		return fmt.Errorf("Error creating metadata file: %s", err)
@@ -223,8 +220,21 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
-	if err := os.Rename(tmpFile.Name(), devices.metadataFile(info)); err != nil {
+	if err := os.Rename(tmpFile.Name(), filePath); err != nil {
 		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
+	jsonData, err := json.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
+	}
+	err = devices.writeMetaFile(jsonData, devices.metadataFile(info))
+	if err != nil {
+		return err
 	}
 
 	if devices.NewTransactionId != devices.TransactionId {
