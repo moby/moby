@@ -368,6 +368,7 @@ Dockerfile instruction and how the operator can override that setting.
     #entrypoint-default-command-to-execute-at-runtime)
  - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
  - [ENV (Environment Variables)](#env-environment-variables)
+ - [ATTR (Container Metadata)](#attr-container-metadata)
  - [VOLUME (Shared Filesystems)](#volume-shared-filesystems)
  - [USER](#user)
  - [WORKDIR](#workdir)
@@ -559,6 +560,27 @@ mechanism to communicate with a linked container by its alias:
 
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
+
+## ATTR (container metadata)
+
+An operator or developer can set attribute values for a
+container. These are arbitrary metadata that can be reported by
+`docker inspect` (and unlike env entries, set at any time with `docker
+attr`).
+
+When running the container, an operator can use the flag `-A` to give
+a value to an attribute:
+
+    $ sudo docker run -A 'smellsLike="teenspirit"' ubuntu /bin/bash
+
+The value given is any JSON literal.
+
+In a Dockerfile, attributes can be set with the `ATTR` instruction:
+
+    ATTR smellsLike "teenspirit"
+
+Attribute values set in `docker run` will override those given in the
+Dockerfile.
 
 ## VOLUME (shared filesystems)
 

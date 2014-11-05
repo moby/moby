@@ -497,6 +497,7 @@ Creates a new container.
     Create a new container
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
+      -A, --attr=[]              Set container attributes
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
@@ -594,7 +595,7 @@ For example:
 
 Docker containers will report the following events:
 
-    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+    create, destroy, die, export, kill, pause, restart, start, stop, unpause, update
 
 and Docker images will report:
 
@@ -903,6 +904,34 @@ section contains complex JSON object, so to grab it as JSON, you use
 
     $ sudo docker inspect --format='{{json .config}}' $INSTANCE_ID
 
+**Get an attribute:**
+
+Attributes are given under the key `"Attributes"`, and will often be a
+JSON value.
+
+    $ sudo docker inspect --format='{{json .Attributes.foo }} $INSTANCE_ID
+
+## attr
+
+    Usage: docker attr KEY VALUE CONTAINER
+
+Set a container attribute. Attributes are arbitrary JSON values
+attached to a container, visible via the API and command-line tools,
+but not in general visible to the container.
+
+The `KEY` supplied must be a valid go identifier. It is encouraged to
+use prefixes to scope related keys; e.g., `frobnicatorFoo` and
+`frobnicatorBar`.
+
+The `VALUE` supplied must be a JSON literal. In many cases this will
+require quoting or escaping. The literal `null` removes the value for
+a key.
+
+Container attributes are available for inspection under the field
+`.Attributes`.
+
+Changing an attribute results in an `update` event being emitted.
+
 ## kill
 
     Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
@@ -1207,6 +1236,7 @@ removed before the image is removed.
     Run a command in a new container
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
+      -A, --attr=[]              Set container attributes
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities

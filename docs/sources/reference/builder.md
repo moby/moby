@@ -351,6 +351,18 @@ change them using `docker run --env <key>=<value>`.
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
+## ATTR
+
+    ATTR <key> <value>
+
+The `ATTR` instruction sets an initial value for the attribute named
+`<key>`. The attribute value is not available to the container itself,
+but may be reported by `docker inspect` and overidden by `docker
+attr`.
+
+The value must be a JSON literal; so, for example, strings must be
+double-quoted.
+
 ## ADD
 
     ADD <src>... <dest>
