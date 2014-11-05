@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"syscall"
@@ -34,7 +33,6 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 )
 
 var (
@@ -1433,23 +1431,6 @@ func changeGroup(addr string, nameOrGid string) error {
 	return os.Chown(addr, 0, gid)
 }
 
-// parseAddr parses an address into an array of IPs and domains
-func parseAddr(addr string) ([]net.IP, []string, error) {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, nil, err
-	}
-	var domains []string
-	var ips []net.IP
-	ip := net.ParseIP(host)
-	if ip != nil {
-		ips = []net.IP{ip}
-	} else {
-		domains = []string{host}
-	}
-	return ips, domains, nil
-}
-
 func setSocketGroup(addr, group string) error {
 	if group == "" {
 		return nil
@@ -1520,10 +1501,6 @@ func allocateDaemonPort(addr string) error {
 }
 
 func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
-	if job.GetenvBool("Insecure") {
-		log.Infof("/!\\ DON'T BIND INSECURELY ON A TCP ADDRESS IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-	}
-
 	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 	if err != nil {
 		return nil, err
@@ -1538,84 +1515,33 @@ func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 		return nil, err
 	}
 
-	if !job.GetenvBool("Insecure") {
-		trustKeyFile := job.Getenv("TrustKey")
-		err = os.MkdirAll(path.Dir(trustKeyFile), 0700)
+	var tlsConfig *tls.Config
+
+	switch job.Getenv("Auth") {
+	case "identity":
+		trustKey, err := api.LoadOrCreateTrustKey(job.Getenv("TrustKey"))
 		if err != nil {
-			return nil, fmt.Errorf("Error creating directory: %s", err)
+			return nil, err
 		}
-		trustKey, err := libtrust.LoadKeyFile(trustKeyFile)
-		if err == libtrust.ErrKeyFileDoesNotExist {
-			trustKey, err = libtrust.GenerateECP256PrivateKey()
-			if err != nil {
-				return nil, fmt.Errorf("Error generating key: %s", err)
-			}
-			if err := libtrust.SaveKey(trustKeyFile, trustKey); err != nil {
-				return nil, fmt.Errorf("Error saving key file: %s", err)
-			}
-		} else if err != nil {
-			return nil, fmt.Errorf("Error loading key file: %s", err)
+		if tlsConfig, err = NewIdentityAuthTLSConfig(trustKey, job.Getenv("TrustClients"), addr); err != nil {
+			return nil, fmt.Errorf("Error creating TLS config: %s", err)
 		}
-
-		var cert tls.Certificate
-		tlsCert := job.Getenv("TlsCert")
-		tlsKey := job.Getenv("TlsKey")
-		if tlsCert != "" && tlsKey != "" {
-			var err error
-			cert, err = tls.LoadX509KeyPair(tlsCert, tlsKey)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					return nil, fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?",
-						tlsCert, tlsKey, err)
-				}
-				ips, domains, err := parseAddr(addr)
-				if err != nil {
-					return nil, err
-				}
-				// add default docker domain for docker clients to look for
-				domains = append(domains, "docker")
-				x509Cert, err := libtrust.GenerateSelfSignedServerCert(trustKey, domains, ips)
-				if err != nil {
-					return nil, fmt.Errorf("certificate generation error: %s", err)
-				}
-				cert = tls.Certificate{
-					Certificate: [][]byte{x509Cert.Raw},
-					PrivateKey:  trustKey.CryptoPrivateKey(),
-					Leaf:        x509Cert,
-				}
-			}
-
+	case "cert":
+		if tlsConfig, err = NewCertAuthTLSConfig(job.Getenv("AuthCa"), job.Getenv("AuthCert"), job.Getenv("AuthKey")); err != nil {
+			return nil, fmt.Errorf("Error creating TLS config: %s", err)
 		}
+	case "none":
+		tlsConfig = nil
+	default:
+		return nil, fmt.Errorf("Unknown auth method: %s", job.Getenv("Auth"))
+	}
 
-		tlsConfig := &tls.Config{
-			NextProtos:   []string{"http/1.1"},
-			Certificates: []tls.Certificate{cert},
-			// Avoid fallback on insecure SSL protocols
-			MinVersion: tls.VersionTLS10,
-		}
-
-		// Load authorized keys file
-		clients, err := libtrust.LoadKeySetFile(job.Getenv("TrustClients"))
-		if err != nil {
-			return nil, fmt.Errorf("unable to load authorized keys: %s", err)
-		}
-
-		if job.GetenvBool("TlsVerify") {
-			certPool, poolErr := libtrust.GenerateCACertPool(trustKey, clients)
-			if poolErr != nil {
-				return nil, fmt.Errorf("CA pool generation error: %s", poolErr)
-			}
-			file, err := ioutil.ReadFile(job.Getenv("TlsCa"))
-			if err != nil && !os.IsNotExist(err) {
-				return nil, fmt.Errorf("Couldn't read CA certificate: %s", err)
-			}
-			certPool.AppendCertsFromPEM(file)
-
-			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-			tlsConfig.ClientCAs = certPool
-		}
+	if tlsConfig == nil {
+		log.Infof("/!\\ DON'T BIND INSECURELY ON A TCP ADDRESS IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+	} else {
 		l = tls.NewListener(l, tlsConfig)
 	}
+
 	return &HttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
 }
 

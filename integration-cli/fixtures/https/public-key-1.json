@@ -1,0 +1,12 @@
+{
+    "keys": [
+        {
+            "hosts": ["localhost:4272"],
+            "crv": "P-256",
+            "kid": "FDTR:VRAS:HWMP:MVLO:XVN4:OQRA:QWUS:PMZX:ANM5:6AB3:IZVG:MELL",
+            "kty": "EC",
+            "x": "qt6kkQOC8GCGPxjHPaHkvbou0gX_4YXWzA2ExvmM7co",
+            "y": "QIOEwDF1pbSrcC0XIAHx9QeZG7qBX0rS5AhGtw-5X4Y"
+        }
+    ]
+}
