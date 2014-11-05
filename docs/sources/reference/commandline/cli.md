@@ -1111,6 +1111,10 @@ use `docker pull`:
     # manually specifies the path to the default Docker registry. This could
     # be replaced with the path to a local registry to pull from another source.
 
+> **Note:** Due to changes in the registry, `docker pull` will not 
+> automatically pull all aliases of an image. For more information, 
+> see issue [#8689](https://github.com/docker/docker/issues/8689)
+
 ## push
 
     Usage: docker push NAME[:TAG]
