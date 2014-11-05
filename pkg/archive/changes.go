@@ -348,13 +348,25 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 
 // ChangesSize calculates the size in bytes of the provided changes, based on newDir.
 func ChangesSize(newDir string, changes []Change) int64 {
-	var size int64
+	var (
+		size      int64
+		SeenFiles = make(SeenFiles)
+	)
 	for _, change := range changes {
 		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
 			file := filepath.Join(newDir, change.Path)
 			fileInfo, _ := os.Lstat(file)
 			if fileInfo != nil && !fileInfo.IsDir() {
-				size += fileInfo.Size()
+				if IsHardlink(fileInfo) {
+					// if the file has not been seen, then perhaps this link maybe elsewhere,
+					// or corresponding file not seen yet
+					if SeenFiles.Include(fileInfo) == "" {
+						size += fileInfo.Size()
+						SeenFiles.Add(fileInfo)
+					}
+				} else {
+					size += fileInfo.Size()
+				}
 			}
 		}
 	}
@@ -368,7 +380,7 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 		ta := &tarAppender{
 			TarWriter: tar.NewWriter(writer),
 			Buffer:    pools.BufioWriter32KPool.Get(nil),
-			SeenFiles: make(map[uint64]string),
+			SeenFiles: make(SeenFiles),
 		}
 		// this buffer is needed for the duration of this piped stream
 		defer pools.BufioWriter32KPool.Put(ta.Buffer)

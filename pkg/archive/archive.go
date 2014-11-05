@@ -165,7 +165,35 @@ type tarAppender struct {
 	Buffer    *bufio.Writer
 
 	// for hardlink mapping
-	SeenFiles map[uint64]string
+	SeenFiles SeenFiles
+}
+
+// for hardlink mapping
+type SeenFiles map[uint64]string
+
+func (sf SeenFiles) Add(fi os.FileInfo) {
+	switch sys := fi.Sys().(type) {
+	case *syscall.Stat_t:
+		sf[uint64(sys.Ino)] = fi.Name()
+	default:
+		// length plus one. Not an inode, but still usable by systems that don't have inodes
+		sf[uint64(len(sf))] = fi.Name()
+	}
+}
+
+func (sf SeenFiles) Include(fi os.FileInfo) string {
+	switch sys := fi.Sys().(type) {
+	case *syscall.Stat_t:
+		return sf[uint64(sys.Ino)]
+	default:
+		n := fi.Name()
+		for _, path := range sf {
+			if n == path {
+				return path
+			}
+		}
+	}
+	return ""
 }
 
 func (ta *tarAppender) addTarFile(path, name string) error {
@@ -192,22 +220,21 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 
 	hdr.Name = name
 
-	nlink, inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
-	if err != nil {
+	if err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys()); err != nil {
 		return err
 	}
 
 	// if it's a regular file and has more than 1 link,
 	// it's hardlinked, so set the type flag accordingly
-	if fi.Mode().IsRegular() && nlink > 1 {
+	if IsHardlink(fi) {
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive
-		if oldpath, ok := ta.SeenFiles[inode]; ok {
+		if oldpath := ta.SeenFiles.Include(fi); len(oldpath) > 0 {
 			hdr.Typeflag = tar.TypeLink
 			hdr.Linkname = oldpath
 			hdr.Size = 0 // This Must be here for the writer math to add up!
 		} else {
-			ta.SeenFiles[inode] = name
+			ta.SeenFiles.Add(fi)
 		}
 	}
 
@@ -372,7 +399,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		ta := &tarAppender{
 			TarWriter: tar.NewWriter(compressWriter),
 			Buffer:    pools.BufioWriter32KPool.Get(nil),
-			SeenFiles: make(map[uint64]string),
+			SeenFiles: make(SeenFiles),
 		}
 		// this buffer is needed for the duration of this piped stream
 		defer pools.BufioWriter32KPool.Put(ta.Buffer)
