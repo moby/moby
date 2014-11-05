@@ -553,6 +553,37 @@ Please see the [run command](#run) section for more details.
     $ sudo docker start -a -i 6d8af538ec5
     bash-4.2#
 
+### Working with data-only containers
+
+The `docker create` command is also useful for creating data-only
+containers that are never run. This allows one to package arbitrary data
+in the docker format. The data may then be accessed using `--volumes-from`
+to mount the data container into a running container or using the
+`docker cp` command which copies files/folders from a container's
+filesystem to the host.
+
+#### Example
+
+Data-only Dockerfile:
+
+    FROM scratch
+    ADD arbitrary_data /container_data/
+    VOLUME /container_data
+
+Once the image has been built there are two ways to access the data:
+
+1. Copy files to the host
+
+        $ sudo docker create data-container
+        $ sudo docker cp $(sudo docker ps -q -l):/container_data/ .
+
+1. Mount in a running container
+
+        $ sudo docker create --name mydata data-container
+        $ sudo docker run --volumes-from mydata myapp
+
+See the [cp command](#cp) section for more details.
+
 ## diff
 
 List the changed files and directories in a container᾿s filesystem

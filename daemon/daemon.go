@@ -422,9 +422,6 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 			return nil, err
 		}
 	}
-	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return nil, fmt.Errorf("No command specified")
-	}
 	return warnings, nil
 }
 
