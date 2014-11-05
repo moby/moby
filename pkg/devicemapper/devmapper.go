@@ -1,6 +1,6 @@
 // +build linux
 
-package devmapper
+package devicemapper
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 )
 
 type DevmapperLogger interface {
-	log(level int, file string, line int, dmError int, message string)
+	DMLog(level int, file string, line int, dmError int, message string)
 }
 
 const (
@@ -272,7 +272,8 @@ func LogInitVerbose(level int) {
 
 var dmLogger DevmapperLogger = nil
 
-func logInit(logger DevmapperLogger) {
+// initialize the logger for the device mapper library
+func LogInit(logger DevmapperLogger) {
 	dmLogger = logger
 	LogWithErrnoInit()
 }
@@ -295,6 +296,7 @@ func GetLibraryVersion() (string, error) {
 
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
+	// TODO(vbatts) just use the other removeDevice()
 	task := TaskCreate(DeviceRemove)
 	if task == nil {
 		return ErrCreateRemoveTask
@@ -342,7 +344,7 @@ func BlockDeviceDiscard(path string) error {
 }
 
 // This is the programmatic example of "dmsetup create"
-func createPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
+func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
 	task, err := createTask(DeviceCreate, poolName)
 	if task == nil {
 		return err
@@ -364,7 +366,7 @@ func createPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running DeviceCreate (createPool) %s", err)
+		return fmt.Errorf("Error running DeviceCreate (CreatePool) %s", err)
 	}
 
 	UdevWait(cookie)
@@ -372,7 +374,7 @@ func createPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	return nil
 }
 
-func reloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
+func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
 	task, err := createTask(DeviceReload, poolName)
 	if task == nil {
 		return err
@@ -406,7 +408,7 @@ func createTask(t TaskType, name string) (*Task, error) {
 	return task, nil
 }
 
-func getDeps(name string) (*Deps, error) {
+func GetDeps(name string) (*Deps, error) {
 	task, err := createTask(DeviceDeps, name)
 	if task == nil {
 		return nil, err
@@ -417,7 +419,7 @@ func getDeps(name string) (*Deps, error) {
 	return task.GetDeps()
 }
 
-func getInfo(name string) (*Info, error) {
+func GetInfo(name string) (*Info, error) {
 	task, err := createTask(DeviceInfo, name)
 	if task == nil {
 		return nil, err
@@ -428,7 +430,7 @@ func getInfo(name string) (*Info, error) {
 	return task.GetInfo()
 }
 
-func getDriverVersion() (string, error) {
+func GetDriverVersion() (string, error) {
 	task := TaskCreate(DeviceVersion)
 	if task == nil {
 		return "", fmt.Errorf("Can't create DeviceVersion task")
@@ -439,24 +441,24 @@ func getDriverVersion() (string, error) {
 	return task.GetDriverVersion()
 }
 
-func getStatus(name string) (uint64, uint64, string, string, error) {
+func GetStatus(name string) (uint64, uint64, string, string, error) {
 	task, err := createTask(DeviceStatus, name)
 	if task == nil {
-		log.Debugf("getStatus: Error createTask: %s", err)
+		log.Debugf("GetStatus: Error createTask: %s", err)
 		return 0, 0, "", "", err
 	}
 	if err := task.Run(); err != nil {
-		log.Debugf("getStatus: Error Run: %s", err)
+		log.Debugf("GetStatus: Error Run: %s", err)
 		return 0, 0, "", "", err
 	}
 
 	devinfo, err := task.GetInfo()
 	if err != nil {
-		log.Debugf("getStatus: Error GetInfo: %s", err)
+		log.Debugf("GetStatus: Error GetInfo: %s", err)
 		return 0, 0, "", "", err
 	}
 	if devinfo.Exists == 0 {
-		log.Debugf("getStatus: Non existing device %s", name)
+		log.Debugf("GetStatus: Non existing device %s", name)
 		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
 	}
 
@@ -464,7 +466,7 @@ func getStatus(name string) (uint64, uint64, string, string, error) {
 	return start, length, targetType, params, nil
 }
 
-func setTransactionId(poolName string, oldId uint64, newId uint64) error {
+func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
 	task, err := createTask(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
@@ -479,12 +481,12 @@ func setTransactionId(poolName string, oldId uint64, newId uint64) error {
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running setTransactionId %s", err)
+		return fmt.Errorf("Error running SetTransactionId %s", err)
 	}
 	return nil
 }
 
-func suspendDevice(name string) error {
+func SuspendDevice(name string) error {
 	task, err := createTask(DeviceSuspend, name)
 	if task == nil {
 		return err
@@ -495,7 +497,7 @@ func suspendDevice(name string) error {
 	return nil
 }
 
-func resumeDevice(name string) error {
+func ResumeDevice(name string) error {
 	task, err := createTask(DeviceResume, name)
 	if task == nil {
 		return err
@@ -515,8 +517,8 @@ func resumeDevice(name string) error {
 	return nil
 }
 
-func createDevice(poolName string, deviceId *int) error {
-	log.Debugf("[devmapper] createDevice(poolName=%v, deviceId=%v)", poolName, *deviceId)
+func CreateDevice(poolName string, deviceId *int) error {
+	log.Debugf("[devmapper] CreateDevice(poolName=%v, deviceId=%v)", poolName, *deviceId)
 
 	for {
 		task, err := createTask(DeviceTargetMsg, poolName)
@@ -539,14 +541,14 @@ func createDevice(poolName string, deviceId *int) error {
 				*deviceId++
 				continue
 			}
-			return fmt.Errorf("Error running createDevice %s", err)
+			return fmt.Errorf("Error running CreateDevice %s", err)
 		}
 		break
 	}
 	return nil
 }
 
-func deleteDevice(poolName string, deviceId int) error {
+func DeleteDevice(poolName string, deviceId int) error {
 	task, err := createTask(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
@@ -561,14 +563,14 @@ func deleteDevice(poolName string, deviceId int) error {
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running deleteDevice %s", err)
+		return fmt.Errorf("Error running DeleteDevice %s", err)
 	}
 	return nil
 }
 
 func removeDevice(name string) error {
-	log.Debugf("[devmapper] removeDevice START")
-	defer log.Debugf("[devmapper] removeDevice END")
+	log.Debugf("[devmapper] RemoveDevice START")
+	defer log.Debugf("[devmapper] RemoveDevice END")
 	task, err := createTask(DeviceRemove, name)
 	if task == nil {
 		return err
@@ -578,12 +580,12 @@ func removeDevice(name string) error {
 		if dmSawBusy {
 			return ErrBusy
 		}
-		return fmt.Errorf("Error running removeDevice %s", err)
+		return fmt.Errorf("Error running RemoveDevice %s", err)
 	}
 	return nil
 }
 
-func activateDevice(poolName string, name string, deviceId int, size uint64) error {
+func ActivateDevice(poolName string, name string, deviceId int, size uint64) error {
 	task, err := createTask(DeviceCreate, name)
 	if task == nil {
 		return err
@@ -603,7 +605,7 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 	}
 
 	if err := task.Run(); err != nil {
-		return fmt.Errorf("Error running DeviceCreate (activateDevice) %s", err)
+		return fmt.Errorf("Error running DeviceCreate (ActivateDevice) %s", err)
 	}
 
 	UdevWait(cookie)
@@ -611,12 +613,12 @@ func activateDevice(poolName string, name string, deviceId int, size uint64) err
 	return nil
 }
 
-func createSnapDevice(poolName string, deviceId *int, baseName string, baseDeviceId int) error {
-	devinfo, _ := getInfo(baseName)
+func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDeviceId int) error {
+	devinfo, _ := GetInfo(baseName)
 	doSuspend := devinfo != nil && devinfo.Exists != 0
 
 	if doSuspend {
-		if err := suspendDevice(baseName); err != nil {
+		if err := SuspendDevice(baseName); err != nil {
 			return err
 		}
 	}
@@ -625,21 +627,21 @@ func createSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 		task, err := createTask(DeviceTargetMsg, poolName)
 		if task == nil {
 			if doSuspend {
-				resumeDevice(baseName)
+				ResumeDevice(baseName)
 			}
 			return err
 		}
 
 		if err := task.SetSector(0); err != nil {
 			if doSuspend {
-				resumeDevice(baseName)
+				ResumeDevice(baseName)
 			}
 			return fmt.Errorf("Can't set sector %s", err)
 		}
 
 		if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", *deviceId, baseDeviceId)); err != nil {
 			if doSuspend {
-				resumeDevice(baseName)
+				ResumeDevice(baseName)
 			}
 			return fmt.Errorf("Can't set message %s", err)
 		}
@@ -653,7 +655,7 @@ func createSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 			}
 
 			if doSuspend {
-				resumeDevice(baseName)
+				ResumeDevice(baseName)
 			}
 			return fmt.Errorf("Error running DeviceCreate (createSnapDevice) %s", err)
 		}
@@ -662,7 +664,7 @@ func createSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 	}
 
 	if doSuspend {
-		if err := resumeDevice(baseName); err != nil {
+		if err := ResumeDevice(baseName); err != nil {
 			return err
 		}
 	}

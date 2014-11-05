@@ -1,6 +1,6 @@
 // +build linux
 
-package devmapper
+package devicemapper
 
 import (
 	"fmt"
@@ -84,7 +84,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 
 // attachLoopDevice attaches the given sparse file to the next
 // available loopback device. It returns an opened *os.File.
-func attachLoopDevice(sparseName string) (loop *os.File, err error) {
+func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 
 	// Try to retrieve the next available loopback device via syscall.
 	// If it fails, we discard error and start loopking for a

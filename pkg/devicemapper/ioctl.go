@@ -1,6 +1,6 @@
 // +build linux
 
-package devmapper
+package devicemapper
 
 import (
 	"syscall"
