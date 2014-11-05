@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
-	"os"
+	"github.com/docker/docker/utils"
 )
 
 type ExecConfig struct {
@@ -46,19 +46,12 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
-		help      = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 		execCmd   []string
 		container string
 	)
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 2)
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, err
-	}
-	if *help {
-		cmd.Usage()
-		return nil, nil
-	}
-	if cmd.BadArgs(flag.Min, 2) {
-		os.Exit(1)
 	}
 	container = cmd.Arg(0)
 	parsedArgs := cmd.Args()

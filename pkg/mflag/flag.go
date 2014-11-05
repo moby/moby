@@ -284,13 +284,14 @@ type FlagSet struct {
 	// a custom error handler.
 	Usage func()
 
-	name          string
-	parsed        bool
-	actual        map[string]*Flag
-	formal        map[string]*Flag
-	args          []string // arguments after flags
-	errorHandling ErrorHandling
-	output        io.Writer // nil means stderr; use out() accessor
+	name             string
+	parsed           bool
+	actual           map[string]*Flag
+	formal           map[string]*Flag
+	args             []string // arguments after flags
+	errorHandling    ErrorHandling
+	output           io.Writer // nil means stderr; use Out() accessor
+	nArgRequirements []nArgRequirement
 }
 
 // A Flag represents the state of a flag.
@@ -348,7 +349,13 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 	return result
 }
 
-func (f *FlagSet) out() io.Writer {
+// Name returns the name of the FlagSet.
+func (f *FlagSet) Name() string {
+	return f.name
+}
+
+// Out returns the destination for usage and error messages.
+func (f *FlagSet) Out() io.Writer {
 	if f.output == nil {
 		return os.Stderr
 	}
@@ -410,45 +417,60 @@ func IsSet(name string) bool {
 	return CommandLine.IsSet(name)
 }
 
+type nArgRequirementType int
+
 // Indicator used to pass to BadArgs function
 const (
-	Exact = 1
-	Max   = 2
-	Min   = 3
+	Exact nArgRequirementType = iota
+	Max
+	Min
 )
 
-// Bad Args takes two arguments.
-// The first one indicates whether the number of arguments should, be
-// A Minimal number of arguments, a maximum number of arguments or
-// The exact number of arguments required
-// If the actuall number of arguments is not valid and error message
-// prints and true is returned, otherwise false is returned
-func (f *FlagSet) BadArgs(arg_type, nargs int) bool {
-	if arg_type == Max && f.NArg() > nargs {
-		if nargs == 1 {
-			fmt.Fprintf(f.out(), "docker: '%s' requires a maximum of 1 argument. See 'docker %s --help'.\n", f.name, f.name)
+type nArgRequirement struct {
+	Type nArgRequirementType
+	N    int
+}
+
+// Require adds a requirement about the number of arguments for the FlagSet.
+// The first parameter can be Exact, Max, or Min to respectively specify the exact,
+// the maximum, or the minimal number of arguments required.
+// The actual check is done in FlagSet.CheckArgs().
+func (f *FlagSet) Require(nArgRequirementType nArgRequirementType, nArg int) {
+	f.nArgRequirements = append(f.nArgRequirements, nArgRequirement{nArgRequirementType, nArg})
+}
+
+// CheckArgs uses the requirements set by FlagSet.Require() to validate
+// the number of arguments. If the requirements are not met,
+// an error message string is returned.
+func (f *FlagSet) CheckArgs() (message string) {
+	for _, req := range f.nArgRequirements {
+		var arguments string
+		if req.N == 1 {
+			arguments = "1 argument"
 		} else {
-			fmt.Fprintf(f.out(), "docker: '%s' requires a maximum of %d arguments. See 'docker %s --help'.\n", f.name, nargs, f.name)
+			arguments = fmt.Sprintf("%d arguments", req.N)
 		}
-		return true
-	}
-	if arg_type == Exact && f.NArg() != nargs {
-		if nargs == 1 {
-			fmt.Fprintf(f.out(), "docker: '%s' requires 1 argument. See 'docker %s --help'.\n", f.name, f.name)
-		} else {
-			fmt.Fprintf(f.out(), "docker: '%s' requires %d arguments. See 'docker %s --help'.\n", f.name, nargs, f.name)
+
+		str := func(kind string) string {
+			return fmt.Sprintf("%q requires %s%s", f.name, kind, arguments)
 		}
-		return true
-	}
-	if arg_type == Min && f.NArg() < nargs {
-		if nargs == 1 {
-			fmt.Fprintf(f.out(), "docker: '%s' requires a minimum of 1 argument. See 'docker %s --help'.\n", f.name, f.name)
-		} else {
-			fmt.Fprintf(f.out(), "docker: '%s' requires a minimum of %d arguments. See 'docker %s --help'.\n", f.name, nargs, f.name)
+
+		switch req.Type {
+		case Exact:
+			if f.NArg() != req.N {
+				return str("")
+			}
+		case Max:
+			if f.NArg() > req.N {
+				return str("a maximum of ")
+			}
+		case Min:
+			if f.NArg() < req.N {
+				return str("a minimum of ")
+			}
 		}
-		return true
 	}
-	return false
+	return ""
 }
 
 // Set sets the value of the named flag.
@@ -476,7 +498,7 @@ func Set(name, value string) error {
 // PrintDefaults prints, to standard error unless configured
 // otherwise, the default values of all defined flags in the set.
 func (f *FlagSet) PrintDefaults() {
-	writer := tabwriter.NewWriter(f.out(), 20, 1, 3, ' ', 0)
+	writer := tabwriter.NewWriter(f.Out(), 20, 1, 3, ' ', 0)
 	f.VisitAll(func(flag *Flag) {
 		format := "  -%s=%s"
 		if _, ok := flag.Value.(*stringValue); ok {
@@ -510,9 +532,9 @@ func PrintDefaults() {
 // defaultUsage is the default function to print a usage message.
 func defaultUsage(f *FlagSet) {
 	if f.name == "" {
-		fmt.Fprintf(f.out(), "Usage:\n")
+		fmt.Fprintf(f.Out(), "Usage:\n")
 	} else {
-		fmt.Fprintf(f.out(), "Usage of %s:\n", f.name)
+		fmt.Fprintf(f.Out(), "Usage of %s:\n", f.name)
 	}
 	f.PrintDefaults()
 }
@@ -805,7 +827,7 @@ func (f *FlagSet) Var(value Value, names []string, usage string) {
 			} else {
 				msg = fmt.Sprintf("%s flag redefined: %s", f.name, name)
 			}
-			fmt.Fprintln(f.out(), msg)
+			fmt.Fprintln(f.Out(), msg)
 			panic(msg) // Happens only if flags are declared with identical names
 		}
 		if f.formal == nil {
@@ -829,8 +851,8 @@ func Var(value Value, names []string, usage string) {
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface{}) error {
 	err := fmt.Errorf(format, a...)
-	fmt.Fprintln(f.out(), err)
-	fmt.Fprintf(f.out(), "See 'docker %s --help'.\n", f.name)
+	fmt.Fprintln(f.Out(), err)
+	fmt.Fprintf(f.Out(), "See 'docker %s --help'.\n", f.name)
 	return err
 }
 
@@ -956,9 +978,9 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 				}
 			}
 			if replacement != "" {
-				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
+				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
 			} else {
-				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
 			}
 		}
 	}
