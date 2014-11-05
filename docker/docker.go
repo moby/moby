@@ -109,7 +109,7 @@ func main() {
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
 			if sterr.Status != "" {
-				log.Println("%s", sterr.Status)
+				log.Println(sterr.Status)
 			}
 			os.Exit(sterr.StatusCode)
 		}

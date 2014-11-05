@@ -16,12 +16,12 @@ func TestPushBusyboxImage(t *testing.T) {
 	repoName := fmt.Sprintf("%v/busybox", privateRegistryURL)
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		t.Fatal("image tagging failed: %s, %v", out, err)
+		t.Fatalf("image tagging failed: %s, %v", out, err)
 	}
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err != nil {
-		t.Fatal("pushing the image to the private registry has failed: %s, %v", out, err)
+		t.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 
 	deleteImages(repoName)
@@ -35,7 +35,7 @@ func TestPushUnprefixedRepo(t *testing.T) {
 	t.Skip()
 	pushCmd := exec.Command(dockerBinary, "push", "busybox")
 	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
-		t.Fatal("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
+		t.Fatalf("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
 	}
 	logDone("push - push unprefixed busybox repo --> must fail")
 }
