@@ -987,7 +987,7 @@ func (container *Container) updateParentsHosts() error {
 		c := container.daemon.Get(cid)
 		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
 			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
-				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
+				log.Errorf("Failed to update /etc/hosts in parent container: %v", err)
 			}
 		}
 	}
