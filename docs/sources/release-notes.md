@@ -114,7 +114,7 @@ accept an optional maximum restart count (e.g. `on-failure:5`). * `always` –
 Always restart the container no matter what exit code is returned. This
 deprecates the `--restart` flag on the Docker daemon.
 
-*New flags for `docker run`: `--cap-add` and `–-cap-drop`*
+*New flags for `docker run`: `--cap-add` and `--cap-drop`*
 
 In previous releases, Docker containers could either be given complete
 capabilities or they could all follow a whitelist of allowed capabilities while
@@ -127,7 +127,7 @@ This release introduces two new flags for `docker run`, `--cap-add` and
 `--cap-drop`, that give you fine-grain control over the specific capabilities
 you want grant to a particular container.
 
-*New `-–device` flag for `docker run`*
+*New `--device` flag for `docker run`*
 
 Previously, you could only use devices inside your containers by bind mounting
 them (with `-v`) in a `--privileged` container. With this release, we introduce
