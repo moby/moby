@@ -42,7 +42,7 @@ bundle_test_unit() {
 		) else
 			# aww, no "parallel" available - fall back to boring
 			for test_dir in $TESTDIRS; do
-				"$(dirname "$BASH_SOURCE")/.go-compile-test-dir" "$test_dir"
+				. "$(dirname "$BASH_SOURCE")/.go-compile-test-dir" "$test_dir"
 			done
 		fi
 		echo "$TESTDIRS" | go_run_test_dir
