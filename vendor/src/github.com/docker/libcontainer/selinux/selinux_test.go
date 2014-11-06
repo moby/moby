@@ -42,7 +42,7 @@ func TestSELinux(t *testing.T) {
 		t.Log("getenforce ", selinux.SelinuxGetEnforce())
 		t.Log("getenforcemode ", selinux.SelinuxGetEnforceMode())
 		pid := os.Getpid()
-		t.Log("PID:%d MCS:%s\n", pid, selinux.IntToMcs(pid, 1023))
+		t.Logf("PID:%d MCS:%s\n", pid, selinux.IntToMcs(pid, 1023))
 		err = selinux.Setfscreatecon("unconfined_u:unconfined_r:unconfined_t:s0")
 		if err == nil {
 			t.Log(selinux.Getfscreatecon())

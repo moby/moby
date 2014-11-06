@@ -3,7 +3,9 @@
 package namespaces
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
@@ -18,7 +20,6 @@ import (
 	"github.com/docker/libcontainer/network"
 	"github.com/docker/libcontainer/security/capabilities"
 	"github.com/docker/libcontainer/security/restrict"
-	"github.com/docker/libcontainer/syncpipe"
 	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/user"
 	"github.com/docker/libcontainer/utils"
@@ -30,11 +31,22 @@ import (
 // and other options required for the new container.
 // The caller of Init function has to ensure that the go runtime is locked to an OS thread
 // (using runtime.LockOSThread) else system calls like setns called within Init may not work as intended.
-func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syncPipe *syncpipe.SyncPipe, args []string) (err error) {
+func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, pipe *os.File, args []string) (err error) {
 	defer func() {
+		// if we have an error during the initialization of the container's init then send it back to the
+		// parent process in the form of an initError.
 		if err != nil {
-			syncPipe.ReportChildError(err)
+			// ensure that any data sent from the parent is consumed so it doesn't
+			// receive ECONNRESET when the child writes to the pipe.
+			ioutil.ReadAll(pipe)
+			if err := json.NewEncoder(pipe).Encode(initError{
+				Message: err.Error(),
+			}); err != nil {
+				panic(err)
+			}
 		}
+		// ensure that this pipe is always closed
+		pipe.Close()
 	}()
 
 	rootfs, err := utils.ResolveRootfs(uncleanRootfs)
@@ -50,7 +62,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, syn
 
 	// We always read this as it is a way to sync with the parent as well
 	var networkState *network.NetworkState
-	if err := syncPipe.ReadFromParent(&networkState); err != nil {
+	if err := json.NewDecoder(pipe).Decode(&networkState); err != nil {
 		return err
 	}
 
@@ -164,11 +176,11 @@ func SetupUser(u string) error {
 		return fmt.Errorf("setgroups %s", err)
 	}
 
-	if err := syscall.Setgid(gid); err != nil {
+	if err := system.Setgid(gid); err != nil {
 		return fmt.Errorf("setgid %s", err)
 	}
 
-	if err := syscall.Setuid(uid); err != nil {
+	if err := system.Setuid(uid); err != nil {
 		return fmt.Errorf("setuid %s", err)
 	}
 

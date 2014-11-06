@@ -1,4 +1,4 @@
-## libcontainer - reference implementation for containers [![Build Status](https://travis-ci.org/docker/libcontainer.png?branch=master)](https://travis-ci.org/docker/libcontainer)
+## libcontainer - reference implementation for containers [![Build Status](https://ci.dockerproject.com/github.com/docker/libcontainer/status.svg?branch=master)](https://ci.dockerproject.com/github.com/docker/libcontainer) 
 
 ### Note on API changes:
 

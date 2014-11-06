@@ -3,6 +3,7 @@
 package namespaces
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/label"
-	"github.com/docker/libcontainer/syncpipe"
 	"github.com/docker/libcontainer/system"
 )
 
@@ -41,11 +41,11 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 		}
 	}
 
-	pipe, err := syncpipe.NewSyncPipe()
+	parent, child, err := newInitPipe()
 	if err != nil {
 		return -1, err
 	}
-	defer pipe.Close()
+	defer parent.Close()
 
 	// Note: these are only used in non-tty mode
 	// if there is a tty for the container it will be opened within the namespace and the
@@ -53,23 +53,28 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-
-	cmd.ExtraFiles = []*os.File{pipe.Child()}
+	cmd.ExtraFiles = []*os.File{child}
 
 	if err := cmd.Start(); err != nil {
+		child.Close()
 		return -1, err
 	}
-	pipe.CloseChild()
+	child.Close()
+
+	terminate := func(terr error) (int, error) {
+		// TODO: log the errors for kill and wait
+		cmd.Process.Kill()
+		cmd.Wait()
+		return -1, terr
+	}
 
 	// Enter cgroups.
 	if err := EnterCgroups(state, cmd.Process.Pid); err != nil {
-		return -1, err
+		return terminate(err)
 	}
 
-	if err := pipe.SendToChild(container); err != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
-		return -1, err
+	if err := json.NewEncoder(parent).Encode(container); err != nil {
+		return terminate(err)
 	}
 
 	if startCallback != nil {
@@ -81,7 +86,6 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 			return -1, err
 		}
 	}
-
 	return cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 

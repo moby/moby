@@ -95,3 +95,11 @@ func SetMtu(name string, mtu int) error {
 	}
 	return netlink.NetworkSetMTU(iface, mtu)
 }
+
+func SetHairpinMode(name string, enabled bool) error {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.SetHairpinMode(iface, enabled)
+}
