@@ -38,12 +38,13 @@ BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"`)
 	)
 
 	dir := os.TempDir()
+	etcOsRelease = filepath.Join(dir, "etcOsRelease")
+
 	defer func() {
+		os.Remove(etcOsRelease)
 		etcOsRelease = backup
-		os.RemoveAll(dir)
 	}()
 
-	etcOsRelease = filepath.Join(dir, "etcOsRelease")
 	for expect, osRelease := range map[string][]byte{
 		"Ubuntu 14.04 LTS": ubuntuTrusty,
 		"Gentoo/Linux":     gentoo,
@@ -92,12 +93,12 @@ func TestIsContainerized(t *testing.T) {
 	)
 
 	dir := os.TempDir()
-	defer func() {
-		proc1Cgroup = backup
-		os.RemoveAll(dir)
-	}()
-
 	proc1Cgroup = filepath.Join(dir, "proc1Cgroup")
+
+	defer func() {
+		os.Remove(proc1Cgroup)
+		proc1Cgroup = backup
+	}()
 
 	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroup, 0600); err != nil {
 		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
