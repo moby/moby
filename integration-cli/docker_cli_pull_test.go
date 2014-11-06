@@ -11,7 +11,7 @@ import (
 func TestPullImageFromCentralRegistry(t *testing.T) {
 	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		t.Fatal("pulling the scratch image from the registry has failed: %s, %v", out, err)
+		t.Fatalf("pulling the scratch image from the registry has failed: %s, %v", out, err)
 	}
 	logDone("pull - pull scratch")
 }
@@ -20,7 +20,7 @@ func TestPullImageFromCentralRegistry(t *testing.T) {
 func TestPullNonExistingImage(t *testing.T) {
 	pullCmd := exec.Command(dockerBinary, "pull", "fooblahblah1234")
 	if out, _, err := runCommandWithOutput(pullCmd); err == nil {
-		t.Fatal("expected non-zero exit status when pulling non-existing image: %s", out)
+		t.Fatalf("expected non-zero exit status when pulling non-existing image: %s", out)
 	}
 	logDone("pull - pull fooblahblah1234 (non-existing image)")
 }

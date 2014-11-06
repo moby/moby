@@ -218,7 +218,7 @@ func TestBuildEnvironmentReplacementEnv(t *testing.T) {
 		if parts[0] == "bar" {
 			found = true
 			if parts[1] != "foo" {
-				t.Fatal("Could not find replaced var for env `bar`: got %q instead of `foo`", parts[1])
+				t.Fatalf("Could not find replaced var for env `bar`: got %q instead of `foo`", parts[1])
 			}
 		}
 	}
@@ -1224,7 +1224,7 @@ func TestBuildCopyDisallowRemote(t *testing.T) {
 COPY https://index.docker.io/robots.txt /`,
 		true)
 	if err == nil || !strings.Contains(out, "Source can't be a URL for COPY") {
-		t.Fatal("Error should be about disallowed remote source, got err: %s, out: %q", err, out)
+		t.Fatalf("Error should be about disallowed remote source, got err: %s, out: %q", err, out)
 	}
 	logDone("build - copy - disallow copy from remote")
 }
@@ -1374,7 +1374,7 @@ func TestBuildForceRm(t *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "--force-rm", ".")
 	buildCmd.Dir = ctx.Dir
 	if out, _, err := runCommandWithOutput(buildCmd); err == nil {
-		t.Fatal("failed to build the image: %s, %v", out, err)
+		t.Fatalf("failed to build the image: %s, %v", out, err)
 	}
 
 	containerCountAfter, err := getContainerCount()
@@ -3181,7 +3181,7 @@ func TestBuildEntrypointInheritance(t *testing.T) {
 	status, _ = runCommand(exec.Command(dockerBinary, "run", "child"))
 
 	if status != 5 {
-		t.Fatal("expected exit code 5 but received %d", status)
+		t.Fatalf("expected exit code 5 but received %d", status)
 	}
 
 	logDone("build - clear entrypoint")

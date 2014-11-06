@@ -114,7 +114,7 @@ func TestRmInvalidContainer(t *testing.T) {
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "unknown")); err == nil {
 		t.Fatal("Expected error on rm unknown container, got none")
 	} else if !strings.Contains(out, "failed to remove one or more containers") {
-		t.Fatal("Expected output to contain 'failed to remove one or more containers', got %q", out)
+		t.Fatalf("Expected output to contain 'failed to remove one or more containers', got %q", out)
 	}
 
 	logDone("rm - delete unknown container")
