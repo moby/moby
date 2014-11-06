@@ -64,23 +64,23 @@ type MetaData struct {
 type DeviceSet struct {
 	MetaData         `json:"-"`
 	sync.Mutex       `json:"-"` // Protects Devices map and serializes calls into libdevmapper
-	root             string     `json:"-"`
-	devicePrefix     string     `json:"-"`
-	TransactionId    uint64     `json:"-"`
-	NewTransactionId uint64     `json:"-"`
-	NextDeviceId     int        `json:"next_device_id"`
+	root             string
+	devicePrefix     string
+	TransactionId    uint64 `json:"-"`
+	NewTransactionId uint64 `json:"-"`
+	NextDeviceId     int    `json:"next_device_id"`
 
 	// Options
-	dataLoopbackSize     int64    `json:"-"`
-	metaDataLoopbackSize int64    `json:"-"`
-	baseFsSize           uint64   `json:"-"`
-	filesystem           string   `json:"-"`
-	mountOptions         string   `json:"-"`
-	mkfsArgs             []string `json:"-"`
-	dataDevice           string   `json:"-"`
-	metadataDevice       string   `json:"-"`
-	doBlkDiscard         bool     `json:"-"`
-	thinpBlockSize       uint32   `json:"-"`
+	dataLoopbackSize     int64
+	metaDataLoopbackSize int64
+	baseFsSize           uint64
+	filesystem           string
+	mountOptions         string
+	mkfsArgs             []string
+	dataDevice           string
+	metadataDevice       string
+	doBlkDiscard         bool
+	thinpBlockSize       uint32
 }
 
 type DiskUsage struct {
