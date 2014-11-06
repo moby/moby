@@ -68,6 +68,7 @@ lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/c
 
 lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" ""}} 0 0
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" ""}} 0 0
+lxc.mount.entry = mqueue {{escapeFstabSpaces $ROOTFS}}/dev/mqueue mqueue rw 0 0
 
 {{range $value := .Mounts}}
 {{if $value.Writable}}
