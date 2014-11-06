@@ -2538,3 +2538,33 @@ func TestRunAllowPortRangeThroughExpose(t *testing.T) {
 	}
 	logDone("run - allow port range through --expose flag")
 }
+
+func TestRunUnknownCommand(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "create", "busybox", "/bin/nada")
+	cID, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("Failed to create container: %v, output: %q", err, cID)
+	}
+	cID = strings.TrimSpace(cID)
+
+	runCmd = exec.Command(dockerBinary, "start", cID)
+	_, _, _, err = runCommandWithStdoutStderr(runCmd)
+	if err == nil {
+		t.Fatalf("Container should not have been able to start!")
+	}
+
+	runCmd = exec.Command(dockerBinary, "inspect", "--format={{.State.ExitCode}}", cID)
+	rc, _, _, err2 := runCommandWithStdoutStderr(runCmd)
+	rc = strings.TrimSpace(rc)
+
+	if err2 != nil {
+		t.Fatalf("Error getting status of container: %v", err2)
+	}
+
+	if rc != "-1" {
+		t.Fatalf("ExitCode(%v) was supposed to be -1", rc)
+	}
+
+	logDone("run - Unknown Command")
+}
