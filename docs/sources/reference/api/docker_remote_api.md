@@ -38,6 +38,12 @@ Calling `/info` is the same as calling
 You can still call an old version of the API using
 `/v1.14/info`.
 
+`POST /containers/(id)/start`
+
+**New!**
+Passing the container's `HostConfig` on start is now deprecated.  You should
+set this when creating the container.
+
 ## v1.15
 
 ### Full Documentation
@@ -45,6 +51,12 @@ You can still call an old version of the API using
 [*Docker Remote API v1.15*](/reference/api/docker_remote_api_v1.15/)
 
 ### What's new
+
+`POST /containers/create`
+
+**New!**
+It is now possible to set a container's HostConfig when creating a container.
+Previously this was only available when starting a container.
 
 ## v1.14
 
