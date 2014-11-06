@@ -424,7 +424,7 @@ func (container *Container) buildHostsFiles(IP string) error {
 	}
 	container.HostsPath = hostsPath
 
-	extraContent := make(map[string]string)
+	var extraContent []etchosts.Record
 
 	children, err := container.daemon.Children(container.Name)
 	if err != nil {
@@ -433,15 +433,15 @@ func (container *Container) buildHostsFiles(IP string) error {
 
 	for linkAlias, child := range children {
 		_, alias := path.Split(linkAlias)
-		extraContent[alias] = child.NetworkSettings.IPAddress
+		extraContent = append(extraContent, etchosts.Record{Hosts: alias, IP: child.NetworkSettings.IPAddress})
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
 		parts := strings.Split(extraHost, ":")
-		extraContent[parts[0]] = parts[1]
+		extraContent = append(extraContent, etchosts.Record{Hosts: parts[0], IP: parts[1]})
 	}
 
-	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
+	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, extraContent)
 }
 
 func (container *Container) buildHostnameAndHostsFiles(IP string) error {
