@@ -70,7 +70,7 @@ func (config *Config) InstallFlags() {
 	opts.MirrorListVar(&config.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
 }
 
-func GetDefaultNetworkMtu() int {
+func getDefaultNetworkMtu() int {
 	if iface, err := networkdriver.GetDefaultRouteIface(); err == nil {
 		return iface.MTU
 	}

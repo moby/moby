@@ -721,8 +721,7 @@ func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
 	// Apply configuration defaults
 	if config.Mtu == 0 {
-		// FIXME: GetDefaultNetwork Mtu doesn't need to be public anymore
-		config.Mtu = GetDefaultNetworkMtu()
+		config.Mtu = getDefaultNetworkMtu()
 	}
 	// Check for mutually incompatible config options
 	if config.BridgeIface != "" && config.BridgeIP != "" {
