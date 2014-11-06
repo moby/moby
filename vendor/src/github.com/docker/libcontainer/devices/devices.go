@@ -103,7 +103,7 @@ func getDeviceNodes(path string) ([]*Device, error) {
 		switch {
 		case f.IsDir():
 			switch f.Name() {
-			case "pts", "shm", "fd":
+			case "pts", "shm", "fd", "mqueue":
 				continue
 			default:
 				sub, err := getDeviceNodes(filepath.Join(path, f.Name()))

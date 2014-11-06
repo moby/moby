@@ -116,7 +116,7 @@ func TestNetworkSetMacAddress(t *testing.T) {
 	ifcBeforeSet := readLink(t, tl.name)
 
 	if err := NetworkSetMacAddress(ifcBeforeSet, macaddr); err != nil {
-		t.Fatalf("Could not set %s MAC address on %#v interface: err", macaddr, tl, err)
+		t.Fatalf("Could not set %s MAC address on %#v interface: %s", macaddr, tl, err)
 	}
 
 	ifcAfterSet := readLink(t, tl.name)
@@ -140,7 +140,7 @@ func TestNetworkSetMTU(t *testing.T) {
 	ifcBeforeSet := readLink(t, tl.name)
 
 	if err := NetworkSetMTU(ifcBeforeSet, mtu); err != nil {
-		t.Fatalf("Could not set %d MTU on %#v interface: err", mtu, tl, err)
+		t.Fatalf("Could not set %d MTU on %#v interface: %s", mtu, tl, err)
 	}
 
 	ifcAfterSet := readLink(t, tl.name)

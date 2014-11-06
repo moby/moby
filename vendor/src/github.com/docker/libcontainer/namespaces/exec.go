@@ -3,6 +3,7 @@
 package namespaces
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/network"
-	"github.com/docker/libcontainer/syncpipe"
 	"github.com/docker/libcontainer/system"
 )
 
@@ -22,19 +22,17 @@ import (
 // Exec performs setup outside of a namespace so that a container can be
 // executed.  Exec is a high level function for working with container namespaces.
 func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Writer, console, dataPath string, args []string, createCommand CreateCommand, startCallback func()) (int, error) {
-	var (
-		err error
-	)
+	var err error
 
 	// create a pipe so that we can syncronize with the namespaced process and
-	// pass the veth name to the child
-	syncPipe, err := syncpipe.NewSyncPipe()
+	// pass the state and configuration to the child process
+	parent, child, err := newInitPipe()
 	if err != nil {
 		return -1, err
 	}
-	defer syncPipe.Close()
+	defer parent.Close()
 
-	command := createCommand(container, console, dataPath, os.Args[0], syncPipe.Child(), args)
+	command := createCommand(container, console, dataPath, os.Args[0], child, args)
 	// Note: these are only used in non-tty mode
 	// if there is a tty for the container it will be opened within the namespace and the
 	// fds will be duped to stdin, stdiout, and stderr
@@ -43,39 +41,47 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	command.Stderr = stderr
 
 	if err := command.Start(); err != nil {
+		child.Close()
 		return -1, err
 	}
+	child.Close()
 
-	// Now we passed the pipe to the child, close our side
-	syncPipe.CloseChild()
+	terminate := func(terr error) (int, error) {
+		// TODO: log the errors for kill and wait
+		command.Process.Kill()
+		command.Wait()
+		return -1, terr
+	}
 
 	started, err := system.GetProcessStartTime(command.Process.Pid)
 	if err != nil {
-		return -1, err
+		return terminate(err)
 	}
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
 	cgroupRef, err := SetupCgroups(container, command.Process.Pid)
 	if err != nil {
-		command.Process.Kill()
-		command.Wait()
-		return -1, err
+		return terminate(err)
 	}
 	defer cgroupRef.Cleanup()
 
 	cgroupPaths, err := cgroupRef.Paths()
 	if err != nil {
-		command.Process.Kill()
-		command.Wait()
-		return -1, err
+		return terminate(err)
 	}
 
 	var networkState network.NetworkState
-	if err := InitializeNetworking(container, command.Process.Pid, syncPipe, &networkState); err != nil {
-		command.Process.Kill()
-		command.Wait()
-		return -1, err
+	if err := InitializeNetworking(container, command.Process.Pid, &networkState); err != nil {
+		return terminate(err)
+	}
+	// send the state to the container's init process then shutdown writes for the parent
+	if err := json.NewEncoder(parent).Encode(networkState); err != nil {
+		return terminate(err)
+	}
+	// shutdown writes for the parent side of the pipe
+	if err := syscall.Shutdown(int(parent.Fd()), syscall.SHUT_WR); err != nil {
+		return terminate(err)
 	}
 
 	state := &libcontainer.State{
@@ -86,17 +92,18 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	}
 
 	if err := libcontainer.SaveState(dataPath, state); err != nil {
-		command.Process.Kill()
-		command.Wait()
-		return -1, err
+		return terminate(err)
 	}
 	defer libcontainer.DeleteState(dataPath)
 
-	// Sync with child
-	if err := syncPipe.ReadFromChild(); err != nil {
-		command.Process.Kill()
-		command.Wait()
-		return -1, err
+	// wait for the child process to fully complete and receive an error message
+	// if one was encoutered
+	var ierr *initError
+	if err := json.NewDecoder(parent).Decode(&ierr); err != nil && err != io.EOF {
+		return terminate(err)
+	}
+	if ierr != nil {
+		return terminate(ierr)
 	}
 
 	if startCallback != nil {
@@ -108,7 +115,6 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 			return -1, err
 		}
 	}
-
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
@@ -128,16 +134,6 @@ func DefaultCreateCommand(container *libcontainer.Config, console, dataPath, ini
 		"pipe=3",
 		"data_path=" + dataPath,
 	}
-
-	/*
-	   TODO: move user and wd into env
-	   if user != "" {
-	       env = append(env, "user="+user)
-	   }
-	   if workingDir != "" {
-	       env = append(env, "wd="+workingDir)
-	   }
-	*/
 
 	command := exec.Command(init, append([]string{"init", "--"}, args...)...)
 	// make sure the process is executed inside the context of the rootfs
@@ -173,7 +169,7 @@ func SetupCgroups(container *libcontainer.Config, nspid int) (cgroups.ActiveCgro
 
 // InitializeNetworking creates the container's network stack outside of the namespace and moves
 // interfaces into the container's net namespaces if necessary
-func InitializeNetworking(container *libcontainer.Config, nspid int, pipe *syncpipe.SyncPipe, networkState *network.NetworkState) error {
+func InitializeNetworking(container *libcontainer.Config, nspid int, networkState *network.NetworkState) error {
 	for _, config := range container.Networks {
 		strategy, err := network.GetStrategy(config.Type)
 		if err != nil {
@@ -183,18 +179,5 @@ func InitializeNetworking(container *libcontainer.Config, nspid int, pipe *syncp
 			return err
 		}
 	}
-	return pipe.SendToChild(networkState)
-}
-
-// GetNamespaceFlags parses the container's Namespaces options to set the correct
-// flags on clone, unshare, and setns
-func GetNamespaceFlags(namespaces map[string]bool) (flag int) {
-	for key, enabled := range namespaces {
-		if enabled {
-			if ns := GetNamespace(key); ns != nil {
-				flag |= ns.Value
-			}
-		}
-	}
-	return flag
+	return nil
 }
