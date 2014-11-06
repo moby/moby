@@ -60,7 +60,10 @@ func (d *Driver) String() string {
 }
 
 func (d *Driver) Status() [][2]string {
-	return nil
+	return [][2]string{
+		{"Build Version", BtrfsBuildVersion()},
+		{"Library Version", fmt.Sprintf("%d", BtrfsLibVersion())},
+	}
 }
 
 func (d *Driver) Cleanup() error {
