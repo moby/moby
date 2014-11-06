@@ -69,7 +69,7 @@ expect an integer, and they can only be specified once.
                                                    use '' (the empty string) to disable setting of a group
       -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
       -H, --host=[]                              The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
-      --icc=true                                 Enable inter-container communication
+      --icc=true                                 Enable inter-container communication without any restriction
       --insecure-registry=[]                     Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback)
       --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
