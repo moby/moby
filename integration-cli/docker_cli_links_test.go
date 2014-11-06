@@ -157,3 +157,23 @@ func TestLinksInspectLinksStopped(t *testing.T) {
 
 	logDone("link - links in stopped container inspect")
 }
+
+func TestLinksNotStartedParentNotFail(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "create", "--name=first", "busybox", "top")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	runCmd = exec.Command(dockerBinary, "create", "--name=second", "--link=first:first", "busybox", "top")
+	out, _, _, err = runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	runCmd = exec.Command(dockerBinary, "start", "first")
+	out, _, _, err = runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	logDone("link - container start not failing on updating stopped parent links")
+}
