@@ -54,7 +54,7 @@ unix://[/path/to/socket] to use.
   IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
 
 **--icc**=*true*|*false*
-  Enable inter\-container communication. Default is true.
+  Enable inter\-container communication without any restriction. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
@@ -77,7 +77,7 @@ unix://[/path/to/socket] to use.
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
-**--registry-mirror=<scheme>://<host>
+**--registry-mirror**=<scheme>://<host>
   Prepend a registry mirror to be used for image pulls. May be specified multiple times.
 
 **-s**=""
