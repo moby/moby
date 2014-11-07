@@ -1003,28 +1003,23 @@ func AddRoute(destination, source, gateway, device string) error {
 	}
 
 	if source != "" {
-		srcIP, srcNet, err := net.ParseCIDR(source)
+		srcIP := net.ParseIP(source)
 		if err != nil {
-			return fmt.Errorf("source CIDR %s couldn't be parsed", source)
+			return fmt.Errorf("source IP %s couldn't be parsed", source)
 		}
 		srcFamily := getIpFamily(srcIP)
 		if currentFamily != -1 && currentFamily != srcFamily {
 			return fmt.Errorf("source and destination ip were not the same IP family")
 		}
 		currentFamily = srcFamily
-		srcLen, bits := srcNet.Mask.Size()
-		if srcLen == 0 && bits == 0 {
-			return fmt.Errorf("source CIDR %s generated a non-canonical Mask", source)
-		}
 		msg.Family = uint8(srcFamily)
-		msg.Src_len = uint8(srcLen)
 		var srcData []byte
 		if srcFamily == syscall.AF_INET {
 			srcData = srcIP.To4()
 		} else {
 			srcData = srcIP.To16()
 		}
-		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_SRC, srcData))
+		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_PREFSRC, srcData))
 	}
 
 	if gateway != "" {
