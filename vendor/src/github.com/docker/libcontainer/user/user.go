@@ -69,23 +69,36 @@ func parseLine(line string, v ...interface{}) {
 	}
 }
 
-func ParsePasswd() ([]*User, error) {
-	return ParsePasswdFilter(nil)
-}
-
-func ParsePasswdFilter(filter func(*User) bool) ([]*User, error) {
-	f, err := os.Open("/etc/passwd")
+func ParsePasswdFile(path string) ([]User, error) {
+	passwd, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	return parsePasswdFile(f, filter)
+	defer passwd.Close()
+	return ParsePasswd(passwd)
 }
 
-func parsePasswdFile(r io.Reader, filter func(*User) bool) ([]*User, error) {
+func ParsePasswd(passwd io.Reader) ([]User, error) {
+	return ParsePasswdFilter(passwd, nil)
+}
+
+func ParsePasswdFileFilter(path string, filter func(User) bool) ([]User, error) {
+	passwd, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer passwd.Close()
+	return ParsePasswdFilter(passwd, filter)
+}
+
+func ParsePasswdFilter(r io.Reader, filter func(User) bool) ([]User, error) {
+	if r == nil {
+		return nil, fmt.Errorf("nil source for passwd-formatted data")
+	}
+
 	var (
 		s   = bufio.NewScanner(r)
-		out = []*User{}
+		out = []User{}
 	)
 
 	for s.Scan() {
@@ -103,7 +116,7 @@ func parsePasswdFile(r io.Reader, filter func(*User) bool) ([]*User, error) {
 		// Name:Pass:Uid:Gid:Gecos:Home:Shell
 		//  root:x:0:0:root:/root:/bin/bash
 		//  adm:x:3:4:adm:/var/adm:/bin/false
-		p := &User{}
+		p := User{}
 		parseLine(
 			text,
 			&p.Name, &p.Pass, &p.Uid, &p.Gid, &p.Gecos, &p.Home, &p.Shell,
@@ -117,23 +130,36 @@ func parsePasswdFile(r io.Reader, filter func(*User) bool) ([]*User, error) {
 	return out, nil
 }
 
-func ParseGroup() ([]*Group, error) {
-	return ParseGroupFilter(nil)
-}
-
-func ParseGroupFilter(filter func(*Group) bool) ([]*Group, error) {
-	f, err := os.Open("/etc/group")
+func ParseGroupFile(path string) ([]Group, error) {
+	group, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	return parseGroupFile(f, filter)
+	defer group.Close()
+	return ParseGroup(group)
 }
 
-func parseGroupFile(r io.Reader, filter func(*Group) bool) ([]*Group, error) {
+func ParseGroup(group io.Reader) ([]Group, error) {
+	return ParseGroupFilter(group, nil)
+}
+
+func ParseGroupFileFilter(path string, filter func(Group) bool) ([]Group, error) {
+	group, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer group.Close()
+	return ParseGroupFilter(group, filter)
+}
+
+func ParseGroupFilter(r io.Reader, filter func(Group) bool) ([]Group, error) {
+	if r == nil {
+		return nil, fmt.Errorf("nil source for group-formatted data")
+	}
+
 	var (
 		s   = bufio.NewScanner(r)
-		out = []*Group{}
+		out = []Group{}
 	)
 
 	for s.Scan() {
@@ -151,7 +177,7 @@ func parseGroupFile(r io.Reader, filter func(*Group) bool) ([]*Group, error) {
 		// Name:Pass:Gid:List
 		//  root:x:0:root
 		//  adm:x:4:root,adm,daemon
-		p := &Group{}
+		p := Group{}
 		parseLine(
 			text,
 			&p.Name, &p.Pass, &p.Gid, &p.List,
@@ -165,94 +191,160 @@ func parseGroupFile(r io.Reader, filter func(*Group) bool) ([]*Group, error) {
 	return out, nil
 }
 
-// Given a string like "user", "1000", "user:group", "1000:1000", returns the uid, gid, list of supplementary group IDs, and home directory, if available and/or applicable.
-func GetUserGroupSupplementaryHome(userSpec string, defaultUid, defaultGid int, defaultHome string) (int, int, []int, string, error) {
-	var (
-		uid      = defaultUid
-		gid      = defaultGid
-		suppGids = []int{}
-		home     = defaultHome
+type ExecUser struct {
+	Uid, Gid int
+	Sgids    []int
+	Home     string
+}
 
+// GetExecUserFile is a wrapper for GetExecUser. It reads data from each of the
+// given file paths and uses that data as the arguments to GetExecUser. If the
+// files cannot be opened for any reason, the error is ignored and a nil
+// io.Reader is passed instead.
+func GetExecUserFile(userSpec string, defaults *ExecUser, passwdPath, groupPath string) (*ExecUser, error) {
+	passwd, err := os.Open(passwdPath)
+	if err != nil {
+		passwd = nil
+	} else {
+		defer passwd.Close()
+	}
+
+	group, err := os.Open(groupPath)
+	if err != nil {
+		group = nil
+	} else {
+		defer group.Close()
+	}
+
+	return GetExecUser(userSpec, defaults, passwd, group)
+}
+
+// GetExecUser parses a user specification string (using the passwd and group
+// readers as sources for /etc/passwd and /etc/group data, respectively). In
+// the case of blank fields or missing data from the sources, the values in
+// defaults is used.
+//
+// GetExecUser will return an error if a user or group literal could not be
+// found in any entry in passwd and group respectively.
+//
+// Examples of valid user specifications are:
+//     * ""
+//     * "user"
+//     * "uid"
+//     * "user:group"
+//     * "uid:gid
+//     * "user:gid"
+//     * "uid:group"
+func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (*ExecUser, error) {
+	var (
 		userArg, groupArg string
+		name              string
 	)
+
+	if defaults == nil {
+		defaults = new(ExecUser)
+	}
+
+	// Copy over defaults.
+	user := &ExecUser{
+		Uid:   defaults.Uid,
+		Gid:   defaults.Gid,
+		Sgids: defaults.Sgids,
+		Home:  defaults.Home,
+	}
+
+	// Sgids slice *cannot* be nil.
+	if user.Sgids == nil {
+		user.Sgids = []int{}
+	}
 
 	// allow for userArg to have either "user" syntax, or optionally "user:group" syntax
 	parseLine(userSpec, &userArg, &groupArg)
 
-	users, err := ParsePasswdFilter(func(u *User) bool {
+	users, err := ParsePasswdFilter(passwd, func(u User) bool {
 		if userArg == "" {
-			return u.Uid == uid
+			return u.Uid == user.Uid
 		}
 		return u.Name == userArg || strconv.Itoa(u.Uid) == userArg
 	})
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && passwd != nil {
 		if userArg == "" {
-			userArg = strconv.Itoa(uid)
+			userArg = strconv.Itoa(user.Uid)
 		}
-		return 0, 0, nil, "", fmt.Errorf("Unable to find user %v: %v", userArg, err)
+		return nil, fmt.Errorf("Unable to find user %v: %v", userArg, err)
 	}
 
 	haveUser := users != nil && len(users) > 0
 	if haveUser {
 		// if we found any user entries that matched our filter, let's take the first one as "correct"
-		uid = users[0].Uid
-		gid = users[0].Gid
-		home = users[0].Home
+		name = users[0].Name
+		user.Uid = users[0].Uid
+		user.Gid = users[0].Gid
+		user.Home = users[0].Home
 	} else if userArg != "" {
 		// we asked for a user but didn't find them...  let's check to see if we wanted a numeric user
-		uid, err = strconv.Atoi(userArg)
+		user.Uid, err = strconv.Atoi(userArg)
 		if err != nil {
 			// not numeric - we have to bail
-			return 0, 0, nil, "", fmt.Errorf("Unable to find user %v", userArg)
+			return nil, fmt.Errorf("Unable to find user %v", userArg)
 		}
-		if uid < minId || uid > maxId {
-			return 0, 0, nil, "", ErrRange
+
+		// Must be inside valid uid range.
+		if user.Uid < minId || user.Uid > maxId {
+			return nil, ErrRange
 		}
 
 		// if userArg couldn't be found in /etc/passwd but is numeric, just roll with it - this is legit
 	}
 
-	if groupArg != "" || (haveUser && users[0].Name != "") {
-		groups, err := ParseGroupFilter(func(g *Group) bool {
+	if groupArg != "" || name != "" {
+		groups, err := ParseGroupFilter(group, func(g Group) bool {
+			// Explicit group format takes precedence.
 			if groupArg != "" {
 				return g.Name == groupArg || strconv.Itoa(g.Gid) == groupArg
 			}
+
+			// Check if user is a member.
 			for _, u := range g.List {
-				if u == users[0].Name {
+				if u == name {
 					return true
 				}
 			}
+
 			return false
 		})
-		if err != nil && !os.IsNotExist(err) {
-			return 0, 0, nil, "", fmt.Errorf("Unable to find groups for user %v: %v", users[0].Name, err)
+		if err != nil && group != nil {
+			return nil, fmt.Errorf("Unable to find groups for user %v: %v", users[0].Name, err)
 		}
 
 		haveGroup := groups != nil && len(groups) > 0
 		if groupArg != "" {
 			if haveGroup {
 				// if we found any group entries that matched our filter, let's take the first one as "correct"
-				gid = groups[0].Gid
+				user.Gid = groups[0].Gid
 			} else {
 				// we asked for a group but didn't find id...  let's check to see if we wanted a numeric group
-				gid, err = strconv.Atoi(groupArg)
+				user.Gid, err = strconv.Atoi(groupArg)
 				if err != nil {
 					// not numeric - we have to bail
-					return 0, 0, nil, "", fmt.Errorf("Unable to find group %v", groupArg)
+					return nil, fmt.Errorf("Unable to find group %v", groupArg)
 				}
-				if gid < minId || gid > maxId {
-					return 0, 0, nil, "", ErrRange
+
+				// Ensure gid is inside gid range.
+				if user.Gid < minId || user.Gid > maxId {
+					return nil, ErrRange
 				}
 
 				// if groupArg couldn't be found in /etc/group but is numeric, just roll with it - this is legit
 			}
 		} else if haveGroup {
-			suppGids = make([]int, len(groups))
+			// If implicit group format, fill supplementary gids.
+			user.Sgids = make([]int, len(groups))
 			for i, group := range groups {
-				suppGids[i] = group.Gid
+				user.Sgids[i] = group.Gid
 			}
 		}
 	}
 
-	return uid, gid, suppGids, home, nil
+	return user, nil
 }
