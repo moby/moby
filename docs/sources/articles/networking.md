@@ -14,7 +14,7 @@ Docker made the choice `172.17.42.1/16` when I started it a few minutes
 ago, for example — a 16-bit netmask providing 65,534 addresses for the
 host machine and its containers.
 
-> **Note:** 
+> **Note:**
 > This document discusses advanced networking configuration
 > and options for Docker. In most cases you won't need this information.
 > If you're looking to get started with a simpler explanation of Docker
@@ -170,6 +170,7 @@ Four different options affect container domain name services.
     When a container process attempts to access `host` and the search
     domain `example.com` is set, for instance, the DNS logic will not
     only look up `host` but also `host.example.com`.
+    Use `--dns-search=.` if you don't wish to set the search domain.
 
 Note that Docker, in the absence of either of the last two options
 above, will make `/etc/resolv.conf` inside of each container look like

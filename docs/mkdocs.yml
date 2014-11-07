@@ -148,3 +148,4 @@ pages:
 - ['contributing/index.md', '**HIDDEN**']
 - ['contributing/contributing.md', 'Contribute', 'Contributing']
 - ['contributing/devenvironment.md', 'Contribute', 'Development environment']
+- ['contributing/docs_style-guide.md', 'Contribute', 'Documentation style guide']

@@ -46,7 +46,7 @@ the running containers.
    Only display numeric IDs. The default is *false*.
 
 **-s**, **--size**=*true*|*false*
-   Display sizes. The default is *false*.
+   Display total file sizes. The default is *false*.
 
 **--since**=""
    Show only containers created since Id or Name, include non-running ones.

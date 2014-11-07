@@ -25,7 +25,7 @@ When considering a design proposal, we are looking for:
 * A description of the problem this design proposal solves
 * An issue -- not a pull request -- that describes what you will take action on
   * Please prefix your issue with `Proposal:` in the title
-* Please review [the existing Proposals](https://github.com/dotcloud/docker/issues?direction=asc&labels=Proposal&page=1&sort=created&state=open)
+* Please review [the existing Proposals](https://github.com/docker/docker/issues?direction=asc&labels=Proposal&page=1&sort=created&state=open)
   before reporting a new issue. You can always pair with someone if you both
   have the same idea.
 
@@ -62,7 +62,7 @@ docs](http://docs.docker.com/contributing/devenvironment/).
 ### Pull requests are always welcome
 
 We are always thrilled to receive pull requests, and do our best to
-process them as fast as possible. Not sure if that typo is worth a pull
+process them as quickly as possible. Not sure if that typo is worth a pull
 request? Do it! We will appreciate it.
 
 If your pull request is not accepted on the first try, don't be

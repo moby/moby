@@ -8,8 +8,10 @@ page_keywords: API, Docker, rcli, REST, documentation
    and the client must have `root` access to interact with the daemon.
  - If the Docker daemon is set to use an encrypted TCP socket (`--tls`,
    or `--tlsverify`) as with Boot2Docker 1.3.0, then you need to add extra
-   parameters to `curl` when making test API requests:
+   parameters to `curl` or `wget` when making test API requests:
    `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
+   or 
+   `wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://boot2docker:2376/images/json -O - -q`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
  - The API tends to be REST, but for some complex commands, like attach
@@ -36,6 +38,12 @@ Calling `/info` is the same as calling
 You can still call an old version of the API using
 `/v1.14/info`.
 
+`POST /containers/(id)/start`
+
+**New!**
+Passing the container's `HostConfig` on start is now deprecated.  You should
+set this when creating the container.
+
 ## v1.15
 
 ### Full Documentation
@@ -43,6 +51,12 @@ You can still call an old version of the API using
 [*Docker Remote API v1.15*](/reference/api/docker_remote_api_v1.15/)
 
 ### What's new
+
+`POST /containers/create`
+
+**New!**
+It is now possible to set a container's HostConfig when creating a container.
+Previously this was only available when starting a container.
 
 ## v1.14
 

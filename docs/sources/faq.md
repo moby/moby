@@ -144,7 +144,7 @@ Currently the recommended way to link containers is via the link
 primitive. You can see details of how to [work with links
 here](/userguide/dockerlinks).
 
-Also of useful when enabling more flexible service portability is the
+Also useful for more flexible service portability is the
 [Ambassador linking pattern](/articles/ambassador_pattern_linking/).
 
 ### How do I run more than one process in a Docker container?
