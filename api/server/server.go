@@ -1370,7 +1370,11 @@ func ServeFd(addr string, handle http.Handler) error {
 }
 
 func lookupGidByName(nameOrGid string) (int, error) {
-	groups, err := user.ParseGroupFilter(func(g *user.Group) bool {
+	groupFile, err := user.GetGroupFile()
+	if err != nil {
+		return -1, err
+	}
+	groups, err := user.ParseGroupFileFilter(groupFile, func(g user.Group) bool {
 		return g.Name == nameOrGid || strconv.Itoa(g.Gid) == nameOrGid
 	})
 	if err != nil {
