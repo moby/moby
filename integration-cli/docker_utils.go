@@ -156,6 +156,12 @@ func (d *Daemon) Start(arg ...string) error {
 
 			d.t.Log("daemon started")
 			return nil
+		case <-d.wait:
+			output, err := ioutil.ReadFile(d.logFile.Name())
+			if err != nil {
+				return fmt.Errorf("Daemon exited before it start serving requests. Error reading output from daemon: %s", err)
+			}
+			return fmt.Errorf("Daemon exited before it started serving requests. Output:\n%s", output)
 		}
 	}
 }
