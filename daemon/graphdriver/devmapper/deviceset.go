@@ -32,6 +32,8 @@ var (
 	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
 )
 
+const deviceSetMetaFile string = "deviceset-metadata"
+
 type DevInfo struct {
 	Hash          string     `json:"-"`
 	DeviceId      int        `json:"device_id"`
@@ -139,7 +141,7 @@ func (devices *DeviceSet) metadataFile(info *DevInfo) string {
 }
 
 func (devices *DeviceSet) deviceSetMetaFile() string {
-	return path.Join(devices.metadataDir(), "deviceset-metadata")
+	return path.Join(devices.metadataDir(), deviceSetMetaFile)
 }
 
 func (devices *DeviceSet) oldMetadataFile() string {
@@ -236,8 +238,7 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	if err != nil {
 		return fmt.Errorf("Error encoding metadata to json: %s", err)
 	}
-	err = devices.writeMetaFile(jsonData, devices.metadataFile(info))
-	if err != nil {
+	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
 		return err
 	}
 
@@ -552,29 +553,24 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 func (devices *DeviceSet) loadDeviceSetMetaData() error {
 	jsonData, err := ioutil.ReadFile(devices.deviceSetMetaFile())
 	if err != nil {
-		return nil
+		// For backward compatibility return success if file does
+		// not exist.
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
 	}
 
-	if err := json.Unmarshal(jsonData, devices); err != nil {
-		return nil
-	}
-
-	return nil
+	return json.Unmarshal(jsonData, devices)
 }
 
 func (devices *DeviceSet) saveDeviceSetMetaData() error {
 	jsonData, err := json.Marshal(devices)
-
 	if err != nil {
 		return fmt.Errorf("Error encoding metadata to json: %s", err)
 	}
 
-	err = devices.writeMetaFile(jsonData, devices.deviceSetMetaFile())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return devices.writeMetaFile(jsonData, devices.deviceSetMetaFile())
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
@@ -710,7 +706,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// Right now this loads only NextDeviceId. If there is more metatadata
 	// down the line, we might have to move it earlier.
-	devices.loadDeviceSetMetaData()
+	if err = devices.loadDeviceSetMetaData(); err != nil {
+		return err
+	}
 
 	// Setup the base image
 	if doInit {
