@@ -191,12 +191,12 @@ func (container *Container) LogEvent(action string) {
 	}
 }
 
-func (container *Container) getResourcePath(path string) (string, error) {
+func (container *Container) GetResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
 }
 
-func (container *Container) getRootResourcePath(path string) (string, error) {
+func (container *Container) GetRootResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
@@ -420,7 +420,7 @@ func (streamConfig *StreamConfig) StderrLogPipe() io.ReadCloser {
 }
 
 func (container *Container) buildHostnameFile() error {
-	hostnamePath, err := container.getRootResourcePath("hostname")
+	hostnamePath, err := container.GetRootResourcePath("hostname")
 	if err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func (container *Container) buildHostnameFile() error {
 
 func (container *Container) buildHostsFiles(IP string) error {
 
-	hostsPath, err := container.getRootResourcePath("hosts")
+	hostsPath, err := container.GetRootResourcePath("hosts")
 	if err != nil {
 		return err
 	}
@@ -794,7 +794,7 @@ func (container *Container) Unmount() error {
 }
 
 func (container *Container) logPath(name string) (string, error) {
-	return container.getRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
+	return container.GetRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
 }
 
 func (container *Container) ReadLog(name string) (io.Reader, error) {
@@ -806,11 +806,11 @@ func (container *Container) ReadLog(name string) (io.Reader, error) {
 }
 
 func (container *Container) hostConfigPath() (string, error) {
-	return container.getRootResourcePath("hostconfig.json")
+	return container.GetRootResourcePath("hostconfig.json")
 }
 
 func (container *Container) jsonPath() (string, error) {
-	return container.getRootResourcePath("config.json")
+	return container.GetRootResourcePath("config.json")
 }
 
 // This method must be exported to be used from the lxc template
@@ -862,7 +862,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	basePath, err := container.getResourcePath(resource)
+	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		container.Unmount()
 		return nil, err
@@ -957,7 +957,7 @@ func (container *Container) setupContainerDns() error {
 	if err != nil {
 		return err
 	}
-	container.ResolvConfPath, err = container.getRootResourcePath("resolv.conf")
+	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
 	if err != nil {
 		return err
 	}
@@ -1039,7 +1039,7 @@ func (container *Container) initializeNetworking() error {
 			return err
 		}
 
-		hostsPath, err := container.getRootResourcePath("hosts")
+		hostsPath, err := container.GetRootResourcePath("hosts")
 		if err != nil {
 			return err
 		}
@@ -1169,7 +1169,7 @@ func (container *Container) setupWorkingDirectory() error {
 	if container.Config.WorkingDir != "" {
 		container.Config.WorkingDir = path.Clean(container.Config.WorkingDir)
 
-		pth, err := container.getResourcePath(container.Config.WorkingDir)
+		pth, err := container.GetResourcePath(container.Config.WorkingDir)
 		if err != nil {
 			return err
 		}
