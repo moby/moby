@@ -48,7 +48,6 @@ func (b *Builder) readContext(context io.Reader) error {
 		return err
 	}
 
-	os.MkdirAll(tmpdirPath, 0700)
 	if err := chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return err
 	}
