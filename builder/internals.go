@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	libuser "github.com/docker/libcontainer/user"
 )
 
 func (b *Builder) readContext(context io.Reader) error {
@@ -112,7 +113,7 @@ type copyInfo struct {
 	tmpDir     string
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, doChown bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -199,7 +200,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	defer container.Unmount()
 
 	for _, ci := range copyInfos {
-		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {
+		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress, doChown); err != nil {
 			return err
 		}
 	}
@@ -590,13 +591,65 @@ func (b *Builder) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *Builder) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func getContainerExecUser(container *daemon.Container, ref string) (*libuser.ExecUser, error) {
+	// Get passwd file from inside the container.
+	passwdPath, err := libuser.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+
+	fullPasswdPath, err := container.GetResourcePath(passwdPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get group file from inside the container.
+	groupPath, err := libuser.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+
+	fullGroupPath, err := container.GetResourcePath(groupPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set up defaults (this is identical to the libcontainer defaults, to mantain consistency).
+	execUserDefault := &libuser.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
+
+	// Find (or generate) the user referenced by ref.
+	execUser, err := libuser.GetExecUserPath(ref, execUserDefault, fullPasswdPath, fullGroupPath)
+	if err != nil {
+		return nil, fmt.Errorf("%s: no such user or invalid reference", ref)
+	}
+
+	return execUser, nil
+}
+
+func (b *Builder) addContext(container *daemon.Container, orig, dest string, decompress, chown bool) error {
 	var (
 		err        error
 		destExists = true
 		origPath   = path.Join(b.contextPath, orig)
 		destPath   = path.Join(container.RootfsPath(), dest)
+
+		uid int = 0
+		gid int = 0
 	)
+
+	if chown {
+		execUser, err := getContainerExecUser(container, b.Config.User)
+		if err != nil {
+			return err
+		}
+
+		uid = execUser.Uid
+		gid = execUser.Gid
+	}
 
 	if destPath != container.RootfsPath() {
 		destPath, err = symlink.FollowSymlinkInScope(destPath, container.RootfsPath())
@@ -627,7 +680,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 	}
 
 	if fi.IsDir() {
-		return copyAsDirectory(origPath, destPath, destExists)
+		return copyAsDirectory(origPath, destPath, uid, gid, destExists)
 	}
 
 	// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
@@ -661,14 +714,14 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		resPath = path.Join(destPath, path.Base(origPath))
 	}
 
-	return fixPermissions(origPath, resPath, 0, 0, destExists)
+	return fixPermissions(origPath, resPath, uid, gid, destExists)
 }
 
-func copyAsDirectory(source, destination string, destExisted bool) error {
+func copyAsDirectory(source, destination string, uid, gid int, destExisted bool) error {
 	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 		return err
 	}
-	return fixPermissions(source, destination, 0, 0, destExisted)
+	return fixPermissions(source, destination, uid, gid, destExisted)
 }
 
 func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {

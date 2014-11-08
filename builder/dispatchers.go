@@ -95,7 +95,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return fmt.Errorf("ADD requires at least two arguments")
 	}
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return b.runContextCommand(args, true, true, false, "ADD")
 }
 
 // COPY foo /path
@@ -107,7 +107,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return fmt.Errorf("COPY requires at least two arguments")
 	}
 
-	return b.runContextCommand(args, false, false, "COPY")
+	return b.runContextCommand(args, false, false, true, "COPY")
 }
 
 // FROM imagename
