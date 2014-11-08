@@ -167,26 +167,43 @@ func RestoreParentDeathSignal(old int) error {
 
 // SetupUser changes the groups, gid, and uid for the user inside the container
 func SetupUser(u string) error {
-	uid, gid, suppGids, home, err := user.GetUserGroupSupplementaryHome(u, syscall.Getuid(), syscall.Getgid(), "/")
+	// Set up defaults.
+	defaultExecUser := user.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
+
+	passwdFile, err := user.GetPasswdFile()
+	if err != nil {
+		return err
+	}
+
+	groupFile, err := user.GetGroupFile()
+	if err != nil {
+		return err
+	}
+
+	execUser, err := user.GetExecUserFile(u, &defaultExecUser, passwdFile, groupFile)
 	if err != nil {
 		return fmt.Errorf("get supplementary groups %s", err)
 	}
 
-	if err := syscall.Setgroups(suppGids); err != nil {
+	if err := syscall.Setgroups(execUser.Sgids); err != nil {
 		return fmt.Errorf("setgroups %s", err)
 	}
 
-	if err := system.Setgid(gid); err != nil {
+	if err := system.Setgid(execUser.Gid); err != nil {
 		return fmt.Errorf("setgid %s", err)
 	}
 
-	if err := system.Setuid(uid); err != nil {
+	if err := system.Setuid(execUser.Uid); err != nil {
 		return fmt.Errorf("setuid %s", err)
 	}
 
 	// if we didn't get HOME already, set it based on the user's HOME
 	if envHome := os.Getenv("HOME"); envHome == "" {
-		if err := os.Setenv("HOME", home); err != nil {
+		if err := os.Setenv("HOME", execUser.Home); err != nil {
 			return fmt.Errorf("set HOME %s", err)
 		}
 	}
