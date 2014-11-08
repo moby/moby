@@ -1,11 +1,14 @@
 package chrootarchive
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/docker/docker/pkg/archive"
@@ -22,7 +25,12 @@ func untar() {
 	if err := syscall.Chdir("/"); err != nil {
 		fatal(err)
 	}
-	if err := archive.Untar(os.Stdin, "/", nil); err != nil {
+	options := new(archive.TarOptions)
+	dec := json.NewDecoder(strings.NewReader(flag.Arg(1)))
+	if err := dec.Decode(options); err != nil {
+		fatal(err)
+	}
+	if err := archive.Untar(os.Stdin, "/", options); err != nil {
 		fatal(err)
 	}
 	os.Exit(0)
@@ -33,12 +41,18 @@ var (
 )
 
 func Untar(archive io.Reader, dest string, options *archive.TarOptions) error {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(options); err != nil {
+		return fmt.Errorf("Untar json encode: %v", err)
+	}
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
 		if err := os.MkdirAll(dest, 0777); err != nil {
 			return err
 		}
 	}
-	cmd := reexec.Command("docker-untar", dest)
+
+	cmd := reexec.Command("docker-untar", dest, buf.String())
 	cmd.Stdin = archive
 	out, err := cmd.CombinedOutput()
 	if err != nil {

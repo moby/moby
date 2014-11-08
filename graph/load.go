@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 )
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.
@@ -53,7 +54,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 		excludes[i] = k
 		i++
 	}
-	if err := archive.Untar(repoFile, repoDir, &archive.TarOptions{Excludes: excludes}); err != nil {
+	if err := chrootarchive.Untar(repoFile, repoDir, &archive.TarOptions{Excludes: excludes}); err != nil {
 		return job.Error(err)
 	}
 
