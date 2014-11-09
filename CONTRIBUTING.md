@@ -48,6 +48,10 @@ When considering a cleanup task, we are looking for:
 
 ## Reporting Issues
 
+A great way to contribute to the project is to send a detailed report when you
+encounter an issue. We always appreciate a well-written, thorough bug report,
+and will thank you for it!
+
 When reporting [issues](https://github.com/docker/docker/issues) on
 GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc).
 Please include:
