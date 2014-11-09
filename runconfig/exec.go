@@ -36,9 +36,11 @@ func ExecConfigFromJob(job *engine.Job) *ExecConfig {
 
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	var (
-		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		flStdin  = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
+		flTty    = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flDetach = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		flUser   = cmd.String([]string{"u", "-user"}, "", "Username or UID")
+
 		execCmd   []string
 		container string
 	)
@@ -52,8 +54,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	}
 
 	execConfig := &ExecConfig{
-		// TODO(vishh): Expose '-u' flag once it is supported.
-		User: "",
+		User: *flUser,
 		// TODO(vishh): Expose '-p' flag once it is supported.
 		Privileged: false,
 		Tty:        *flTty,
