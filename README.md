@@ -195,6 +195,14 @@ Don't know how to use that super cool new feature in the master build? Check
 out the master docs at
 [docs.master.dockerproject.com](http://docs.master.dockerproject.com).
 
+How the project is run
+======================
+
+Docker is a very, very active project. If you want to learn more about how it is run,
+or want to get more involved, the best place to start is [the project directory](https://github.com/docker/docker/tree/project).
+
+We are always open to suggestions on process improvements, and are always looking for more maintainers.
+
 ### Legal
 
 *Brought to you courtesy of our legal counsel. For more context,
