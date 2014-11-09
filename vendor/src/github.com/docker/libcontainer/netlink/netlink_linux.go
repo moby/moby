@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -1002,28 +1003,23 @@ func AddRoute(destination, source, gateway, device string) error {
 	}
 
 	if source != "" {
-		srcIP, srcNet, err := net.ParseCIDR(source)
+		srcIP := net.ParseIP(source)
 		if err != nil {
-			return fmt.Errorf("source CIDR %s couldn't be parsed", source)
+			return fmt.Errorf("source IP %s couldn't be parsed", source)
 		}
 		srcFamily := getIpFamily(srcIP)
 		if currentFamily != -1 && currentFamily != srcFamily {
 			return fmt.Errorf("source and destination ip were not the same IP family")
 		}
 		currentFamily = srcFamily
-		srcLen, bits := srcNet.Mask.Size()
-		if srcLen == 0 && bits == 0 {
-			return fmt.Errorf("source CIDR %s generated a non-canonical Mask", source)
-		}
 		msg.Family = uint8(srcFamily)
-		msg.Src_len = uint8(srcLen)
 		var srcData []byte
 		if srcFamily == syscall.AF_INET {
 			srcData = srcIP.To4()
 		} else {
 			srcData = srcIP.To16()
 		}
-		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_SRC, srcData))
+		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_PREFSRC, srcData))
 	}
 
 	if gateway != "" {
@@ -1204,6 +1200,28 @@ func SetMacAddress(name, addr string) error {
 	return nil
 }
 
+func SetHairpinMode(iface *net.Interface, enabled bool) error {
+	sysPath := filepath.Join("/sys/class/net", iface.Name, "brport/hairpin_mode")
+
+	sysFile, err := os.OpenFile(sysPath, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer sysFile.Close()
+
+	var writeVal []byte
+	if enabled {
+		writeVal = []byte("1")
+	} else {
+		writeVal = []byte("0")
+	}
+	if _, err := sysFile.Write(writeVal); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ChangeName(iface *net.Interface, newName string) error {
 	if len(newName) >= IFNAMSIZ {
 		return fmt.Errorf("Interface name %s too long", newName)
@@ -1224,5 +1242,6 @@ func ChangeName(iface *net.Interface, newName string) error {
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.SIOCSIFNAME, uintptr(unsafe.Pointer(&data[0]))); errno != 0 {
 		return errno
 	}
+
 	return nil
 }

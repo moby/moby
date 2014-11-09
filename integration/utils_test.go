@@ -37,10 +37,6 @@ type Fataler interface {
 func mkDaemon(f Fataler) *daemon.Daemon {
 	eng := newTestEngine(f, false, "")
 	return mkDaemonFromEngine(eng, f)
-	// FIXME:
-	// [...]
-	// Mtu:         docker.GetDefaultNetworkMtu(),
-	// [...]
 }
 
 func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler, name string) (shortId string) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -29,6 +30,47 @@ func TestExec(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("exec - basic test")
+}
+
+func TestExecInteractiveStdinClose(t *testing.T) {
+	defer deleteAllContainers()
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "busybox", "/bin/cat"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contId := strings.TrimSpace(out)
+	println(contId)
+
+	returnchan := make(chan struct{})
+
+	go func() {
+		var err error
+		cmd := exec.Command(dockerBinary, "exec", "-i", contId, "/bin/ls", "/")
+		cmd.Stdin = os.Stdin
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatal(err, out)
+		}
+
+		if string(out) == "" {
+			t.Fatalf("Output was empty, likely blocked by standard input")
+		}
+
+		returnchan <- struct{}{}
+	}()
+
+	select {
+	case <-returnchan:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out running docker exec")
+	}
+
+	logDone("exec - interactive mode closes stdin after execution")
 }
 
 func TestExecInteractive(t *testing.T) {

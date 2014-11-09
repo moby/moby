@@ -102,13 +102,17 @@ func (container *Container) FromDisk() error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(pth)
+	jsonSource, err := os.Open(pth)
 	if err != nil {
 		return err
 	}
+	defer jsonSource.Close()
+
+	dec := json.NewDecoder(jsonSource)
+
 	// Load container settings
 	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
-	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
+	if err := dec.Decode(container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
 
@@ -298,6 +302,10 @@ func (container *Container) Start() (err error) {
 	defer func() {
 		if err != nil {
 			container.setError(err)
+			// if no one else has set it, make sure we don't leave it at zero
+			if container.ExitCode == 0 {
+				container.ExitCode = 128
+			}
 			container.toDisk()
 			container.cleanup()
 		}
@@ -416,7 +424,7 @@ func (container *Container) buildHostsFiles(IP string) error {
 	}
 	container.HostsPath = hostsPath
 
-	extraContent := make(map[string]string)
+	var extraContent []etchosts.Record
 
 	children, err := container.daemon.Children(container.Name)
 	if err != nil {
@@ -425,15 +433,15 @@ func (container *Container) buildHostsFiles(IP string) error {
 
 	for linkAlias, child := range children {
 		_, alias := path.Split(linkAlias)
-		extraContent[alias] = child.NetworkSettings.IPAddress
+		extraContent = append(extraContent, etchosts.Record{Hosts: alias, IP: child.NetworkSettings.IPAddress})
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
 		parts := strings.Split(extraHost, ":")
-		extraContent[parts[0]] = parts[1]
+		extraContent = append(extraContent, etchosts.Record{Hosts: parts[0], IP: parts[1]})
 	}
 
-	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
+	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, extraContent)
 }
 
 func (container *Container) buildHostnameAndHostsFiles(IP string) error {
@@ -457,6 +465,7 @@ func (container *Container) AllocateNetwork() error {
 	)
 
 	job := eng.Job("allocate_interface", container.ID)
+	job.Setenv("RequestedMac", container.Config.MacAddress)
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
@@ -527,7 +536,9 @@ func (container *Container) ReleaseNetwork() {
 	}
 	eng := container.daemon.eng
 
-	eng.Job("release_interface", container.ID).Run()
+	job := eng.Job("release_interface", container.ID)
+	job.SetenvBool("overrideShutdown", true)
+	job.Run()
 	container.NetworkSettings = &NetworkSettings{}
 }
 

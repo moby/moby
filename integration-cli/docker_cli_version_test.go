@@ -11,7 +11,7 @@ func TestVersionEnsureSucceeds(t *testing.T) {
 	versionCmd := exec.Command(dockerBinary, "version")
 	out, _, err := runCommandWithOutput(versionCmd)
 	if err != nil {
-		t.Fatal("failed to execute docker version: %s, %v", out, err)
+		t.Fatalf("failed to execute docker version: %s, %v", out, err)
 	}
 
 	stringsToCheck := []string{

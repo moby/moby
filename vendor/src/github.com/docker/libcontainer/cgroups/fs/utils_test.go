@@ -57,7 +57,7 @@ func TestGetCgroupParamsInt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if value != 0 {
-		t.Fatalf("Expected %d to equal %f", value, 0)
+		t.Fatalf("Expected %d to equal %d", value, 0)
 	}
 
 	// Success with negative values lesser than min int64
@@ -70,7 +70,7 @@ func TestGetCgroupParamsInt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if value != 0 {
-		t.Fatalf("Expected %d to equal %f", value, 0)
+		t.Fatalf("Expected %d to equal %d", value, 0)
 	}
 
 	// Not a float.

@@ -29,6 +29,7 @@ docker-run - Run a command in a new container
 [**-m**|**--memory**[=*MEMORY*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
+[**--mac-address**[=*MACADDRESS*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--privileged**[=*false*]]
@@ -186,6 +187,14 @@ and foreground Docker containers.
                                'none': no networking for this container
                                'container:<name|id>': reuses another container network stack
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+
+**--mac-address**=*macaddress*
+   Set the MAC address for the container's Ethernet device:
+    --mac-address=12:34:56:78:9a:bc
+
+Remember that the MAC address in an Ethernet network must be unique.
+The IPv6 link-local address will be based on the device's MAC address
+according to RFC4862.
 
 **-P**, **--publish-all**=*true*|*false*
    When set to true publish all exposed ports to the host interfaces. The

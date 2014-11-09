@@ -96,7 +96,7 @@ func Fatal(args ...interface{}) {
 	std.Fatal(args...)
 }
 
-// Debugf logs a message at level Debugf on the standard logger.
+// Debugf logs a message at level Debug on the standard logger.
 func Debugf(format string, args ...interface{}) {
 	std.Debugf(format, args...)
 }
@@ -126,7 +126,7 @@ func Errorf(format string, args ...interface{}) {
 	std.Errorf(format, args...)
 }
 
-// Panicf logs a message at level Pancf on the standard logger.
+// Panicf logs a message at level Panic on the standard logger.
 func Panicf(format string, args ...interface{}) {
 	std.Panicf(format, args...)
 }

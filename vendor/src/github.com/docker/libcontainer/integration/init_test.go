@@ -6,7 +6,6 @@ import (
 	"runtime"
 
 	"github.com/docker/libcontainer/namespaces"
-	"github.com/docker/libcontainer/syncpipe"
 )
 
 // init runs the libcontainer initialization code because of the busybox style needs
@@ -27,12 +26,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	syncPipe, err := syncpipe.NewSyncPipeFromFd(0, 3)
-	if err != nil {
-		log.Fatalf("unable to create sync pipe: %s", err)
-	}
-
-	if err := namespaces.Init(container, rootfs, "", syncPipe, os.Args[3:]); err != nil {
+	if err := namespaces.Init(container, rootfs, "", os.NewFile(3, "pipe"), os.Args[3:]); err != nil {
 		log.Fatalf("unable to initialize for container: %s", err)
 	}
 	os.Exit(1)

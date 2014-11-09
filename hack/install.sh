@@ -96,7 +96,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run --rm hello-world'
+				$sh_c 'docker version'
 			) || true
 		fi
 		your_user=your-user
@@ -173,7 +173,7 @@ case "$lsb_dist" in
 		if command_exists docker && [ -e /var/run/docker.sock ]; then
 			(
 				set -x
-				$sh_c 'docker run --rm hello-world'
+				$sh_c 'docker version'
 			) || true
 		fi
 		your_user=your-user

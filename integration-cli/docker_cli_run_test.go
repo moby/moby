@@ -2018,6 +2018,41 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 	logDone("run - network must not be initialized in 'none' mode")
 }
 
+func TestRunSetMacAddress(t *testing.T) {
+	mac := "12:34:56:78:9a:bc"
+	cmd := exec.Command("/bin/bash", "-c", dockerBinary+` run -i --rm --mac-address=`+mac+` busybox /bin/sh -c "ip link show eth0 | tail -1 | awk '{ print \$2 }'"`)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualMac := strings.TrimSpace(out)
+	if actualMac != mac {
+		t.Fatalf("Set MAC address with --mac-address failed. The container has an incorrect MAC address: %q, expected: %q", actualMac, mac)
+	}
+
+	deleteAllContainers()
+	logDone("run - setting MAC address with --mac-address")
+}
+
+func TestRunInspectMacAddress(t *testing.T) {
+	mac := "12:34:56:78:9a:bc"
+	cmd := exec.Command(dockerBinary, "run", "-d", "--mac-address="+mac, "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSpace(out)
+	inspectedMac, err := inspectField(id, "NetworkSettings.MacAddress")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inspectedMac != mac {
+		t.Fatalf("docker inspect outputs wrong MAC address: %q, should be: %q", inspectedMac, mac)
+	}
+	deleteAllContainers()
+	logDone("run - inspecting MAC address")
+}
+
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
@@ -2502,4 +2537,34 @@ func TestRunAllowPortRangeThroughExpose(t *testing.T) {
 		t.Fatal(err)
 	}
 	logDone("run - allow port range through --expose flag")
+}
+
+func TestRunUnknownCommand(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "create", "busybox", "/bin/nada")
+	cID, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("Failed to create container: %v, output: %q", err, cID)
+	}
+	cID = strings.TrimSpace(cID)
+
+	runCmd = exec.Command(dockerBinary, "start", cID)
+	_, _, _, err = runCommandWithStdoutStderr(runCmd)
+	if err == nil {
+		t.Fatalf("Container should not have been able to start!")
+	}
+
+	runCmd = exec.Command(dockerBinary, "inspect", "--format={{.State.ExitCode}}", cID)
+	rc, _, _, err2 := runCommandWithStdoutStderr(runCmd)
+	rc = strings.TrimSpace(rc)
+
+	if err2 != nil {
+		t.Fatalf("Error getting status of container: %v", err2)
+	}
+
+	if rc != "-1" {
+		t.Fatalf("ExitCode(%v) was supposed to be -1", rc)
+	}
+
+	logDone("run - Unknown Command")
 }

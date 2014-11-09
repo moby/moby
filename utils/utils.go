@@ -22,6 +22,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
 )
@@ -250,14 +251,6 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// FIXME: this is deprecated by CopyWithTar in archive.go
-func CopyDirectory(source, dest string) error {
-	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
-		return fmt.Errorf("Error copy: %s (%s)", err, output)
-	}
-	return nil
-}
-
 type WriteFlusher struct {
 	sync.Mutex
 	w       io.Writer
@@ -381,7 +374,7 @@ func TestDirectory(templateDir string) (dir string, err error) {
 		return
 	}
 	if templateDir != "" {
-		if err = CopyDirectory(templateDir, dir); err != nil {
+		if err = archive.CopyWithTar(templateDir, dir); err != nil {
 			return
 		}
 	}

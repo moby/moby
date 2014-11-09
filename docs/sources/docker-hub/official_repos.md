@@ -60,7 +60,7 @@ should also:
 
 * Be named `README-short.txt`
 * Reside in the repo for the “latest” tag
-* Not exceed 200 characters
+* Not exceed 100 characters
 
 ### A logo
 

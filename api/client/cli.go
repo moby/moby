@@ -75,11 +75,11 @@ func (cli *DockerCli) Cmd(args ...string) error {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp(args[1:]...)
+			return cli.CmdHelp()
 		}
 		return method(args[1:]...)
 	}
-	return cli.CmdHelp(args...)
+	return cli.CmdHelp()
 }
 
 func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {

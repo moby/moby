@@ -96,7 +96,12 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, -1, ErrConnectionRefused
 		}
-		return nil, -1, err
+
+		if cli.tlsConfig == nil {
+			return nil, -1, fmt.Errorf("%v. Are you trying to connect to a TLS-enabled daemon without TLS?", err)
+		}
+		return nil, -1, fmt.Errorf("An error occurred trying to connect: %v", err)
+
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 400 {

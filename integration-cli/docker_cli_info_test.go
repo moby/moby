@@ -11,7 +11,7 @@ func TestInfoEnsureSucceeds(t *testing.T) {
 	versionCmd := exec.Command(dockerBinary, "info")
 	out, exitCode, err := runCommandWithOutput(versionCmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("failed to execute docker info: %s, %v", out, err)
+		t.Fatalf("failed to execute docker info: %s, %v", out, err)
 	}
 
 	stringsToCheck := []string{"Containers:", "Execution Driver:", "Kernel Version:"}

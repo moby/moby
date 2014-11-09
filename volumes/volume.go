@@ -154,12 +154,15 @@ func (v *Volume) FromDisk() error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(pth)
+	jsonSource, err := os.Open(pth)
 	if err != nil {
 		return err
 	}
+	defer jsonSource.Close()
 
-	return json.Unmarshal(data, v)
+	dec := json.NewDecoder(jsonSource)
+
+	return dec.Decode(v)
 }
 
 func (v *Volume) jsonPath() (string, error) {

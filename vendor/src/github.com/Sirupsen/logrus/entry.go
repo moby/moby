@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// An entry is the final or intermediate Logrus logging entry. It containts all
+// An entry is the final or intermediate Logrus logging entry. It contains all
 // the fields passed with WithField{,s}. It's finally logged when Debug, Info,
 // Warn, Error, Fatal or Panic is called on it. These objects can be reused and
 // passed around as much as you wish to avoid field duplication.
@@ -27,8 +27,6 @@ type Entry struct {
 	// Message passed to Debug, Info, Warn, Error, Fatal or Panic
 	Message string
 }
-
-var baseTimestamp time.Time
 
 func NewEntry(logger *Logger) *Entry {
 	return &Entry{
@@ -72,18 +70,22 @@ func (entry *Entry) WithFields(fields Fields) *Entry {
 	return &Entry{Logger: entry.Logger, Data: data}
 }
 
-func (entry *Entry) log(level Level, msg string) string {
+func (entry *Entry) log(level Level, msg string) {
 	entry.Time = time.Now()
 	entry.Level = level
 	entry.Message = msg
 
 	if err := entry.Logger.Hooks.Fire(level, entry); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to fire hook", err)
+		entry.Logger.mu.Lock()
+		fmt.Fprintf(os.Stderr, "Failed to fire hook: %v\n", err)
+		entry.Logger.mu.Unlock()
 	}
 
 	reader, err := entry.Reader()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v", err)
+		entry.Logger.mu.Lock()
+		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
+		entry.Logger.mu.Unlock()
 	}
 
 	entry.Logger.mu.Lock()
@@ -91,10 +93,15 @@ func (entry *Entry) log(level Level, msg string) string {
 
 	_, err = io.Copy(entry.Logger.Out, reader)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write to log, %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
 	}
 
-	return reader.String()
+	// To avoid Entry#log() returning a value that only would make sense for
+	// panic() to use in Entry#Panic(), we avoid the allocation by checking
+	// directly here.
+	if level <= PanicLevel {
+		panic(reader.String())
+	}
 }
 
 func (entry *Entry) Debug(args ...interface{}) {
@@ -134,8 +141,7 @@ func (entry *Entry) Fatal(args ...interface{}) {
 
 func (entry *Entry) Panic(args ...interface{}) {
 	if entry.Logger.Level >= PanicLevel {
-		msg := entry.log(PanicLevel, fmt.Sprint(args...))
-		panic(msg)
+		entry.log(PanicLevel, fmt.Sprint(args...))
 	}
 	panic(fmt.Sprint(args...))
 }

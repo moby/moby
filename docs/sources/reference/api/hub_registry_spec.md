@@ -458,7 +458,7 @@ on a private network without having to rely on an external entity
 controlled by Docker Inc.
 
 In this case, the registry will be launched in a special mode
-(–standalone? ne? –no-index?). In this mode, the only thing which changes is
+(-standalone? ne? -no-index?). In this mode, the only thing which changes is
 that Registry will never contact the Docker Hub to verify a token. It will be
 the Registry owner responsibility to authenticate the user who pushes
 (or even pulls) an image using any mechanism (HTTP auth, IP based,

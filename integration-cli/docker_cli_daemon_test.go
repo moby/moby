@@ -128,3 +128,98 @@ func TestDaemonStartBridgeWithoutIPAssociation(t *testing.T) {
 
 	logDone("daemon - successful daemon start when bridge has no IP association")
 }
+
+func TestDaemonIptablesClean(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top: %s, %v", out, err)
+	}
+
+	// get output from iptables with container running
+	ipTablesSearchString := "tcp dpt:80"
+	ipTablesCmd := exec.Command("iptables", "-nvL")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	// get output from iptables after restart
+	ipTablesCmd = exec.Command("iptables", "-nvL")
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output should not have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run,iptables - iptables rules cleaned after daemon restart")
+}
+
+func TestDaemonIptablesCreate(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top", "--restart=always", "-p", "80", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top: %s, %v", out, err)
+	}
+
+	// get output from iptables with container running
+	ipTablesSearchString := "tcp dpt:80"
+	ipTablesCmd := exec.Command("iptables", "-nvL")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	if err := d.Restart(); err != nil {
+		t.Fatalf("Could not restart daemon: %v", err)
+	}
+
+	// make sure the container is not running
+	runningOut, err := d.Cmd("inspect", "--format='{{.State.Running}}'", "top")
+	if err != nil {
+		t.Fatalf("Could not inspect on container: %s, %v", out, err)
+	}
+	if strings.TrimSpace(runningOut) != "true" {
+		t.Fatalf("Container should have been restarted after daemon restart. Status running should have been true but was: %q", strings.TrimSpace(runningOut))
+	}
+
+	// get output from iptables after restart
+	ipTablesCmd = exec.Command("iptables", "-nvL")
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output after restart should have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run,iptables - iptables rules for always restarted container created after daemon restart")
+}

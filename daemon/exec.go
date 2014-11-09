@@ -203,7 +203,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		execConfig.StreamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 
-	attachErr := d.attach(&execConfig.StreamConfig, execConfig.OpenStdin, false, execConfig.ProcessConfig.Tty, cStdin, cStdout, cStderr)
+	attachErr := d.attach(&execConfig.StreamConfig, execConfig.OpenStdin, true, execConfig.ProcessConfig.Tty, cStdin, cStdout, cStderr)
 
 	execErr := make(chan error)
 

@@ -11,7 +11,7 @@ func TestSearchOnCentralRegistry(t *testing.T) {
 	searchCmd := exec.Command(dockerBinary, "search", "busybox")
 	out, exitCode, err := runCommandWithOutput(searchCmd)
 	if err != nil || exitCode != 0 {
-		t.Fatal("failed to search on the central registry: %s, %v", out, err)
+		t.Fatalf("failed to search on the central registry: %s, %v", out, err)
 	}
 
 	if !strings.Contains(out, "Busybox base image.") {

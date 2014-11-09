@@ -43,6 +43,13 @@ var (
 	}
 )
 
+func newProp(name string, units interface{}) systemd.Property {
+	return systemd.Property{
+		Name:  name,
+		Value: dbus.MakeVariant(units),
+	}
+}
+
 func UseSystemd() bool {
 	s, err := os.Stat("/run/systemd/system")
 	if err != nil || !s.IsDir() {
@@ -99,27 +106,27 @@ func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
 	}
 
 	properties = append(properties,
-		systemd.Property{"Slice", dbus.MakeVariant(slice)},
-		systemd.Property{"Description", dbus.MakeVariant("docker container " + c.Name)},
-		systemd.Property{"PIDs", dbus.MakeVariant([]uint32{uint32(pid)})},
+		systemd.PropSlice(slice),
+		systemd.PropDescription("docker container "+c.Name),
+		newProp("PIDs", []uint32{uint32(pid)}),
 	)
 
 	// Always enable accounting, this gets us the same behaviour as the fs implementation,
 	// plus the kernel has some problems with joining the memory cgroup at a later time.
 	properties = append(properties,
-		systemd.Property{"MemoryAccounting", dbus.MakeVariant(true)},
-		systemd.Property{"CPUAccounting", dbus.MakeVariant(true)},
-		systemd.Property{"BlockIOAccounting", dbus.MakeVariant(true)})
+		newProp("MemoryAccounting", true),
+		newProp("CPUAccounting", true),
+		newProp("BlockIOAccounting", true))
 
 	if c.Memory != 0 {
 		properties = append(properties,
-			systemd.Property{"MemoryLimit", dbus.MakeVariant(uint64(c.Memory))})
+			newProp("MemoryLimit", uint64(c.Memory)))
 	}
 	// TODO: MemoryReservation and MemorySwap not available in systemd
 
 	if c.CpuShares != 0 {
 		properties = append(properties,
-			systemd.Property{"CPUShares", dbus.MakeVariant(uint64(c.CpuShares))})
+			newProp("CPUShares", uint64(c.CpuShares)))
 	}
 
 	if _, err := theConn.StartTransientUnit(unitName, "replace", properties...); err != nil {
