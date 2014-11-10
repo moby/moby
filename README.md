@@ -181,10 +181,10 @@ Contributing to Docker
 [![Build Status](https://ci.dockerproject.com/github.com/docker/docker/status.svg?branch=master)](https://ci.dockerproject.com/github.com/docker/docker)
 
 Want to hack on Docker? Awesome! There are instructions to get you
-started [here](CONTRIBUTING.md).
+started [here](CONTRIBUTING.md). If you'd like to contribute to the
+documentation, please take a look at this [README.md](https://github.com/docker/docker/blob/master/docs/README.md).
 
-They are probably not perfect, please let us know if anything feels
-wrong or incomplete.
+These instructions are probably not perfect, please let us know if anything feels wrong or incomplete.
 
 ### Legal
 
