@@ -351,17 +351,17 @@ change them using `docker run --env <key>=<value>`.
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
-## ATTR
+## ANNOTATE
 
-    ATTR <key> <value>
+    ANNOTATE <key> <value>
 
-The `ATTR` instruction sets an initial value for the attribute named
-`<key>`. The attribute value is not available to the container itself,
-but may be reported by `docker inspect` and overidden by `docker
-attr`.
+The `ANNOTATE` instruction sets an initial value for the annotation
+named `<key>`. The annotation value is not available to the container
+itself, but may be reported by `docker inspect` and overidden by
+`docker annotate`.
 
-The value must be a JSON literal; so, for example, strings must be
-double-quoted.
+The value should be a JSON literal; if it cannot be parsed as such, it
+will be treated as a string.
 
 ## ADD
 
