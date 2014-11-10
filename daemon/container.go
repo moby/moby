@@ -233,6 +233,18 @@ func populateCommand(c *Container, env []string) error {
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
+	ipc := &execdriver.Ipc{}
+
+	if c.hostConfig.IpcMode.IsContainer() {
+		ic, err := c.getIpcContainer()
+		if err != nil {
+			return err
+		}
+		ipc.ContainerID = ic.ID
+	} else {
+		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
+	}
+
 	// Build lists of devices allowed and created within the container.
 	userSpecifiedDevices := make([]*devices.Device, len(c.hostConfig.Devices))
 	for i, deviceMapping := range c.hostConfig.Devices {
@@ -274,6 +286,7 @@ func populateCommand(c *Container, env []string) error {
 		InitPath:           "/.dockerinit",
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,
+		Ipc:                ipc,
 		Resources:          resources,
 		AllowedDevices:     allowedDevices,
 		AutoCreatedDevices: autoCreatedDevices,
@@ -1250,10 +1263,25 @@ func (container *Container) GetMountLabel() string {
 	return container.MountLabel
 }
 
+func (container *Container) getIpcContainer() (*Container, error) {
+	containerID := container.hostConfig.IpcMode.Container()
+	c := container.daemon.Get(containerID)
+	if c == nil {
+		return nil, fmt.Errorf("no such container to join IPC: %s", containerID)
+	}
+	if !c.IsRunning() {
+		return nil, fmt.Errorf("cannot join IPC of a non running container: %s", containerID)
+	}
+	return c, nil
+}
+
 func (container *Container) getNetworkedContainer() (*Container, error) {
 	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
 	case "container":
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("no container specified to join network")
+		}
 		nc := container.daemon.Get(parts[1])
 		if nc == nil {
 			return nil, fmt.Errorf("no such container to join network: %s", parts[1])

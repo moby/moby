@@ -62,6 +62,12 @@ type Network struct {
 	HostNetworking bool              `json:"host_networking"`
 }
 
+// IPC settings of the container
+type Ipc struct {
+	ContainerID string `json:"container_id"` // id of the container to join ipc.
+	HostIpc     bool   `json:"host_ipc"`
+}
+
 type NetworkInterface struct {
 	Gateway     string `json:"gateway"`
 	IPAddress   string `json:"ip"`
@@ -106,6 +112,7 @@ type Command struct {
 	WorkingDir         string            `json:"working_dir"`
 	ConfigPath         string            `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
 	Network            *Network          `json:"network"`
+	Ipc                *Ipc              `json:"ipc"`
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
 	AllowedDevices     []*devices.Device `json:"allowed_devices"`
