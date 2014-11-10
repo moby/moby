@@ -64,7 +64,10 @@ func LoadImage(root string) (*Image, error) {
 		// because a layer size of 0 (zero) is valid
 		img.Size = -1
 	} else {
-		size, err := strconv.Atoi(string(buf))
+		// Using Atoi here instead would temporarily convert the size to a machine
+		// dependent integer type, which causes images larger than 2^31 bytes to
+		// display negative sizes on 32-bit machines:
+		size, err := strconv.ParseInt(string(buf), 10, 64)
 		if err != nil {
 			return nil, err
 		}
