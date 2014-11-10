@@ -164,13 +164,16 @@ serious kernel crashes. However, `aufs` is also the only storage driver that all
 containers to share executable and shared library memory, so is a useful choice
 when running thousands of containers with the same program or libraries.
 
-The `devicemapper` driver uses thin provisioning and Copy on Write (CoW) snapshots.
-This driver will create a 100GB sparse file containing all your images and
-containers.  Each container will be limited to a 10 GB thin volume, and either of
-these will require tuning - see [~jpetazzo/Resizing Docker containers with the
-Device Mapper plugin]( http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
-To tell the Docker daemon to use `devicemapper`, use
-`docker -d -s devicemapper`.
+The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
+snapshots. For each devicemapper graph location – typically
+`/var/lib/docker/devicemapper` – a thin pool is created based on two block
+devices, one for data and one for metadata.  By default, these block devices
+are created automatically by using loopback mounts of automatically created
+sparse files. Refer to [Storage driver options](#storage-driver-options) below
+for a way how to customize this setup.
+[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](
+http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/) article
+explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
 share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
@@ -178,6 +181,135 @@ share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_p
 The `overlayfs` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
 Call `docker -d -s overlayfs` to use it.
+
+#### Storage driver options
+
+Particular storage-driver can be configured with options specified with
+`--storage-opt` flags. The only driver accepting options is `devicemapper` as
+of now. All its options are prefixed with `dm`.
+
+Currently supported options are:
+
+ *  `dm.basesize`
+
+    Specifies the size to use when creating the base device, which limits the
+    size of images and containers. The default value is 10G. Note, thin devices
+    are inherently "sparse", so a 10G device which is mostly empty doesn't use
+    10 GB of space on the pool. However, the filesystem will use more space for
+    the empty case the larger the device is.
+    
+     **Warning**: This value affects the system-wide "base" empty filesystem
+     that may already be initialized and inherited by pulled images. Typically,
+     a change to this value will require additional steps to take effect:
+    
+        $ sudo service docker stop
+        $ sudo rm -rf /var/lib/docker
+        $ sudo service docker start
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.basesize=20G
+
+ *  `dm.loopdatasize`
+
+    Specifies the size to use when creating the loopback file for the "data"
+    device which is used for the thin pool. The default size is 100G. Note that
+    the file is sparse, so it will not initially take up this much space.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.loopdatasize=200G
+
+ *  `dm.loopmetadatasize`
+
+    Specifies the size to use when creating the loopback file for the
+    "metadata" device which is used for the thin pool. The default size is 2G.
+    Note that the file is sparse, so it will not initially take up this much
+    space.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.loopmetadatasize=4G
+
+ *  `dm.fs`
+
+    Specifies the filesystem type to use for the base device. The supported
+    options are "ext4" and "xfs". The default is "ext4"
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.fs=xfs
+
+ *  `dm.mkfsarg`
+
+    Specifies extra mkfs arguments to be used when creating the base device.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"
+
+ *  `dm.mountopt`
+
+    Specifies extra mount options used when mounting the thin devices.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.mountopt=nodiscard
+
+ *  `dm.datadev`
+
+    Specifies a custom blockdevice to use for data for the thin pool.
+
+    If using a block device for device mapper storage, ideally both datadev and
+    metadatadev should be specified to completely avoid using the loopback
+    device.
+
+    Example use:
+
+        $ sudo docker -d \
+            --storage-opt dm.datadev=/dev/sdb1 \
+            --storage-opt dm.metadatadev=/dev/sdc1
+
+ *  `dm.metadatadev`
+
+    Specifies a custom blockdevice to use for metadata for the thin pool.
+
+    For best performance the metadata should be on a different spindle than the
+    data, or even better on an SSD.
+
+    If setting up a new metadata pool it is required to be valid. This can be
+    achieved by zeroing the first 4k to indicate empty metadata, like this:
+
+        $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+
+    Example use:
+
+        $ sudo docker -d \
+            --storage-opt dm.datadev=/dev/sdb1 \
+            --storage-opt dm.metadatadev=/dev/sdc1
+
+ *  `dm.blocksize`
+
+    Specifies a custom blocksize to use for the thin pool. The default
+    blocksize is 64K.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.blocksize=512K
+
+ *  `dm.blkdiscard`
+
+    Enables or disables the use of blkdiscard when removing devicemapper
+    devices. This is enabled by default (only) if using loopback devices and is
+    required to res-parsify the loopback file on image/container removal.
+
+    Disabling this on loopback can lead to *much* faster container removal
+    times, but will make the space used in `/var/lib/docker` directory not be
+    returned to the system for other use when containers are removed.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.blkdiscard=false
 
 ### Docker exec-driver option
 
