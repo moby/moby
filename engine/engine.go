@@ -48,6 +48,7 @@ func unregister(name string) {
 // containers by executing *jobs*.
 type Engine struct {
 	handlers   map[string]Handler
+	jobs       map[*Job]bool
 	catchall   Handler
 	hack       Hack // data for temporary hackery (see hack.go)
 	id         string
@@ -78,6 +79,7 @@ func (eng *Engine) RegisterCatchall(catchall Handler) {
 func New() *Engine {
 	eng := &Engine{
 		handlers: make(map[string]Handler),
+		jobs:     make(map[*Job]bool),
 		id:       utils.RandomString(),
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,
@@ -90,6 +92,9 @@ func New() *Engine {
 		}
 		return StatusOK
 	})
+
+	eng.Register("jobs", eng.Jobs)
+
 	// Copy existing global handlers
 	for k, v := range globalHandlers {
 		eng.handlers[k] = v
@@ -258,4 +263,22 @@ func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
 	}
 	prefixedFormat := fmt.Sprintf("[%s] [%s] %s\n", time.Now().Format(timeutils.RFC3339NanoFixed), eng, strings.TrimRight(format, "\n"))
 	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
+}
+
+func (eng *Engine) Jobs(job *Job) Status {
+  outs := NewTable("", 0)
+
+  eng.l.Lock()
+  for running, _ := range eng.jobs {
+    out := &Env{}
+    out.Set("Name", running.Name)
+    out.Set("Status", running.String())
+    outs.Add(out)
+  }
+  eng.l.Unlock()
+
+  if _, err := outs.WriteListTo(job.Stdout); err != nil {
+    return job.Error(err)
+  }
+  return StatusOK
 }

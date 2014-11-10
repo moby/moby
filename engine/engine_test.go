@@ -83,7 +83,7 @@ func TestEngineCommands(t *testing.T) {
 	commands := eng.Job("commands")
 	commands.Stdout.Add(&output)
 	commands.Run()
-	expected := "bar\ncommands\ndie\necho\nfoo\n"
+	expected := "bar\ncommands\ndie\necho\nfoo\njobs\n"
 	if result := output.String(); result != expected {
 		t.Fatalf("Unexpected output:\nExpected = %v\nResult   = %v\n", expected, result)
 	}
