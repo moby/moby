@@ -7,9 +7,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -2212,6 +2214,64 @@ func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
 		t.Fatal("The cache should have been invalided but hasn't.")
 	}
 	logDone("build - add remote file without cache")
+}
+
+func TestBuildADDRemoteFileMTime(t *testing.T) {
+	name := "testbuildaddremotefilemtime"
+	defer deleteImages(name)
+
+	server, err := fakeStorage(map[string]string{"baz": "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD %s/baz /usr/lib/baz/quux`, server.URL), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but wasn't - #1")
+	}
+
+	// Now set baz's times to anything else and redo the build
+	// This time the cache should not be used
+	bazPath := path.Join(server.FakeContext.Dir, "baz")
+	err = syscall.UtimesNano(bazPath, make([]syscall.Timespec, 2))
+	if err != nil {
+		t.Fatalf("Error setting mtime on %q: %v", bazPath, err)
+	}
+
+	id3, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id3 {
+		t.Fatal("The cache should not have been used but was")
+	}
+
+	// And for good measure do it again and make sure cache is used this time
+	id4, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id3 != id4 {
+		t.Fatal("The cache should have been used but wasn't - #2")
+	}
+	logDone("build - add remote file testing mtime")
 }
 
 func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
