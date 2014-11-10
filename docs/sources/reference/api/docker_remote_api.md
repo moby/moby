@@ -53,6 +53,7 @@ You can still call an old version of the API using
 total memory available (`MemTotal`).
 
 `POST /containers/create`
+
 **New!**
 You can set the new container's MAC address explicitly.
 
@@ -61,6 +62,11 @@ You can set the new container's MAC address explicitly.
 **New!**
 Passing the container's `HostConfig` on start is now deprecated.  You should
 set this when creating the container.
+
+`POST /containers/(id)/copy`
+
+**New!**
+You can now copy data which is contained in a volume.
 
 ## v1.15
 
