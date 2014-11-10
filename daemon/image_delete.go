@@ -131,10 +131,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 	for _, container := range daemon.List() {
-		parent, err := daemon.Repositories().LookupImage(container.Image)
-		if err != nil {
-			return err
-		}
+		parent, _ := daemon.Repositories().LookupImage(container.Image)
 
 		if err := parent.WalkHistory(func(p *image.Image) error {
 			if imgID == p.ID {
