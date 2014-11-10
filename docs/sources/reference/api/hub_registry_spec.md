@@ -579,13 +579,19 @@ The following naming restrictions apply:
 
 ### Get all tags:
 
-GET /v1/repositories/<namespace>/<repository_name>/tags
+    GET /v1/repositories/<namespace>/<repository_name>/tags
 
     **Return**: HTTP 200
-    { "latest":
-    "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
-    “0.1.1”:
-    “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087” }
+    [
+        {
+            "layer": "9e89cc6f",
+            "name": "latest"
+        },
+        {
+            "layer": "b486531f",
+            "name": "0.1.1",
+        }
+    ]
 
 **4.3.2 Read the content of a tag (resolve the image id):**
 
