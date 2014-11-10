@@ -68,7 +68,7 @@ your `BINDDIR` setting is not set quite right. You want to run the following com
     
     $ sudo make BINDDIR=. binary 
 
-If you are not in Linux - for example: OSX, you want to run `make cross` or `make BINDDIR=. cross`.
+If you are on a non-Linux platform, e.g., OSX, you'll want to run `make cross` or `make BINDDIR=. cross`.
 
 ### Using your built Docker binary
 
