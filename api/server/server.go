@@ -530,6 +530,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		}
 		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
 		job.Stdin.Add(r.Body)
+		job.Setenv("changes", r.Form.Get("changes"))
 	}
 
 	if version.GreaterThan("1.0") {

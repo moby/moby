@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// whitelist of commands allowed for a commit
+// whitelist of commands allowed for a commit/import
 var validCommitCommands = map[string]bool{
 	"entrypoint": true,
 	"cmd":        true,

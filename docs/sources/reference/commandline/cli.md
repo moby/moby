@@ -803,6 +803,8 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
     Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
+      -c, --change=[]     Apply a modification in Dockerfile format before importing the image
+
 URLs must start with `http` and point to a single file archive (.tar,
 .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
 you would like to import from a local directory or archive, you can use
@@ -825,6 +827,10 @@ Import to docker via pipe and `STDIN`.
 **Import from a local directory:**
 
     $ sudo tar -c . | sudo docker import - exampleimagedir
+
+**Import from a local directory with new configurations:**
+
+    $ sudo tar -c . | sudo docker import --change "ENV DEBUG true" - exampleimagedir
 
 Note the `sudo` in this example – you must preserve
 the ownership of the files (especially root ownership) during the
