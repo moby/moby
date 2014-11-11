@@ -29,7 +29,9 @@ func ParseFlag(arg string, prev Args) (Args, error) {
 	}
 
 	f := strings.SplitN(arg, "=", 2)
-	filters[f[0]] = append(filters[f[0]], f[1])
+	name := strings.Trim(f[0], " ")
+	value := strings.Trim(f[1], " ")
+	filters[name] = append(filters[name], value)
 
 	return filters, nil
 }
