@@ -333,19 +333,26 @@ func TestIsSecure(t *testing.T) {
 		{"localhost:5000", []string{"localhost:5000"}, false},
 		{"localhost", []string{"example.com"}, false},
 		{"127.0.0.1:5000", []string{"127.0.0.1:5000"}, false},
-		{"localhost", []string{}, false},
-		{"localhost:5000", []string{}, false},
-		{"127.0.0.1", []string{}, false},
+		{"localhost", nil, false},
+		{"localhost:5000", nil, false},
+		{"127.0.0.1", nil, false},
 		{"localhost", []string{"example.com"}, false},
 		{"127.0.0.1", []string{"example.com"}, false},
-		{"example.com", []string{}, true},
+		{"example.com", nil, true},
 		{"example.com", []string{"example.com"}, false},
 		{"127.0.0.1", []string{"example.com"}, false},
 		{"127.0.0.1:5000", []string{"example.com"}, false},
+		{"example.com:5000", []string{"42.42.0.0/16"}, false},
+		{"example.com", []string{"42.42.0.0/16"}, false},
+		{"example.com:5000", []string{"42.42.42.42/8"}, false},
+		{"127.0.0.1:5000", []string{"127.0.0.0/8"}, false},
+		{"42.42.42.42:5000", []string{"42.1.1.1/8"}, false},
 	}
 	for _, tt := range tests {
-		if sec := isSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
-			t.Errorf("isSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
+		// TODO: remove this once we remove localhost insecure by default
+		insecureRegistries := append(tt.insecureRegistries, "127.0.0.0/8")
+		if sec, err := isSecure(tt.addr, insecureRegistries); err != nil || sec != tt.expected {
+			t.Fatalf("isSecure failed for %q %v, expected %v got %v. Error: %v", tt.addr, insecureRegistries, tt.expected, sec, err)
 		}
 	}
 }
