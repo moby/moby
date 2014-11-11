@@ -40,7 +40,7 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 
 	if addr := authConfig.ServerAddress; addr != "" && addr != IndexServerAddress() {
-		endpoint, err := NewEndpoint(addr, IsSecure(addr, s.insecureRegistries))
+		endpoint, err := NewEndpoint(addr, s.insecureRegistries)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -92,9 +92,7 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	secure := IsSecure(hostname, s.insecureRegistries)
-
-	endpoint, err := NewEndpoint(hostname, secure)
+	endpoint, err := NewEndpoint(hostname, s.insecureRegistries)
 	if err != nil {
 		return job.Error(err)
 	}
