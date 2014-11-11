@@ -2,9 +2,11 @@ package registry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -80,6 +82,11 @@ var (
 			"latest": "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
 		},
 	}
+	mockHosts = map[string][]net.IP{
+		"":            {net.ParseIP("0.0.0.0")},
+		"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		"example.com": {net.ParseIP("42.42.42.42")},
+	}
 )
 
 func init() {
@@ -106,6 +113,25 @@ func init() {
 		panic(err)
 	}
 	insecureRegistries = []string{URL.Host}
+
+	// override net.LookupIP
+	lookupIP = func(host string) ([]net.IP, error) {
+		if host == "127.0.0.1" {
+			// I believe in future Go versions this will fail, so let's fix it later
+			return net.LookupIP(host)
+		}
+		for h, addrs := range mockHosts {
+			if host == h {
+				return addrs, nil
+			}
+			for _, addr := range addrs {
+				if addr.String() == host {
+					return []net.IP{addr}, nil
+				}
+			}
+		}
+		return nil, errors.New("lookup: no such host")
+	}
 }
 
 func handlerAccessLog(handler http.Handler) http.Handler {
