@@ -63,12 +63,14 @@ To create the Docker binary, run this command:
 
     $ sudo make binary
 
-This will create the Docker binary in `./bundles/<version>-dev/binary/`. If you do not see files in the `./bundles` directory in your host, 
-your `BINDDIR` setting is not set quite right. You want to run the following command: 
+This will create the Docker binary in `./bundles/<version>-dev/binary/`. If you
+do not see files in the `./bundles` directory in your host, your `BINDDIR`
+setting is not set quite right. You want to run the following command: 
     
     $ sudo make BINDDIR=. binary 
 
-If you are on a non-Linux platform, e.g., OSX, you'll want to run `make cross` or `make BINDDIR=. cross`.
+If you are on a non-Linux platform, e.g., OSX, you'll want to run `make cross`
+or `make BINDDIR=. cross`.
 
 ### Using your built Docker binary
 
