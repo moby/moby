@@ -334,6 +334,7 @@ func TestIsSecure(t *testing.T) {
 		{"127.0.0.1", []string{"example.com"}, true},
 		{"example.com", []string{}, true},
 		{"example.com", []string{"example.com"}, false},
+		{"localhost", []string{""}, true},
 	}
 	for _, tt := range tests {
 		if sec := IsSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
