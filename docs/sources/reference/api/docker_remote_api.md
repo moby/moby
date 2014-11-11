@@ -63,6 +63,13 @@ You can set the new container's MAC address explicitly.
 Passing the container's `HostConfig` on start is now deprecated.  You should
 set this when creating the container.
 
+**New!**
+Previously, when creating a volume link to a container from `VolumesFrom` or
+`Binds`, data from the container at the specified path would not be copied into
+the volume. Now, as long as the volume is empty, data from the container will
+always be copied when the volume is created. Note that `docker restart` will not
+re-initialize the linked volume.
+
 `POST /containers/(id)/copy`
 
 **New!**
