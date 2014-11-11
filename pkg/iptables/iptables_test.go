@@ -16,12 +16,12 @@ var filterChain *Chain
 func TestNewChain(t *testing.T) {
 	var err error
 
-	natChain, err = NewChain(chainName, "lo", Nat)
+	natChain, err = NewChain(chainName, "lo", Nat, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	filterChain, err = NewChain(chainName, "lo", Filter)
+	filterChain, err = NewChain(chainName, "lo", Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,6 @@ func TestForward(t *testing.T) {
 	}
 
 	dnatRule := []string{
-		"!", "-i", filterChain.Bridge,
 		"-d", ip.String(),
 		"-p", proto,
 		"--dport", strconv.Itoa(port),

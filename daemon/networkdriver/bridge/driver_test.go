@@ -177,7 +177,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	bridgeIface = "lo"
-	if _, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter); err != nil {
+	if _, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, false); err != nil {
 		t.Fatal(err)
 	}
 

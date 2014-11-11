@@ -93,6 +93,9 @@ server when it starts up, and cannot be changed once it is running:
  *  `--mtu=BYTES` — see
     [Customizing docker0](#docker0)
 
+ *  `--userland-proxy=true|false` — see
+    [Binding container ports](#binding-ports)
+
 There are two networking options that can be supplied either at startup
 or when `docker run` is invoked.  When provided at startup, set the
 default value that `docker run` will later use if the options are not
@@ -399,7 +402,7 @@ machine that the Docker server creates when it starts:
     ...
     Chain POSTROUTING (policy ACCEPT)
     target     prot opt source               destination
-    MASQUERADE  all  --  172.17.0.0/16       !172.17.0.0/16
+    MASQUERADE  all  --  172.17.0.0/16       0.0.0.0/0
     ...
 
 But if you want containers to accept incoming connections, you will need
@@ -451,6 +454,21 @@ Or if you always want Docker port forwards to bind to one specific IP
 address, you can edit your system-wide Docker server settings and add the
 option `--ip=IP_ADDRESS`.  Remember to restart your Docker server after
 editing this setting.
+
+> **Note**:
+> With hairpin NAT enabled (`--userland-proxy=false`), containers port exposure
+> is achieved purely through iptables rules, and no attempt to bind the exposed
+> port is ever made. This means that nothing prevents shadowing a previously
+> listening service outside of Docker through exposing the same port for a
+> container. In such conflicting situation, Docker created iptables rules will
+> take precedence and route to the container.
+
+The `--userland-proxy` parameter, true by default, provides a userland
+implementation for inter-container and outside-to-container communication. When
+disabled, Docker uses both an additional `MASQUERADE` iptable rule and the
+`net.ipv4.route_localnet` kernel parameter which allow the host machine to
+connect to a local container exposed port through the commonly used loopback
+address: this alternative is preferred for performance reason.
 
 Again, this topic is covered without all of these low-level networking
 details in the [Docker User Guide](/userguide/dockerlinks/) document if you

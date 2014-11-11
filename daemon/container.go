@@ -307,6 +307,7 @@ func populateCommand(c *Container, env []string) error {
 				GlobalIPv6Address:    network.GlobalIPv6Address,
 				GlobalIPv6PrefixLen:  network.GlobalIPv6PrefixLen,
 				IPv6Gateway:          network.IPv6Gateway,
+				HairpinMode:          network.HairpinMode,
 			}
 		}
 	case "container":

@@ -15,4 +15,5 @@ type Settings struct {
 	Bridge                 string
 	PortMapping            map[string]map[string]string // Deprecated
 	Ports                  nat.PortMap
+	HairpinMode            bool
 }

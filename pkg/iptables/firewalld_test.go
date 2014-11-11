@@ -14,7 +14,7 @@ func TestReloaded(t *testing.T) {
 	var err error
 	var fwdChain *Chain
 
-	fwdChain, err = NewChain("FWD", "lo", Filter)
+	fwdChain, err = NewChain("FWD", "lo", Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}

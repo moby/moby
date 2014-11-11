@@ -58,7 +58,7 @@ func initCheck() error {
 	return nil
 }
 
-func NewChain(name, bridge string, table Table) (*Chain, error) {
+func NewChain(name, bridge string, table Table, hairpinMode bool) (*Chain, error) {
 	c := &Chain{
 		Name:   name,
 		Bridge: bridge,
@@ -90,8 +90,10 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 		}
 		output := []string{
 			"-m", "addrtype",
-			"--dst-type", "LOCAL",
-			"!", "--dst", "127.0.0.0/8"}
+			"--dst-type", "LOCAL"}
+		if !hairpinMode {
+			output = append(output, "!", "--dst", "127.0.0.0/8")
+		}
 		if !Exists(Nat, "OUTPUT", output...) {
 			if err := c.Output(Append, output...); err != nil {
 				return nil, fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
@@ -137,7 +139,6 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 		"-p", proto,
 		"-d", daddr,
 		"--dport", strconv.Itoa(port),
-		"!", "-i", c.Bridge,
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))); err != nil {
 		return err

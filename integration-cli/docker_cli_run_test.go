@@ -2197,49 +2197,19 @@ func (s *DockerSuite) TestRunPortInUse(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	port := "1234"
-	l, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer l.Close()
 	cmd := exec.Command(dockerBinary, "run", "-d", "-p", port+":80", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("Fail to run listening container")
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "-d", "-p", port+":80", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
 	if err == nil {
 		c.Fatalf("Binding on used port must fail")
 	}
-	if !strings.Contains(out, "address already in use") {
-		c.Fatalf("Out must be about \"address already in use\", got %s", out)
-	}
-}
-
-// https://github.com/docker/docker/issues/8428
-func (s *DockerSuite) TestRunPortProxy(c *check.C) {
-	testRequires(c, SameHostDaemon)
-
-	port := "12345"
-	cmd := exec.Command(dockerBinary, "run", "-d", "-p", port+":80", "busybox", "top")
-
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Failed to run and bind port %s, output: %s, error: %s", port, out, err)
-	}
-
-	// connett for 10 times here. This will trigger 10 EPIPES in the child
-	// process and kill it when it writes to a closed stdout/stderr
-	for i := 0; i < 10; i++ {
-		net.Dial("tcp", fmt.Sprintf("0.0.0.0:%s", port))
-	}
-
-	listPs := exec.Command("sh", "-c", "ps ax | grep docker")
-	out, _, err = runCommandWithOutput(listPs)
-	if err != nil {
-		c.Errorf("list docker process failed with output %s, error %s", out, err)
-	}
-	if strings.Contains(out, "docker <defunct>") {
-		c.Errorf("Unexpected defunct docker process")
-	}
-	if !strings.Contains(out, "docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 12345") {
-		c.Errorf("Failed to find docker-proxy process, got %s", out)
+	if !strings.Contains(out, "port is already allocated") {
+		c.Fatalf("Out must be about \"port is already allocated\", got %s", out)
 	}
 }
 

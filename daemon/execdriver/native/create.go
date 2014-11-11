@@ -114,6 +114,7 @@ func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command)
 			Gateway:           c.Network.Interface.Gateway,
 			Type:              "veth",
 			Bridge:            c.Network.Interface.Bridge,
+			HairpinMode:       c.Network.Interface.HairpinMode,
 		}
 		if c.Network.Interface.GlobalIPv6Address != "" {
 			vethNetwork.IPv6Address = fmt.Sprintf("%s/%d", c.Network.Interface.GlobalIPv6Address, c.Network.Interface.GlobalIPv6PrefixLen)
