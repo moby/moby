@@ -1,6 +1,6 @@
-# Docker: what's next?
+# Docker: Statement of Direction
 
-This document is a high-level overview of where we want to take Docker next.
+This document is a high-level overview of where we want to take Docker.
 It is a curated selection of planned improvements which are either important, difficult, or both.
 
 For a more complete view of planned and requested improvements, see [the Github issues](https://github.com/docker/docker/issues).
@@ -8,34 +8,36 @@ For a more complete view of planned and requested improvements, see [the Github 
 To suggest changes to the roadmap, including additions, please write the change as if it were already in effect, and make a pull request.
 
 
-## Container wiring and service discovery
+## Orchestration
 
-In its current version, docker doesn’t make it very easy to manipulate multiple containers as a cohesive group (ie. orchestration), and it doesn’t make it seamless for containers to connect to each other as network services (ie. wiring).
+Orchestration touches on several aspects of multi-container applications.  These include provisioning hosts with the Docker daemon, organizing and maintaining multiple Docker hosts as a cluster, composing an application using multiple containers, and handling the networking between the containers across the hosts.
 
-To achieve wiring and orchestration with docker today, you need to write glue scripts yourself, or use one several companion tools available, like Orchestra, Shipper, Deis, Pipeworks, etc.
+Today, users accomplish this using a combination of glue scripts and various tools, like Shipper, Deis, Pipeworks, etc.
 
-We want the Docker API to support orchestration and wiring natively, so that these tools can cleanly and seamlessly integrate into the Docker user experience, and remain interoperable with each other.
+We want the Docker API to support all aspects of orchestration natively, so that these tools can cleanly and seamlessly integrate into the Docker user experience, and remain interoperable with each other.
 
+## Networking
 
-## Better integration with process supervisors
+The current Docker networking model works for communication between containers all residing on the same host.  Since Docker applications in production are made up of many containers deployed across multiple hosts (and sometimes multiple data centers), Docker’s networking model will evolve to accommodate this.  An aspect of this evolution includes providing a Networking API to enable alternative implementations.
 
-For docker to be fully usable in production, it needs to cleanly integrate with the host machine’s process supervisor of choice. Whether it’s sysV-init, upstart, systemd, runit or supervisord, we want to make sure docker plays nice with your existing system. This will be a major focus of the 0.7 release.
+## Storage
 
+Currently, stateful Docker containers are pinned to specific hosts during their lifetime.  To support additional resiliency, capacity management, and load balancing we want to enable live stateful containers to dynamically migrate between hosts.  While the Docker Project will provide a “batteries included” implementation for a great out-of-box experience, we will also provide an API for alternative implementations.
+
+## Microsoft Windows
+
+The next Microsoft Windows Server will ship with primitives to support container-based process isolation and resource management.  The Docker Project will guide contributors and maintainers developing native Microsoft versions of the Docker Remote API client and Docker daemon to take advantage of these primitives.
+
+## Provenance
+
+When assembling Docker applications we want users to be confident that images they didn’t create themselves are safe to use and build upon.  Provenance gives users the capability to digitally verify the inputs and processes constituting an image’s origins and lifecycle events.
 
 ## Plugin API
 
 We want Docker to run everywhere, and to integrate with every devops tool. Those are ambitious goals, and the only way to reach them is with the Docker community. For the community to participate fully, we need an API which allows Docker to be deeply and easily customized.
 
-We are working on a plugin API which will make Docker very, very customization-friendly. We believe it will facilitate the integrations listed above – and many more we didn’t even think about.
+We are working on a plugin API which will make Docker very customization-friendly. We believe it will facilitate the integrations listed above – and many more we didn’t even think about.
 
+## Multi-Architecture Support
 
-## Broader kernel support
-
-Our goal is to make Docker run everywhere, but currently Docker requires Linux version 3.8 or higher with cgroups support. If you’re deploying new machines for the purpose of running Docker, this is a fairly easy requirement to meet. However, if you’re adding Docker to an existing deployment, you may not have the flexibility to update and patch the kernel.
-
-Expanding Docker’s kernel support is a priority. This includes running on older kernel versions, specifically focusing on versions already popular in server deployments such as those used by RHEL and the OpenVZ stack.
-
-
-## Cross-architecture support
-
-Our goal is to make Docker run everywhere. However currently Docker only runs on x86_64 systems. We plan on expanding architecture support, so that Docker containers can be created and used on more architectures.
+Our goal is to make Docker run everywhere. However, currently Docker only runs on x86_64 systems. We plan on expanding architecture support, so that Docker containers can be created and used on more architectures, including ARM, Joyent SmartOS, and Microsoft.
