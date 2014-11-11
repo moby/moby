@@ -169,7 +169,7 @@ func TestDaemonIptablesClean(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run,iptables - iptables rules cleaned after daemon restart")
+	logDone("daemon - run,iptables - iptables rules cleaned after daemon restart")
 }
 
 func TestDaemonIptablesCreate(t *testing.T) {
@@ -221,5 +221,5 @@ func TestDaemonIptablesCreate(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run,iptables - iptables rules for always restarted container created after daemon restart")
+	logDone("daemon - run,iptables - iptables rules for always restarted container created after daemon restart")
 }

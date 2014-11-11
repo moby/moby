@@ -74,7 +74,7 @@ func TestRmiTag(t *testing.T) {
 		}
 
 	}
-	logDone("tag,rmi- tagging the same images multiple times then removing tags")
+	logDone("rmi - tag,rmi- tagging the same images multiple times then removing tags")
 }
 
 func TestRmiTagWithExistingContainers(t *testing.T) {
