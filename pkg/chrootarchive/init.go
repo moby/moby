@@ -10,7 +10,6 @@ import (
 func init() {
 	reexec.Register("docker-untar", untar)
 	reexec.Register("docker-applyLayer", applyLayer)
-	reexec.Init()
 }
 
 func fatal(err error) {
