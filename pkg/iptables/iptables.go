@@ -80,19 +80,20 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 	switch table {
 	case Nat:
 		preroute := []string{
+			"PREROUTING",
 			"-m", "addrtype",
 			"--dst-type", "LOCAL"}
 		if !Exists(preroute...) {
-			if err := c.Prerouting(Append, preroute...); err != nil {
+			if err := c.Prerouting(Append, preroute[1:]...); err != nil {
 				return nil, fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 			}
 		}
 		output := []string{
+			"OUTPUT",
 			"-m", "addrtype",
-			"--dst-type", "LOCAL",
-			"!", "--dst", "127.0.0.0/8"}
+			"--dst-type", "LOCAL"}
 		if !Exists(output...) {
-			if err := c.Output(Append, output...); err != nil {
+			if err := c.Output(Append, output[1:]...); err != nil {
 				return nil, fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 			}
 		}
@@ -230,7 +231,7 @@ func (c *Chain) Remove() error {
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
 		c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL")
-		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8")
+		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL")
 		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL") // Created in versions <= 0.1.6
 
 		c.Prerouting(Delete)

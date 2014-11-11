@@ -97,6 +97,10 @@ unix://[/path/to/socket] to use.
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
 
+**--userland-proxy**=*true*|*false*
+    Rely on a userland proxy implementation for inter-container and outside-to-
+    container loopback communications. Default is true.
+
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
 

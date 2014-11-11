@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -77,6 +78,7 @@ var (
 	bridgeIPv4Network *net.IPNet
 	bridgeIPv6Addr    net.IP
 	globalIPv6Network *net.IPNet
+	hairpinMode       bool
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
@@ -99,6 +101,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		fixedCIDRv6    = job.Getenv("FixedCIDRv6")
 	)
 
+	hairpinMode = job.GetenvBool("EnableHairpinMode")
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
 		defaultBindingIP = net.ParseIP(defaultIP)
 	}
@@ -220,6 +223,14 @@ func InitDriver(job *engine.Job) engine.Status {
 		}
 	}
 
+	if hairpinMode {
+		// Enable loopback adresses routing
+		sysPath := filepath.Join("/proc/sys/net/ipv4/conf", bridgeIface, "route_localnet")
+		if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
+			job.Logf("WARNING: unable to enable local routing for hairpin mode: %s\n", err)
+		}
+	}
+
 	// We can always try removing the iptables
 	if err := iptables.RemoveExistingChain("DOCKER", iptables.Nat); err != nil {
 		return job.Error(err)
@@ -325,6 +336,18 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		}
 	}
 
+	// In hairpin mode, masquerade traffic from localhost
+	if hairpinMode {
+		masqueradeArgs := []string{"POSTROUTING", "-t", "nat", "-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+		if !iptables.Exists(masqueradeArgs...) {
+			if output, err := iptables.Raw(append([]string{"-I"}, masqueradeArgs...)...); err != nil {
+				return fmt.Errorf("Unable to masquerade local traffic: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error iptables masquerade local traffic: %s", output)
+			}
+		}
+	}
+
 	// Accept all non-intercontainer outgoing packets
 	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
 	if !iptables.Exists(outgoingArgs...) {
@@ -337,7 +360,6 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 	// Accept incoming packets for existing connections
 	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
-
 	if !iptables.Exists(existingArgs...) {
 		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
@@ -645,7 +667,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	var host net.Addr
 	for i := 0; i < MaxAllocatedPortAttempts; i++ {
-		if host, err = portmapper.Map(container, ip, hostPort); err == nil {
+		if host, err = portmapper.Map(container, ip, hostPort, !hairpinMode); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly

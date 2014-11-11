@@ -102,13 +102,14 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 
 	if c.Network.Interface != nil {
 		vethNetwork := libcontainer.Network{
-			Mtu:        c.Network.Mtu,
-			Address:    fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-			MacAddress: c.Network.Interface.MacAddress,
-			Gateway:    c.Network.Interface.Gateway,
-			Type:       "veth",
-			Bridge:     c.Network.Interface.Bridge,
-			VethPrefix: "veth",
+			Mtu:         c.Network.Mtu,
+			Address:     fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
+			MacAddress:  c.Network.Interface.MacAddress,
+			Gateway:     c.Network.Interface.Gateway,
+			Type:        "veth",
+			Bridge:      c.Network.Interface.Bridge,
+			VethPrefix:  "veth",
+			HairpinMode: c.Network.Interface.HairpinMode,
 		}
 		if c.Network.Interface.GlobalIPv6Address != "" {
 			vethNetwork.IPv6Address = fmt.Sprintf("%s/%d", c.Network.Interface.GlobalIPv6Address, c.Network.Interface.GlobalIPv6PrefixLen)

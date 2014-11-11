@@ -21,6 +21,7 @@ type NetworkSettings struct {
 	Bridge                 string
 	PortMapping            map[string]PortMapping // Deprecated
 	Ports                  nat.PortMap
+	HairpinMode            bool
 }
 
 func (settings *NetworkSettings) PortMappingAPI() *engine.Table {
