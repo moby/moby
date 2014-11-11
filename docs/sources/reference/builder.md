@@ -355,9 +355,8 @@ change them using `docker run --env <key>=<value>`.
 
     ADD <src>... <dest>
 
-The `ADD` instruction copies new files,directories or remote file URLs to 
-the filesystem of the container  from `<src>` and add them to the at 
-path `<dest>`.  
+The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
+and adds them to the filesystem of the container at the path `<dest>`.  
 
 Multiple `<src>` resource may be specified but if they are files or 
 directories then they must be relative to the source directory that is 
@@ -452,13 +451,11 @@ The copy obeys the following rules:
 
     COPY <src>... <dest>
 
-The `COPY` instruction copies new files,directories or remote file URLs to 
-the filesystem of the container  from `<src>` and add them to the at 
-path `<dest>`. 
+The `COPY` instruction copies new files or directories from `<src>`
+and adds them to the filesystem of the container at the path `<dest>`.
 
-Multiple `<src>` resource may be specified but if they are files or 
-directories then they must be relative to the source directory that is being 
-built (the context of the build).
+Multiple `<src>` resource may be specified but they must be relative
+to the source directory that is being built (the context of the build).
 
 Each `<src>` may contain wildcards and matching will be done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
