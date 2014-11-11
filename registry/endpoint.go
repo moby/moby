@@ -34,11 +34,14 @@ func scanForAPIVersion(hostname string) (string, APIVersion) {
 	return hostname, DefaultAPIVersion
 }
 
-func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
-	endpoint, err := newEndpoint(hostname, secure)
+func NewEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error) {
+	endpoint, err := newEndpoint(hostname)
 	if err != nil {
 		return nil, err
 	}
+
+	secure := isSecure(endpoint.URL.Host, insecureRegistries)
+	endpoint.secure = secure
 
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
@@ -65,9 +68,9 @@ func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
 
 	return endpoint, nil
 }
-func newEndpoint(hostname string, secure bool) (*Endpoint, error) {
+func newEndpoint(hostname string) (*Endpoint, error) {
 	var (
-		endpoint        = Endpoint{secure: secure}
+		endpoint        = Endpoint{secure: true}
 		trimmedHostname string
 		err             error
 	)
@@ -149,10 +152,9 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 	return info, nil
 }
 
-// IsSecure returns false if the provided hostname is part of the list of insecure registries.
+// isSecure returns false if the provided hostname is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
-func IsSecure(hostname string, insecureRegistries []string) bool {
-
+func isSecure(hostname string, insecureRegistries []string) bool {
 	if hostname == IndexServerAddress() {
 		return true
 	}

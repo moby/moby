@@ -343,8 +343,8 @@ func TestIsSecure(t *testing.T) {
 		{"127.0.0.1:5000", []string{"example.com"}, false},
 	}
 	for _, tt := range tests {
-		if sec := IsSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
-			t.Errorf("IsSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
+		if sec := isSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
+			t.Errorf("isSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
 }
