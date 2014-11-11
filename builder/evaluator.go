@@ -211,6 +211,21 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		msg += " " + ast.Value
 	}
 
+	// count the number of nodes that we are going to traverse first
+	// so we can pre-create the argument and message array. This speeds up the
+	// allocation of those list a lot when they have a lot of arguments
+	cursor := ast
+	var n int
+	for cursor.Next != nil {
+		cursor = cursor.Next
+		n++
+	}
+	l := len(strs)
+	strList := make([]string, n+l)
+	copy(strList, strs)
+	msgList := make([]string, n)
+
+	var i int
 	for ast.Next != nil {
 		ast = ast.Next
 		var str string
@@ -218,16 +233,18 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			str = b.replaceEnv(ast.Value)
 		}
-		strs = append(strs, str)
-		msg += " " + ast.Value
+		strList[i+l] = str
+		msgList[i] = ast.Value
+		i++
 	}
 
+	msg += " " + strings.Join(msgList, " ")
 	fmt.Fprintln(b.OutStream, msg)
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
-		return f(b, strs, attrs, original)
+		return f(b, strList, attrs, original)
 	}
 
 	fmt.Fprintf(b.ErrStream, "# Skipping unknown instruction %s\n", strings.ToUpper(cmd))
