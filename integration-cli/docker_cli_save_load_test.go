@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/vendor/src/github.com/kr/pty"
@@ -255,6 +257,66 @@ func TestSaveMultipleNames(t *testing.T) {
 	deleteImages(repoName)
 
 	logDone("save - save by multiple names")
+}
+
+func TestSaveRepoWithMultipleImages(t *testing.T) {
+
+	makeImage := func(from string, tag string) string {
+		runCmd := exec.Command(dockerBinary, "run", "-d", from, "true")
+		var (
+			out string
+			err error
+		)
+		if out, _, err = runCommandWithOutput(runCmd); err != nil {
+			t.Fatalf("failed to create a container: %v %v", out, err)
+		}
+		cleanedContainerID := stripTrailingCharacters(out)
+
+		commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, tag)
+		if out, _, err = runCommandWithOutput(commitCmd); err != nil {
+			t.Fatalf("failed to commit container: %v %v", out, err)
+		}
+		imageID := stripTrailingCharacters(out)
+
+		deleteContainer(cleanedContainerID)
+		return imageID
+	}
+
+	repoName := "foobar-save-multi-images-test"
+	tagFoo := repoName + ":foo"
+	tagBar := repoName + ":bar"
+
+	idFoo := makeImage("busybox:latest", tagFoo)
+	idBar := makeImage("busybox:latest", tagBar)
+
+	deleteImages(repoName)
+
+	// create the archive
+	saveCmdFinal := fmt.Sprintf("%v save %v | tar t | grep 'VERSION' |cut -d / -f1", dockerBinary, repoName)
+	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
+	out, _, err := runCommandWithOutput(saveCmd)
+	if err != nil {
+		t.Fatalf("failed to save multiple images: %s, %v", out, err)
+	}
+	actual := strings.Split(stripTrailingCharacters(out), "\n")
+
+	// make the list of expected layers
+	historyCmdFinal := fmt.Sprintf("%v history -q --no-trunc %v", dockerBinary, "busybox:latest")
+	historyCmd := exec.Command("bash", "-c", historyCmdFinal)
+	out, _, err = runCommandWithOutput(historyCmd)
+	if err != nil {
+		t.Fatalf("failed to get history: %s, %v", out, err)
+	}
+
+	expected := append(strings.Split(stripTrailingCharacters(out), "\n"), idFoo, idBar)
+
+	sort.Strings(actual)
+	sort.Strings(expected)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("achive does not contains the right layers: got %v, expected %v", actual, expected)
+	}
+
+	logDone("save - save repository with multiple images")
 }
 
 // Issue #6722 #5892 ensure directories are included in changes
