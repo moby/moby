@@ -36,6 +36,7 @@ docker-run - Run a command in a new container
 [**--privileged**[=*false*]]
 [**--restart**[=*POLICY*]]
 [**--rm**[=*false*]]
+[**--route-localnet**[=*true*]]
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
@@ -231,6 +232,10 @@ outside of a container on the host.
 
 **--rm**=*true*|*false*
    Automatically remove the container when it exits (incompatible with -d). The default is *false*.
+
+**--route-localnet**=*true*|*false*
+    Drives the net.ipv4.route_localnet kernel parameter, allowing the host
+    machine to connect to local containers through the loopback interface.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.

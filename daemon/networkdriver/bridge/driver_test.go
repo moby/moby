@@ -5,14 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/engine"
 )
-
-func init() {
-	// reset the new proxy command for mocking out the userland proxy in tests
-	portmapper.NewProxy = portmapper.NewMockProxyCommand
-}
 
 func findFreePort(t *testing.T) int {
 	l, err := net.Listen("tcp", ":0")

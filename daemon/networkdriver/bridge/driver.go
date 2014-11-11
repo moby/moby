@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -87,6 +88,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		ipForward      = job.GetenvBool("EnableIpForward")
 		bridgeIP       = job.Getenv("BridgeIP")
 		fixedCIDR      = job.Getenv("FixedCIDR")
+		routeLocalnet  = job.GetenvBool("EnableRouteLocalnet")
 	)
 
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
@@ -141,6 +143,14 @@ func InitDriver(job *engine.Job) engine.Status {
 		// Enable IPv4 forwarding
 		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
 			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+		}
+	}
+
+	if routeLocalnet {
+		// Enable loopback adresses routing
+		sysPath := filepath.Join("/proc/sys/net/ipv4/conf", bridgeIface, "route_localnet")
+		if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
+			job.Logf("WARNING: unable to enable local routing: %s\n", err)
 		}
 	}
 
@@ -230,6 +240,16 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		}
 	}
 
+	// Masquerade traffic from localhost
+	masqueradeArgs := []string{"POSTROUTING", "-t", "nat", "-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+	if !iptables.Exists(masqueradeArgs...) {
+		if output, err := iptables.Raw(append([]string{"-I"}, masqueradeArgs...)...); err != nil {
+			return fmt.Errorf("Unable to masquerade local traffic: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error iptables masquerade local traffic: %s", output)
+		}
+	}
+
 	// Accept all non-intercontainer outgoing packets
 	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
 	if !iptables.Exists(outgoingArgs...) {
@@ -242,7 +262,6 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 	// Accept incoming packets for existing connections
 	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
-
 	if !iptables.Exists(existingArgs...) {
 		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)

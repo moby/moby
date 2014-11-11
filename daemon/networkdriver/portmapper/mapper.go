@@ -12,10 +12,9 @@ import (
 )
 
 type mapping struct {
-	proto         string
-	userlandProxy UserlandProxy
-	host          net.Addr
-	container     net.Addr
+	proto     string
+	host      net.Addr
+	container net.Addr
 }
 
 var (
@@ -24,8 +23,6 @@ var (
 
 	// udp:ip:port
 	currentMappings = make(map[string]*mapping)
-
-	NewProxy = NewProxyCommand
 )
 
 var (
@@ -46,7 +43,6 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		m                 *mapping
 		proto             string
 		allocatedHostPort int
-		proxy             UserlandProxy
 	)
 
 	switch container.(type) {
@@ -62,7 +58,6 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 			container: container,
 		}
 
-		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
 	case *net.UDPAddr:
 		proto = "udp"
 		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
@@ -75,7 +70,6 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 			container: container,
 		}
 
-		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
 	default:
 		return nil, ErrUnknownBackendAddressType
 	}
@@ -97,24 +91,6 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		return nil, err
 	}
 
-	cleanup := func() error {
-		// need to undo the iptables rules before we return
-		proxy.Stop()
-		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := portallocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if err := proxy.Start(); err != nil {
-		if err := cleanup(); err != nil {
-			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
-		}
-		return nil, err
-	}
-	m.userlandProxy = proxy
 	currentMappings[key] = m
 	return m.host, nil
 }
@@ -128,8 +104,6 @@ func Unmap(host net.Addr) error {
 	if !exists {
 		return ErrPortNotMapped
 	}
-
-	data.userlandProxy.Stop()
 
 	delete(currentMappings, key)
 

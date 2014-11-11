@@ -2082,26 +2082,6 @@ func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	logDone("run - port should be deallocated even on iptables error")
 }
 
-func TestRunPortInUse(t *testing.T) {
-	port := "1234"
-	l, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	cmd := exec.Command(dockerBinary, "run", "-d", "-p", port+":80", "busybox", "top")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatalf("Binding on used port must fail")
-	}
-	if !strings.Contains(out, "address already in use") {
-		t.Fatalf("Out must be about \"address already in use\", got %s", out)
-	}
-
-	deleteAllContainers()
-	logDone("run - fail if port already in use")
-}
-
 // https://github.com/docker/docker/issues/8428
 func TestRunPortProxy(t *testing.T) {
 	defer deleteAllContainers()
@@ -2127,9 +2107,6 @@ func TestRunPortProxy(t *testing.T) {
 	}
 	if strings.Contains(out, "docker <defunct>") {
 		t.Errorf("Unexpected defunct docker process")
-	}
-	if !strings.Contains(out, "docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 12345") {
-		t.Errorf("Failed to find docker-proxy process, got %s", out)
 	}
 
 	logDone("run - proxy should work with unavailable port")
