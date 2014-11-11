@@ -1,9 +1,16 @@
 package vfs
 
 import (
-	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver/graphtest"
+
+	"github.com/docker/docker/pkg/reexec"
 )
+
+func init() {
+	reexec.Init()
+}
 
 // This avoids creating a new driver for each test if all tests are run
 // Make sure to put new tests between TestVfsSetup and TestVfsTeardown
