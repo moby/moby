@@ -86,10 +86,17 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"lxc-start",
 		"-n", c.ID,
 		"-f", configPath,
-		"--",
-		c.InitPath,
+	}
+	if c.Network.ContainerID != "" {
+		params = append(params,
+			"--share-net", c.Network.ContainerID,
+		)
 	}
 
+	params = append(params,
+		"--",
+		c.InitPath,
+	)
 	if c.Network.Interface != nil {
 		params = append(params,
 			"-g", c.Network.Interface.Gateway,
