@@ -40,7 +40,6 @@ func TestExecInteractiveStdinClose(t *testing.T) {
 	}
 
 	contId := strings.TrimSpace(out)
-	println(contId)
 
 	returnchan := make(chan struct{})
 

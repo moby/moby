@@ -71,8 +71,7 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 
 	os.Remove("/tmp/foobar-save-load-test.tar")
 
-	logDone("save - save a repo using stdout")
-	logDone("load - load a repo using stdout")
+	logDone("save - save/load a repo using stdout")
 
 	pty, tty, err := pty.Open()
 	if err != nil {
@@ -228,8 +227,7 @@ func TestSaveAndLoadRepoFlags(t *testing.T) {
 
 	os.Remove("/tmp/foobar-save-load-test.tar")
 
-	logDone("save - save a repo using -o")
-	logDone("load - load a repo using -i")
+	logDone("save - save a repo using -o && load a repo using -i")
 }
 
 func TestSaveMultipleNames(t *testing.T) {
