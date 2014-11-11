@@ -1,27 +1,17 @@
 % DOCKER(1) Docker User Manuals
 % Docker Community
-% JUNE 2014
+% November 2014
 # NAME
-docker-start - Restart a stopped container
+docker-who - Lookup people information from docker names
 
 # SYNOPSIS
-**docker start**
-[**-a**|**--attach**[=*false*]]
-[**-i**|**--interactive**[=*false*]]
-CONTAINER [CONTAINER...]
+**docker who**
+NAME
 
 # DESCRIPTION
 
-Start a stopped container.
-
-# OPTIONS
-**-a**, **--attach**=*true*|*false*
-   Attach container's STDOUT and STDERR and forward all signals to the process. The default is *false*.
-
-**-i**, **--interactive**=*true*|*false*
-   Attach container's STDIN. The default is *false*.
+Lookups information about a automatic generated docker container name. You may use full **adjective_name** or only the **name** part
 
 # HISTORY
-April 2014, Originally compiled by William Henry (whenry at redhat dot com)
+November 2014, Originally compiled by Onur Yalazı (onur at yalazi dot org)
 based on docker.com source material and internal work.
-June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
