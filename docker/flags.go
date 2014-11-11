@@ -92,6 +92,7 @@ func init() {
 			{"unpause", "Unpause a paused container"},
 			{"version", "Show the Docker version information"},
 			{"wait", "Block until a container stops, then print its exit code"},
+			{"who", "Lookup people information from docker names"},
 		} {
 			help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 		}

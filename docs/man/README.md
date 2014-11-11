@@ -39,6 +39,7 @@ Markdown (*.md) files.
     docker-tag.md
     docker-top.md
     docker-wait.md
+    docker-who.md
     Dockerfile
     md2man-all.sh
 

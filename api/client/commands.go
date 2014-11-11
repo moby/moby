@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/promise"
@@ -2587,5 +2588,33 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (cli *DockerCli) CmdWho(args ...string) error {
+	cmd := cli.Subcmd("who", "NAME", "Lookup people information from docker names")
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+	var name string = ""
+	var i = strings.IndexAny(cmd.Arg(0), "_")
+	if i > -1 {
+		name = cmd.Arg(0)[i+1:]
+	} else {
+		name = cmd.Arg(0)
+	}
+
+	person, ok := namesgenerator.People[name]
+	if ok {
+		fmt.Fprintf(cli.out, "%s\t%s\n%s\n%s", person.Name, person.Description, person.Url, person.Thanks)
+	} else {
+		fmt.Fprintf(cli.err, "Name %s not found", cmd.Arg(0))
+	}
 	return nil
 }
