@@ -319,3 +319,23 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSecure(t *testing.T) {
+	tests := []struct {
+		addr               string
+		insecureRegistries []string
+		expected           bool
+	}{
+		{"example.com", []string{}, true},
+		{"example.com", []string{"example.com"}, false},
+		{"localhost", []string{"localhost:5000"}, true},
+		{"localhost:5000", []string{"localhost:5000"}, false},
+		{"localhost", []string{"example.com"}, true},
+		{"127.0.0.1:5000", []string{"127.0.0.1:5000"}, false},
+	}
+	for _, tt := range tests {
+		if sec := IsSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
+			t.Errorf("IsSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
+		}
+	}
+}
