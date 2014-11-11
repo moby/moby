@@ -121,6 +121,23 @@ request that comments out your `MAINTAINERS` file entry using a `#`.
 Yes. Nobody should ever push to master directly. All changes should be
 made through a pull request.
 
+### Helping contributors with the DCO
+
+The [DCO or `Sign your work`](
+https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work)
+requirement is not intended as a roadblock or speed bump.
+
+Some Docker contributors are not as familiar with `git`, or have used a web based
+editor, and thus asking them to `git commit --amend -s` is not the best way forward.
+
+In this case, maintainers can update the commits based on clause (c) of the DCO. The
+most trivial way for a contributor to allow the maintainer to do this, is to add
+a DCO signature in a Pull Requests's comment, or a maintainer can simply note that
+the change is sufficiently trivial that it does not substantivly change the existing
+contribution - i.e., a spelling change.
+
+When you add someone's DCO, please also add your own to keep a log.
+
 ### Who assigns maintainers?
 
 Solomon has final `LGTM` approval for all pull requests to `MAINTAINERS` files.
