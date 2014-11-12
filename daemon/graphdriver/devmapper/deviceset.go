@@ -32,6 +32,8 @@ var (
 	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
 )
 
+const deviceSetMetaFile string = "deviceset-metadata"
+
 type DevInfo struct {
 	Hash          string     `json:"-"`
 	DeviceId      int        `json:"device_id"`
@@ -62,13 +64,13 @@ type MetaData struct {
 }
 
 type DeviceSet struct {
-	MetaData
-	sync.Mutex       // Protects Devices map and serializes calls into libdevmapper
+	MetaData         `json:"-"`
+	sync.Mutex       `json:"-"` // Protects Devices map and serializes calls into libdevmapper
 	root             string
 	devicePrefix     string
-	TransactionId    uint64
-	NewTransactionId uint64
-	nextDeviceId     int
+	TransactionId    uint64 `json:"-"`
+	NewTransactionId uint64 `json:"-"`
+	NextDeviceId     int    `json:"next_device_id"`
 
 	// Options
 	dataLoopbackSize     int64
@@ -138,6 +140,10 @@ func (devices *DeviceSet) metadataFile(info *DevInfo) string {
 	return path.Join(devices.metadataDir(), file)
 }
 
+func (devices *DeviceSet) deviceSetMetaFile() string {
+	return path.Join(devices.metadataDir(), deviceSetMetaFile)
+}
+
 func (devices *DeviceSet) oldMetadataFile() string {
 	return path.Join(devices.loopbackDir(), "json")
 }
@@ -200,11 +206,8 @@ func (devices *DeviceSet) removeMetadata(info *DevInfo) error {
 	return nil
 }
 
-func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
-	jsonData, err := json.Marshal(info)
-	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
-	}
+// Given json data and file path, write it to disk
+func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
 	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
 	if err != nil {
 		return fmt.Errorf("Error creating metadata file: %s", err)
@@ -223,8 +226,20 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
-	if err := os.Rename(tmpFile.Name(), devices.metadataFile(info)); err != nil {
+	if err := os.Rename(tmpFile.Name(), filePath); err != nil {
 		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
+	jsonData, err := json.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
+	}
+	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
+		return err
 	}
 
 	if devices.NewTransactionId != devices.TransactionId {
@@ -397,7 +412,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	log.Debugf("Initializing base device-manager snapshot")
 
-	id := devices.nextDeviceId
+	id := devices.NextDeviceId
 
 	// Create initial device
 	if err := createDevice(devices.getPoolDevName(), &id); err != nil {
@@ -405,7 +420,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	// Ids are 24bit, so wrap around
-	devices.nextDeviceId = (id + 1) & 0xffffff
+	devices.NextDeviceId = (id + 1) & 0xffffff
 
 	log.Debugf("Registering base device (id %v) with FS size %v", id, devices.baseFsSize)
 	info, err := devices.registerDevice(id, "", devices.baseFsSize)
@@ -533,6 +548,29 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 
 	return nil
+}
+
+func (devices *DeviceSet) loadDeviceSetMetaData() error {
+	jsonData, err := ioutil.ReadFile(devices.deviceSetMetaFile())
+	if err != nil {
+		// For backward compatibility return success if file does
+		// not exist.
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	return json.Unmarshal(jsonData, devices)
+}
+
+func (devices *DeviceSet) saveDeviceSetMetaData() error {
+	jsonData, err := json.Marshal(devices)
+	if err != nil {
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
+	}
+
+	return devices.writeMetaFile(jsonData, devices.deviceSetMetaFile())
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
@@ -666,6 +704,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 	}
 
+	// Right now this loads only NextDeviceId. If there is more metatadata
+	// down the line, we might have to move it earlier.
+	if err = devices.loadDeviceSetMetaData(); err != nil {
+		return err
+	}
+
 	// Setup the base image
 	if doInit {
 		if err := devices.setupBaseImage(); err != nil {
@@ -693,7 +737,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 		return fmt.Errorf("device %s already exists", hash)
 	}
 
-	deviceId := devices.nextDeviceId
+	deviceId := devices.NextDeviceId
 
 	if err := createSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 		log.Debugf("Error creating snap device: %s", err)
@@ -701,7 +745,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	}
 
 	// Ids are 24bit, so wrap around
-	devices.nextDeviceId = (deviceId + 1) & 0xffffff
+	devices.NextDeviceId = (deviceId + 1) & 0xffffff
 
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
 		deleteDevice(devices.getPoolDevName(), deviceId)
@@ -945,6 +989,8 @@ func (devices *DeviceSet) Shutdown() error {
 	if err := devices.deactivatePool(); err != nil {
 		log.Debugf("Shutdown deactivate pool , error: %s", err)
 	}
+
+	devices.saveDeviceSetMetaData()
 	devices.Unlock()
 
 	return nil
