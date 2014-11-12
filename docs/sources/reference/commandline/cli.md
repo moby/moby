@@ -785,7 +785,7 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
 ## import
 
-    Usage: docker import URL|- [REPOSITORY[:TAG]]
+    Usage: docker import [OPTIONS] URL|- [REPOSITORY[:TAG]]
 
     Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
@@ -793,6 +793,11 @@ URLs must start with `http` and point to a single file archive (.tar,
 .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
 you would like to import from a local directory or archive, you can use
 the `-` parameter to take the data from `STDIN`.
+
+    -e, --env=[]
+       Set environment variables. Define arbitrary environment variables for the initial processes launched within the container.
+    --env-file=[]
+       Read in a line delimited file of environment variables
 
 #### Examples
 

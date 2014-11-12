@@ -1111,7 +1111,13 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
+	var (
+		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flEnvFile = opts.NewListOpts(nil)
+	)
 	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.")
+	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
+	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a line delimited file of environment variables")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1127,6 +1133,18 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		repository = cmd.Arg(1)
 	)
 
+	// collect all the environment variables for the container
+	envVariables := []string{}
+	for _, ef := range flEnvFile.GetAll() {
+		parsedVars, err := opts.ParseEnvFile(ef)
+		if err != nil {
+			return err
+		}
+		envVariables = append(envVariables, parsedVars...)
+	}
+	// parse the '-e' and '--env' after, to allow override
+	envVariables = append(envVariables, flEnv.GetAll()...)
+	v.Set("env", strings.Join(envVariables, " "))
 	v.Set("fromSrc", src)
 	v.Set("repo", repository)
 
