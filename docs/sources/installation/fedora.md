@@ -65,7 +65,8 @@ member of that group in order to contact the `docker -d` process.
     $ usermod -a -G docker login_name
 
 Adding users to the `docker` group is *not* necessary for Docker versions 1.0
-and above.
+and above. You will have to log out and log in again for your user to have 
+permission to run Docker.
 
 ## HTTP Proxy
 
