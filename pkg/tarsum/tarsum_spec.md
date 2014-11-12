@@ -14,8 +14,10 @@ methods, and the versioning of this calculation.
 ## Introduction
 
 The transportation of file systems, regarding docker, is done with tar(1)
-archives. Types of transpiration include distribution to and from a registry
-endpoint, saving and loading through commands or docker daemon APIs,
+archives. There are a variety of tar serialization formats [2], and a key
+concern here is ensuring a repeatable checksum given a set of inputs from a
+generic tar archive. Types of transportation include distribution to and from a
+registry endpoint, saving and loading through commands or docker daemon APIs,
 transferring the build context from client to docker daemon, and committing the
 file system of a container to become an image.
 
@@ -40,7 +42,7 @@ versions.
 
 ## Concept
 
-The checksum mechanism must ensure the integrity and confidentiality of the
+The checksum mechanism must ensure the integrity and assurance of the
 file system payload.
 
 
@@ -62,11 +64,11 @@ A checksum mechanism must define the following operations and attributes:
 
 The calculated sum output is a text string. The elements included in the output
 of the calculated sum comprise the information needed for validation of the sum
-(TarSum version and block cipher used) and the expected checksum in hexadecimal
+(TarSum version and hashing cipher used) and the expected checksum in hexadecimal
 form.
 
 There are two delimiters used:
-* '+' separates TarSum version from block cipher
+* '+' separates TarSum version from hashing cipher
 * ':' separates calculation mechanics from expected hash
 
 Example:
@@ -114,11 +116,11 @@ calculation are subject to change without notice.
 
 ## Ciphers
 
-The official default and standard block cipher used in the calculation mechanic
+The official default and standard hashing cipher used in the calculation mechanic
 is "sha256". This refers to SHA256 hash algorithm as defined in FIPS 180-4.
 
-Though the algorithm itself is not exclusively bound to this single block
-cipher, and support for alternate block ciphers was later added [1]. Presently
+Though the algorithm itself is not exclusively bound to this single hashing
+cipher, and support for alternate hashing ciphers was later added [1]. Presently
 use of this is for isolated use-cases and future-proofing the TarSum checksum
 format.
 
@@ -128,7 +130,7 @@ format.
 
 As mentioned earlier, the calculation is such that it takes into consideration
 the life and cycle of the tar archive. In that the tar archive is not an
-immutable, permanent artifact. Otherwise options like relying on a known block
+immutable, permanent artifact. Otherwise options like relying on a known hashing
 cipher checksum of the archive itself would be reliable enough.  Since the tar
 archive is used as a transportation medium, and is thrown away after its
 contents are extracted. Therefore, for consistent validation items such as
@@ -200,10 +202,12 @@ body.
 
 #### Final Checksum
 
-Using an initialize hash of the associated hash cipher, if there is additional
-payload to include in the TarSum calculation for the archive, it is written
-first. Then each checksum from the ordered list of files sums is written to the
-hash. The resulting digest is formatted per the Elements of TarSum checksum,
+Begin with a fresh or initial state of the associated hash cipher. If there is
+additional payload to include in the TarSum calculation for the archive, it is
+written first. Then each checksum from the ordered list of file sums is written
+to the hash.
+
+The resulting digest is formatted per the Elements of TarSum checksum,
 including the TarSum version, the associated hash cipher and the hexadecimal
 encoded checksum digest.
 
@@ -213,13 +217,16 @@ encoded checksum digest.
 The initial version of TarSum has undergone one update that could invalidate
 handcrafted tar archives. The tar archive format supports appending of files
 with same names as prior files in the archive. The latter file will clobber the
-prior file of the same path. Due to this the algorithm now accounts for 
+prior file of the same path. Due to this the algorithm now accounts for files
+with matching paths, and orders the list of file sums accordingly [3].
 
 
 ## Footnotes
 
 * [0] Versioning https://github.com/docker/docker/commit/747f89cd327db9d50251b17797c4d825162226d0
 * [1] Alternate ciphers https://github.com/docker/docker/commit/4e9925d780665149b8bc940d5ba242ada1973c4e
+* [2] Tar http://en.wikipedia.org/wiki/Tar_%28computing%29
+* [3] Name collision https://github.com/docker/docker/commit/c5e6362c53cbbc09ddbabd5a7323e04438b57d31
 
 ## Acknowledgements
 
