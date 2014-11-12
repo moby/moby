@@ -177,7 +177,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 	repoData, err := r.GetRepositoryData(remoteName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
-			return fmt.Errorf("Error: image %s not found", remoteName)
+			return fmt.Errorf("Error: image %s:%s not found", remoteName, askedTag)
 		}
 		// Unexpected HTTP error
 		return err
