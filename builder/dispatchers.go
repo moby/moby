@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -302,14 +303,21 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		return err
 	}
 
+	// instead of using ports directly, we build a list of ports and sort it so
+	// the order is consistent. This prevents cache burst where map ordering
+	// changes between builds
+	portList := make([]string, len(ports))
+	var i int
 	for port := range ports {
 		if _, exists := b.Config.ExposedPorts[port]; !exists {
 			b.Config.ExposedPorts[port] = struct{}{}
 		}
+		portList[i] = string(port)
+		i++
 	}
+	sort.Strings(portList)
 	b.Config.PortSpecs = nil
-
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
 }
 
 // USER foo
