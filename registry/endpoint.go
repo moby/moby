@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -151,7 +152,22 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 // IsSecure returns false if the provided hostname is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 func IsSecure(hostname string, insecureRegistries []string) bool {
+
 	if hostname == IndexServerAddress() {
+		return true
+	}
+
+	host, _, err := net.SplitHostPort(hostname)
+
+	if err != nil {
+		host = hostname
+	}
+
+	if host == "127.0.0.1" || host == "localhost" {
+		return false
+	}
+
+	if len(insecureRegistries) == 0 {
 		return true
 	}
 
