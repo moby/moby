@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	testHttpServer *httptest.Server
-	testLayers     = map[string]map[string]string{
+	testHTTPServer     *httptest.Server
+	insecureRegistries []string
+	testLayers         = map[string]map[string]string{
 		"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20": {
 			"json": `{"id":"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 				"comment":"test base image","created":"2013-03-23T12:53:11.10432-07:00",
@@ -99,7 +100,12 @@ func init() {
 	// /v2/
 	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
 
-	testHttpServer = httptest.NewServer(handlerAccessLog(r))
+	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
+	URL, err := url.Parse(testHTTPServer.URL)
+	if err != nil {
+		panic(err)
+	}
+	insecureRegistries = []string{URL.Host}
 }
 
 func handlerAccessLog(handler http.Handler) http.Handler {
@@ -111,7 +117,7 @@ func handlerAccessLog(handler http.Handler) http.Handler {
 }
 
 func makeURL(req string) string {
-	return testHttpServer.URL + req
+	return testHTTPServer.URL + req
 }
 
 func writeHeaders(w http.ResponseWriter) {
@@ -301,7 +307,7 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerImages(w http.ResponseWriter, r *http.Request) {
-	u, _ := url.Parse(testHttpServer.URL)
+	u, _ := url.Parse(testHTTPServer.URL)
 	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
 	if r.Method == "PUT" {
