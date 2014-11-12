@@ -1732,6 +1732,29 @@ func TestBuildExpose(t *testing.T) {
 	logDone("build - expose")
 }
 
+func TestBuildExposeOrder(t *testing.T) {
+	buildID := func(name, exposed string) string {
+		_, err := buildImage(name, fmt.Sprintf(`FROM scratch
+		EXPOSE %s`, exposed), true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := inspectField(name, "Id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	id1 := buildID("testbuildexpose1", "80 2375")
+	id2 := buildID("testbuildexpose2", "2375 80")
+	defer deleteImages("testbuildexpose1", "testbuildexpose2")
+	if id1 != id2 {
+		t.Errorf("EXPOSE should invalidate the cache only when ports actually changed")
+	}
+	logDone("build - expose order")
+}
+
 func TestBuildEmptyEntrypointInheritance(t *testing.T) {
 	name := "testbuildentrypointinheritance"
 	name2 := "testbuildentrypointinheritance2"
