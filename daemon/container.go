@@ -184,6 +184,18 @@ func (container *Container) WriteHostConfig() error {
 	return ioutil.WriteFile(pth, data, 0666)
 }
 
+func (container *Container) Logger() *log.Entry {
+	return log.WithField("containerID", container.ID)
+}
+
+func (container *Container) LoggerWithField(key string, value interface{}) *log.Entry {
+	return container.Logger().WithField(key, value)
+}
+
+func (container *Container) LoggerWithFields(fields log.Fields) *log.Entry {
+	return container.Logger().WithFields(fields)
+}
+
 func (container *Container) LogEvent(action string) {
 	d := container.daemon
 	if err := d.eng.Job("log", action, container.ID, d.Repositories().ImageName(container.Image)).Run(); err != nil {

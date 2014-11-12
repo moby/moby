@@ -228,7 +228,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	//        if so, then we need to restart monitor and init a new lock
 	// If the container is supposed to be running, make sure of it
 	if container.IsRunning() {
-		log.Debugf("killing old running container %s", container.ID)
+		container.Logger().Debug("Killing old running container")
 
 		existingPid := container.Pid
 		container.SetStopped(0)
@@ -245,24 +245,21 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 			var err error
 			cmd.ProcessConfig.Process, err = os.FindProcess(existingPid)
 			if err != nil {
-				log.Debugf("cannot find existing process for %d", existingPid)
+				log.WithField("PID", existingPid).Debug("Cannot find existing process")
 			}
 			daemon.execDriver.Terminate(cmd)
 		}
 
 		if err := container.Unmount(); err != nil {
-			log.Debugf("unmount error %s", err)
+			container.LoggerWithField("error", err).Debug("Failed to unmount container")
 		}
 		if err := container.ToDisk(); err != nil {
-			log.Debugf("saving stopped state to disk %s", err)
+			container.LoggerWithField("error", err).Debug("Failed to save stopped state to disk")
 		}
 
 		info := daemon.execDriver.Info(container.ID)
 		if !info.IsRunning() {
-			log.Debugf("Container %s was supposed to be running but is not.", container.ID)
-
-			log.Debugf("Marking as stopped")
-
+			container.Logger().Debug("Container was expected to be running: marking as stopped")
 			container.SetStopped(-127)
 			if err := container.ToDisk(); err != nil {
 				return err
@@ -281,7 +278,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 		container.Name = name
 
 		if err := container.ToDisk(); err != nil {
-			log.Debugf("Error saving container name %s", err)
+			container.LoggerWithField("error", err).Debug("Failed to save container")
 		}
 	}
 	return nil
@@ -318,17 +315,17 @@ func (daemon *Daemon) restore() error {
 			fmt.Print(".")
 		}
 		if err != nil {
-			log.Errorf("Failed to load container %v: %v", id, err)
+			container.LoggerWithField("error", err).Error("Failed to load container")
 			continue
 		}
 
 		// Ignore the container if it does not support the current driver being used by the graph
 		if (container.Driver == "" && currentDriver == "aufs") || container.Driver == currentDriver {
-			log.Debugf("Loaded container %v", container.ID)
+			container.Logger().Debug("Loaded container")
 
 			containers[container.ID] = container
 		} else {
-			log.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+			container.Logger().Debug("Cannot load a container created with different graph driver")
 		}
 	}
 
@@ -344,7 +341,7 @@ func (daemon *Daemon) restore() error {
 
 			if container, ok := containers[e.ID()]; ok {
 				if err := daemon.register(container, false); err != nil {
-					log.Debugf("Failed to register container %s: %s", container.ID, err)
+					container.LoggerWithField("error", err).Debug("Failed to register container")
 				}
 
 				registeredContainers = append(registeredContainers, container)
@@ -360,11 +357,11 @@ func (daemon *Daemon) restore() error {
 		// Try to set the default name for a container if it exists prior to links
 		container.Name, err = daemon.generateNewName(container.ID)
 		if err != nil {
-			log.Debugf("Setting default id - %s", err)
+			container.LoggerWithField("error", err).Debug("Failed to set default name")
 		}
 
 		if err := daemon.register(container, false); err != nil {
-			log.Debugf("Failed to register container %s: %s", container.ID, err)
+			container.LoggerWithField("error", err).Debug("Failed to register container")
 		}
 
 		registeredContainers = append(registeredContainers, container)
@@ -378,10 +375,10 @@ func (daemon *Daemon) restore() error {
 		for _, container := range registeredContainers {
 			if container.hostConfig.RestartPolicy.Name == "always" ||
 				(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0) {
-				log.Debugf("Starting container %s", container.ID)
+				container.Logger().Debug("Starting container")
 
 				if err := container.Start(); err != nil {
-					log.Debugf("Failed to start container %s: %s", container.ID, err)
+					container.LoggerWithField("error", err).Debug("Failed to start container")
 				}
 			}
 		}
@@ -921,16 +918,16 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		// them as separate handlers to speed up total shutdown time
 		// FIXME: use engine logging instead of log.Errorf
 		if err := daemon.shutdown(); err != nil {
-			log.Errorf("daemon.shutdown(): %s", err)
+			log.WithField("error", err).Error("daemon.shutdown()")
 		}
 		if err := portallocator.ReleaseAll(); err != nil {
-			log.Errorf("portallocator.ReleaseAll(): %s", err)
+			log.WithField("error", err).Error("portallocator.ReleaseAll()")
 		}
 		if err := daemon.driver.Cleanup(); err != nil {
-			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
+			log.WithField("error", err).Error("daemon.driver.Cleanup()")
 		}
 		if err := daemon.containerGraph.Close(); err != nil {
-			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
+			log.WithField("error", err).Error("daemon.containerGraph.Close()")
 		}
 	})
 
@@ -939,20 +936,20 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 
 func (daemon *Daemon) shutdown() error {
 	group := sync.WaitGroup{}
-	log.Debugf("starting clean shutdown of all containers...")
+	log.Debugf("Starting clean shutdown of all containers...")
 	for _, container := range daemon.List() {
 		c := container
 		if c.IsRunning() {
-			log.Debugf("stopping %s", c.ID)
+			container.Logger().Debug("Stopping container")
 			group.Add(1)
 
 			go func() {
 				defer group.Done()
 				if err := c.KillSig(15); err != nil {
-					log.Debugf("kill 15 error for %s - %s", c.ID, err)
+					container.LoggerWithField("error", err).Debug("Failed to kill 15 container")
 				}
 				c.WaitStop(-1 * time.Second)
-				log.Debugf("container stopped %s", c.ID)
+				container.Logger().Debug("Container stopped")
 			}()
 		}
 	}
@@ -1116,11 +1113,11 @@ func checkKernelAndArch() error {
 	// the circumstances of pre-3.8 crashes are clearer.
 	// For details see http://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
-		log.Infof("WARNING: %s", err)
+		log.WithField("error", err).Warn("Failed to retrieve kernel version")
 	} else {
 		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Infof("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+				log.Warnf("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 			}
 		}
 	}

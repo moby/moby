@@ -69,9 +69,9 @@ func (job *Job) Run() error {
 	}
 	// Log beginning and end of the job
 	if job.Eng.Logging {
-		log.Infof("+job %s", job.CallString())
+		log.WithFields(job.CallLogFields()).Debug("+job")
 		defer func() {
-			log.Infof("-job %s%s", job.CallString(), job.StatusString())
+			log.WithFields(job.CallLogFields()).WithFields(job.StatusLogFields()).Debug("-job")
 		}()
 	}
 	var errorMessage = bytes.NewBuffer(nil)
@@ -102,14 +102,14 @@ func (job *Job) Run() error {
 	return nil
 }
 
-func (job *Job) CallString() string {
-	return fmt.Sprintf("%s(%s)", job.Name, strings.Join(job.Args, ", "))
+func (job *Job) CallLogFields() log.Fields {
+	return log.Fields{"job": job.Name, "jobArgs": job.Args}
 }
 
-func (job *Job) StatusString() string {
+func (job *Job) StatusLogFields() log.Fields {
 	// If the job hasn't completed, status string is empty
 	if job.end.IsZero() {
-		return ""
+		return log.Fields{}
 	}
 	var okerr string
 	if job.status == StatusOK {
@@ -117,13 +117,13 @@ func (job *Job) StatusString() string {
 	} else {
 		okerr = "ERR"
 	}
-	return fmt.Sprintf(" = %s (%d)", okerr, job.status)
+	return log.Fields{"status": okerr, "statusValue": job.status}
 }
 
 // String returns a human-readable description of `job`
-func (job *Job) String() string {
-	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
-}
+//func (job *Job) String() string {
+//	return fmt.Sprintf("%s.%s%s", job.Eng, job.CallString(), job.StatusString())
+//}
 
 func (job *Job) Env() *Env {
 	return job.env

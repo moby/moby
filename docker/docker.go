@@ -40,7 +40,9 @@ func main() {
 		os.Setenv("DEBUG", "1")
 	}
 
-	initLogging(*flDebug)
+	if err := initLogging(*flDebug, *flLogFormat); err != nil {
+		log.Fatal(err)
+	}
 
 	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
