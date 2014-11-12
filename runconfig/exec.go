@@ -3,6 +3,7 @@ package runconfig
 import (
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"os"
 )
 
 type ExecConfig struct {
@@ -39,17 +40,23 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		help      = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 		execCmd   []string
 		container string
 	)
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
 	}
-	parsedArgs := cmd.Args()
-	if len(parsedArgs) > 1 {
-		container = cmd.Arg(0)
-		execCmd = parsedArgs[1:]
+	if *help {
+		cmd.Usage()
+		return nil, nil
 	}
+	if cmd.BadArgs(flag.Min, 2) {
+		os.Exit(1)
+	}
+	container = cmd.Arg(0)
+	parsedArgs := cmd.Args()
+	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
 		// TODO(vishh): Expose '-u' flag once it is supported.
