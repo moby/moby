@@ -1112,6 +1112,8 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 
 func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.")
+	flChanges := opts.NewListOpts(nil)
+	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply a modification before importing the image")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1129,6 +1131,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	v.Set("fromSrc", src)
 	v.Set("repo", repository)
+	v.Set("changes", strings.Join(flChanges.GetAll(), "\n"))
 
 	if cmd.NArg() == 3 {
 		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
@@ -1672,6 +1675,8 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flPause := cmd.Bool([]string{"p", "-pause"}, true, "Pause container during commit")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
+	flChanges := opts.NewListOpts(nil)
+	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply a modification before committing the image")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	if err := cmd.Parse(args); err != nil {
@@ -1701,6 +1706,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
 	v.Set("author", *flAuthor)
+	v.Set("changes", strings.Join(flChanges.GetAll(), "\n"))
 
 	if *flPause != true {
 		v.Set("pause", "0")

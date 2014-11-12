@@ -55,6 +55,9 @@ func (b *Builder) readContext(context io.Reader) error {
 }
 
 func (b *Builder) commit(id string, autoCmd []string, comment string) error {
+	if b.disableCommit {
+		return nil
+	}
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}

@@ -453,6 +453,7 @@ schema.
     Create a new image from a container's changes
 
       -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+      -c, --change=[]     Apply a modification in Dockerfile format before committing the image
       -m, --message=""    Commit message
       -p, --pause=true    Pause container during commit
 
@@ -478,6 +479,19 @@ If this behavior is undesired, set the 'p' option to false.
     $ sudo docker images | head
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
     SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
+
+#### Commit an existing container with new configurations
+
+    $ sudo docker ps
+    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
+    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    $ sudo docker inspect -f "{{ .Config.Env }}" c3f279d17e0a
+    [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin]
+    $ sudo docker commit --change "ENV DEBUG true" c3f279d17e0a  SvenDowideit/testimage:version3
+    f5283438590d
+    $ sudo docker inspect -f "{{ .Config.Env }}" f5283438590d
+    [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
 
 ## cp
 
@@ -789,6 +803,8 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
     Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
+      -c, --change=[]     Apply a modification in Dockerfile format before importing the image
+
 URLs must start with `http` and point to a single file archive (.tar,
 .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
 you would like to import from a local directory or archive, you can use
@@ -811,6 +827,10 @@ Import to docker via pipe and `STDIN`.
 **Import from a local directory:**
 
     $ sudo tar -c . | sudo docker import - exampleimagedir
+
+**Import from a local directory with new configurations:**
+
+    $ sudo tar -c . | sudo docker import --change "ENV DEBUG true" - exampleimagedir
 
 Note the `sudo` in this example – you must preserve
 the ownership of the files (especially root ownership) during the
