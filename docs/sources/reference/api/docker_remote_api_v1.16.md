@@ -124,7 +124,7 @@ Create a container
              "Cmd":[
                      "date"
              ],
-             "Entrypoint": ""
+             "Entrypoint": "",
              "Image":"base",
              "Volumes":{
                      "/tmp": {}
