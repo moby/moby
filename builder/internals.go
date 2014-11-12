@@ -498,7 +498,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 // is any error, it returns `(false, err)`.
 func (b *Builder) probeCache() (bool, error) {
 	if b.UtilizeCache {
-		if cache, err := b.Daemon.ImageGetCached(b.image, b.Config); err != nil {
+		if cache, err := b.imageCache.Get(b.image, b.Config); err != nil {
 			return false, err
 		} else if cache != nil {
 			fmt.Fprintf(b.OutStream, " ---> Using cache\n")

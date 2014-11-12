@@ -98,6 +98,16 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
 
+	var imageCache *ImageCache
+	if !noCache {
+		images, err := b.Daemon.Graph().Map()
+		if err != nil {
+			return job.Error(err)
+		}
+		imageCache = newImageCache(images)
+		defer imageCache.Dispose()
+	}
+
 	builder := &Builder{
 		Daemon: b.Daemon,
 		Engine: b.Engine,
@@ -118,6 +128,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
+		imageCache:      imageCache,
 	}
 
 	id, err := builder.Run(context)
