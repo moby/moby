@@ -46,8 +46,12 @@ func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
 		return err
 	}
 
-	if err := writeFile(dir, "cpuset.cpus", value); err != nil {
-		return err
+	// If we don't use --cpuset, the default cpuset.cpus is set in
+	// s.ensureParent, otherwise, use the value we set.
+	if (value != "") {
+		if err := writeFile(dir, "cpuset.cpus", value); err != nil {
+			return err
+		}
 	}
 
 	return nil
