@@ -1627,3 +1627,21 @@ both Docker client and daemon.
 
     Block until a container stops, then print its exit code.
 
+
+## metrics
+
+    Usage: docker metrics [OPTIONS] [CONTAINER]
+
+    Show various metrics about docker itself or specified container.
+
+    -f,--follow=0    Poll every specified seconds. 0=disabled
+
+Without specifying a container, this command shows various metrics
+about the daemons internals, like number of processed engine jobs
+and various error counters.
+
+If a container is specified, this command shows metrics about the
+container like memory and cpu usage.
+
+When `-f` is specified, the command will poll the Docker daemon every
+given second. Counter values will returned as rates.
