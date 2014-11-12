@@ -83,7 +83,9 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 1)
+
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, nil, cmd, err
 	}
 
@@ -161,11 +163,8 @@ func Parse(cmd *flag.FlagSet, args []string, sysInfo *sysinfo.SysInfo) (*Config,
 		parsedArgs = cmd.Args()
 		runCmd     []string
 		entrypoint []string
-		image      string
+		image      = cmd.Arg(0)
 	)
-	if len(parsedArgs) >= 1 {
-		image = cmd.Arg(0)
-	}
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}

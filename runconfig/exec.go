@@ -3,6 +3,7 @@ package runconfig
 import (
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/utils"
 )
 
 type ExecConfig struct {
@@ -42,14 +43,13 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		execCmd   []string
 		container string
 	)
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 2)
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, err
 	}
+	container = cmd.Arg(0)
 	parsedArgs := cmd.Args()
-	if len(parsedArgs) > 1 {
-		container = cmd.Arg(0)
-		execCmd = parsedArgs[1:]
-	}
+	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
 		// TODO(vishh): Expose '-u' flag once it is supported.
