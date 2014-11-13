@@ -8,8 +8,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -30,6 +32,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/reexec"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -94,6 +97,43 @@ type Container struct {
 	activeLinks  map[string]*links.Link
 	monitor      *containerMonitor
 	execCommands *execStore
+}
+
+func (container *Container) MoveEthernetDevice(c2 *Container, deviceName string) error {
+	if deviceName == "" {
+		return fmt.Errorf("Please supply a deviceName to MoveEthernetDevice")
+	}
+
+	if !container.State.IsRunning() {
+		return fmt.Errorf("Tried to move an ethernet device from a stopped container")
+	}
+
+	if !c2.State.IsRunning() {
+		return fmt.Errorf("Tried to move an ethernet device to a stopped container")
+	}
+
+	var (
+		ip      = fmt.Sprintf("%s/%s", container.NetworkSettings.IPAddress, strconv.Itoa(container.NetworkSettings.IPPrefixLen))
+		gateway = container.NetworkSettings.Gateway
+	)
+
+	cmd := exec.Cmd{
+		Path: reexec.Self(),
+		Args: []string{
+			"docker-network-movens",
+			"-frompid", strconv.Itoa(container.State.Pid),
+			"-topid", strconv.Itoa(c2.State.Pid),
+			"-ip", ip,
+			"-gateway", gateway,
+			"-device", deviceName,
+		},
+	}
+
+	// FIXME(erikh): this probably shouldn't be done here.
+	c2.NetworkSettings = container.NetworkSettings
+	c2.command.Network = container.command.Network
+	container.command.Network = nil
+	return cmd.Run()
 }
 
 func (container *Container) FromDisk() error {
