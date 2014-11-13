@@ -67,7 +67,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -s v -l version -d 'Print
 # attach
 complete -c docker -f -n '__fish_docker_no_subcommand' -a attach -d 'Attach to a running container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -l no-stdin -d 'Do not attach stdin'
-complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -l sig-proxy -d 'Proxify all received signal to the process (even in non-tty mode)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -l sig-proxy -d 'Proxify all received signal to the process (non-TTY mode only)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -a '(__fish_print_docker_containers running)' -d "Container"
 
 # build
@@ -237,7 +237,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s p -l publish -d "Publish a container's port to the host (format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort) (use 'docker port' to see the actual mapping)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l privileged -d 'Give extended privileges to this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l rm -d 'Automatically remove the container when it exits (incompatible with -d)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l sig-proxy -d 'Proxify all received signal to the process (even in non-tty mode)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l sig-proxy -d 'Proxify all received signal to the process (non-TTY mode only)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s t -l tty -d 'Allocate a pseudo-tty'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s u -l user -d 'Username or UID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s v -l volume -d 'Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)'

@@ -225,7 +225,7 @@ outside of a container on the host.
    Automatically remove the container when it exits (incompatible with -d). The default is *false*.
 
 **--sig-proxy**=*true*|*false*
-   Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
+   Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
 
 **-t**, **--tty**=*true*|*false*
    When set to true Docker can allocate a pseudo-tty and attach to the standard

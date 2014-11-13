@@ -85,7 +85,7 @@ This will display the help text and all available flags:
     Attach to a running container
 
       --no-stdin=false: Do not attach stdin
-      --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
+      --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
 
 > **Note:** 
 > You can see a full list of Docker's commands
