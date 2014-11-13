@@ -247,6 +247,9 @@ func (container *Container) setupMounts() error {
 	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
 	}
+	if container.ApiSocketPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.ApiSocketPath, Destination: "/.docker.sock", Writable: true, Private: true})
+	}
 
 	for _, m := range mounts {
 		if err := label.SetFileLabel(m.Source, container.MountLabel); err != nil {

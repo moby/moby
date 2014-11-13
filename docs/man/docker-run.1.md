@@ -221,12 +221,13 @@ actual mapping)
    Give extended privileges to this container. By default, Docker containers are
 “unprivileged” (=false) and cannot, for example, run a Docker daemon inside the
 Docker container. This is because by default a container is not allowed to
-access any devices. A “privileged” container is given access to all devices.
+access any devices. A "privileged" container is given access to all devices. A
+Docker API socket will also be mounted to **/var/run/docker.sock**.
 
 When the operator executes **docker run --privileged**, Docker will enable access
-to all devices on the host as well as set some configuration in AppArmor to
-allow the container nearly all the same access to the host as processes running
-outside of a container on the host.
+to all devices on the host and configure AppArmor to allow the container nearly
+all the same access to the host as processes running outside of a container on
+the host.
 
 
 **--rm**=*true*|*false*
