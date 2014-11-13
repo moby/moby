@@ -12,16 +12,21 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ApplyLayer parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`.
 func ApplyLayer(dest string, layer ArchiveReader) error {
 	// We need to be able to set any perms
-	oldmask := syscall.Umask(0)
-	defer syscall.Umask(oldmask)
+	oldmask, err := system.Umask(0)
+	if err != nil {
+		return err
+	}
 
-	layer, err := DecompressStream(layer)
+	defer system.Umask(oldmask) // ignore err, ErrNotSupportedPlatform
+
+	layer, err = DecompressStream(layer)
 	if err != nil {
 		return err
 	}
