@@ -1,3 +1,5 @@
+// +build daemon
+
 package graphdriver
 
 import (
