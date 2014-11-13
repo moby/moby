@@ -14,13 +14,6 @@ import (
 	"github.com/docker/docker/pkg/pools"
 )
 
-// Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
-// They are, from low to high: the lower 8 bits of the minor, then 12 bits of the major,
-// then the top 12 bits of the minor
-func mkdev(major int64, minor int64) uint32 {
-	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
-}
-
 // ApplyLayer parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`.
 func ApplyLayer(dest string, layer ArchiveReader) error {
