@@ -83,7 +83,7 @@ and pass along signals. All of that is configurable:
 
     -a=[]           : Attach to `STDIN`, `STDOUT` and/or `STDERR`
     -t=false        : Allocate a pseudo-tty
-    --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
+    --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
     -i=false        : Keep STDIN open even if not attached
 
 If you do not specify `-a` then Docker will [attach all standard

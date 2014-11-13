@@ -25,7 +25,7 @@ the client.
    Do not attach STDIN. The default is *false*.
 
 **--sig-proxy**=*true*|*false*
-   Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied. The default is *true*.
+   Proxy all received signals to the process (non-TTY mode only). SIGCHLD, SIGKILL, and SIGSTOP are not proxied. The default is *true*.
 
 # EXAMPLES
 
