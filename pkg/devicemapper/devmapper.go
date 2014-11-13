@@ -62,7 +62,7 @@ var (
 	ErrSetDevDir              = errors.New("dm_set_dev_dir failed")
 	ErrGetLibraryVersion      = errors.New("dm_get_library_version failed")
 	ErrCreateRemoveTask       = errors.New("Can't create task of type DeviceRemove")
-	ErrRunRemoveDevice        = errors.New("running removeDevice failed")
+	ErrRunRemoveDevice        = errors.New("running RemoveDevice failed")
 	ErrInvalidAddNode         = errors.New("Invalide AddNoce type")
 	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
@@ -296,18 +296,27 @@ func GetLibraryVersion() (string, error) {
 
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
-	// TODO(vbatts) just use the other removeDevice()
-	task := TaskCreate(DeviceRemove)
+	log.Debugf("[devmapper] RemoveDevice START")
+	defer log.Debugf("[devmapper] RemoveDevice END")
+	task, err := createTask(DeviceRemove, name)
 	if task == nil {
-		return ErrCreateRemoveTask
-	}
-	if err := task.SetName(name); err != nil {
-		log.Debugf("Can't set task name %s", name)
 		return err
 	}
-	if err := task.Run(); err != nil {
-		return ErrRunRemoveDevice
+
+	var cookie uint = 0
+	if err := task.SetCookie(&cookie, 0); err != nil {
+		return fmt.Errorf("Can not set cookie: %s", err)
 	}
+
+	if err = task.Run(); err != nil {
+		if dmSawBusy {
+			return ErrBusy
+		}
+		return fmt.Errorf("Error running RemoveDevice %s", err)
+	}
+
+	UdevWait(cookie)
+
 	return nil
 }
 
@@ -564,23 +573,6 @@ func DeleteDevice(poolName string, deviceId int) error {
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeleteDevice %s", err)
-	}
-	return nil
-}
-
-func removeDevice(name string) error {
-	log.Debugf("[devmapper] RemoveDevice START")
-	defer log.Debugf("[devmapper] RemoveDevice END")
-	task, err := createTask(DeviceRemove, name)
-	if task == nil {
-		return err
-	}
-	dmSawBusy = false
-	if err = task.Run(); err != nil {
-		if dmSawBusy {
-			return ErrBusy
-		}
-		return fmt.Errorf("Error running RemoveDevice %s", err)
 	}
 	return nil
 }
