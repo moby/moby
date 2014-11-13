@@ -1317,7 +1317,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 	}
 
 	// By default, don't do blk discard hack on raw devices, its rarely useful and is expensive
-	if !foundBlkDiscard && devices.dataDevice != "" {
+	if !foundBlkDiscard && (devices.dataDevice != "" || devices.thinPoolDevice != "") {
 		devices.doBlkDiscard = false
 	}
 
