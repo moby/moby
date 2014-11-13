@@ -81,4 +81,14 @@ go_run_test_dir() {
 }
 
 exec > >(tee -a $DEST/test.log) 2>&1
+
+used_loopback=$(losetup --all | wc --lines)
+count_loopback=$(ls /dev/loop[0-9] | wc --lines)
+free_loopback=$(( count_loopback-used_loopback  ))
+if [ $free_loopback -lt 2 ]; then
+	echo "FAIL: test_unit needs 2 free loopback devices"
+	echo "      you can create more using 'sudo hack/add_loopback_devices.sh' (for example)"
+	exit 1
+fi
+
 bundle_test_unit
