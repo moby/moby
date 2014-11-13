@@ -269,6 +269,14 @@ func newRootFileInfo() *FileInfo {
 	return root
 }
 
+func lstat(path string) (*stat, error) {
+	s, err := system.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	return fromStatT(s), nil
+}
+
 func collectFileInfo(sourceDir string) (*FileInfo, error) {
 	root := newRootFileInfo()
 
@@ -299,9 +307,11 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 			parent:   parent,
 		}
 
-		if err := syscall.Lstat(path, &info.stat); err != nil {
+		s, err := lstat(path)
+		if err != nil {
 			return err
 		}
+		info.stat = s
 
 		info.capability, _ = system.Lgetxattr(path, "security.capability")
 

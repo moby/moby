@@ -291,7 +291,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			mode |= syscall.S_IFIFO
 		}
 
-		if err := syscall.Mknod(path, mode, int(mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
+		if err := syscall.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
 			return err
 		}
 
