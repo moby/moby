@@ -1,6 +1,6 @@
 // +build linux
 
-package devmapper
+package devicemapper
 
 /*
 #cgo LDFLAGS: -L. -ldevmapper
