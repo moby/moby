@@ -188,7 +188,7 @@ with no newline.
 #### Body
 
 After the order headers of the file have been added to the checksum for the
-file, then the body of the file is written to the hash.
+file, the body of the file is written to the hash.
 
 
 #### List of file sums
