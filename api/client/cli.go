@@ -141,14 +141,15 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 	}
 
 	// Why 32? See issue 8035
+	timeout := 32 * time.Second
 	if proto == "unix" {
 		// no need in compressing for local communications
 		tr.DisableCompression = true
 		tr.Dial = func(dial_network, dial_addr string) (net.Conn, error) {
-			return net.DialTimeout(proto, addr, 32*time.Second)
+			return net.DialTimeout(proto, addr, timeout)
 		}
 	} else {
-		tr.Dial = (&net.Dialer{Timeout: 32 * time.Second}).Dial
+		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
 	}
 
 	return &DockerCli{
