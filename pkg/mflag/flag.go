@@ -852,7 +852,11 @@ func Var(value Value, names []string, usage string) {
 func (f *FlagSet) failf(format string, a ...interface{}) error {
 	err := fmt.Errorf(format, a...)
 	fmt.Fprintln(f.Out(), err)
-	fmt.Fprintf(f.Out(), "See 'docker %s --help'.\n", f.name)
+	if os.Args[0] == f.name {
+		fmt.Fprintf(f.Out(), "See '%s --help'.\n", os.Args[0])
+	} else {
+		fmt.Fprintf(f.Out(), "See '%s %s --help'.\n", os.Args[0], f.name)
+	}
 	return err
 }
 

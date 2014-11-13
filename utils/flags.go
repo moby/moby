@@ -25,7 +25,11 @@ func ParseFlags(cmd *flag.FlagSet, args []string, withHelp bool) error {
 	}
 	if str := cmd.CheckArgs(); str != "" {
 		if withHelp {
-			str += ". See 'docker " + cmd.Name() + " --help'"
+			if os.Args[0] == cmd.Name() {
+				str += ". See '" + os.Args[0] + " " + cmd.Name() + " --help'"
+			} else {
+				str += ". See '" + os.Args[0] + " --help'"
+			}
 		}
 		fmt.Fprintf(cmd.Out(), "docker: %s.\n", str)
 		os.Exit(1)

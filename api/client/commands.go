@@ -2187,7 +2187,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
-		return err
+		return &utils.StatusError{StatusCode: 1}
 	}
 	if config.Image == "" {
 		cmd.Usage()
@@ -2223,7 +2223,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
-		return err
+		return &utils.StatusError{StatusCode: 1}
 	}
 	if config.Image == "" {
 		cmd.Usage()
@@ -2511,7 +2511,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 
 	execConfig, err := runconfig.ParseExec(cmd, args)
 	if execConfig.Container == "" || err != nil {
-		return err
+		return &utils.StatusError{StatusCode: 1}
 	}
 
 	stream, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, false)
