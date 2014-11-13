@@ -323,6 +323,7 @@ func TestIsSecure(t *testing.T) {
 		insecureRegistries []string
 		expected           bool
 	}{
+		{IndexServerURL.Host, nil, true},
 		{"example.com", []string{}, true},
 		{"example.com", []string{"example.com"}, false},
 		{"localhost", []string{"localhost:5000"}, false},
