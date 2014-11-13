@@ -518,6 +518,14 @@ func (container *Container) AllocateNetwork() error {
 			return err
 		}
 	}
+
+	job = eng.Job("allocate_outgoing_nat", container.ID)
+	job.SetenvBool("EnableIpMasq", container.daemon.config.EnableIpMasq)
+
+	if err = job.Run(); err != nil {
+		return err
+	}
+
 	container.WriteHostConfig()
 
 	container.NetworkSettings.Ports = bindings

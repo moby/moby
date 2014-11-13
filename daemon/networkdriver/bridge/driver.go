@@ -28,8 +28,10 @@ const (
 
 // Network interface represents the networking stack of a container
 type networkInterface struct {
-	IP           net.IP
-	PortMappings []net.Addr // there are mappings to the host interfaces
+	IP                  net.IP
+	PortMappings        []net.Addr // there are mappings to the host interfaces
+	RequestedSNATsource net.IP     // what the user wants as an SNAT source (nil or 0.0.0.0 for MASQUERADE instead of SNAT)
+	GrantedSNATsource   net.IP     // what the user got as an SNAT source
 }
 
 type ifaces struct {
@@ -83,7 +85,6 @@ func InitDriver(job *engine.Job) engine.Status {
 		network        *net.IPNet
 		enableIPTables = job.GetenvBool("EnableIptables")
 		icc            = job.GetenvBool("InterContainerCommunication")
-		ipMasq         = job.GetenvBool("EnableIpMasq")
 		ipForward      = job.GetenvBool("EnableIpForward")
 		bridgeIP       = job.Getenv("BridgeIP")
 		fixedCIDR      = job.Getenv("FixedCIDR")
@@ -132,7 +133,7 @@ func InitDriver(job *engine.Job) engine.Status {
 
 	// Configure iptables for link support
 	if enableIPTables {
-		if err := setupIPTables(addr, icc, ipMasq); err != nil {
+		if err := setupIPTables(addr, icc); err != nil {
 			return job.Error(err)
 		}
 	}
@@ -173,10 +174,11 @@ func InitDriver(job *engine.Job) engine.Status {
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeNetwork.IP)
 
 	for name, f := range map[string]engine.Handler{
-		"allocate_interface": Allocate,
-		"release_interface":  Release,
-		"allocate_port":      AllocatePort,
-		"link":               LinkContainers,
+		"allocate_interface":    Allocate,
+		"release_interface":     Release,
+		"allocate_port":         AllocatePort,
+		"allocate_outgoing_nat": AllocateOutgoingNAT,
+		"link":                  LinkContainers,
 	} {
 		if err := job.Eng.Register(name, f); err != nil {
 			return job.Error(err)
@@ -185,20 +187,43 @@ func InitDriver(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
+func setupIPTablesPerInterface(addr net.IP, ipmasq bool, outgoingSourceIP net.IP, updown int) error {
 	// Enable NAT
 
 	if ipmasq {
-		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
+		var (
+			natArgs []string
+		)
 
-		if !iptables.Exists(natArgs...) {
-			if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
+		if outgoingSourceIP != nil && !outgoingSourceIP.IsUnspecified() {
+			natArgs = []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "SNAT", "--to-source", outgoingSourceIP.String()}
+		} else {
+			natArgs = []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
+		}
+
+		if (updown <= 0) != (!iptables.Exists(natArgs...)) {
+			var (
+				action string
+			)
+
+			if updown > 0 {
+				action = "-I"
+			} else {
+				action = "-D"
+			}
+
+			if output, err := iptables.Raw(append([]string{action}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error iptables postrouting: %s", output)
 			}
 		}
 	}
+
+	return nil
+}
+
+func setupIPTables(addr net.Addr, icc bool) error {
 
 	var (
 		args       = []string{"FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j"}
@@ -406,11 +431,14 @@ func Release(job *engine.Job) engine.Status {
 	var (
 		id                 = job.Args[0]
 		containerInterface = currentInterfaces.Get(id)
+		ipMasq             = true // job.GetenvBool("EnableIpMasq")
 	)
 
 	if containerInterface == nil {
 		return job.Errorf("No network information to release for %s", id)
 	}
+
+	setupIPTablesPerInterface(containerInterface.IP, ipMasq, containerInterface.GrantedSNATsource, -1)
 
 	for _, nat := range containerInterface.PortMappings {
 		if err := portmapper.Unmap(nat); err != nil {
@@ -492,6 +520,10 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	network.PortMappings = append(network.PortMappings, host)
 
+	if network.RequestedSNATsource == nil {
+		network.RequestedSNATsource = ip
+	}
+
 	out := engine.Env{}
 	switch netAddr := host.(type) {
 	case *net.TCPAddr:
@@ -504,6 +536,25 @@ func AllocatePort(job *engine.Job) engine.Status {
 	if _, err := out.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
+
+	return engine.StatusOK
+}
+
+func AllocateOutgoingNAT(job *engine.Job) engine.Status {
+	var (
+		err     error
+		id      = job.Args[0]
+		network = currentInterfaces.Get(id)
+		ipMasq  = job.GetenvBool("EnableIpMasq")
+	)
+
+	log.Infof("AllocateOutgoingNAT(): network.IP=%s, network.RequestedSNATsource=%s, ipMasq=%t", network.IP, network.RequestedSNATsource.String(), ipMasq)
+
+	if err = setupIPTablesPerInterface(network.IP, ipMasq, network.RequestedSNATsource, 1); err != nil {
+		return job.Error(err)
+	}
+
+	network.GrantedSNATsource = network.RequestedSNATsource
 
 	return engine.StatusOK
 }
