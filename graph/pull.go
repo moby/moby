@@ -113,9 +113,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	secure := registry.IsSecure(hostname, s.insecureRegistries)
-
-	endpoint, err := registry.NewEndpoint(hostname, secure)
+	endpoint, err := registry.NewEndpoint(hostname, s.insecureRegistries)
 	if err != nil {
 		return job.Error(err)
 	}

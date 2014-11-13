@@ -21,7 +21,7 @@ const (
 
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &AuthConfig{}
-	endpoint, err := NewEndpoint(makeURL("/v1/"), false)
+	endpoint, err := NewEndpoint(makeURL("/v1/"), insecureRegistries)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
-	ep, err := NewEndpoint(makeURL("/v1/"), false)
+	ep, err := NewEndpoint(makeURL("/v1/"), insecureRegistries)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,6 +326,7 @@ func TestIsSecure(t *testing.T) {
 		insecureRegistries []string
 		expected           bool
 	}{
+		{IndexServerURL.Host, nil, true},
 		{"example.com", []string{}, true},
 		{"example.com", []string{"example.com"}, false},
 		{"localhost", []string{"localhost:5000"}, false},
@@ -343,8 +344,8 @@ func TestIsSecure(t *testing.T) {
 		{"127.0.0.1:5000", []string{"example.com"}, false},
 	}
 	for _, tt := range tests {
-		if sec := IsSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
-			t.Errorf("IsSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
+		if sec := isSecure(tt.addr, tt.insecureRegistries); sec != tt.expected {
+			t.Errorf("isSecure failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
 }

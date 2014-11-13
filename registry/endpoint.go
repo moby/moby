@@ -34,8 +34,8 @@ func scanForAPIVersion(hostname string) (string, APIVersion) {
 	return hostname, DefaultAPIVersion
 }
 
-func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
-	endpoint, err := newEndpoint(hostname, secure)
+func NewEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error) {
+	endpoint, err := newEndpoint(hostname, insecureRegistries)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
 
 		//TODO: triggering highland build can be done there without "failing"
 
-		if secure {
+		if endpoint.secure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
 			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
 			return nil, fmt.Errorf("Invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
@@ -65,9 +65,9 @@ func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
 
 	return endpoint, nil
 }
-func newEndpoint(hostname string, secure bool) (*Endpoint, error) {
+func newEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error) {
 	var (
-		endpoint        = Endpoint{secure: secure}
+		endpoint        = Endpoint{}
 		trimmedHostname string
 		err             error
 	)
@@ -79,6 +79,7 @@ func newEndpoint(hostname string, secure bool) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	endpoint.secure = isSecure(endpoint.URL.Host, insecureRegistries)
 	return &endpoint, nil
 }
 
@@ -149,11 +150,10 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 	return info, nil
 }
 
-// IsSecure returns false if the provided hostname is part of the list of insecure registries.
+// isSecure returns false if the provided hostname is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
-func IsSecure(hostname string, insecureRegistries []string) bool {
-
-	if hostname == IndexServerAddress() {
+func isSecure(hostname string, insecureRegistries []string) bool {
+	if hostname == IndexServerURL.Host {
 		return true
 	}
 

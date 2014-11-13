@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -27,7 +28,16 @@ const (
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
+	IndexServerURL       *url.URL
 )
+
+func init() {
+	url, err := url.Parse(INDEXSERVER)
+	if err != nil {
+		panic(err)
+	}
+	IndexServerURL = url
+}
 
 type AuthConfig struct {
 	Username      string `json:"username,omitempty"`
