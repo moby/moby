@@ -635,9 +635,13 @@ func hash(c string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func TestMountMoreThan42Layers(t *testing.T) {
-	d := newDriver(t)
-	defer os.RemoveAll(tmp)
+func testMountMoreThan42Layers(t *testing.T, mountPath string) {
+	if err := os.MkdirAll(mountPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	d := testInit(mountPath, t).(*Driver)
+	defer os.RemoveAll(mountPath)
 	defer d.Cleanup()
 	var last string
 	var expected int
@@ -693,5 +697,27 @@ func TestMountMoreThan42Layers(t *testing.T) {
 	}
 	if len(files) != expected {
 		t.Fatalf("Expected %d got %d", expected, len(files))
+	}
+}
+
+func TestMountMoreThan42Layers(t *testing.T) {
+	testMountMoreThan42Layers(t, tmp)
+}
+
+func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
+	tmp := "aufs-tests"
+	for {
+		// This finds a mount path so that when combined into aufs mount options
+		// 4096 byte boundary would be in between the paths or in permission
+		// section. For '/tmp' it will use '/tmp/aufs-tests00000000/aufs'
+		mountPath := path.Join(os.TempDir(), tmp, "aufs")
+		pathLength := 77 + len(mountPath)
+
+		if mod := 4095 % pathLength; mod == 0 || mod > pathLength-2 {
+			t.Logf("Using path: %s", mountPath)
+			testMountMoreThan42Layers(t, mountPath)
+			return
+		}
+		tmp += "0"
 	}
 }
