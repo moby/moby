@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -64,6 +65,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
+	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 
 	ulimits := make(map[string]*ulimit.Ulimit)
 	flUlimits := opts.NewUlimitOpt(&ulimits)
@@ -256,6 +259,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 	v.Set("ulimits", string(ulimitsJSON))
+
+	// collect all the build-time environment variables for the container
+	buildArgs := runconfig.ConvertKVStringsToMap(flBuildArg.GetAll())
+	buildArgsJSON, err := json.Marshal(buildArgs)
+	if err != nil {
+		return err
+	}
+	v.Set("buildargs", string(buildArgsJSON))
 
 	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(cli.configFile.AuthConfigs)

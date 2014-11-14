@@ -323,6 +323,15 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		buildConfig.Ulimits = buildUlimits
 	}
 
+	var buildArgs = map[string]string{}
+	buildArgsJSON := r.FormValue("buildargs")
+	if buildArgsJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(buildArgsJSON)).Decode(&buildArgs); err != nil {
+			return err
+		}
+	}
+	buildConfig.BuildArgs = buildArgs
+
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
 		finished := make(chan struct{})

@@ -62,6 +62,7 @@ func init() {
 		command.Expose:     parseStringsWhitespaceDelimited,
 		command.Volume:     parseMaybeJSONToList,
 		command.StopSignal: parseString,
+		command.Arg:        parseNameOrNameVal,
 	}
 }
 

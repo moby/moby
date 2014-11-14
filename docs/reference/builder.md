@@ -966,6 +966,127 @@ For example:
 The output of the final `pwd` command in this `Dockerfile` would be
 `/path/$DIRNAME`
 
+## ARG
+
+    ARG <name>[=<default value>]
+
+The `ARG` instruction defines a variable that users can pass at build-time to
+the builder with the `docker build` command using the `--build-arg
+<varname>=<value>` flag. If a user specifies a build argument that was not
+defined in the Dockerfile, the build outputs an error.
+
+```
+One or more build-args were not consumed, failing build.
+```
+
+The Dockerfile author can define a single variable by specifying `ARG` once or many
+variables by specifying `ARG` more than once. For example, a valid Dockerfile:
+
+```
+FROM busybox
+ARG user1
+ARG buildno
+...
+```
+
+A Dockerfile author may optionally specify a default value for an `ARG` instruction:
+
+```
+FROM busybox
+ARG user1=someuser
+ARG buildno=1
+...
+```
+
+If an `ARG` value has a default and if there is no value passed at build-time, the
+builder uses the default.
+
+An `ARG` variable definition comes into effect from the line on which it is
+defined in the `Dockerfile` not from the argument's use on the command-line or
+elsewhere.  For example, consider this Dockerfile:
+
+```
+1 FROM busybox
+2 USER ${user:-some_user}
+3 ARG user
+4 USER $user
+...
+```
+A user builds this file by calling:
+
+```
+$ docker build --build-arg user=what_user Dockerfile
+```
+
+The `USER` at line 2 evaluates to `some_user` as the `user` variable is defined on the
+subsequent line 3. The `USER` at line 4 evaluates to `what_user` as `user` is
+defined and the `what_user` value was passed on the command line. Prior to its definition by an
+`ARG` instruction, any use of a variable results in an empty string.
+
+> **Note:** It is not recommended to use build-time variables for
+>  passing secrets like github keys, user credentials etc.
+
+You can use an `ARG` or an `ENV` instruction to specify variables that are
+available to the `RUN` instruction. Environment variables defined using the
+`ENV` instruction always override an `ARG` instruction of the same name. Consider
+this Dockerfile with an `ENV` and `ARG` instruction.
+
+```
+1 FROM ubuntu
+2 ARG CONT_IMG_VER
+3 ENV CONT_IMG_VER v1.0.0
+4 RUN echo $CONT_IMG_VER
+```
+Then, assume this image is built with this command:
+
+```
+$ docker build --build-arg CONT_IMG_VER=v2.0.1 Dockerfile
+```
+
+In this case, the `RUN` instruction uses `v1.0.0` instead of the `ARG` setting
+passed by the user:`v2.0.1` This behavior is similar to a shell
+script where a locally scoped variable overrides the variables passed as
+arguments or inherited from environment, from its point of definition.
+
+Using the example above but a different `ENV` specification you can create more
+useful interactions between `ARG` and `ENV` instructions:
+
+```
+1 FROM ubuntu
+2 ARG CONT_IMG_VER
+3 ENV CONT_IMG_VER ${CONT_IMG_VER:-v1.0.0}
+4 RUN echo $CONT_IMG_VER
+```
+
+The command line passes the `--build-arg` and sets the `v2.0.1` value. And the `ARG
+CONT_IMG_VER` is defined on line 2 of the Dockerfile. On line 3, the `ENV`
+instruction of the same name resolves to `v2.0.1` as the build-time variable
+was passed from the command line and expanded here.
+
+The variable expansion technique in this example allows you to pass arguments
+from the command line and persist them in the final image by leveraging the `ENV`
+instruction. Variable expansion is only supported for the `Dockerfile` instructions
+described [here](#environment-replacement).
+
+Unlike an `ARG` instruction, `ENV` values are always persisted in the built image. If
+`docker build` were run without setting the `--build-arg` flag, then
+`CONT_IMG_VER` is still persisted in the image but its value would be `v1.0.0`.
+
+Docker has a set of predefined `ARG` variables that you can use without a
+corresponding `ARG` instruction in the Dockerfile.
+
+* `HTTP_PROXY`
+* `http_proxy`
+* `HTTPS_PROXY`
+* `https_proxy`
+* `FTP_PROXY`
+* `ftp_proxy`
+* `NO_PROXY`
+* `no_proxy`
+
+To use these, simply pass them on the command line using the `--build-arg
+<varname>=<value>` flag.
+
 ## ONBUILD
 
     ONBUILD [INSTRUCTION]

@@ -1367,6 +1367,11 @@ Query Parameters:
 -   **memswap** - Total memory (memory + swap), `-1` to disable swap.
 -   **cpushares** - CPU shares (relative weight).
 -   **cpusetcpus** - CPUs in which to allow execution (e.g., `0-3`, `0,1`).
+-   **buildargs** – JSON map of string pairs for build-time variables. Users can
+        set these values at build-time and they are used as environment context
+        for the command(s) run as part of the Dockerfile's `RUN` instruction or
+        for variable expansion in other Dockerfile instructions. Read more about
+        the `ARG` instruction [here](/reference/builder/#arg)
 
     Request Headers:
 
