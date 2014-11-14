@@ -88,8 +88,12 @@ this (see below "Who decides what?")
 All decisions are pull requests, and the relevant maintainers make
 decisions by accepting or refusing pull requests. Review and acceptance
 by anyone is denoted by adding a comment in the pull request: `LGTM`.
-However, only currently listed `MAINTAINERS` are counted towards the
-required majority.
+The number of required `LGTM`'s that a pull request must receive can
+be determined by the subsystem maintainers.  Some subsystems may
+choose to require only one `LGTM` by any maintainer while others 
+may choose to require the majority.  This is done in order for the 
+maintainers of a subsystem to effectively review pull requests in a 
+timely manner without being bound to a process.
 
 Docker follows the timeless, highly efficient and totally unfair system
 known as [Benevolent dictator for
