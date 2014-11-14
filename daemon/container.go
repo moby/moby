@@ -70,6 +70,7 @@ type Container struct {
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
+	LocaltimePath  string
 	Name           string
 	Driver         string
 	ExecDriver     string
@@ -314,6 +315,9 @@ func (container *Container) Start() (err error) {
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
+	if err := container.setupTimezone(); err != nil {
+		return err
+	}
 	if err := container.Mount(); err != nil {
 		return err
 	}
@@ -417,7 +421,6 @@ func (container *Container) buildHostnameFile() error {
 }
 
 func (container *Container) buildHostsFiles(IP string) error {
-
 	hostsPath, err := container.getRootResourcePath("hosts")
 	if err != nil {
 		return err
@@ -425,7 +428,6 @@ func (container *Container) buildHostsFiles(IP string) error {
 	container.HostsPath = hostsPath
 
 	var extraContent []etchosts.Record
-
 	children, err := container.daemon.Children(container.Name)
 	if err != nil {
 		return err
@@ -921,6 +923,34 @@ func (container *Container) DisableLink(name string) {
 			log.Debugf("Could not find active link for %s", name)
 		}
 	}
+}
+
+func (container *Container) setupTimezone() error {
+	if container.LocaltimePath != "" {
+		return nil
+	}
+	f, err := os.Open("/etc/localtime")
+	if err != nil {
+		// we can ignore setting this file if the host system does not use
+		// /etc/timezone for specifying the timezone
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer f.Close()
+	path, err := container.getRootResourcePath("localtime")
+	if err != nil {
+		return err
+	}
+	container.LocaltimePath = path
+	cp, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer cp.Close()
+	_, err = io.Copy(cp, f)
+	return err
 }
 
 func (container *Container) setupContainerDns() error {

@@ -2568,3 +2568,19 @@ func TestRunUnknownCommand(t *testing.T) {
 
 	logDone("run - Unknown Command")
 }
+
+func TestLocaltimeContents(t *testing.T) {
+	defer deleteAllContainers()
+	hostsLocaltime, err := ioutil.ReadFile("/etc/localtime")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "cat", "/etc/localtime"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal([]byte(out), hostsLocaltime) {
+		t.Fatalf("hosts localtime %q does not match container's localtime %q", string(hostsLocaltime), out)
+	}
+	logDone("run - verify localtime contents")
+}

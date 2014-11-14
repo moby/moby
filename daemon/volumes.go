@@ -238,13 +238,14 @@ func (container *Container) setupMounts() error {
 	mounts := []execdriver.Mount{
 		{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true},
 	}
-
 	if container.HostnamePath != "" {
 		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
 	}
-
 	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
+	}
+	if container.LocaltimePath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.LocaltimePath, Destination: "/etc/localtime", Writable: true, Private: true})
 	}
 
 	// Mount user specified volumes
