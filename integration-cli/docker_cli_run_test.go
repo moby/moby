@@ -2053,6 +2053,43 @@ func TestRunInspectMacAddress(t *testing.T) {
 	logDone("run - inspecting MAC address")
 }
 
+func TestRunNetworkInitializedNetNsMode(t *testing.T) {
+	dir := "/var/run/netns"
+	ns := "myns"
+	p := path.Join(dir, ns)
+	os.Mkdir(dir, 0755)
+
+	cmd_ip_netns := exec.Command("/bin/ip", "netns", "add", ns)
+	out_ip_netns, _, err_ip_netns := runCommandWithOutput(cmd_ip_netns)
+	if err_ip_netns != nil {
+		t.Fatalf("ip netns add failed: %s %s", err_ip_netns, out_ip_netns)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--net=netns:"+p, "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("run failed: %s %s", err, out)
+	}
+	id := strings.TrimSpace(out)
+	res, err := inspectField(id, "NetworkSettings.IPAddress")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res == "" {
+		t.Fatal("For 'netns' mode network was not initialized.")
+	}
+
+	deleteAllContainers()
+
+	cmd_ip_netns = exec.Command("/bin/ip", "netns", "delete", ns)
+	out_ip_netns, _, err_ip_netns = runCommandWithOutput(cmd_ip_netns)
+	if err_ip_netns != nil {
+		t.Fatalf("ip netns delete failed: %s %s", err_ip_netns, out_ip_netns)
+	}
+
+	logDone("run - network must be initialized in 'netns' mode")
+}
+
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)

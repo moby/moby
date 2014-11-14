@@ -105,6 +105,7 @@ docker-create - Create a new container
                                'none': no networking for this container
                                'container:<name|id>': reuses another container network stack
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               'netns:<path>': use the specified network namespace
 
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to the host interfaces. The default is *false*.

@@ -302,7 +302,8 @@ Return low-level information on the container `id`
                              "IpPrefixLen": 0,
                              "Gateway": "",
                              "Bridge": "",
-                             "PortMapping": null
+                             "PortMapping": null,
+                             "NetNs": ""
                      },
                      "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
