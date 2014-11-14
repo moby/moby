@@ -462,7 +462,7 @@ Supported formats are: bzip2, gzip and xz.
 This will clone the GitHub repository and use the cloned repository as
 context. The Dockerfile at the root of the
 repository is used as Dockerfile. Note that you
-can specify an arbitrary Git repository by using the `git://`
+can specify an arbitrary Git repository by using the `git://` or `git@`
 schema.
 
 > **Note:** `docker build` will return a `no such file or directory` error
