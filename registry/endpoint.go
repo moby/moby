@@ -12,6 +12,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// for mocking in unit tests
+var lookupIP = net.LookupIP
+
 // scans string for api version in the URL path. returns the trimmed hostname, if version found, string and API version.
 func scanForAPIVersion(hostname string) (string, APIVersion) {
 	var (
@@ -79,7 +82,10 @@ func newEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error
 	if err != nil {
 		return nil, err
 	}
-	endpoint.secure = isSecure(endpoint.URL.Host, insecureRegistries)
+	endpoint.secure, err = isSecure(endpoint.URL.Host, insecureRegistries)
+	if err != nil {
+		return nil, err
+	}
 	return &endpoint, nil
 }
 
@@ -152,30 +158,56 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 
 // isSecure returns false if the provided hostname is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
-func isSecure(hostname string, insecureRegistries []string) bool {
+//
+// The list of insecure registries can contain an element with CIDR notation to specify a whole subnet.
+// If the subnet contains one of the IPs of the registry specified by hostname, the latter is considered
+// insecure.
+//
+// hostname should be a URL.Host (`host:port` or `host`)
+func isSecure(hostname string, insecureRegistries []string) (bool, error) {
 	if hostname == IndexServerURL.Host {
-		return true
+		return true, nil
 	}
 
 	host, _, err := net.SplitHostPort(hostname)
-
 	if err != nil {
+		// assume hostname is of the form `host` without the port and go on.
 		host = hostname
 	}
-
-	if host == "127.0.0.1" || host == "localhost" {
-		return false
+	addrs, err := lookupIP(host)
+	if err != nil {
+		ip := net.ParseIP(host)
+		if ip == nil {
+			// if resolving `host` fails, error out, since host is to be net.Dial-ed anyway
+			return true, fmt.Errorf("issecure: could not resolve %q: %v", host, err)
+		}
+		addrs = []net.IP{ip}
+	}
+	if len(addrs) == 0 {
+		return true, fmt.Errorf("issecure: could not resolve %q", host)
 	}
 
-	if len(insecureRegistries) == 0 {
-		return true
-	}
+	for _, addr := range addrs {
+		for _, r := range insecureRegistries {
+			// hostname matches insecure registry
+			if hostname == r {
+				return false, nil
+			}
 
-	for _, h := range insecureRegistries {
-		if hostname == h {
-			return false
+			// now assume a CIDR was passed to --insecure-registry
+			_, ipnet, err := net.ParseCIDR(r)
+			if err != nil {
+				// if could not parse it as a CIDR, even after removing
+				// assume it's not a CIDR and go on with the next candidate
+				continue
+			}
+
+			// check if the addr falls in the subnet
+			if ipnet.Contains(addr) {
+				return false, nil
+			}
 		}
 	}
 
-	return true
+	return true, nil
 }
