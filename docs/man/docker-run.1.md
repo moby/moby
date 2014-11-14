@@ -23,6 +23,7 @@ docker-run - Run a command in a new container
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
+[**--ipc**[=*[]*]]
 [**--security-opt**[=*[]*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
@@ -142,6 +143,12 @@ ENTRYPOINT.
 **-i**, **--interactive**=*true*|*false*
    When set to true, keep stdin open even if not attached. The default is false.
 
+**--ipc**=[]
+   Set the IPC mode for the container
+     **container**:<*name*|*id*>: reuses another container's IPC stack
+     **host**: use the host's IPC stack inside the container.  
+     Note: the host mode gives the container full access to local IPC and is therefore considered insecure.
+
 **--security-opt**=*secdriver*:*name*:*value*
     "label:user:USER"   : Set the label user for the container
     "label:role:ROLE"   : Set the label role for the container
@@ -183,10 +190,11 @@ and foreground Docker containers.
 
 **--net**="bridge"
    Set the Network mode for the container
-                               'bridge': creates a new network stack for the container on the docker bridge
-                               'none': no networking for this container
-                               'container:<name|id>': reuses another container network stack
-                               'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+   **bridge**: creates a new network stack for the container on the docker bridge
+   **none**: no networking for this container
+   **container**:<*name*|*id*>: reuses another container's network stack
+   **host**: use the host network stack inside the container.  
+   Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **--mac-address**=*macaddress*
    Set the MAC address for the container's Ethernet device:
@@ -309,6 +317,71 @@ If you do not specify -a then Docker will attach everything (stdin,stdout,stderr
 you’d like to connect instead, as in:
 
     # docker run -a stdin -a stdout -i -t fedora /bin/bash
+
+## Sharing IPC between containers
+
+Using shm_server.c available here: http://www.cs.cf.ac.uk/Dave/C/node27.html
+
+Testing `--ipc=host` mode:
+
+Host shows a shared memory segment with 7 pids attached, happens to be from httpd:
+
+```
+ $ sudo ipcs -m
+
+ ------ Shared Memory Segments --------
+ key        shmid      owner      perms      bytes      nattch     status      
+ 0x01128e25 0          root       600        1000       7                       
+```
+
+Now run a regular container, and it correctly does NOT see the shared memory segment from the host:
+
+```
+ $ sudo docker run -it shm ipcs -m
+
+ ------ Shared Memory Segments --------	
+ key        shmid      owner      perms      bytes      nattch     status      
+```
+
+Run a container with the new `--ipc=host` option, and it now sees the shared memory segment from the host httpd:
+
+ ```
+ $ sudo docker run -it --ipc=host shm ipcs -m
+
+ ------ Shared Memory Segments --------
+ key        shmid      owner      perms      bytes      nattch     status      
+ 0x01128e25 0          root       600        1000       7                   
+```
+Testing `--ipc=container:CONTAINERID` mode:
+
+Start a container with a program to create a shared memory segment:
+```
+ sudo docker run -it shm bash
+ $ sudo shm/shm_server &
+ $ sudo ipcs -m
+
+ ------ Shared Memory Segments --------
+ key        shmid      owner      perms      bytes      nattch     status      
+ 0x0000162e 0          root       666        27         1                       
+```
+Create a 2nd container correctly shows no shared memory segment from 1st container:
+```
+ $ sudo docker run shm ipcs -m
+
+ ------ Shared Memory Segments --------
+ key        shmid      owner      perms      bytes      nattch     status      
+```
+
+Create a 3rd container using the new --ipc=container:CONTAINERID option, now it shows the shared memory segment from the first:
+
+```
+ $ sudo docker run -it --ipc=container:ed735b2264ac shm ipcs -m
+ $ sudo ipcs -m
+
+ ------ Shared Memory Segments --------
+ key        shmid      owner      perms      bytes      nattch     status      
+ 0x0000162e 0          root       666        27         1
+```
 
 ## Linking Containers
 

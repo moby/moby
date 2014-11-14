@@ -1,10 +1,13 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/libcontainer/label"
 )
 
 func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
@@ -80,6 +83,12 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
+	if hostConfig != nil && config.SecurityOpt == nil {
+		config.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	if container, err = daemon.newContainer(name, config, img); err != nil {
 		return nil, nil, err
 	}
@@ -98,4 +107,21 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		return nil, nil, err
 	}
 	return container, warnings, nil
+}
+func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode) ([]string, error) {
+	if ipcMode.IsHost() {
+		return label.DisableSecOpt(), nil
+	}
+	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
+		c := daemon.Get(ipcContainer)
+		if c == nil {
+			return nil, fmt.Errorf("no such container to join IPC: %s", ipcContainer)
+		}
+		if !c.IsRunning() {
+			return nil, fmt.Errorf("cannot join IPC of a non running container: %s", ipcContainer)
+		}
+
+		return label.DupSecOpt(c.ProcessLabel), nil
+	}
+	return nil, nil
 }
