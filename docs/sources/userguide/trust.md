@@ -1,33 +1,68 @@
 # Docker Trust
 Docker uses a trust system based on public key cryptography and a global
-federated namespace to link users to keys and resources.
+federated namespace to link users to keys and resources. Users never need
+to share their private keys and retain full control of extended permissions.
 
 ## Login
 The `docker login` command can be used to register public keys with the trust
 system. By default every client and daemon instance of Docker will generate a
 public key and using `docker login` will register that public key with the
 credentials provided on login. By default `docker login` registers against
-Docker Hub using Docker Hub credentials. An authentication server URL may also
-be provided to register with.
+Docker Hub using Docker Hub credentials. A trust server URL may
+also be provided to register with.  The login command also supports setting
+a limited set of permission to the key, to keep the key from being able to
+perform any action on the users behalf.  The default permission is to be
+able to delegate any action, which includes extending permissions to other
+users.
 
-After logging in, the key identifier registered with authentication server will
-be stored in the local Docker configuration file (~/.dockercfg). If the
-authentication server does not support public key registration, the credentials
-will be stored in the configuration file.
+After logging in, the key identifier registered with trust server will be stored
+in the local Docker configuration file (`~/.dockercfg`). The trust server will
+return the grant created and added to the global trust graph by the server . The
+grant will contain the key id, user namespace, and the actions delegated to the
+key. If the login server is not a trust server and does not support public key
+registration, the credentials will be stored in the configuration file.
+
+## Grant
+The `docker grant` command can be used to extend permission in the trust
+graph.  The `--delegate` flag can be used to allow the grant to be used to
+create further grants.  The `--grantee` flag is used to set the grantee which
+will be given permission.  The `--subject` flag is used to specify what 
+element within the namespace the grantee is given permission to.
+
+~~~~
+# Grants user jlhawn access to push to any repository under dmcgowan
+# as well as extend that permission to others
+docker grant push --delegate --grantee jlhawn --subject dmcgowan
+
+# Grants user jlhawn access to push to the repository name
+# dmcgowan/my-app
+docker grant push --grantee jlhawn --subject dmcgowan/my-app
+
+# Grants user jlhawn access to push and pull to the repository name
+# dmcgowan/my-app
+docker grant push pull --grantee jlhawn --subject dmcgowan/my-app
+
+# Effectively giving jlhawn full access to the dmcgowan namespace
+docker grant all --delegate --grantee jlhawn --subject dmcgowan
+~~~~
 
 ## Trust Graph
 
 ### Terminology
 - **delegation** Extension of identity between two entities which would
-otherwise have no association
+otherwise have no association.
 - **global namespace** A hierachical set of entities capable of referencing
 each other by a '/' separated path string. Top level namespace entities may
 represent users or groups which parent its sub namespace.
+- **grant** An extension of permission between two entities along with
+a set of verbs and a delegation flag.  When the delegation flag is given,
+the grant may be used to create further grants.  A grant contains a 
+subject namespace, grantee, set of verbs, and delegation flag.
 - **graph provider** Provides graph links to clients to populate the client's
-local graph.
+local graph.  Links are provided as an array of grants.
 - **graph link** Connects two entities in the namespace by a directed edge
 containing a verb string. Since links are directed edges, a link may only be
-walked in one direction.
+walked in one direction.  Every link is associated with at least one grant.
 - **namespace element** An entity identified by a path with '/' separated
 elements. The path is hierarchical with the left-most elements representing
 parents of elements on its right (e.g. `/someuser/some-app` may represent an
@@ -38,35 +73,36 @@ temporarily by a link marking its deletion.
 - **trust graph** A collection of graph links which may be walked between any
 two nodes. A trust graph will not contain dangling nodes since a node's
 existance is marked by the existance of a link referencing it.
-- **trust server** A graph provider which returns graph links given signed
-content.
+- **trust server** A graph provider which returns grants given signed
+content.  The trust server also accepts new grants from clients and can
+generate grants associating keys to a namespace element. 
 - **verb** A string representing an action allowed (or disallowed for
 revocation) by a graph link. The verb can be used to translate a link to
 "subject verb object" with the object representing the element being directed
-to and subject the element being directed from (e.g. "user-1 delegates to
-public-key-1" would be represented by a link with the verb "delegate" and
-direction from "/user1" to "public-key-1").
+to and subject the element being directed from (e.g. "user-1 delegates pull to
+public-key-1" would be represented by a link with the verb "pull" with the
+delegate flag set and direction from "/user1" to "public-key-1").
 
 ### Description
-The trust graph is collection of links between elements in the global
-namespace. Every node in the graph represents a namespace element which may be
-a public key, user, group, or resources. Every link between two nodes is
-directed and contains a verb signifying what permission is being extended.
+The trust graph is collection of grants used to form links between elements in
+the global namespace. Every node in the graph represents a namespace element
+which may be a public key, user, group, or resources. Every link between two
+nodes is directed and contains a verb signifying what permission is being
+extended and a flag to determine whether further extension is permitted.
 When a key is registered to credentials at login, a link is inserted into the
 trust graph associating the public key with the user owning the credentials.
-Additionally, users can be linked to linked to other resources or groups.
+Additionally, users can be linked to other resources or groups.
 
 ### Delegation
-The "delegate" verb is used to indicate identity extension between nodes, most
+The "delegate" flag is used to indicate grant extension between nodes, most
 commonly used to link a public key to user. Once a user has delegated to a
-public key, that public key may be used with any permission given to the user.
-In order to use a public key in the system, a signature or challenege is used
-to prove possession of the associated private key.
+public key, that public key may be used to grant permission to other namespace
+elements.
 
 ### Revocation
 A revocation removes a link in the graph and creates a temporary link
-indicating the revocation. These revocation links are cleaned up after time.
-These revocations are not cleaned up immediately to allow propogation to graph
+indicating the revocation. These revocation links may be cleaned up after time.
+These revocations are not cleaned up immediately to allow propagation to graph
 caches.
 
 ### Verification
@@ -75,24 +111,23 @@ key, the relevant element, and a target verb from the content. The graph will
 be walked from public key to the relevant element, only using links that allow
 the needed verb. When the target element is part of a child namespace of a
 reached node, that parent node will be used. If a path is found between the
-elements, the content is considered verified. By requiring signed content  the
+elements, the content is considered verified. By requiring signed content the
 public key will always be the starting point for verification and will disallow
 arbitrarily walking the graph without permission originating from the private
 key. For verifying build manifests, the public key is the signer, the verb
 will be "build", and the relevant content is the image name.
 
 ### Local caching
-While the trust graph can be considered global, its size is too large propagate
-to every client wishing to check permissions against the graph. Likewise not
-all permissions are intended to be shared publicly and should only be shared
-with an audience verifying content which requires those permissions. Trust
-clients will be able to send signed content to a graph provider (called a Trust
-Server) which will verify the content and return the links in the graph which
-are needed to verify the content. The links will be loaded into a local trust
-graph and verification will be done directly against the local graph. These
-links can be cached for a period of time allowing for subsequent queries for
-the same content or content with the same permissions to skip calling the graph
-provider.
+While the trust graph can be considered global, its size is too large to
+propagate to every client wishing to check permissions against the graph.
+Likewise not all permissions are intended to be shared publicly and should only
+be shared with an audience verifying content which requires those permissions.
+Trust clients will be able to send signed content to a graph provider which will
+verify the content and return the links (grants) in the graph which are needed
+to verify the content. The grants will be loaded into a local trust graph and
+verification will be done directly against the local graph. These grants can be
+cached for a period of time allowing for subsequent queries for the same content
+or content with the same permissions to skip calling the graph provider.
 
 ### Sub Graphs
 The global graph may be a collection of public top level elements as well as
@@ -103,34 +138,26 @@ graph providers will be able to provide links to local trust clients such that
 local clients can do verification. Graph providers must allow for a single
 graph traversal to span multiple providers.
 
-## Trust Management
-Management of links within the global graph will be provided by a separate web
-service (e.g. Docker Hub) or in the future a tool (e.g. CLI) which communicates
-to a graph management server using a defined API. Sub graph providers may use
-their own databases as the source of the links which would need to provide its
-own management system.
-
-### Graph Management API
-*FIXME needs definition*
-
 ## Trust Server
 The trust server is a service used to extend a local trust graph to a larger
 shared graph. Signed content is sent to the trust server and it returns graph
 links which can be used locally for verification. The trust server can
 understand multiple content types (e.g. build manifest, JWT) and extract the
-graph information needed to provide the links. The returned links are signed
-by the trust server as proof of authenticity and prevent transport tampering
-(even through an unsecure proxy).  The statements are signed by an X509
-certificate which changes to a root CA configured into Docker, allowing the
-statements to be shared and cached safely. Trust servers which are graph
-providers for a sub graph will sign with an X509 certificate defining the sub
-graph namespace, allowing for querying any trust server without the possibility
-of the trust server providing graph links which do not belong to its namespace.
-
-The trust server is not a database not does it provide a key management API.
-Rather the trust server connects to a graph data backend through a trusted
-connection to find graph links. This data source must be manage separately and
-will be pluggable into the trust server.
+graph information needed to provide the grants.  The trust server accepts new
+grants which are signed by the client and sent the trust server. The trust
+server verifieds grants, and updates its trust graph. The client may also send
+up a set a credentials to link to its public key, in which case the trust server
+will create a grant, add it to its trust server, and returns the grant to the
+client. These grants are signed by an x509 certificate which chains to a root
+CA configured into Docker.  This certificate ensures that the trust server is
+only able to create grants within a specific namespace. Since these grants are
+the starting point for trust verifications and easily verified, they may be
+shared and cached safely.  A trust server will also be able to use its
+certificate to generate a request for additional grants and send them to other
+trust servers. Each trust server will be able to verify the trust server is
+requesting grants related to a section of the namespace their certificate has
+limited them to. The graph backends to the trust server as well as credential
+store used to check before grant generation will be pluggable.
 
 ### Design
 
@@ -148,36 +175,79 @@ system by making it impossible to scrape the system for information which is
 not already public. This also allows querying without additional authorization
 since having possession of the content grants access to the links to verify it.
 
+#### Query Result
 
-#### Statement
-
-The Trust Server returns a signed statement containing a list of relevant graph
-edges needed to traverse the graph for a given query. The statement contains
-both a list of additive and revocation permissions. Every statement has an
+The Trust Server returns an array of grants representing the list of relevant
+graph edges needed to traverse the graph for a given query. The array contains
+both a list of revocation and non-revocation grants. Every grant may have an
 expiration which is expected to be cached for repeat queries of the same
-content. Revocations should be included for up to the expiration time to
-ensure any valid cached data may be overridden. The signature on the
-statements should chain to the root Docker CA configured for the engine.
+content. Revocations should be included for up to the expiration time of the
+grant is revoking to ensure any valid cached data may be overridden. The
+signature on the key grants should chain to the root Docker CA configured for
+the engine.  
 
-Example
+### Grant
+
+A grant is represented by a JSON Web Signature with the content being a 
+grant JSON object and signature by a key authorized to make the grant.  The
+key may be a key which has been delegated to the subject namespace or an x509
+certificate which has authority over the subject namespace.
+
+Grant object
+
+user1 allows user2 to build and pull
 ~~~~
 {
-   "revocations": [
-      {
-         "subject": "/other",
-         "scope": ["build"],
-         "grantee": "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL"
-      }
-   ],
-   "grants": [
-      {
-         "subject": "/library",
-         "scope": ["build"],
-         "grantee": "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL"
-      }
-   ],
+   "subject": "user1",
+   "scope": ["build", "pull"],
+   "delegated": false,
+   "revoked": false,
+   "grantee": "user2",
    "expiration": "2014-12-29T00:08:20.565183779Z",
-   "issuedAt": "2014-09-30T00:08:20.565183976Z",
+   "issuedAt": "2014-09-30T00:08:20.565183976Z"
+}
+~~~~
+
+user2 delegates to key
+~~~~
+{
+   "subject": "user2",
+   "scope": ["any"],
+   "delegated": true,
+   "revoked": false,
+   "grantee": "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL",
+   "expiration": "2014-12-29T00:08:20.565183779Z",
+   "issuedAt": "2014-09-30T00:08:20.565183976Z"
+}
+~~~~
+
+User created grant
+~~~~
+{
+   "payload": "ew0KICAgInN1YmplY3QiOiAidXNlcjIiLA0KICAgInNjb3BlIjogWyJhbnki...",
+   "signatures": [
+      {
+         "header": {
+            "jwk": {
+               "crv": "P-256",
+               "kty": "EC",
+               "x": "Cu_UyxwLgHzE9rvlYSmvVdqYCXY42E9eNhBb0xNv0SQ",
+               "y": "zUsjWJkeKQ5tv7S-hl1Tg71cd-CqnrtiiLxSi6N_yc8"
+            },
+            "alg": "ES256",
+            "cty": "json/trust+grant"
+         },
+         "signature": "sgbJD2AJ-2Lu6KpbthnUyB6vSr9uVUAV9Cx8QtfA-0Gw...",
+         "protected": "eyJmb3JtYXRMZW5ndGgiOjEzMDM4LCJmb3JtYXRUYWls..."
+      }
+   ]
+}
+~~~~
+
+Trust Server created key grant
+~~~~
+{
+   "payload": "ew0KICAgInN1YmplY3QiOiAidXNlcjIiLA0KICAgInNjb3BlIjogWyJhbnki...",
    "signatures": [
       {
          "header": {
@@ -185,7 +255,8 @@ Example
             "x5c": [
                "MIIBnTCCA...",
                "MIIBnjC..."
-            ]
+            ],
+            "cty": "json/trust+grant"
          },
          "signature": "uYMwXO86...",
          "protected": "eyJmb3JtY..."
@@ -202,12 +273,10 @@ subject ends with a “/” the scope applies to all child elements.
 ##### Example Scopes
 build - scope used for verifying build manifests
 connect - scope used for allowing connections to host or service
+pull - scoped used to allow pulling of a private image
 
 ##### Reserved Scopes
-any - Allows any scope except delegate
-delegate - Allows delegation of any scope (implies “any” on entire subtree)
-delegate_* - Allows delegation only on a specific scope (applies to entire
-subtree)
+any - Allows any scope
 
 #### Subject
 The subject is the namespace in which the scope may be applied. When chaining
@@ -223,13 +292,27 @@ grantee should always be authenticated by the service consuming the trust graph.
 
 #### API
 The Trust Server can have one or multiple ways to make queries. The socket
-must be over TLS to prevent MITM sniffing of sent content,  a false statement
-cannot be generated through MITM.
+must be over TLS to prevent MITM sniffing of sent content.  Because grants are
+by definition shareable and self verifiable, a MITM will be unable to create
+or alter statements.  However TLS should still be used to ensure that a MITM
+cannot remove revocation statements.
 
 ##### via REST
-The Trust Server has a single endpoint which accepts signed content via the
-request body and returns an array of statements via the response body.
-`POST /graph/`
+
+
+`POST /graph/` - Query the graph for grants
+
+The Trust Server has a single endpoint for graph queries which accepts signed
+content via the request body and returns an array of statements via the response
+body.
+
+`POST /grants/` - Add grant to trust graph
+
+Request body contains a signed grant, no response body is expected.
+
+`POST /keys/<namespace>` - Create grant to associate public key with user
+
+Request body is public key to associate with account. Returns grant created.
 
 #### Namespacing
 Any given trust server may be responsible for the entire or subset of the
@@ -238,44 +321,31 @@ unowned, the trust server should be able to proxy requests other trust servers.
  This means the trust server will need to be configured to know about other
 trust servers and which namespace those trust servers are responsible for.
 
-#### Top Level Namespaces
-The top level namespace will not only be important for determining whether a
-X509 certificate has authority, but to categorize elements in the namespace.
-For example keys and users have a specific relationship where users delegate to
-keys. By proving ownership of a key, a delegation can give access to user.
-However delegations should never go in the reverse direction, in which case a
-key delegates to a user, giving that user access to anyone who delegates to
-that key. Since keys should never be the subject of a grant, no certificate
-should have authority over keys, meaning keys are in a separate top level
-namespace. The keys top level namespace will be “/keys”, while users will be
-under a separate top level namespace such as “/object” or “/docker”. The same
-could be true of emails which are granted authority through ownership of a DNS
-domain, not by the x509 certificate.
-
 #### Caching
-Statements may be cached to disk and reloaded until the statement is expired.
+Grants may be cached to disk and reloaded until the statement is expired.
 After expiration the statement may still be used while offline, but once online
-should requery to get an updated statement which may account for any
-revocations. The caching/requerying interval will balance security and
-performance.
+should requery to get any revocations. The caching/requerying interval will
+balance security and performance.
 
 #### Chain of Trust
-Statements returned by the trust server will be signed by a leaf certificate in
+Grants generated by the trust server will be signed by a leaf certificate in
 an x509 chain. All intermediate certificates will be listed in the “x5c”
 section of the JSON web signature to allow chaining to the root. The libtrust
-client will need to have the x509 root certificate to verify statements. Once
-a statement has been received it may be cached or exported/imported since it
-will remain verifiable up until the statement expires.
+client will need to have the x509 root certificate to verify statements.
+Grants may be cached or exported/imported and remain verifiable against the
+chain of trust.
 
 #### Backends
-The trust server should have a pluggable interface to the graph data source.
-The implementation of the graph queries is up to implementation of the
-interface. The query to the backend is expected to be pre-authorized, no
-credentials will be provided to plugins.
+The trust server should have a pluggable interface to the graph datastore.
+The implementation of the graph queries and updates are up to implementation of
+the interface. The query to the backend is expected to be pre-authorized, no
+credentials will be provided to plugins. The credential store to check username
+and password will also be pluggable and have an interface separate from the
+graph datastore.
 
 #### Backend Interface
-The backend interface will be communicated over libchan using a job model and
-libchan objects as returned values. Using libchan will allow the interface to
+The backend interface will be communicated over libchan using libchan supported
+objects as returned values. Using libchan will allow the interface to
 be pluggable either in process or by a subprocess/container.
 
 ### Concerns
@@ -298,7 +368,7 @@ proxying to multiple trust servers).
 - Caching can keep revocations from getting picked up by clients. The
 expiration time should be balanced to ensure that revocations take effect.
 Revocations only need to be kept long enough to ensure that any previous
-statements concerning the subject have expired.
+grants concerning the subject have expired.
 
 
 ### Open Design Questions
@@ -313,12 +383,8 @@ statements be passed on as is or combined. Combining may not be possible if a
 trust server own only a subset and is not authorized to sign on the content it
 received.
 
-- Do revocations need to stay around longer to act as limiters on permissive
-scopes (grant all to subtree except a specific element)?
-
-### Open source implementation
-Currently no open source implementation of the Trust Server exists.  Once a
-pluggable backend interface is designed it may be easily built using libtrust.
+- Do revocations need to stay around longer to ensure that any grant, even
+ones unknown by the trust server, are overrode?
 
 ## libtrust
 Libtrust provides a Go implementation of the trust graph for use as a local
