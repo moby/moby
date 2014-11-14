@@ -6,17 +6,25 @@ feels wrong or incomplete.
 
 ## Topics
 
-* [Security Reports](#security-reports)
+* [Reporting Security Issues](#reporting-security-issues)
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
 * [Reporting Issues](#reporting-issues)
 * [Build Environment](#build-environment)
 * [Contribution Guidelines](#contribution-guidelines)
 * [Community Guidelines](#docker-community-guidelines)
 
-## Security Reports
+## Reporting Security Issues
 
-Please **DO NOT** file an issue for security related issues. Please send your
-reports to [security@docker.com](mailto:security@docker.com) instead.
+The Docker maintainers take security very seriously. If you discover a security issue,
+please bring it to their attention right away!
+
+Please send your report privately to [security@docker.com](mailto:security@docker.com),
+please **DO NOT** file a public issue.
+
+Security reports are greatly appreciated and we will publicly thank you for it. We also
+like to send gifts - if you're into Docker shwag make sure to let us know :)
+We currently do not offer a paid security bounty program, but are not ruling it out in
+the future.
 
 ## Design and Cleanup Proposals
 
@@ -39,6 +47,10 @@ When considering a cleanup task, we are looking for:
   * Your pull request must remain up to date with master, so rebase as necessary.
 
 ## Reporting Issues
+
+A great way to contribute to the project is to send a detailed report when you
+encounter an issue. We always appreciate a well-written, thorough bug report,
+and will thank you for it!
 
 When reporting [issues](https://github.com/docker/docker/issues) on
 GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc).
