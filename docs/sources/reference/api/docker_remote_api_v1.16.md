@@ -1595,6 +1595,58 @@ Status Codes:
 -   **201** – no error
 -   **404** – no such exec instance
 
+### Exec Stop
+
+`POST /exec/(id)/stop`
+
+Stop the exec command `id`
+
+**Example request**:
+
+        POST /exec/e90e34656806/stop HTTP/1.1
+        Content-Type: plain/text
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: plain/text
+
+Query Parameters:
+
+-   **t** – number of seconds to wait before killing the exec command
+
+Status Codes:
+
+-   **204** – no error
+-   **404** – no such exec instance
+-   **500** – server error
+
+### Exec Kill
+
+`POST /exec/(id)/kill`
+
+Kill the exec command `id`
+
+**Example request**:
+
+        POST /exec/e90e34656806/kill HTTP/1.1
+        Content-Type: plain/text
+
+**Example response**:
+
+        HTTP/1.1 204 No Content
+
+Query Parameters:
+
+-   **signal** - Signal to send to the exec command: integer or string like "SIGINT".
+        When not set, SIGKILL is assumed and the call will waits for the exec command to exit.
+
+Status Codes:
+
+-   **204** – no error
+-   **404** – no such exec instance
+-   **500** – server error
+
 # 3. Going further
 
 ## 3.1 Inside `docker run`
