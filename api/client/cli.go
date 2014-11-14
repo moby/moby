@@ -145,7 +145,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 	if proto == "unix" {
 		// no need in compressing for local communications
 		tr.DisableCompression = true
-		tr.Dial = func(dial_network, dial_addr string) (net.Conn, error) {
+		tr.Dial = func(_, _ string) (net.Conn, error) {
 			return net.DialTimeout(proto, addr, timeout)
 		}
 	} else {
