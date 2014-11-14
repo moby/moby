@@ -257,6 +257,12 @@ Volumes are now initialized when the container is created.
 **New!**
 You can now copy data which is contained in a volume.
 
+`POST /build`
+
+**New!**
+This endpoint now optionally takes a serialized array of build-time environment
+variables.
+
 ## v1.15
 
 ### Full documentation

@@ -108,6 +108,9 @@ type builder struct {
 
 	Config *runconfig.Config // runconfig for cmd, run, entrypoint etc.
 
+	// build-time environment variables for expansion/substitution and commands in 'run'.
+	BuildEnv map[string]string
+
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 
@@ -320,13 +323,26 @@ func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	msgList := make([]string, n)
 
 	var i int
+	// Append the build-time environment to config-environment.
+	// This allows builder config to override the variables, making the behavior similar to
+	// a shell script i.e. `ENV foo bar` overrides value of `foo` passed in build
+	// context. But `ENV foo $foo` will use the value from build context if one
+	// isn't already been defined by a previous ENV primitive.
+	// Note, we get this behavior because we know that ProcessWord() will
+	// stop on the first occurrence of a variable name and not notice
+	// a subsequent one. So, putting the BuildEnv list after the Config.Env
+	// list, in 'envs', is safe.
+	envs := b.Config.Env
+	for key, val := range b.BuildEnv {
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+	}
 	for ast.Next != nil {
 		ast = ast.Next
 		var str string
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			var err error
-			str, err = ProcessWord(ast.Value, b.Config.Env)
+			str, err = ProcessWord(ast.Value, envs)
 			if err != nil {
 				return err
 			}

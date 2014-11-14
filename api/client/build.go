@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -62,6 +63,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+	flEnv := opts.NewListOpts(opts.ValidateEnv)
+	cmd.Var(&flEnv, []string{"-build-env"}, "Set build-time environment variables")
 
 	ulimits := make(map[string]*ulimit.Ulimit)
 	flUlimits := opts.NewUlimitOpt(ulimits)
@@ -297,6 +300,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
+
+	// collect all the build-time environment variables for the container
+	envVariables := runconfig.ConvertKVStringsToMap(flEnv.GetAll())
+	buf, err = json.Marshal(envVariables)
+	if err != nil {
+		return err
+	}
+	headers.Add("X-Docker-BuildEnv", base64.URLEncoding.EncodeToString(buf))
 
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")

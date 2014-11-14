@@ -1250,6 +1250,8 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	var (
 		authConfigs        = map[string]cliconfig.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
+		buildEnvEncoded    = r.Header.Get("X-Docker-BuildEnv")
+		buildEnv           = map[string]string{}
 		buildConfig        = builder.NewBuildConfig()
 	)
 
@@ -1259,6 +1261,13 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting
 			// to be empty.
+		}
+	}
+
+	if buildEnvEncoded != "" {
+		buildEnvJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(buildEnvEncoded))
+		if err := json.NewDecoder(buildEnvJson).Decode(&buildEnv); err != nil {
+			return err
 		}
 	}
 
@@ -1294,6 +1303,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+	buildConfig.BuildEnv = buildEnv
 
 	var buildUlimits = []*ulimit.Ulimit{}
 	ulimitsJson := r.FormValue("ulimits")

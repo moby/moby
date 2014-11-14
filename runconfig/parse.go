@@ -336,7 +336,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MacAddress:      *flMacAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		Labels:          convertKVStringsToMap(labels),
+		Labels:          ConvertKVStringsToMap(labels),
 		VolumeDriver:    *flVolumeDriver,
 	}
 
@@ -404,7 +404,7 @@ func readKVStrings(files []string, override []string) ([]string, error) {
 }
 
 // converts ["key=value"] to {"key":"value"}
-func convertKVStringsToMap(values []string) map[string]string {
+func ConvertKVStringsToMap(values []string) map[string]string {
 	result := make(map[string]string, len(values))
 	for _, value := range values {
 		kv := strings.SplitN(value, "=", 2)
@@ -419,7 +419,7 @@ func convertKVStringsToMap(values []string) map[string]string {
 }
 
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
-	loggingOptsMap := convertKVStringsToMap(loggingOpts)
+	loggingOptsMap := ConvertKVStringsToMap(loggingOpts)
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
 		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
 	}
