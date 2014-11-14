@@ -307,15 +307,15 @@ func RemoveDevice(name string) error {
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can not set cookie: %s", err)
 	}
+	defer UdevWait(cookie)
 
+	dmSawBusy = false // reset before the task is run
 	if err = task.Run(); err != nil {
 		if dmSawBusy {
 			return ErrBusy
 		}
 		return fmt.Errorf("Error running RemoveDevice %s", err)
 	}
-
-	UdevWait(cookie)
 
 	return nil
 }
@@ -543,7 +543,7 @@ func CreateDevice(poolName string, deviceId *int) error {
 			return fmt.Errorf("Can't set message %s", err)
 		}
 
-		dmSawExist = false
+		dmSawExist = false // reset before the task is run
 		if err := task.Run(); err != nil {
 			if dmSawExist {
 				// Already exists, try next id
@@ -638,7 +638,7 @@ func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 			return fmt.Errorf("Can't set message %s", err)
 		}
 
-		dmSawExist = false
+		dmSawExist = false // reset before the task is run
 		if err := task.Run(); err != nil {
 			if dmSawExist {
 				// Already exists, try next id
