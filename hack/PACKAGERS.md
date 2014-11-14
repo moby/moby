@@ -162,6 +162,12 @@ SELinux, you will need to use the `selinux` build tag:
 export DOCKER_BUILDTAGS='selinux'
 ```
 
+If your version of btrfs-progs is < 3.16.1 (also called btrfs-tools), then you
+will need the following tag to not check for btrfs version headers:
+```bash
+export DOCKER_BUILDTAGS='btrfs_noversion'
+```
+
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
