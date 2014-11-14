@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -32,6 +33,7 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
+	Checksum        string            `json:"checksum"`
 	Size            int64
 
 	graph Graph
@@ -77,19 +79,43 @@ func LoadImage(root string) (*Image, error) {
 	return img, nil
 }
 
+// StoreImage stores file system layer data for the given image to the
+// image's registered storage driver. Image metadata is stored in a file
+// at the specified root directory. This function also computes the TarSum
+// of `layerData` (currently using tarsum.dev).
 func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error {
 	// Store the layer
 	var (
-		size   int64
-		err    error
-		driver = img.graph.Driver()
+		size        int64
+		err         error
+		driver      = img.graph.Driver()
+		layerTarSum tarsum.TarSum
 	)
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		if size, err = driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+		layerDataDecompressed, err := archive.DecompressStream(layerData)
+		if err != nil {
 			return err
 		}
+
+		defer layerDataDecompressed.Close()
+
+		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.VersionDev); err != nil {
+			return err
+		}
+
+		if size, err = driver.ApplyDiff(img.ID, img.Parent, layerTarSum); err != nil {
+			return err
+		}
+
+		checksum := layerTarSum.Sum(nil)
+
+		if img.Checksum != "" && img.Checksum != checksum {
+			log.Warn("image layer checksum mismatch: computed %q, expected %q", checksum, img.Checksum)
+		}
+
+		img.Checksum = checksum
 	}
 
 	img.Size = size
