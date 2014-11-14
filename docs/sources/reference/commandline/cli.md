@@ -97,11 +97,14 @@ expect an integer, and they can only be specified once.
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
       --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
       --storage-opt=[]                           Set storage driver options
-      --tls=false                                Use TLS; implied by --tlsverify flag
-      --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here
-      --tlscert="/home/sven/.docker/cert.pem"    Path to TLS certificate file
-      --tlskey="/home/sven/.docker/key.pem"      Path to TLS key file
-      --tlsverify=false                          Use TLS and verify the remote (daemon: verify client, client: verify daemon)
+      --auth="none"                              Set authentication method when using tcp socket host value in -H or --host (none, identity, cert)
+      --auth-ca=""                               Path to CA certificate when using `cert` auth, only remotes providing a certificate signed by this CA are trusted
+      --auth-cert=""                             Path to TLS certificate file when using `cert` auth
+      --auth-key=""                              Path to TLS key file when using `cert` auth
+      --auth-authorized-keys=""                  Path to authorized keys file containing client whitelist when using `identity` auth
+                                                   defaults to "~/.docker/authorized-keys.json"
+      --auth-known-hosts=""                      Path to known hosts file containing list of daemon public key fingerprints when using `identity` auth
+                                                   defaults to "~/.docker/known-hosts.json"
       -v, --version=false                        Print version information and quit
 
 Options with [] may be specified multiple times.
@@ -159,9 +162,9 @@ the `-H` flag for the client.
     # both are equal
 
 Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than the empty
-string is equivalent to setting the `--tlsverify` flag. The following are equivalent:
+string is equivalent to setting the `--auth=cert` flag. The following are equivalent:
 
-    $ sudo docker --tlsverify ps
+    $ sudo docker --auth=cert ps
     # or
     $ export DOCKER_TLS_VERIFY=1
     $ sudo docker ps

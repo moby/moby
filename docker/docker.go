@@ -80,7 +80,6 @@ func main() {
 		}
 		flHosts = append(flHosts, defaultHost)
 	}
-	*flTlsVerify = true
 
 	if *flDaemon {
 		mainDaemon()

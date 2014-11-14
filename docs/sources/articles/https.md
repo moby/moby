@@ -21,8 +21,8 @@ authorize connections.  Using this method requires additional setup to enable
 client authentication.
 
 The authentication method is selected using the `--auth` flag with values
- `identity`, `cert`, or `none` . `identity` is the default method and `none`
-should only be used with caution.
+ `identity`, `cert`, or `none` . `none` is the current default method but
+`identity` will become the default in a future version.
 
 ## Identity-based authentication
 
@@ -32,7 +32,7 @@ trusts a fingerprint of the daemon’s public key. If they do, the public key wi
 be stored so it does not prompt on subsequent connections. For the daemon
 to authenticate the client, each client automatically generates its own
 key (~/.docker/key.json) which is presented to the daemon and checked
-against a list of keys authorized to connect (~/.docker/authorized_keys.json).
+against a list of keys authorized to connect (~/.docker/authorized-keys.json).
 
 To enable identity-based authentication, add the flag `--auth=identity`.
 The default identity and authorization files may be overridden through the
@@ -43,7 +43,7 @@ private key and its fingerprint is used by the daemon to identify the client.
 This file should be secured.
  - `--auth-authorized-keys` - specifies the client whitelist.  This is a daemon
 configuration and should have its write permissions restricted.
- - `--auth-allowed-host` - specifies the list of daemon public key fingerprints
+ - `--auth-known-hosts` - specifies the list of daemon public key fingerprints
 which have been approved by the user and the host name associated with
 each fingerprint.
 
