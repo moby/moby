@@ -3,28 +3,19 @@ package portallocator
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 	"sync"
+
+	"github.com/docker/docker/daemon/networkdriver/allocator"
 )
 
-type portMap struct {
-	p    map[int]struct{}
-	last int
-}
-
-func newPortMap() *portMap {
-	return &portMap{
-		p:    map[int]struct{}{},
-		last: EndPortRange,
-	}
-}
-
-type protoMap map[string]*portMap
+type protoMap map[string]*allocator.Allocator
 
 func newProtoMap() protoMap {
 	return protoMap{
-		"tcp": newPortMap(),
-		"udp": newPortMap(),
+		"tcp": allocator.NewAllocator(big.NewInt(BeginPortRange), big.NewInt(EndPortRange)),
+		"udp": allocator.NewAllocator(big.NewInt(BeginPortRange), big.NewInt(EndPortRange)),
 	}
 }
 
@@ -97,18 +88,25 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	}
 	mapping := protomap[proto]
 	if port > 0 {
-		if _, ok := mapping.p[port]; !ok {
-			mapping.p[port] = struct{}{}
+		if err := mapping.Allocate(portToBigInt(port)); err == nil {
 			return port, nil
 		}
 		return 0, NewErrPortAlreadyAllocated(ipstr, port)
 	}
 
-	port, err := mapping.findPort()
+	allocatedPort, err := mapping.AllocateFirstAvailable()
 	if err != nil {
-		return 0, err
+		return 0, ErrAllPortsAllocated
 	}
-	return port, nil
+	return bigIntToPort(allocatedPort), nil
+}
+
+func bigIntToPort(value *big.Int) int {
+	return int(value.Int64())
+}
+
+func portToBigInt(port int) *big.Int {
+	return big.NewInt(int64(port))
 }
 
 // ReleasePort releases port from global ports pool for specified ip and proto.
@@ -119,33 +117,21 @@ func ReleasePort(ip net.IP, proto string, port int) error {
 	if ip == nil {
 		ip = defaultIP
 	}
-	protomap, ok := globalMap[ip.String()]
-	if !ok {
-		return nil
+	if protomap, ok := globalMap[ip.String()]; ok {
+		protomap[proto].Release(portToBigInt(port))
 	}
-	delete(protomap[proto].p, port)
 	return nil
 }
 
 // ReleaseAll releases all ports for all ips.
 func ReleaseAll() error {
 	mutex.Lock()
+	for _, ipmap := range globalMap {
+		for _, allocator := range ipmap {
+			allocator.ReleaseAll()
+		}
+	}
 	globalMap = ipMapping{}
 	mutex.Unlock()
 	return nil
-}
-
-func (pm *portMap) findPort() (int, error) {
-	for port := pm.last + 1; port != pm.last; port++ {
-		if port > EndPortRange {
-			port = BeginPortRange
-		}
-
-		if _, ok := pm.p[port]; !ok {
-			pm.p[port] = struct{}{}
-			pm.last = port
-			return port, nil
-		}
-	}
-	return 0, ErrAllPortsAllocated
 }

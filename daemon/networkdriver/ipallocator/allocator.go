@@ -8,35 +8,22 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver"
+	"github.com/docker/docker/daemon/networkdriver/allocator"
 )
 
-// allocatedMap is thread-unsafe set of allocated IP
-type allocatedMap struct {
-	p     map[string]struct{}
-	last  *big.Int
-	begin *big.Int
-	end   *big.Int
-}
-
-func newAllocatedMap(network *net.IPNet) *allocatedMap {
+func netRange(network *net.IPNet) (*big.Int, *big.Int) {
 	firstIP, lastIP := networkdriver.NetworkRange(network)
 	begin := big.NewInt(0).Add(ipToBigInt(firstIP), big.NewInt(1))
 	end := big.NewInt(0).Sub(ipToBigInt(lastIP), big.NewInt(1))
-
-	// if IPv4 network, then allocation range starts at begin + 1 because begin is bridge IP
-	if len(firstIP) == 4 {
-		begin = begin.Add(begin, big.NewInt(1))
-	}
-
-	return &allocatedMap{
-		p:     make(map[string]struct{}),
-		begin: begin,
-		end:   end,
-		last:  big.NewInt(0).Sub(begin, big.NewInt(1)), // so first allocated will be begin
-	}
+	return begin, end
 }
 
-type networkSet map[string]*allocatedMap
+func newAllocator(network *net.IPNet) *allocator.Allocator {
+	begin, end := netRange(network)
+	return allocator.NewAllocator(begin, end)
+}
+
+type networkSet map[string]*allocator.Allocator
 
 var (
 	ErrNoAvailableIPs           = errors.New("no available ip addresses on network")
@@ -61,19 +48,20 @@ func RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
 	if _, ok := allocatedIPs[key]; ok {
 		return ErrNetworkAlreadyRegistered
 	}
-	n := newAllocatedMap(network)
-	beginIP, endIP := networkdriver.NetworkRange(subnet)
-	begin := big.NewInt(0).Add(ipToBigInt(beginIP), big.NewInt(1))
-	end := big.NewInt(0).Sub(ipToBigInt(endIP), big.NewInt(1))
+
+	// if IPv4 network, then allocation range starts at begin + 1 because begin is bridge IP
+	begin, end := netRange(network)
+	if len(begin.Bytes()) == 4 {
+		begin = begin.Add(begin, big.NewInt(1))
+	}
 
 	// Check that subnet is within network
-	if !(begin.Cmp(n.begin) >= 0 && end.Cmp(n.end) <= 0 && begin.Cmp(end) == -1) {
+	subBegin, subEnd := netRange(subnet)
+	if !(subBegin.Cmp(begin) >= 0 && subEnd.Cmp(end) <= 0 && subBegin.Cmp(subEnd) == -1) {
 		return ErrBadSubnet
 	}
-	n.begin.Set(begin)
-	n.end.Set(end)
-	n.last.Sub(begin, big.NewInt(1))
-	allocatedIPs[key] = n
+
+	allocatedIPs[key] = newAllocator(subnet)
 	return nil
 }
 
@@ -87,14 +75,35 @@ func RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
 	key := network.String()
 	allocated, ok := allocatedIPs[key]
 	if !ok {
-		allocated = newAllocatedMap(network)
+		// if IPv4 network, then allocation range starts at begin + 1 because begin is bridge IP
+		begin, end := netRange(network)
+		if len(begin.Bytes()) == 4 {
+			begin = begin.Add(begin, big.NewInt(1))
+		}
+		allocated = allocator.NewAllocator(begin, end)
 		allocatedIPs[key] = allocated
 	}
 
 	if ip == nil {
-		return allocated.getNextIP()
+		next, err := allocated.AllocateFirstAvailable()
+		if err != nil {
+			return nil, ErrNoAvailableIPs
+		}
+		return bigIntToIP(next), nil
 	}
-	return allocated.checkIP(ip)
+
+	if err := allocated.Allocate(ipToBigInt(ip)); err != nil {
+		return nil, ErrIPAlreadyAllocated
+	}
+
+	pos := ipToBigInt(ip)
+	// Verify that the IP address is within our network range.
+	begin, end := netRange(network)
+	if pos.Cmp(begin) == -1 || pos.Cmp(end) == 1 {
+		return nil, ErrIPOutOfRange
+	}
+
+	return ip, nil
 }
 
 // ReleaseIP adds the provided ip back into the pool of
@@ -103,44 +112,9 @@ func ReleaseIP(network *net.IPNet, ip net.IP) error {
 	lock.Lock()
 	defer lock.Unlock()
 	if allocated, exists := allocatedIPs[network.String()]; exists {
-		delete(allocated.p, ip.String())
+		allocated.Release(ipToBigInt(ip))
 	}
 	return nil
-}
-
-func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
-	if _, ok := allocated.p[ip.String()]; ok {
-		return nil, ErrIPAlreadyAllocated
-	}
-
-	pos := ipToBigInt(ip)
-	// Verify that the IP address is within our network range.
-	if pos.Cmp(allocated.begin) == -1 || pos.Cmp(allocated.end) == 1 {
-		return nil, ErrIPOutOfRange
-	}
-
-	// Register the IP.
-	allocated.p[ip.String()] = struct{}{}
-	allocated.last.Set(pos)
-
-	return ip, nil
-}
-
-// return an available ip if one is currently available.  If not,
-// return the next available ip for the nextwork
-func (allocated *allocatedMap) getNextIP() (net.IP, error) {
-	for pos := big.NewInt(0).Add(allocated.last, big.NewInt(1)); pos.Cmp(allocated.last) != 0; pos.Add(pos, big.NewInt(1)) {
-		if pos.Cmp(allocated.end) == 1 {
-			pos.Set(allocated.begin)
-		}
-		if _, ok := allocated.p[bigIntToIP(pos).String()]; ok {
-			continue
-		}
-		allocated.p[bigIntToIP(pos).String()] = struct{}{}
-		allocated.last.Set(pos)
-		return bigIntToIP(pos), nil
-	}
-	return nil, ErrNoAvailableIPs
 }
 
 // Converts a 4 bytes IP into a 128 bit integer
