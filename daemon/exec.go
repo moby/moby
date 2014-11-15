@@ -140,6 +140,8 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 		Running:       false,
 	}
 
+	container.LogEvent("exec create: " + execConfig.ProcessConfig.Entrypoint + " " + strings.Join(execConfig.ProcessConfig.Arguments, " "))
+
 	d.registerExecCommand(execConfig)
 
 	job.Printf("%s\n", execConfig.ID)
@@ -177,6 +179,8 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 
 	log.Debugf("starting exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
 	container := execConfig.Container
+
+	container.LogEvent("exec start: " + execConfig.ProcessConfig.Entrypoint + " " + strings.Join(execConfig.ProcessConfig.Arguments, " "))
 
 	if execConfig.OpenStdin {
 		r, w := io.Pipe()
