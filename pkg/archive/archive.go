@@ -192,20 +192,11 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 
 	hdr.Name = name
 
-	var (
-		nlink uint32
-		inode uint64
-	)
-	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-		nlink = uint32(stat.Nlink)
-		inode = uint64(stat.Ino)
-		// Currently go does not fill in the major/minors
-		if stat.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
-			stat.Mode&syscall.S_IFCHR == syscall.S_IFCHR {
-			hdr.Devmajor = int64(major(uint64(stat.Rdev)))
-			hdr.Devminor = int64(minor(uint64(stat.Rdev)))
-		}
+	nlink, inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
+	if err != nil {
+		return err
 	}
+
 	// if it's a regular file and has more than 1 link,
 	// it's hardlinked, so set the type flag accordingly
 	if fi.Mode().IsRegular() && nlink > 1 {
@@ -291,7 +282,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			mode |= syscall.S_IFIFO
 		}
 
-		if err := syscall.Mknod(path, mode, int(mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
+		if err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
 			return err
 		}
 

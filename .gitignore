@@ -4,6 +4,7 @@
 .vagrant*
 bin
 docker/docker
+*.exe
 .*.swp
 a.out
 *.orig

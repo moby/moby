@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 
@@ -151,13 +151,13 @@ func ValidatePath(val string) (string, error) {
 	splited := strings.SplitN(val, ":", 2)
 	if len(splited) == 1 {
 		containerPath = splited[0]
-		val = filepath.Clean(splited[0])
+		val = path.Clean(splited[0])
 	} else {
 		containerPath = splited[1]
-		val = fmt.Sprintf("%s:%s", splited[0], filepath.Clean(splited[1]))
+		val = fmt.Sprintf("%s:%s", splited[0], path.Clean(splited[1]))
 	}
 
-	if !filepath.IsAbs(containerPath) {
+	if !path.IsAbs(containerPath) {
 		return val, fmt.Errorf("%s is not an absolute path", containerPath)
 	}
 	return val, nil

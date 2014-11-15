@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"text/tabwriter"
 	"text/template"
 	"time"
@@ -608,7 +607,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	signal.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
-			if s == syscall.SIGCHLD {
+			if s == signal.SIGCHLD {
 				continue
 			}
 			var sig string
@@ -619,7 +618,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				log.Errorf("Unsupported signal: %d. Discarding.", s)
+				log.Errorf("Unsupported signal: %v. Discarding.", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
 				log.Debugf("Error sending signal: %s", err)
@@ -2184,7 +2183,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 		flName = cmd.String([]string{"-name"}, "", "Assign a name to the container")
 	)
 
-	config, hostConfig, cmd, err := runconfig.Parse(cmd, args, nil)
+	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
 		return err
 	}
@@ -2220,7 +2219,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
-	config, hostConfig, cmd, err := runconfig.Parse(cmd, args, nil)
+	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
 		return err
 	}
