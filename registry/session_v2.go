@@ -34,7 +34,7 @@ func newV2RegistryRouter() *mux.Router {
 	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9._+-]+}").Name("uploadBlob")
 
 	// Mounting a blob in an image
-	v2Router.Path("/mountblob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9._+-]+}/{sum:[a-fA-F0-9]{4,}}").Name("mountBlob")
+	v2Router.Path("/blob/{imagename:[a-z0-9-._/]+}/{sumtype:[a-z0-9._+-]+}/{sum:[a-fA-F0-9]{4,}}").Name("mountBlob")
 
 	return router
 }
@@ -184,7 +184,7 @@ func (r *Session) PostV2ImageMountBlob(imageName, sumType, sum string, token []s
 	case 200:
 		// return something indicating no push needed
 		return true, nil
-	case 300:
+	case 404:
 		// return something indicating blob push needed
 		return false, nil
 	}

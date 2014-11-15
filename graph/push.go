@@ -358,12 +358,22 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 				return job.Errorf("Could not get tar layer: %s", err)
 			}
 
-			_, err = r.PutV2ImageBlob(remoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), job.Stdout, sf, false, utils.TruncateID(img.ID), "Pushing"), repoData.Tokens)
+			// Call mount blob
+			exists, err := r.PostV2ImageMountBlob(remoteName, sumParts[0], manifestSum, repoData.Tokens)
 			if err != nil {
 				job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 				return job.Error(err)
 			}
-			job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
+			if !exists {
+				_, err = r.PutV2ImageBlob(remoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), job.Stdout, sf, false, utils.TruncateID(img.ID), "Pushing"), repoData.Tokens)
+				if err != nil {
+					job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+					return job.Error(err)
+				}
+				job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
+			} else {
+				job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image already exists", nil))
+			}
 		}
 
 		// push the manifest
