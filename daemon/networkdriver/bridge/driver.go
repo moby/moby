@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -513,10 +511,6 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ports        = job.GetenvList("Ports")
 		chain        = iptables.Chain{}
 	)
-	split := func(p string) (string, string) {
-		parts := strings.Split(p, "/")
-		return parts[0], parts[1]
-	}
 
 	switch action {
 	case "-A":
@@ -541,13 +535,11 @@ func LinkContainers(job *engine.Job) engine.Status {
 	chain.Name = "DOCKER"
 	chain.Bridge = bridgeIface
 	for _, p := range ports {
-		portStr, proto := split(p)
-		port, err := strconv.Atoi(portStr)
-		if !ignoreErrors && err != nil {
-			return job.Errorf("port '%s' is invalid", portStr)
-		}
-		if err := chain.Link(nfAction, ip1, ip2, port, proto); !ignoreErrors && err != nil {
+		port := nat.Port(p)
+		if err := chain.Link(nfAction, ip1, ip2, port.Int(), port.Proto()); !ignoreErrors && err != nil {
+			fmt.Print(err)
 			return job.Error(err)
+
 		}
 	}
 	return engine.StatusOK

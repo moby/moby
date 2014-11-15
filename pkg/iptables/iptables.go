@@ -114,7 +114,7 @@ func RemoveExistingChain(name string, table Table) error {
 }
 
 // Add forwarding rule to 'filter' table and corresponding nat rule to 'nat' table
-func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr string, dest_port int) error {
+func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int) error {
 	daddr := ip.String()
 	if ip.IsUnspecified() {
 		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
@@ -128,7 +128,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr str
 		"--dport", strconv.Itoa(port),
 		"!", "-i", c.Bridge,
 		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(dest_addr, strconv.Itoa(dest_port))); err != nil {
+		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return &ChainError{Chain: "FORWARD", Output: output}
@@ -138,9 +138,20 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, dest_addr str
 		"!", "-i", c.Bridge,
 		"-o", c.Bridge,
 		"-p", proto,
-		"-d", dest_addr,
-		"--dport", strconv.Itoa(dest_port),
+		"-d", destAddr,
+		"--dport", strconv.Itoa(destPort),
 		"-j", "ACCEPT"); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return &ChainError{Chain: "FORWARD", Output: output}
+	}
+
+	if output, err := Raw("-t", string(Nat), string(action), "POSTROUTING",
+		"-p", proto,
+		"-s", destAddr,
+		"-d", destAddr,
+		"--dport", strconv.Itoa(destPort),
+		"-j", "MASQUERADE"); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return &ChainError{Chain: "FORWARD", Output: output}
@@ -156,8 +167,8 @@ func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) err
 		"-i", c.Bridge, "-o", c.Bridge,
 		"-p", proto,
 		"-s", ip1.String(),
-		"--dport", strconv.Itoa(port),
 		"-d", ip2.String(),
+		"--dport", strconv.Itoa(port),
 		"-j", "ACCEPT"); err != nil {
 		return err
 	} else if len(output) != 0 {
@@ -167,8 +178,8 @@ func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) err
 		"-i", c.Bridge, "-o", c.Bridge,
 		"-p", proto,
 		"-s", ip2.String(),
-		"--dport", strconv.Itoa(port),
 		"-d", ip1.String(),
+		"--sport", strconv.Itoa(port),
 		"-j", "ACCEPT"); err != nil {
 		return err
 	} else if len(output) != 0 {
@@ -206,18 +217,17 @@ func (c *Chain) Output(action Action, args ...string) error {
 }
 
 func (c *Chain) Remove() error {
+	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
-		// Ignore errors - This could mean the chains were never set up
 		c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL")
 		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8")
 		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL") // Created in versions <= 0.1.6
 
 		c.Prerouting(Delete)
 		c.Output(Delete)
-
-		Raw("-t", string(Nat), "-F", c.Name)
-		Raw("-t", string(Nat), "-X", c.Name)
 	}
+	Raw("-t", string(c.Table), "-F", c.Name)
+	Raw("-t", string(c.Table), "-X", c.Name)
 	return nil
 }
 

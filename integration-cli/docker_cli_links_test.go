@@ -83,8 +83,8 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	childIP := findContainerIP(t, "child")
 	parentIP := findContainerIP(t, "parent")
 
-	sourceRule := []string{"FORWARD", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
-	destinationRule := []string{"FORWARD", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
+	sourceRule := []string{"DOCKER", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
+	destinationRule := []string{"DOCKER", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
 	if !iptables.Exists(sourceRule...) || !iptables.Exists(destinationRule...) {
 		t.Fatal("Iptables rules not found")
 	}
