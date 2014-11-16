@@ -3396,3 +3396,74 @@ func TestBuildWithTabs(t *testing.T) {
 	}
 	logDone("build - with tabs")
 }
+
+func TestBuildEnvFileLocal(t *testing.T) {
+	name := "testbuildenvfilelocal"
+	defer deleteAllContainers()
+	defer deleteImages(name)
+	ctx, err := fakeContext(`
+	FROM busybox
+	ENVFILE envfile
+	CMD echo -n $FOO $BAR`,
+		map[string]string{
+			"envfile": `FOO=42
+			BAR=72`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "42 72"
+	if !strings.Contains(out, expected) {
+		t.Fatalf("Output should contain %q: %q", expected, out)
+	}
+
+	logDone("build - envfile local")
+}
+
+func TestBuildEnvFileRemote(t *testing.T) {
+	name := "testbuildenvfileremote"
+	defer deleteAllContainers()
+	defer deleteImages(name)
+	server, err := fakeStorage(map[string]string{
+		"envfile": `FOO=42
+BAR=72`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	_, err = buildImage(name,
+		fmt.Sprintf(`FROM busybox
+			ENVFILE %s/envfile
+			CMD echo -n $FOO $BAR`, server.URL),
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "42 72"
+	if !strings.Contains(out, expected) {
+		t.Fatalf("Output should contain %q: %q", expected, out)
+	}
+
+	logDone("build - envfile remote")
+}
