@@ -58,10 +58,14 @@ func TestGetRemoteHistory(t *testing.T) {
 
 func TestLookupRemoteImage(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	found := r.LookupRemoteImage(imageID, makeURL("/v1/"), token)
+	found, err := r.LookupRemoteImage(imageID, makeURL("/v1/"), token)
 	assertEqual(t, found, true, "Expected remote lookup to succeed")
-	found = r.LookupRemoteImage("abcdef", makeURL("/v1/"), token)
+	assertEqual(t, err, nil, "Expected error of remote lookup to nil")
+	found, err = r.LookupRemoteImage("abcdef", makeURL("/v1/"), token)
 	assertEqual(t, found, false, "Expected remote lookup to fail")
+	if err == nil {
+		t.Fatal("Expected error of remote lookup to not nil")
+	}
 }
 
 func TestGetRemoteImageJSON(t *testing.T) {
