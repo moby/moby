@@ -692,3 +692,16 @@ func (b *Builder) clearTmp() {
 		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
 	}
 }
+
+func (b *Builder) setEnvVar(name string, value string) {
+	fullEnv := fmt.Sprintf("%s=%s", name, value)
+
+	for i, envVar := range b.Config.Env {
+		envParts := strings.SplitN(envVar, "=", 2)
+		if name == envParts[0] {
+			b.Config.Env[i] = fullEnv
+			return
+		}
+	}
+	b.Config.Env = append(b.Config.Env, fullEnv)
+}

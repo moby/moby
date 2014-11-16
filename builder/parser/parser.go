@@ -58,6 +58,7 @@ func init() {
 		"expose":     parseStringsWhitespaceDelimited,
 		"volume":     parseMaybeJSONToList,
 		"insert":     parseIgnore,
+		"envfile":    parseString,
 	}
 }
 
