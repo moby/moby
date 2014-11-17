@@ -250,6 +250,10 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 }
 
 func sockRequest(method, endpoint string) ([]byte, error) {
+	return sockRequestPayload(method, endpoint, nil)
+}
+
+func sockRequestPayload(method, endpoint string, body io.Reader) ([]byte, error) {
 	// FIX: the path to sock should not be hardcoded
 	sock := filepath.Join("/", "var", "run", "docker.sock")
 	c, err := net.DialTimeout("unix", sock, time.Duration(10*time.Second))
@@ -260,20 +264,23 @@ func sockRequest(method, endpoint string) ([]byte, error) {
 	client := httputil.NewClientConn(c, nil)
 	defer client.Close()
 
-	req, err := http.NewRequest(method, endpoint, nil)
+	req, err := http.NewRequest(method, endpoint, body)
 	req.Header.Set("Content-Type", "application/json")
 	if err != nil {
 		return nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
 	resp, err := client.Do(req)
-	if err != nil {
+	// the error is valid if it's notbecause of keepalive
+	if err != nil && err != httputil.ErrPersistEOF {
 		return nil, fmt.Errorf("could not perform request: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+
+	// if resp is not in the success range
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
+		return body, fmt.Errorf("received failed status: %s", resp.Status)
 	}
 
 	return ioutil.ReadAll(resp.Body)

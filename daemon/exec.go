@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -16,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -31,6 +35,7 @@ type execConfig struct {
 	OpenStderr bool
 	OpenStdout bool
 	Container  *Container
+	waitChan   chan struct{}
 }
 
 type execStore struct {
@@ -63,6 +68,74 @@ func (e *execStore) Delete(id string) {
 
 func (execConfig *execConfig) Resize(h, w int) error {
 	return execConfig.ProcessConfig.Terminal.Resize(h, w)
+}
+
+func (c *execConfig) isRunning() bool {
+	c.Lock()
+	r := c.Running
+	c.Unlock()
+	return r
+}
+
+func (c *execConfig) setRunning() {
+	c.Lock()
+	c.Running = true
+	c.Unlock()
+}
+
+func (c *execConfig) waitStop(timeout time.Duration) error {
+	c.Lock()
+	if !c.Running {
+		c.Unlock()
+		return nil
+	}
+	waitChan := c.waitChan
+	c.Unlock()
+	return wait(waitChan, timeout)
+}
+
+func (c *execConfig) killSig(sig int) error {
+	p := c.ProcessConfig.Process
+
+	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
+	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
+		if err := p.Kill(); err != nil {
+			return fmt.Errorf("Cannot kill exec process: %s", err)
+		}
+		// wait for the process to die
+		if err := c.waitStop(-1 * time.Second); err != nil {
+			return fmt.Errorf("Cannot kill exec process: %s", err)
+		}
+	} else {
+		// Otherwise, just send the requested signal
+		if err := p.Signal(syscall.Signal(sig)); err != nil {
+			return fmt.Errorf("failed to send signal %d: %s", sig, err)
+		}
+	}
+	return nil
+}
+
+func (c *execConfig) stop(timeout int) error {
+	p := c.ProcessConfig.Process
+
+	// send a sigterm for now, if failed, then sigkill
+	if err := p.Signal(syscall.Signal(15)); err != nil {
+		log.Infof("Failed to send SIGTERM to the exec process %v, force killing", p)
+		if err := p.Kill(); err != nil {
+			return err
+		}
+	}
+
+	if err := c.waitStop(time.Duration(timeout) * time.Second); err != nil {
+		log.Infof("Exec %s failed to exit within %d seconds of SIGTERM - using the force", c.ID, timeout)
+		if err := p.Kill(); err != nil {
+			return err
+		}
+		if err := c.waitStop(-1 * time.Second); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *Daemon) registerExecCommand(execConfig *execConfig) {
@@ -139,6 +212,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 		ProcessConfig: processConfig,
 		Container:     container,
 		Running:       false,
+		waitChan:      make(chan struct{}),
 	}
 
 	d.registerExecCommand(execConfig)
@@ -164,17 +238,10 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	func() {
-		execConfig.Lock()
-		defer execConfig.Unlock()
-		if execConfig.Running {
-			err = fmt.Errorf("Error: Exec command %s is already running", execName)
-		}
-		execConfig.Running = true
-	}()
-	if err != nil {
-		return job.Error(err)
+	if execConfig.isRunning() {
+		return job.Errorf("Error: Exec command %s is already running", execName)
 	}
+	execConfig.setRunning()
 
 	log.Debugf("starting exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
 	container := execConfig.Container
@@ -232,6 +299,80 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+func (d *Daemon) ContainerExecStop(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s [options] exec", job.Name)
+	}
+
+	var (
+		execName = job.Args[0]
+		t        = 10
+	)
+	if job.EnvExists("t") {
+		t = job.GetenvInt("t")
+	}
+
+	execConfig, err := d.getExecConfig(execName)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	if !execConfig.isRunning() {
+		return job.Errorf("Exec process is stopped")
+	}
+
+	log.Debugf("stopping exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
+
+	if err := execConfig.stop(t); err != nil {
+		return job.Error(err)
+	}
+
+	return engine.StatusOK
+}
+
+func (d *Daemon) ContainerExecKill(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s [options] exec", job.Name)
+	}
+
+	var (
+		execName = job.Args[0]
+		sig      uint64
+	)
+
+	// If we have a signal, look at it. Otherwise, do nothing
+	if len(job.Args) == 2 && job.Args[1] != "" {
+		// Check if we passed the signal as a number:
+		// The largest legal signal is 31, so let's parse on 5 bits
+		sig, err := strconv.ParseUint(job.Args[1], 10, 5)
+		if err != nil {
+			// The signal is not a number, treat it as a string (either like "KILL" or like "SIGKILL")
+			sig = uint64(signal.SignalMap[strings.TrimPrefix(job.Args[1], "SIG")])
+		}
+
+		if sig == 0 {
+			return job.Errorf("Invalid signal: %s", job.Args[1])
+		}
+	}
+
+	execConfig, err := d.getExecConfig(execName)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	if !execConfig.isRunning() {
+		return job.Errorf("Exec process is stopped")
+	}
+
+	log.Debugf("kill exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
+
+	if err := execConfig.killSig(int(sig)); err != nil {
+		return job.Error(err)
+	}
+
+	return engine.StatusOK
+}
+
 func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	exitStatus, err := d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
 
@@ -242,6 +383,7 @@ func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pi
 
 	execConfig.ExitCode = exitStatus
 	execConfig.Running = false
+	close(execConfig.waitChan) // fire waiters for stop
 
 	return exitStatus, err
 }
