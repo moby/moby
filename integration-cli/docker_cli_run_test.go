@@ -563,7 +563,8 @@ func TestRunCreateVolumeWithSymlink(t *testing.T) {
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func TestRunVolumesFromSymlinkPath(t *testing.T) {
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumesfromsymlinkpath", "-")
+	name := "docker-test-volumesfromsymlinkpath"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
 		RUN mkdir /baz && ln -s /baz /foo
 		VOLUME ["/foo/bar"]`)
@@ -573,7 +574,7 @@ func TestRunVolumesFromSymlinkPath(t *testing.T) {
 		t.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "--name", "test-volumesfromsymlinkpath", "docker-test-volumesfromsymlinkpath")
+	cmd := exec.Command(dockerBinary, "run", "--name", "test-volumesfromsymlinkpath", name)
 	exitCode, err := runCommand(cmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("[run] (volume) err: %v, exitcode: %d", err, exitCode)
@@ -585,8 +586,8 @@ func TestRunVolumesFromSymlinkPath(t *testing.T) {
 		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	deleteImages("docker-test-volumesfromsymlinkpath")
 	deleteAllContainers()
+	deleteImages(name)
 
 	logDone("run - volumes-from symlink path")
 }
@@ -892,6 +893,7 @@ func TestRunUnPrivilegedCanMknod(t *testing.T) {
 }
 
 func TestRunCapDropInvalid(t *testing.T) {
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--cap-drop=CHPASS", "busybox", "ls")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
@@ -962,6 +964,8 @@ func TestRunCapDropALLAddMknodCannotMknod(t *testing.T) {
 }
 
 func TestRunCapAddInvalid(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--cap-add=CHPASS", "busybox", "ls")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
@@ -1718,6 +1722,8 @@ func TestRunExitOnStdinClose(t *testing.T) {
 
 // Test for #2267
 func TestRunWriteHostsFileAndNotCommit(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "writehosts"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hosts && cat /etc/hosts")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1745,6 +1751,8 @@ func TestRunWriteHostsFileAndNotCommit(t *testing.T) {
 
 // Test for #2267
 func TestRunWriteHostnameFileAndNotCommit(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "writehostname"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hostname && cat /etc/hostname")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1772,6 +1780,8 @@ func TestRunWriteHostnameFileAndNotCommit(t *testing.T) {
 
 // Test for #2267
 func TestRunWriteResolvFileAndNotCommit(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "writeresolv"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/resolv.conf && cat /etc/resolv.conf")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1798,6 +1808,8 @@ func TestRunWriteResolvFileAndNotCommit(t *testing.T) {
 }
 
 func TestRunWithBadDevice(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "baddevice"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "--device", "/etc", "busybox", "true")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1812,6 +1824,8 @@ func TestRunWithBadDevice(t *testing.T) {
 }
 
 func TestRunEntrypoint(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "entrypoint"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "--entrypoint", "/bin/echo", "busybox", "-n", "foobar")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1826,6 +1840,8 @@ func TestRunEntrypoint(t *testing.T) {
 }
 
 func TestRunBindMounts(t *testing.T) {
+	defer deleteAllContainers()
+
 	tmpDir, err := ioutil.TempDir("", "docker-test-container")
 	if err != nil {
 		t.Fatal(err)
@@ -2435,8 +2451,6 @@ func TestRunNoOutputFromPullInStdout(t *testing.T) {
 }
 
 func TestRunVolumesCleanPaths(t *testing.T) {
-	defer deleteAllContainers()
-
 	if _, err := buildImage("run_volumes_clean_paths",
 		`FROM busybox
 		 VOLUME /foo/`,
@@ -2444,6 +2458,7 @@ func TestRunVolumesCleanPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer deleteImages("run_volumes_clean_paths")
+	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 	if out, _, err := runCommandWithOutput(cmd); err != nil {
