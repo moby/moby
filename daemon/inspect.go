@@ -64,3 +64,21 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 	}
 	return job.Errorf("No such container: %s", name)
 }
+
+func (daemon *Daemon) ContainerExecInspect(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("usage: %s ID", job.Name)
+	}
+	id := job.Args[0]
+	eConfig, err := daemon.getExecConfig(id)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	b, err := json.Marshal(*eConfig)
+	if err != nil {
+		return job.Error(err)
+	}
+	job.Stdout.Write(b)
+	return engine.StatusOK
+}

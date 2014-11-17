@@ -234,6 +234,26 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 	return state.GetBool("Running"), state.GetInt("ExitCode"), nil
 }
 
+// getExecExitCode perform an inspect on the exec command. It returns
+// the running state and the exit code.
+func getExecExitCode(cli *DockerCli, execId string) (bool, int, error) {
+	stream, _, err := cli.call("GET", "/exec/"+execId+"/json", nil, false)
+	if err != nil {
+		// If we can't connect, then the daemon probably died.
+		if err != ErrConnectionRefused {
+			return false, -1, err
+		}
+		return false, -1, nil
+	}
+
+	var result engine.Env
+	if err := result.Decode(stream); err != nil {
+		return false, -1, err
+	}
+
+	return result.GetBool("Running"), result.GetInt("ExitCode"), nil
+}
+
 func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 	cli.resizeTty(id, isExec)
 
