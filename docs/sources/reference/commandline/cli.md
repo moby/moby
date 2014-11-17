@@ -856,7 +856,7 @@ For example:
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
     CPUs: 1
-    Hostname: prod-server-42
+    Name: prod-server-42
     ID: 7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS
     Total Memory: 2 GiB
     Debug mode (server): false

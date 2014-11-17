@@ -50,8 +50,7 @@ You can still call an old version of the API using
 
 **New!**
 `info` now returns the number of CPUs available on the machine (`NCPU`),
-total memory available (`MemTotal`), the short hostname (`Hostname`). and
-the ID (`ID`).
+total memory available (`MemTotal`), a name (`Name`), and the ID (`ID`).
 
 `POST /containers/create`
 
