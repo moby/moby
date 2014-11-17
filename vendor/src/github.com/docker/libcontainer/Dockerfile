@@ -1,7 +1,7 @@
 FROM crosbymichael/golang
 
 RUN apt-get update && apt-get install -y gcc make
-RUN go get code.google.com/p/go.tools/cmd/cover
+RUN go get golang.org/x/tools/cmd/cover
 
 ENV GOPATH $GOPATH:/go/src/github.com/docker/libcontainer/vendor
 RUN go get github.com/docker/docker/pkg/term
@@ -10,7 +10,7 @@ RUN go get github.com/docker/docker/pkg/term
 RUN mkdir /busybox && \
     curl -sSL 'https://github.com/jpetazzo/docker-busybox/raw/buildroot-2014.02/rootfs.tar' | tar -xC /busybox
 
-RUN curl -sSL https://raw.githubusercontent.com/docker/docker/master/hack/dind -o /dind && \
+RUN curl -sSL https://raw.githubusercontent.com/docker/docker/master/project/dind -o /dind && \
     chmod +x /dind
 
 COPY . /go/src/github.com/docker/libcontainer

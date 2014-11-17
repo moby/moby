@@ -1004,7 +1004,7 @@ func AddRoute(destination, source, gateway, device string) error {
 
 	if source != "" {
 		srcIP := net.ParseIP(source)
-		if err != nil {
+		if srcIP == nil {
 			return fmt.Errorf("source IP %s couldn't be parsed", source)
 		}
 		srcFamily := getIpFamily(srcIP)
