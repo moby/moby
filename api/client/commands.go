@@ -505,6 +505,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if remoteInfo.Exists("MemTotal") {
 		fmt.Fprintf(cli.out, "Total Memory: %s\n", units.BytesSize(float64(remoteInfo.GetInt64("MemTotal"))))
 	}
+	if remoteInfo.Exists("Hostname") {
+		fmt.Fprintf(cli.out, "Hostname: %s\n", remoteInfo.Get("Hostname"))
+	}
+	if remoteInfo.Exists("ID") {
+		fmt.Fprintf(cli.out, "ID: %s\n", remoteInfo.Get("ID"))
+	}
 
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		if remoteInfo.Exists("Debug") {

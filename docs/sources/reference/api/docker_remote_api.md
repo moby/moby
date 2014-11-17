@@ -49,8 +49,9 @@ You can still call an old version of the API using
 `GET /info`
 
 **New!**
-`info` now returns the number of CPUs available on the machine (`NCPU`) and
-total memory available (`MemTotal`).
+`info` now returns the number of CPUs available on the machine (`NCPU`),
+total memory available (`MemTotal`), the short hostname (`Hostname`). and
+the ID (`ID`).
 
 `POST /containers/create`
 

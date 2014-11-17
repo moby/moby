@@ -40,6 +40,7 @@ type Config struct {
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
 	Context                     map[string][]string
+	TrustKeyPath                string
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for

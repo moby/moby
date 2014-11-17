@@ -15,6 +15,7 @@ import (
 	"github.com/docker/libcontainer/label"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
@@ -83,6 +84,7 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
+	ID             string
 	repository     string
 	sysInitPath    string
 	containers     *contStore
@@ -893,7 +895,13 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	daemon := &Daemon{
+		ID:             trustKey.PublicKey().KeyID(),
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
 		execCommands:   newExecStore(),
