@@ -130,9 +130,11 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 }
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
+	var ErrMsg string
 	for _, container := range daemon.List() {
 		parent, err := daemon.Repositories().LookupImage(container.Image)
-		if err != nil {
+		ErrMsg = fmt.Sprintf("%s", err)
+		if err != nil && !strings.Contains(ErrMsg,"no such id: " + container.Image) {
 			return err
 		}
 
