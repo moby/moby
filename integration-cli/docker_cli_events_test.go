@@ -38,11 +38,15 @@ func TestEventsUntag(t *testing.T) {
 }
 
 func TestEventsPause(t *testing.T) {
+	name := "testeventpause"
 	out, _, _ := cmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	cmd(t, "run", "-d", "--name", "testeventpause", image, "sleep", "2")
-	cmd(t, "pause", "testeventpause")
-	cmd(t, "unpause", "testeventpause")
+	cmd(t, "run", "-d", "--name", name, image, "sleep", "2")
+	cmd(t, "pause", name)
+	cmd(t, "unpause", name)
+
+	defer deleteAllContainers()
+
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, _, _ = runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
@@ -60,10 +64,17 @@ func TestEventsPause(t *testing.T) {
 		t.Fatalf("event should be pause, not %#v", unpauseEvent)
 	}
 
+	waitCmd := exec.Command(dockerBinary, "wait", name)
+	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
+	}
+
 	logDone("events - pause/unpause is logged")
 }
 
 func TestEventsContainerFailStartDie(t *testing.T) {
+	defer deleteAllContainers()
+
 	out, _, _ := cmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	eventsCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testeventdie", image, "blerg")
@@ -93,6 +104,7 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 }
 
 func TestEventsLimit(t *testing.T) {
+	defer deleteAllContainers()
 	for i := 0; i < 30; i++ {
 		cmd(t, "run", "busybox", "echo", strconv.Itoa(i))
 	}
@@ -241,6 +253,8 @@ func TestEventsImagePull(t *testing.T) {
 func TestEventsImageImport(t *testing.T) {
 	since := time.Now().Unix()
 
+	defer deleteImages("cirros")
+
 	server, err := fileServer(map[string]string{
 		"/cirros.tar.gz": "/cirros.tar.gz",
 	})
@@ -249,7 +263,7 @@ func TestEventsImageImport(t *testing.T) {
 	}
 	defer server.Close()
 	fileURL := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
-	importCmd := exec.Command(dockerBinary, "import", fileURL)
+	importCmd := exec.Command(dockerBinary, "import", fileURL, "cirros")
 	out, _, err := runCommandWithOutput(importCmd)
 	if err != nil {
 		t.Errorf("import failed with errors: %v, output: %q", err, out)

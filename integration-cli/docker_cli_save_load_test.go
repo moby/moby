@@ -239,12 +239,15 @@ func TestSaveMultipleNames(t *testing.T) {
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
+	defer deleteImages(repoName + "-one")
+
 	// Make two images
 	tagCmdFinal = fmt.Sprintf("%v tag scratch:latest %v-two:latest", dockerBinary, repoName)
 	tagCmd = exec.Command("bash", "-c", tagCmdFinal)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
+	defer deleteImages(repoName + "-two")
 
 	saveCmdFinal := fmt.Sprintf("%v save %v-one %v-two:latest | tar xO repositories | grep -q -E '(-one|-two)'", dockerBinary, repoName, repoName)
 	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
