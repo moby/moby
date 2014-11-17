@@ -100,7 +100,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, pip
 
 	if container.Hostname != "" {
 		if err := syscall.Sethostname([]byte(container.Hostname)); err != nil {
-			return fmt.Errorf("sethostname %s", err)
+			return fmt.Errorf("unable to sethostname %q: %s", container.Hostname, err)
 		}
 	}
 
