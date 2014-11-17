@@ -182,7 +182,6 @@ func (t *TrustStore) fetch() {
 		go func() {
 			err := t.reload()
 			if err != nil {
-				// TODO log
 				log.Infof("Reload of trust graph failed: %s", err)
 			}
 		}()
