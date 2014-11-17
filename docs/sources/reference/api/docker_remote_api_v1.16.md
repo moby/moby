@@ -1221,7 +1221,7 @@ Display system-wide information
              "NCPU":1,
              "MemTotal":2099236864,
              "Name":"prod-server-42",
-             "ID":"7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS"
+             "ID":"7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
