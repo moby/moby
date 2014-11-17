@@ -97,7 +97,7 @@ type Daemon struct {
 	execCommands     *execStore
 	graph            *graph.Graph
 	repositories     *graph.TagStore
-	idIndex          *truncindex.TruncIndex
+	idIndex          *truncindex.TruncIndex // for container IDs
 	sysInfo          *sysinfo.SysInfo
 	volumes          *volumes.Repository
 	eng              *engine.Engine
@@ -105,6 +105,7 @@ type Daemon struct {
 	containerGraph   *graphdb.Database
 	driver           graphdriver.Driver
 	execDriver       execdriver.Driver
+	execIDIndex      *truncindex.TruncIndex // for exec IDs
 	trustStore       *trust.TrustStore
 	statsCollector   *statsCollector
 	defaultLogConfig runconfig.LogConfig
@@ -139,6 +140,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"image_delete":      daemon.ImageDelete, // FIXME: see above
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
+		"execWait":          daemon.ContainerExecWait,
 		"execResize":        daemon.ContainerExecResize,
 		"execInspect":       daemon.ContainerExecInspect,
 	} {
@@ -1035,6 +1037,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		sysInitPath:      sysInitPath,
 		execDriver:       ed,
 		eng:              eng,
+		execIDIndex:      truncindex.NewTruncIndex([]string{}),
 		trustStore:       t,
 		statsCollector:   newStatsCollector(1 * time.Second),
 		defaultLogConfig: config.LogConfig,

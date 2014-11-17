@@ -84,6 +84,7 @@ func init() {
 			{"diff", "Inspect changes on a container's filesystem"},
 			{"events", "Get real time events from the server"},
 			{"exec", "Run a command in a running container"},
+			{"execwait", "Block until an exec stops, then print its exit code"},
 			{"export", "Stream the contents of a container as a tar archive"},
 			{"history", "Show the history of an image"},
 			{"images", "List images"},

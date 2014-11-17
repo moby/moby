@@ -98,6 +98,14 @@ func (daemon *Daemon) Rm(container *Container) error {
 		return err
 	}
 
+	// DO NOT unregister until we delete the container so that
+	// we can ask for the exit status of exec commands after the
+	// container and exec cmds stop. They only go away when the
+	// container is deleted
+	for _, eConfig := range container.execCommands.s {
+		container.daemon.unregisterExecCommand(eConfig)
+	}
+
 	// Deregister the container before removing its directory, to avoid race conditions
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)

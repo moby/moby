@@ -235,6 +235,19 @@ func waitForExit(cli *DockerCli, containerID string) (int, error) {
 	return out.GetInt("StatusCode"), nil
 }
 
+func waitForExecExit(cli *DockerCli, execId string) (int, error) {
+	stream, _, err := cli.call("POST", "/exec/"+execId+"/wait", nil, nil)
+	if err != nil {
+		return -1, err
+	}
+
+	var out engine.Env
+	if err := out.Decode(stream); err != nil {
+		return -1, err
+	}
+	return out.GetInt("ExitCode"), nil
+}
+
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {

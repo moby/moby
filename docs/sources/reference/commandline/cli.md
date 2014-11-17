@@ -1099,13 +1099,23 @@ If the container is paused, then the `docker exec` command will fail with an err
 This will create a container named `ubuntu_bash` and start a Bash session.
 
     $ docker exec -d ubuntu_bash touch /tmp/execWorks
+    3d8861a4c3224c9923130e76d0b544cb553db49146eb605aeb94b98b025d5fe3
 
 This will create a new file `/tmp/execWorks` inside the running container
-`ubuntu_bash`, in the background.
+`ubuntu_bash`. The `touch` command itself will be run in detached mode,
+meaning it is run in the background, and a unique identifier for the
+background process is printed to the screen. This can be used with the
+`docker execwait` command.
 
     $ docker exec -it ubuntu_bash bash
 
 This will create a new Bash session in the container `ubuntu_bash`.
+
+## execwait
+
+    Usage: docker execwait EXEC [EXEC...]
+
+    Block until an exec stops, then print its exit code.
 
 ## export
 
@@ -2342,4 +2352,3 @@ of both Docker client and daemon. Example use:
     Usage: docker wait CONTAINER [CONTAINER...]
 
     Block until a container stops, then print its exit code.
-

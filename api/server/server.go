@@ -894,6 +894,24 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 	})
 }
 
+func postContainerExecWait(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	var (
+		env          engine.Env
+		stdoutBuffer = bytes.NewBuffer(nil)
+		job          = eng.Job("execWait", vars["name"])
+	)
+	job.Stdout.Add(stdoutBuffer)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	env.Set("ExitCode", engine.Tail(stdoutBuffer, 1))
+	return writeJSONEnv(w, http.StatusOK, env)
+}
+
 func postContainersResize(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1386,6 +1404,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, corsHeaders stri
 			"/containers/{name:.*}/copy":    postContainersCopy,
 			"/containers/{name:.*}/exec":    postContainerExecCreate,
 			"/exec/{name:.*}/start":         postContainerExecStart,
+			"/exec/{name:.*}/wait":          postContainerExecWait,
 			"/exec/{name:.*}/resize":        postContainerExecResize,
 			"/containers/{name:.*}/rename":  postContainerRename,
 		},
