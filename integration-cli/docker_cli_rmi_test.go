@@ -99,3 +99,23 @@ func TestRmiTagWithExistingContainers(t *testing.T) {
 
 	logDone("rmi - delete tag with existing containers")
 }
+
+func TestRmiForceWithExistingContainers(t *testing.T) {
+	image := "busybox-clone"
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "/docker-busybox")); err != nil {
+		t.Fatalf("Could not build %s: %s, %v", image, out, err)
+	}
+
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "test-force-rmi", image, "/bin/true")); err != nil {
+		t.Fatalf("Could not run container: %s, %v", out, err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rmi", "-f", image))
+	if err != nil {
+		t.Fatalf("Could not remove image %s:  %s, %v", image, out, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("rmi - force delete with existing containers")
+}
