@@ -12,7 +12,7 @@ func UseSystemd() bool {
 	return false
 }
 
-func Apply(c *cgroups.Cgroup, pid int) (cgroups.ActiveCgroup, error) {
+func Apply(c *cgroups.Cgroup, pid int) (map[string]string, error) {
 	return nil, fmt.Errorf("Systemd not supported")
 }
 
@@ -26,8 +26,4 @@ func ApplyDevices(c *cgroups.Cgroup, pid int) error {
 
 func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
 	return fmt.Errorf("Systemd not supported")
-}
-
-func GetStats(c *cgroups.Cgroup) (*cgroups.Stats, error) {
-	return nil, fmt.Errorf("Systemd not supported")
 }

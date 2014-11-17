@@ -60,16 +60,11 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
-	cgroupRef, err := SetupCgroups(container, command.Process.Pid)
+	cgroupPaths, err := SetupCgroups(container, command.Process.Pid)
 	if err != nil {
 		return terminate(err)
 	}
-	defer cgroupRef.Cleanup()
-
-	cgroupPaths, err := cgroupRef.Paths()
-	if err != nil {
-		return terminate(err)
-	}
+	defer cgroups.RemovePaths(cgroupPaths)
 
 	var networkState network.NetworkState
 	if err := InitializeNetworking(container, command.Process.Pid, &networkState); err != nil {
@@ -153,18 +148,15 @@ func DefaultCreateCommand(container *libcontainer.Config, console, dataPath, ini
 
 // SetupCgroups applies the cgroup restrictions to the process running in the container based
 // on the container's configuration
-func SetupCgroups(container *libcontainer.Config, nspid int) (cgroups.ActiveCgroup, error) {
+func SetupCgroups(container *libcontainer.Config, nspid int) (map[string]string, error) {
 	if container.Cgroups != nil {
 		c := container.Cgroups
-
 		if systemd.UseSystemd() {
 			return systemd.Apply(c, nspid)
 		}
-
 		return fs.Apply(c, nspid)
 	}
-
-	return nil, nil
+	return map[string]string{}, nil
 }
 
 // InitializeNetworking creates the container's network stack outside of the namespace and moves
