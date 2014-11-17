@@ -68,7 +68,7 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 			return nil, fmt.Errorf("Error saving key file: %s", err)
 		}
 	} else if err != nil {
-		log.Fatalf("Error loading key file: %s", err)
+		return nil, fmt.Errorf("Error loading key file: %s", err)
 	}
 	return trustKey, nil
 }

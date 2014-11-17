@@ -34,16 +34,7 @@ func (k *rsaPublicKey) KeyType() string {
 
 // KeyID returns a distinct identifier which is unique to this Public Key.
 func (k *rsaPublicKey) KeyID() string {
-	// Generate and return a 'libtrust' fingerprint of the RSA public key.
-	// For an RSA key this should be:
-	//   SHA256("RSA"+bytes(N)+bytes(E))
-	// Then truncated to 240 bits and encoded into 12 base32 groups like so:
-	//   ABCD:EFGH:IJKL:MNOP:QRST:UVWX:YZ23:4567:ABCD:EFGH:IJKL:MNOP
-	hasher := crypto.SHA256.New()
-	hasher.Write([]byte(k.KeyType()))
-	hasher.Write(k.N.Bytes())
-	hasher.Write(serializeRSAPublicExponentParam(k.E))
-	return keyIDEncode(hasher.Sum(nil)[:30])
+	return keyIDFromCryptoKey(k)
 }
 
 func (k *rsaPublicKey) String() string {
