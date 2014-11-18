@@ -591,6 +591,17 @@ To examine the result further, you can use `docker exec`:
 
 And you can gracefully request `top` to shut down using `docker stop test`.
 
+The following `Dockerfile` shows using the `ENTRYPOINT` to run Apache in the
+foreground (i.e., as `PID 1`):
+
+```
+FROM debian:stable
+RUN apt-get update && apt-get install -y --force-yes apache2
+EXPOSE 80 443
+VOLUME ["/var/www", "/var/log/apache2", "/etc/apache2"]
+ENTRYPOINT ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
+```
+
 If you need to write a starter script for a single executable, you can ensure that
 the final executable receives the Unix signals by using `exec` and `gosu`
 (see [the Dockerfile best practices](/articles/dockerfile_best-practices/#entrypoint)
