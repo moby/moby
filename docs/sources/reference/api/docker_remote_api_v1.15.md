@@ -503,20 +503,22 @@ Start the container `id`
         Content-Type: application/json
 
         {
-             "Binds":["/tmp:/tmp"],
-             "Links":["redis3:redis"],
-             "LxcConf":{"lxc.utsname":"docker"},
-             "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
-             "PublishAllPorts":false,
-             "Privileged":false,
-             "Dns": ["8.8.8.8"],
-             "DnsSearch": [""],
-             "VolumesFrom": ["parent", "other:ro"],
-             "CapAdd": ["NET_ADMIN"],
-             "CapDrop": ["MKNOD"],
-             "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
-             "NetworkMode": "bridge",
-             "Devices": []
+            "HostConfig": {
+                "Binds":["/tmp:/tmp"],
+                "Links":["redis3:redis"],
+                "LxcConf":{"lxc.utsname":"docker"},
+                "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
+                "PublishAllPorts":false,
+                "Privileged":false,
+                "Dns": ["8.8.8.8"],
+                "DnsSearch": [""],
+                "VolumesFrom": ["parent", "other:ro"],
+                "CapAdd": ["NET_ADMIN"],
+                "CapDrop": ["MKNOD"],
+                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
+                "NetworkMode": "bridge",
+                "Devices": []
+             }
         }
 
 **Example response**:
