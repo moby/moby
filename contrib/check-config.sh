@@ -153,16 +153,20 @@ check_flags "${flags[@]}"
 echo '- Storage Drivers:'
 {
 	echo '- "'$(wrap_color 'aufs' blue)'":'
-	check_flags AUFS_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
+	check_flags AUFS_FS | sed 's/^/  /'
 	if ! is_set AUFS_FS && grep -q aufs /proc/filesystems; then
 		echo "    $(wrap_color '(note that some kernels include AUFS patches but not the AUFS_FS flag)' bold black)"
 	fi
+	check_flags EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'btrfs' blue)'":'
 	check_flags BTRFS_FS | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
 	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
+
+	echo '- "'$(wrap_color 'overlayfs' blue)'":'
+	check_flags OVERLAYFS_FS | sed 's/^/  /'
 } | sed 's/^/  /'
 echo
 
