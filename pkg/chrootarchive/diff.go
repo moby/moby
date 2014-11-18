@@ -3,6 +3,7 @@ package chrootarchive
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"syscall"
@@ -21,9 +22,16 @@ func applyLayer() {
 	if err := syscall.Chdir("/"); err != nil {
 		fatal(err)
 	}
-	if err := archive.ApplyLayer("/", os.Stdin); err != nil {
+	tmpDir, err := ioutil.TempDir("/", "temp-docker-extract")
+	if err != nil {
 		fatal(err)
 	}
+	os.Setenv("TMPDIR", tmpDir)
+	if err := archive.ApplyLayer("/", os.Stdin); err != nil {
+		os.RemoveAll(tmpDir)
+		fatal(err)
+	}
+	os.RemoveAll(tmpDir)
 	os.Exit(0)
 }
 
