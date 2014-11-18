@@ -335,3 +335,84 @@ func TestLogsFollowSlowStdoutConsumer(t *testing.T) {
 
 	logDone("logs - follow slow consumer")
 }
+
+func TestLogsTruncate(t *testing.T) {
+	expected := "log and truncate"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "busybox", "sh", "-c", fmt.Sprintf("echo %s", expected))
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	waitCmd := exec.Command(dockerBinary, "wait", cleanedContainerID)
+	if out, _, err := runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("error thrown while waiting for container: %s, %v", out, err)
+	}
+
+	logsCmd := exec.Command(dockerBinary, "logs", "--truncate", cleanedContainerID)
+	out, _, err = runCommandWithOutput(logsCmd)
+	if err != nil {
+		t.Fatalf("truncating logs failed: %s, %v", out, err)
+	}
+	out = strings.TrimSpace(out)
+	if out != expected {
+		t.Fatalf("Expected %q, got %q", expected, out)
+	}
+
+	logsCmd = exec.Command(dockerBinary, "logs", cleanedContainerID)
+	out, _, err = runCommandWithOutput(logsCmd)
+	if err != nil {
+		t.Fatalf("truncating logs failed: %s, %v", out, err)
+	}
+	if out != "" {
+		t.Fatalf("logs should have been empty, was %q", out)
+	}
+
+	deleteContainer(cleanedContainerID)
+
+	logDone("logs - fetch and truncate")
+}
+
+func TestLogsTruncateRunning(t *testing.T) {
+	expected := "123"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "busybox", "sh", "-c", "echo 123 && top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	// make sure its running
+	runCmd = exec.Command(dockerBinary, "inspect", "--format", "{{ .State.Running }}", cleanedContainerID)
+	if out, _, err := runCommandWithOutput(runCmd); err != nil || strings.TrimSpace(out) != "true" {
+		t.Fatalf("Container should have been running: %s, %v", out, err)
+	}
+
+	logsCmd := exec.Command(dockerBinary, "logs", "--truncate", cleanedContainerID)
+	out, _, err = runCommandWithOutput(logsCmd)
+	if err != nil {
+		t.Fatalf("truncating logs failed: %s, %v", out, err)
+	}
+	out = strings.TrimSpace(out)
+	if out != expected {
+		t.Fatalf("Expected %q, got %q", expected, out)
+	}
+
+	logsCmd = exec.Command(dockerBinary, "logs", cleanedContainerID)
+	out, _, err = runCommandWithOutput(logsCmd)
+	if err != nil {
+		t.Fatalf("truncating logs failed: %s, %v", out, err)
+	}
+	if out != "" {
+		t.Fatalf("logs should have been empty, was %q", out)
+	}
+
+	deleteContainer(cleanedContainerID)
+
+	logDone("logs - fetch and truncate running container")
+}
