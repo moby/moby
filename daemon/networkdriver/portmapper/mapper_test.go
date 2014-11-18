@@ -21,7 +21,9 @@ func reset() {
 func TestSetIptablesChain(t *testing.T) {
 	defer reset()
 
+	table := iptables.GetTable(false)
 	c := &iptables.Chain{
+		Table:  table,
 		Name:   "TEST",
 		Bridge: "192.168.1.1",
 	}
