@@ -25,7 +25,7 @@ const (
 	   (9) filesystem type:  name of filesystem of the form "type[.subtype]"
 	   (10) mount source:  filesystem specific information or "none"
 	   (11) super options:  per super block options*/
-	mountinfoFormat = "%d %d %d:%d %s %s %s "
+	mountinfoFormat = "%d %d %d:%d %s %s %s %s"
 )
 
 // Parse /proc/self/mountinfo because comparing Dev and ino does not work from bind mounts
@@ -51,13 +51,14 @@ func parseInfoFile(r io.Reader) ([]*MountInfo, error) {
 		}
 
 		var (
-			p    = &MountInfo{}
-			text = s.Text()
+			p              = &MountInfo{}
+			text           = s.Text()
+			optionalFields string
 		)
 
 		if _, err := fmt.Sscanf(text, mountinfoFormat,
 			&p.Id, &p.Parent, &p.Major, &p.Minor,
-			&p.Root, &p.Mountpoint, &p.Opts); err != nil {
+			&p.Root, &p.Mountpoint, &p.Opts, &optionalFields); err != nil {
 			return nil, fmt.Errorf("Scanning '%s' failed: %s", text, err)
 		}
 		// Safe as mountinfo encodes mountpoints with spaces as \040.
@@ -65,6 +66,10 @@ func parseInfoFile(r io.Reader) ([]*MountInfo, error) {
 		postSeparatorFields := strings.Fields(text[index+3:])
 		if len(postSeparatorFields) < 3 {
 			return nil, fmt.Errorf("Error found less than 3 fields post '-' in %q", text)
+		}
+
+		if optionalFields != "-" {
+			p.Optional = optionalFields
 		}
 
 		p.Fstype = postSeparatorFields[0]
