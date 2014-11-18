@@ -1068,7 +1068,7 @@ for further details.
       -n=-1                 Show n last created containers, include non-running ones.
       --no-trunc=false      Don't truncate output
       -q, --quiet=false     Only display numeric IDs
-      -s, --size=false      Display sizes
+      -s, --size=false      Display total file sizes
       --since=""            Show only containers created since Id or Name, include non-running ones.
 
 Running `docker ps` showing 2 linked containers.

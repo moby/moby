@@ -1542,7 +1542,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		cmd      = cli.Subcmd("ps", "", "List containers")
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
-		size     = cmd.Bool([]string{"s", "-size"}, false, "Display sizes")
+		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers. Only running containers are shown by default.")
 		noTrunc  = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show only the latest created container, include non-running ones.")
