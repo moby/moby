@@ -916,13 +916,13 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return nil
 	}
 
-	steam, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
+	stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
 	if err != nil {
 		return err
 	}
 
 	env := engine.Env{}
-	if err := env.Decode(steam); err != nil {
+	if err := env.Decode(stream); err != nil {
 		return err
 	}
 	ports := nat.PortMap{}
@@ -1856,13 +1856,13 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	}
 	name := cmd.Arg(0)
 
-	steam, _, err := cli.call("GET", "/containers/"+name+"/json", nil, false)
+	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, false)
 	if err != nil {
 		return err
 	}
 
 	env := engine.Env{}
-	if err := env.Decode(steam); err != nil {
+	if err := env.Decode(stream); err != nil {
 		return err
 	}
 
