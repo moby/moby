@@ -45,6 +45,12 @@ var (
 	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
 	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
+	Tls                       bool
+	TlsVerify                 bool
+	Ca                        string
+	Cert                      string
+	Key                       string
+	Hosts                     []string
 )
 
 type contStore struct {

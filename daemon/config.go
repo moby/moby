@@ -15,7 +15,7 @@ const (
 
 // Config define the configuration of a docker daemon
 // These are the configuration settings that you pass
-// to the docker daemon when you launch it with say: `docker -d -e lxc`
+// to the docker daemon when you launch it with say: `docker daemon -e lxc`
 // FIXME: separate runtime configuration from http api configuration
 type Config struct {
 	Pidfile                     string

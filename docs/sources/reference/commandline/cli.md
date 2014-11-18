@@ -23,11 +23,11 @@ you can write `docker run -ti --name test busybox sh`.
 
 ### Boolean
 
-Boolean options look like `-d=false`. The value you
+Boolean options look like `daemon=false`. The value you
 see is the default value which gets set if you do **not** use the
-boolean flag. If you do call `run -d`, that sets the
+boolean flag. If you do call `run daemon`, that sets the
 opposite boolean value, so in this case, `true`, and
-so `docker run -d` **will** run in "detached" mode,
+so `docker run daemon` **will** run in "detached" mode,
 in the background. Other boolean options are similar – specifying them
 will set the value to the opposite of the default value.
 
@@ -95,10 +95,10 @@ Options with [] may be specified multiple times.
 
 The Docker daemon is the persistent process that manages containers.
 Docker uses the same binary for both the daemon and client. To run the
-daemon you provide the `-d` flag.
+daemon you provide the `daemon` flag.
 
 
-To run the daemon with debug output, use `docker -d -D`.
+To run the daemon with debug output, use `docker daemon -D`.
 
 ### Daemon socket option
 
@@ -123,8 +123,8 @@ for un-encrypted, and port `2376` for encrypted communication with the daemon.
 
 On Systemd based systems, you can communicate with the daemon via
 [systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
-`docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
-you can also specify individual sockets: `docker -d -H fd://3`. If the
+`docker daemon -H fd://`. Using `fd://` will work perfectly for most setups but
+you can also specify individual sockets: `docker daemon -H fd://3`. If the
 specified socket activated files aren't found, then Docker will exit. You
 can find examples of using Systemd socket activation with Docker and
 Systemd in the [Docker source tree](
@@ -134,7 +134,7 @@ You can configure the Docker daemon to listen to multiple sockets at the same
 time using multiple `-H` options:
 
     # listen using the default unix socket, and on 2 specific IP addresses on this host.
-    docker -d -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
+    docker daemon -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
 
 The Docker client will honor the `DOCKER_HOST` environment variable to set
 the `-H` flag for the client.
@@ -170,10 +170,10 @@ containers.  Each container will be limited to a 10 GB thin volume, and either o
 these will require tuning - see [~jpetazzo/Resizing Docker containers with the
 Device Mapper plugin]( http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
 To tell the Docker daemon to use `devicemapper`, use
-`docker -d -s devicemapper`.
+`docker daemon -s devicemapper`.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
-share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
+share executable memory between devices. Use `docker daemon -s btrfs -g /mnt/btrfs_partition`.
 
 
 ### Docker exec-driver option
@@ -190,10 +190,10 @@ Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
 ### Daemon DNS options
 
 To set the DNS server for all Docker containers, use
-`docker -d --dns 8.8.8.8`.
+`docker daemon --dns 8.8.8.8`.
 
 To set the DNS search domain for all Docker containers, use
-`docker -d --dns-search example.com`.
+`docker daemon --dns-search example.com`.
 
 ### Insecure registries
 
@@ -236,10 +236,10 @@ can be disabled with --ip-masq=false.
 Docker supports softlinks for the Docker data directory
 (`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:
 
-    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
-    /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 
 ## attach
@@ -272,7 +272,7 @@ To kill the container, use `docker kill`.
 
 #### Examples
 
-    $ ID=$(sudo docker run -d ubuntu /usr/bin/top -b)
+    $ ID=$(sudo docker run daemon ubuntu /usr/bin/top -b)
     $ sudo docker attach $ID
     top - 02:05:52 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
     Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
@@ -559,7 +559,7 @@ Creates a new container.
 The `docker create` command creates a writeable container layer over
 the specified image and prepares it for running the specified command.
 The container ID is then printed to `STDOUT`.
-This is similar to `docker run -d` except the container is never started.
+This is similar to `docker run daemon` except the container is never started.
 You can then use the `docker start <container_id>` command to start the
 container at any point.
 
@@ -680,7 +680,7 @@ container is unpaused, and then run.
 
 This will create a container named `ubuntu_bash` and start a Bash session.
 
-    $ sudo docker exec -d ubuntu_bash touch /tmp/execWorks
+    $ sudo docker exec daemon ubuntu_bash touch /tmp/execWorks
 
 This will create a new file `/tmp/execWorks` inside the running container
 `ubuntu_bash`, in the background.
@@ -1480,10 +1480,10 @@ flag:
 
 **A complete example:**
 
-    $ sudo docker run -d --name static static-web-files sh
-    $ sudo docker run -d --expose=8098 --name riak riakserver
-    $ sudo docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-    $ sudo docker run -d -p 1443:443 --dns=10.0.0.1 --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
+    $ sudo docker run daemon --name static static-web-files sh
+    $ sudo docker run daemon --expose=8098 --name riak riakserver
+    $ sudo docker run daemon -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
+    $ sudo docker run daemon -p 1443:443 --dns=10.0.0.1 --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
     $ sudo docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
 
 This example shows five containers that might be set up to test a web

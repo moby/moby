@@ -60,7 +60,7 @@ grant rights to users of Docker.
 
 The `docker` command line tool contacts the `docker` daemon process via a
 socket file `/var/run/docker.sock` owned by group `docker`. One must be 
-member of that group in order to contact the `docker -d` process.
+member of that group in order to contact the `docker daemon` process.
 
     $ usermod -a -G docker login_name
 

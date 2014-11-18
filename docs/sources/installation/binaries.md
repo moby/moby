@@ -58,7 +58,7 @@ Linux kernel (it even builds on OS X!).
 ## Run the docker daemon
 
     # start the docker in daemon mode from the directory you unpacked
-    $ sudo ./docker -d &
+    $ sudo ./docker daemon &
 
 ## Giving non-root access
 

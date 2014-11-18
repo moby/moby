@@ -361,7 +361,7 @@ For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
 If the Docker daemon was started using the `lxc` exec-driver
-(`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
+(`docker daemon --exec-driver=lxc`) then the operator can also specify LXC options
 using one or more `--lxc-conf` parameters. These can be new parameters or
 override existing parameters from the [lxc-template.go](
 https://github.com/docker/docker/blob/master/daemon/execdriver/lxc/lxc_template.go).

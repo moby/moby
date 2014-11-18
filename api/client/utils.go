@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	ErrConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
+	ErrConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 )
 
 func (cli *DockerCli) HTTPClient() *http.Client {
@@ -146,7 +146,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	resp, err := cli.HTTPClient().Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
+			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 		}
 		return err
 	}

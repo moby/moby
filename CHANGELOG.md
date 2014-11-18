@@ -1140,7 +1140,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + Add `ps` args to `docker top`
 + Add support for container ID files (pidfile like)
 + Add container=lxc in default env
-+ Support networkless containers with `docker run -n` and `docker -d -b=none`
++ Support networkless containers with `docker run -n` and `docker daemon -b=none`
 * Stdout/stderr logs are now stored in the same file as JSON
 * Allocate a /16 IP range by default, with fallback to /24. Try 12 ranges instead of 3.
 * Change .dockercfg format to json and support multiple auth remote
@@ -1279,7 +1279,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 
 #### Runtime
 
-+ Configure dns configuration host-wide with 'docker -d -dns'
++ Configure dns configuration host-wide with 'docker daemon -dns'
 + Detect faulty DNS configuration and replace it with a public default
 + Allow docker run <name>:<id>
 + You can now specify public port (ex: -p 80:4500)
@@ -1434,7 +1434,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + New Dockerfile operation: "expose"
 + New Dockerfile operation: "cmd"
 + Contrib script to build a Debian base layer
-+ 'docker -d -r': restart crashed containers at daemon startup
++ 'docker daemon -r': restart crashed containers at daemon startup
 * Runtime: improve test coverage
 
 ## 0.2.0 (2013-04-23)
@@ -1471,7 +1471,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 ## 0.1.5 (2013-04-17)
 
 - Disable standalone mode
-- Use a custom DNS resolver with 'docker -d -dns'
+- Use a custom DNS resolver with 'docker daemon -dns'
 - Detect ghost containers
 - Improve diagnosis of missing system capabilities
 - Allow disabling memory limits at compile time
