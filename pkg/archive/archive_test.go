@@ -587,6 +587,20 @@ func TestUntarInvalidSymlink(t *testing.T) {
 				Mode:     0644,
 			},
 		},
+		{ // try writing to victim/newdir/newfile with a symlink in the path
+			{
+				// this header needs to be before the next one, or else there is an error
+				Name:     "dir/loophole",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "dir/loophole/newdir/newfile",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
 	} {
 		if err := testBreakout("untar", "docker-TestUntarInvalidSymlink", headers); err != nil {
 			t.Fatalf("i=%d. %v", i, err)
