@@ -420,8 +420,10 @@ The copy obeys the following rules:
   appropriate filename can be discovered in this case (`http://example.com`
   will not work).
 
-- If `<src>` is a directory, the entire directory is copied, including
-  filesystem metadata.
+- If `<src>` is a directory, the entire contents of the directory are copied, 
+  including filesystem metadata. 
+> **Note**:
+> The directory itself is not copied, just its contents.
 
 - If `<src>` is a *local* tar archive in a recognized compression format
   (identity, gzip, bzip2 or xz) then it is unpacked as a directory. Resources
@@ -480,8 +482,10 @@ The copy obeys the following rules:
   `docker build` is to send the context directory (and subdirectories) to the
   docker daemon.
 
-- If `<src>` is a directory, the entire directory is copied, including
-  filesystem metadata.
+- If `<src>` is a directory, the entire contents of the directory are copied, 
+  including filesystem metadata. 
+> **Note**:
+> The directory itself is not copied, just its contents.
 
 - If `<src>` is any other kind of file, it is copied individually along with
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
