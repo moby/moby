@@ -363,14 +363,14 @@ Start the container `id`
              "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}],
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
-             "Privileged":false
+             "Privileged":false,
              "Dns": ["8.8.8.8"],
              "VolumesFrom": ["parent", "other:ro"]
         }
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain
 
 Json Parameters:
