@@ -101,7 +101,7 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error 
 
 		defer layerDataDecompressed.Close()
 
-		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.VersionDev); err != nil {
+		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.Version1); err != nil {
 			return err
 		}
 
