@@ -63,6 +63,7 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 
 	return namespaces.ExecIn(active.container, state, args, os.Args[0], "exec", processConfig.Stdin, processConfig.Stdout, processConfig.Stderr, processConfig.Console,
 		func(cmd *exec.Cmd) {
+			processConfig.Process = cmd.Process
 			if startCallback != nil {
 				startCallback(&c.ProcessConfig, cmd.Process.Pid)
 			}

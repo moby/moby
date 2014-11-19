@@ -186,3 +186,43 @@ func TestExecAfterDaemonRestart(t *testing.T) {
 
 	logDone("exec - exec running container after daemon restart")
 }
+
+func TestExecDetach(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top: err=%v\n%s", err, out)
+	}
+
+	out, err := d.Cmd("exec", "-d", "top", "echo", "hello")
+	if err != nil {
+		t.Fatalf("Could not exec on container top: err=%v\n%s", err, out)
+	}
+
+	outStr := strings.TrimSpace(string(out))
+	if strings.Contains(outStr, "hello") {
+		t.Fatalf("Should have printed the execID, not: %q", outStr)
+	}
+
+	logDone("exec - exec running detached")
+}
+
+func TestExecExitStatus(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
+	ec, _ := runCommand(cmd)
+
+	if ec != 23 {
+		t.Fatalf("Should have had an ExitCode of 23, not: %d", ec)
+	}
+
+	logDone("exec - exec non-zero ExitStatus")
+}

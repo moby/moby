@@ -602,6 +602,10 @@ func (container *Container) cleanup() {
 	if err := container.Unmount(); err != nil {
 		log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
+
+	for _, eConfig := range container.execCommands.s {
+		container.daemon.unregisterExecCommand(eConfig)
+	}
 }
 
 func (container *Container) KillSig(sig int) error {
