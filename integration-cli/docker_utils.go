@@ -322,7 +322,10 @@ func deleteAllContainers() error {
 }
 
 func deleteImages(images ...string) error {
-	rmiCmd := exec.Command(dockerBinary, "rmi", strings.Join(images, " "))
+	args := make([]string, 1, 2)
+	args[0] = "rmi"
+	args = append(args, images...)
+	rmiCmd := exec.Command(dockerBinary, args...)
 	exitCode, err := runCommand(rmiCmd)
 	// set error manually if not set
 	if exitCode != 0 && err == nil {
