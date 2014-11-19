@@ -355,7 +355,11 @@ func ChangesSize(newDir string, changes []Change) int64 {
 	for _, change := range changes {
 		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
 			file := filepath.Join(newDir, change.Path)
-			fileInfo, _ := os.Lstat(file)
+			fileInfo, err := os.Lstat(file)
+			if err != nil {
+				log.Debugf("Can not stat %q: %s", file, err)
+				continue
+			}
 			if fileInfo != nil && !fileInfo.IsDir() {
 				if IsHardlink(fileInfo) {
 					// if the file has not been seen, then perhaps this link maybe elsewhere,

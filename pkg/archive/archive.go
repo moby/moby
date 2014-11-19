@@ -168,34 +168,6 @@ type tarAppender struct {
 	SeenFiles SeenFiles
 }
 
-// for hardlink mapping
-type SeenFiles map[uint64]string
-
-func (sf SeenFiles) Add(fi os.FileInfo) {
-	switch sys := fi.Sys().(type) {
-	case *syscall.Stat_t:
-		sf[uint64(sys.Ino)] = fi.Name()
-	default:
-		// length plus one. Not an inode, but still usable by systems that don't have inodes
-		sf[uint64(len(sf))] = fi.Name()
-	}
-}
-
-func (sf SeenFiles) Include(fi os.FileInfo) string {
-	switch sys := fi.Sys().(type) {
-	case *syscall.Stat_t:
-		return sf[uint64(sys.Ino)]
-	default:
-		n := fi.Name()
-		for _, path := range sf {
-			if n == path {
-				return path
-			}
-		}
-	}
-	return ""
-}
-
 func (ta *tarAppender) addTarFile(path, name string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
