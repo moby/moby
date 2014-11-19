@@ -11,7 +11,7 @@ import (
 func TestNetworkNat(t *testing.T) {
 	iface, err := net.InterfaceByName("eth0")
 	if err != nil {
-		t.Skip("Test not running with `make test`. Interface eth0 not found: %s", err)
+		t.Skipf("Test not running with `make test`. Interface eth0 not found: %s", err)
 	}
 
 	ifaceAddrs, err := iface.Addrs()
