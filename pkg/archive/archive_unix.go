@@ -9,16 +9,13 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, stat interface{}) (nlink uint32, inode uint64, err error) {
+func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, stat interface{}) (err error) {
 	s, ok := stat.(*syscall.Stat_t)
 
 	if !ok {
 		err = errors.New("cannot convert stat value to syscall.Stat_t")
 		return
 	}
-
-	nlink = uint32(s.Nlink)
-	inode = uint64(s.Ino)
 
 	// Currently go does not fil in the major/minors
 	if s.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||

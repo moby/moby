@@ -227,6 +227,7 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 	found := false
 	tr := tar.NewReader(f)
 	// Iterate through the files in the archive.
