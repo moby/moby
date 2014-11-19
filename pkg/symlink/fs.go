@@ -10,8 +10,6 @@ import (
 
 const maxLoopCounter = 100
 
-type ErrBreakout error
-
 // FollowSymlink will follow an existing link and scope it to the root
 // path provided.
 // The role of this function is to return an absolute path in the root
@@ -36,7 +34,7 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 	}
 
 	if !strings.HasPrefix(filepath.Dir(link), root) {
-		return "", ErrBreakout(fmt.Errorf("%s is not within %s", link, root))
+		return "", fmt.Errorf("%s is not within %s", link, root)
 	}
 
 	prev := "/"

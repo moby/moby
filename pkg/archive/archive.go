@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -286,12 +285,14 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeSymlink:
-		// check for symlink breakout
-		if _, err := symlink.FollowSymlinkInScope(filepath.Join(filepath.Dir(path), hdr.Linkname), extractDir); err != nil {
-			if _, ok := err.(symlink.ErrBreakout); ok {
-				return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
-			}
-			return err
+		// 	path 				-> hdr.Linkname = targetPath
+		// e.g. /extractDir/path/to/symlink 	-> ../2/file	= /extractDir/path/2/file
+		targetPath := filepath.Join(filepath.Dir(path), hdr.Linkname)
+
+		// the reason we don't need to check symlinks in the path (with FollowSymlinkInScope) is because
+		// that symlink would first have to be created, which would be caught earlier, at this very check:
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
 		}
 		if err := os.Symlink(hdr.Linkname, path); err != nil {
 			return err
