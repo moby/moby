@@ -230,6 +230,17 @@ func TestEmptyTar(t *testing.T) {
 	if resultSum != expectedSum {
 		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
 	}
+
+	// Test without ever actually writing anything.
+	if ts, err = NewTarSum(bytes.NewReader([]byte{}), true, Version0); err != nil {
+		t.Fatal(err)
+	}
+
+	resultSum = ts.Sum(nil)
+
+	if resultSum != expectedSum {
+		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
+	}
 }
 
 var (
