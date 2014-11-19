@@ -33,7 +33,7 @@ When considering a design proposal, we are looking for:
 * A description of the problem this design proposal solves
 * A pull request, not an issue, that modifies the documentation describing
   the feature you are proposing, adding new documentation if necessary.
-  * Please prefix your issue with `Proposal:` in the title
+  * Please prefix your pull request with `Proposal:` in the title
 * Please review [the existing Proposals](https://github.com/docker/docker/pulls?q=is%3Aopen+is%3Apr+label%3AProposal)
   before reporting a new one. You can always pair with someone if you both
   have the same idea.
