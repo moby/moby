@@ -112,7 +112,7 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error 
 		checksum := layerTarSum.Sum(nil)
 
 		if img.Checksum != "" && img.Checksum != checksum {
-			log.Warn("image layer checksum mismatch: computed %q, expected %q", checksum, img.Checksum)
+			log.Warnf("image layer checksum mismatch: computed %q, expected %q", checksum, img.Checksum)
 		}
 
 		img.Checksum = checksum
