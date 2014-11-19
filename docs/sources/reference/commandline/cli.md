@@ -249,7 +249,7 @@ Docker supports softlinks for the Docker data directory
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
+      --sig-proxy=true    Proxy all received signals to the process (non-TTY mode only). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
 The `attach` command lets you view or interact with any running container's
 primary process (`pid 1`).
@@ -1265,7 +1265,7 @@ removed before the image is removed.
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
-      --sig-proxy=true           Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      --sig-proxy=true           Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)

@@ -190,7 +190,7 @@ __docker_subcommand () {
         (attach)
             _arguments \
                 '--no-stdin[Do not attach stdin]' \
-                '--sig-proxy[Proxify all received signal]' \
+                '--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]' \
                 ':containers:__docker_runningcontainers'
             ;;
         (build)
@@ -396,7 +396,7 @@ __docker_subcommand () {
                 '--restart=-[Restart policy]:restart policy:(no on-failure always)' \
                 '--rm[Remove intermediate containers when it exits]' \
                 '*--security-opt=-[Security options]:security option: ' \
-                '--sig-proxy[Proxify all received signal]' \
+                '--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]' \
                 {-t,--tty}'[Allocate a pseudo-tty]' \
                 {-u,--user=-}'[Username or UID]:user:_users' \
                 '*-v[Bind mount a volume]:volume: '\
