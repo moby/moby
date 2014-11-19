@@ -1,8 +1,8 @@
-#!bash
+#!/bin/bash
 #
 # bash completion file for core docker commands
 #
-# This script provides supports completion of:
+# This script provides completion of:
 #  - commands and their options
 #  - container ids and names
 #  - image repos and tags
@@ -11,9 +11,9 @@
 # To enable the completions either:
 #  - place this file in /etc/bash_completion.d
 #  or
-#  - copy this file and add the line below to your .bashrc after
-#    bash completion features are loaded
-#     . docker.bash
+#  - copy this file to e.g. ~/.docker-completion.sh and add the line
+#    below to your .bashrc after bash completion features are loaded
+#    . ~/.docker-completion.sh
 #
 # Note:
 # Currently, the completions will not work if the docker daemon is not
@@ -153,8 +153,6 @@ _docker_docker() {
 		-H)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -187,8 +185,6 @@ _docker_build() {
 			__docker_image_repos_and_tags
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -208,8 +204,6 @@ _docker_commit() {
 	case "$prev" in
 		-m|--message|-a|--author|--run)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -362,13 +356,11 @@ _docker_create() {
 		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf|--dns-search)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --name -a --attach -v --volume --link -e --env --env-file -p --publish --expose --dns --volumes-from --lxc-conf --security-opt --add-host --cap-add --cap-drop --device --dns-search --net --restart" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --name -a --attach -v --volume --link -e --env --env-file -p --publish --expose --dns --volumes-from --lxc-conf --security-opt --add-host --cap-add --cap-drop --device --dns-search --net --restart" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--env-file|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf|--security-opt|--add-host|--cap-add|--cap-drop|--device|--dns-search|--net|--restart')
@@ -392,15 +384,11 @@ _docker_events() {
 		--since)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--since" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -480,8 +468,6 @@ _docker_inspect() {
 		-f|--format)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -507,15 +493,11 @@ _docker_login() {
 		-u|--username|-p|--password|-e|--email)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "-u --username -p --password -e --email" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -556,15 +538,11 @@ _docker_ps() {
 		-n)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --no-trunc -l --latest --since --before -n" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -573,8 +551,6 @@ _docker_pull() {
 	case "$prev" in
 		-t|--tag)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -603,8 +579,6 @@ _docker_restart() {
 		-t|--time)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -624,7 +598,6 @@ _docker_rm() {
 			return
 			;;
 		*)
-			local force=
 			for arg in "${COMP_WORDS[@]}"; do
 				case "$arg" in
 					-f|--force)
@@ -748,16 +721,13 @@ _docker_run() {
 		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf|--dns-search)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--rm -d --detach -n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env --env-file -p --publish --expose --dns --volumes-from --lxc-conf --security-opt --add-host --cap-add --cap-drop --device --dns-search --net --restart" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--rm -d --detach --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env --env-file -p --publish --expose --dns --volumes-from --lxc-conf --security-opt --add-host --cap-add --cap-drop --device --dns-search --net --restart" -- "$cur" ) )
 			;;
 		*)
-
 			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--env-file|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf|--security-opt|--add-host|--cap-add|--cap-drop|--device|--dns-search|--net|--restart')
 
 			if [ $cword -eq $counter ]; then
@@ -779,15 +749,11 @@ _docker_search() {
 		-s|--stars)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--no-trunc --automated -s --stars" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -807,8 +773,6 @@ _docker_stop() {
 	case "$prev" in
 		-t|--time)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -911,7 +875,7 @@ _docker() {
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
-	local command='docker'
+	local command='docker' cpos=0
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
