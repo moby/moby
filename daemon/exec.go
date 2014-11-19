@@ -306,10 +306,13 @@ func (d *Daemon) ContainerExecStop(job *engine.Job) engine.Status {
 
 	var (
 		execName = job.Args[0]
-		t        = 10
+		t        int
 	)
 	if job.EnvExists("t") {
 		t = job.GetenvInt("t")
+	}
+	if t == 0 {
+		t = 10 // if t is not set, use 10 seconds as the default
 	}
 
 	execConfig, err := d.getExecConfig(execName)
