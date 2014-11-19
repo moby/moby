@@ -761,7 +761,7 @@ For example:
 
 Docker containers will report the following events:
 
-    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+    create, destroy, die, export, kill, oom, pause, restart, start, stop, unpause
 
 and Docker images will report:
 
