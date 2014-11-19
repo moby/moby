@@ -348,34 +348,97 @@ List processes running inside the container `id`
         HTTP/1.1 200 OK
         Content-Type: application/json
 
+
         {
-             "Titles":[
-                     "USER",
-                     "PID",
-                     "%CPU",
-                     "%MEM",
-                     "VSZ",
-                     "RSS",
-                     "TTY",
-                     "STAT",
-                     "START",
-                     "TIME",
-                     "COMMAND"
-                     ],
-             "Processes":[
-                     ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
-                     ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
-             ]
+            "Processes":[
+                {
+                    "uid": 0,
+                    "pid": 20147,
+                    "pcpu": 0.0,
+                    "pmem": 0.1,
+                    "vsz": 18060,
+                    "rss": 1864,
+                    "tty": "pts/4",
+                    "state": "stopped",
+                    "state_flags": "",
+                    "start_time": 1416305160,
+                    "time": 0.0001,
+                    "command": "bash"
+                }, {
+                    "uid": 0,
+                    "pid": 20271,
+                    "pcpu": 0.0,
+                    "pmem": 0.0,
+                    "vsz": 4312,
+                    "rss": 352,
+                    "tty": "pts/4",
+                    "state": "stopped",
+                    "state_flags": "foreground",
+                    "start_time": 1416305220,
+                    "time": 0.0002,
+                    "command": "sleep 10"
+                }
+            ]
         }
 
 Query Parameters:
 
--   **ps_args** – ps arguments to use (e.g., aux)
+-   **fields** – fields to include in response (e.g., uid,pid,ppid,c,start_time,tty,cputime,command)
+
+Value for `fields` should be a comma separated list of fields and can include:
+
+| field       | type               | description                                                                                               |
+| ----------- | ------------------ | --------------------------------------------------------------------------------------------------------- |
+| all         | special            | if `fields=all`, all available fields will be included in the response                                    |
+| c           | integer            | processor utilization over process lifetime                                                               |
+| comm        | string             | command name (only the executable name)                                                                   |
+| command     | string             | command with all its arguments                                                                            |
+| cputime     | number             | cumulative CPU time for the process in seconds, with or without decimals                                  |
+| gid         | integer            | effective group ID number of the process as a decimal integer                                             |
+| lwp         | integer            | light weight process (thread) ID of the dispatchable entity                                               |
+| nice        | integer            | nice value. This ranges from 19 (nicest) to -20 (not nice to others)                                      |
+| pcpu        | number             | cpu utilization of the process as a percentage of its run time, with or without decimals                  |
+| pid         | integer            | a number representing the process ID                                                                      |
+| pgid        | integer            | process group ID or, equivalently, the process ID of the process group leader                             |
+| pmem        | integer            | ratio of the process's resident set size to the physical memory on the machine, expressed as a percentage |
+| ppid        | integer            | parent process ID                                                                                         |
+| psr         | integer            | processor that process is currently assigned to                                                           |
+| rgid        | integer            | real group ID                                                                                             |
+| rss         | integer            | resident set size, the non-swapped physical memory that a task has used in KiB                            |
+| ruid        | integer            | real user ID                                                                                              |
+| start_time  | number             | time the process started (seconds since 1970-01-01 00:00:00 UTC), with or without decimals                |
+| state       | string (see below) | normalized state of the process                                                                           |
+| state_flags | string (see below) | implementation-specific process state flags                                                               |
+| tty         | string             | controlling tty (terminal)                                                                                |
+| uid         | integer            | effective user ID                                                                                         |
+| vsz         | integer            | virtual size of the process in KiB                                                                        |
+
+Value for `state` (ps equiv. is included here for reference only) will be one of:
+
+| `state` value   | ps equiv. | meaning                                                               |
+| --------------- | --------- | --------------------------------------------------------------------- |
+| uninterruptible | D         | uninterruptible sleep (usually IO)                                    |
+| running         | R         | running or runnable (on run queue)                                    |
+| sleep           | S         | interruptible sleep (waiting for an event to complete)                |
+| stopped         | T         | stopped, either by a job control signal or because it is being traced |
+| zombie          | Z         | defunct ("zombie") process, terminated but not reaped by its parent   |
+
+Values for `state_flags` (ps equiv. is included here for reference only) should be a comma separated list (or empty) of:
+
+| state_flag | ps equiv. | Meaning                                                       |
+| ---------  | --------- | ------------------------------------------------------------- |
+| high       | <         | high-priority (not nice to other users)                       |
+| low        | N         | low-priority (nice to other users)                            |
+| locked     | L         | has pages locked into memory (for real-time and custom IO)    |
+| leader     | s         | is a session leader                                           |
+| threads    | l         | is multi-threaded (using CLONE_THREAD, like NPTL pthreads do) |
+| foreground | +         | is in the foreground process group                            |
 
 Status Codes:
 
 -   **200** – no error
 -   **404** – no such container
+-   **422** – invalid fields
 -   **500** – server error
 
 ### Get container logs
