@@ -178,7 +178,15 @@ Four different options affect container domain name services.
 Note that Docker, in the absence of either of the last two options
 above, will make `/etc/resolv.conf` inside of each container look like
 the `/etc/resolv.conf` of the host machine where the `docker` daemon is
-running.  The options then modify this default configuration.
+running.  One exception to this is if the resolv.conf of the host machine
+contains only a local name server (127.0.0.1). The same value cannot be
+used inside the container because it will refer to the loopback interface
+of the container. So Docker will replace that value with the address of the
+Docker bridge to attempt to reach the name server on the host. So if your
+host is setup to only use a local name server you must ensure that your name
+server is reachable and allows queries from the bridge address.
+
+The options then modify the default configuration.
 
 ## Communication between containers and the wider world
 
