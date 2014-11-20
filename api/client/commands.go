@@ -1558,6 +1558,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show only containers created since Id or Name, include non-running ones.")
 		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name, include non-running ones.")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running ones.")
+		node     = cmd.Bool([]string{"-node"}, false, "Display node name")
 		flFilter = opts.NewListOpts(nil)
 	)
 
@@ -1623,10 +1624,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 
 		if *size {
-			fmt.Fprintln(w, "\tSIZE")
-		} else {
-			fmt.Fprint(w, "\n")
+			fmt.Fprint(w, "\tSIZE")
 		}
+		if *node {
+			fmt.Fprint(w, "\tNODE")
+		}
+		fmt.Fprint(w, "\n")
 	}
 
 	stripNamePrefix := func(ss []string) []string {
@@ -1677,12 +1680,14 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		if *size {
 			if out.GetInt("SizeRootFs") > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
+				fmt.Fprintf(w, "%s (virtual %s)", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
 			} else {
-				fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("SizeRw")))
+				fmt.Fprintf(w, "%s", units.HumanSize(out.GetInt64("SizeRw")))
 			}
+		}
 
-			continue
+		if *node {
+			fmt.Fprintf(w, "%s", out.Get("NodeName"))
 		}
 
 		fmt.Fprint(w, "\n")
