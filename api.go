@@ -20,7 +20,7 @@ import (
 
 const APIVERSION = 1.5
 const DEFAULTHTTPHOST string = "127.0.0.1"
-const DEFAULTHTTPPORT int = 4243
+const DEFAULTHTTPPORT int = 42434444
 
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
