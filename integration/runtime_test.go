@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"io"
 	std_log "log"
-	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -21,7 +19,6 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/runconfig"
@@ -418,174 +415,6 @@ func TestGet(t *testing.T) {
 	if daemon.Get(container3.ID) != container3 {
 		t.Errorf("Get(test3) returned %v while expecting %v", daemon.Get(container3.ID), container3)
 	}
-
-}
-
-func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daemon.Container, string) {
-	var (
-		err          error
-		id           string
-		outputBuffer = bytes.NewBuffer(nil)
-		strPort      string
-		eng          = NewTestEngine(t)
-		daemon       = mkDaemonFromEngine(eng, t)
-		port         = 5554
-		p            nat.Port
-	)
-	defer func() {
-		if err != nil {
-			daemon.Nuke()
-		}
-	}()
-
-	for {
-		port += 1
-		strPort = strconv.Itoa(port)
-		var cmd string
-		if proto == "tcp" {
-			cmd = "socat TCP-LISTEN:" + strPort + ",reuseaddr,fork EXEC:/bin/cat"
-		} else if proto == "udp" {
-			cmd = "socat UDP-RECVFROM:" + strPort + ",fork EXEC:/bin/cat"
-		} else {
-			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
-		}
-		ep := make(map[nat.Port]struct{}, 1)
-		p = nat.Port(fmt.Sprintf("%s/%s", strPort, proto))
-		ep[p] = struct{}{}
-
-		jobCreate := eng.Job("create")
-		jobCreate.Setenv("Image", unitTestImageID)
-		jobCreate.SetenvList("Cmd", []string{"sh", "-c", cmd})
-		jobCreate.SetenvList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
-		jobCreate.SetenvJson("ExposedPorts", ep)
-		jobCreate.Stdout.Add(outputBuffer)
-		if err := jobCreate.Run(); err != nil {
-			t.Fatal(err)
-		}
-		id = engine.Tail(outputBuffer, 1)
-		// FIXME: this relies on the undocumented behavior of daemon.Create
-		// which will return a nil error AND container if the exposed ports
-		// are invalid. That behavior should be fixed!
-		if id != "" {
-			break
-		}
-		t.Logf("Port %v already in use, trying another one", strPort)
-
-	}
-
-	jobStart := eng.Job("start", id)
-	portBindings := make(map[nat.Port][]nat.PortBinding)
-	portBindings[p] = []nat.PortBinding{
-		{},
-	}
-	if err := jobStart.SetenvJson("PortsBindings", portBindings); err != nil {
-		t.Fatal(err)
-	}
-	if err := jobStart.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	container := daemon.Get(id)
-	if container == nil {
-		t.Fatalf("Couldn't fetch test container %s", id)
-	}
-
-	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
-		for !container.IsRunning() {
-			time.Sleep(10 * time.Millisecond)
-		}
-	})
-
-	// Even if the state is running, lets give some time to lxc to spawn the process
-	container.WaitStop(500 * time.Millisecond)
-
-	strPort = container.NetworkSettings.Ports[p][0].HostPort
-	return daemon, container, strPort
-}
-
-// Run a container with a TCP port allocated, and test that it can receive connections on localhost
-func TestAllocateTCPPortLocalhost(t *testing.T) {
-	daemon, container, port := startEchoServerContainer(t, "tcp")
-	defer nuke(daemon)
-	defer container.Kill()
-
-	for i := 0; i != 10; i++ {
-		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%v", port))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer conn.Close()
-
-		input := bytes.NewBufferString("well hello there\n")
-		_, err = conn.Write(input.Bytes())
-		if err != nil {
-			t.Fatal(err)
-		}
-		buf := make([]byte, 16)
-		read := 0
-		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-		read, err = conn.Read(buf)
-		if err != nil {
-			if err, ok := err.(*net.OpError); ok {
-				if err.Err == syscall.ECONNRESET {
-					t.Logf("Connection reset by the proxy, socat is probably not listening yet, trying again in a sec")
-					conn.Close()
-					time.Sleep(time.Second)
-					continue
-				}
-				if err.Timeout() {
-					t.Log("Timeout, trying again")
-					conn.Close()
-					continue
-				}
-			}
-			t.Fatal(err)
-		}
-		output := string(buf[:read])
-		if !strings.Contains(output, "well hello there") {
-			t.Fatal(fmt.Errorf("[%v] doesn't contain [well hello there]", output))
-		} else {
-			return
-		}
-	}
-
-	t.Fatal("No reply from the container")
-}
-
-// Run a container with an UDP port allocated, and test that it can receive connections on localhost
-func TestAllocateUDPPortLocalhost(t *testing.T) {
-	daemon, container, port := startEchoServerContainer(t, "udp")
-	defer nuke(daemon)
-	defer container.Kill()
-
-	conn, err := net.Dial("udp", fmt.Sprintf("localhost:%v", port))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-
-	input := bytes.NewBufferString("well hello there\n")
-	buf := make([]byte, 16)
-	// Try for a minute, for some reason the select in socat may take ages
-	// to return even though everything on the path seems fine (i.e: the
-	// UDPProxy forwards the traffic correctly and you can see the packets
-	// on the interface from within the container).
-	for i := 0; i != 120; i++ {
-		_, err := conn.Write(input.Bytes())
-		if err != nil {
-			t.Fatal(err)
-		}
-		conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		read, err := conn.Read(buf)
-		if err == nil {
-			output := string(buf[:read])
-			if strings.Contains(output, "well hello there") {
-				return
-			}
-		}
-	}
-
-	t.Fatal("No reply from the container")
 }
 
 func TestRestore(t *testing.T) {

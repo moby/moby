@@ -8,11 +8,6 @@ import (
 	"github.com/docker/docker/pkg/iptables"
 )
 
-func init() {
-	// override this func to mock out the proxy server
-	NewProxy = NewMockProxyCommand
-}
-
 func reset() {
 	chain = nil
 	currentMappings = make(map[string]*mapping)

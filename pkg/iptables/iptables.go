@@ -48,7 +48,7 @@ func NewChain(name, bridge string) (*Chain, error) {
 	if err := chain.Prerouting(Add, "-m", "addrtype", "--dst-type", "LOCAL"); err != nil {
 		return nil, fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 	}
-	if err := chain.Output(Add, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8"); err != nil {
+	if err := chain.Output(Add, "-m", "addrtype", "--dst-type", "LOCAL"); err != nil {
 		return nil, fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 	}
 	return chain, nil
@@ -139,8 +139,7 @@ func (c *Chain) Output(action Action, args ...string) error {
 func (c *Chain) Remove() error {
 	// Ignore errors - This could mean the chains were never set up
 	c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL")
-	c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8")
-	c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL") // Created in versions <= 0.1.6
+	c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL")
 
 	c.Prerouting(Delete)
 	c.Output(Delete)

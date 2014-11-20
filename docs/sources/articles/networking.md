@@ -79,6 +79,9 @@ server when it starts up, and cannot be changed once it is running:
  *  `--mtu=BYTES` — see
     [Customizing docker0](#docker0)
 
+ *  `--route-localnet=true|false` — see
+    [Binding container ports](#binding-ports)
+
 There are two networking options that can be supplied either at startup
 or when `docker run` is invoked.  When provided at startup, set the
 default value that `docker run` will later use if the options are not
@@ -306,7 +309,7 @@ machine that the Docker server creates when it starts:
     ...
     Chain POSTROUTING (policy ACCEPT)
     target     prot opt source               destination
-    MASQUERADE  all  --  172.17.0.0/16       !172.17.0.0/16
+    MASQUERADE  all  --  172.17.0.0/16       0.0.0.0/0
     ...
 
 But if you want containers to accept incoming connections, you will need
@@ -358,6 +361,17 @@ address, you can edit your system-wide Docker server settings (on
 Ubuntu, by editing `DOCKER_OPTS` in `/etc/default/docker`) and add the
 option `--ip=IP_ADDRESS`.  Remember to restart your Docker server after
 editing this setting.
+
+> **Note**:
+> Because containers port exposure is achieved purely through iptables rules,
+> no attempt to bind the exposed port is ever made. This means that nothing
+> prevents shadowing a previously listening service outside of Docker through
+> exposing the same port for a container. In such conflicting situation, Docker
+> created iptables rules will take precedence and route to the container.
+
+The `--route-localnet` parameter drives the `net.ipv4.route_localnet` kernel
+parameter. It is enabled by default and allows the host machine to connect to a
+local container exposed port through the commonly used loopback address.
 
 Again, this topic is covered without all of these low-level networking
 details in the [Docker User Guide](/userguide/dockerlinks/) document if you
