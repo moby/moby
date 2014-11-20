@@ -124,6 +124,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"start":             daemon.ContainerStart,
 		"stop":              daemon.ContainerStop,
 		"top":               daemon.ContainerTop,
+		"truncate_logs":     daemon.ContainerTruncateLogs,
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
 		"image_delete":      daemon.ImageDelete, // FIXME: see above

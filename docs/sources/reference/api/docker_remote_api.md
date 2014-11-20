@@ -68,6 +68,11 @@ set this when creating the container.
 **New!**
 You can now copy data which is contained in a volume.
 
+`DELETE /containers/(id)/logs`
+
+**New!**
+You can now fetch and truncate the logs for a container.
+
 ## v1.15
 
 ### Full Documentation

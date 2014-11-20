@@ -146,3 +146,69 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	return engine.StatusOK
 }
+
+func (daemon *Daemon) ContainerTruncateLogs(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name   = job.Args[0]
+		times  = job.GetenvBool("timestamps")
+		format string
+	)
+
+	if times {
+		format = timeutils.RFC3339NanoFixed
+	}
+
+	container := daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+
+	// pause the container
+	if container.IsRunning() && !container.IsPaused() {
+		if err := container.Pause(); err != nil {
+			return job.Errorf("Cannot pause container %s: %s", name, err)
+		}
+	}
+
+	// get the logs
+	cLog, err := container.ReadLog("json")
+	if err != nil {
+		log.Errorf("Error reading logs (json): %s", err)
+	}
+	dec := json.NewDecoder(cLog)
+	l := &jsonlog.JSONLog{}
+	for {
+		if err := dec.Decode(l); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Errorf("Error streaming logs: %s", err)
+			break
+		}
+		logLine := l.Log
+		if times {
+			logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
+		}
+		io.WriteString(job.Stdout, logLine)
+		l.Reset()
+	}
+
+	// truncate the logs
+	f := cLog.(*os.File)
+	if err := os.Truncate(f.Name(), 0); err != nil {
+		log.Errorf("Error truncating logs (json): %v", err)
+	}
+
+	if container.IsPaused() {
+		if err := container.Unpause(); err != nil {
+			return job.Errorf("Cannot unpause container %s: %s", name, err)
+		}
+	}
+
+	container.LogEvent("truncate_logs")
+
+	return engine.StatusOK
+}
