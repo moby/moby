@@ -179,6 +179,7 @@ func TestBuildEnvironmentReplacementAddCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
@@ -632,6 +633,8 @@ func TestBuildSixtySteps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -656,6 +659,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -674,6 +679,8 @@ ADD test_file .`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	done := make(chan struct{})
 	go func() {
 		if _, err := buildImageFromContext(name, ctx, true); err != nil {
@@ -708,6 +715,8 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -947,6 +956,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -971,6 +982,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -996,6 +1009,8 @@ RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1022,6 +1037,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1040,6 +1057,8 @@ ADD . /`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1064,6 +1083,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1082,6 +1103,8 @@ COPY test_file .`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	done := make(chan struct{})
 	go func() {
 		if _, err := buildImageFromContext(name, ctx, true); err != nil {
@@ -1116,6 +1139,8 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1140,6 +1165,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1163,6 +1190,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1188,6 +1217,8 @@ RUN [ $(ls -l /exists/test_file | awk '{print $3":"$4}') = 'root:root' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1214,6 +1245,8 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1231,6 +1264,8 @@ COPY . /`,
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
@@ -1858,6 +1893,7 @@ func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer ctx.Close()
 
 		out1, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name1, ".")
 		if err != nil {
@@ -1874,6 +1910,7 @@ func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer ctx.Close()
 
 		out2, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-t", name2, ".")
 		if err != nil {
@@ -1890,6 +1927,7 @@ func TestBuildOnBuildLimitedInheritence(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer ctx.Close()
 
 		out3, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-t", name3, ".")
 		if err != nil {
@@ -2984,6 +3022,8 @@ RUN    [ "$(cat $TO)" = "hello" ]
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	_, err = buildImageFromContext(name, ctx, true)
 	if err != nil {
 		t.Fatal(err)
@@ -3006,6 +3046,8 @@ RUN [ "$(cat /testfile)" = 'test!' ]`
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	_, err = buildImageFromContext(name, ctx, true)
 	if err != nil {
 		t.Fatal(err)
@@ -3060,6 +3102,7 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 		}
 		return &FakeContext{Dir: tmpDir}
 	}()
+	defer ctx.Close()
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatalf("build failed to complete for TestBuildAddTar: %v", err)
