@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-const APIVERSION = 1.4
+const APIVERSION = 1.5
 const DEFAULTHTTPHOST string = "127.0.0.1"
 const DEFAULTHTTPPORT int = 4243
 
