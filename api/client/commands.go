@@ -545,6 +545,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if remoteInfo.Exists("IPv4Forwarding") && !remoteInfo.GetBool("IPv4Forwarding") {
 		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
 	}
+	if remoteInfo.Exists("Attributes") {
+		fmt.Fprintln(cli.out, "Attributes:")
+		for _, attribute := range remoteInfo.GetList("Attributes") {
+			fmt.Fprintf(cli.out, " %s\n", attribute)
+		}
+	}
+
 	return nil
 }
 
