@@ -10,14 +10,17 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
@@ -36,15 +39,8 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	}
 
 	fullEnv := fmt.Sprintf("%s=%s", args[0], args[1])
+	b.setEnvVar(args[0], args[1])
 
-	for i, envVar := range b.Config.Env {
-		envParts := strings.SplitN(envVar, "=", 2)
-		if args[0] == envParts[0] {
-			b.Config.Env[i] = fullEnv
-			return b.commit("", b.Config.Cmd, fmt.Sprintf("ENV %s", fullEnv))
-		}
-	}
-	b.Config.Env = append(b.Config.Env, fullEnv)
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("ENV %s", fullEnv))
 }
 
@@ -350,4 +346,30 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 // INSERT is no longer accepted, but we still parse it.
 func insert(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
+}
+
+// ENVFILE envfile
+//
+// Set environment variables from line delmited file of environment variables
+//
+func envfile(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("ENVFILE requires exactly one argument %d", len(args))
+	}
+
+	filename := args[0]
+	if !utils.IsURL(filename) {
+		filename = path.Join(b.contextPath, filename)
+	}
+	parsedVars, err := opts.ParseEnvFile(filename)
+	if err != nil {
+		return err
+	}
+
+	for _, envLine := range parsedVars {
+		envParts := strings.SplitN(envLine, "=", 2)
+		b.setEnvVar(envParts[0], envParts[1])
+	}
+
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("ENVFILE %s", filename))
 }

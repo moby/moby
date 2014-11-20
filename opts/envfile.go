@@ -3,22 +3,37 @@ package opts
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
+
+	"github.com/docker/docker/utils"
 )
 
 /*
 Read in a line delimited file with environment variables enumerated
 */
 func ParseEnvFile(filename string) ([]string, error) {
-	fh, err := os.Open(filename)
+	var reader io.ReadCloser
+	var err error
+	if utils.IsURL(filename) {
+		var resp *http.Response
+		resp, err = utils.Download(filename)
+		reader = resp.Body
+	} else {
+		reader, err = os.Open(filename)
+	}
 	if err != nil {
 		return []string{}, err
 	}
-	defer fh.Close()
+	defer reader.Close()
+	return parseEnvFileFromReader(reader)
+}
 
+func parseEnvFileFromReader(reader io.Reader) ([]string, error) {
 	lines := []string{}
-	scanner := bufio.NewScanner(fh)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		// line is not empty, and not starting with '#'
