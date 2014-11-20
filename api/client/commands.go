@@ -1760,6 +1760,10 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := cli.Subcmd("events", "", "Get real time events from the server")
 	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")
 	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
+
+	flFilter := opts.NewListOpts(nil)
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'event=stop')")
+
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -1769,9 +1773,20 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		return nil
 	}
 	var (
-		v   = url.Values{}
-		loc = time.FixedZone(time.Now().Zone())
+		v               = url.Values{}
+		loc             = time.FixedZone(time.Now().Zone())
+		eventFilterArgs = filters.Args{}
 	)
+
+	// Consolidate all filter flags, and sanity check them early.
+	// They'll get process in the daemon/server.
+	for _, f := range flFilter.GetAll() {
+		var err error
+		eventFilterArgs, err = filters.ParseFlag(f, eventFilterArgs)
+		if err != nil {
+			return err
+		}
+	}
 	var setTime = func(key, value string) {
 		format := timeutils.RFC3339NanoFixed
 		if len(value) < len(format) {
@@ -1788,6 +1803,13 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	}
 	if *until != "" {
 		setTime("until", *until)
+	}
+	if len(eventFilterArgs) > 0 {
+		filterJson, err := filters.ToParam(eventFilterArgs)
+		if err != nil {
+			return err
+		}
+		v.Set("filters", filterJson)
 	}
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
 		return err
