@@ -46,6 +46,7 @@ func TestFollowSymLinkUnderLinkedDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(dir)
 
 	os.Mkdir(filepath.Join(dir, "realdir"), 0700)
 	os.Symlink("realdir", filepath.Join(dir, "linkdir"))
