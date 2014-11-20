@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -143,6 +144,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			sizeRw, sizeRootFs := container.GetSize()
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
+		}
+		out.Set("NodeId", daemon.ID)
+		if hostname, err := os.Hostname(); err == nil {
+			out.Set("NodeName", hostname)
 		}
 		outs.Add(out)
 		return nil
