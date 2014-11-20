@@ -394,10 +394,20 @@ func (f *FlagSet) Lookup(name string) *Flag {
 	return f.formal[name]
 }
 
+// Indicates whether the specified flag was specified at all on the cmd line
+func (f *FlagSet) IsSet(name string) bool {
+	return f.actual[name] != nil
+}
+
 // Lookup returns the Flag structure of the named command-line flag,
 // returning nil if none exists.
 func Lookup(name string) *Flag {
 	return CommandLine.formal[name]
+}
+
+// Indicates whether the specified flag was specified at all on the cmd line
+func IsSet(name string) bool {
+	return CommandLine.IsSet(name)
 }
 
 // Set sets the value of the named flag.
