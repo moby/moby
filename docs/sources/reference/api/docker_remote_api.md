@@ -50,7 +50,8 @@ You can still call an old version of the API using
 
 **New!**
 `info` now returns the number of CPUs available on the machine (`NCPU`),
-total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), and a unique ID identifying the daemon (`ID`).
+total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
+a list of daemon labels (`Labels`).
 
 `POST /containers/create`
 

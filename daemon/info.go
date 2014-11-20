@@ -79,6 +79,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	if hostname, err := os.Hostname(); err == nil {
 		v.Set("Name", hostname)
 	}
+	v.SetList("Labels", daemon.Config().Labels)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}

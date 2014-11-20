@@ -1230,7 +1230,8 @@ Display system-wide information
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
-             "IPv4Forwarding":true
+             "IPv4Forwarding":true,
+             "Labels":["storage=ssd"]
         }
 
 Status Codes:

@@ -43,6 +43,10 @@ func MirrorListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateMirror), names, usage)
 }
 
+func LabelListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateLabel), names, usage)
+}
+
 // ListOpts type
 type ListOpts struct {
 	values    *[]string
@@ -226,4 +230,11 @@ func ValidateMirror(val string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
+}
+
+func ValidateLabel(val string) (string, error) {
+	if strings.Count(val, "=") != 1 {
+		return "", fmt.Errorf("bad attribute format: %s", val)
+	}
+	return val, nil
 }

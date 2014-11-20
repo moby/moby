@@ -68,6 +68,9 @@ unix://[/path/to/socket] to use.
 **-l**, **--log-level**="*debug*|*info*|*error*|*fatal*""
   Set the logging level. Default is `info`.
 
+**--label**="[]"
+  Set key=values labels to the daemon (displayed in `docker info`)
+
 **--mtu**=VALUE
   Set the containers network mtu. Default is `1500`.
 
