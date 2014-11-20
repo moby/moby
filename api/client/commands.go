@@ -289,7 +289,10 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	// the password or email from the config file, so prompt them
 	if username != authconfig.Username {
 		if password == "" {
-			oldState, _ := term.SaveState(cli.inFd)
+			oldState, err := term.SaveState(cli.inFd)
+			if err != nil {
+				return err
+			}
 			fmt.Fprintf(cli.out, "Password: ")
 			term.DisableEcho(cli.inFd, oldState)
 
