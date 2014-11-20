@@ -59,6 +59,7 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.Config.Image = b.image
+	b.Config.BuildOnly = true
 	if id == "" {
 		cmd := b.Config.Cmd
 		b.Config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}

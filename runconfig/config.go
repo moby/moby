@@ -34,6 +34,7 @@ type Config struct {
 	MacAddress      string
 	OnBuild         []string
 	SecurityOpt     []string
+	BuildOnly       bool
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {

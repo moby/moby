@@ -3439,3 +3439,26 @@ func TestBuildWithTabs(t *testing.T) {
 	}
 	logDone("build - with tabs")
 }
+
+func TestBuildVolumesAreNotCreated(t *testing.T) {
+	name := "testbuildnovolumes"
+	defer deleteImages(name)
+	out, err := buildImage(name,
+		`FROM busybox
+		VOLUME /foo
+		RUN touch /foo/bar
+		RUN [ -f /foo/bar ] || exit 1`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "inspect", "--format", `'{{ index .Config.Volumes "/foo" }}'`, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out == "<no value>" {
+		t.Fatal("Expect a volume config for /foo but got none")
+	}
+
+	logDone("build - do not create volumes on build")
+}

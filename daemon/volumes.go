@@ -86,6 +86,13 @@ func (m *Mount) initialize() error {
 	if err != nil {
 		return err
 	}
+
+	// If this is a build, we don't actually want to create the volume.
+	// However, since the user is expecting the dir to be automatically created it needs to be created here.
+	if m.container.Config.BuildOnly {
+		return os.MkdirAll(containerMntPath, 0755)
+	}
+
 	m.container.VolumesRW[m.MountToPath] = m.Writable
 	m.container.Volumes[m.MountToPath] = m.volume.Path
 	m.volume.AddContainer(m.container.ID)
