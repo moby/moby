@@ -1220,6 +1220,8 @@ Display system-wide information
              "KernelVersion":"3.12.0-1-amd64"
              "NCPU":1,
              "MemTotal":2099236864,
+             "Name":"prod-server-42",
+             "ID":"7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,

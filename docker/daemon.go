@@ -34,6 +34,8 @@ func mainDaemon() {
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 
+	daemonCfg.TrustKeyPath = *flTrustKey
+
 	// Load builtins
 	if err := builtins.Register(eng); err != nil {
 		log.Fatal(err)

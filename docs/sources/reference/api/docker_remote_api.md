@@ -49,8 +49,8 @@ You can still call an old version of the API using
 `GET /info`
 
 **New!**
-`info` now returns the number of CPUs available on the machine (`NCPU`) and
-total memory available (`MemTotal`).
+`info` now returns the number of CPUs available on the machine (`NCPU`),
+total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), and a unique ID identifying the daemon (`ID`).
 
 `POST /containers/create`
 

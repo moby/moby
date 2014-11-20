@@ -51,7 +51,7 @@ clone hg code.google.com/p/go.net 84a4013f96e0
 
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
-clone git github.com/docker/libtrust d273ef2565ca
+clone git github.com/docker/libtrust 230dfd18c232
 
 clone git github.com/Sirupsen/logrus v0.6.0
 
