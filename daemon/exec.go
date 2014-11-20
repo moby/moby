@@ -122,8 +122,6 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 	entrypoint, args := d.getEntrypointAndArgs(nil, config.Cmd)
 
 	processConfig := execdriver.ProcessConfig{
-		Privileged: config.Privileged,
-		User:       config.User,
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,

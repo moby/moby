@@ -19,10 +19,11 @@ type ExecConfig struct {
 
 func ExecConfigFromJob(job *engine.Job) *ExecConfig {
 	execConfig := &ExecConfig{
-		User:         job.Getenv("User"),
-		Privileged:   job.GetenvBool("Privileged"),
+		// TODO(vishh): Expose 'User' once it is supported.
+		//User:         job.Getenv("User"),
+		// TODO(vishh): Expose 'Privileged' once it is supported.
+		//Privileged:   job.GetenvBool("Privileged"),
 		Tty:          job.GetenvBool("Tty"),
-		Container:    job.Getenv("Container"),
 		AttachStdin:  job.GetenvBool("AttachStdin"),
 		AttachStderr: job.GetenvBool("AttachStderr"),
 		AttachStdout: job.GetenvBool("AttachStdout"),
