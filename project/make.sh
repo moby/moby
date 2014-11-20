@@ -96,10 +96,14 @@ fi
 
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
-	-w
 	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
 	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
 '
+
+if [ -z "$DEBUG" ]; then
+    LDFLAGS="-w $LDFLAGS"
+fi
+
 LDFLAGS_STATIC='-linkmode external'
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
