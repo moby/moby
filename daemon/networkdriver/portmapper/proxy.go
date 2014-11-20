@@ -145,7 +145,7 @@ func (p *proxyCommand) Start() error {
 	select {
 	case err := <-errchan:
 		return err
-	case <-time.After(1 * time.Second):
+	case <-time.After(16 * time.Second):
 		return fmt.Errorf("Timed out proxy starting the userland proxy")
 	}
 }
