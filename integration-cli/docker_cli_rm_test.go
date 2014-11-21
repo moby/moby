@@ -106,6 +106,7 @@ func TestRmContainerOrphaning(t *testing.T) {
 	}
 
 	deleteAllContainers()
+	deleteImages(img1)
 
 	logDone("rm - container orphaning")
 }

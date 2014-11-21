@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+BINARY_NAME="docker-$VERSION"
+if [ "$(go env GOOS)" = 'windows' ]; then
+	BINARY_NAME+='.exe'
+fi
+
+go build \
+	-o "$DEST/$BINARY_NAME" \
+	"${BUILDFLAGS[@]}" \
+	-ldflags "
+		$LDFLAGS
+		$LDFLAGS_STATIC_DOCKER
+	" \
+	./docker
+echo "Created binary: $DEST/$BINARY_NAME"
+ln -sf "$BINARY_NAME" "$DEST/docker"
+
+hash_files "$DEST/$BINARY_NAME"

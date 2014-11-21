@@ -1,6 +1,8 @@
 package user
 
 import (
+	"io"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -54,7 +56,7 @@ func TestUserParseLine(t *testing.T) {
 }
 
 func TestUserParsePasswd(t *testing.T) {
-	users, err := parsePasswdFile(strings.NewReader(`
+	users, err := ParsePasswdFilter(strings.NewReader(`
 root:x:0:0:root:/root:/bin/bash
 adm:x:3:4:adm:/var/adm:/bin/false
 this is just some garbage data
@@ -74,7 +76,7 @@ this is just some garbage data
 }
 
 func TestUserParseGroup(t *testing.T) {
-	groups, err := parseGroupFile(strings.NewReader(`
+	groups, err := ParseGroupFilter(strings.NewReader(`
 root:x:0:root
 adm:x:4:root,adm,daemon
 this is just some garbage data
@@ -90,5 +92,261 @@ this is just some garbage data
 	}
 	if groups[1].Gid != 4 || groups[1].Name != "adm" || len(groups[1].List) != 3 {
 		t.Fatalf("Expected groups[1] to be 4 - adm - 3 members, got %v - %v - %v", groups[1].Gid, groups[1].Name, len(groups[1].List))
+	}
+}
+
+func TestValidGetExecUser(t *testing.T) {
+	const passwdContent = `
+root:x:0:0:root user:/root:/bin/bash
+adm:x:42:43:adm:/var/adm:/bin/false
+this is just some garbage data
+`
+	const groupContent = `
+root:x:0:root
+adm:x:43:
+grp:x:1234:root,adm
+this is just some garbage data
+`
+	defaultExecUser := ExecUser{
+		Uid:   8888,
+		Gid:   8888,
+		Sgids: []int{8888},
+		Home:  "/8888",
+	}
+
+	tests := []struct {
+		ref      string
+		expected ExecUser
+	}{
+		{
+			ref: "root",
+			expected: ExecUser{
+				Uid:   0,
+				Gid:   0,
+				Sgids: []int{0, 1234},
+				Home:  "/root",
+			},
+		},
+		{
+			ref: "adm",
+			expected: ExecUser{
+				Uid:   42,
+				Gid:   43,
+				Sgids: []int{1234},
+				Home:  "/var/adm",
+			},
+		},
+		{
+			ref: "root:adm",
+			expected: ExecUser{
+				Uid:   0,
+				Gid:   43,
+				Sgids: defaultExecUser.Sgids,
+				Home:  "/root",
+			},
+		},
+		{
+			ref: "adm:1234",
+			expected: ExecUser{
+				Uid:   42,
+				Gid:   1234,
+				Sgids: defaultExecUser.Sgids,
+				Home:  "/var/adm",
+			},
+		},
+		{
+			ref: "42:1234",
+			expected: ExecUser{
+				Uid:   42,
+				Gid:   1234,
+				Sgids: defaultExecUser.Sgids,
+				Home:  "/var/adm",
+			},
+		},
+		{
+			ref: "1337:1234",
+			expected: ExecUser{
+				Uid:   1337,
+				Gid:   1234,
+				Sgids: defaultExecUser.Sgids,
+				Home:  defaultExecUser.Home,
+			},
+		},
+		{
+			ref: "1337",
+			expected: ExecUser{
+				Uid:   1337,
+				Gid:   defaultExecUser.Gid,
+				Sgids: defaultExecUser.Sgids,
+				Home:  defaultExecUser.Home,
+			},
+		},
+		{
+			ref: "",
+			expected: ExecUser{
+				Uid:   defaultExecUser.Uid,
+				Gid:   defaultExecUser.Gid,
+				Sgids: defaultExecUser.Sgids,
+				Home:  defaultExecUser.Home,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		passwd := strings.NewReader(passwdContent)
+		group := strings.NewReader(groupContent)
+
+		execUser, err := GetExecUser(test.ref, &defaultExecUser, passwd, group)
+		if err != nil {
+			t.Logf("got unexpected error when parsing '%s': %s", test.ref, err.Error())
+			t.Fail()
+			continue
+		}
+
+		if !reflect.DeepEqual(test.expected, *execUser) {
+			t.Logf("got:      %#v", execUser)
+			t.Logf("expected: %#v", test.expected)
+			t.Fail()
+			continue
+		}
+	}
+}
+
+func TestInvalidGetExecUser(t *testing.T) {
+	const passwdContent = `
+root:x:0:0:root user:/root:/bin/bash
+adm:x:42:43:adm:/var/adm:/bin/false
+this is just some garbage data
+`
+	const groupContent = `
+root:x:0:root
+adm:x:43:
+grp:x:1234:root,adm
+this is just some garbage data
+`
+
+	tests := []string{
+		// No such user/group.
+		"notuser",
+		"notuser:notgroup",
+		"root:notgroup",
+		"notuser:adm",
+		"8888:notgroup",
+		"notuser:8888",
+
+		// Invalid user/group values.
+		"-1:0",
+		"0:-3",
+		"-5:-2",
+	}
+
+	for _, test := range tests {
+		passwd := strings.NewReader(passwdContent)
+		group := strings.NewReader(groupContent)
+
+		execUser, err := GetExecUser(test, nil, passwd, group)
+		if err == nil {
+			t.Logf("got unexpected success when parsing '%s': %#v", test, execUser)
+			t.Fail()
+			continue
+		}
+	}
+}
+
+func TestGetExecUserNilSources(t *testing.T) {
+	const passwdContent = `
+root:x:0:0:root user:/root:/bin/bash
+adm:x:42:43:adm:/var/adm:/bin/false
+this is just some garbage data
+`
+	const groupContent = `
+root:x:0:root
+adm:x:43:
+grp:x:1234:root,adm
+this is just some garbage data
+`
+
+	defaultExecUser := ExecUser{
+		Uid:   8888,
+		Gid:   8888,
+		Sgids: []int{8888},
+		Home:  "/8888",
+	}
+
+	tests := []struct {
+		ref           string
+		passwd, group bool
+		expected      ExecUser
+	}{
+		{
+			ref:    "",
+			passwd: false,
+			group:  false,
+			expected: ExecUser{
+				Uid:   8888,
+				Gid:   8888,
+				Sgids: []int{8888},
+				Home:  "/8888",
+			},
+		},
+		{
+			ref:    "root",
+			passwd: true,
+			group:  false,
+			expected: ExecUser{
+				Uid:   0,
+				Gid:   0,
+				Sgids: []int{8888},
+				Home:  "/root",
+			},
+		},
+		{
+			ref:    "0",
+			passwd: false,
+			group:  false,
+			expected: ExecUser{
+				Uid:   0,
+				Gid:   8888,
+				Sgids: []int{8888},
+				Home:  "/8888",
+			},
+		},
+		{
+			ref:    "0:0",
+			passwd: false,
+			group:  false,
+			expected: ExecUser{
+				Uid:   0,
+				Gid:   0,
+				Sgids: []int{8888},
+				Home:  "/8888",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		var passwd, group io.Reader
+
+		if test.passwd {
+			passwd = strings.NewReader(passwdContent)
+		}
+
+		if test.group {
+			group = strings.NewReader(groupContent)
+		}
+
+		execUser, err := GetExecUser(test.ref, &defaultExecUser, passwd, group)
+		if err != nil {
+			t.Logf("got unexpected error when parsing '%s': %s", test.ref, err.Error())
+			t.Fail()
+			continue
+		}
+
+		if !reflect.DeepEqual(test.expected, *execUser) {
+			t.Logf("got:      %#v", execUser)
+			t.Logf("expected: %#v", test.expected)
+			t.Fail()
+			continue
+		}
 	}
 }

@@ -68,13 +68,14 @@ RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 ENV	DOCKER_CROSSPLATFORMS	\
 	linux/386 linux/arm \
 	darwin/amd64 darwin/386 \
-	freebsd/amd64 freebsd/386 freebsd/arm
+	freebsd/amd64 freebsd/386 freebsd/arm \
+	windows/amd64 windows/386
 # (set an explicit GOARM of 5 for maximum compatibility)
 ENV	GOARM	5
 RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
 
 # Grab Go's cover tool for dead-simple code coverage testing
-RUN	go get code.google.com/p/go.tools/cmd/cover
+RUN	go get golang.org/x/tools/cmd/cover
 
 # TODO replace FPM with some very minimal debhelper stuff
 RUN	gem install --no-rdoc --no-ri fpm --version 1.3.2
@@ -103,7 +104,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/docker/docker
-ENV	DOCKER_BUILDTAGS	apparmor selinux
+ENV	DOCKER_BUILDTAGS	apparmor selinux btrfs_noversion
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]

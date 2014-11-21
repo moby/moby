@@ -18,6 +18,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
@@ -652,7 +653,7 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container2.SetStopped(0)
+	container2.SetStopped(&execdriver.ExitStatus{0, false})
 }
 
 func TestDefaultContainerName(t *testing.T) {
@@ -660,7 +661,7 @@ func TestDefaultContainerName(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -684,7 +685,7 @@ func TestRandomContainerName(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := parseRun([]string{GetTestImage(daemon).ID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{GetTestImage(daemon).ID, "echo test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -715,7 +716,7 @@ func TestContainerNameValidation(t *testing.T) {
 		{"abc-123_AAA.1", true},
 		{"\000asdf", false},
 	} {
-		config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
+		config, _, _, err := parseRun([]string{unitTestImageID, "echo test"})
 		if err != nil {
 			if !test.Valid {
 				continue
@@ -756,7 +757,7 @@ func TestLinkChildContainer(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -772,7 +773,7 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
 	}
 
-	config, _, _, err = parseRun([]string{GetTestImage(daemon).ID, "echo test"}, nil)
+	config, _, _, err = parseRun([]string{GetTestImage(daemon).ID, "echo test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -798,7 +799,7 @@ func TestGetAllChildren(t *testing.T) {
 	daemon := mkDaemonFromEngine(eng, t)
 	defer nuke(daemon)
 
-	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err := parseRun([]string{unitTestImageID, "echo test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -814,7 +815,7 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatalf("Expect webapp id to match container id: %s != %s", webapp.ID, container.ID)
 	}
 
-	config, _, _, err = parseRun([]string{unitTestImageID, "echo test"}, nil)
+	config, _, _, err = parseRun([]string{unitTestImageID, "echo test"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -154,6 +154,9 @@ func TestCommitHardlink(t *testing.T) {
 }
 
 func TestCommitTTY(t *testing.T) {
+	defer deleteImages("ttytest")
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)

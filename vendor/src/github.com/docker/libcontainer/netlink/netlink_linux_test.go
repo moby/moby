@@ -280,6 +280,34 @@ func TestAddDelNetworkIp(t *testing.T) {
 	}
 }
 
+func TestAddRouteSourceSelection(t *testing.T) {
+	tstIp := "127.1.1.1"
+	tl := testLink{name: "tstEth", linkType: "dummy"}
+
+	addLink(t, tl.name, tl.linkType)
+	defer deleteLink(t, tl.name)
+
+	ip := net.ParseIP(tstIp)
+	mask := net.IPv4Mask(255, 255, 255, 255)
+	ipNet := &net.IPNet{IP: ip, Mask: mask}
+
+	iface, err := net.InterfaceByName(tl.name)
+	if err != nil {
+		t.Fatalf("Lost created link %#v", tl)
+	}
+
+	if err := NetworkLinkAddIp(iface, ip, ipNet); err != nil {
+		t.Fatalf("Could not add IP address %s to interface %#v: %s", ip.String(), iface, err)
+	}
+
+	upLink(t, tl.name)
+	defer downLink(t, tl.name)
+
+	if err := AddRoute("127.0.0.0/8", tstIp, "", tl.name); err != nil {
+		t.Fatalf("Failed to add route with source address")
+	}
+}
+
 func TestCreateVethPair(t *testing.T) {
 	if testing.Short() {
 		return

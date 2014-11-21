@@ -136,7 +136,9 @@ func ReleaseAll() error {
 }
 
 func (pm *portMap) findPort() (int, error) {
-	for port := pm.last + 1; port != pm.last; port++ {
+	port := pm.last
+	for i := 0; i <= EndPortRange-BeginPortRange; i++ {
+		port++
 		if port > EndPortRange {
 			port = BeginPortRange
 		}

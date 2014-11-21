@@ -183,7 +183,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	runCmd.SetOutput(ioutil.Discard)
 	runCmd.Usage = nil
 
-	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...), nil)
+	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...))
 	if err != nil {
 		return err
 	}

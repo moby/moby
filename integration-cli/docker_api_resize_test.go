@@ -7,7 +7,7 @@ import (
 )
 
 func TestResizeApiResponse(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf(out, err)

@@ -195,7 +195,7 @@ port. Where `<name>` is the alias name specified in the `--link` parameter
 is either `TCP` or `UDP`. The format of the URL will be: 
 `<protocol>://<container_ip_address>:<port>`
 (e.g. `tcp://172.17.0.82:8080`).  This URL will then be
-split into the following 3 environment variables for convinience:
+split into the following 3 environment variables for convenience:
 * `<name>_PORT_<port>_<protocol>_ADDR` will contain just the IP address 
 from the URL (e.g. `WEBDB_PORT_8080_TCP_ADDR=172.17.0.82`).
 * `<name>_PORT_<port>_<protocol>_PORT` will contain just the port number

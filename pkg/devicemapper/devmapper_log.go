@@ -1,6 +1,6 @@
 // +build linux
 
-package devmapper
+package devicemapper
 
 import "C"
 
@@ -25,6 +25,6 @@ func DevmapperLogCallback(level C.int, file *C.char, line C.int, dm_errno_or_cla
 	}
 
 	if dmLogger != nil {
-		dmLogger.log(int(level), C.GoString(file), int(line), int(dm_errno_or_class), msg)
+		dmLogger.DMLog(int(level), C.GoString(file), int(line), int(dm_errno_or_class), msg)
 	}
 }

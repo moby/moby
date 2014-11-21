@@ -162,6 +162,12 @@ SELinux, you will need to use the `selinux` build tag:
 export DOCKER_BUILDTAGS='selinux'
 ```
 
+If your version of btrfs-progs is < 3.16.1 (also called btrfs-tools), then you
+will need the following tag to not check for btrfs version headers:
+```bash
+export DOCKER_BUILDTAGS='btrfs_noversion'
+```
+
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
@@ -267,6 +273,7 @@ installed and available at runtime:
 
 * iptables version 1.4 or later
 * procps (or similar provider of a "ps" executable)
+* e2fsprogs version 1.4.12 or later (in use: mkfs.ext4, mkfs.xfs, tune2fs)
 * XZ Utils version 4.9 or later
 * a [properly
   mounted](https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount)

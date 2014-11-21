@@ -113,9 +113,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	secure := registry.IsSecure(hostname, s.insecureRegistries)
-
-	endpoint, err := registry.NewEndpoint(hostname, secure)
+	endpoint, err := registry.NewEndpoint(hostname, s.insecureRegistries)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -177,7 +175,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, localName,
 	repoData, err := r.GetRepositoryData(remoteName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
-			return fmt.Errorf("Error: image %s not found", remoteName)
+			return fmt.Errorf("Error: image %s:%s not found", remoteName, askedTag)
 		}
 		// Unexpected HTTP error
 		return err

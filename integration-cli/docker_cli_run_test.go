@@ -563,7 +563,8 @@ func TestRunCreateVolumeWithSymlink(t *testing.T) {
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func TestRunVolumesFromSymlinkPath(t *testing.T) {
-	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-volumesfromsymlinkpath", "-")
+	name := "docker-test-volumesfromsymlinkpath"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
 		RUN mkdir /baz && ln -s /baz /foo
 		VOLUME ["/foo/bar"]`)
@@ -573,7 +574,7 @@ func TestRunVolumesFromSymlinkPath(t *testing.T) {
 		t.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "--name", "test-volumesfromsymlinkpath", "docker-test-volumesfromsymlinkpath")
+	cmd := exec.Command(dockerBinary, "run", "--name", "test-volumesfromsymlinkpath", name)
 	exitCode, err := runCommand(cmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("[run] (volume) err: %v, exitcode: %d", err, exitCode)
@@ -585,8 +586,8 @@ func TestRunVolumesFromSymlinkPath(t *testing.T) {
 		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	deleteImages("docker-test-volumesfromsymlinkpath")
 	deleteAllContainers()
+	deleteImages(name)
 
 	logDone("run - volumes-from symlink path")
 }
@@ -892,6 +893,7 @@ func TestRunUnPrivilegedCanMknod(t *testing.T) {
 }
 
 func TestRunCapDropInvalid(t *testing.T) {
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--cap-drop=CHPASS", "busybox", "ls")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
@@ -962,6 +964,8 @@ func TestRunCapDropALLAddMknodCannotMknod(t *testing.T) {
 }
 
 func TestRunCapAddInvalid(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--cap-add=CHPASS", "busybox", "ls")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
@@ -1718,6 +1722,8 @@ func TestRunExitOnStdinClose(t *testing.T) {
 
 // Test for #2267
 func TestRunWriteHostsFileAndNotCommit(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "writehosts"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hosts && cat /etc/hosts")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1745,6 +1751,8 @@ func TestRunWriteHostsFileAndNotCommit(t *testing.T) {
 
 // Test for #2267
 func TestRunWriteHostnameFileAndNotCommit(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "writehostname"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hostname && cat /etc/hostname")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1772,6 +1780,8 @@ func TestRunWriteHostnameFileAndNotCommit(t *testing.T) {
 
 // Test for #2267
 func TestRunWriteResolvFileAndNotCommit(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "writeresolv"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/resolv.conf && cat /etc/resolv.conf")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1798,13 +1808,15 @@ func TestRunWriteResolvFileAndNotCommit(t *testing.T) {
 }
 
 func TestRunWithBadDevice(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "baddevice"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "--device", "/etc", "busybox", "true")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
 		t.Fatal("Run should fail with bad device")
 	}
-	expected := `"/etc": not a device node`
+	expected := `\"/etc\": not a device node`
 	if !strings.Contains(out, expected) {
 		t.Fatalf("Output should contain %q, actual out: %q", expected, out)
 	}
@@ -1812,6 +1824,8 @@ func TestRunWithBadDevice(t *testing.T) {
 }
 
 func TestRunEntrypoint(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "entrypoint"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "--entrypoint", "/bin/echo", "busybox", "-n", "foobar")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1826,6 +1840,8 @@ func TestRunEntrypoint(t *testing.T) {
 }
 
 func TestRunBindMounts(t *testing.T) {
+	defer deleteAllContainers()
+
 	tmpDir, err := ioutil.TempDir("", "docker-test-container")
 	if err != nil {
 		t.Fatal(err)
@@ -2435,8 +2451,6 @@ func TestRunNoOutputFromPullInStdout(t *testing.T) {
 }
 
 func TestRunVolumesCleanPaths(t *testing.T) {
-	defer deleteAllContainers()
-
 	if _, err := buildImage("run_volumes_clean_paths",
 		`FROM busybox
 		 VOLUME /foo/`,
@@ -2444,6 +2458,7 @@ func TestRunVolumesCleanPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer deleteImages("run_volumes_clean_paths")
+	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 	if out, _, err := runCommandWithOutput(cmd); err != nil {
@@ -2567,4 +2582,108 @@ func TestRunUnknownCommand(t *testing.T) {
 	}
 
 	logDone("run - Unknown Command")
+}
+
+func TestRunModeIpcHost(t *testing.T) {
+	hostIpc, err := os.Readlink("/proc/1/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--ipc=host", "busybox", "readlink", "/proc/self/ns/ipc")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostIpc != out2 {
+		t.Fatalf("IPC different with --ipc=host %s != %s\n", hostIpc, out2)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "readlink", "/proc/self/ns/ipc")
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostIpc == out2 {
+		t.Fatalf("IPC should be different without --ipc=host %s != %s\n", hostIpc, out2)
+	}
+	deleteAllContainers()
+
+	logDone("run - hostname and several network modes")
+}
+
+func TestRunModeIpcContainer(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	state, err := inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "true" {
+		t.Fatal("Container state is 'not running'")
+	}
+	pid1, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parentContainerIpc, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/ipc", pid1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(dockerBinary, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "readlink", "/proc/self/ns/ipc")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if parentContainerIpc != out2 {
+		t.Fatalf("IPC different with --ipc=container:%s %s != %s\n", id, parentContainerIpc, out2)
+	}
+	deleteAllContainers()
+
+	logDone("run - hostname and several network modes")
+}
+
+func TestContainerNetworkMode(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	if err := waitRun(id); err != nil {
+		t.Fatal(err)
+	}
+	pid1, err := inspectField(id, "State.Pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parentContainerNet, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(dockerBinary, "run", fmt.Sprintf("--net=container:%s", id), "busybox", "readlink", "/proc/self/ns/net")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if parentContainerNet != out2 {
+		t.Fatalf("NET different with --net=container:%s %s != %s\n", id, parentContainerNet, out2)
+	}
+	deleteAllContainers()
+
+	logDone("run - container shared network namespace")
 }

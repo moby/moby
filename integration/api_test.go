@@ -785,8 +785,8 @@ func TestGetEnabledCors(t *testing.T) {
 	if allowOrigin != "*" {
 		t.Errorf("Expected header Access-Control-Allow-Origin to be \"*\", %s found.", allowOrigin)
 	}
-	if allowHeaders != "Origin, X-Requested-With, Content-Type, Accept" {
-		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept\", %s found.", allowHeaders)
+	if allowHeaders != "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth" {
+		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth\", %s found.", allowHeaders)
 	}
 	if allowMethods != "GET, POST, DELETE, PUT, OPTIONS" {
 		t.Errorf("Expected hearder Access-Control-Allow-Methods to be \"GET, POST, DELETE, PUT, OPTIONS\", %s found.", allowMethods)

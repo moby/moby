@@ -281,7 +281,7 @@ things like:
 
 And instead, do something like:
 
-    RUN mdkir -p /usr/src/things \
+    RUN mkdir -p /usr/src/things \
         && curl -SL http://example.com/big.tar.gz \
         | tar -xJC /usr/src/things \
         && make -C /usr/src/things all

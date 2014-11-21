@@ -71,8 +71,7 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 
 	os.Remove("/tmp/foobar-save-load-test.tar")
 
-	logDone("save - save a repo using stdout")
-	logDone("load - load a repo using stdout")
+	logDone("save - save/load a repo using stdout")
 
 	pty, tty, err := pty.Open()
 	if err != nil {
@@ -228,8 +227,7 @@ func TestSaveAndLoadRepoFlags(t *testing.T) {
 
 	os.Remove("/tmp/foobar-save-load-test.tar")
 
-	logDone("save - save a repo using -o")
-	logDone("load - load a repo using -i")
+	logDone("save - save a repo using -o && load a repo using -i")
 }
 
 func TestSaveMultipleNames(t *testing.T) {
@@ -241,12 +239,15 @@ func TestSaveMultipleNames(t *testing.T) {
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
+	defer deleteImages(repoName + "-one")
+
 	// Make two images
 	tagCmdFinal = fmt.Sprintf("%v tag scratch:latest %v-two:latest", dockerBinary, repoName)
 	tagCmd = exec.Command("bash", "-c", tagCmdFinal)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
+	defer deleteImages(repoName + "-two")
 
 	saveCmdFinal := fmt.Sprintf("%v save %v-one %v-two:latest | tar xO repositories | grep -q -E '(-one|-two)'", dockerBinary, repoName, repoName)
 	saveCmd := exec.Command("bash", "-c", saveCmdFinal)

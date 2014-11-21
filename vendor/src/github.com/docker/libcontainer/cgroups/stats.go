@@ -27,7 +27,7 @@ type CpuUsage struct {
 
 type CpuStats struct {
 	CpuUsage       CpuUsage       `json:"cpu_usage,omitempty"`
-	ThrottlingData ThrottlingData `json:"throlling_data,omitempty"`
+	ThrottlingData ThrottlingData `json:"throttling_data,omitempty"`
 }
 
 type MemoryStats struct {

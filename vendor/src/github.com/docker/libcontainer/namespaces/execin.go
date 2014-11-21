@@ -111,7 +111,7 @@ func FinalizeSetns(container *libcontainer.Config, args []string) error {
 		}
 	}
 
-	if err := system.Execv(args[0], args[0:], container.Env); err != nil {
+	if err := system.Execv(args[0], args[0:], os.Environ()); err != nil {
 		return err
 	}
 

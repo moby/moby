@@ -6,11 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func initLogging(debug bool) {
+func initLogging(lvl log.Level) {
 	log.SetOutput(os.Stderr)
-	if debug {
-		log.SetLevel(log.DebugLevel)
-	} else {
-		log.SetLevel(log.InfoLevel)
-	}
+	log.SetLevel(lvl)
 }
