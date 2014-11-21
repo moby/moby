@@ -54,7 +54,7 @@ unix://[/path/to/socket] to use.
   IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
 
 **--icc**=*true*|*false*
-  Allow unrestricted inter\-container (and host) communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
+  Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
@@ -269,7 +269,7 @@ This is enabled by default (only) if using loopback devices and is required to
 res-parsify the loopback file on image/container removal.
 
 Disabling this on loopback can lead to *much* faster container removal times,
-but will make the space used in `/var/lib/docker` directory not be returned to
+but will prevent the space used in `/var/lib/docker` directory from being returned to
 the system for other use when containers are removed.
 
 # EXAMPLES
