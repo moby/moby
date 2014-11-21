@@ -68,6 +68,11 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 		if err := libtrust.SaveKey(trustKeyPath, trustKey); err != nil {
 			return nil, fmt.Errorf("Error saving key file: %s", err)
 		}
+		dir, file := path.Split(trustKeyPath)
+		// Save public key
+		if err := libtrust.SavePublicKey(path.Join(dir, "public-"+file), trustKey.PublicKey()); err != nil {
+			return nil, fmt.Errorf("Error saving public key file: %s", err)
+		}
 	} else if err != nil {
 		return nil, fmt.Errorf("Error loading key file: %s", err)
 	}
