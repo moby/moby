@@ -10,14 +10,9 @@ import (
 	"unsafe"
 )
 
-// #include <termios.h>
-import "C"
-
 var (
 	ErrInvalidState = errors.New("Invalid terminal state")
 )
-
-type Termios syscall.Termios
 
 type State struct {
 	termios Termios
@@ -52,7 +47,7 @@ func SetWinsize(fd uintptr, ws *Winsize) error {
 // IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd uintptr) bool {
 	var termios Termios
-	err := tcget(fd, &termios)
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(&termios)))
 	return err == 0
 }
 
@@ -62,7 +57,7 @@ func RestoreTerminal(fd uintptr, state *State) error {
 	if state == nil {
 		return ErrInvalidState
 	}
-	err := tcset(fd, &state.termios)
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)))
 	if err != 0 {
 		return err
 	}
@@ -71,7 +66,7 @@ func RestoreTerminal(fd uintptr, state *State) error {
 
 func SaveState(fd uintptr) (*State, error) {
 	var oldState State
-	if err := tcget(fd, &oldState.termios); err != 0 {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
 		return nil, err
 	}
 
@@ -82,7 +77,7 @@ func DisableEcho(fd uintptr, state *State) error {
 	newState := state.termios
 	newState.Lflag &^= syscall.ECHO
 
-	if err := tcset(fd, &newState); err != 0 {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
 		return err
 	}
 	handleInterrupt(fd, state)
@@ -107,38 +102,4 @@ func handleInterrupt(fd uintptr, state *State) {
 		RestoreTerminal(fd, state)
 		os.Exit(0)
 	}()
-}
-
-// MakeRaw put the terminal connected to the given file descriptor into raw
-// mode and returns the previous state of the terminal so that it can be
-// restored.
-func MakeRaw(fd uintptr) (*State, error) {
-	var oldState State
-	if err := tcget(fd, &oldState.termios); err != 0 {
-		return nil, err
-	}
-
-	newState := oldState.termios
-
-	C.cfmakeraw((*C.struct_termios)(unsafe.Pointer(&newState)))
-	if err := tcset(fd, &newState); err != 0 {
-		return nil, err
-	}
-	return &oldState, nil
-}
-
-func tcget(fd uintptr, p *Termios) syscall.Errno {
-	ret, err := C.tcgetattr(C.int(fd), (*C.struct_termios)(unsafe.Pointer(p)))
-	if ret != 0 {
-		return err.(syscall.Errno)
-	}
-	return 0
-}
-
-func tcset(fd uintptr, p *Termios) syscall.Errno {
-	ret, err := C.tcsetattr(C.int(fd), C.TCSANOW, (*C.struct_termios)(unsafe.Pointer(p)))
-	if ret != 0 {
-		return err.(syscall.Errno)
-	}
-	return 0
 }
