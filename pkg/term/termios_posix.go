@@ -1,10 +1,9 @@
-// +build linux,!gccgo
+// +build linux,gccgo
 
 package term
 
 import (
 	"syscall"
-	"unsafe"
 )
 
 const (
@@ -12,22 +11,14 @@ const (
 	setTermios = syscall.TCSETS
 )
 
-type Termios struct {
-	Iflag  uint32
-	Oflag  uint32
-	Cflag  uint32
-	Lflag  uint32
-	Cc     [20]byte
-	Ispeed uint32
-	Ospeed uint32
-}
+type Termios syscall.Termios
 
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
 func MakeRaw(fd uintptr) (*State, error) {
 	var oldState State
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
+	if err := getTerminalState(fd, &oldState.termios); err != 0 {
 		return nil, err
 	}
 
@@ -39,18 +30,24 @@ func MakeRaw(fd uintptr) (*State, error) {
 	newState.Cflag &^= (syscall.CSIZE | syscall.PARENB)
 	newState.Cflag |= syscall.CS8
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
+	if err := setTerminalState(fd, &newState); err != 0 {
 		return nil, err
 	}
 	return &oldState, nil
 }
 
 func getTerminalState(fd uintptr, p *Termios) syscall.Errno {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(p)))
-	return err
+	err := syscall.Tcgetattr(int(fd), (*syscall.Termios)(p))
+	if err != nil {
+		return syscall.GetErrno()
+	}
+	return 0
 }
 
 func setTerminalState(fd uintptr, p *Termios) syscall.Errno {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(p)))
-	return err
+	err := syscall.Tcsetattr(int(fd), syscall.TCSANOW, (*syscall.Termios)(p))
+	if err != nil {
+		return syscall.GetErrno()
+	}
+	return 0
 }

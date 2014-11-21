@@ -63,3 +63,13 @@ func MakeRaw(fd uintptr) (*State, error) {
 
 	return &oldState, nil
 }
+
+func getTerminalState(fd uintptr, p *Termios) syscall.Errno {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(p)))
+	return err
+}
+
+func setTerminalState(fd uintptr, p *Termios) syscall.Errno {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(p)))
+	return err
+}
