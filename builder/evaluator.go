@@ -91,6 +91,11 @@ type Builder struct {
 	Remove      bool
 	ForceRemove bool
 
+	// set this to true if we want the builder to not commit between steps.
+	// This is useful when we only want to use the evaluator table to generate
+	// the final configs of the Dockerfile but dont want the layers
+	disableCommit bool
+
 	AuthConfig     *registry.AuthConfig
 	AuthConfigFile *registry.ConfigFile
 
