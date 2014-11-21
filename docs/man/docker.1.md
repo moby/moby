@@ -54,7 +54,7 @@ unix://[/path/to/socket] to use.
   IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
 
 **--icc**=*true*|*false*
-  Enable inter\-container communication without any restriction. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
+  Allow unrestricted inter\-container (and host) communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.

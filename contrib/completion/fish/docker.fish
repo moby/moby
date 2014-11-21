@@ -53,7 +53,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -s d -l daemon -d 'Enable
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns -d 'Force docker to use specific DNS servers'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s e -l exec-driver -d 'Force the docker runtime to use a specific exec driver'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s g -l graph -d 'Path to use as the root of the docker runtime'
-complete -c docker -f -n '__fish_docker_no_subcommand' -l icc -d 'Enable inter-container communication without any restriction'
+complete -c docker -f -n '__fish_docker_no_subcommand' -l icc -d 'Allow unrestricted inter-container (and host) communication'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ip -d 'Default IP address to use when binding container ports'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ip-forward -d 'Disable enabling of net.ipv4.ip_forward'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l iptables -d "Disable docker's addition of iptables rules"
