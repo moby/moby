@@ -1016,6 +1016,9 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	} else {
 		job.Setenv("rm", r.FormValue("rm"))
 	}
+	if r.FormValue("pull") == "1" && version.GreaterThanOrEqualTo("1.16") {
+		job.Setenv("pull", "1")
+	}
 	job.Stdin.Add(r.Body)
 	job.Setenv("remote", r.FormValue("remote"))
 	job.Setenv("t", r.FormValue("t"))

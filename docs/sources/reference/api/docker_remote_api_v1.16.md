@@ -1156,6 +1156,7 @@ Query Parameters:
         the resulting image in case of success
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
+-   **pull** - attempt to pull the image even if an older image exists locally
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm - always remove intermediate containers (includes rm)
 
