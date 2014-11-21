@@ -214,47 +214,67 @@ flags with **-s=**devicemapper.
 Here is the list of *devicemapper* options:
 
 #### dm.basesize
-  Specifies the size to use when creating the base device, which limits the size of images and containers. The default value is 10G. Note, thin devices are inherently "sparse", so a 10G device which is mostly empty doesn't use 10 GB of space on the pool. However, the filesystem will use more space for the empty case the larger the device is. **Warning**: This value affects the system-wide "base" empty filesystem that may already be initialized and inherited by pulled images.
+Specifies the size to use when creating the base device, which limits the size
+of images and containers. The default value is 10G. Note, thin devices are
+inherently "sparse", so a 10G device which is mostly empty doesn't use 10 GB
+of space on the pool. However, the filesystem will use more space for the empty
+case the larger the device is. **Warning**: This value affects the system-wide
+"base" empty filesystem that may already be initialized and inherited by pulled
+images.
 
 #### dm.loopdatasize
-  Specifies the size to use when creating the loopback file for the "data" device which is used for the thin pool. The default size is 100G. Note that the file is sparse, so it will not initially take up this much space.
+Specifies the size to use when creating the loopback file for the "data"
+device which is used for the thin pool. The default size is 100G. Note that the
+file is sparse, so it will not initially take up this much space.
 
 #### dm.loopmetadatasize
-  Specifies the size to use when creating the loopback file for the "metadadata" device which is used for the thin pool. The default size is 2G. Note that the file is sparse, so it will not initially take up this much space.
+Specifies the size to use when creating the loopback file for the "metadadata"
+device which is used for the thin pool. The default size is 2G. Note that the
+file is sparse, so it will not initially take up this much space.
 
 #### dm.fs
-  Specifies the filesystem type to use for the base device. The supported options are "ext4" and "xfs". The default is "ext4"
+Specifies the filesystem type to use for the base device. The supported
+options are "ext4" and "xfs". The default is "ext4"
 
 #### dm.mkfsarg
-  Specifies extra mkfs arguments to be used when creating the base device.
+Specifies extra mkfs arguments to be used when creating the base device.
 
 #### dm.mountopt
-  Specifies extra mount options used when mounting the thin devices.
+Specifies extra mount options used when mounting the thin devices.
 
 #### dm.datadev
-  Specifies a custom blockdevice to use for data for the thin pool.
+Specifies a custom blockdevice to use for data for the thin pool.
 
-  If using a block device for device mapper storage, ideally both datadev and metadatadev should be specified to completely avoid using the loopback device.
+If using a block device for device mapper storage, ideally both datadev and
+metadatadev should be specified to completely avoid using the loopback device.
 
 #### dm.metadatadev
-  Specifies a custom blockdevice to use for metadata for the thin pool.
+Specifies a custom blockdevice to use for metadata for the thin pool.
 
-  For best performance the metadata should be on a different spindle than the data, or even better on an SSD.
+For best performance the metadata should be on a different spindle than the
+data, or even better on an SSD.
 
-  If setting up a new metadata pool it is required to be valid. This can be achieved by zeroing the first 4k to indicate empty metadata, like this:
+If setting up a new metadata pool it is required to be valid. This can be
+achieved by zeroing the first 4k to indicate empty metadata, like this:
 
     dd if=/dev/zero of=/dev/metadata_dev bs=4096 count=1
 
 #### dm.blocksize
-  Specifies a custom blocksize to use for the thin pool. The default blocksize is 64K.
+Specifies a custom blocksize to use for the thin pool. The default blocksize
+is 64K.
 
 #### dm.blkdiscard
-  Enables or disables the use of blkdiscard when removing devicemapper devices. This is enabled by default (only) if using loopback devices and is required to res-parsify the loopback file on image/container removal.
+Enables or disables the use of blkdiscard when removing devicemapper devices.
+This is enabled by default (only) if using loopback devices and is required to
+res-parsify the loopback file on image/container removal.
 
-  Disabling this on loopback can lead to *much* faster container removal times, but will make the space used in `/var/lib/docker` directory not be returned to the system for other use when containers are removed.
+Disabling this on loopback can lead to *much* faster container removal times,
+but will make the space used in `/var/lib/docker` directory not be returned to
+the system for other use when containers are removed.
 
 # EXAMPLES
-Launching docker daemon with *devicemapper* backend with particular block devices for data and metadata:
+Launching docker daemon with *devicemapper* backend with particular block devices
+for data and metadata:
 
     docker -d -s=devicemapper \
       --storage-opt dm.datadev=/dev/vdb \
@@ -262,7 +282,8 @@ Launching docker daemon with *devicemapper* backend with particular block device
       --storage-opt dm.basesize=20G
 
 #### Client
-For specific client examples please see the man page for the specific Docker command. For example:
+For specific client examples please see the man page for the specific Docker
+command. For example:
 
     man docker run
 
