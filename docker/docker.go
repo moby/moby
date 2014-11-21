@@ -83,9 +83,14 @@ func main() {
 	)
 	tlsConfig.InsecureSkipVerify = true
 
+	// Regardless of whether the user sets it to true or false, if they
+	// specify --tlsverify at all then we need to turn on tls
+	if flag.IsSet("-tlsverify") {
+		*flTls = true
+	}
+
 	// If we should verify the server, we need to load a trusted ca
 	if *flTlsVerify {
-		*flTls = true
 		certPool := x509.NewCertPool()
 		file, err := ioutil.ReadFile(*flCa)
 		if err != nil {
