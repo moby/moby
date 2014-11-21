@@ -80,6 +80,7 @@ var (
 		"btrfs",
 		"devicemapper",
 		"vfs",
+		"cvfs",
 		// experimental, has to be enabled manually for now
 		"overlay",
 	}
