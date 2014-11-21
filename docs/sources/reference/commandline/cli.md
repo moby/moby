@@ -76,7 +76,7 @@ expect an integer, and they can only be specified once.
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
       --iptables=true                            Enable Docker's addition of iptables rules
        -l, --log-level="info"                    Set the logging level
-
+      --label=[]                                 Set key=value labels to the daemon (displayed in `docker info`)
       --mtu=0                                    Set the containers network MTU
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
@@ -856,7 +856,9 @@ For example:
     $ sudo docker -D info
     Containers: 14
     Images: 52
-    Storage Driver: btrfs
+    Storage Driver: aufs
+     Root Dir: /var/lib/docker/aufs
+     Dirs: 545
     Execution Driver: native-0.2
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
@@ -872,6 +874,8 @@ For example:
     Init Path: /usr/bin/docker
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
+    Labels:
+     storage=ssd
 
 The global `-D` option tells all `docker` commands to output debug information.
 
