@@ -101,6 +101,10 @@ LDFLAGS='
 	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
 '
 LDFLAGS_STATIC='-linkmode external'
+# Cgo -H windows is incompatible with -linkmode external.
+if [ "$(go env GOOS)" == 'windows' ]; then
+	LDFLAGS_STATIC=''
+fi
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
@@ -215,7 +219,7 @@ bundle() {
 	bundle=$(basename $bundlescript)
 	echo "---> Making bundle: $bundle (in bundles/$VERSION/$bundle)"
 	mkdir -p bundles/$VERSION/$bundle
-	source $bundlescript $(pwd)/bundles/$VERSION/$bundle
+	source "$bundlescript" "$(pwd)/bundles/$VERSION/$bundle"
 }
 
 main() {
