@@ -742,17 +742,20 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	size := st.Size()
-	return &TempArchive{f, size}, nil
+	return &TempArchive{f, size, 0}, nil
 }
 
 type TempArchive struct {
 	*os.File
 	Size int64 // Pre-computed from Stat().Size() as a convenience
+	read int64
 }
 
 func (archive *TempArchive) Read(data []byte) (int, error) {
 	n, err := archive.File.Read(data)
-	if err != nil {
+	archive.read += int64(n)
+	if err != nil || archive.read == archive.Size {
+		archive.File.Close()
 		os.Remove(archive.File.Name())
 	}
 	return n, err

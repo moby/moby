@@ -1,12 +1,14 @@
 package system
 
 import (
+	"os"
 	"syscall"
 	"testing"
 )
 
 func TestFromStatT(t *testing.T) {
-	file, _, _ := prepareFiles(t)
+	file, _, _, dir := prepareFiles(t)
+	defer os.RemoveAll(dir)
 
 	stat := &syscall.Stat_t{}
 	err := syscall.Lstat(file, stat)

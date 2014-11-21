@@ -4,16 +4,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/archive"
 )
 
 var (
-	tmp = path.Join(os.TempDir(), "aufs-tests", "aufs")
+	tmpOuter = path.Join(os.TempDir(), "aufs-tests")
+	tmp      = path.Join(tmpOuter, "aufs")
 )
 
 func testInit(dir string, t *testing.T) graphdriver.Driver {
@@ -640,8 +642,8 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 		t.Fatal(err)
 	}
 
-	d := testInit(mountPath, t).(*Driver)
 	defer os.RemoveAll(mountPath)
+	d := testInit(mountPath, t).(*Driver)
 	defer d.Cleanup()
 	var last string
 	var expected int
@@ -662,24 +664,24 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 
 		if err := d.Create(current, parent); err != nil {
 			t.Logf("Current layer %d", i)
-			t.Fatal(err)
+			t.Error(err)
 		}
 		point, err := d.Get(current, "")
 		if err != nil {
 			t.Logf("Current layer %d", i)
-			t.Fatal(err)
+			t.Error(err)
 		}
 		f, err := os.Create(path.Join(point, current))
 		if err != nil {
 			t.Logf("Current layer %d", i)
-			t.Fatal(err)
+			t.Error(err)
 		}
 		f.Close()
 
 		if i%10 == 0 {
 			if err := os.Remove(path.Join(point, parent)); err != nil {
 				t.Logf("Current layer %d", i)
-				t.Fatal(err)
+				t.Error(err)
 			}
 			expected--
 		}
@@ -689,28 +691,30 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 	// Perform the actual mount for the top most image
 	point, err := d.Get(last, "")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	files, err := ioutil.ReadDir(point)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	if len(files) != expected {
-		t.Fatalf("Expected %d got %d", expected, len(files))
+		t.Errorf("Expected %d got %d", expected, len(files))
 	}
 }
 
 func TestMountMoreThan42Layers(t *testing.T) {
+	os.RemoveAll(tmpOuter)
 	testMountMoreThan42Layers(t, tmp)
 }
 
 func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
-	tmp := "aufs-tests"
+	defer os.RemoveAll(tmpOuter)
+	zeroes := "0"
 	for {
 		// This finds a mount path so that when combined into aufs mount options
 		// 4096 byte boundary would be in between the paths or in permission
-		// section. For '/tmp' it will use '/tmp/aufs-tests00000000/aufs'
-		mountPath := path.Join(os.TempDir(), tmp, "aufs")
+		// section. For '/tmp' it will use '/tmp/aufs-tests/00000000/aufs'
+		mountPath := path.Join(tmpOuter, zeroes, "aufs")
 		pathLength := 77 + len(mountPath)
 
 		if mod := 4095 % pathLength; mod == 0 || mod > pathLength-2 {
@@ -718,6 +722,6 @@ func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
 			testMountMoreThan42Layers(t, mountPath)
 			return
 		}
-		tmp += "0"
+		zeroes += "0"
 	}
 }

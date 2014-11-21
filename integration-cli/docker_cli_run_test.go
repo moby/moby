@@ -1257,6 +1257,7 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 	if err := mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""); err != nil {
 		t.Fatalf("failed to create a tmpfs mount at %s - %s", tmpfsDir, err)
 	}
+	defer mount.Unmount(tmpfsDir)
 
 	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
 	if err != nil {
