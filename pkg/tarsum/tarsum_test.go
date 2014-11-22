@@ -329,6 +329,153 @@ func TestTarSums(t *testing.T) {
 	}
 }
 
+func TestIteration(t *testing.T) {
+	headerTests := []struct {
+		expectedSum string // TODO(vbatts) it would be nice to get individual sums of each
+		version     Version
+		hdr         *tar.Header
+		data        []byte
+	}{
+		{
+			"tarsum+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			Version0,
+			&tar.Header{
+				Name:     "file.txt",
+				Size:     0,
+				Typeflag: tar.TypeReg,
+				Devminor: 0,
+				Devmajor: 0,
+			},
+			[]byte(""),
+		},
+		{
+			"tarsum.dev+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			VersionDev,
+			&tar.Header{
+				Name:     "file.txt",
+				Size:     0,
+				Typeflag: tar.TypeReg,
+				Devminor: 0,
+				Devmajor: 0,
+			},
+			[]byte(""),
+		},
+		{
+			"tarsum.dev+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			VersionDev,
+			&tar.Header{
+				Name:     "another.txt",
+				Uid:      1000,
+				Gid:      1000,
+				Uname:    "slartibartfast",
+				Gname:    "users",
+				Size:     4,
+				Typeflag: tar.TypeReg,
+				Devminor: 0,
+				Devmajor: 0,
+			},
+			[]byte("test"),
+		},
+		{
+			"tarsum.dev+sha256:4cc2e71ac5d31833ab2be9b4f7842a14ce595ec96a37af4ed08f87bc374228cd",
+			VersionDev,
+			&tar.Header{
+				Name:     "xattrs.txt",
+				Uid:      1000,
+				Gid:      1000,
+				Uname:    "slartibartfast",
+				Gname:    "users",
+				Size:     4,
+				Typeflag: tar.TypeReg,
+				Xattrs: map[string]string{
+					"user.key1": "value1",
+					"user.key2": "value2",
+				},
+			},
+			[]byte("test"),
+		},
+		{
+			"tarsum.dev+sha256:65f4284fa32c0d4112dd93c3637697805866415b570587e4fd266af241503760",
+			VersionDev,
+			&tar.Header{
+				Name:     "xattrs.txt",
+				Uid:      1000,
+				Gid:      1000,
+				Uname:    "slartibartfast",
+				Gname:    "users",
+				Size:     4,
+				Typeflag: tar.TypeReg,
+				Xattrs: map[string]string{
+					"user.KEY1": "value1", // adding different case to ensure different sum
+					"user.key2": "value2",
+				},
+			},
+			[]byte("test"),
+		},
+		{
+			"tarsum+sha256:c12bb6f1303a9ddbf4576c52da74973c00d14c109bcfa76b708d5da1154a07fa",
+			Version0,
+			&tar.Header{
+				Name:     "xattrs.txt",
+				Uid:      1000,
+				Gid:      1000,
+				Uname:    "slartibartfast",
+				Gname:    "users",
+				Size:     4,
+				Typeflag: tar.TypeReg,
+				Xattrs: map[string]string{
+					"user.NOT": "CALCULATED",
+				},
+			},
+			[]byte("test"),
+		},
+	}
+	for _, htest := range headerTests {
+		s, err := renderSumForHeader(htest.version, htest.hdr, htest.data)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if s != htest.expectedSum {
+			t.Errorf("expected sum: %q, got: %q", htest.expectedSum, s)
+		}
+	}
+
+}
+
+func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {
+	buf := bytes.NewBuffer(nil)
+	// first build our test tar
+	tw := tar.NewWriter(buf)
+	if err := tw.WriteHeader(h); err != nil {
+		return "", err
+	}
+	if _, err := tw.Write(data); err != nil {
+		return "", err
+	}
+	tw.Close()
+
+	ts, err := NewTarSum(buf, true, v)
+	if err != nil {
+		return "", err
+	}
+	tr := tar.NewReader(ts)
+	for {
+		hdr, err := tr.Next()
+		if hdr == nil || err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+		if _, err = io.Copy(ioutil.Discard, tr); err != nil {
+			return "", err
+		}
+		break // we're just reading one header ...
+	}
+	return ts.Sum(nil), nil
+}
+
 func Benchmark9kTar(b *testing.B) {
 	buf := bytes.NewBuffer([]byte{})
 	fh, err := os.Open("testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar")
