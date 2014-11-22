@@ -373,12 +373,11 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
+	defer UdevWait(cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (CreatePool) %s", err)
 	}
-
-	UdevWait(cookie)
 
 	return nil
 }
@@ -516,12 +515,11 @@ func ResumeDevice(name string) error {
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
+	defer UdevWait(cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceResume %s", err)
 	}
-
-	UdevWait(cookie)
 
 	return nil
 }
@@ -596,11 +594,11 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 
+	defer UdevWait(cookie)
+
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (ActivateDevice) %s", err)
 	}
-
-	UdevWait(cookie)
 
 	return nil
 }
