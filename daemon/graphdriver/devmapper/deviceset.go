@@ -153,9 +153,8 @@ func (devices *DeviceSet) oldMetadataFile() string {
 func (devices *DeviceSet) getPoolName() string {
 	if devices.thinPoolDevice == "" {
 		return devices.devicePrefix + "-pool"
-	} else {
-		return devices.thinPoolDevice
 	}
+	return devices.thinPoolDevice
 }
 
 func (devices *DeviceSet) getPoolDevName() string {
