@@ -416,16 +416,17 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	if devices.thinPoolDevice != "" && oldInfo == nil {
-		if _, transactionId, dataUsed, _, _, _, err := devices.poolStatus(); err != nil {
+		_, transactionId, dataUsed, _, _, _, err := devices.poolStatus()
+		if err != nil {
 			return err
-		} else {
-			if dataUsed != 0 {
-				return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
-					devices.thinPoolDevice)
-			} else if transactionId != 0 {
-				return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction Id",
-					devices.thinPoolDevice)
-			}
+		}
+		if dataUsed != 0 {
+			return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
+				devices.thinPoolDevice)
+		}
+		if transactionId != 0 {
+			return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction Id",
+				devices.thinPoolDevice)
 		}
 	}
 
