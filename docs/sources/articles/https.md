@@ -32,7 +32,7 @@ trusts a fingerprint of the daemon’s public key. If they do, the public key wi
 be stored so it does not prompt on subsequent connections. For the daemon
 to authenticate the client, each client automatically generates its own
 key (~/.docker/key.json) which is presented to the daemon and checked
-against a list of keys authorized to connect (~/.docker/authorized-keys.json).
+against a list of keys authorized to connect (~/.docker/authorized-keys.d/).
 
 To enable identity-based authentication, add the flag `--auth=identity`.
 The default identity and authorization files may be overridden through the
@@ -41,11 +41,20 @@ flags:
  - `--identity` specifies the key file to use.  This file contains the client's
 private key and its fingerprint is used by the daemon to identify the client.
 This file should be secured.
- - `--auth-authorized-keys` - specifies the client whitelist.  This is a daemon
+ - `--auth-authorized-keys` - specifies the client whitelist. This is a daemon
 configuration and should have its write permissions restricted.
+ - `--auth-authorized-dir` - alternative method for specifying the whitelisted
+client public keys. Any public key file in this directory will be part of the
+client whitelist, therefore write access to this directory should be restricted.
  - `--auth-known-hosts` - specifies the list of daemon public key fingerprints
 which have been approved by the user and the host name associated with
 each fingerprint.
+
+To setup a new client connection, copy the `~/.docker/public-key.json`
+file on the client machine to the `~/.docker/authorized-keys.d/` directory on
+the daemon machine. The copied file should keep the same suffix (e.g. .json
+.jwk .pem) but otherwise the name may be changed to something which
+meaningfully identities the client to the user.
 
 ## Certificate-based authentication
 

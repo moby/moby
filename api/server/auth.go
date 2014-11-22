@@ -6,28 +6,99 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
+	"path"
+	"sync"
 
 	"github.com/docker/libtrust"
 )
 
+// ClientKeyManager manages client keys on the filesystem
+type ClientKeyManager struct {
+	key        libtrust.PrivateKey
+	clientFile string
+	clientDir  string
+
+	clientLock sync.RWMutex
+	clients    []libtrust.PublicKey
+
+	configLock sync.Mutex
+	configs    []*tls.Config
+}
+
+// NewClientKeyManager loads a new manager from a set of key files
+// and managed by the given private key.
+func NewClientKeyManager(trustKey libtrust.PrivateKey, clientFile, clientDir string) (*ClientKeyManager, error) {
+	m := &ClientKeyManager{
+		key:        trustKey,
+		clientFile: clientFile,
+		clientDir:  clientDir,
+	}
+	if err := m.loadKeys(); err != nil {
+		return nil, err
+	}
+	// TODO Start watching file and directory
+
+	return m, nil
+}
+func (c *ClientKeyManager) loadKeys() error {
+	// Load authorized keys file
+	clients, err := libtrust.LoadKeySetFile(c.clientFile)
+	if err != nil {
+		return fmt.Errorf("unable to load authorized keys: %s", err)
+	}
+
+	// Add clients from authorized keys directory
+	files, err := ioutil.ReadDir(c.clientDir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("unable to open authorized keys directory: %s", err)
+	}
+	for _, f := range files {
+		if !f.IsDir() {
+			publicKey, err := libtrust.LoadPublicKeyFile(path.Join(c.clientDir, f.Name()))
+			if err != nil {
+				return fmt.Errorf("unable to load authorized key file: %s", err)
+			}
+			clients = append(clients, publicKey)
+		}
+	}
+
+	c.clientLock.Lock()
+	c.clients = clients
+	c.clientLock.Unlock()
+
+	return nil
+}
+
+// RegisterTLSConfig registers a tls configuration to manager
+// such that any changes to the keys may be reflected in
+// the tls client CA pool
+func (c *ClientKeyManager) RegisterTLSConfig(tlsConfig *tls.Config) error {
+	c.clientLock.RLock()
+	certPool, err := libtrust.GenerateCACertPool(c.key, c.clients)
+	if err != nil {
+		return fmt.Errorf("CA pool generation error: %s", err)
+	}
+	c.clientLock.RUnlock()
+
+	tlsConfig.ClientCAs = certPool
+
+	c.configLock.Lock()
+	c.configs = append(c.configs, tlsConfig)
+	c.configLock.Unlock()
+
+	return nil
+}
+
 // NewIdentityAuthTLSConfig creates a tls.Config for the server to use for
 // libtrust identity authentication
-func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, trustClientsPath, addr string) (*tls.Config, error) {
+func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, clients *ClientKeyManager, addr string) (*tls.Config, error) {
 	tlsConfig := createTLSConfig()
 
-	// Load authorized keys file
-	clients, err := libtrust.LoadKeySetFile(trustClientsPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load authorized keys: %s", err)
-	}
-
-	// Create a CA pool from authorized keys
-	certPool, err := libtrust.GenerateCACertPool(trustKey, clients)
-	if err != nil {
-		return nil, fmt.Errorf("CA pool generation error: %s", err)
-	}
 	tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-	tlsConfig.ClientCAs = certPool
+	if err := clients.RegisterTLSConfig(tlsConfig); err != nil {
+		return nil, err
+	}
 
 	// Generate cert
 	ips, domains, err := parseAddr(addr)

@@ -103,6 +103,8 @@ expect an integer, and they can only be specified once.
       --auth-key=""                              Path to TLS key file when using `cert` auth
       --auth-authorized-keys=""                  Path to authorized keys file containing client whitelist when using `identity` auth
                                                    defaults to "~/.docker/authorized-keys.json"
+      --auth-authorized-dir=""                   Path to authorized keys directory containing public key files to whitelist when using `identity` auth
+                                                   defaults to "~/.docker/authorized-keys.d/"
       --auth-known-hosts=""                      Path to known hosts file containing list of daemon public key fingerprints when using `identity` auth
                                                    defaults to "~/.docker/known-hosts.json"
       -v, --version=false                        Print version information and quit

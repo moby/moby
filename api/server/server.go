@@ -1523,7 +1523,11 @@ func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 		if err != nil {
 			return nil, err
 		}
-		if tlsConfig, err = NewIdentityAuthTLSConfig(trustKey, job.Getenv("TrustClients"), addr); err != nil {
+		manager, err := NewClientKeyManager(trustKey, job.Getenv("TrustClients"), job.Getenv("TrustDir"))
+		if err != nil {
+			return nil, err
+		}
+		if tlsConfig, err = NewIdentityAuthTLSConfig(trustKey, manager, addr); err != nil {
 			return nil, fmt.Errorf("Error creating TLS config: %s", err)
 		}
 	case "cert":

@@ -14,6 +14,7 @@ const (
 	defaultTrustKeyFile   = "key.json"
 	defaultHostKeysFile   = "known-hosts.json"
 	defaultClientKeysFile = "authorized-keys.json"
+	defaultClientKeysDir  = "authorized-keys.d"
 	defaultCaFile         = "ca.pem"
 	defaultKeyFile        = "key.pem"
 	defaultCertFile       = "cert.pem"
@@ -57,6 +58,7 @@ var (
 	flTrustKey     *string
 	flTrustHosts   *string
 	flTrustClients *string
+	flTrustDir     *string
 	flCa           *string
 	flCert         *string
 	flKey          *string
@@ -76,6 +78,7 @@ func init() {
 	flAuth = flag.String([]string{"-auth"}, dockerAuth, "Method used to authenticate the connection between client and daemon. Possible methods: identity, cert, none")
 	flTrustHosts = flag.String([]string{"-auth-known-hosts"}, filepath.Join(dockerHome, defaultHostKeysFile), "Path to file containing known hosts for identity auth")
 	flTrustClients = flag.String([]string{"-auth-authorized-keys"}, filepath.Join(dockerHome, defaultClientKeysFile), "Path to file containing authorized keys identity auth")
+	flTrustDir = flag.String([]string{"-auth-authorized-dir"}, filepath.Join(dockerHome, defaultClientKeysDir), "Path to directory containing authorized public key files for identity auth")
 	flTrustKey = flag.String([]string{"i", "-identity"}, filepath.Join(dockerHome, defaultTrustKeyFile), "Path to libtrust key file")
 
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
