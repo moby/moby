@@ -524,6 +524,7 @@ Start the container `id`
         HTTP/1.1 204 No Content
 
 Json Parameters:
+
 -   **Binds** – A list of volume bindings for this container.  Each volume
         binding is a string of the form `container_path` (to create a new
         volume for the container), `host_path:container_path` (to bind-mount
