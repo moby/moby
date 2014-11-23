@@ -985,7 +985,7 @@ Restores both images and tags.
     Usage: docker login [OPTIONS] [SERVER]
 
     Register or log in to a Docker registry server, if no server is specified "https://index.docker.io/v1/" is the default.
-
+      --basic=false        Use Basic auth
       -e, --email=""       Email
       -p, --password=""    Password
       -u, --username=""    Username

@@ -45,6 +45,7 @@ type AuthConfig struct {
 	Auth          string `json:"auth"`
 	Email         string `json:"email"`
 	ServerAddress string `json:"serveraddress,omitempty"`
+	Type		  string `json:"type,omitempty"`
 }
 
 type ConfigFile struct {
