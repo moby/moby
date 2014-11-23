@@ -2638,3 +2638,35 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 
 	return nil
 }
+
+
+func (cli *DockerCli) CmdJobs(args ...string) error {
+       cmd := cli.Subcmd("jobs", "", "Show the docker job information.")
+       if err := cmd.Parse(args); err != nil {
+               return nil
+       }
+
+  body, _, err := readBody(cli.call("GET", "/jobs/json", nil, false))
+       if err != nil {
+               return err
+       }
+
+       outs := engine.NewTable("", 0)
+       if _, err := outs.ReadListFrom(body); err != nil {
+               return err
+       }
+
+  w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+
+  fmt.Fprintln(w, "JOB\tSTATUS")
+
+  for _, out := range outs.Data {
+    name := out.Get("Name")
+    status := out.Get("Status")
+    fmt.Fprintf(w, "%s\t%s\n", name, status)
+  }
+
+  w.Flush()
+       return nil
+}
+

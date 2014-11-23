@@ -62,6 +62,19 @@ func (job *Job) Run() error {
 		job.Eng.l.Unlock()
 		defer job.Eng.tasks.Done()
 	}
+
+  // register job list
+  job.Eng.l.Lock()
+  job.Eng.jobs[job] = true
+  job.Eng.l.Unlock()
+
+  // release from engine job list.
+  defer func() {
+    job.Eng.l.Lock()
+    delete(job.Eng.jobs, job)
+    job.Eng.l.Unlock()
+  }()
+
 	// FIXME: make this thread-safe
 	// FIXME: implement wait
 	if !job.end.IsZero() {

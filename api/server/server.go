@@ -1277,6 +1277,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+      "/jobs/json":                      getJobsJSON,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -1590,3 +1591,14 @@ func AcceptConnections(job *engine.Job) engine.Status {
 
 	return engine.StatusOK
 }
+
+func getJobsJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+       if err := parseForm(r); err != nil {
+               return err
+       }
+
+  var job  = eng.Job("jobs")
+  streamJSON(job, w, false)
+  return job.Run()
+}
+
