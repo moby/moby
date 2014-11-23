@@ -1418,6 +1418,10 @@ See the [image tarball format](#image-tarball-format) for more details.
 
         Binary data stream
 
+Query Parameters:
+
+-   **exclude** – image to be excluded from the tarball (may be used multiple times)
+
 Status Codes:
 
 -   **200** – no error
@@ -1446,6 +1450,10 @@ See the [image tarball format](#image-tarball-format) for more details.
         Content-Type: application/x-tar
 
         Binary data stream
+
+Query Parameters:
+
+-   **exclude** – image to be excluded from the tarball (may be used multiple times)
 
 Status Codes:
 

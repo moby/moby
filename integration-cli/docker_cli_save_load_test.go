@@ -385,3 +385,114 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 
 	logDone("save - ensure directories exist in exported layers")
 }
+
+func TestSavePartialAndLoad(t *testing.T) {
+
+	makeImage := func(from string, tag string) string {
+		runCmd := exec.Command(dockerBinary, "run", "-d", from, "true")
+		var (
+			out string
+			err error
+		)
+		if out, _, err = runCommandWithOutput(runCmd); err != nil {
+			t.Fatalf("failed to create a container: %v %v", out, err)
+		}
+
+		cleanedContainerID := stripTrailingCharacters(out)
+		inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
+		if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
+			t.Fatalf("output should've been a container id: %v %v", cleanedContainerID, err)
+		}
+
+		commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, tag)
+		if out, _, err = runCommandWithOutput(commitCmd); err != nil {
+			t.Fatalf("failed to commit container: %v %v", out, err)
+		}
+		imageID := stripTrailingCharacters(out)
+
+		deleteContainer(cleanedContainerID)
+		return imageID
+	}
+	inspectImage := func(img string) string {
+		inspectCmd := exec.Command(dockerBinary, "inspect", img)
+		result, _, err := runCommandWithOutput(inspectCmd)
+		if err != nil {
+			t.Fatalf("the image should exist: %v %v", img, err)
+		}
+		return result
+	}
+	saveImage := func(tag string, filename string, exclude string) {
+		saveCmdTemplate := `%v save -o %s -e %s %v`
+		saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, filename, exclude, tag)
+		saveCmd := exec.Command("bash", "-c", saveCmdFinal)
+		if out, _, err := runCommandWithOutput(saveCmd); err != nil {
+			t.Fatalf("failed to save image: %v %v", out, err)
+		}
+	}
+	tagImage := func(img string, tag string) {
+		tagCmdTemplate := `%v tag %s %s`
+		tagCmdFinal := fmt.Sprintf(tagCmdTemplate, dockerBinary, img, tag)
+		tagCmd := exec.Command("bash", "-c", tagCmdFinal)
+		if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+			t.Fatalf("failed to tag image: %v %v", out, err)
+		}
+	}
+	loadImage := func(filename string, must_succeed bool) {
+		loadCmdTemplate := `%s load -i %s`
+		loadCmdFinal := fmt.Sprintf(loadCmdTemplate, dockerBinary, filename)
+		loadCmd := exec.Command("bash", "-c", loadCmdFinal)
+		out, _, err := runCommandWithOutput(loadCmd)
+		if must_succeed && (err != nil) {
+			t.Fatalf("failed to load image: %v %v", out, err)
+		} else if !must_succeed && (err == nil) {
+			t.Fatalf("image load must fail")
+		}
+	}
+	testImage := func(img string, inspectBefore string) {
+		inspectAfter := inspectImage(img)
+		if inspectBefore != inspectAfter {
+			t.Fatalf("inspect is not the same after a save / load")
+		}
+	}
+
+	repoName := "foobar-save-partial-load-test"
+	tagFoo := repoName + ":foo"
+	tagBar := repoName + ":bar"
+
+	fileFooBar := "/tmp/" + repoName + "-foo-bar.tar"
+	fileBar := "/tmp/" + repoName + "-bar.tar"
+
+	idFoo := makeImage("busybox:latest", tagFoo)
+	idBar := makeImage(tagFoo, tagBar)
+
+	inspectFoo := inspectImage(tagFoo)
+	inspectBar := inspectImage(tagBar)
+
+	saveImage(tagBar, fileFooBar, "busybox:latest")
+	saveImage(tagBar, fileBar, tagFoo)
+
+	// load foo + bar
+	deleteImages(tagFoo)
+	deleteImages(tagBar)
+
+	loadImage(fileFooBar, true)
+	testImage(idFoo, inspectFoo)
+	testImage(idBar, inspectBar)
+
+	// load bar only
+	tagImage(idFoo, tagFoo)
+	deleteImages(idBar)
+	loadImage(fileBar, true)
+	testImage(idBar, inspectBar)
+
+	// load bar but with foo missing
+	deleteImages(tagFoo)
+	deleteImages(idBar)
+	loadImage(fileBar, false)
+
+	// cleanup
+	os.Remove(fileFooBar)
+	os.Remove(fileBar)
+
+	logDone("save - save a repo using -e")
+}
