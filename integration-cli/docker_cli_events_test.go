@@ -16,12 +16,12 @@ import (
 )
 
 func TestEventsUntag(t *testing.T) {
-	out, _, _ := cmd(t, "images", "-q")
+	out, _, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	cmd(t, "tag", image, "utest:tag1")
-	cmd(t, "tag", image, "utest:tag2")
-	cmd(t, "rmi", "utest:tag1")
-	cmd(t, "rmi", "utest:tag2")
+	dockerCmd(t, "tag", image, "utest:tag1")
+	dockerCmd(t, "tag", image, "utest:tag2")
+	dockerCmd(t, "rmi", "utest:tag1")
+	dockerCmd(t, "rmi", "utest:tag2")
 	eventsCmd := exec.Command("timeout", "0.2", dockerBinary, "events", "--since=1")
 	out, _, _ = runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
@@ -39,11 +39,11 @@ func TestEventsUntag(t *testing.T) {
 
 func TestEventsPause(t *testing.T) {
 	name := "testeventpause"
-	out, _, _ := cmd(t, "images", "-q")
+	out, _, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	cmd(t, "run", "-d", "--name", name, image, "sleep", "2")
-	cmd(t, "pause", name)
-	cmd(t, "unpause", name)
+	dockerCmd(t, "run", "-d", "--name", name, image, "sleep", "2")
+	dockerCmd(t, "pause", name)
+	dockerCmd(t, "unpause", name)
 
 	defer deleteAllContainers()
 
@@ -75,7 +75,7 @@ func TestEventsPause(t *testing.T) {
 func TestEventsContainerFailStartDie(t *testing.T) {
 	defer deleteAllContainers()
 
-	out, _, _ := cmd(t, "images", "-q")
+	out, _, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	eventsCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testeventdie", image, "blerg")
 	_, _, err := runCommandWithOutput(eventsCmd)
@@ -106,7 +106,7 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 func TestEventsLimit(t *testing.T) {
 	defer deleteAllContainers()
 	for i := 0; i < 30; i++ {
-		cmd(t, "run", "busybox", "echo", strconv.Itoa(i))
+		dockerCmd(t, "run", "busybox", "echo", strconv.Itoa(i))
 	}
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, _, _ := runCommandWithOutput(eventsCmd)
@@ -119,7 +119,7 @@ func TestEventsLimit(t *testing.T) {
 }
 
 func TestEventsContainerEvents(t *testing.T) {
-	cmd(t, "run", "--rm", "busybox", "true")
+	dockerCmd(t, "run", "--rm", "busybox", "true")
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
@@ -190,7 +190,7 @@ func TestEventsRedirectStdout(t *testing.T) {
 
 	since := time.Now().Unix()
 
-	cmd(t, "run", "busybox", "true")
+	dockerCmd(t, "run", "busybox", "true")
 
 	defer deleteAllContainers()
 

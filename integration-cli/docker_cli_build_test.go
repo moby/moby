@@ -2429,7 +2429,7 @@ func TestBuildNoContext(t *testing.T) {
 		t.Fatalf("build failed to complete: %v %v", out, err)
 	}
 
-	if out, _, err := cmd(t, "run", "--rm", "nocontext"); out != "ok\n" || err != nil {
+	if out, _, err := dockerCmd(t, "run", "--rm", "nocontext"); out != "ok\n" || err != nil {
 		t.Fatalf("run produced invalid output: %q, expected %q", out, "ok")
 	}
 

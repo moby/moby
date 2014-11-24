@@ -356,11 +356,6 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
-// deprecated, use dockerCmd instead
-func cmd(t *testing.T, args ...string) (string, int, error) {
-	return dockerCmd(t, args...)
-}
-
 func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	if err != nil {

@@ -29,7 +29,7 @@ func TestRmiWithContainerFails(t *testing.T) {
 	}
 
 	// make sure it didn't delete the busybox name
-	images, _, _ := cmd(t, "images")
+	images, _, _ := dockerCmd(t, "images")
 	if !strings.Contains(images, "busybox") {
 		t.Fatalf("The name 'busybox' should not have been removed from images: %q", images)
 	}
@@ -40,35 +40,35 @@ func TestRmiWithContainerFails(t *testing.T) {
 }
 
 func TestRmiTag(t *testing.T) {
-	imagesBefore, _, _ := cmd(t, "images", "-a")
-	cmd(t, "tag", "busybox", "utest:tag1")
-	cmd(t, "tag", "busybox", "utest/docker:tag2")
-	cmd(t, "tag", "busybox", "utest:5000/docker:tag3")
+	imagesBefore, _, _ := dockerCmd(t, "images", "-a")
+	dockerCmd(t, "tag", "busybox", "utest:tag1")
+	dockerCmd(t, "tag", "busybox", "utest/docker:tag2")
+	dockerCmd(t, "tag", "busybox", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+3 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 	}
-	cmd(t, "rmi", "utest/docker:tag2")
+	dockerCmd(t, "rmi", "utest/docker:tag2")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+2 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
 	}
-	cmd(t, "rmi", "utest:5000/docker:tag3")
+	dockerCmd(t, "rmi", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+1 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
 	}
-	cmd(t, "rmi", "utest:tag1")
+	dockerCmd(t, "rmi", "utest:tag1")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
 		if nLines(imagesAfter) != nLines(imagesBefore)+0 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
