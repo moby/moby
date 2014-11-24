@@ -293,7 +293,7 @@ func IsURL(str string) bool {
 }
 
 func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
 func ValidGitTransport(str string) bool {
