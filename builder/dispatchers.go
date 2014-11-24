@@ -115,6 +115,12 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	name := args[0]
 
 	image, err := b.Daemon.Repositories().LookupImage(name)
+	if b.Pull {
+		image, err = b.pullImage(name)
+		if err != nil {
+			return err
+		}
+	}
 	if err != nil {
 		if b.Daemon.Graph().IsNotExist(err) {
 			image, err = b.pullImage(name)

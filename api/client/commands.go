@@ -81,6 +81,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"#no-cache", "-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
+	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -217,6 +218,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		v.Set("forcerm", "1")
 	}
 
+	if *pull {
+		v.Set("pull", "1")
+	}
 	cli.LoadConfigFile()
 
 	headers := http.Header(make(map[string][]string))

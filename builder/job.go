@@ -35,6 +35,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
 		forceRm        = job.GetenvBool("forcerm")
+		pull           = job.GetenvBool("pull")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -111,6 +112,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		UtilizeCache:    !noCache,
 		Remove:          rm,
 		ForceRemove:     forceRm,
+		Pull:            pull,
 		OutOld:          job.Stdout,
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
