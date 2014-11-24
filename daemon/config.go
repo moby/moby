@@ -65,7 +65,7 @@ func (config *Config) InstallFlags() {
 	flag.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
 	flag.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, "Set the containers network MTU\nif no value is provided: default to the default route MTU or 1500 if no default route is available")
 	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
-	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
+	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options\nForce Docker to use specific options for DEVMAPPER storage driver, and this would be used something like docker -d --storage-opt dm.foo=bar")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
