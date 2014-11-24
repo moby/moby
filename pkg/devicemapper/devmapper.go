@@ -63,7 +63,7 @@ var (
 	ErrGetLibraryVersion      = errors.New("dm_get_library_version failed")
 	ErrCreateRemoveTask       = errors.New("Can't create task of type DeviceRemove")
 	ErrRunRemoveDevice        = errors.New("running RemoveDevice failed")
-	ErrInvalidAddNode         = errors.New("Invalide AddNoce type")
+	ErrInvalidAddNode         = errors.New("Invalid AddNode type")
 	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 	ErrBusy                   = errors.New("Device is Busy")
@@ -104,6 +104,20 @@ func (t *Task) destroy() {
 	}
 }
 
+// TaskCreateNamed is a convenience function for TaskCreate when a name
+// will be set on the task as well
+func TaskCreateNamed(t TaskType, name string) (*Task, error) {
+	task := TaskCreate(t)
+	if task == nil {
+		return nil, fmt.Errorf("Can't create task of type %d", int(t))
+	}
+	if err := task.SetName(name); err != nil {
+		return nil, fmt.Errorf("Can't set task name %s", name)
+	}
+	return task, nil
+}
+
+// TaskCreate initializes a devicemapper task of tasktype
 func TaskCreate(tasktype TaskType) *Task {
 	Ctask := DmTaskCreate(int(tasktype))
 	if Ctask == nil {
@@ -298,7 +312,7 @@ func GetLibraryVersion() (string, error) {
 func RemoveDevice(name string) error {
 	log.Debugf("[devmapper] RemoveDevice START")
 	defer log.Debugf("[devmapper] RemoveDevice END")
-	task, err := createTask(DeviceRemove, name)
+	task, err := TaskCreateNamed(DeviceRemove, name)
 	if task == nil {
 		return err
 	}
@@ -354,7 +368,7 @@ func BlockDeviceDiscard(path string) error {
 
 // This is the programmatic example of "dmsetup create"
 func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
-	task, err := createTask(DeviceCreate, poolName)
+	task, err := TaskCreateNamed(DeviceCreate, poolName)
 	if task == nil {
 		return err
 	}
@@ -383,7 +397,7 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 }
 
 func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
-	task, err := createTask(DeviceReload, poolName)
+	task, err := TaskCreateNamed(DeviceReload, poolName)
 	if task == nil {
 		return err
 	}
@@ -405,19 +419,8 @@ func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	return nil
 }
 
-func createTask(t TaskType, name string) (*Task, error) {
-	task := TaskCreate(t)
-	if task == nil {
-		return nil, fmt.Errorf("Can't create task of type %d", int(t))
-	}
-	if err := task.SetName(name); err != nil {
-		return nil, fmt.Errorf("Can't set task name %s", name)
-	}
-	return task, nil
-}
-
 func GetDeps(name string) (*Deps, error) {
-	task, err := createTask(DeviceDeps, name)
+	task, err := TaskCreateNamed(DeviceDeps, name)
 	if task == nil {
 		return nil, err
 	}
@@ -428,7 +431,7 @@ func GetDeps(name string) (*Deps, error) {
 }
 
 func GetInfo(name string) (*Info, error) {
-	task, err := createTask(DeviceInfo, name)
+	task, err := TaskCreateNamed(DeviceInfo, name)
 	if task == nil {
 		return nil, err
 	}
@@ -450,9 +453,9 @@ func GetDriverVersion() (string, error) {
 }
 
 func GetStatus(name string) (uint64, uint64, string, string, error) {
-	task, err := createTask(DeviceStatus, name)
+	task, err := TaskCreateNamed(DeviceStatus, name)
 	if task == nil {
-		log.Debugf("GetStatus: Error createTask: %s", err)
+		log.Debugf("GetStatus: Error TaskCreateNamed: %s", err)
 		return 0, 0, "", "", err
 	}
 	if err := task.Run(); err != nil {
@@ -475,7 +478,7 @@ func GetStatus(name string) (uint64, uint64, string, string, error) {
 }
 
 func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
-	task, err := createTask(DeviceTargetMsg, poolName)
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
 	}
@@ -495,7 +498,7 @@ func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
 }
 
 func SuspendDevice(name string) error {
-	task, err := createTask(DeviceSuspend, name)
+	task, err := TaskCreateNamed(DeviceSuspend, name)
 	if task == nil {
 		return err
 	}
@@ -506,7 +509,7 @@ func SuspendDevice(name string) error {
 }
 
 func ResumeDevice(name string) error {
-	task, err := createTask(DeviceResume, name)
+	task, err := TaskCreateNamed(DeviceResume, name)
 	if task == nil {
 		return err
 	}
@@ -528,7 +531,7 @@ func CreateDevice(poolName string, deviceId *int) error {
 	log.Debugf("[devmapper] CreateDevice(poolName=%v, deviceId=%v)", poolName, *deviceId)
 
 	for {
-		task, err := createTask(DeviceTargetMsg, poolName)
+		task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 		if task == nil {
 			return err
 		}
@@ -556,7 +559,7 @@ func CreateDevice(poolName string, deviceId *int) error {
 }
 
 func DeleteDevice(poolName string, deviceId int) error {
-	task, err := createTask(DeviceTargetMsg, poolName)
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
 	}
@@ -576,7 +579,7 @@ func DeleteDevice(poolName string, deviceId int) error {
 }
 
 func ActivateDevice(poolName string, name string, deviceId int, size uint64) error {
-	task, err := createTask(DeviceCreate, name)
+	task, err := TaskCreateNamed(DeviceCreate, name)
 	if task == nil {
 		return err
 	}
@@ -614,7 +617,7 @@ func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 	}
 
 	for {
-		task, err := createTask(DeviceTargetMsg, poolName)
+		task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 		if task == nil {
 			if doSuspend {
 				ResumeDevice(baseName)
