@@ -24,6 +24,10 @@ The authentication method is selected using the `--auth` flag with values
  `identity`, `cert`, or `none` . `none` is the current default method but
 `identity` will become the default in a future version.
 
+*Note:* The `--tls` and `--tlsverify` options in Docker 1.3 and earlier have
+been replaced by the `--auth=cert` option. The old options have been
+deprecated.
+
 ## Identity-based authentication
 
 Identity-based authentication is similar to how SSH does authentication. When
