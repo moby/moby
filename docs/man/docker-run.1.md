@@ -79,6 +79,15 @@ the same proportion of CPU cycles, but you can tell the kernel to give more
 shares of CPU time to one or more containers when you start them via **docker
 run**.
 
+Here -c or --cpu-shares=0 means that the container running has access to all of 1024 CPU Shares.
+However this value can be modified to run a container with a different priority or different 
+proportion of CPU Cycles.
+e.g. If we start 3 {C0, C1, C2} containers with default values (-c OR --cpu-shares = 0) and 1 {C3} with '-c or --cpu-shares=512'
+then C0, C1 and C2 would have access to 100% CPU Shares i.e. 1024 shares and C3 would only have access to 50% CPU Shares i.e 512.
+In the context of a time sliced OS with time quantum set as 100 milliseconds, containers C0, C1 and C2 will run for full time quantum,
+and container C3 will run for half time quantum i.e 50 milliseconds. 
+
+
 **--cap-add**=[]
    Add Linux capabilities
 
