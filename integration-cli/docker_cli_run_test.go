@@ -798,7 +798,7 @@ func TestRunLoopbackWhenNetworkDisabled(t *testing.T) {
 }
 
 func TestRunNetHostNotAllowedWithLinks(t *testing.T) {
-	_, _, err := cmd(t, "run", "--name", "linked", "busybox", "true")
+	_, _, err := dockerCmd(t, "run", "--name", "linked", "busybox", "true")
 
 	cmd := exec.Command(dockerBinary, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
 	_, _, err = runCommandWithOutput(cmd)
@@ -1204,7 +1204,7 @@ func TestRunModeHostname(t *testing.T) {
 }
 
 func TestRunRootWorkdir(t *testing.T) {
-	s, _, err := cmd(t, "run", "--workdir", "/", "busybox", "pwd")
+	s, _, err := dockerCmd(t, "run", "--workdir", "/", "busybox", "pwd")
 	if err != nil {
 		t.Fatal(s, err)
 	}
@@ -1218,7 +1218,7 @@ func TestRunRootWorkdir(t *testing.T) {
 }
 
 func TestRunAllowBindMountingRoot(t *testing.T) {
-	s, _, err := cmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	s, _, err := dockerCmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
 	if err != nil {
 		t.Fatal(s, err)
 	}

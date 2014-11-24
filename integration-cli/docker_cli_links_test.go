@@ -62,21 +62,21 @@ func TestLinksPingUnlinkedContainers(t *testing.T) {
 
 func TestLinksPingLinkedContainers(t *testing.T) {
 	var out string
-	out, _, _ = cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
+	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	idA := stripTrailingCharacters(out)
-	out, _, _ = cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
+	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
 	idB := stripTrailingCharacters(out)
-	cmd(t, "run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
-	cmd(t, "kill", idA)
-	cmd(t, "kill", idB)
+	dockerCmd(t, "run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
+	dockerCmd(t, "kill", idA)
+	dockerCmd(t, "kill", idB)
 	deleteAllContainers()
 
 	logDone("links - ping linked container")
 }
 
 func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
-	cmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
 
 	childIP := findContainerIP(t, "child")
 	parentIP := findContainerIP(t, "parent")
@@ -87,13 +87,13 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 		t.Fatal("Iptables rules not found")
 	}
 
-	cmd(t, "rm", "--link", "parent/http")
+	dockerCmd(t, "rm", "--link", "parent/http")
 	if iptables.Exists(sourceRule...) || iptables.Exists(destinationRule...) {
 		t.Fatal("Iptables rules should be removed when unlink")
 	}
 
-	cmd(t, "kill", "child")
-	cmd(t, "kill", "parent")
+	dockerCmd(t, "kill", "child")
+	dockerCmd(t, "kill", "parent")
 	deleteAllContainers()
 
 	logDone("link - verify iptables when link and unlink")
@@ -105,9 +105,9 @@ func TestLinksInspectLinksStarted(t *testing.T) {
 		result   []string
 	)
 	defer deleteAllContainers()
-	cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sleep", "10")
 	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
 	if err != nil {
 		t.Fatal(err)
@@ -134,9 +134,9 @@ func TestLinksInspectLinksStopped(t *testing.T) {
 		result   []string
 	)
 	defer deleteAllContainers()
-	cmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
-	cmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
+	dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
+	dockerCmd(t, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
 	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
 	if err != nil {
 		t.Fatal(err)
