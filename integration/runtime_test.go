@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/log"
-	"github.com/docker/docker/reexec"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )

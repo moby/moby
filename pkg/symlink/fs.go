@@ -12,6 +12,12 @@ const maxLoopCounter = 100
 
 // FollowSymlink will follow an existing link and scope it to the root
 // path provided.
+// The role of this function is to return an absolute path in the root
+// or normalize to the root if the symlink leads to a path which is
+// outside of the root.
+// Errors encountered while attempting to follow the symlink in path
+// will be reported.
+// Normalizations to the root don't constitute errors.
 func FollowSymlinkInScope(link, root string) (string, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -35,7 +41,6 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 
 	for _, p := range strings.Split(link, "/") {
 		prev = filepath.Join(prev, p)
-		prev = filepath.Clean(prev)
 
 		loopCounter := 0
 		for {
@@ -61,25 +66,36 @@ func FollowSymlinkInScope(link, root string) (string, error) {
 				}
 				return "", err
 			}
-			if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-				dest, err := os.Readlink(prev)
-				if err != nil {
-					return "", err
-				}
 
-				if path.IsAbs(dest) {
-					prev = filepath.Join(root, dest)
-				} else {
-					prev, _ = filepath.Abs(prev)
-
-					if prev = filepath.Clean(filepath.Join(filepath.Dir(prev), dest)); len(prev) < len(root) {
-						prev = filepath.Join(root, filepath.Base(dest))
-					}
-				}
-			} else {
+			// let's break if we're not dealing with a symlink
+			if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
 				break
 			}
+
+			// process the symlink
+			dest, err := os.Readlink(prev)
+			if err != nil {
+				return "", err
+			}
+
+			if path.IsAbs(dest) {
+				prev = filepath.Join(root, dest)
+			} else {
+				prev, _ = filepath.Abs(prev)
+
+				dir := filepath.Dir(prev)
+				prev = filepath.Join(dir, dest)
+				if dir == root && !strings.HasPrefix(prev, root) {
+					prev = root
+				}
+				if len(prev) < len(root) || (len(prev) == len(root) && prev != root) {
+					prev = filepath.Join(root, filepath.Base(dest))
+				}
+			}
 		}
+	}
+	if prev == "/" {
+		prev = root
 	}
 	return prev, nil
 }

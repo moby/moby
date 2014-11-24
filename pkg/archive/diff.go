@@ -24,6 +24,8 @@ func mkdev(major int64, minor int64) uint32 {
 // ApplyLayer parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`.
 func ApplyLayer(dest string, layer ArchiveReader) error {
+	dest = filepath.Clean(dest)
+
 	// We need to be able to set any perms
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
@@ -93,6 +95,12 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 
 		path := filepath.Join(dest, hdr.Name)
 		base := filepath.Base(path)
+
+		// Prevent symlink breakout
+		if !strings.HasPrefix(path, dest) {
+			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		}
+
 		if strings.HasPrefix(base, ".wh.") {
 			originalBase := base[len(".wh."):]
 			originalPath := filepath.Join(filepath.Dir(path), originalBase)

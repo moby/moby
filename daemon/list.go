@@ -93,7 +93,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if len(filt_exited) > 0 && !container.Running {
 			should_skip := true
 			for _, code := range filt_exited {
-				if code == container.GetExitCode() {
+				if code == container.ExitCode {
 					should_skip = false
 					break
 				}

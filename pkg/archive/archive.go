@@ -35,10 +35,22 @@ type (
 		Compression Compression
 		NoLchown    bool
 	}
+
+	// Archiver allows the reuse of most utility functions of this package
+	// with a pluggable Untar function.
+	Archiver struct {
+		Untar func(io.Reader, string, *TarOptions) error
+	}
+
+	// breakoutError is used to differentiate errors related to breaking out
+	// When testing archive breakout in the unit tests, this error is expected
+	// in order for the test to pass.
+	breakoutError error
 )
 
 var (
 	ErrNotImplemented = errors.New("Function not implemented")
+	defaultArchiver   = &Archiver{Untar}
 )
 
 const (
@@ -263,11 +275,25 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeLink:
-		if err := os.Link(filepath.Join(extractDir, hdr.Linkname), path); err != nil {
+		targetPath := filepath.Join(extractDir, hdr.Linkname)
+		// check for hardlink breakout
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid hardlink %q -> %q", targetPath, hdr.Linkname))
+		}
+		if err := os.Link(targetPath, path); err != nil {
 			return err
 		}
 
 	case tar.TypeSymlink:
+		// 	path 				-> hdr.Linkname = targetPath
+		// e.g. /extractDir/path/to/symlink 	-> ../2/file	= /extractDir/path/2/file
+		targetPath := filepath.Join(filepath.Dir(path), hdr.Linkname)
+
+		// the reason we don't need to check symlinks in the path (with FollowSymlinkInScope) is because
+		// that symlink would first have to be created, which would be caught earlier, at this very check:
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
+		}
 		if err := os.Symlink(hdr.Linkname, path); err != nil {
 			return err
 		}
@@ -412,6 +438,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
+	dest = filepath.Clean(dest)
+
 	if options == nil {
 		options = &TarOptions{}
 	}
@@ -449,6 +477,7 @@ loop:
 		}
 
 		// Normalize name, for safety and for a simple is-root check
+		// This keeps "../" as-is, but normalizes "/../" to "/"
 		hdr.Name = filepath.Clean(hdr.Name)
 
 		for _, exclude := range options.Excludes {
@@ -469,7 +498,11 @@ loop:
 			}
 		}
 
+		// Prevent symlink breakout
 		path := filepath.Join(dest, hdr.Name)
+		if !strings.HasPrefix(path, dest) {
+			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		}
 
 		// If path exits we almost always just want to remove and replace it
 		// The only exception is when it is a directory *and* the file from
@@ -508,45 +541,47 @@ loop:
 	return nil
 }
 
-// TarUntar is a convenience function which calls Tar and Untar, with
-// the output of one piped into the other. If either Tar or Untar fails,
-// TarUntar aborts and returns the error.
-func TarUntar(src string, dst string) error {
+func (archiver *Archiver) TarUntar(src, dst string) error {
 	log.Debugf("TarUntar(%s %s)", src, dst)
 	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
 	}
 	defer archive.Close()
-	return Untar(archive, dst, nil)
+	return archiver.Untar(archive, dst, nil)
 }
 
-// UntarPath is a convenience function which looks for an archive
-// at filesystem path `src`, and unpacks it at `dst`.
-func UntarPath(src, dst string) error {
+// TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
+// If either Tar or Untar fails, TarUntar aborts and returns the error.
+func TarUntar(src, dst string) error {
+	return defaultArchiver.TarUntar(src, dst)
+}
+
+func (archiver *Archiver) UntarPath(src, dst string) error {
 	archive, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer archive.Close()
-	if err := Untar(archive, dst, nil); err != nil {
+	if err := archiver.Untar(archive, dst, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-// CopyWithTar creates a tar archive of filesystem path `src`, and
-// unpacks it at filesystem path `dst`.
-// The archive is streamed directly with fixed buffering and no
-// intermediary disk IO.
-//
-func CopyWithTar(src, dst string) error {
+// UntarPath is a convenience function which looks for an archive
+// at filesystem path `src`, and unpacks it at `dst`.
+func UntarPath(src, dst string) error {
+	return defaultArchiver.UntarPath(src, dst)
+}
+
+func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	srcSt, err := os.Stat(src)
 	if err != nil {
 		return err
 	}
 	if !srcSt.IsDir() {
-		return CopyFileWithTar(src, dst)
+		return archiver.CopyFileWithTar(src, dst)
 	}
 	// Create dst, copy src's content into it
 	log.Debugf("Creating dest directory: %s", dst)
@@ -554,16 +589,18 @@ func CopyWithTar(src, dst string) error {
 		return err
 	}
 	log.Debugf("Calling TarUntar(%s, %s)", src, dst)
-	return TarUntar(src, dst)
+	return archiver.TarUntar(src, dst)
 }
 
-// CopyFileWithTar emulates the behavior of the 'cp' command-line
-// for a single file. It copies a regular file from path `src` to
-// path `dst`, and preserves all its metadata.
-//
-// If `dst` ends with a trailing slash '/', the final destination path
-// will be `dst/base(src)`.
-func CopyFileWithTar(src, dst string) (err error) {
+// CopyWithTar creates a tar archive of filesystem path `src`, and
+// unpacks it at filesystem path `dst`.
+// The archive is streamed directly with fixed buffering and no
+// intermediary disk IO.
+func CopyWithTar(src, dst string) error {
+	return defaultArchiver.CopyWithTar(src, dst)
+}
+
+func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	log.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
 	if err != nil {
@@ -611,7 +648,17 @@ func CopyFileWithTar(src, dst string) (err error) {
 			err = er
 		}
 	}()
-	return Untar(r, filepath.Dir(dst), nil)
+	return archiver.Untar(r, filepath.Dir(dst), nil)
+}
+
+// CopyFileWithTar emulates the behavior of the 'cp' command-line
+// for a single file. It copies a regular file from path `src` to
+// path `dst`, and preserves all its metadata.
+//
+// If `dst` ends with a trailing slash '/', the final destination path
+// will be `dst/base(src)`.
+func CopyFileWithTar(src, dst string) (err error) {
+	return defaultArchiver.CopyFileWithTar(src, dst)
 }
 
 // CmdStream executes a command, and returns its stdout as a stream.

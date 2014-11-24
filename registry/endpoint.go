@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/docker/docker/pkg/log"
 )
+
+// for mocking in unit tests
+var lookupIP = net.LookupIP
 
 // scans string for api version in the URL path. returns the trimmed hostname, if version found, string and API version.
 func scanForApiVersion(hostname string) (string, APIVersion) {
@@ -33,9 +37,40 @@ func scanForApiVersion(hostname string) (string, APIVersion) {
 	return hostname, DefaultAPIVersion
 }
 
-func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
+func NewEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error) {
+	endpoint, err := newEndpoint(hostname, insecureRegistries)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try HTTPS ping to registry
+	endpoint.URL.Scheme = "https"
+	if _, err := endpoint.Ping(); err != nil {
+
+		//TODO: triggering highland build can be done there without "failing"
+
+		if endpoint.secure {
+			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
+			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
+			return nil, fmt.Errorf("Invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
+		}
+
+		// If registry is insecure and HTTPS failed, fallback to HTTP.
+		log.Debugf("Error from registry %q marked as insecure: %v. Insecurely falling back to HTTP", endpoint, err)
+		endpoint.URL.Scheme = "http"
+		_, err2 := endpoint.Ping()
+		if err2 == nil {
+			return endpoint, nil
+		}
+
+		return nil, fmt.Errorf("Invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
+	}
+
+	return endpoint, nil
+}
+func newEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error) {
 	var (
-		endpoint        = Endpoint{secure: secure}
+		endpoint        = Endpoint{}
 		trimmedHostname string
 		err             error
 	)
@@ -47,30 +82,10 @@ func NewEndpoint(hostname string, secure bool) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Try HTTPS ping to registry
-	endpoint.URL.Scheme = "https"
-	if _, err := endpoint.Ping(); err != nil {
-
-		//TODO: triggering highland build can be done there without "failing"
-
-		if secure {
-			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
-			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
-			return nil, fmt.Errorf("Invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
-		}
-
-		// If registry is insecure and HTTPS failed, fallback to HTTP.
-		log.Debugf("Error from registry %q marked as insecure: %v. Insecurely falling back to HTTP", endpoint, err)
-		endpoint.URL.Scheme = "http"
-		_, err2 := endpoint.Ping()
-		if err2 == nil {
-			return &endpoint, nil
-		}
-
-		return nil, fmt.Errorf("Invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
+	endpoint.secure, err = isSecure(endpoint.URL.Host, insecureRegistries)
+	if err != nil {
+		return nil, err
 	}
-
 	return &endpoint, nil
 }
 
@@ -141,18 +156,58 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 	return info, nil
 }
 
-// IsSecure returns false if the provided hostname is part of the list of insecure registries.
+// isSecure returns false if the provided hostname is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
-func IsSecure(hostname string, insecureRegistries []string) bool {
-	if hostname == IndexServerAddress() {
-		return true
+//
+// The list of insecure registries can contain an element with CIDR notation to specify a whole subnet.
+// If the subnet contains one of the IPs of the registry specified by hostname, the latter is considered
+// insecure.
+//
+// hostname should be a URL.Host (`host:port` or `host`)
+func isSecure(hostname string, insecureRegistries []string) (bool, error) {
+	if hostname == IndexServerURL.Host {
+		return true, nil
 	}
 
-	for _, h := range insecureRegistries {
-		if hostname == h {
-			return false
+	host, _, err := net.SplitHostPort(hostname)
+	if err != nil {
+		// assume hostname is of the form `host` without the port and go on.
+		host = hostname
+	}
+	addrs, err := lookupIP(host)
+	if err != nil {
+		ip := net.ParseIP(host)
+		if ip == nil {
+			// if resolving `host` fails, error out, since host is to be net.Dial-ed anyway
+			return true, fmt.Errorf("issecure: could not resolve %q: %v", host, err)
+		}
+		addrs = []net.IP{ip}
+	}
+	if len(addrs) == 0 {
+		return true, fmt.Errorf("issecure: could not resolve %q", host)
+	}
+
+	for _, addr := range addrs {
+		for _, r := range insecureRegistries {
+			// hostname matches insecure registry
+			if hostname == r {
+				return false, nil
+			}
+
+			// now assume a CIDR was passed to --insecure-registry
+			_, ipnet, err := net.ParseCIDR(r)
+			if err != nil {
+				// if could not parse it as a CIDR, even after removing
+				// assume it's not a CIDR and go on with the next candidate
+				continue
+			}
+
+			// check if the addr falls in the subnet
+			if ipnet.Contains(addr) {
+				return false, nil
+			}
 		}
 	}
 
-	return true
+	return true, nil
 }

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.2 (2014-11-20)
+
+#### Security
+- Fix tar breakout vulnerability
+* Extractions are now sandboxed chroot
+- Security options are no longer committed to images
+
+#### Runtime
+- Fix deadlock in `docker ps -f exited=1`
+- Fix a bug when `--volumes-from` references a container that failed to start
+
+#### Registry
++ `--insecure-registry` now accepts CIDR notation such as 10.1.0.0/16
+* Private registries whose IPs fall in the 127.0.0.0/8 range do no need the `--insecure-registry` flag
+- Skip the experimental registry v2 API when mirroring is enabled
+
 ## 1.3.1 (2014-10-28)
 
 #### Security

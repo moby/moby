@@ -32,7 +32,6 @@ type Config struct {
 	Entrypoint      []string
 	NetworkDisabled bool
 	OnBuild         []string
-	SecurityOpt     []string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -56,7 +55,6 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	}
 	job.GetenvJson("ExposedPorts", &config.ExposedPorts)
 	job.GetenvJson("Volumes", &config.Volumes)
-	config.SecurityOpt = job.GetenvList("SecurityOpt")
 	if PortSpecs := job.GetenvList("PortSpecs"); PortSpecs != nil {
 		config.PortSpecs = PortSpecs
 	}
