@@ -1199,9 +1199,8 @@ use `docker pull`:
     # will pull the debian:latest image, its intermediate layers
     # and any aliases of the same id
     $ sudo docker pull debian:testing
-    # will pull the image named ubuntu:trusty, ubuntu:14.04
-    # which is an alias of the same image
-    # and any intermediate layers it is based on.
+    # will pull the image named debian:testing and any intermediate
+    # layers it is based on.
     # (Typically the empty `scratch` image, a MAINTAINER layer,
     # and the un-tarred base).
     $ sudo docker pull --all-tags centos
