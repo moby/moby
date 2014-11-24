@@ -4,6 +4,35 @@ page_keywords: docker, documentation, about, technology, understanding, release
 
 #Release Notes
 
+##Version 1.3.2
+(2014-11-24)
+
+This release fixes some bugs and addresses some security issues. We have also
+made improvements to aspects of `docker run`.
+
+*Security fixes*
+
+Patches and changes were made to address CVE-2014-6407 and CVE-2014-6408.
+Specifically, changes were made in order to:
+
+* Prevent host privilege escalation from an image extraction vulnerability (CVE-2014-6407).
+
+* Prevent container escalation from malicious security options applied to images (CVE-2014-6408).
+
+*Daemon fixes*
+
+The `--insecure-registry` flag of the `docker run` command has undergone
+several refinements and additions. For details, please see the
+[command-line reference](http://docs.docker.com/reference/commandline/cli/#run).
+
+* You can now specify a sub-net in order to set a range of registries which the Docker daemon will consider insecure.
+
+* By default, Docker now defines `localhost` as an insecure registry.
+
+* Registries can now be referenced using the Classless Inter-Domain Routing (CIDR) format.
+
+* When mirroring is enabled, the experimental registry v2 API is skipped.
+
 ##Version 1.3.1
 (2014-10-28)
 
