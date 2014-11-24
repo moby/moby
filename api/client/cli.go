@@ -83,8 +83,14 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	return cli.CmdHelp()
 }
 
-func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {
-	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bool) *flag.FlagSet {
+	var errorHandling flag.ErrorHandling
+	if exitOnError {
+		errorHandling = flag.ExitOnError
+	} else {
+		errorHandling = flag.ContinueOnError
+	}
+	flags := flag.NewFlagSet(name, errorHandling)
 	flags.Usage = func() {
 		options := ""
 		if flags.FlagCountUndeprecated() > 0 {

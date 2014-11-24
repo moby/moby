@@ -8,7 +8,10 @@ import (
 )
 
 // ParseFlags is a utility function that adds a help flag if withHelp is true,
-// calls cmd.Parse(args) and prints a relevant error message if there are incorrect number of arguments.
+// calls cmd.Parse(args) and prints a relevant error message if there are
+// incorrect number of arguments. It returns error only if error handling is
+// set to ContinueOnError and parsing fails. If error handling is set to
+// ExitOnError, it's safe to ignore the return value.
 // TODO: move this to a better package than utils
 func ParseFlags(cmd *flag.FlagSet, args []string, withHelp bool) error {
 	var help *bool
