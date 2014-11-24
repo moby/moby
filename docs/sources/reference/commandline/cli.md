@@ -153,8 +153,8 @@ string is equivalent to setting the `--tlsverify` flag. The following are equiva
 
 ### Daemon storage-driver option
 
-The Docker daemon has support for three different image layer storage drivers: `aufs`,
-`devicemapper`, and `btrfs`.
+The Docker daemon has support for several different image layer storage drivers: `aufs`,
+`devicemapper`, `btrfs`, and `overlayfs`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
