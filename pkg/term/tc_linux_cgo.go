@@ -1,4 +1,4 @@
-// +build !windows,cgo
+// +build linux,cgo
 
 package term
 

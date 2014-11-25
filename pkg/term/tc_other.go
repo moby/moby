@@ -1,4 +1,5 @@
-// +build !windows,!cgo
+// +build !windows
+// +build !linux !cgo
 
 package term
 
