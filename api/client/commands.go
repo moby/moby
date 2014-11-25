@@ -1052,7 +1052,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 			} else {
 				fmt.Fprintf(w, "%s\t", utils.Trunc(out.Get("CreatedBy"), 45))
 			}
-			fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("Size")))
+			fmt.Fprintf(w, "%s\n", units.HumanSize(float64(out.GetInt64("Size"))))
 		} else {
 			if *noTrunc {
 				fmt.Fprintln(w, outID)
@@ -1451,7 +1451,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 
 				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(out.GetInt64("VirtualSize")))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 				} else {
 					fmt.Fprintln(w, outID)
 				}
@@ -1525,7 +1525,7 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 		imageID = utils.TruncateID(image.Get("Id"))
 	}
 
-	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, units.HumanSize(image.GetInt64("VirtualSize")))
+	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, units.HumanSize(float64(image.GetInt64("VirtualSize"))))
 	if image.GetList("RepoTags")[0] != "<none>:<none>" {
 		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.GetList("RepoTags"), ", "))
 	} else {
@@ -1668,9 +1668,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		if *size {
 			if out.GetInt("SizeRootFs") > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
+				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(float64(out.GetInt64("SizeRw"))), units.HumanSize(float64(out.GetInt64("SizeRootFs"))))
 			} else {
-				fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("SizeRw")))
+				fmt.Fprintf(w, "%s\n", units.HumanSize(float64(out.GetInt64("SizeRw"))))
 			}
 
 			continue
