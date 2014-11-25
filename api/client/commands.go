@@ -1870,6 +1870,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 		tail   = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
+		since  = cmd.String([]string{"-since"}, "", "Show logs since (yyyy-mm-dd hh:mm or hh:mm)")
 	)
 
 	if err := cmd.Parse(args); err != nil {
@@ -1904,6 +1905,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		v.Set("follow", "1")
 	}
 	v.Set("tail", *tail)
+	v.Set("since", *since)
 
 	return cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), env.GetSubEnv("Config").GetBool("Tty"), nil, cli.out, cli.err, nil)
 }

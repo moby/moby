@@ -3,11 +3,14 @@ package daemon
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
@@ -22,14 +25,16 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 
 	var (
-		name   = job.Args[0]
-		stdout = job.GetenvBool("stdout")
-		stderr = job.GetenvBool("stderr")
-		tail   = job.Getenv("tail")
-		follow = job.GetenvBool("follow")
-		times  = job.GetenvBool("timestamps")
-		lines  = -1
-		format string
+		name      = job.Args[0]
+		stdout    = job.GetenvBool("stdout")
+		stderr    = job.GetenvBool("stderr")
+		tail      = job.Getenv("tail")
+		since     = job.Getenv("since")
+		follow    = job.GetenvBool("follow")
+		times     = job.GetenvBool("timestamps")
+		lines     = -1
+		format    string
+		sinceDate time.Time
 	)
 	if !(stdout || stderr) {
 		return job.Errorf("You must choose at least one stream")
@@ -40,6 +45,14 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	if tail == "" {
 		tail = "all"
 	}
+	if since != "" {
+		var err error
+		sinceDate, err = parseSinceDate(since)
+		if err != nil {
+			return job.Errorf("Error parsing since: %s", err)
+		}
+	}
+
 	container := daemon.Get(name)
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
@@ -97,6 +110,9 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 					log.Errorf("Error streaming logs: %s", err)
 					break
 				}
+				if since != "" && l.Created.Before(sinceDate) {
+					continue
+				}
 				logLine := l.Log
 				if times {
 					logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
@@ -145,4 +161,25 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 
 	}
 	return engine.StatusOK
+}
+
+func parseSinceDate(since string) (time.Time, error) {
+	var format = "2006-01-02 15:04:05"
+	parts := strings.FieldsFunc(since, func(c rune) bool {
+		return c == '-' || c == ' ' || c == ':'
+	})
+
+	switch len(parts) {
+	case 5: // date & time
+		since = fmt.Sprintf("%s:00", since)
+	case 3: // date
+		since = fmt.Sprintf("%s 00:00:00", since)
+	case 2: // time
+		y, m, d := time.Now().Date()
+		since = fmt.Sprintf("%d-%02d-%02d %s:00", y, m, d, since)
+	default:
+		return time.Time{}, errors.New("invalid since format")
+	}
+
+	return time.ParseInLocation(format, since, time.Local)
 }
