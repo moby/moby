@@ -90,6 +90,7 @@ type Builder struct {
 	// controls how images and containers are handled between steps.
 	Remove      bool
 	ForceRemove bool
+	Pull        bool
 
 	AuthConfig     *registry.AuthConfig
 	AuthConfigFile *registry.ConfigFile

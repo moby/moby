@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -187,6 +188,7 @@ func newTestEngine(t Fataler, autorestart bool, root string) *engine.Engine {
 		// Either InterContainerCommunication or EnableIptables must be set,
 		// otherwise NewDaemon will fail because of conflicting settings.
 		InterContainerCommunication: true,
+		TrustKeyPath:                filepath.Join(root, "key.json"),
 	}
 	d, err := daemon.NewDaemon(cfg, eng)
 	if err != nil {

@@ -129,6 +129,7 @@ func supportsOverlayfs() error {
 			return nil
 		}
 	}
+	log.Error("'overlayfs' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlayfs support loaded.")
 	return graphdriver.ErrNotSupported
 }
 

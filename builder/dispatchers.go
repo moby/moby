@@ -31,21 +31,39 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool, origina
 // in the dockerfile available from the next statement on via ${foo}.
 //
 func env(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("ENV accepts two arguments")
+	if len(args) == 0 {
+		return fmt.Errorf("ENV is missing arguments")
 	}
 
-	fullEnv := fmt.Sprintf("%s=%s", args[0], args[1])
+	if len(args)%2 != 0 {
+		// should never get here, but just in case
+		return fmt.Errorf("Bad input to ENV, too many args")
+	}
 
-	for i, envVar := range b.Config.Env {
-		envParts := strings.SplitN(envVar, "=", 2)
-		if args[0] == envParts[0] {
-			b.Config.Env[i] = fullEnv
-			return b.commit("", b.Config.Cmd, fmt.Sprintf("ENV %s", fullEnv))
+	commitStr := "ENV"
+
+	for j := 0; j < len(args); j++ {
+		// name  ==> args[j]
+		// value ==> args[j+1]
+		newVar := args[j] + "=" + args[j+1] + ""
+		commitStr += " " + newVar
+
+		gotOne := false
+		for i, envVar := range b.Config.Env {
+			envParts := strings.SplitN(envVar, "=", 2)
+			if envParts[0] == args[j] {
+				b.Config.Env[i] = newVar
+				gotOne = true
+				break
+			}
 		}
+		if !gotOne {
+			b.Config.Env = append(b.Config.Env, newVar)
+		}
+		j++
 	}
-	b.Config.Env = append(b.Config.Env, fullEnv)
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("ENV %s", fullEnv))
+
+	return b.commit("", b.Config.Cmd, commitStr)
 }
 
 // MAINTAINER some text <maybe@an.email.address>
@@ -97,6 +115,12 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	name := args[0]
 
 	image, err := b.Daemon.Repositories().LookupImage(name)
+	if b.Pull {
+		image, err = b.pullImage(name)
+		if err != nil {
+			return err
+		}
+	}
 	if err != nil {
 		if b.Daemon.Graph().IsNotExist(err) {
 			image, err = b.pullImage(name)

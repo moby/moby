@@ -15,6 +15,7 @@ import (
 	"github.com/docker/libcontainer/label"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
@@ -83,6 +84,7 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
+	ID             string
 	repository     string
 	sysInitPath    string
 	containers     *contStore
@@ -529,10 +531,10 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string)
 	return entrypoint, args
 }
 
-func parseSecurityOpt(container *Container, config *runconfig.Config) error {
+func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
 	var (
-		label_opts []string
-		err        error
+		labelOpts []string
+		err       error
 	)
 
 	for _, opt := range config.SecurityOpt {
@@ -542,7 +544,7 @@ func parseSecurityOpt(container *Container, config *runconfig.Config) error {
 		}
 		switch con[0] {
 		case "label":
-			label_opts = append(label_opts, con[1])
+			labelOpts = append(labelOpts, con[1])
 		case "apparmor":
 			container.AppArmorProfile = con[1]
 		default:
@@ -550,7 +552,7 @@ func parseSecurityOpt(container *Container, config *runconfig.Config) error {
 		}
 	}
 
-	container.ProcessLabel, container.MountLabel, err = label.InitLabels(label_opts)
+	container.ProcessLabel, container.MountLabel, err = label.InitLabels(labelOpts)
 	return err
 }
 
@@ -584,7 +586,6 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		execCommands:    newExecStore(),
 	}
 	container.root = daemon.containerRoot(container.ID)
-	err = parseSecurityOpt(container, config)
 	return container, err
 }
 
@@ -893,7 +894,13 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	daemon := &Daemon{
+		ID:             trustKey.PublicKey().KeyID(),
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
 		execCommands:   newExecStore(),

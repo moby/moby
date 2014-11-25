@@ -38,6 +38,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
+	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -45,6 +46,10 @@ import (
 
 const (
 	tarHeaderSize = 512
+)
+
+var (
+	acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
 )
 
 func (cli *DockerCli) CmdHelp(args ...string) error {
@@ -77,6 +82,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"#no-cache", "-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
+	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -110,13 +116,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		} else {
 			context = ioutil.NopCloser(buf)
 		}
-	} else if utils.IsURL(cmd.Arg(0)) && (!utils.IsGIT(cmd.Arg(0)) || !hasGit) {
+	} else if urlutil.IsURL(cmd.Arg(0)) && (!urlutil.IsGitURL(cmd.Arg(0)) || !hasGit) {
 		isRemote = true
 	} else {
 		root := cmd.Arg(0)
-		if utils.IsGIT(root) {
+		if urlutil.IsGitURL(root) {
 			remoteURL := cmd.Arg(0)
-			if !utils.ValidGitTransport(remoteURL) {
+			if !urlutil.IsGitTransport(remoteURL) {
 				remoteURL = "https://" + remoteURL
 			}
 
@@ -213,6 +219,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		v.Set("forcerm", "1")
 	}
 
+	if *pull {
+		v.Set("pull", "1")
+	}
 	cli.LoadConfigFile()
 
 	headers := http.Header(make(map[string][]string))
@@ -508,6 +517,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if remoteInfo.Exists("MemTotal") {
 		fmt.Fprintf(cli.out, "Total Memory: %s\n", units.BytesSize(float64(remoteInfo.GetInt64("MemTotal"))))
 	}
+	if remoteInfo.Exists("Name") {
+		fmt.Fprintf(cli.out, "Name: %s\n", remoteInfo.Get("Name"))
+	}
+	if remoteInfo.Exists("ID") {
+		fmt.Fprintf(cli.out, "ID: %s\n", remoteInfo.Get("ID"))
+	}
 
 	if remoteInfo.GetBool("Debug") || os.Getenv("DEBUG") != "" {
 		if remoteInfo.Exists("Debug") {
@@ -548,6 +563,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if remoteInfo.Exists("IPv4Forwarding") && !remoteInfo.GetBool("IPv4Forwarding") {
 		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
 	}
+	if remoteInfo.Exists("Labels") {
+		fmt.Fprintln(cli.out, "Labels:")
+		for _, attribute := range remoteInfo.GetList("Labels") {
+			fmt.Fprintf(cli.out, " %s\n", attribute)
+		}
+	}
+
 	return nil
 }
 
@@ -1333,6 +1355,12 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
 		if err != nil {
 			return err
+		}
+	}
+
+	for name := range imageFilterArgs {
+		if _, ok := acceptedImageFilterTags[name]; !ok {
+			return fmt.Errorf("Invalid filter '%s'", name)
 		}
 	}
 
@@ -2145,7 +2173,11 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, false)
 	//if image not found try to pull it
 	if statusCode == 404 {
-		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", config.Image)
+		repo, tag := parsers.ParseRepositoryTag(config.Image)
+		if tag == "" {
+			tag = graph.DEFAULTTAG
+		}
+		fmt.Fprintf(cli.err, "Unable to find image '%s:%s' locally\n", repo, tag)
 
 		// we don't want to write to stdout anything apart from container.ID
 		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {

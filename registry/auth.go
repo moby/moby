@@ -126,8 +126,8 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 				return &configFile, err
 			}
 			authConfig.Auth = ""
-			configFile.Configs[k] = authConfig
 			authConfig.ServerAddress = k
+			configFile.Configs[k] = authConfig
 		}
 	}
 	return &configFile, nil

@@ -798,7 +798,7 @@ func TestRunLoopbackWhenNetworkDisabled(t *testing.T) {
 }
 
 func TestRunNetHostNotAllowedWithLinks(t *testing.T) {
-	_, _, err := cmd(t, "run", "--name", "linked", "busybox", "true")
+	_, _, err := dockerCmd(t, "run", "--name", "linked", "busybox", "true")
 
 	cmd := exec.Command(dockerBinary, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
 	_, _, err = runCommandWithOutput(cmd)
@@ -1204,7 +1204,7 @@ func TestRunModeHostname(t *testing.T) {
 }
 
 func TestRunRootWorkdir(t *testing.T) {
-	s, _, err := cmd(t, "run", "--workdir", "/", "busybox", "pwd")
+	s, _, err := dockerCmd(t, "run", "--workdir", "/", "busybox", "pwd")
 	if err != nil {
 		t.Fatal(s, err)
 	}
@@ -1218,7 +1218,7 @@ func TestRunRootWorkdir(t *testing.T) {
 }
 
 func TestRunAllowBindMountingRoot(t *testing.T) {
-	s, _, err := cmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	s, _, err := dockerCmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
 	if err != nil {
 		t.Fatal(s, err)
 	}
@@ -1257,6 +1257,7 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 	if err := mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""); err != nil {
 		t.Fatalf("failed to create a tmpfs mount at %s - %s", tmpfsDir, err)
 	}
+	defer mount.Unmount(tmpfsDir)
 
 	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
 	if err != nil {
@@ -2686,4 +2687,29 @@ func TestContainerNetworkMode(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - container shared network namespace")
+}
+
+func TestRunTLSverify(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "ps")
+	out, ec, err := runCommandWithOutput(cmd)
+	if err != nil || ec != 0 {
+		t.Fatalf("Should have worked: %v:\n%v", err, out)
+	}
+
+	// Regardless of whether we specify true or false we need to
+	// test to make sure tls is turned on if --tlsverify is specified at all
+
+	cmd = exec.Command(dockerBinary, "--tlsverify=false", "ps")
+	out, ec, err = runCommandWithOutput(cmd)
+	if err == nil || ec == 0 || !strings.Contains(out, "trying to connect") {
+		t.Fatalf("Should have failed: \nec:%v\nout:%v\nerr:%v", ec, out, err)
+	}
+
+	cmd = exec.Command(dockerBinary, "--tlsverify=true", "ps")
+	out, ec, err = runCommandWithOutput(cmd)
+	if err == nil || ec == 0 || !strings.Contains(out, "cert") {
+		t.Fatalf("Should have failed: \nec:%v\nout:%v\nerr:%v", ec, out, err)
+	}
+
+	logDone("run - verify tls is set for --tlsverify")
 }

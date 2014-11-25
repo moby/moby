@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -62,4 +65,60 @@ func TestImagesOrderedByCreationDate(t *testing.T) {
 	}
 
 	logDone("images - ordering by creation date")
+}
+
+func TestImagesErrorWithInvalidFilterNameTest(t *testing.T) {
+	imagesCmd := exec.Command(dockerBinary, "images", "-f", "FOO=123")
+	out, _, err := runCommandWithOutput(imagesCmd)
+	if !strings.Contains(out, "Invalid filter") {
+		t.Fatalf("error should occur when listing images with invalid filter name FOO, %s, %v", out, err)
+	}
+
+	logDone("images - invalid filter name check working")
+}
+
+func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
+	imageName := "images_filter_test"
+	defer deleteAllContainers()
+	defer deleteImages(imageName)
+	buildImage(imageName,
+		`FROM scratch
+		 RUN touch /test/foo
+		 RUN touch /test/bar
+		 RUN touch /test/baz`, true)
+
+	filters := []string{
+		"dangling=true",
+		"Dangling=true",
+		" dangling=true",
+		"dangling=true ",
+		"dangling = true",
+	}
+
+	imageListings := make([][]string, 5, 5)
+	for idx, filter := range filters {
+		cmd := exec.Command(dockerBinary, "images", "-f", filter)
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		listing := strings.Split(out, "\n")
+		sort.Strings(listing)
+		imageListings[idx] = listing
+	}
+
+	for idx, listing := range imageListings {
+		if idx < 4 && !reflect.DeepEqual(listing, imageListings[idx+1]) {
+			for idx, errListing := range imageListings {
+				fmt.Printf("out %d", idx)
+				for _, image := range errListing {
+					fmt.Print(image)
+				}
+				fmt.Print("")
+			}
+			t.Fatalf("All output must be the same")
+		}
+	}
+
+	logDone("images - white space trimming and lower casing")
 }

@@ -27,11 +27,7 @@ const (
 // including the byte payload of the image's json metadata as well, and for
 // calculating the checksums for buildcache.
 func NewTarSum(r io.Reader, dc bool, v Version) (TarSum, error) {
-	headerSelector, err := getTarHeaderSelector(v)
-	if err != nil {
-		return nil, err
-	}
-	return &tarSum{Reader: r, DisableCompression: dc, tarSumVersion: v, headerSelector: headerSelector}, nil
+	return NewTarSumHash(r, dc, v, DefaultTHash)
 }
 
 // Create a new TarSum, providing a THash to use rather than the DefaultTHash
@@ -40,7 +36,9 @@ func NewTarSumHash(r io.Reader, dc bool, v Version, tHash THash) (TarSum, error)
 	if err != nil {
 		return nil, err
 	}
-	return &tarSum{Reader: r, DisableCompression: dc, tarSumVersion: v, headerSelector: headerSelector, tHash: tHash}, nil
+	ts := &tarSum{Reader: r, DisableCompression: dc, tarSumVersion: v, headerSelector: headerSelector, tHash: tHash}
+	err = ts.initTarSum()
+	return ts, err
 }
 
 // TarSum is the generic interface for calculating fixed time
@@ -134,12 +132,6 @@ func (ts *tarSum) initTarSum() error {
 }
 
 func (ts *tarSum) Read(buf []byte) (int, error) {
-	if ts.writer == nil {
-		if err := ts.initTarSum(); err != nil {
-			return 0, err
-		}
-	}
-
 	if ts.finished {
 		return ts.bufWriter.Read(buf)
 	}

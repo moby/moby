@@ -273,7 +273,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MacAddress:      *flMacAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	hostConfig := &HostConfig{
@@ -294,6 +293,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),
 		RestartPolicy:   restartPolicy,
+		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

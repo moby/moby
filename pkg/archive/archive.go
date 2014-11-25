@@ -42,6 +42,11 @@ type (
 	Archiver struct {
 		Untar func(io.Reader, string, *TarOptions) error
 	}
+
+	// breakoutError is used to differentiate errors related to breaking out
+	// When testing archive breakout in the unit tests, this error is expected
+	// in order for the test to pass.
+	breakoutError error
 )
 
 var (
@@ -287,11 +292,25 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeLink:
-		if err := os.Link(filepath.Join(extractDir, hdr.Linkname), path); err != nil {
+		targetPath := filepath.Join(extractDir, hdr.Linkname)
+		// check for hardlink breakout
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid hardlink %q -> %q", targetPath, hdr.Linkname))
+		}
+		if err := os.Link(targetPath, path); err != nil {
 			return err
 		}
 
 	case tar.TypeSymlink:
+		// 	path 				-> hdr.Linkname = targetPath
+		// e.g. /extractDir/path/to/symlink 	-> ../2/file	= /extractDir/path/2/file
+		targetPath := filepath.Join(filepath.Dir(path), hdr.Linkname)
+
+		// the reason we don't need to check symlinks in the path (with FollowSymlinkInScope) is because
+		// that symlink would first have to be created, which would be caught earlier, at this very check:
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
+		}
 		if err := os.Symlink(hdr.Linkname, path); err != nil {
 			return err
 		}
@@ -451,6 +470,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(archive io.Reader, dest string, options *TarOptions) error {
+	dest = filepath.Clean(dest)
+
 	if options == nil {
 		options = &TarOptions{}
 	}
@@ -488,6 +509,7 @@ loop:
 		}
 
 		// Normalize name, for safety and for a simple is-root check
+		// This keeps "../" as-is, but normalizes "/../" to "/"
 		hdr.Name = filepath.Clean(hdr.Name)
 
 		for _, exclude := range options.Excludes {
@@ -508,7 +530,11 @@ loop:
 			}
 		}
 
+		// Prevent symlink breakout
 		path := filepath.Join(dest, hdr.Name)
+		if !strings.HasPrefix(path, dest) {
+			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		}
 
 		// If path exits we almost always just want to remove and replace it
 		// The only exception is when it is a directory *and* the file from
@@ -742,17 +768,20 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	size := st.Size()
-	return &TempArchive{f, size}, nil
+	return &TempArchive{f, size, 0}, nil
 }
 
 type TempArchive struct {
 	*os.File
 	Size int64 // Pre-computed from Stat().Size() as a convenience
+	read int64
 }
 
 func (archive *TempArchive) Read(data []byte) (int, error) {
 	n, err := archive.File.Read(data)
-	if err != nil {
+	archive.read += int64(n)
+	if err != nil || archive.read == archive.Size {
+		archive.File.Close()
 		os.Remove(archive.File.Name())
 	}
 	return n, err

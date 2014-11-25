@@ -83,8 +83,8 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
-	if hostConfig != nil && config.SecurityOpt == nil {
-		config.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode)
+	if hostConfig != nil && hostConfig.SecurityOpt == nil {
+		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode)
 		if err != nil {
 			return nil, nil, err
 		}

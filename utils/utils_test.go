@@ -97,24 +97,3 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Errorf("failed to remove symlink: %s", err)
 	}
 }
-
-func TestValidGitTransport(t *testing.T) {
-	for _, url := range []string{
-		"git://github.com/docker/docker",
-		"git@github.com:docker/docker.git",
-		"https://github.com/docker/docker.git",
-		"http://github.com/docker/docker.git",
-	} {
-		if ValidGitTransport(url) == false {
-			t.Fatalf("%q should be detected as valid Git prefix", url)
-		}
-	}
-
-	for _, url := range []string{
-		"github.com/docker/docker",
-	} {
-		if ValidGitTransport(url) == true {
-			t.Fatalf("%q should not be detected as valid Git prefix", url)
-		}
-	}
-}

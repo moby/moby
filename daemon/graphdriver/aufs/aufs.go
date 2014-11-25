@@ -33,6 +33,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
@@ -305,7 +306,7 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 }
 
 func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
-	return archive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
+	return chrootarchive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
 // DiffSize calculates the changes between the specified id

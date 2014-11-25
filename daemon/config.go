@@ -40,6 +40,8 @@ type Config struct {
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
 	Context                     map[string][]string
+	TrustKeyPath                string
+	Labels                      []string
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -68,6 +70,7 @@ func (config *Config) InstallFlags() {
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
 	opts.MirrorListVar(&config.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
+	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon (displayed in `docker info`)")
 
 	// Localhost is by default considered as an insecure registry
 	// This is a stop-gap for people who are running a private registry on localhost (especially on Boot2docker).

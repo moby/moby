@@ -195,7 +195,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 			if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
-				return fmt.Errorf("Error iptables postrouting: %s", output)
+				return &iptables.ChainError{Chain: "POSTROUTING", Output: output}
 			}
 		}
 	}
@@ -236,7 +236,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		if output, err := iptables.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables allow outgoing: %s", output)
+			return &iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
 		}
 	}
 
@@ -247,15 +247,15 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables allow incoming: %s", output)
+			return &iptables.ChainError{Chain: "FORWARD incoming", Output: output}
 		}
 	}
 	return nil
 }
 
-// configureBridge attempts to create and configure a network bridge interface named `ifaceName` on the host
+// configureBridge attempts to create and configure a network bridge interface named `bridgeIface` on the host
 // If bridgeIP is empty, it will try to find a non-conflicting IP from the Docker-specified private ranges
-// If the bridge `ifaceName` already exists, it will only perform the IP address association with the existing
+// If the bridge `bridgeIface` already exists, it will only perform the IP address association with the existing
 // bridge (fixes issue #8444)
 // If an address which doesn't conflict with existing interfaces can't be found, an error is returned.
 func configureBridge(bridgeIP string) error {

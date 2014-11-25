@@ -186,3 +186,30 @@ func TestExecAfterDaemonRestart(t *testing.T) {
 
 	logDone("exec - exec running container after daemon restart")
 }
+
+// Regresssion test for #9155, #9044
+func TestExecEnv(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run",
+		"-e", "LALA=value1",
+		"-e", "LALA=value2",
+		"-d", "--name", "testing", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	execCmd := exec.Command(dockerBinary, "exec", "testing", "env")
+	out, _, err := runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if strings.Contains(out, "LALA=value1") ||
+		!strings.Contains(out, "LALA=value2") ||
+		!strings.Contains(out, "HOME=/root") {
+		t.Errorf("exec env(%q), expect %q, %q", out, "LALA=value2", "HOME=/root")
+	}
+
+	logDone("exec - exec inherits correct env")
+}

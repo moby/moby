@@ -1156,6 +1156,7 @@ Query Parameters:
         the resulting image in case of success
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
+-   **pull** - attempt to pull the image even if an older image exists locally
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm - always remove intermediate containers (includes rm)
 
@@ -1220,6 +1221,8 @@ Display system-wide information
              "KernelVersion":"3.12.0-1-amd64"
              "NCPU":1,
              "MemTotal":2099236864,
+             "Name":"prod-server-42",
+             "ID":"7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
@@ -1228,7 +1231,8 @@ Display system-wide information
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
-             "IPv4Forwarding":true
+             "IPv4Forwarding":true,
+             "Labels":["storage=ssd"]
         }
 
 Status Codes:
@@ -1511,7 +1515,6 @@ Sets up an exec instance in a running container `id`
 	     "Cmd":[
                      "date"
              ],
-	     "Container":"e90e34656806",
         }
 
 **Example response**:
@@ -1525,7 +1528,12 @@ Sets up an exec instance in a running container `id`
 
 Json Parameters:
 
--   **execConfig** ? exec configuration.
+-   **AttachStdin** - Boolean value, attaches to stdin of the exec command.
+-   **AttachStdout** - Boolean value, attaches to stdout of the exec command.
+-   **AttachStderr** - Boolean value, attaches to stderr of the exec command.
+-   **Tty** - Boolean value to allocate a pseudo-TTY
+-   **Cmd** - Command to run specified as a string or an array of strings.
+
 
 Status Codes:
 
@@ -1536,8 +1544,9 @@ Status Codes:
 
 `POST /exec/(id)/start`
 
-Starts a previously set up exec instance `id`. If `detach` is true, this API returns after
-starting the `exec` command. Otherwise, this API sets up an interactive session with the `exec` command.
+Starts a previously set up exec instance `id`. If `detach` is true, this API
+returns after starting the `exec` command. Otherwise, this API sets up an
+interactive session with the `exec` command.
 
 **Example request**:
 
@@ -1558,7 +1567,8 @@ starting the `exec` command. Otherwise, this API sets up an interactive session 
 
 Json Parameters:
 
--   **execConfig** ? exec configuration.
+-   **Detach** - Detach from the exec command
+-   **Tty** - Boolean value to allocate a pseudo-TTY
 
 Status Codes:
 
