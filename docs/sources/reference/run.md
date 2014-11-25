@@ -133,11 +133,31 @@ While not strictly a means of identifying a container, you can specify a version
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
 
+## PID Settings
+    --pid=""  : Set the PID (Process) Namespace mode for the container,
+           'host': use the host's PID namespace inside the container
+By default, all containers have the PID namespace enabled.
+
+PID namespace provides separation of processes. The PID Namespace removes the
+view of the system processes, and allows process ids to be reused including
+pid 1.
+
+In certain cases you want your container to share the host's process namespace,
+basically allowing processes within the container to see all of the processes
+on the system.  For example, you could build a container with debugging tools
+like `strace` or `gdb`, but want to use these tools when debugging processes
+within the container.
+
+    $ sudo docker run --pid=host rhel7 strace -p 1234
+
+This command would allow you to use `strace` inside the container on pid 1234 on
+the host.
+
 ## IPC Settings
     --ipc=""  : Set the IPC mode for the container,
                                  'container:<name|id>': reuses another container's IPC namespace
                                  'host': use the host's IPC namespace inside the container
-By default, all containers have the IPC namespace enabled 
+By default, all containers have the IPC namespace enabled.
 
 IPC (POSIX/SysV IPC) namespace provides separation of named shared memory segments, semaphores and message queues.  
 

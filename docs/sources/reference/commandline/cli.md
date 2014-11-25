@@ -1604,6 +1604,7 @@ removed before the image is removed.
                                    Both hostPort and containerPort can be specified as a range of ports. 
                                    When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                    (use 'docker port' to see the actual mapping)
+      --pid=host		 'host': use the host PID namespace inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)

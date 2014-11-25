@@ -92,7 +92,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		return nil, nil, err
 	}
 	if hostConfig != nil && hostConfig.SecurityOpt == nil {
-		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode)
+		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -124,8 +124,8 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	return container, warnings, nil
 }
 
-func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode) ([]string, error) {
-	if ipcMode.IsHost() {
+func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode, pidMode runconfig.PidMode) ([]string, error) {
+	if ipcMode.IsHost() || pidMode.IsHost() {
 		return label.DisableSecOpt(), nil
 	}
 	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
