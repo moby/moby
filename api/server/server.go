@@ -358,6 +358,19 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 	return job.Run()
 }
 
+func getContainersMetrics(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	job := eng.Job("container_metrics", vars["name"])
+	streamJSON(job, w, false)
+	return job.Run()
+}
+
 func getContainersJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1280,6 +1293,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/containers/{name:.*}/metrics":   getContainersMetrics,
 		},
 		"POST": {
 			"/auth":                         postAuth,

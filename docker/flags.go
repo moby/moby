@@ -83,6 +83,7 @@ func init() {
 			{"login", "Register or log in to a Docker registry server"},
 			{"logout", "Log out from a Docker registry server"},
 			{"logs", "Fetch the logs of a container"},
+			{"metrics", "Fetch metrics of a container"},
 			{"port", "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT"},
 			{"pause", "Pause all processes within a container"},
 			{"ps", "List containers"},

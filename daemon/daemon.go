@@ -111,6 +111,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"container_changes": daemon.ContainerChanges,
 		"container_copy":    daemon.ContainerCopy,
 		"container_inspect": daemon.ContainerInspect,
+		"container_metrics": daemon.ContainerMetrics,
 		"containers":        daemon.Containers,
 		"create":            daemon.ContainerCreate,
 		"rm":                daemon.ContainerRm,

@@ -896,6 +896,46 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	return nil
 }
 
+func (cli *DockerCli) CmdMetrics(args ...string) error {
+	cmd := cli.Subcmd("metrics", "CONTAINER", "Return runtime information on a container")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	indented := new(bytes.Buffer)
+	indented.WriteByte('[')
+	status := 0
+
+	for _, name := range cmd.Args() {
+		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/metrics", nil, false))
+		if err = json.Indent(indented, obj, "", "    "); err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			status = 1
+			continue
+		}
+		indented.WriteString(",")
+	}
+
+	if indented.Len() > 1 {
+		// Remove trailing ','
+		indented.Truncate(indented.Len() - 1)
+	}
+	indented.WriteByte(']')
+
+	if _, err := io.Copy(cli.out, indented); err != nil {
+		return err
+	}
+
+	if status != 0 {
+		return &utils.StatusError{StatusCode: status}
+	}
+	return nil
+}
+
 func (cli *DockerCli) CmdTop(args ...string) error {
 	cmd := cli.Subcmd("top", "CONTAINER [ps OPTIONS]", "Display the running processes of a container")
 	if err := cmd.Parse(args); err != nil {
