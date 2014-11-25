@@ -82,6 +82,7 @@ expect an integer, and they can only be specified once.
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
       --registry-mirror=[]                       Specify a preferred Docker registry mirror
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
+                                                   Force Docker to use specific options for DEVMAPPER storage driver, and this would be used something like docker -d --storage-opt dm.foo=bar
       --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
       --storage-opt=[]                           Set storage driver options
       --tls=false                                Use TLS; implied by --tlsverify flag
