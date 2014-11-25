@@ -8,7 +8,7 @@ import (
 	"path"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -66,7 +66,7 @@ func (d *Driver) Create(id, parent string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	if err := archive.CopyWithTar(parentDir, dir); err != nil {
+	if err := chrootarchive.CopyWithTar(parentDir, dir); err != nil {
 		return err
 	}
 	return nil

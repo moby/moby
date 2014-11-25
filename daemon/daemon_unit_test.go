@@ -8,7 +8,7 @@ import (
 
 func TestParseSecurityOpt(t *testing.T) {
 	container := &Container{}
-	config := &runconfig.Config{}
+	config := &runconfig.HostConfig{}
 
 	// test apparmor
 	config.SecurityOpt = []string{"apparmor:test_profile"}
