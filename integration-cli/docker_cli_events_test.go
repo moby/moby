@@ -285,10 +285,10 @@ func TestEventsImageImport(t *testing.T) {
 }
 
 func TestEventsFilters(t *testing.T) {
-	now := time.Now().Unix()
+	since := time.Now().Unix()
 	cmd(t, "run", "--rm", "busybox", "true")
 	cmd(t, "run", "--rm", "busybox", "true")
-	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", now), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die")
+	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die")
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
 		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
@@ -296,8 +296,7 @@ func TestEventsFilters(t *testing.T) {
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 	if len(events) != 2 {
-		fmt.Printf("%v\n", events)
-		t.Fatalf("Unexpected event")
+		t.Fatalf("Expected 2 events, got %d: %v", len(events), events)
 	}
 	dieEvent := strings.Fields(events[len(events)-1])
 	if dieEvent[len(dieEvent)-1] != "die" {
@@ -309,7 +308,7 @@ func TestEventsFilters(t *testing.T) {
 		t.Fatalf("event should be die, not %#v", dieEvent)
 	}
 
-	eventsCmd = exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die", "--filter", "event=start")
+	eventsCmd = exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die", "--filter", "event=start")
 	out, exitCode, err = runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
 		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
@@ -317,7 +316,7 @@ func TestEventsFilters(t *testing.T) {
 	events = strings.Split(out, "\n")
 	events = events[:len(events)-1]
 	if len(events) != 4 {
-		t.Fatalf("Unexpected event")
+		t.Fatalf("Expected 4 events, got %d: %v", len(events), events)
 	}
 	startEvent := strings.Fields(events[len(events)-4])
 	if startEvent[len(startEvent)-1] != "start" {
