@@ -161,12 +161,15 @@ the `-H` flag for the client.
     $ sudo docker ps
     # both are equal
 
-Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than the empty
-string is equivalent to setting the `--auth=cert` flag. The following are equivalent:
+Setting the `DOCKER_AUTH` environment variable to any value other than the empty
+string is equivalent to setting the `--auth` flag. The environment variables
+`DOCKER_AUTH_CA`, `DOCKER_AUTH_CERT` and `DOCKER_AUTH_KEY` also correspond with
+flags of the same name. The following are equivalent:
 
-    $ sudo docker --auth=cert ps
+    $ sudo docker --auth=cert --auth-ca=ca.pem ps
     # or
-    $ export DOCKER_TLS_VERIFY=1
+    $ export DOCKER_AUTH=cert
+    $ export DOCKER_AUTH_CA=ca.pem
     $ sudo docker ps
 
 ### Daemon storage-driver option
