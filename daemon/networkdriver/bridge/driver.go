@@ -222,6 +222,10 @@ func InitDriver(config *Config) error {
 		bridgeIPv6Addr = networkv6.IP
 	}
 
+	if config.EnableIptables {
+		iptables.FirewalldInit()
+	}
+
 	// Configure iptables for link support
 	if config.EnableIptables {
 		if err := setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq); err != nil {
