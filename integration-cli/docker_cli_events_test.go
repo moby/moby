@@ -286,8 +286,14 @@ func TestEventsImageImport(t *testing.T) {
 
 func TestEventsFilters(t *testing.T) {
 	since := time.Now().Unix()
-	cmd(t, "run", "--rm", "busybox", "true")
-	cmd(t, "run", "--rm", "busybox", "true")
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
 	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die")
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
