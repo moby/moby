@@ -16,17 +16,18 @@ client and daemon, both of which use secure TLS connections.
  - **Identity-based authentication** uses an authorized keys list on the daemon
 to whitelist client connections.  The client must also accept the daemon's key
 and remember it for future connections.
- - **Certificate-based authentication** uses a certificate authority to
+ - **Certificate-based authentication** uses a Certificate Authority to
 authorize connections.  Using this method requires additional setup to enable
 client authentication.
 
 The authentication method is selected using the `--auth` flag with values
- `identity`, `cert`, or `none` . `none` is the current default method but
+ `identity`, `cert`, or `none` . The `none` method is currently the default but
 `identity` will become the default in a future version.
 
-*Note:* The `--tls` and `--tlsverify` options in Docker 1.3 and earlier have
-been replaced by the `--auth=cert` option. The old options have been
-deprecated.
+> **Note**:
+> The `--tls` and `--tlsverify` options in Docker 1.3 and earlier have
+> been replaced by the `--auth=cert` option. The old options have been
+> deprecated.
 
 ## Identity-based authentication
 
@@ -35,8 +36,10 @@ connecting to a daemon for the first time, a client will ask whether a user
 trusts a fingerprint of the daemon’s public key. If they do, the public key will
 be stored so it does not prompt on subsequent connections. For the daemon
 to authenticate the client, each client automatically generates its own
-key (~/.docker/key.json) which is presented to the daemon and checked
-against a list of keys authorized to connect (~/.docker/authorized-keys.d/).
+key (`~/.docker/key.json`) which is presented to the daemon and checked
+against a list of keys authorized to connect (`~/.docker/authorized-keys.d/`).
+Every public key file in the authorized key directory represents a client which
+is authorized to connect using that key. 
 
 To enable identity-based authentication, add the flag `--auth=identity`.
 The default identity and authorization files may be overridden through the
@@ -45,23 +48,23 @@ flags:
  - `--identity` specifies the key file to use.  This file contains the client's
 private key and its fingerprint is used by the daemon to identify the client.
 This file should be secured.
- - `--auth-authorized-keys` - specifies the directory containing the client public
-key files to whitelist. This is a daemon configuration and the directory should
-have its write permissions restricted.
+ - `--auth-authorized-keys` - specifies the directory containing the client
+public key files to whitelist. This is a daemon configuration and the directory
+should have its write permissions restricted.
  - `--auth-known-hosts` - specifies the list of daemon public key fingerprints
 which have been approved by the user and the host name associated with
 each fingerprint.
 
 To setup a new client connection, copy the `~/.docker/public-key.json`
 file on the client machine to the `~/.docker/authorized-keys.d/` directory on
-the daemon machine. The copied file should keep the same suffix (e.g. .json
-.jwk .pem) but otherwise the name may be changed to something which
+the daemon machine. The copied file should keep the same suffix (e.g. `.json`
+`.jwk` `.pem`) but otherwise the name may be changed to something which
 meaningfully identities the client to the user.
 
 ## Certificate-based authentication
 
 Certificate-based authentication uses TLS certificates provided by a
-certificate authority. This is for advanced usage where you may want to
+Certificate Authority (CA). This is for advanced usage where you may want to
 integrate Docker with other TLS-compatible tools or you may already use PKI
 within your organisation. You can just get the client to verify the server’s
 certificate against a CA, or do full two-way authentication by getting the
