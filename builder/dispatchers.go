@@ -221,12 +221,14 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	log.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
 
-	hit, err := b.probeCache()
-	if err != nil {
-		return err
-	}
-	if hit {
-		return nil
+	if !b.inTransaction {
+		hit, err := b.probeCache()
+		if err != nil {
+			return err
+		}
+		if hit {
+			return nil
+		}
 	}
 
 	c, err := b.create()
@@ -374,4 +376,62 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 // INSERT is no longer accepted, but we still parse it.
 func insert(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
+}
+
+// TRANSACTION name
+//
+// Begins a transaction on this image. All commands between the beginning of the
+// transaction and COMMIT are processed as a single layer.
+//
+func transaction(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("TRANSACTION requires only one argument")
+	}
+	b.inTransaction = true
+	b.transactionName = args[0]
+	b.Config.Transactional = true
+	return nil
+}
+
+// COMMIT
+//
+// Checks the cache for this transaction, runs the transaction commands if it's
+// not in the cache, and commits the new layer.
+//
+func commit(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if !b.inTransaction {
+		return fmt.Errorf("COMMIT called outside of a transaction")
+	}
+
+	cmd := b.Config.Cmd
+	b.Config.Cmd = []string{"/bin/sh", "-c", "#(transaction) " + b.transactionName}
+	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+	defer func() { b.Config.Transactional = false; b.Config.TransactionCmds = nil }()
+	hit, err := b.probeCache()
+	if err != nil {
+		return err
+	}
+	if hit {
+		b.inTransaction = false
+		return nil
+	}
+
+	fmt.Fprintln(b.OutStream, "Running transaction instructions...")
+	b.transactionContainer, err = b.createTransaction()
+	if err != nil {
+		return err
+	}
+	for _, parsedCmd := range b.transactionContainer.Config.TransactionCmds {
+		if f, ok := evaluateTable[parsedCmd.Cmd]; ok {
+			fmt.Fprintf(b.OutStream, "Transaction %s: %s\n", b.transactionName, parsedCmd.Original)
+			err = f(b, parsedCmd.Args, parsedCmd.Attributes, parsedCmd.Original)
+			if err != nil {
+				return err
+			}
+		}
+		b.transactionContainer.Config = b.Config
+	}
+	b.inTransaction = false
+	b.TmpContainers[b.transactionContainer.ID] = struct{}{}
+	return b.commitTransaction()
 }

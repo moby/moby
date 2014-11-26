@@ -72,11 +72,14 @@ func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
 func splitCommand(line string) (string, string, error) {
 	cmdline := TOKEN_WHITESPACE.Split(line, 2)
 
-	if len(cmdline) != 2 {
+	if len(cmdline) != 2 && strings.ToLower(cmdline[0]) != "commit" {
 		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at %q", line)
 	}
 
 	cmd := strings.ToLower(cmdline[0])
+	if len(cmdline) == 1 {
+		return cmd, "", nil
+	}
 	// the cmd should never have whitespace, but it's possible for the args to
 	// have trailing whitespace.
 	return cmd, strings.TrimSpace(cmdline[1]), nil

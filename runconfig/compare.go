@@ -14,7 +14,8 @@ func Compare(a, b *Config) bool {
 		a.MemorySwap != b.MemorySwap ||
 		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
-		a.Tty != b.Tty {
+		a.Tty != b.Tty ||
+		a.Transactional != b.Transactional {
 		return false
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
@@ -22,7 +23,8 @@ func Compare(a, b *Config) bool {
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
 		len(a.Entrypoint) != len(b.Entrypoint) ||
-		len(a.Volumes) != len(b.Volumes) {
+		len(a.Volumes) != len(b.Volumes) ||
+		len(a.TransactionCmds) != len(b.TransactionCmds) {
 		return false
 	}
 
@@ -54,6 +56,30 @@ func Compare(a, b *Config) bool {
 	for key := range a.Volumes {
 		if _, exists := b.Volumes[key]; !exists {
 			return false
+		}
+	}
+	for i := 0; i < len(a.TransactionCmds); i++ {
+		if a.TransactionCmds[i].Cmd != b.TransactionCmds[i].Cmd {
+			return false
+		}
+		if a.TransactionCmds[i].Original != b.TransactionCmds[i].Original {
+			return false
+		}
+		if len(a.TransactionCmds[i].Args) != len(b.TransactionCmds[i].Args) {
+			return false
+		}
+		for j := 0; j < len(a.TransactionCmds[i].Args); j++ {
+			if a.TransactionCmds[i].Args[j] !=
+				b.TransactionCmds[i].Args[j] {
+				return false
+			}
+		}
+		for key := range a.TransactionCmds[i].Attributes {
+			if val, exists := b.TransactionCmds[i].Attributes[key]; !exists {
+				return false
+			} else if a.TransactionCmds[i].Attributes[key] != val {
+				return false
+			}
 		}
 	}
 	return true
