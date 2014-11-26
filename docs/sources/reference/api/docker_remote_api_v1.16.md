@@ -1388,6 +1388,7 @@ Query Parameters:
 
 -   **since** – timestamp used for polling
 -   **until** – timestamp used for polling
+-   **filters** – a json encoded value of the filters (a map[string][]string) to process on the event list.
 
 Status Codes:
 

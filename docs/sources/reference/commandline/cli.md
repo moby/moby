@@ -614,7 +614,10 @@ For example:
     Usage: docker events [OPTIONS]
 
     Get real time events from the server
-
+      -f, --filter=[]    Provide filter values. Valid filters:
+                           event=<string> - event to filter
+                           image=<string> - image to filter
+                           container=<string> - container to filter
       --since=""         Show all events created since timestamp
       --until=""         Stream events until this timestamp
 
@@ -626,6 +629,24 @@ and Docker images will report:
 
     untag, delete
 
+#### Filtering
+
+The filtering flag (`-f` or `--filter`) format is of "key=value". If you would like to use
+multiple filters, pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+
+Using the same filter multiple times will be handled as a *OR*; for example
+`--filter container=588a23dac085 --filter container=a8f7720b8c22` will display events for
+container 588a23dac085 *OR* container a8f7720b8c22
+
+Using multiple filters will be handled as a *AND*; for example
+`--filter container=588a23dac085 --filter event=start` will display events for container
+container 588a23dac085 *AND* the event type is *start*
+
+Current filters:
+ * event
+ * image
+ * container
+
 #### Examples
 
 You'll need two shells for this example.
@@ -634,31 +655,64 @@ You'll need two shells for this example.
 
     $ sudo docker events
 
-**Shell 2: Start and Stop a Container:**
+**Shell 2: Start and Stop containers:**
 
     $ sudo docker start 4386fb97867d
     $ sudo docker stop 4386fb97867d
+    $ sudo docker stop 7805c1d35632
 
 **Shell 1: (Again .. now showing events):**
 
-    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
-    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) start
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
 **Show events in the past from a specified time:**
 
     $ sudo docker events --since 1378216169
-    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-03-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
     $ sudo docker events --since '2013-09-03'
-    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
-    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) start
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
     $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
-    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+**Filter events:**
+
+    $ sudo docker events --filter 'event=stop'
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-09-03T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+    $ sudo docker events --filter 'image=ubuntu-1:14.04'
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) start
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+
+    $ sudo docker events --filter 'container=7805c1d35632'
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+    $ sudo docker events --filter 'container=7805c1d35632' --filter 'container=4386fb97867d'
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+    $ sudo docker events --filter 'container=7805c1d35632' --filter 'event=stop'
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
 ## exec
 
@@ -777,7 +831,7 @@ uses up the `VIRTUAL SIZE` listed only once.
 
 #### Filtering
 
-The filtering flag (`-f` or `--filter`) format is of "key=value". If there are more
+The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
