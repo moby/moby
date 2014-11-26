@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/iptables"
 )
@@ -176,4 +177,40 @@ func TestLinksNotStartedParentNotFail(t *testing.T) {
 		t.Fatal(out, err)
 	}
 	logDone("link - container start not failing on updating stopped parent links")
+}
+
+func TestLinksHostsFilesInject(t *testing.T) {
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "--name", "one", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	idOne := strings.TrimSpace(out)
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	idTwo := strings.TrimSpace(out)
+
+	time.Sleep(1 * time.Second)
+
+	contentOne, err := readContainerFile(idOne, "hosts")
+	if err != nil {
+		t.Fatal(err, string(contentOne))
+	}
+
+	contentTwo, err := readContainerFile(idTwo, "hosts")
+	if err != nil {
+		t.Fatal(err, string(contentTwo))
+	}
+
+	if !strings.Contains(string(contentTwo), "onetwo") {
+		t.Fatal("Host is not present in updated hosts file", string(contentTwo))
+	}
+
+	logDone("link - ensure containers hosts files are updated with the link alias.")
 }

@@ -731,3 +731,36 @@ func readFile(src string, t *testing.T) (content string) {
 	}
 	return string(data)
 }
+
+func containerStorageFile(containerId, basename string) string {
+	return filepath.Join("/var/lib/docker/containers", containerId, basename)
+}
+
+// docker commands that use this function must be run with the '-d' switch.
+func runCommandAndReadContainerFile(filename string, cmd *exec.Cmd) ([]byte, error) {
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%v: %q", err, out)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	contID := strings.TrimSpace(out)
+
+	return readContainerFile(contID, filename)
+}
+
+func readContainerFile(containerId, filename string) ([]byte, error) {
+	f, err := os.Open(containerStorageFile(containerId, filename))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return content, nil
+}
