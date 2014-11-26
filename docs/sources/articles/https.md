@@ -57,8 +57,8 @@ each fingerprint.
 
 To setup a new client connection, copy the `~/.docker/public-key.json`
 file on the client machine to the `~/.docker/authorized-keys.d/` directory on
-the daemon machine. The copied file should keep the same suffix (e.g. `.json`
-`.jwk` `.pem`) but otherwise the name may be changed to something which
+the daemon machine. The copied file should keep the same suffix (e.g. `.json`,
+`.jwk` or `.pem`) but otherwise the name may be changed to something which
 meaningfully identities the client to the user.
 
 ## Certificate-based authentication
