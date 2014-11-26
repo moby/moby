@@ -1,8 +1,10 @@
 package iptables
 
 import (
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/godbus/dbus"
+	"strings"
 )
 
 type IPV string
@@ -26,7 +28,8 @@ type Conn struct {
 
 var (
 	connection       *Conn
-	firewalldRunning bool // is Firewalld service running
+	firewalldRunning bool      // is Firewalld service running
+	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
 func FirewalldInit() {
@@ -63,7 +66,73 @@ func (c *Conn) initConnection() error {
 	// This never fails, even if the service is not running atm.
 	c.sysobj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusPath))
 
+	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'",
+		dbusPath, dbusInterface, dbusInterface)
+	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+
+	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'",
+		dbusInterface)
+	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
+
+	c.signal = make(chan *dbus.Signal, 10)
+	c.sysconn.Signal(c.signal)
+	go signalHandler()
+
 	return nil
+}
+
+func signalHandler() {
+	if connection != nil {
+		for signal := range connection.signal {
+			if strings.Contains(signal.Name, "NameOwnerChanged") {
+				firewalldRunning = checkRunning()
+				dbusConnectionChanged(signal.Body)
+			} else if strings.Contains(signal.Name, "Reloaded") {
+				reloaded()
+			}
+		}
+	}
+}
+
+func dbusConnectionChanged(args []interface{}) {
+	name := args[0].(string)
+	old_owner := args[1].(string)
+	new_owner := args[2].(string)
+
+	if name != dbusInterface {
+		return
+	}
+
+	if len(new_owner) > 0 {
+		connectionEstablished()
+	} else if len(old_owner) > 0 {
+		connectionLost()
+	}
+}
+
+func connectionEstablished() {
+	reloaded()
+}
+
+func connectionLost() {
+	// Doesn't do anything for now. Libvirt also doesn't react to this.
+}
+
+// call all callbacks
+func reloaded() {
+	for _, pf := range onReloaded {
+		(*pf)()
+	}
+}
+
+// add callback
+func OnReloaded(callback func()) {
+	for _, pf := range onReloaded {
+		if pf == &callback {
+			return
+		}
+	}
+	onReloaded = append(onReloaded, &callback)
 }
 
 // Call some remote method to see whether the service is actually running.

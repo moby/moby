@@ -132,6 +132,18 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int) (host
 	return m.host, nil
 }
 
+// re-apply all port mappings
+func (pm *PortMapper) ReMapAll() {
+	logrus.Debugln("Re-applying all port mappings.")
+	for _, data := range pm.currentMappings {
+		containerIP, containerPort := getIPAndPort(data.container)
+		hostIP, hostPort := getIPAndPort(data.host)
+		if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+			logrus.Errorf("Error on iptables add: %s", err)
+		}
+	}
+}
+
 func (pm *PortMapper) Unmap(host net.Addr) error {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
