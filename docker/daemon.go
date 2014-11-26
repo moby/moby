@@ -87,7 +87,6 @@ func mainDaemon() {
 	job.Setenv("AuthCert", *flAuthCert)
 	job.Setenv("AuthKey", *flAuthKey)
 	job.Setenv("TrustKey", *flTrustKey)
-	job.Setenv("TrustClients", *flTrustClients)
 	job.Setenv("TrustDir", *flTrustDir)
 	job.SetenvBool("BufferRequests", true)
 	if err := job.Run(); err != nil {

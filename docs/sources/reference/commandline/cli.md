@@ -101,9 +101,7 @@ expect an integer, and they can only be specified once.
       --auth-ca=""                               Path to CA certificate when using `cert` auth, only remotes providing a certificate signed by this CA are trusted
       --auth-cert=""                             Path to TLS certificate file when using `cert` auth
       --auth-key=""                              Path to TLS key file when using `cert` auth
-      --auth-authorized-keys=""                  Path to authorized keys file containing client whitelist when using `identity` auth
-                                                   defaults to "~/.docker/authorized-keys.json"
-      --auth-authorized-dir=""                   Path to authorized keys directory containing public key files to whitelist when using `identity` auth
+      --auth-authorized-keys=""                  Path to authorized keys directory containing public key files to whitelist when using `identity` auth
                                                    defaults to "~/.docker/authorized-keys.d/"
       --auth-known-hosts=""                      Path to known hosts file containing list of daemon public key fingerprints when using `identity` auth
                                                    defaults to "~/.docker/known-hosts.json"

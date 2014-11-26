@@ -43,9 +43,13 @@ func NewClientKeyManager(trustKey libtrust.PrivateKey, clientFile, clientDir str
 }
 func (c *ClientKeyManager) loadKeys() error {
 	// Load authorized keys file
-	clients, err := libtrust.LoadKeySetFile(c.clientFile)
-	if err != nil {
-		return fmt.Errorf("unable to load authorized keys: %s", err)
+	var clients []libtrust.PublicKey
+	if c.clientFile != "" {
+		fileClients, err := libtrust.LoadKeySetFile(c.clientFile)
+		if err != nil {
+			return fmt.Errorf("unable to load authorized keys: %s", err)
+		}
+		clients = fileClients
 	}
 
 	// Add clients from authorized keys directory

@@ -14,7 +14,7 @@ func TestAuthIdentityWithGoodKeys(t *testing.T) {
 		"-H", testDaemonURL,
 		"--auth", "identity",
 		"--identity", "fixtures/https/private-key-1.json",
-		"--auth-authorized-keys", "fixtures/https/public-key-2.json",
+		"--auth-authorized-keys", "fixtures/https/authorized-keys.d",
 	); err != nil {
 		t.Fatalf("Could not start daemon: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestAuthIdentityWithGoodKeys(t *testing.T) {
 		"-H", testDaemonURL,
 		"--auth", "identity",
 		"--identity", "fixtures/https/private-key-2.json",
-		"--auth-known-hosts", "fixtures/https/public-key-1.json",
+		"--auth-known-hosts", "fixtures/https/known-hosts-1.json",
 		"info",
 	)
 	out, _, err := runCommandWithOutput(cmd)
@@ -43,7 +43,7 @@ func TestAuthIdentityWithBadServerKey(t *testing.T) {
 		"-H", testDaemonURL,
 		"--auth", "identity",
 		"--identity", "fixtures/https/private-key-3.json",
-		"--auth-authorized-keys", "fixtures/https/public-key-2.json",
+		"--auth-authorized-keys", "fixtures/https/authorized-keys.d",
 	); err != nil {
 		t.Fatalf("Could not start daemon: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestAuthIdentityWithBadServerKey(t *testing.T) {
 		"-H", testDaemonURL,
 		"--auth", "identity",
 		"--identity", "fixtures/https/private-key-2.json",
-		"--auth-known-hosts", "fixtures/https/public-key-1.json",
+		"--auth-known-hosts", "fixtures/https/known-hosts-1.json",
 		"info",
 	)
 	out, _, err := runCommandWithOutput(cmd)
@@ -75,7 +75,7 @@ func TestAuthIdentityWithBadClientKey(t *testing.T) {
 		"-H", testDaemonURL,
 		"--auth", "identity",
 		"--identity", "fixtures/https/private-key-1.json",
-		"--auth-authorized-keys", "fixtures/https/public-key-2.json",
+		"--auth-authorized-keys", "fixtures/https/authorized-keys.d",
 	); err != nil {
 		t.Fatalf("Could not start daemon: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestAuthIdentityWithBadClientKey(t *testing.T) {
 		"-H", testDaemonURL,
 		"--auth", "identity",
 		"--identity", "fixtures/https/private-key-3.json",
-		"--auth-known-hosts", "fixtures/https/public-key-1.json",
+		"--auth-known-hosts", "fixtures/https/known-hosts-1.json",
 		"info",
 	)
 	out, _, err := runCommandWithOutput(cmd)

@@ -45,11 +45,9 @@ flags:
  - `--identity` specifies the key file to use.  This file contains the client's
 private key and its fingerprint is used by the daemon to identify the client.
 This file should be secured.
- - `--auth-authorized-keys` - specifies the client whitelist. This is a daemon
-configuration and should have its write permissions restricted.
- - `--auth-authorized-dir` - alternative method for specifying the whitelisted
-client public keys. Any public key file in this directory will be part of the
-client whitelist, therefore write access to this directory should be restricted.
+ - `--auth-authorized-keys` - specifies the directory containing the client public
+key files to whitelist. This is a daemon configuration and the directory should
+have its write permissions restricted.
  - `--auth-known-hosts` - specifies the list of daemon public key fingerprints
 which have been approved by the user and the host name associated with
 each fingerprint.
