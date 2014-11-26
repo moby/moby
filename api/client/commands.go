@@ -2601,6 +2601,8 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, false)); err != nil {
 			return err
 		}
+		// For now don't print this - wait for when we support exec wait()
+		// fmt.Fprintf(cli.out, "%s\n", execID)
 		return nil
 	}
 
@@ -2661,6 +2663,15 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	if err := <-errCh; err != nil {
 		log.Debugf("Error hijack: %s", err)
 		return err
+	}
+
+	var status int
+	if _, status, err = getExecExitCode(cli, execID); err != nil {
+		return err
+	}
+
+	if status != 0 {
+		return &utils.StatusError{StatusCode: status}
 	}
 
 	return nil

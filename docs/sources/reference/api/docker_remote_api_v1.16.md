@@ -1606,6 +1606,114 @@ Status Codes:
 -   **201** – no error
 -   **404** – no such exec instance
 
+### Exec Inspect
+
+`GET /exec/(id)/json`
+
+Return low-level information about the exec command `id`.
+
+**Example request**:
+
+        GET /exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39/json HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: plain/text
+
+        {
+          "ID" : "11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39",
+          "Running" : false,
+          "ExitCode" : 2,
+          "ProcessConfig" : {
+            "privileged" : false,
+            "user" : "",
+            "tty" : false,
+            "entrypoint" : "sh",
+            "arguments" : [
+              "-c",
+              "exit 2"
+            ]
+          },
+          "OpenStdin" : false,
+          "OpenStderr" : false,
+          "OpenStdout" : false,
+          "Container" : {
+            "State" : {
+              "Running" : true,
+              "Paused" : false,
+              "Restarting" : false,
+              "OOMKilled" : false,
+              "Pid" : 3650,
+              "ExitCode" : 0,
+              "Error" : "",
+              "StartedAt" : "2014-11-17T22:26:03.717657531Z",
+              "FinishedAt" : "0001-01-01T00:00:00Z"
+            },
+            "ID" : "8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c",
+            "Created" : "2014-11-17T22:26:03.626304998Z",
+            "Path" : "date",
+            "Args" : [],
+            "Config" : {
+              "Hostname" : "8f177a186b97",
+              "Domainname" : "",
+              "User" : "",
+              "Memory" : 0,
+              "MemorySwap" : 0,
+              "CpuShares" : 0,
+              "Cpuset" : "",
+              "AttachStdin" : false,
+              "AttachStdout" : false,
+              "AttachStderr" : false,
+              "PortSpecs" : null,
+              "ExposedPorts" : null,
+              "Tty" : false,
+              "OpenStdin" : false,
+              "StdinOnce" : false,
+              "Env" : [ "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" ],
+              "Cmd" : [
+                "date"
+              ],
+              "Image" : "ubuntu",
+              "Volumes" : null,
+              "WorkingDir" : "",
+              "Entrypoint" : null,
+              "NetworkDisabled" : false,
+              "MacAddress" : "",
+              "OnBuild" : null,
+              "SecurityOpt" : null
+            },
+            "Image" : "5506de2b643be1e6febbf3b8a240760c6843244c41e12aa2f60ccbb7153d17f5",
+            "NetworkSettings" : {
+              "IPAddress" : "172.17.0.2",
+              "IPPrefixLen" : 16,
+              "MacAddress" : "02:42:ac:11:00:02",
+              "Gateway" : "172.17.42.1",
+              "Bridge" : "docker0",
+              "PortMapping" : null,
+              "Ports" : {}
+            },
+            "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
+            "HostnamePath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hostname",
+            "HostsPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hosts",
+            "Name" : "/test",
+            "Driver" : "aufs",
+            "ExecDriver" : "native-0.2",
+            "MountLabel" : "",
+            "ProcessLabel" : "",
+            "AppArmorProfile" : "",
+            "RestartCount" : 0,
+            "Volumes" : {},
+            "VolumesRW" : {}
+          }
+        }
+
+Status Codes:
+
+-   **200** – no error
+-   **404** – no such exec instance
+-   **500** - server error
+
 # 3. Going further
 
 ## 3.1 Inside `docker run`

@@ -213,3 +213,20 @@ func TestExecEnv(t *testing.T) {
 
 	logDone("exec - exec inherits correct env")
 }
+
+func TestExecExitStatus(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal (non-detached) case first
+	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
+	ec, _ := runCommand(cmd)
+
+	if ec != 23 {
+		t.Fatalf("Should have had an ExitCode of 23, not: %d", ec)
+	}
+
+	logDone("exec - exec non-zero ExitStatus")
+}
