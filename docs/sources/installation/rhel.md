@@ -83,6 +83,13 @@ Now let's verify that Docker is working.
 
 Continue with the [User Guide](/userguide/).
 
+## Custom daemon options
+
+If you need to add an HTTP Proxy, set a different directory or partition for the
+Docker runtime files, or make other customizations, read our systemd article to
+learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+
+
 ## Issues?
 
 If you have any issues - please report them directly in the
