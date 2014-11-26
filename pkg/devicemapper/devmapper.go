@@ -384,7 +384,8 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	}
 
 	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var flags uint16 = DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 	defer UdevWait(cookie)
