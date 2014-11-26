@@ -127,7 +127,7 @@ requiring either `root` permission, or `docker` group membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and un-authenticated
 direct access to the Docker daemon - and should be secured either using the
-[built in HTTPS encrypted socket](/articles/https/), or by putting a secure web
+[built in authentication](/articles/authentication/), or by putting a secure web
 proxy in front of it. You can listen on port `2375` on all network interfaces
 with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
 address: `-H tcp://192.168.59.103:2375`. It is conventional to use port `2375`
@@ -368,7 +368,7 @@ verification failed (i.e., wrong CA).
 By default, Docker assumes all, but local (see local registries below), registries are secure.
 Communicating with an insecure registry is not possible if Docker assumes that registry is secure.
 In order to communicate with an insecure registry, the Docker daemon requires `--insecure-registry`
-in one of the following two forms: 
+in one of the following two forms:
 
 * `--insecure-registry myregistry:5000` tells the Docker daemon that myregistry:5000 should be considered insecure.
 * `--insecure-registry 10.1.0.0/16` tells the Docker daemon that all registries whose domain resolve to an IP address is part
@@ -1989,4 +1989,3 @@ both Docker client and daemon.
     Usage: docker wait CONTAINER [CONTAINER...]
 
     Block until a container stops, then print its exit code.
-

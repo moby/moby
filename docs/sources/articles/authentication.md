@@ -1,6 +1,6 @@
-page_title: Running Docker with HTTPS
-page_description: How to setup and run Docker with HTTPS
-page_keywords: docker, docs, article, example, https, daemon, tls, ca, certificate
+page_title: Authenticating to the Docker daemon
+page_description: How to setup the Docker daemon with encryption and authentication
+page_keywords: docker, docs, article, example, https, daemon, tls, ca, certificate, authentication
 
 # Running Docker with https
 

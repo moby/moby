@@ -4,9 +4,10 @@ page_keywords: Usage, registry, repository, client, root, certificate, docker, a
 
 # Using certificates for repository client verification
 
-In [Running Docker with HTTPS](/articles/https), you learned that, by default,
-Docker runs via a non-networked Unix socket and TLS must be enabled in order
-to have the Docker client and the daemon communicate securely over HTTPS.
+In [Authenticating to the Docker daemon](/articles/authentication), you learned
+that, by default, Docker runs via a non-networked Unix socket and authentication
+must be enabled in order to have the Docker client and the daemon communicate
+securely.
 
 Now, you will see how to allow the Docker registry (i.e., *a server*) to
 verify that the Docker daemon (i.e., *a client*) has the right to access the
@@ -45,15 +46,15 @@ Our example is set up like this:
 ## Creating the client certificates
 
 You will use OpenSSL's `genrsa` and `req` commands to first generate an RSA
-key and then use the key to create the certificate request.   
+key and then use the key to create the certificate request.
 
     $ openssl genrsa -out client.key 1024
     $ openssl req -new -x509 -text -key client.key -out client.cert
 
-> **Warning:**: 
+> **Warning:**:
 > Using TLS and managing a CA is an advanced topic.
 > You should be familiar with OpenSSL, x509, and TLS before
-> attempting to use them in production. 
+> attempting to use them in production.
 
 > **Warning:**
 > These TLS commands will only generate a working set of certificates on Linux.
