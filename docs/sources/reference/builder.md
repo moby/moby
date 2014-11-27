@@ -764,7 +764,7 @@ Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolum
 documentation.
 
 > **Note**:
-> The list is parsed a JSON array, which means that
+> The list is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
 ## USER
