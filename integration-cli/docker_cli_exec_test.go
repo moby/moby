@@ -230,3 +230,36 @@ func TestExecExitStatus(t *testing.T) {
 
 	logDone("exec - exec non-zero ExitStatus")
 }
+
+func TestExecPausedContainer(t *testing.T) {
+
+	defer deleteAllContainers()
+	defer unpauseAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	ContainerID := stripTrailingCharacters(out)
+
+	pausedCmd := exec.Command(dockerBinary, "pause", "testing")
+	out, _, _, err = runCommandWithStdoutStderr(pausedCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	execCmd := exec.Command(dockerBinary, "exec", "-i", "-t", ContainerID, "echo", "hello")
+	out, _, err = runCommandWithOutput(execCmd)
+	if err == nil {
+		t.Fatal("container should fail to exec new command if it is paused")
+	}
+
+	expected := ContainerID + " is paused, unpause the container before exec"
+	if !strings.Contains(out, expected) {
+		t.Fatal("container should not exec new command if it is paused")
+	}
+
+	logDone("exec - exec should not exec a pause container")
+}
