@@ -397,6 +397,7 @@ Get stdout and stderr logs from the container ``id``
 
 Query Parameters:
 
+-   **filters** – a json encoded value of the filters (a map[string][]string)
 -   **follow** – 1/True/true or 0/False/false, return stream. Default false
 -   **stdout** – 1/True/true or 0/False/false, show stdout log. Default false
 -   **stderr** – 1/True/true or 0/False/false, show stderr log. Default false

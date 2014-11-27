@@ -1071,6 +1071,7 @@ For example:
 
     Fetch the logs of a container
 
+      -r, --filter              Provide filter values (i.e. 'since=01:00')
       -f, --follow=false        Follow log output
       -t, --timestamps=false    Show timestamps
       --tail="all"              Output the specified number of lines at the end of logs (defaults to all logs)
@@ -1087,6 +1088,17 @@ The `docker logs --timestamp` commands will add an RFC3339Nano
 timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
+
+The `docker logs --filter` command accepts the following filters:
+
+* since
+* before
+
+The value to these filters must be in one of the following formats:
+
+`yyyy-dd-mm hh:mm`: show logs from that day and time onwards.
+`yyyy-dd-mm`: show logs from 00:00 on that day and onwards.
+`hh:mm`: show logs from that time today and onwards.
 
 ## port
 
