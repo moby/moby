@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/utils"
 )
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.
@@ -112,6 +113,10 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 		img, err := image.NewImgJSON(imageJson)
 		if err != nil {
 			log.Debugf("Error unmarshalling json", err)
+			return err
+		}
+		if err := utils.ValidateID(img.ID); err != nil {
+			log.Debugf("Error validating ID: %s", err)
 			return err
 		}
 		if img.Parent != "" {

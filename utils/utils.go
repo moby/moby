@@ -31,6 +31,10 @@ type KeyValuePair struct {
 	Value string
 }
 
+var (
+	validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
+)
+
 // Request a given URL and return an io.Reader
 func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
@@ -190,11 +194,9 @@ func GenerateRandomID() string {
 }
 
 func ValidateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("Id can't be empty")
-	}
-	if strings.Contains(id, ":") {
-		return fmt.Errorf("Invalid character in id: ':'")
+	if ok := validHex.MatchString(id); !ok {
+		err := fmt.Errorf("image ID '%s' is invalid", id)
+		return err
 	}
 	return nil
 }
