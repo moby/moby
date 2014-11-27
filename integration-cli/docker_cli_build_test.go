@@ -1242,6 +1242,58 @@ func TestBuildAddBadLinks(t *testing.T) {
 	logDone("build - ADD must add files in container")
 }
 
+func TestBuildAddBadLinksVolume(t *testing.T) {
+	const (
+		dockerfileTemplate = `
+		FROM busybox
+		RUN ln -s /../../../../../../../../%s /x
+		VOLUME /x
+		ADD foo.txt /x/`
+		targetFile = "foo.txt"
+	)
+	var (
+		name       = "test-link-absolute-volume"
+		dockerfile = ""
+	)
+	defer deleteImages(name)
+
+	tempDir, err := ioutil.TempDir("", "test-link-absolute-volume-temp-")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", tempDir)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dockerfile = fmt.Sprintf(dockerfileTemplate, tempDir)
+	nonExistingFile := filepath.Join(tempDir, targetFile)
+
+	ctx, err := fakeContext(dockerfile, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	fooPath := filepath.Join(ctx.Dir, targetFile)
+
+	foo, err := os.Create(fooPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer foo.Close()
+
+	if _, err := foo.WriteString("test"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+		t.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
+	}
+
+	logDone("build - ADD should add files in volume")
+}
+
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
