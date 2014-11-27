@@ -1328,7 +1328,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImages(args ...string) error {
-	cmd := cli.Subcmd("images", "[NAME]", "List images")
+	cmd := cli.Subcmd("images", "[REPOSITORY]", "List images")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate image layers)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
