@@ -371,3 +371,41 @@ func TestCpUnprivilegedUser(t *testing.T) {
 
 	logDone("cp - unprivileged user")
 }
+
+func TestCpToDot(t *testing.T) {
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmpdir); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/test", ".")
+	if err != nil {
+		t.Fatalf("couldn't docker cp to \".\" path: %s", err)
+	}
+	content, err := ioutil.ReadFile("./test")
+	if string(content) != "lololol\n" {
+		t.Fatal("Wrong content in copied file %q, should be %q", content, "lololol\n")
+	}
+	logDone("cp - to dot path")
+}
