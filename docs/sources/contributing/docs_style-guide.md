@@ -169,7 +169,7 @@ Use notes sparingly and only to bring things to the reader's attention that are
 critical or otherwise deserving of being called out from the body text. Please
 format all notes as follows:
 
-    **Note:**
+    > **Note:**
     > One line of note text
     > another line of note text
 
