@@ -92,12 +92,14 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 		}
 
 		path := filepath.Join(dest, hdr.Name)
-		base := filepath.Base(path)
-
-		// Prevent symlink breakout
-		if !strings.HasPrefix(path, dest) {
-			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		rel, err := filepath.Rel(dest, path)
+		if err != nil {
+			return err
 		}
+		if strings.HasPrefix(rel, "..") {
+			return breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
+		}
+		base := filepath.Base(path)
 
 		if strings.HasPrefix(base, ".wh.") {
 			originalBase := base[len(".wh."):]
