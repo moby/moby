@@ -1167,6 +1167,81 @@ func TestBuildCopyDisallowRemote(t *testing.T) {
 	logDone("build - copy - disallow copy from remote")
 }
 
+func TestBuildAddBadLinks(t *testing.T) {
+	const (
+		dockerfile = `
+			FROM scratch
+			ADD links.tar /
+			ADD foo.txt /symlink/
+			`
+		targetFile = "foo.txt"
+	)
+	var (
+		name = "test-link-absolute"
+	)
+	defer deleteImages(name)
+	ctx, err := fakeContext(dockerfile, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	tempDir, err := ioutil.TempDir("", "test-link-absolute-temp-")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", tempDir)
+	}
+	defer os.RemoveAll(tempDir)
+
+	symlinkTarget := fmt.Sprintf("/../../../../../../../../../../../..%s", tempDir)
+	tarPath := filepath.Join(ctx.Dir, "links.tar")
+	nonExistingFile := filepath.Join(tempDir, targetFile)
+	fooPath := filepath.Join(ctx.Dir, targetFile)
+
+	tarOut, err := os.Create(tarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tarWriter := tar.NewWriter(tarOut)
+
+	header := &tar.Header{
+		Name:     "symlink",
+		Typeflag: tar.TypeSymlink,
+		Linkname: symlinkTarget,
+		Mode:     0755,
+		Uid:      0,
+		Gid:      0,
+	}
+
+	err = tarWriter.WriteHeader(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tarWriter.Close()
+	tarOut.Close()
+
+	foo, err := os.Create(fooPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer foo.Close()
+
+	if _, err := foo.WriteString("test"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(nonExistingFile); err == nil || err != nil && !os.IsNotExist(err) {
+		t.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
+	}
+
+	logDone("build - ADD must add files in container")
+}
+
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
