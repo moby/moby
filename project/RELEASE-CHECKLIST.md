@@ -1,5 +1,5 @@
 # Release Checklist
-## A maintainer's guide to releasing Docker
+##I A maintainer's guide to releasing Docker
 
 So you're in charge of a Docker release? Cool. Here's what to do.
 
@@ -247,26 +247,13 @@ git push origin $VERSION
 Don't forget to push that pretty blue button to delete the leftover
 branch afterwards!
 
-### 11. Update the docs branch
-
-If this is a MAJOR.MINOR.0 release, you need to make an branch for the previous release's
-documentation:
-
-```bash
-git checkout -b docs-$PREVIOUS_MAJOR_MINOR docs
-git fetch
-git reset --hard origin/docs
-git push -f origin docs-$PREVIOUS_MAJOR_MINOR
-```
+### 11. Publish documentation to docs.docker.com
 
 You will need the `awsconfig` file added to the `docs/` directory to contain the
 s3 credentials for the bucket you are deploying to.
 
 ```bash
-git checkout -b docs release || git checkout docs
-git fetch
-git reset --hard origin/release
-git push -f origin docs
+git checkout release
 make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
 ```
 
@@ -274,7 +261,7 @@ The docs will appear on http://docs.docker.com/ (though there may be cached
 versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
 For more information about documentation releases, see `docs/README.md`.
 
-Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrome applet.
+Invalidate the cloudfront cache using the CND Planet chrome applet.
 
 ### 12. Create a new pull request to merge release back into master
 

@@ -56,18 +56,14 @@ work!](../CONTRIBUTING.md#sign-your-work)
 
 ## Branches
 
-**There are two branches related to editing docs**: `master` and `docs`. You
-should always edit the documentation on a local branch of the `master`
+You should always edit the documentation on a local branch of the `master`
 branch, and send a PR against `master`.
 
 That way your fixes will automatically get included in later releases, and docs
-maintainers can easily cherry-pick your changes into the `docs` release branch.
-In the rare case where your change is not forward-compatible, you may need to
-base your changes on the `docs` branch.
+maintainers can easily cherry-pick your changes into the `release` branch.
 
-Also, now that we have a `docs` branch, we can keep the
-[http://docs.docker.com](http://docs.docker.com) docs up to date with any bugs
-found between Docker code releases.
+The [http://docs.docker.com](http://docs.docker.com) documentation will be updated
+inbetween Docker releases by the Documentation team.
 
 > **Warning**: When *reading* the docs, the
 > [http://docs-stage.docker.com](http://docs-stage.docker.com) documentation may
@@ -84,8 +80,10 @@ you need to access the AWS bucket you'll be deploying to.
 
 The release script will create an s3 if needed, and will then push the files to it.
 
-    [profile dowideit-docs] aws_access_key_id = IHOIUAHSIDH234rwf....
-    aws_secret_access_key = OIUYSADJHLKUHQWIUHE......  region = ap-southeast-2
+    [profile dowideit-docs]
+    aws_access_key_id = IHOIUAHSIDH234rwf....
+    aws_secret_access_key = OIUYSADJHLKUHQWIUHE......
+    region = ap-southeast-2
 
 The `profile` name must be the same as the name of the bucket you are deploying
 to - which you call from the `docker` directory:
@@ -110,29 +108,28 @@ also update the root docs pages by running
 ## Cherry-picking documentation changes to update an existing release.
 
 Whenever the core team makes a release, they publish the documentation based
-on the `release` branch (which is copied into the `docs` branch). The
-documentation team can make updates in the meantime, by cherry-picking changes
-from `master` into any of the docs branches.
+on the `release` branch. The documentation team can make updates in the meantime,
+by cherry-picking changes from `master` into the `release` branche.
 
 For example, to update the current release's docs:
 
     git fetch upstream
-    git checkout -b post-1.2.0-docs-update-1 upstream/docs
-    # Then go through the Merge commit linked to PR's (making sure they apply
-    to that release)
-    # see https://github.com/docker/docker/commits/master
-    git cherry-pick -x fe845c4
+    git checkout -b post-1.2.0-docs-update-1 upstream/release
+    # use the gordon pulls tool to list all the candidate PR's
+    pulls --remote upstream compare upstream/master post-1.2.0-docs-update-1
+    # cherry-pick the ones you need into the branch
+    git cherry-pick -x -m 1 fe845c4
     # Repeat until you have cherry picked everything you will propose to be merged
     git push upstream post-1.2.0-docs-update-1
 
-Then make a pull request to merge into the `docs` branch, __NOT__ into master.
+Then make a pull request to merge into the `release` branch, __NOT__ into `master`.
 
 Once the PR has the needed `LGTM`s, merge it, then publish to our beta server
 to test:
 
     git fetch upstream
-    git checkout post-1.2.0-docs-update-1
-    git reset --hard upstream/post-1.2.0-docs-update-1
+    git checkout release
+    git reset --hard upstream/release
     make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 
 Then go to http://beta-docs.docker.io.s3-website-us-west-2.amazonaws.com/
@@ -142,7 +139,9 @@ When you're happy with it, publish the docs to our live site:
 
     make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
     
-Note that the new docs will not appear live on the site until the cache (a complex,
-distributed CDN system) is flushed. This requires someone with S3 keys. Contact Docker
-(Sven Dowideit or John Costa) for assistance. 
 
+> **Note:**
+> The docs will appear on http://docs.docker.com/ (though there may be cached
+> versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
+> For more information about documentation releases, see `docs/README.md`.
+> Invalidate the cloudfront cache using the CND Planet chrome applet.
