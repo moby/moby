@@ -6,6 +6,7 @@ docker-save - Save an image to a tar archive (streamed to STDOUT by default)
 
 # SYNOPSIS
 **docker save**
+[**-e**|**--exclude**[=*[]*]]
 [**-o**|**--output**[=*OUTPUT*]]
 IMAGE
 
@@ -16,6 +17,9 @@ parent layers, and all tags + versions, or specified repo:tag.
 Stream to a file instead of STDOUT by using **-o**.
 
 # OPTIONS
+**-e**, **--exclude**=[]
+   Images not to be included in the archive
+
 **-o**, **--output**=""
    Write to a file, instead of STDOUT
 
