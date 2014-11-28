@@ -5,10 +5,14 @@
 docker-port - List port mappings for the CONTAINER, or lookup the public-facing port that is NAT-ed to the PRIVATE_PORT
 
 # SYNOPSIS
-**docker port** CONTAINER [PRIVATE_PORT[/PROTO]]
+**docker port**
+CONTAINER [PRIVATE_PORT[/PROTO]]
 
 # DESCRIPTION
 List port mappings for the CONTAINER, or lookup the public-facing port that is NAT-ed to the PRIVATE_PORT
+
+# OPTIONS
+There are no available options.
 
 # EXAMPLES
 You can find out all the ports mapped by not specifying a `PRIVATE_PORT`, or
@@ -30,3 +34,4 @@ ask for just a specific mapping:
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

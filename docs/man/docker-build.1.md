@@ -11,7 +11,7 @@ docker-build - Build a new image from the source code at PATH
 [**-q**|**--quiet**[=*false*]]
 [**--rm**[=*true*]]
 [**-t**|**--tag**[=*TAG*]]
- PATH | URL | -
+PATH | URL | -
 
 # DESCRIPTION
 This will read the Dockerfile from the directory specified in **PATH**.
