@@ -36,7 +36,6 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
@@ -1796,26 +1795,27 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	}
 	var (
 		v               = url.Values{}
-		loc             = time.FixedZone(time.Now().Zone())
 		eventFilterArgs = filters.Args{}
 	)
 
-	var setTime = func(key, value string) {
-		format := timeutils.RFC3339NanoFixed
-		if len(value) < len(format) {
-			format = format[:len(value)]
-		}
-		if t, err := time.ParseInLocation(format, value, loc); err == nil {
-			v.Set(key, strconv.FormatInt(t.Unix(), 10))
-		} else {
-			v.Set(key, value)
-		}
-	}
 	if *since != "" {
-		setTime("since", *since)
+		// 0 is not a valid number for since
+		if *since == "0" {
+			v.Set("since", "1")
+		} else {
+			sinceDate, err := parsers.ParseFilterDate(*since)
+			if err != nil {
+				return err
+			}
+			v.Set("since", strconv.FormatInt(sinceDate.Unix(), 10))
+		}
 	}
 	if *until != "" {
-		setTime("until", *until)
+		untilDate, err := parsers.ParseFilterDate(*until)
+		if err != nil {
+			return err
+		}
+		v.Set("until", strconv.FormatInt(untilDate.Unix(), 10))
 	}
 	json, err := eventFilterArgs.GetAsJSON(flFilter)
 	if err != nil {

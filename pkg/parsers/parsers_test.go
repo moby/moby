@@ -94,6 +94,7 @@ func TestParseFilterDate(t *testing.T) {
 		{"2012-03-12 05:04", "2012-03-12 05:04:00 +" + tz},
 		{"2012-03-12", "2012-03-12 00:00:00 +" + tz},
 		{"05:04", fmt.Sprintf("%d-%02d-%02d 05:04:00 +%s", time.Now().Year(), time.Now().Month(), time.Now().Day(), tz)},
+		{"1257894000", "2009-11-10 23:00:00 +" + tz},
 	}
 
 	for _, d := range testData {

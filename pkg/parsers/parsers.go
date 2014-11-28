@@ -107,6 +107,11 @@ func ParseKeyValueOpt(opt string) (string, string, error) {
 }
 
 func ParseFilterDate(filter string) (time.Time, error) {
+	// Probably got a timestamp
+	if ts, err := strconv.ParseInt(filter, 10, 64); err == nil {
+		return time.Unix(ts, 0), nil
+	}
+
 	var format = "2006-01-02 15:04:05"
 	parts := strings.FieldsFunc(filter, func(c rune) bool {
 		return c == '-' || c == ' ' || c == ':'
@@ -123,6 +128,5 @@ func ParseFilterDate(filter string) (time.Time, error) {
 	default:
 		return time.Time{}, fmt.Errorf("Invalid filter date format %s", filter)
 	}
-
 	return time.ParseInLocation(format, filter, time.Local)
 }
