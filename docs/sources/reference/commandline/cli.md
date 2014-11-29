@@ -1610,6 +1610,30 @@ container exits with a non-zero exit status more than 10 times in a row
 Docker will abort trying to restart the container.  Providing a maximum
 restart limit is only valid for the ** on-failure ** policy.
 
+### Adding entries to a container hosts file
+
+You can add other hosts into a container's `/etc/hosts` file by using one or more
+`--add-host` flags. This example adds a static address for a host named `docker`:
+
+```
+    $ docker run --add-host=docker:10.180.0.1 --rm -it debian
+    $$ ping docker
+    PING docker (10.180.0.1): 48 data bytes
+    56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
+    56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
+    ^C--- docker ping statistics ---
+    2 packets transmitted, 2 packets received, 0% packet loss
+    round-trip min/avg/max/stddev = 7.600/19.152/30.705/11.553 ms
+```
+
+> **Note:**
+> Sometimes you need to connect to the Docker host, which means getting the IP
+> address of the host. You can use the following shell commands to simplify this
+> process:
+>
+>      $ alias hostip="ip route show 0.0.0.0/0 | grep -Eo 'via \S+' | awk '{ print \$2 }'"
+>      $ docker run  --add-host=docker:$(hostip) --rm -it debian
+
 ## save
 
     Usage: docker save [OPTIONS] IMAGE [IMAGE...]
