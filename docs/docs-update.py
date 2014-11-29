@@ -148,7 +148,7 @@ def update_man_pages():
             help_string = e.output
 
         last_key = ""
-        for l in str(help).split("\n"):
+        for l in str(help_string).split("\n"):
             l = l.rstrip()
             if l != "":
                 match = re.match("Usage: docker {}(.*)".format(command), l)
