@@ -11,7 +11,7 @@ development) branch maps to the "master" documentation.
 
 ## Contributing
 
-Be sure to follow the [contribution guidelines](../CONTRIBUTING.md)).
+Be sure to follow the [contribution guidelines](../CONTRIBUTING.md).
 In particular, [remember to sign your work!](../CONTRIBUTING.md#sign-your-work)
 
 ## Getting Started
