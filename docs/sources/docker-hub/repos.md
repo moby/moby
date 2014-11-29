@@ -1,6 +1,6 @@
 page_title: Repositories and Images on Docker Hub
 page_description: Repositories and Images on Docker Hub
-page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, webhooks, docs, documentation
 
 # Repositories and Images on Docker Hub
 
@@ -142,3 +142,37 @@ similar to the example shown below.
 Webhooks allow you to notify people, services and other applications of
 new updates to your images and repositories.
 
+### Webhook chains
+
+Webhook chains allow you to chain calls to multiple services. After clicking the
+"Add webhook" button, simply add as many URLs as necessary in your chain.
+
+The first webhook in a chain will be called after a successful push. Subsequent URLs will be contacted after the callback has been validated.
+
+#### Validating a callback
+
+In order to validate a callback in a webhook chain, you need to
+
+1. Retrieve the `callback_url` value in the request's JSON payload.
+1. Send a POST request to this URL containing a valid JSON body.
+
+> **Note**: A chain request will only be considered complete once the last
+> callback has been validated.
+
+#### Callback JSON data
+
+Recognized parameters in callback data are as follow:
+
+* `state` (required): Accepted values are `success`, `failure` and `error`. If the state isn't `success`, the webhook chain will be interrupted.
+* `description`: A string containing miscellaneous information that will be available on the Docker Hub. Maximum 255 characters.
+* `context`: A string containing the context of the operation. Can be retrieved on the Docker Hub. Maximum 100 characters.
+* `target_url`: The URL where the results of the operation can be found. Can be retrieved on the Docker Hub.
+
+*Example callback payload:*
+
+    {
+      "state": "success",
+      "description": "387 tests PASSED",
+      "context": "Continuous integration by Acme CI",
+      "target_url": "http://ci.acme.com/results/afd339c1c3d27"
+    }

@@ -162,6 +162,9 @@ event when an image or updated image is pushed to the repository. With
 a webhook you can specify a target URL and a JSON payload that will be
 delivered when the image is pushed.
 
+See more information on webhooks
+[here](http://docs.docker.com/docker-hub/repos/#webhooks)
+
 ## Next steps
 
 Go and use Docker!
