@@ -13,7 +13,7 @@ func TestStartAttachReturnsOnError(t *testing.T) {
 	defer deleteAllContainers()
 
 	dockerCmd(t, "run", "-d", "--name", "test", "busybox")
-	dockerCmd(t, "stop", "test")
+	dockerCmd(t, "wait", "test")
 
 	// Expect this to fail because the above container is stopped, this is what we want
 	if _, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "test2", "--link", "test:test", "busybox")); err == nil {
