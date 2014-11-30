@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -115,7 +114,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 func supportsOverlayfs() error {
 	// We can try to modprobe overlayfs first before looking at
 	// proc/filesystems for when overlayfs is supported
-	exec.Command("modprobe", "overlayfs").Run()
+	exec.Command("modprobe", "overlay").Run()
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
@@ -125,11 +124,11 @@ func supportsOverlayfs() error {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if strings.Contains(s.Text(), "overlayfs") {
+		if s.Text() == "nodev\toverlay" {
 			return nil
 		}
 	}
-	log.Error("'overlayfs' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlayfs support loaded.")
+	log.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
 	return graphdriver.ErrNotSupported
 }
 
@@ -274,7 +273,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	mergedDir := path.Join(dir, "merged")
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
-	if err := syscall.Mount("overlayfs", mergedDir, "overlayfs", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
+	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
 		return "", err
 	}
 	mount.path = mergedDir

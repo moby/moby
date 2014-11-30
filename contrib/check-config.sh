@@ -166,7 +166,7 @@ echo '- Storage Drivers:'
 	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'overlayfs' blue)'":'
-	check_flags OVERLAYFS_FS | sed 's/^/  /'
+	check_flags OVERLAY_FS | sed 's/^/  /'
 } | sed 's/^/  /'
 echo
 
