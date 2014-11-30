@@ -1574,6 +1574,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		cmd      = cli.Subcmd("ps", "", "List containers")
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
+		expanded = cmd.Bool([]string{"x", "-expanded"}, false, "Turn on the expanded formatting mode.")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers. Only running containers are shown by default.")
 		noTrunc  = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show only the latest created container, include non-running ones.")
@@ -1641,9 +1642,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	if !*quiet {
+	showHeaders := !(*quiet || *expanded)
+	if showHeaders {
 		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
-
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
 		} else {
@@ -1659,6 +1660,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return ss
 	}
 
+	outputFormat := "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t"
 	for _, out := range outs.Data {
 		outID := out.Get("Id")
 
@@ -1692,19 +1694,40 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 
 		ports.ReadListFrom([]byte(out.Get("Ports")))
+		if *expanded {
+			title := fmt.Sprintf("- [ %s ] -", outID)
+			fmt.Fprintf(w, "%s+%s\n", title, strings.Repeat("-", 79-len(title)-1))
+		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand,
+		displayablePorts := api.DisplayablePorts(ports)
+		if *expanded {
+			outputFormat = "Container_id \t| %s\nImage\t| %s\nCommand\t| %s\nCreated\t| %s ago\nStatus\t| %s\n"
+			if displayablePorts != "" {
+				outputFormat += "Ports\t| %s\n"
+			} else {
+				outputFormat += "%s"
+			}
+			outputFormat += "Name\t| %s"
+		}
+
+		fmt.Fprintf(w, outputFormat, outID, out.Get("Image"), outCommand,
 			units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))),
-			out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
+			out.Get("Status"), displayablePorts, strings.Join(outNames, ","))
 
 		if *size {
 			if out.GetInt("SizeRootFs") > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
+				size_output := "%s (Virtual %s)"
+				if *expanded {
+					size_output = "\nSize: \t%s (Virtual %s)"
+				}
+				fmt.Fprintf(w, size_output, units.HumanSize(out.GetInt64("SizeRw")), units.HumanSize(out.GetInt64("SizeRootFs")))
 			} else {
-				fmt.Fprintf(w, "%s\n", units.HumanSize(out.GetInt64("SizeRw")))
+				size_output := "%s"
+				if *expanded {
+					size_output = "\nSize: \t%s"
+				}
+				fmt.Fprintf(w, size_output, units.HumanSize(out.GetInt64("SizeRw")))
 			}
-
-			continue
 		}
 
 		fmt.Fprint(w, "\n")
