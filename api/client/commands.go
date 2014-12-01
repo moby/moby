@@ -882,7 +882,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		// Remove trailing ','
 		indented.Truncate(indented.Len() - 1)
 	}
-	indented.WriteByte(']')
+	indented.WriteString("]\n")
 
 	if tmpl == nil {
 		if _, err := io.Copy(cli.out, indented); err != nil {
