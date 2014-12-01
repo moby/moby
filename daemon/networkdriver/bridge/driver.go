@@ -445,17 +445,6 @@ func AllocatePort(job *engine.Job) engine.Status {
 		}
 	}
 
-	// host ip, proto, and host port
-	var container net.Addr
-	switch proto {
-	case "tcp":
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
-	case "udp":
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
-	default:
-		return job.Errorf("unsupported address type %s", proto)
-	}
-
 	//
 	// Try up to 10 times to get a port that's not already allocated.
 	//
@@ -463,9 +452,9 @@ func AllocatePort(job *engine.Job) engine.Status {
 	// yields.
 	//
 
-	var host net.Addr
+	var hosts []net.Addr
 	for i := 0; i < MaxAllocatedPortAttempts; i++ {
-		if host, err = portmapper.Map(container, ip, hostPort); err == nil {
+		if hosts, err = portmapper.Map(network.IP, proto, containerPort, ip, hostPort); err == nil {
 			break
 		}
 
@@ -473,12 +462,12 @@ func AllocatePort(job *engine.Job) engine.Status {
 			// There is no point in immediately retrying to map an explicitly
 			// chosen port.
 			if hostPort != 0 {
-				job.Logf("Failed to bind %s for container address %s: %s", allocerr.IPPort(), container.String(), allocerr.Error())
+				job.Logf("Failed to bind %s for container address %s:%d: %s", allocerr.IPPort(), hostIP, containerPort, allocerr.Error())
 				break
 			}
 
 			// Automatically chosen 'free' port failed to bind: move on the next.
-			job.Logf("Failed to bind %s for container address %s. Trying another port.", allocerr.IPPort(), container.String())
+			job.Logf("Failed to bind %s for container address %s:%d. Trying another port.", allocerr.IPPort(), hostIP, containerPort)
 		} else {
 			// some other error during mapping
 			job.Logf("Received an unexpected error during port allocation: %s", err.Error())
@@ -490,21 +479,22 @@ func AllocatePort(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	network.PortMappings = append(network.PortMappings, host)
+	for _, host := range hosts {
+		network.PortMappings = append(network.PortMappings, host)
 
-	out := engine.Env{}
-	switch netAddr := host.(type) {
-	case *net.TCPAddr:
-		out.Set("HostIP", netAddr.IP.String())
-		out.SetInt("HostPort", netAddr.Port)
-	case *net.UDPAddr:
-		out.Set("HostIP", netAddr.IP.String())
-		out.SetInt("HostPort", netAddr.Port)
+		out := engine.Env{}
+		switch netAddr := host.(type) {
+		case *net.TCPAddr:
+			out.Set("HostIP", netAddr.IP.String())
+			out.SetInt("HostPort", netAddr.Port)
+		case *net.UDPAddr:
+			out.Set("HostIP", netAddr.IP.String())
+			out.SetInt("HostPort", netAddr.Port)
+		}
+		if _, err := out.WriteTo(job.Stdout); err != nil {
+			return job.Error(err)
+		}
 	}
-	if _, err := out.WriteTo(job.Stdout); err != nil {
-		return job.Error(err)
-	}
-
 	return engine.StatusOK
 }
 
