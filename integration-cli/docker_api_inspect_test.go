@@ -24,7 +24,7 @@ func TestInspectApiContainerResponse(t *testing.T) {
 		if testVersion != "latest" {
 			endpoint = "/" + testVersion + endpoint
 		}
-		body, err := sockRequest("GET", endpoint)
+		body, err := sockRequest("GET", endpoint, nil)
 		if err != nil {
 			t.Fatalf("sockRequest failed for %s version: %v", testVersion, err)
 		}

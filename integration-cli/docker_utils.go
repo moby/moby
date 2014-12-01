@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -249,7 +251,7 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
-func sockRequest(method, endpoint string) ([]byte, error) {
+func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
 	// FIX: the path to sock should not be hardcoded
 	sock := filepath.Join("/", "var", "run", "docker.sock")
 	c, err := net.DialTimeout("unix", sock, time.Duration(10*time.Second))
@@ -260,7 +262,12 @@ func sockRequest(method, endpoint string) ([]byte, error) {
 	client := httputil.NewClientConn(c, nil)
 	defer client.Close()
 
-	req, err := http.NewRequest(method, endpoint, nil)
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(method, endpoint, jsonData)
 	req.Header.Set("Content-Type", "application/json")
 	if err != nil {
 		return nil, fmt.Errorf("could not create new request: %v", err)

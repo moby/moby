@@ -118,7 +118,10 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	config := runconfig.ExecConfigFromJob(job)
+	config, err := runconfig.ExecConfigFromJob(job)
+	if err != nil {
+		return job.Error(err)
+	}
 
 	entrypoint, args := d.getEntrypointAndArgs(nil, config.Cmd)
 
