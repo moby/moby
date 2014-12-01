@@ -49,8 +49,7 @@ Once inside our freshly created container we need to install Redis to
 get the `redis-cli` binary to test our connection.
 
     $ sudo apt-get update
-    $ sudo apt-get install redis-server
-    $ sudo service redis-server stop
+    $ sudo apt-get install redis-tools
 
 As we've used the `--link redis:db` option, Docker
 has created some environment variables in our web application container.
