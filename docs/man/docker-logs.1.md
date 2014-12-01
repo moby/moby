@@ -25,6 +25,9 @@ then continue streaming new output from the container’s stdout and stderr.
 **-f**, **--follow**=*true*|*false*
    Follow log output. The default is *false*.
 
+**--since**=*"yyyy-mm-dd hh:mm"*|*yyyy-mm-dd*|*hh:mm*
+   Show logs since.  The default is to show all logs.
+
 **-t**, **--timestamps**=*true*|*false*
    Show timestamps. The default is *false*.
 

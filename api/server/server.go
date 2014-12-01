@@ -416,6 +416,7 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	}
 	logsJob.Setenv("follow", r.Form.Get("follow"))
 	logsJob.Setenv("tail", r.Form.Get("tail"))
+	logsJob.Setenv("since", r.Form.Get("since"))
 	logsJob.Setenv("stdout", r.Form.Get("stdout"))
 	logsJob.Setenv("stderr", r.Form.Get("stderr"))
 	logsJob.Setenv("timestamps", r.Form.Get("timestamps"))
