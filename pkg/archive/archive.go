@@ -530,10 +530,13 @@ loop:
 			}
 		}
 
-		// Prevent symlink breakout
 		path := filepath.Join(dest, hdr.Name)
-		if !strings.HasPrefix(path, dest) {
-			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		rel, err := filepath.Rel(dest, path)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(rel, "..") {
+			return breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
 		}
 
 		// If path exits we almost always just want to remove and replace it
