@@ -122,5 +122,4 @@ Request at [My Oracle Support](http://support.oracle.com).
 
 If you do not have an Oracle Linux Support Subscription, you can use the [Oracle
 Linux
-Forum](https://community.oracle.com/community/server_%26_storage_systems/linux/
-oracle_linux) for community-based support.
+Forum](https://community.oracle.com/community/server_%26_storage_systems/linux/oracle_linux) for community-based support.
