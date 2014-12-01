@@ -184,30 +184,46 @@ running.  The options then modify this default configuration.
 
 <a name="the-world"></a>
 
-Whether a container can talk to the world is governed by one main factor.
+Whether a container can talk to the world is governed by two factors.
 
-Is the host machine willing to forward IP packets?  This is governed
-by the `ip_forward` system parameter.  Packets can only pass between
-containers if this parameter is `1`.  Usually you will simply leave
-the Docker server at its default setting `--ip-forward=true` and
-Docker will go set `ip_forward` to `1` for you when the server
-starts up.  To check the setting or turn it on manually:
+1.  Is the host machine willing to forward IP packets?  This is governed
+    by the `ip_forward` system parameter.  Packets can only pass between
+    containers if this parameter is `1`.  Usually you will simply leave
+    the Docker server at its default setting `--ip-forward=true` and
+    Docker will go set `ip_forward` to `1` for you when the server
+    starts up.  To check the setting or turn it on manually:
 
-    # Usually not necessary: turning on forwarding,
-    # on the host where your Docker server is running
-
+    ```
     $ cat /proc/sys/net/ipv4/ip_forward
     0
-    $ sudo echo 1 > /proc/sys/net/ipv4/ip_forward
+    $ echo 1 > /proc/sys/net/ipv4/ip_forward
     $ cat /proc/sys/net/ipv4/ip_forward
     1
+    ```
 
-Many using Docker will want `ip_forward` to be on, to at
-least make communication *possible* between containers and
-the wider world.
+    Many using Docker will want `ip_forward` to be on, to at
+    least make communication *possible* between containers and
+    the wider world.
 
-May also be needed for inter-container communication if you are
-in a multiple bridge setup.
+    May also be needed for inter-container communication if you are
+    in a multiple bridge setup.
+
+2.  Do your `iptables` allow this particular connection? Docker will
+    never make changes to your system `iptables` rules if you set
+    `--iptables=false` when the daemon starts.  Otherwise the Docker
+    server will append forwarding rules to the `DOCKER` filter chain.
+
+Docker will not delete or modify any pre-existing rules from the `DOCKER`
+filter chain. This allows the user to create in advance any rules required
+to further restrict access to the containers.
+
+Docker's forward rules permit all external source IPs by default. To allow
+only a specific IP or network to access the containers, insert a negated
+rule at the top of the `DOCKER` filter chain. For example, to restrict
+external access such that *only* source IP 8.8.8.8 can access the
+containers, the following rule could be added:
+
+    $ iptables -I DOCKER -i ext_if ! -s 8.8.8.8 -j DROP
 
 ## Communication between containers
 
@@ -222,12 +238,12 @@ system level, by two factors.
     between them.  See the later sections of this document for other
     possible topologies.
 
-2.  Do your `iptables` allow this particular connection to be made?
-    Docker will never make changes to your system `iptables` rules if
-    you set `--iptables=false` when the daemon starts.  Otherwise the
-    Docker server will add a default rule to the `FORWARD` chain with a
-    blanket `ACCEPT` policy if you retain the default `--icc=true`, or
-    else will set the policy to `DROP` if `--icc=false`.
+2.  Do your `iptables` allow this particular connection? Docker will never
+    make changes to your system `iptables` rules if you set
+    `--iptables=false` when the daemon starts.  Otherwise the Docker server
+    will add a default rule to the `FORWARD` chain with a blanket `ACCEPT`
+    policy if you retain the default `--icc=true`, or else will set the
+    policy to `DROP` if `--icc=false`.
 
 It is a strategic question whether to leave `--icc=true` or change it to
 `--icc=false` (on Ubuntu, by editing the `DOCKER_OPTS` variable in
@@ -267,6 +283,7 @@ the `FORWARD` chain has a default policy of `ACCEPT` or `DROP`:
     ...
     Chain FORWARD (policy ACCEPT)
     target     prot opt source               destination
+    DOCKER     all  --  0.0.0.0/0            0.0.0.0/0
     DROP       all  --  0.0.0.0/0            0.0.0.0/0
     ...
 
@@ -278,9 +295,13 @@ the `FORWARD` chain has a default policy of `ACCEPT` or `DROP`:
     ...
     Chain FORWARD (policy ACCEPT)
     target     prot opt source               destination
+    DOCKER     all  --  0.0.0.0/0            0.0.0.0/0
+    DROP       all  --  0.0.0.0/0            0.0.0.0/0
+
+    Chain DOCKER (1 references)
+    target     prot opt source               destination
     ACCEPT     tcp  --  172.17.0.2           172.17.0.3           tcp spt:80
     ACCEPT     tcp  --  172.17.0.3           172.17.0.2           tcp dpt:80
-    DROP       all  --  0.0.0.0/0            0.0.0.0/0
 
 > **Note**:
 > Docker is careful that its host-wide `iptables` rules fully expose
