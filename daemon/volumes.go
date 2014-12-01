@@ -236,25 +236,22 @@ func validMountMode(mode string) bool {
 }
 
 func (container *Container) setupMounts() error {
-	if err := label.SetFileLabel(container.ResolvConfPath, container.MountLabel); err != nil {
-		return err
-	}
 	mounts := []execdriver.Mount{
 		{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true},
 	}
 
 	if container.HostnamePath != "" {
-		if err := label.SetFileLabel(container.HostnamePath, container.MountLabel); err != nil {
-			return err
-		}
 		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
 	}
 
 	if container.HostsPath != "" {
-		if err := label.SetFileLabel(container.HostsPath, container.MountLabel); err != nil {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
+	}
+
+	for _, m := range mounts {
+		if err := label.SetFileLabel(m.Source, container.MountLabel); err != nil {
 			return err
 		}
-		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
 	}
 
 	// Mount user specified volumes
