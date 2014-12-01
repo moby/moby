@@ -125,7 +125,7 @@ func supportsOverlayfs() error {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if strings.Contains(s.Text(), "overlayfs") {
+		if strings.Contains(s.Text(), "overlay") {
 			return nil
 		}
 	}
