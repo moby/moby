@@ -114,6 +114,7 @@ Create a container
              "MemorySwap":0,
              "CpuShares": 512,
              "Cpuset": "0,1",
+             "Slice": "system-kubernetes.slice",
              "AttachStdin":false,
              "AttachStdout":true,
              "AttachStderr":true,
@@ -175,7 +176,8 @@ Json Parameters:
 -   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs othercontainers).
-    **CpuSet** - String value containg the cgroups Cpuset to use.
+-   **CpuSet** - String value containg the cgroups Cpuset to use.
+-   **Slice** - Parent slice
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -1308,6 +1310,7 @@ Create a new image from a container's changes
              "MemorySwap":0,
              "CpuShares": 512,
              "Cpuset": "0,1",
+             "Slice": "system-kubernetes.slice",
              "AttachStdin":false,
              "AttachStdout":true,
              "AttachStderr":true,
@@ -1662,6 +1665,7 @@ Return low-level information about the exec command `id`.
               "MemorySwap" : 0,
               "CpuShares" : 0,
               "Cpuset" : "",
+              "Slice": "system-kubernetes.slice",
               "AttachStdin" : false,
               "AttachStdout" : false,
               "AttachStderr" : false,
