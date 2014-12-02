@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/utils"
 )
 
@@ -250,12 +249,4 @@ func (eng *Engine) ParseJob(input string) (*Job, error) {
 	job := eng.Job(cmd[0], cmd[1:]...)
 	job.Env().Init(&env)
 	return job, nil
-}
-
-func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
-	if !eng.Logging {
-		return 0, nil
-	}
-	prefixedFormat := fmt.Sprintf("[%s] [%s] %s\n", time.Now().Format(timeutils.RFC3339NanoFixed), eng, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
 }
