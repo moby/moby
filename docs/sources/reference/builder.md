@@ -19,7 +19,7 @@ Dockerfile knowledge with the [Dockerfile tutorial](/userguide/level1).
 
 ## Usage
 
-To [*build*](../commandline/cli/#cli-build) an image from a source repository,
+To [*build*](/reference/commandline/cli/#build) an image from a source repository,
 create a description file called `Dockerfile` at the root of your repository.
 This file will describe the steps to assemble the image.
 
