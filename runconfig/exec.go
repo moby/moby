@@ -1,6 +1,8 @@
 package runconfig
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -17,7 +19,7 @@ type ExecConfig struct {
 	Cmd          []string
 }
 
-func ExecConfigFromJob(job *engine.Job) *ExecConfig {
+func ExecConfigFromJob(job *engine.Job) (*ExecConfig, error) {
 	execConfig := &ExecConfig{
 		// TODO(vishh): Expose 'User' once it is supported.
 		//User:         job.Getenv("User"),
@@ -28,11 +30,14 @@ func ExecConfigFromJob(job *engine.Job) *ExecConfig {
 		AttachStderr: job.GetenvBool("AttachStderr"),
 		AttachStdout: job.GetenvBool("AttachStdout"),
 	}
-	if cmd := job.GetenvList("Cmd"); cmd != nil {
-		execConfig.Cmd = cmd
+	cmd := job.GetenvList("Cmd")
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("No exec command specified")
 	}
 
-	return execConfig
+	execConfig.Cmd = cmd
+
+	return execConfig, nil
 }
 
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
@@ -47,10 +52,11 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		return nil, err
 	}
 	parsedArgs := cmd.Args()
-	if len(parsedArgs) > 1 {
-		container = cmd.Arg(0)
-		execCmd = parsedArgs[1:]
+	if len(parsedArgs) < 2 {
+		return nil, fmt.Errorf("not enough arguments to create exec command")
 	}
+	container = cmd.Arg(0)
+	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
 		// TODO(vishh): Expose '-u' flag once it is supported.
