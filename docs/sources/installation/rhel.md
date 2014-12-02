@@ -53,6 +53,23 @@ this package is part of [Extra Packages for Enterprise Linux
 (EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
 create and maintain additional packages for the RHEL distribution.
 
+### Kernel support
+
+RHEL will only support Docker via the *extras* channel or EPEL package when
+running on kernels shipped by the distribution. There are things like namespace
+changes which will cause issues if one decides to step outside that box and run
+non-distro kernel packages.
+
+> **Warning**:
+> Please make sure that your system is up to date by installing updates
+> using `yum update` and rebooting your system.
+> Keeping the system up to date is recommended to ensure your system
+> receives fixes for critical security vulnerabilities and severe bugs.
+> The fixes for severe bugs include fixes for potential kernel panics
+> specific to kernel 2.6.32.
+
+## Installation
+
 Firstly, you need to install the EPEL repository. Please follow the
 [EPEL installation
 instructions](https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F).
