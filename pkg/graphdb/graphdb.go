@@ -73,45 +73,55 @@ func IsNonUniqueNameError(err error) bool {
 }
 
 // Create a new graph database initialized with a root entity
-func NewDatabase(conn *sql.DB, init bool) (*Database, error) {
+func NewDatabase(conn *sql.DB) (*Database, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("Database connection cannot be nil")
 	}
 	db := &Database{conn: conn}
 
-	if init {
-		if _, err := conn.Exec(createEntityTable); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec(createEdgeTable); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec(createEdgeIndices); err != nil {
-			return nil, err
-		}
-
-		rollback := func() {
-			conn.Exec("ROLLBACK")
-		}
-
-		// Create root entities
-		if _, err := conn.Exec("BEGIN"); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
-			rollback()
-			return nil, err
-		}
-
-		if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
-			rollback()
-			return nil, err
-		}
-
-		if _, err := conn.Exec("COMMIT"); err != nil {
-			return nil, err
-		}
+	if _, err := conn.Exec(createEntityTable); err != nil {
+		return nil, err
 	}
+	if _, err := conn.Exec(createEdgeTable); err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(createEdgeIndices); err != nil {
+		return nil, err
+	}
+
+	rollback := func() {
+		conn.Exec("ROLLBACK")
+	}
+
+	// Create root entities
+	if _, err := conn.Exec("BEGIN"); err != nil {
+		return nil, err
+	}
+
+	if _, err := conn.Exec("DELETE FROM entity where id = ?", "0"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("DELETE FROM edge where entity_id=? and name=?", "0", "/"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("COMMIT"); err != nil {
+		return nil, err
+	}
+
 	return db, nil
 }
 
