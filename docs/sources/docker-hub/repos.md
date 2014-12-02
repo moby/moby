@@ -140,12 +140,18 @@ similar to the example shown below.
     }
 
 Webhooks allow you to notify people, services and other applications of
-new updates to your images and repositories.
+new updates to your images and repositories. To get started adding webhooks,
+go to the desired repo in the Hub, and click "Webhooks" under the "Settings"
+box.
 
 ### Webhook chains
 
-Webhook chains allow you to chain calls to multiple services. After clicking the
-"Add webhook" button, simply add as many URLs as necessary in your chain.
+Webhook chains allow you to chain calls to multiple services. For example,
+you can use this to trigger a deployment of your container only after
+it has been successfully tested, then update a separate Changelog once the
+deployment is complete.
+After clicking the "Add webhook" button, simply add as many URLs as necessary
+in your chain.
 
 The first webhook in a chain will be called after a successful push. Subsequent URLs will be contacted after the callback has been validated.
 
@@ -159,9 +165,12 @@ In order to validate a callback in a webhook chain, you need to
 > **Note**: A chain request will only be considered complete once the last
 > callback has been validated.
 
+To help you debug or simply view the results of your webhook(s),
+view the "History" of the webhook available on its settings page.
+
 #### Callback JSON data
 
-Recognized parameters in callback data are as follow:
+The following parameters are recognized in callback data:
 
 * `state` (required): Accepted values are `success`, `failure` and `error`. If the state isn't `success`, the webhook chain will be interrupted.
 * `description`: A string containing miscellaneous information that will be available on the Docker Hub. Maximum 255 characters.
