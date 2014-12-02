@@ -2701,3 +2701,44 @@ func TestRunTLSverify(t *testing.T) {
 
 	logDone("run - verify tls is set for --tlsverify")
 }
+
+func TestRunPortFromDockerRangeInUse(t *testing.T) {
+	defer deleteAllContainers()
+	// first find allocator current position
+	cmd := exec.Command(dockerBinary, "run", "-d", "-p", ":80", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+	cmd = exec.Command(dockerBinary, "port", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.TrimSpace(out)
+	out = strings.Split(out, ":")[1]
+	lastPort, err := strconv.Atoi(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := lastPort + 1
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	cmd = exec.Command(dockerBinary, "run", "-d", "-p", ":80", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf(out, err)
+	}
+	id = strings.TrimSpace(out)
+	cmd = exec.Command(dockerBinary, "port", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	logDone("run - find another port if port from autorange already bound")
+}
