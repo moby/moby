@@ -927,16 +927,16 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		// FIXME: if these cleanup steps can be called concurrently, register
 		// them as separate handlers to speed up total shutdown time
 		if err := daemon.shutdown(); err != nil {
-			log.Errorf("daemon.shutdown(): %s", err)
+			eng.Logf("daemon.shutdown(): %s", err)
 		}
 		if err := portallocator.ReleaseAll(); err != nil {
-			log.Errorf("portallocator.ReleaseAll(): %s", err)
+			eng.Logf("portallocator.ReleaseAll(): %s", err)
 		}
 		if err := daemon.driver.Cleanup(); err != nil {
-			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
+			eng.Logf("daemon.driver.Cleanup(): %s", err.Error())
 		}
 		if err := daemon.containerGraph.Close(); err != nil {
-			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
+			eng.Logf("daemon.containerGraph.Close(): %s", err.Error())
 		}
 	})
 
