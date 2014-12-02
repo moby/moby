@@ -779,7 +779,7 @@ To see how the `docker:latest` image was built:
 
 ## images
 
-    Usage: docker images [OPTIONS] [NAME]
+    Usage: docker images [OPTIONS] [REPOSITORY]
 
     List images
 
