@@ -337,7 +337,7 @@ func TestIteration(t *testing.T) {
 		data        []byte
 	}{
 		{
-			"tarsum+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"tarsum+sha256:626c4a2e9a467d65c33ae81f7f3dedd4de8ccaee72af73223c4bc4718cbc7bbd",
 			Version0,
 			&tar.Header{
 				Name:     "file.txt",
@@ -349,7 +349,7 @@ func TestIteration(t *testing.T) {
 			[]byte(""),
 		},
 		{
-			"tarsum.dev+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"tarsum.dev+sha256:6ffd43a1573a9913325b4918e124ee982a99c0f3cba90fc032a65f5e20bdd465",
 			VersionDev,
 			&tar.Header{
 				Name:     "file.txt",
@@ -361,7 +361,7 @@ func TestIteration(t *testing.T) {
 			[]byte(""),
 		},
 		{
-			"tarsum.dev+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"tarsum.dev+sha256:b38166c059e11fb77bef30bf16fba7584446e80fcc156ff46d47e36c5305d8ef",
 			VersionDev,
 			&tar.Header{
 				Name:     "another.txt",
@@ -463,6 +463,7 @@ func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {
 	for {
 		hdr, err := tr.Next()
 		if hdr == nil || err == io.EOF {
+			// Signals the end of the archive.
 			break
 		}
 		if err != nil {
@@ -471,7 +472,6 @@ func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {
 		if _, err = io.Copy(ioutil.Discard, tr); err != nil {
 			return "", err
 		}
-		break // we're just reading one header ...
 	}
 	return ts.Sum(nil), nil
 }
