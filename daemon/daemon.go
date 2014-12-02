@@ -926,7 +926,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	eng.OnShutdown(func() {
 		// FIXME: if these cleanup steps can be called concurrently, register
 		// them as separate handlers to speed up total shutdown time
-		// FIXME: use engine logging instead of log.Errorf
 		if err := daemon.shutdown(); err != nil {
 			log.Errorf("daemon.shutdown(): %s", err)
 		}
