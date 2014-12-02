@@ -10,7 +10,7 @@ page_keywords: API, Docker, rcli, REST, documentation
    or `--tlsverify`) as with Boot2Docker 1.3.0, then you need to add extra
    parameters to `curl` or `wget` when making test API requests:
    `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
-   or 
+   or
    `wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://boot2docker:2376/images/json -O - -q`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
@@ -25,10 +25,13 @@ page_keywords: API, Docker, rcli, REST, documentation
    "serveraddress" : "string", "auth": ""}`. Notice that `auth` is to be left
    empty, `serveraddress` is a domain/ip without protocol, and that double
    quotes (instead of single ones) are required.
- - The Remote API uses an open schema model.  In this model, unknown 
+ - The Remote API uses an open schema model.  In this model, unknown
    properties in incoming messages will be ignored.
    Client applications need to take this into account to ensure
    they will not break when talking to newer Docker daemons.
+ - If the daemon generates an error a set of HTTP headers will be generated to
+   convey machine-readable information about the error. See `Errors` section
+   in the API reference for more information.
 
 The current version of the API is v1.19
 
@@ -234,7 +237,7 @@ the `tag` parameter at the same time will return an error.
 The `HostConfig.Links` field is now filled correctly
 
 **New!**
-`Sockets` parameter added to the `/info` endpoint listing all the sockets the 
+`Sockets` parameter added to the `/info` endpoint listing all the sockets the
 daemon is configured to listen on.
 
 `POST /containers/(name)/start`
@@ -562,7 +565,7 @@ Builder (/build):
    intermediary buffers
  - Simpler, less memory usage, less disk usage and faster
 
-> **Warning**: 
+> **Warning**:
 > The /build improvements are not reverse-compatible. Pre 1.3 clients will
 > break on /build.
 

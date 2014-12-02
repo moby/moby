@@ -2028,4 +2028,4 @@ This might change in the future.
 To set cross origin requests to the remote api, please add flag "--api-enable-cors"
 when running docker in daemon mode.
 
-    $ docker -d -H="192.168.1.9:2375" --api-enable-cors 
+    $ docker -d -H="192.168.1.9:2375" --api-enable-cors

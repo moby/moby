@@ -7,6 +7,8 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"expvar"
 	"fmt"
 	"io"
 	"net"
@@ -24,6 +26,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/derror"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -111,10 +114,12 @@ func parseMultipartForm(r *http.Request) error {
 }
 
 func httpError(w http.ResponseWriter, err error) {
+	if err == nil {
+		return
+	}
+
 	statusCode := http.StatusInternalServerError
-	// FIXME: this is brittle and should not be necessary.
-	// If we need to differentiate between different possible error types, we should
-	// create appropriate error types with clearly defined meaning.
+
 	errStr := strings.ToLower(err.Error())
 	if strings.Contains(errStr, "no such") {
 		statusCode = http.StatusNotFound
@@ -131,6 +136,20 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
+		if derr, ok := err.(*derror.Derror); ok {
+			statusCode = derr.Status()
+
+			w.Header().Add("X-Docker-Msg-Id", derr.MessageID())
+
+			for i, arg := range derr.Args() {
+				name := fmt.Sprintf("X-Docker-Msg-Arg-%d", i+1)
+				val := fmt.Sprintf("%v", arg)
+				w.Header().Add(name, val)
+			}
+
+			// Grab Derror's error msg in case they differ
+			err = errors.New(derr.Message())
+		}
 		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
 		http.Error(w, err.Error(), statusCode)
 	}

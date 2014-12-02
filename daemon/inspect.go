@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/derror"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -15,7 +16,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) error {
 	name := job.Args[0]
 	container, err := daemon.Get(name)
 	if err != nil {
-		return err
+		return derror.New("NoContainerID", name)
 	}
 
 	container.Lock()

@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/derror"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -103,6 +104,24 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 		if len(body) == 0 {
 			return nil, "", statusCode, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(statusCode), req.URL)
 		}
+
+		msgID := resp.Header["X-Docker-Msg-Id"]
+		if msgID != nil {
+			var args []interface{}
+
+			for i := 1; ; i++ {
+				name := fmt.Sprintf("X-Docker-Msg-Arg-%d", i)
+				arg := resp.Header[name]
+				if arg == nil {
+					break
+				}
+				args = append(args, arg[0])
+			}
+
+			derr := derror.New(msgID[0], args...)
+			return nil, "", statusCode, derr
+		}
+
 		return nil, "", statusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
 	}
 
@@ -326,11 +345,11 @@ func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, err
 		defer stream.Close()
 	}
 	if err != nil {
-		return nil, statusCode, err
+		return nil, statusCode, derror.New(err)
 	}
 	body, err := ioutil.ReadAll(stream)
 	if err != nil {
-		return nil, -1, err
+		return nil, -1, derror.New(err)
 	}
 	return body, statusCode, nil
 }

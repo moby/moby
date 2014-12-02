@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/derror"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
@@ -154,7 +155,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("No such image: %s", name)
+	return derror.New("NoImageID", name)
 }
 
 // CmdTarLayer return the tarLayer of the image
