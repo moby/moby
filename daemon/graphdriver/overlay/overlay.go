@@ -1,6 +1,6 @@
 // +build linux
 
-package overlayfs
+package overlay
 
 import (
 	"bufio"
@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -51,18 +50,18 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Arc
 	return b, err
 }
 
-// This backend uses the overlayfs union filesystem for containers
+// This backend uses the overlay union filesystem for containers
 // plus hard link file sharing for images.
 
 // Each container/image can have a "root" subdirectory which is a plain
-// filesystem hierarchy, or they can use overlayfs.
+// filesystem hierarchy, or they can use overlay.
 
-// If they use overlayfs there is a "upper" directory and a "lower-id"
+// If they use overlay there is a "upper" directory and a "lower-id"
 // file, as well as "merged" and "work" directories. The "upper"
 // directory has the upper layer of the overlay, and "lower-id" contains
 // the id of the parent whose "root" directory shall be used as the lower
 // layer in the overlay. The overlay itself is mounted in the "merged"
-// directory, and the "work" dir is needed for overlayfs to work.
+// directory, and the "work" dir is needed for overlay to work.
 
 // When a overlay layer is created there are two cases, either the
 // parent has a "root" dir, then we start out with a empty "upper"
@@ -91,11 +90,11 @@ type Driver struct {
 }
 
 func init() {
-	graphdriver.Register("overlayfs", Init)
+	graphdriver.Register("overlay", Init)
 }
 
 func Init(home string, options []string) (graphdriver.Driver, error) {
-	if err := supportsOverlayfs(); err != nil {
+	if err := supportsOverlay(); err != nil {
 		return nil, graphdriver.ErrNotSupported
 	}
 
@@ -112,10 +111,10 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	return NaiveDiffDriverWithApply(d), nil
 }
 
-func supportsOverlayfs() error {
-	// We can try to modprobe overlayfs first before looking at
-	// proc/filesystems for when overlayfs is supported
-	exec.Command("modprobe", "overlayfs").Run()
+func supportsOverlay() error {
+	// We can try to modprobe overlay first before looking at
+	// proc/filesystems for when overlay is supported
+	exec.Command("modprobe", "overlay").Run()
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
@@ -125,16 +124,16 @@ func supportsOverlayfs() error {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		if strings.Contains(s.Text(), "overlayfs") {
+		if s.Text() == "nodev\toverlay" {
 			return nil
 		}
 	}
-	log.Error("'overlayfs' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlayfs support loaded.")
+	log.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
 	return graphdriver.ErrNotSupported
 }
 
 func (d *Driver) String() string {
-	return "overlayfs"
+	return "overlay"
 }
 
 func (d *Driver) Status() [][2]string {
@@ -176,7 +175,7 @@ func (d *Driver) Create(id string, parent string) (retErr error) {
 		return err
 	}
 
-	// If parent has a root, just do a overlayfs to it
+	// If parent has a root, just do a overlay to it
 	parentRoot := path.Join(parentDir, "root")
 
 	if s, err := os.Lstat(parentRoot); err == nil {
@@ -274,7 +273,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	mergedDir := path.Join(dir, "merged")
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
-	if err := syscall.Mount("overlayfs", mergedDir, "overlayfs", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
+	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
 		return "", err
 	}
 	mount.path = mergedDir
@@ -302,7 +301,7 @@ func (d *Driver) Put(id string) {
 
 	if mount.mounted {
 		if err := syscall.Unmount(mount.path, 0); err != nil {
-			log.Debugf("Failed to unmount %s overlayfs: %v", id, err)
+			log.Debugf("Failed to unmount %s overlay: %v", id, err)
 		}
 	}
 

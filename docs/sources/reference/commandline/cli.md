@@ -156,7 +156,7 @@ string is equivalent to setting the `--tlsverify` flag. The following are equiva
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage drivers: `aufs`,
-`devicemapper`, `btrfs` and `overlayfs`.
+`devicemapper`, `btrfs` and `overlay`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
@@ -175,9 +175,9 @@ To tell the Docker daemon to use `devicemapper`, use
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
 share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
 
-The `overlayfs` is a very fast union filesystem. It is now merged in the main
+The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
-Call `docker -d -s overlayfs` to use it.
+Call `docker -d -s overlay` to use it.
 
 ### Docker exec-driver option
 
