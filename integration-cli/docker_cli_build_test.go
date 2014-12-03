@@ -3175,3 +3175,57 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	logDone("build - exotic shell interpolation")
 }
+
+func TestBuildSymlinkBreakout(t *testing.T) {
+	name := "testbuildsymlinkbreakout"
+	tmpdir, err := ioutil.TempDir("", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	ctx := filepath.Join(tmpdir, "context")
+	if err := os.MkdirAll(ctx, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte(`
+	from busybox
+	add symlink.tar /
+	add inject /symlink/
+	`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inject := filepath.Join(ctx, "inject")
+	if err := ioutil.WriteFile(inject, nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Create(filepath.Join(ctx, "symlink.tar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := tar.NewWriter(f)
+	w.WriteHeader(&tar.Header{
+		Name:     "symlink2",
+		Typeflag: tar.TypeSymlink,
+		Linkname: "/../../../../../../../../../../../../../../",
+		Uid:      os.Getuid(),
+		Gid:      os.Getgid(),
+	})
+	w.WriteHeader(&tar.Header{
+		Name:     "symlink",
+		Typeflag: tar.TypeSymlink,
+		Linkname: filepath.Join("symlink2", tmpdir),
+		Uid:      os.Getuid(),
+		Gid:      os.Getgid(),
+	})
+	w.Close()
+	f.Close()
+	if _, err := buildImageFromContext(name, &FakeContext{Dir: ctx}, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(tmpdir, "inject")); err == nil {
+		t.Fatal("symlink breakout - inject")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	logDone("build - symlink breakout")
+}
