@@ -200,7 +200,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 }
 
 func (devices *DeviceSet) allocateTransactionId() uint64 {
-	devices.NewTransactionId = devices.NewTransactionId + 1
+	devices.NewTransactionId = devices.TransactionId + 1
 	return devices.NewTransactionId
 }
 
@@ -398,7 +398,6 @@ func (devices *DeviceSet) initMetaData() error {
 	}
 
 	devices.TransactionId = transactionId
-	devices.NewTransactionId = devices.TransactionId
 	return nil
 }
 
