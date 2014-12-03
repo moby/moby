@@ -814,9 +814,6 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 	devices.devicesLock.Unlock()
 
 	if err := devices.removeMetadata(info); err != nil {
-		devices.devicesLock.Lock()
-		devices.Devices[info.Hash] = info
-		devices.devicesLock.Unlock()
 		log.Debugf("Error removing meta data: %s", err)
 		return err
 	}
