@@ -793,7 +793,6 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		return err
 	}
 
-	devices.allocateTransactionId()
 	devices.devicesLock.Lock()
 	delete(devices.Devices, info.Hash)
 	devices.devicesLock.Unlock()
