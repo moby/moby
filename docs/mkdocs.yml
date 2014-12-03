@@ -98,6 +98,7 @@ pages:
 - ['articles/ambassador_pattern_linking.md', 'Articles', 'Cross-Host linking using ambassador containers']
 - ['articles/runmetrics.md', 'Articles', 'Runtime metrics']
 - ['articles/b2d_volume_resize.md', 'Articles', 'Increasing a Boot2Docker volume']
+- ['articles/systemd.md', 'Articles', 'Controlling and configuring Docker using Systemd']
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']

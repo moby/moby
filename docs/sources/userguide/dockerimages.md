@@ -13,14 +13,14 @@ image and the `training/webapp` image.
 We've also discovered that Docker stores downloaded images on the Docker
 host. If an image isn't already present on the host then it'll be
 downloaded from a registry: by default the
-[Docker Hub](https://hub.docker.com) public registry.
+[Docker Hub Registry](https://registry.hub.docker.com).
 
 In this section we're going to explore Docker images a bit more
 including:
 
 * Managing and working with images locally on your Docker host;
 * Creating basic images;
-* Uploading images to [Docker Hub](https://hub.docker.com).
+* Uploading images to [Docker Hub Registry](https://registry.hub.docker.com).
 
 ## Listing images on the host
 

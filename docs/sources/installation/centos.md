@@ -45,11 +45,11 @@ to `/etc/systemd/system`.
 CentOS-7 introduced firewalld, which is a wrapper around iptables and can
 conflict with Docker.
 
-When firewalld is started or restarted it will remove the `DOCKER` chain
+When `firewalld` is started or restarted it will remove the `DOCKER` chain
 from iptables, preventing Docker from working properly.
 
-When using systemd, firewalld is started before Docker, but if you
-start or restart firewalld  after Docker, you will have to restart the Docker daemon.
+When using systemd, `firewalld` is started before Docker, but if you
+start or restart `firewalld` after Docker, you will have to restart the Docker daemon.
 
 ## Installing Docker - CentOS-6
 Please note that this for CentOS-6, this package is part of [Extra Packages
@@ -103,7 +103,13 @@ Run a simple bash shell to test the image:
     $ sudo docker run -i -t centos /bin/bash
 
 If everything is working properly, you'll get a simple bash prompt. Type
-exit to continue.
+`exit` to continue.
+
+## Custom daemon options
+
+If you need to add an HTTP Proxy, set a different directory or partition for the
+Docker runtime files, or make other customizations, read our systemd article to
+learn how to [customize your systemd Docker daemon options](/articles/systemd/).
 
 ## Dockerfiles
 The CentOS Project provides a number of sample Dockerfiles which you may use

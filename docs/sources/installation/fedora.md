@@ -67,28 +67,11 @@ member of that group in order to contact the `docker -d` process.
 Adding users to the `docker` group is *not* necessary for Docker versions 1.0
 and above.
 
-## HTTP Proxy
+## Custom daemon options
 
-If you are behind a HTTP proxy server, for example in corporate settings, 
-you will need to add this configuration in the Docker *systemd service file*.
-
-Edit file `/usr/lib/systemd/system/docker.service`. Add the following to
-section `[Service]` :
-
-    Environment="HTTP_PROXY=http://proxy.example.com:80/"
-
-If you have internal Docker registries that you need to contact without
-proxying you can specify them via the `NO_PROXY` environment variable:
-
-    Environment="HTTP_PROXY=http://proxy.example.com:80/" "NO_PROXY=localhost,127.0.0.0/8,docker-registry.somecorporation.com"
-
-Flush changes:
-
-    $ systemctl daemon-reload
-    
-Restart Docker:
-
-    $ systemctl start docker
+If you need to add an HTTP Proxy, set a different directory or partition for the
+Docker runtime files, or make other customizations, read our systemd article to
+learn how to [customize your systemd Docker daemon options](/articles/systemd/).
 
 ## What next?
 

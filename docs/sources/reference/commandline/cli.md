@@ -11,7 +11,7 @@ or execute `docker help`:
       Usage: docker [OPTIONS] COMMAND [arg...]
         -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
-      A self-sufficient runtime for linux containers.
+      A self-sufficient runtime for Linux containers.
 
       ...
 
@@ -100,7 +100,7 @@ To run the daemon with debug output, use `docker -d -D`.
 
 ### Daemon socket option
 
-The Docker daemon can listen for [Docker Remote API](reference/api/docker_remote_api/)
+The Docker daemon can listen for [Docker Remote API](/reference/api/docker_remote_api/)
 requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 
 By default, a `unix` domain socket (or IPC socket) is created at `/var/run/docker.sock`,
@@ -109,7 +109,7 @@ requiring either `root` permission, or `docker` group membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and un-authenticated
 direct access to the Docker daemon - and should be secured either using the
-[built in https encrypted socket](/articles/https/), or by putting a secure web
+[built in HTTPS encrypted socket](/articles/https/), or by putting a secure web
 proxy in front of it. You can listen on port `2375` on all network interfaces
 with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
 address: `-H tcp://192.168.59.103:2375`. It is conventional to use port `2375`
@@ -153,8 +153,8 @@ string is equivalent to setting the `--tlsverify` flag. The following are equiva
 
 ### Daemon storage-driver option
 
-The Docker daemon has support for three different image layer storage drivers: `aufs`,
-`devicemapper`, and `btrfs`.
+The Docker daemon has support for several different image layer storage drivers: `aufs`,
+`devicemapper`, `btrfs`, and `overlayfs`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
@@ -735,19 +735,28 @@ decrease disk usage, and speed up `docker build` by
 allowing each step to be cached. These intermediate layers are not shown
 by default.
 
+The `VIRTUAL SIZE` is the cumulative space taken up by the image and all
+its parent images. This is also the disk space used by the contents of the
+Tar file created when you `docker save` an image.
+
+An image will be listed more than once if it has multiple repository names
+or tags. This single image (identifiable by its matching `IMAGE ID`)
+uses up the `VIRTUAL SIZE` listed only once.
+
 #### Listing the most recently created images
 
     $ sudo docker images | head
-    REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-    <none>                        <none>              77af4d6b9913        19 hours ago        1.089 GB
-    committest                    latest              b6fa739cedf5        19 hours ago        1.089 GB
-    <none>                        <none>              78a85c484f71        19 hours ago        1.089 GB
-    docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
-    <none>                        <none>              0124422dd9f9        20 hours ago        1.089 GB
-    <none>                        <none>              18ad6fad3402        22 hours ago        1.082 GB
-    <none>                        <none>              f9f1e26352f0        23 hours ago        1.089 GB
-    tryout                        latest              2629d1fa0b81        23 hours ago        131.5 MB
-    <none>                        <none>              5ed6274db6ce        24 hours ago        1.089 GB
+    REPOSITORY                TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    <none>                    <none>              77af4d6b9913        19 hours ago        1.089 GB
+    committ                   latest              b6fa739cedf5        19 hours ago        1.089 GB
+    <none>                    <none>              78a85c484f71        19 hours ago        1.089 GB
+    docker                    latest              30557a29d5ab        20 hours ago        1.089 GB
+    <none>                    <none>              5ed6274db6ce        24 hours ago        1.089 GB
+    postgres                  9                   746b819f315e        4 days ago          213.4 MB
+    postgres                  9.3                 746b819f315e        4 days ago          213.4 MB
+    postgres                  9.3.5               746b819f315e        4 days ago          213.4 MB
+    postgres                  latest              746b819f315e        4 days ago          213.4 MB
+
 
 #### Listing the full length image IDs
 
@@ -1114,9 +1123,8 @@ use `docker pull`:
     # will pull the debian:latest image, its intermediate layers
     # and any aliases of the same id
     $ sudo docker pull debian:testing
-    # will pull the image named ubuntu:trusty, ubuntu:14.04
-    # which is an alias of the same image
-    # and any intermediate layers it is based on.
+    # will pull the image named debian:testing and any intermediate
+    # layers it is based on.
     # (Typically the empty `scratch` image, a MAINTAINER layer,
     # and the un-tarred base).
     $ sudo docker pull --all-tags centos
@@ -1267,7 +1275,7 @@ specified image, and then `starts` it using the specified command. That is,
 previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
 
-There is detailed infortmation about `docker run` in the [Docker run reference](
+There is detailed information about `docker run` in the [Docker run reference](
 /reference/run/).
 
 The `docker run` command can be used in combination with `docker commit` to
@@ -1524,6 +1532,30 @@ on-failure ** and a maximum restart count of 10.  If the `redis`
 container exits with a non-zero exit status more than 10 times in a row
 Docker will abort trying to restart the container.  Providing a maximum
 restart limit is only valid for the ** on-failure ** policy.
+
+### Adding entries to a container hosts file
+
+You can add other hosts into a container's `/etc/hosts` file by using one or more
+`--add-host` flags. This example adds a static address for a host named `docker`:
+
+```
+    $ docker run --add-host=docker:10.180.0.1 --rm -it debian
+    $$ ping docker
+    PING docker (10.180.0.1): 48 data bytes
+    56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
+    56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
+    ^C--- docker ping statistics ---
+    2 packets transmitted, 2 packets received, 0% packet loss
+    round-trip min/avg/max/stddev = 7.600/19.152/30.705/11.553 ms
+```
+
+> **Note:**
+> Sometimes you need to connect to the Docker host, which means getting the IP
+> address of the host. You can use the following shell commands to simplify this
+> process:
+>
+>      $ alias hostip="ip route show 0.0.0.0/0 | grep -Eo 'via \S+' | awk '{ print \$2 }'"
+>      $ docker run  --add-host=docker:$(hostip) --rm -it debian
 
 ## save
 

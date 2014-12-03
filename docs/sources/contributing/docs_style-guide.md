@@ -147,7 +147,7 @@ periods, PC not P.C.
 
 When writing lists, keep the following in mind:
 
-Use bullets when the items being listed are independant of each other and the
+Use bullets when the items being listed are independent of each other and the
 order of presentation is not important.
 
 Use numbers for steps that have to happen in order or if you have mentioned the
@@ -169,7 +169,7 @@ Use notes sparingly and only to bring things to the reader's attention that are
 critical or otherwise deserving of being called out from the body text. Please
 format all notes as follows:
 
-    **Note:**
+    > **Note:**
     > One line of note text
     > another line of note text
 
