@@ -303,6 +303,65 @@ func (devices *DeviceSet) lookupDevice(hash string) (*DevInfo, error) {
 	return info, nil
 }
 
+func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo) error {
+
+	// Skip some of the meta files which are not device files.
+	if strings.HasSuffix(finfo.Name(), ".migrated") {
+		log.Debugf("Skipping file %s", path)
+		return nil
+	}
+
+	if finfo.Name() == deviceSetMetaFile {
+		log.Debugf("Skipping file %s", path)
+		return nil
+	}
+
+	log.Debugf("Loading data for file %s", path)
+
+	hash := finfo.Name()
+	if hash == "base" {
+		hash = ""
+	}
+
+	dinfo := devices.loadMetadata(hash)
+	if dinfo == nil {
+		return fmt.Errorf("Error loading device metadata file %s", hash)
+	}
+
+	if dinfo.DeviceId > MaxDeviceId {
+		log.Errorf("Warning: Ignoring Invalid DeviceId=%d", dinfo.DeviceId)
+		return nil
+	}
+
+	devices.Lock()
+	devices.markDeviceIdUsed(dinfo.DeviceId)
+	devices.Unlock()
+
+	log.Debugf("Added deviceId=%d to DeviceIdMap", dinfo.DeviceId)
+	return nil
+}
+
+func (devices *DeviceSet) constructDeviceIdMap() error {
+	log.Debugf("[deviceset] constructDeviceIdMap()")
+	defer log.Debugf("[deviceset] constructDeviceIdMap() END")
+
+	var scan = func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Debugf("Can't walk the file %s", path)
+			return nil
+		}
+
+		// Skip any directories
+		if info.IsDir() {
+			return nil
+		}
+
+		return devices.deviceFileWalkFunction(path, info)
+	}
+
+	return filepath.Walk(devices.metadataDir(), scan)
+}
+
 func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
 	log.Debugf("unregisterDevice(%v, %v)", id, hash)
 	info := &DevInfo{
@@ -429,6 +488,10 @@ func (devices *DeviceSet) initMetaData() error {
 	}
 
 	devices.TransactionId = transactionId
+
+	if err := devices.constructDeviceIdMap(); err != nil {
+		return err
+	}
 	return nil
 }
 
