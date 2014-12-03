@@ -30,7 +30,9 @@ var (
 	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
 	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
-	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
+	DefaultThinpBlockSize       uint32 = 128      // 64K = 128 512b sectors
+	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
+	DeviceIdMapSz               int    = (MaxDeviceId + 1) / 8
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -75,6 +77,7 @@ type DeviceSet struct {
 	devicePrefix  string
 	TransactionId uint64 `json:"-"`
 	NextDeviceId  int    `json:"next_device_id"`
+	deviceIdMap   []byte
 
 	// Options
 	dataLoopbackSize     int64
@@ -261,6 +264,30 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	return nil
 }
 
+func (devices *DeviceSet) markDeviceIdUsed(deviceId int) {
+	var mask byte
+	i := deviceId % 8
+	mask = 1 << uint(i)
+	devices.deviceIdMap[deviceId/8] = devices.deviceIdMap[deviceId/8] | mask
+}
+
+func (devices *DeviceSet) markDeviceIdFree(deviceId int) {
+	var mask byte
+	i := deviceId % 8
+	mask = ^(1 << uint(i))
+	devices.deviceIdMap[deviceId/8] = devices.deviceIdMap[deviceId/8] & mask
+}
+
+func (devices *DeviceSet) isDeviceIdFree(deviceId int) bool {
+	var mask byte
+	i := deviceId % 8
+	mask = (1 << uint(i))
+	if (devices.deviceIdMap[deviceId/8] & mask) != 0 {
+		return false
+	}
+	return true
+}
+
 func (devices *DeviceSet) lookupDevice(hash string) (*DevInfo, error) {
 	devices.devicesLock.Lock()
 	defer devices.devicesLock.Unlock()
@@ -407,7 +434,7 @@ func (devices *DeviceSet) initMetaData() error {
 
 func (devices *DeviceSet) incNextDeviceId() {
 	// Ids are 24bit, so wrap around
-	devices.NextDeviceId = (devices.NextDeviceId + 1) & 0xffffff
+	devices.NextDeviceId = (devices.NextDeviceId + 1) & MaxDeviceId
 }
 
 func (devices *DeviceSet) createDevice(deviceId *int) error {
@@ -1333,6 +1360,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		filesystem:           "ext4",
 		doBlkDiscard:         true,
 		thinpBlockSize:       DefaultThinpBlockSize,
+		deviceIdMap:          make([]byte, DeviceIdMapSz),
 	}
 
 	foundBlkDiscard := false
