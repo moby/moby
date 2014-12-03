@@ -36,9 +36,12 @@ var (
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
+const transactionMetaFile string = "transaction-metadata"
 
 type Transaction struct {
-	OpenTransactionId uint64 `json:"-"`
+	OpenTransactionId uint64 `json:"open_transaction_id"`
+	DeviceIdHash      string `json:"device_hash"`
+	DeviceId          int    `json:"device_id"`
 }
 
 type DevInfo struct {
@@ -147,6 +150,10 @@ func (devices *DeviceSet) metadataFile(info *DevInfo) string {
 		file = "base"
 	}
 	return path.Join(devices.metadataDir(), file)
+}
+
+func (devices *DeviceSet) transactionMetaFile() string {
+	return path.Join(devices.metadataDir(), transactionMetaFile)
 }
 
 func (devices *DeviceSet) deviceSetMetaFile() string {
@@ -492,6 +499,10 @@ func (devices *DeviceSet) initMetaData() error {
 	if err := devices.constructDeviceIdMap(); err != nil {
 		return err
 	}
+
+	if err := devices.processPendingTransaction(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -519,6 +530,12 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 		return nil, err
 	}
 
+	if err := devices.openTransaction(hash, deviceId); err != nil {
+		log.Debugf("Error opening transaction hash = %s deviceId = %d", hash, deviceId)
+		devices.markDeviceIdFree(deviceId)
+		return nil, err
+	}
+
 	for {
 		if err := devicemapper.CreateDevice(devices.getPoolDevName(), deviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
@@ -531,6 +548,8 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 				if err != nil {
 					return nil, err
 				}
+				// Save new device id into transaction
+				devices.refreshTransaction(deviceId)
 				continue
 			}
 			log.Debugf("Error creating device: %s", err)
@@ -540,16 +559,15 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 		break
 	}
 
-	transactionId := devices.allocateTransactionId()
 	log.Debugf("Registering device (id %v) with FS size %v", deviceId, devices.baseFsSize)
-	info, err := devices.registerDevice(deviceId, hash, devices.baseFsSize, transactionId)
+	info, err := devices.registerDevice(deviceId, hash, devices.baseFsSize, devices.OpenTransactionId)
 	if err != nil {
 		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		devices.markDeviceIdFree(deviceId)
 		return nil, err
 	}
 
-	if err := devices.updatePoolTransactionId(); err != nil {
+	if err := devices.closeTransaction(); err != nil {
 		devices.unregisterDevice(deviceId, hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		devices.markDeviceIdFree(deviceId)
@@ -561,6 +579,12 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInfo) error {
 	deviceId, err := devices.getNextFreeDeviceId()
 	if err != nil {
+		return err
+	}
+
+	if err := devices.openTransaction(hash, deviceId); err != nil {
+		log.Debugf("Error opening transaction hash = %s deviceId = %d", hash, deviceId)
+		devices.markDeviceIdFree(deviceId)
 		return err
 	}
 
@@ -576,6 +600,8 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInf
 				if err != nil {
 					return err
 				}
+				// Save new device id into transaction
+				devices.refreshTransaction(deviceId)
 				continue
 			}
 			log.Debugf("Error creating snap device: %s", err)
@@ -585,15 +611,14 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInf
 		break
 	}
 
-	transactionId := devices.allocateTransactionId()
-	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size, transactionId); err != nil {
+	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size, devices.OpenTransactionId); err != nil {
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		devices.markDeviceIdFree(deviceId)
 		log.Debugf("Error registering device: %s", err)
 		return err
 	}
 
-	if err := devices.updatePoolTransactionId(); err != nil {
+	if err := devices.closeTransaction(); err != nil {
 		devices.unregisterDevice(deviceId, hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		devices.markDeviceIdFree(deviceId)
@@ -775,6 +800,90 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	return nil
 }
 
+func (devices *DeviceSet) loadTransactionMetaData() error {
+	jsonData, err := ioutil.ReadFile(devices.transactionMetaFile())
+	if err != nil {
+		// There is no active transaction. This will be the case
+		// during upgrade.
+		if os.IsNotExist(err) {
+			devices.OpenTransactionId = devices.TransactionId
+			return nil
+		}
+		return err
+	}
+
+	json.Unmarshal(jsonData, &devices.Transaction)
+	return nil
+}
+
+func (devices *DeviceSet) saveTransactionMetaData() error {
+	jsonData, err := json.Marshal(&devices.Transaction)
+	if err != nil {
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
+	}
+
+	return devices.writeMetaFile(jsonData, devices.transactionMetaFile())
+}
+
+func (devices *DeviceSet) removeTransactionMetaData() error {
+	if err := os.RemoveAll(devices.transactionMetaFile()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (devices *DeviceSet) rollbackTransaction() error {
+	log.Debugf("Rolling back open transaction: TransactionId=%d hash=%s device_id=%d", devices.OpenTransactionId, devices.DeviceIdHash, devices.DeviceId)
+
+	// A device id might have already been deleted before transaction
+	// closed. In that case this call will fail. Just leave a message
+	// in case of failure.
+	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), devices.DeviceId); err != nil {
+		log.Errorf("Warning: Unable to delete device: %s", err)
+	}
+
+	dinfo := &DevInfo{Hash: devices.DeviceIdHash}
+	if err := devices.removeMetadata(dinfo); err != nil {
+		log.Errorf("Warning: Unable to remove meta data: %s", err)
+	} else {
+		devices.markDeviceIdFree(devices.DeviceId)
+	}
+
+	if err := devices.removeTransactionMetaData(); err != nil {
+		log.Errorf("Warning: Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) processPendingTransaction() error {
+	if err := devices.loadTransactionMetaData(); err != nil {
+		return err
+	}
+
+	// If there was open transaction but pool transaction Id is same
+	// as open transaction Id, nothing to roll back.
+	if devices.TransactionId == devices.OpenTransactionId {
+		return nil
+	}
+
+	// If open transaction Id is less than pool transaction Id, something
+	// is wrong. Bail out.
+	if devices.OpenTransactionId < devices.TransactionId {
+		log.Errorf("Warning: Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionId, devices.TransactionId)
+		return nil
+	}
+
+	// Pool transaction Id is not same as open transaction. There is
+	// a transaction which was not completed.
+	if err := devices.rollbackTransaction(); err != nil {
+		return fmt.Errorf("Rolling back open transaction failed: %s", err)
+	}
+
+	devices.OpenTransactionId = devices.TransactionId
+	return nil
+}
+
 func (devices *DeviceSet) loadDeviceSetMetaData() error {
 	jsonData, err := ioutil.ReadFile(devices.deviceSetMetaFile())
 	if err != nil {
@@ -796,6 +905,32 @@ func (devices *DeviceSet) saveDeviceSetMetaData() error {
 	}
 
 	return devices.writeMetaFile(jsonData, devices.deviceSetMetaFile())
+}
+
+func (devices *DeviceSet) openTransaction(hash string, DeviceId int) error {
+	devices.allocateTransactionId()
+	devices.DeviceIdHash = hash
+	devices.DeviceId = DeviceId
+	if err := devices.saveTransactionMetaData(); err != nil {
+		return fmt.Errorf("Error saving transaction meta data: %s", err)
+	}
+	return nil
+}
+
+func (devices *DeviceSet) refreshTransaction(DeviceId int) error {
+	devices.DeviceId = DeviceId
+	if err := devices.saveTransactionMetaData(); err != nil {
+		return fmt.Errorf("Error saving transaction meta data: %s", err)
+	}
+	return nil
+}
+
+func (devices *DeviceSet) closeTransaction() error {
+	if err := devices.updatePoolTransactionId(); err != nil {
+		log.Debugf("Failed to close Transaction")
+		return err
+	}
+	return nil
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
