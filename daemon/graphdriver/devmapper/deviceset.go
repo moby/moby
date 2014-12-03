@@ -394,6 +394,50 @@ func (devices *DeviceSet) initMetaData() error {
 	return nil
 }
 
+func (devices *DeviceSet) incNextDeviceId() {
+	// Ids are 24bit, so wrap around
+	devices.NextDeviceId = (devices.NextDeviceId + 1) & 0xffffff
+}
+
+func (devices *DeviceSet) createDevice(deviceId *int) error {
+	for {
+		if err := devicemapper.CreateDevice(devices.getPoolDevName(), *deviceId); err != nil {
+			if devicemapper.DeviceIdExists(err) {
+				// Device Id already exists. Try a new one.
+				devices.incNextDeviceId()
+				*deviceId = devices.NextDeviceId
+				continue
+			}
+			log.Debugf("Error creating device: %s", err)
+			return err
+		}
+		break
+	}
+	devices.incNextDeviceId()
+	return nil
+}
+
+func (devices *DeviceSet) createSnapDevice(baseInfo *DevInfo, deviceId *int) error {
+	log.Debugf("[deviceset] createSnapDevice() DeviceId=%d", *deviceId)
+	defer log.Debugf("[deviceset] createSnapDevice() END DeviceId=%d", *deviceId)
+
+	for {
+		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), *deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
+			if devicemapper.DeviceIdExists(err) {
+				// Device Id already exists. Try a new one.
+				devices.incNextDeviceId()
+				*deviceId = devices.NextDeviceId
+				continue
+			}
+			log.Debugf("Error creating snap device: %s", err)
+			return err
+		}
+		break
+	}
+	devices.incNextDeviceId()
+	return nil
+}
+
 func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 	info := &DevInfo{Hash: hash, devices: devices}
 
@@ -439,20 +483,16 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	log.Debugf("Initializing base device-mapper thin volume")
 
-	id := devices.NextDeviceId
-
 	// Create initial device
-	if err := devicemapper.CreateDevice(devices.getPoolDevName(), &id); err != nil {
+	deviceId := devices.NextDeviceId
+	if err := devices.createDevice(&deviceId); err != nil {
 		return err
 	}
 
-	// Ids are 24bit, so wrap around
-	devices.NextDeviceId = (id + 1) & 0xffffff
-
-	log.Debugf("Registering base device (id %v) with FS size %v", id, devices.baseFsSize)
-	info, err := devices.registerDevice(id, "", devices.baseFsSize)
+	log.Debugf("Registering base device (id %v) with FS size %v", deviceId, devices.baseFsSize)
+	info, err := devices.registerDevice(deviceId, "", devices.baseFsSize)
 	if err != nil {
-		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), id)
+		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		return err
 	}
 
@@ -751,6 +791,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 }
 
 func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
+	log.Debugf("[deviceset] AddDevice() hash=%s basehash=%s", hash, baseHash)
+	defer log.Debugf("[deviceset] AddDevice END")
+
 	baseInfo, err := devices.lookupDevice(baseHash)
 	if err != nil {
 		return err
@@ -767,14 +810,10 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	}
 
 	deviceId := devices.NextDeviceId
-
-	if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
+	if err := devices.createSnapDevice(baseInfo, &deviceId); err != nil {
 		log.Debugf("Error creating snap device: %s", err)
 		return err
 	}
-
-	// Ids are 24bit, so wrap around
-	devices.NextDeviceId = (deviceId + 1) & 0xffffff
 
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)

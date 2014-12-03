@@ -67,6 +67,7 @@ var (
 	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 	ErrBusy                   = errors.New("Device is Busy")
+	ErrDeviceIdExists         = errors.New("Device Id Exists")
 
 	dmSawBusy  bool
 	dmSawExist bool
@@ -96,6 +97,16 @@ type (
 	TaskType    int
 	AddNodeType int
 )
+
+// Returns whether error conveys the information about device Id already
+// exist or not. This will be true if device creation or snap creation
+// operation fails if device or snap device already exists in pool.
+// Current implementation is little crude as it scans the error string
+// for exact pattern match. Replacing it with more robust implementation
+// is desirable.
+func DeviceIdExists(err error) bool {
+	return fmt.Sprint(err) == fmt.Sprint(ErrDeviceIdExists)
+}
 
 func (t *Task) destroy() {
 	if t != nil {
@@ -528,33 +539,29 @@ func ResumeDevice(name string) error {
 	return nil
 }
 
-func CreateDevice(poolName string, deviceId *int) error {
-	log.Debugf("[devmapper] CreateDevice(poolName=%v, deviceId=%v)", poolName, *deviceId)
+func CreateDevice(poolName string, deviceId int) error {
+	log.Debugf("[devmapper] CreateDevice(poolName=%v, deviceId=%v)", poolName, deviceId)
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
+	if task == nil {
+		return err
+	}
 
-	for {
-		task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
-		if task == nil {
-			return err
-		}
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector %s", err)
+	}
 
-		if err := task.SetSector(0); err != nil {
-			return fmt.Errorf("Can't set sector %s", err)
-		}
+	if err := task.SetMessage(fmt.Sprintf("create_thin %d", deviceId)); err != nil {
+		return fmt.Errorf("Can't set message %s", err)
+	}
 
-		if err := task.SetMessage(fmt.Sprintf("create_thin %d", *deviceId)); err != nil {
-			return fmt.Errorf("Can't set message %s", err)
-		}
-
-		dmSawExist = false // reset before the task is run
-		if err := task.Run(); err != nil {
-			if dmSawExist {
-				// Already exists, try next id
-				*deviceId++
-				continue
-			}
+	dmSawExist = false // reset before the task is run
+	if err := task.Run(); err != nil {
+		// Caller wants to know about ErrDeviceIdExists so that it can try with a different device id.
+		if dmSawExist {
+			return ErrDeviceIdExists
+		} else {
 			return fmt.Errorf("Error running CreateDevice %s", err)
 		}
-		break
 	}
 	return nil
 }
@@ -607,7 +614,7 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 	return nil
 }
 
-func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDeviceId int) error {
+func CreateSnapDevice(poolName string, deviceId int, baseName string, baseDeviceId int) error {
 	devinfo, _ := GetInfo(baseName)
 	doSuspend := devinfo != nil && devinfo.Exists != 0
 
@@ -617,44 +624,39 @@ func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 		}
 	}
 
-	for {
-		task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
-		if task == nil {
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
-			return err
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
+	if task == nil {
+		if doSuspend {
+			ResumeDevice(baseName)
 		}
+		return err
+	}
 
-		if err := task.SetSector(0); err != nil {
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
-			return fmt.Errorf("Can't set sector %s", err)
+	if err := task.SetSector(0); err != nil {
+		if doSuspend {
+			ResumeDevice(baseName)
 		}
+		return fmt.Errorf("Can't set sector %s", err)
+	}
 
-		if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", *deviceId, baseDeviceId)); err != nil {
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
-			return fmt.Errorf("Can't set message %s", err)
+	if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", deviceId, baseDeviceId)); err != nil {
+		if doSuspend {
+			ResumeDevice(baseName)
 		}
+		return fmt.Errorf("Can't set message %s", err)
+	}
 
-		dmSawExist = false // reset before the task is run
-		if err := task.Run(); err != nil {
-			if dmSawExist {
-				// Already exists, try next id
-				*deviceId++
-				continue
-			}
-
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
+	dmSawExist = false // reset before the task is run
+	if err := task.Run(); err != nil {
+		if doSuspend {
+			ResumeDevice(baseName)
+		}
+		// Caller wants to know about ErrDeviceIdExists so that it can try with a different device id.
+		if dmSawExist {
+			return ErrDeviceIdExists
+		} else {
 			return fmt.Errorf("Error running DeviceCreate (createSnapDevice) %s", err)
 		}
-
-		break
 	}
 
 	if doSuspend {
