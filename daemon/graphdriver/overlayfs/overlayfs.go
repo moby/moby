@@ -50,18 +50,18 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Arc
 	return b, err
 }
 
-// This backend uses the overlayfs union filesystem for containers
+// This backend uses the overlay union filesystem for containers
 // plus hard link file sharing for images.
 
 // Each container/image can have a "root" subdirectory which is a plain
-// filesystem hierarchy, or they can use overlayfs.
+// filesystem hierarchy, or they can use overlay.
 
-// If they use overlayfs there is a "upper" directory and a "lower-id"
+// If they use overlay there is a "upper" directory and a "lower-id"
 // file, as well as "merged" and "work" directories. The "upper"
 // directory has the upper layer of the overlay, and "lower-id" contains
 // the id of the parent whose "root" directory shall be used as the lower
 // layer in the overlay. The overlay itself is mounted in the "merged"
-// directory, and the "work" dir is needed for overlayfs to work.
+// directory, and the "work" dir is needed for overlay to work.
 
 // When a overlay layer is created there are two cases, either the
 // parent has a "root" dir, then we start out with a empty "upper"
@@ -90,7 +90,7 @@ type Driver struct {
 }
 
 func init() {
-	graphdriver.Register("overlayfs", Init)
+	graphdriver.Register("overlay", Init)
 }
 
 func Init(home string, options []string) (graphdriver.Driver, error) {
@@ -112,8 +112,8 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 }
 
 func supportsOverlayfs() error {
-	// We can try to modprobe overlayfs first before looking at
-	// proc/filesystems for when overlayfs is supported
+	// We can try to modprobe overlay first before looking at
+	// proc/filesystems for when overlay is supported
 	exec.Command("modprobe", "overlay").Run()
 
 	f, err := os.Open("/proc/filesystems")
@@ -133,7 +133,7 @@ func supportsOverlayfs() error {
 }
 
 func (d *Driver) String() string {
-	return "overlayfs"
+	return "overlay"
 }
 
 func (d *Driver) Status() [][2]string {
@@ -175,7 +175,7 @@ func (d *Driver) Create(id string, parent string) (retErr error) {
 		return err
 	}
 
-	// If parent has a root, just do a overlayfs to it
+	// If parent has a root, just do a overlay to it
 	parentRoot := path.Join(parentDir, "root")
 
 	if s, err := os.Lstat(parentRoot); err == nil {
@@ -301,7 +301,7 @@ func (d *Driver) Put(id string) {
 
 	if mount.mounted {
 		if err := syscall.Unmount(mount.path, 0); err != nil {
-			log.Debugf("Failed to unmount %s overlayfs: %v", id, err)
+			log.Debugf("Failed to unmount %s overlay: %v", id, err)
 		}
 	}
 

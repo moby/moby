@@ -76,7 +76,7 @@ check_flags() {
 	for flag in "$@"; do
 		echo "- $(check_flag "$flag")"
 	done
-} 
+}
 
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config..."
@@ -165,7 +165,7 @@ echo '- Storage Drivers:'
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
 	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 
-	echo '- "'$(wrap_color 'overlayfs' blue)'":'
+	echo '- "'$(wrap_color 'overlay' blue)'":'
 	check_flags OVERLAY_FS | sed 's/^/  /'
 } | sed 's/^/  /'
 echo

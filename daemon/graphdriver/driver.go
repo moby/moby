@@ -81,7 +81,7 @@ var (
 		"devicemapper",
 		"vfs",
 		// experimental, has to be enabled manually for now
-		"overlayfs",
+		"overlay",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")
