@@ -486,10 +486,13 @@ func Benchmark9kTar(b *testing.B) {
 	n, err := io.Copy(buf, fh)
 	fh.Close()
 
+	reader := bytes.NewReader(buf.Bytes())
+
 	b.SetBytes(n)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ts, err := NewTarSum(buf, true, Version0)
+		reader.Seek(0, 0)
+		ts, err := NewTarSum(reader, true, Version0)
 		if err != nil {
 			b.Error(err)
 			return
@@ -509,10 +512,13 @@ func Benchmark9kTarGzip(b *testing.B) {
 	n, err := io.Copy(buf, fh)
 	fh.Close()
 
+	reader := bytes.NewReader(buf.Bytes())
+
 	b.SetBytes(n)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ts, err := NewTarSum(buf, false, Version0)
+		reader.Seek(0, 0)
+		ts, err := NewTarSum(reader, false, Version0)
 		if err != nil {
 			b.Error(err)
 			return
