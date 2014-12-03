@@ -1128,12 +1128,21 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		}
 	}
 
+	if err := devices.openTransaction(info.Hash, info.DeviceId); err != nil {
+		log.Debugf("Error opening transaction hash = %s deviceId = %d", "", info.DeviceId)
+		return err
+	}
+
 	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceId); err != nil {
 		log.Debugf("Error deleting device: %s", err)
 		return err
 	}
 
 	if err := devices.unregisterDevice(info.DeviceId, info.Hash); err != nil {
+		return err
+	}
+
+	if err := devices.closeTransaction(); err != nil {
 		return err
 	}
 
