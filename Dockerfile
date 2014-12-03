@@ -23,16 +23,16 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM	golang:1.3.3-cross
+FROM	debian:jessie
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
 RUN	apt-get update && apt-get install -y \
 	aufs-tools \
 	automake \
+	ca-certificates \
 	btrfs-tools \
 	build-essential \
-	ca-certificates \
 	curl \
 	dpkg-sig \
 	git \
@@ -42,16 +42,13 @@ RUN	apt-get update && apt-get install -y \
 	libsqlite3-dev \
 	lxc=1:1.0* \
 	mercurial \
-	procps \
 	parallel \
+	procps \
 	reprepro \
 	ruby \
 	ruby-dev \
 	s3cmd=1.5.0* \
 	--no-install-recommends
-
-# Grab Go's cover tool for dead-simple code coverage testing
-RUN	go get golang.org/x/tools/cmd/cover
 
 # Get lvm2 source for compiling statically
 RUN	git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
@@ -64,8 +61,36 @@ RUN	cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# Install Go
+RUN	curl -sSL https://golang.org/dl/go1.3.3.src.tar.gz | tar -v -C /usr/local -xz
+ENV	PATH	/usr/local/go/bin:$PATH
+ENV	GOPATH	/go:/go/src/github.com/docker/docker/vendor
+ENV PATH /go/bin:$PATH
+RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
+
+# Compile Go for cross compilation
+ENV	DOCKER_CROSSPLATFORMS	\
+	linux/386 linux/arm \
+	darwin/amd64 darwin/386 \
+	freebsd/amd64 freebsd/386 freebsd/arm 
+#	windows is experimental for now
+#	windows/amd64 windows/386
+
+# (set an explicit GOARM of 5 for maximum compatibility)
+ENV	GOARM	5
+RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
+
+# Grab Go's cover tool for dead-simple code coverage testing
+RUN	go get golang.org/x/tools/cmd/cover
+
 # TODO replace FPM with some very minimal debhelper stuff
 RUN	gem install --no-rdoc --no-ri fpm --version 1.3.2
+
+# Install man page generator
+RUN	mkdir -p /go/src/github.com/cpuguy83 \
+	&& git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
+	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday \
+	&& go install -v github.com/cpuguy83/go-md2man
 
 # Get the "busybox" image source so we can build locally instead of pulling
 RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
@@ -87,25 +112,8 @@ VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/docker/docker
 ENV	DOCKER_BUILDTAGS	apparmor selinux
 
-ENV	DOCKER_CROSSPLATFORMS	\
-	linux/386 linux/arm \
-	darwin/amd64 darwin/386 \
-	freebsd/amd64 freebsd/386 freebsd/arm
-
-# (set an explicit GOARM of 5 for maximum compatibility)
-ENV	GOARM	5
-
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]
-
-# Install man page generator
-COPY	vendor	/go/src/github.com/docker/docker/vendor
-ENV	GOPATH	$GOPATH:/go/src/github.com/docker/docker/vendor
-# (copy vendor/ because go-md2man needs golang.org/x/net)
-RUN	mkdir -p /go/src/github.com/cpuguy83 /go/src/github.com/russross \
-	&& git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
-	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday \
-	&& go install -v github.com/cpuguy83/go-md2man
 
 # Upload docker source
 COPY	.	/go/src/github.com/docker/docker
