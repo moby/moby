@@ -35,6 +35,10 @@ var (
 
 const deviceSetMetaFile string = "deviceset-metadata"
 
+type Transaction struct {
+	OpenTransactionId uint64 `json:"-"`
+}
+
 type DevInfo struct {
 	Hash          string     `json:"-"`
 	DeviceId      int        `json:"device_id"`
@@ -65,13 +69,12 @@ type MetaData struct {
 }
 
 type DeviceSet struct {
-	MetaData         `json:"-"`
-	sync.Mutex       `json:"-"` // Protects Devices map and serializes calls into libdevmapper
-	root             string
-	devicePrefix     string
-	TransactionId    uint64 `json:"-"`
-	NewTransactionId uint64 `json:"-"`
-	NextDeviceId     int    `json:"next_device_id"`
+	MetaData      `json:"-"`
+	sync.Mutex    `json:"-"` // Protects Devices map and serializes calls into libdevmapper
+	root          string
+	devicePrefix  string
+	TransactionId uint64 `json:"-"`
+	NextDeviceId  int    `json:"next_device_id"`
 
 	// Options
 	dataLoopbackSize     int64
@@ -85,6 +88,7 @@ type DeviceSet struct {
 	doBlkDiscard         bool
 	thinpBlockSize       uint32
 	thinPoolDevice       string
+	Transaction          `json:"-"`
 }
 
 type DiskUsage struct {
@@ -200,15 +204,15 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 }
 
 func (devices *DeviceSet) allocateTransactionId() uint64 {
-	devices.NewTransactionId = devices.TransactionId + 1
-	return devices.NewTransactionId
+	devices.OpenTransactionId = devices.TransactionId + 1
+	return devices.OpenTransactionId
 }
 
 func (devices *DeviceSet) updatePoolTransactionId() error {
-	if err := devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
+	if err := devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.OpenTransactionId); err != nil {
 		return fmt.Errorf("Error setting devmapper transaction ID: %s", err)
 	}
-	devices.TransactionId = devices.NewTransactionId
+	devices.TransactionId = devices.OpenTransactionId
 	return nil
 }
 
