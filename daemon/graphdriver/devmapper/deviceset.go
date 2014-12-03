@@ -352,19 +352,8 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 	return nil
 }
 
-func (devices *DeviceSet) initMetaData() error {
-	_, _, _, params, err := devicemapper.GetStatus(devices.getPoolName())
-	if err != nil {
-		return err
-	}
-
-	if _, err := fmt.Sscanf(params, "%d", &devices.TransactionId); err != nil {
-		return err
-	}
-	devices.NewTransactionId = devices.TransactionId
-
+func (devices *DeviceSet) migrateOldMetaData() error {
 	// Migrate old metadatafile
-
 	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -387,6 +376,21 @@ func (devices *DeviceSet) initMetaData() error {
 
 	}
 
+	return nil
+}
+
+func (devices *DeviceSet) initMetaData() error {
+	if err := devices.migrateOldMetaData(); err != nil {
+		return err
+	}
+
+	_, transactionId, _, _, _, _, err := devices.poolStatus()
+	if err != nil {
+		return err
+	}
+
+	devices.TransactionId = transactionId
+	devices.NewTransactionId = devices.TransactionId
 	return nil
 }
 
