@@ -367,11 +367,7 @@ func (devices *DeviceSet) initMetaData() error {
 
 		for hash, info := range m.Devices {
 			info.Hash = hash
-
-			// If the transaction id is larger than the actual one we lost the device due to some crash
-			if info.TransactionId <= devices.TransactionId {
-				devices.saveMetadata(info)
-			}
+			devices.saveMetadata(info)
 		}
 		if err := os.Rename(devices.oldMetadataFile(), devices.oldMetadataFile()+".migrated"); err != nil {
 			return err
