@@ -544,6 +544,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if initPath := remoteInfo.Get("InitPath"); initPath != "" {
 			fmt.Fprintf(cli.out, "Init Path: %s\n", initPath)
 		}
+		if root := remoteInfo.Get("DockerRootDir"); root != "" {
+			fmt.Fprintf(cli.out, "Docker Root Dir: %s\n", root)
+		}
 	}
 
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
