@@ -204,6 +204,16 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 	return devices.NewTransactionId
 }
 
+func (devices *DeviceSet) updatePoolTransactionId() error {
+	if devices.NewTransactionId != devices.TransactionId {
+		if err := devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
+			return fmt.Errorf("Error setting devmapper transaction ID: %s", err)
+		}
+		devices.TransactionId = devices.NewTransactionId
+	}
+	return nil
+}
+
 func (devices *DeviceSet) removeMetadata(info *DevInfo) error {
 	if err := os.RemoveAll(devices.metadataFile(info)); err != nil {
 		return fmt.Errorf("Error removing metadata file %s: %s", devices.metadataFile(info), err)
@@ -246,13 +256,6 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
 		return err
 	}
-
-	if devices.NewTransactionId != devices.TransactionId {
-		if err = devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
-			return fmt.Errorf("Error setting devmapper transition ID: %s", err)
-		}
-		devices.TransactionId = devices.NewTransactionId
-	}
 	return nil
 }
 
@@ -291,6 +294,15 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 		devices.devicesLock.Lock()
 		delete(devices.Devices, hash)
 		devices.devicesLock.Unlock()
+		return nil, err
+	}
+
+	if err := devices.updatePoolTransactionId(); err != nil {
+		// Remove unused device
+		devices.devicesLock.Lock()
+		delete(devices.Devices, hash)
+		devices.devicesLock.Unlock()
+		devices.removeMetadata(info)
 		return nil, err
 	}
 
