@@ -89,6 +89,10 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, pip
 		return fmt.Errorf("setup route %s", err)
 	}
 
+	if err := setupRlimits(container); err != nil {
+		return fmt.Errorf("setup rlimits %s", err)
+	}
+
 	label.Init()
 
 	if err := mount.InitializeMountNamespace(rootfs,
@@ -233,6 +237,16 @@ func setupRoute(container *libcontainer.Config) error {
 	for _, config := range container.Routes {
 		if err := netlink.AddRoute(config.Destination, config.Source, config.Gateway, config.InterfaceName); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func setupRlimits(container *libcontainer.Config) error {
+	for _, rlimit := range container.Rlimits {
+		l := &syscall.Rlimit{Max: rlimit.Hard, Cur: rlimit.Soft}
+		if err := syscall.Setrlimit(rlimit.Type, l); err != nil {
+			return fmt.Errorf("error setting rlimit type %v: %v", rlimit.Type, err)
 		}
 	}
 	return nil

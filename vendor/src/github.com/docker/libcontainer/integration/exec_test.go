@@ -156,3 +156,24 @@ func TestIPCBadPath(t *testing.T) {
 		t.Fatal("container succeded with bad ipc path")
 	}
 }
+
+func TestRlimit(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootFs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+	out, _, err := runContainer(config, "", "/bin/sh", "-c", "ulimit -n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if limit := strings.TrimSpace(out.Stdout.String()); limit != "1024" {
+		t.Fatalf("expected rlimit to be 1024, got %s", limit)
+	}
+}
