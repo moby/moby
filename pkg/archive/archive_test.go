@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -604,6 +605,21 @@ func TestUntarInvalidSymlink(t *testing.T) {
 	} {
 		if err := testBreakout("untar", "docker-TestUntarInvalidSymlink", headers); err != nil {
 			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestTempArchiveCloseMultipleTimes(t *testing.T) {
+	reader := ioutil.NopCloser(strings.NewReader("hello"))
+	tempArchive, err := NewTempArchive(reader, "")
+	buf := make([]byte, 10)
+	n, err := tempArchive.Read(buf)
+	if n != 5 {
+		t.Fatalf("Expected to read 5 bytes. Read %d instead", n)
+	}
+	for i := 0; i < 3; i++ {
+		if err = tempArchive.Close(); err != nil {
+			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
 		}
 	}
 }
