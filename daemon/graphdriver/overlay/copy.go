@@ -1,6 +1,6 @@
 // +build linux
 
-package overlayfs
+package overlay
 
 import (
 	"fmt"
@@ -122,8 +122,8 @@ func copyDir(srcDir, dstDir string, flags CopyFlags) error {
 			return err
 		}
 
-		// We need to copy this attribute if it appears in an overlayfs upper layer, as
-		// this function is used to copy those. It is set by overlayfs if a directory
+		// We need to copy this attribute if it appears in an overlay upper layer, as
+		// this function is used to copy those. It is set by overlay if a directory
 		// is removed and then re-created and should not inherit anything from the
 		// same dir in the lower dir.
 		if err := copyXattr(srcPath, dstPath, "trusted.overlay.opaque"); err != nil {

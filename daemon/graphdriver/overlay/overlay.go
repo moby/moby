@@ -1,6 +1,6 @@
 // +build linux
 
-package overlayfs
+package overlay
 
 import (
 	"bufio"
@@ -94,7 +94,7 @@ func init() {
 }
 
 func Init(home string, options []string) (graphdriver.Driver, error) {
-	if err := supportsOverlayfs(); err != nil {
+	if err := supportsOverlay(); err != nil {
 		return nil, graphdriver.ErrNotSupported
 	}
 
@@ -111,7 +111,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	return NaiveDiffDriverWithApply(d), nil
 }
 
-func supportsOverlayfs() error {
+func supportsOverlay() error {
 	// We can try to modprobe overlay first before looking at
 	// proc/filesystems for when overlay is supported
 	exec.Command("modprobe", "overlay").Run()
