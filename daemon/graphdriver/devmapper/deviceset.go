@@ -500,13 +500,17 @@ func (devices *DeviceSet) incNextDeviceId() {
 	devices.NextDeviceId = (devices.NextDeviceId + 1) & MaxDeviceId
 }
 
+func (devices *DeviceSet) getNextDeviceId() int {
+	devices.incNextDeviceId()
+	return devices.NextDeviceId
+}
+
 func (devices *DeviceSet) createDevice(deviceId *int) error {
 	for {
 		if err := devicemapper.CreateDevice(devices.getPoolDevName(), *deviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
 				// Device Id already exists. Try a new one.
-				devices.incNextDeviceId()
-				*deviceId = devices.NextDeviceId
+				*deviceId = devices.getNextDeviceId()
 				continue
 			}
 			log.Debugf("Error creating device: %s", err)
@@ -514,12 +518,11 @@ func (devices *DeviceSet) createDevice(deviceId *int) error {
 		}
 		break
 	}
-	devices.incNextDeviceId()
 	return nil
 }
 
 func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
-	deviceId := devices.NextDeviceId
+	deviceId := devices.getNextDeviceId()
 	if err := devices.createDevice(&deviceId); err != nil {
 		return nil, err
 	}
@@ -548,8 +551,7 @@ func (devices *DeviceSet) createSnapDevice(baseInfo *DevInfo, deviceId *int) err
 		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), *deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
 				// Device Id already exists. Try a new one.
-				devices.incNextDeviceId()
-				*deviceId = devices.NextDeviceId
+				*deviceId = devices.getNextDeviceId()
 				continue
 			}
 			log.Debugf("Error creating snap device: %s", err)
@@ -557,12 +559,11 @@ func (devices *DeviceSet) createSnapDevice(baseInfo *DevInfo, deviceId *int) err
 		}
 		break
 	}
-	devices.incNextDeviceId()
 	return nil
 }
 
 func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInfo) error {
-	deviceId := devices.NextDeviceId
+	deviceId := devices.getNextDeviceId()
 	if err := devices.createSnapDevice(baseInfo, &deviceId); err != nil {
 		log.Debugf("Error creating snap device: %s", err)
 		return err
