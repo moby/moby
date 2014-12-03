@@ -82,6 +82,7 @@ var (
 		"vfs",
 		// experimental, has to be enabled manually for now
 		"overlayfs",
+		"ceph",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")

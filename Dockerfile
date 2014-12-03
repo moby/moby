@@ -38,6 +38,8 @@ RUN	apt-get update && apt-get install -y \
 	iptables \
 	libapparmor-dev \
 	libcap-dev \
+	librados-dev \
+	librbd-dev \
 	libsqlite3-dev \
 	lxc=1.0* \
 	mercurial \
