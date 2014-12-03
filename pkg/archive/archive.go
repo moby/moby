@@ -771,20 +771,33 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	size := st.Size()
-	return &TempArchive{f, size, 0}, nil
+	return &TempArchive{File: f, Size: size}, nil
 }
 
 type TempArchive struct {
 	*os.File
-	Size int64 // Pre-computed from Stat().Size() as a convenience
-	read int64
+	Size   int64 // Pre-computed from Stat().Size() as a convenience
+	read   int64
+	closed bool
+}
+
+// Close closes the underlying file if it's still open, or does a no-op
+// to allow callers to try to close the TempArchive multiple times safely.
+func (archive *TempArchive) Close() error {
+	if archive.closed {
+		return nil
+	}
+
+	archive.closed = true
+
+	return archive.File.Close()
 }
 
 func (archive *TempArchive) Read(data []byte) (int, error) {
 	n, err := archive.File.Read(data)
 	archive.read += int64(n)
 	if err != nil || archive.read == archive.Size {
-		archive.File.Close()
+		archive.Close()
 		os.Remove(archive.File.Name())
 	}
 	return n, err
