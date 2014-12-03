@@ -390,11 +390,6 @@ func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 		return nil
 	}
 
-	// If the transaction id is larger than the actual one we lost the device due to some crash
-	if info.TransactionId > devices.TransactionId {
-		return nil
-	}
-
 	return info
 }
 
