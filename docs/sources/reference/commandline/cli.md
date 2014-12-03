@@ -102,7 +102,7 @@ To run the daemon with debug output, use `docker -d -D`.
 
 ### Daemon socket option
 
-The Docker daemon can listen for [Docker Remote API](reference/api/docker_remote_api/)
+The Docker daemon can listen for [Docker Remote API](/reference/api/docker_remote_api/)
 requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 
 By default, a `unix` domain socket (or IPC socket) is created at `/var/run/docker.sock`,
