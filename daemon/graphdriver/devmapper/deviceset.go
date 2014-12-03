@@ -505,26 +505,19 @@ func (devices *DeviceSet) getNextDeviceId() int {
 	return devices.NextDeviceId
 }
 
-func (devices *DeviceSet) createDevice(deviceId *int) error {
+func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
+	deviceId := devices.getNextDeviceId()
 	for {
-		if err := devicemapper.CreateDevice(devices.getPoolDevName(), *deviceId); err != nil {
+		if err := devicemapper.CreateDevice(devices.getPoolDevName(), deviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
 				// Device Id already exists. Try a new one.
-				*deviceId = devices.getNextDeviceId()
+				deviceId = devices.getNextDeviceId()
 				continue
 			}
 			log.Debugf("Error creating device: %s", err)
-			return err
+			return nil, err
 		}
 		break
-	}
-	return nil
-}
-
-func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
-	deviceId := devices.getNextDeviceId()
-	if err := devices.createDevice(&deviceId); err != nil {
-		return nil, err
 	}
 
 	transactionId := devices.allocateTransactionId()
@@ -543,30 +536,19 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 	return info, nil
 }
 
-func (devices *DeviceSet) createSnapDevice(baseInfo *DevInfo, deviceId *int) error {
-	log.Debugf("[deviceset] createSnapDevice() DeviceId=%d", *deviceId)
-	defer log.Debugf("[deviceset] createSnapDevice() END DeviceId=%d", *deviceId)
-
+func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInfo) error {
+	deviceId := devices.getNextDeviceId()
 	for {
-		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), *deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
+		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
 				// Device Id already exists. Try a new one.
-				*deviceId = devices.getNextDeviceId()
+				deviceId = devices.getNextDeviceId()
 				continue
 			}
 			log.Debugf("Error creating snap device: %s", err)
 			return err
 		}
 		break
-	}
-	return nil
-}
-
-func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInfo) error {
-	deviceId := devices.getNextDeviceId()
-	if err := devices.createSnapDevice(baseInfo, &deviceId); err != nil {
-		log.Debugf("Error creating snap device: %s", err)
-		return err
 	}
 
 	transactionId := devices.allocateTransactionId()
