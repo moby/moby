@@ -1065,6 +1065,31 @@ ADD . /`,
 	logDone("build - add etc directory to root")
 }
 
+// Testing #9401
+func TestBuildAddPreservesFilesSpecialBits(t *testing.T) {
+	name := "testaddpreservesfilesspecialbits"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+ADD suidbin /usr/bin/suidbin
+RUN chmod 4755 /usr/bin/suidbin
+RUN [ $(ls -l /usr/bin/suidbin | awk '{print $1}') = '-rwsr-xr-x' ]
+ADD ./data/ /
+RUN [ $(ls -l /usr/bin/suidbin | awk '{print $1}') = '-rwsr-xr-x' ]`,
+		map[string]string{
+			"suidbin":             "suidbin",
+			"/data/usr/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add preserves files special bits")
+}
+
 func TestBuildCopySingleFileToRoot(t *testing.T) {
 	name := "testcopysinglefiletoroot"
 	defer deleteImages(name)
