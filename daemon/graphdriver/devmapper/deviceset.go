@@ -516,7 +516,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	if oldInfo != nil && !oldInfo.Initialized {
 		log.Debugf("Removing uninitialized base image")
-		if err := devices.deleteDevice(oldInfo); err != nil {
+		if err := devices.DeleteDevice(""); err != nil {
 			return err
 		}
 	}
