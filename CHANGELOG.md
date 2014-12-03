@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.3.2 (2014-11-20)
+
+#### Security
+- Fix tar breakout vulnerability
+* Extractions are now sandboxed chroot
+- Security options are no longer committed to images
+
+#### Runtime
+- Fix deadlock in `docker ps -f exited=1`
+- Fix a bug when `--volumes-from` references a container that failed to start
+
+#### Registry
++ `--insecure-registry` now accepts CIDR notation such as 10.1.0.0/16
+* Private registries whose IPs fall in the 127.0.0.0/8 range do no need the `--insecure-registry` flag
+- Skip the experimental registry v2 API when mirroring is enabled
+
+## 1.3.1 (2014-10-28)
+
+#### Security
+* Prevent fallback to SSL protocols < TLS 1.0 for client, daemon and registry
++ Secure HTTPS connection to registries with certificate verification and without HTTP fallback unless `--insecure-registry` is specified
+
+#### Runtime
+- Fix issue where volumes would not be shared
+
+#### Client
+- Fix issue with `--iptables=false` not automatically setting `--ip-masq=false`
+- Fix docker run output to non-TTY stdout
+
+#### Builder
+- Fix escaping `$` for environment variables
+- Fix issue with lowercase `onbuild` Dockerfile instruction
+- Restrict environment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`, `EXPOSE`, `VOLUME` and `USER`
+
+## 1.3.0 (2014-10-14)
+
+#### Notable features since 1.2.0
++ Docker `exec` allows you to run additional processes inside existing containers
++ Docker `create` gives you the ability to create a container via the CLI without executing a process
++ `--security-opts` options to allow user to customize container labels and apparmor profiles
++ Docker `ps` filters
+- Wildcard support to COPY/ADD
++ Move production URLs to get.docker.com from get.docker.io
++ Allocate IP address on the bridge inside a valid CIDR
++ Use drone.io for PR and CI testing
++ Ability to setup an official registry mirror
++ Ability to save multiple images with docker `save`
+
 ## 1.2.0 (2014-08-20)
 
 #### Runtime

@@ -10,10 +10,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/docker/docker/reexec"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/namespaces"
-	"github.com/docker/libcontainer/syncpipe"
 )
 
 func init() {
@@ -48,12 +47,7 @@ func initializer() {
 		writeError(err)
 	}
 
-	syncPipe, err := syncpipe.NewSyncPipeFromFd(0, uintptr(*pipe))
-	if err != nil {
-		writeError(err)
-	}
-
-	if err := namespaces.Init(container, rootfs, *console, syncPipe, flag.Args()); err != nil {
+	if err := namespaces.Init(container, rootfs, *console, os.NewFile(uintptr(*pipe), "child"), flag.Args()); err != nil {
 		writeError(err)
 	}
 

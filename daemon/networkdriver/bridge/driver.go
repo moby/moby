@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"strings"
+	"os"
+	"strconv"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver"
 	"github.com/docker/docker/daemon/networkdriver/ipallocator"
-	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/iptables"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libcontainer/netlink"
@@ -104,8 +105,8 @@ func InitDriver(job *engine.Job) engine.Status {
 		if !usingDefaultBridge {
 			return job.Error(err)
 		}
-		// If the iface is not found, try to create it
-		if err := createBridge(bridgeIP); err != nil {
+		// If the bridge interface is not found (or has no address), try to create it and/or add an address
+		if err := configureBridge(bridgeIP); err != nil {
 			return job.Error(err)
 		}
 
@@ -193,7 +194,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 			if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
-				return fmt.Errorf("Error iptables postrouting: %s", output)
+				return &iptables.ChainError{Chain: "POSTROUTING", Output: output}
 			}
 		}
 	}
@@ -234,7 +235,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		if output, err := iptables.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables allow outgoing: %s", output)
+			return &iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
 		}
 	}
 
@@ -245,16 +246,18 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
-			return fmt.Errorf("Error iptables allow incoming: %s", output)
+			return &iptables.ChainError{Chain: "FORWARD incoming", Output: output}
 		}
 	}
 	return nil
 }
 
-// CreateBridgeIface creates a network bridge interface on the host system with the name `ifaceName`,
-// and attempts to configure it with an address which doesn't conflict with any other interface on the host.
-// If it can't find an address which doesn't conflict, it will return an error.
-func createBridge(bridgeIP string) error {
+// configureBridge attempts to create and configure a network bridge interface named `bridgeIface` on the host
+// If bridgeIP is empty, it will try to find a non-conflicting IP from the Docker-specified private ranges
+// If the bridge `bridgeIface` already exists, it will only perform the IP address association with the existing
+// bridge (fixes issue #8444)
+// If an address which doesn't conflict with existing interfaces can't be found, an error is returned.
+func configureBridge(bridgeIP string) error {
 	nameservers := []string{}
 	resolvConf, _ := resolvconf.Get()
 	// we don't check for an error here, because we don't really care
@@ -295,7 +298,10 @@ func createBridge(bridgeIP string) error {
 	log.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
 
 	if err := createBridgeIface(bridgeIface); err != nil {
-		return err
+		// the bridge may already exist, therefore we can ignore an "exists" error
+		if !os.IsExist(err) {
+			return err
+		}
 	}
 
 	iface, err := net.InterfaceByName(bridgeIface)
@@ -326,10 +332,36 @@ func createBridgeIface(name string) error {
 	return netlink.CreateBridge(name, setBridgeMacAddr)
 }
 
+// Generate a IEEE802 compliant MAC address from the given IP address.
+//
+// The generator is guaranteed to be consistent: the same IP will always yield the same
+// MAC address. This is to avoid ARP cache issues.
+func generateMacAddr(ip net.IP) net.HardwareAddr {
+	hw := make(net.HardwareAddr, 6)
+
+	// The first byte of the MAC address has to comply with these rules:
+	// 1. Unicast: Set the least-significant bit to 0.
+	// 2. Address is locally administered: Set the second-least-significant bit (U/L) to 1.
+	// 3. As "small" as possible: The veth address has to be "smaller" than the bridge address.
+	hw[0] = 0x02
+
+	// The first 24 bits of the MAC represent the Organizationally Unique Identifier (OUI).
+	// Since this address is locally administered, we can do whatever we want as long as
+	// it doesn't conflict with other addresses.
+	hw[1] = 0x42
+
+	// Insert the IP address into the last 32 bits of the MAC address.
+	// This is a simple way to guarantee the address will be consistent and unique.
+	copy(hw[2:], ip.To4())
+
+	return hw
+}
+
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
 		ip          net.IP
+		mac         net.HardwareAddr
 		err         error
 		id          = job.Args[0]
 		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
@@ -344,10 +376,16 @@ func Allocate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
+	// If no explicit mac address was given, generate a random one.
+	if mac, err = net.ParseMAC(job.Getenv("RequestedMac")); err != nil {
+		mac = generateMacAddr(ip)
+	}
+
 	out := engine.Env{}
 	out.Set("IP", ip.String())
 	out.Set("Mask", bridgeNetwork.Mask.String())
 	out.Set("Gateway", bridgeNetwork.IP.String())
+	out.Set("MacAddress", mac.String())
 	out.Set("Bridge", bridgeIface)
 
 	size, _ := bridgeNetwork.Mask.Size()
@@ -429,22 +467,13 @@ func AllocatePort(job *engine.Job) engine.Status {
 		if host, err = portmapper.Map(container, ip, hostPort); err == nil {
 			break
 		}
-
-		if allocerr, ok := err.(portallocator.ErrPortAlreadyAllocated); ok {
-			// There is no point in immediately retrying to map an explicitly
-			// chosen port.
-			if hostPort != 0 {
-				job.Logf("Failed to bind %s for container address %s: %s", allocerr.IPPort(), container.String(), allocerr.Error())
-				break
-			}
-
-			// Automatically chosen 'free' port failed to bind: move on the next.
-			job.Logf("Failed to bind %s for container address %s. Trying another port.", allocerr.IPPort(), container.String())
-		} else {
-			// some other error during mapping
-			job.Logf("Received an unexpected error during port allocation: %s", err.Error())
+		// There is no point in immediately retrying to map an explicitly
+		// chosen port.
+		if hostPort != 0 {
+			job.Logf("Failed to allocate and map port %d: %s", hostPort, err)
 			break
 		}
+		job.Logf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
 
 	if err != nil {
@@ -477,18 +506,13 @@ func LinkContainers(job *engine.Job) engine.Status {
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
-	split := func(p string) (string, string) {
-		parts := strings.Split(p, "/")
-		return parts[0], parts[1]
-	}
-
-	for _, p := range ports {
-		port, proto := split(p)
+	for _, value := range ports {
+		port := nat.Port(value)
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
+			"-p", port.Proto(),
 			"-s", parentIP,
-			"--dport", port,
+			"--dport", strconv.Itoa(port.Int()),
 			"-d", childIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return job.Error(err)
@@ -498,9 +522,9 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", proto,
+			"-p", port.Proto(),
 			"-s", childIP,
-			"--sport", port,
+			"--sport", strconv.Itoa(port.Int()),
 			"-d", parentIP,
 			"-j", "ACCEPT"); !ignoreErrors && err != nil {
 			return job.Error(err)

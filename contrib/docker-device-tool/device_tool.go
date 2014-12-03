@@ -60,6 +60,7 @@ func main() {
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
+		log.SetLevel("debug")
 	}
 
 	if flag.NArg() < 1 {

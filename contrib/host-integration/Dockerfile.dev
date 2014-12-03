@@ -2,8 +2,6 @@
 # This Dockerfile will create an image that allows to generate upstart and
 # systemd scripts (more to come)
 #
-# docker-version 0.6.2
-#
 
 FROM		ubuntu:12.10
 MAINTAINER	Guillaume J. Charmes <guillaume@docker.com>

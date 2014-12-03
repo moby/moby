@@ -13,14 +13,14 @@ image and the `training/webapp` image.
 We've also discovered that Docker stores downloaded images on the Docker
 host. If an image isn't already present on the host then it'll be
 downloaded from a registry: by default the
-[Docker Hub](https://hub.docker.com) public registry.
+[Docker Hub Registry](https://registry.hub.docker.com).
 
 In this section we're going to explore Docker images a bit more
 including:
 
 * Managing and working with images locally on your Docker host;
 * Creating basic images;
-* Uploading images to [Docker Hub](https://hub.docker.com).
+* Uploading images to [Docker Hub Registry](https://registry.hub.docker.com).
 
 ## Listing images on the host
 
@@ -65,7 +65,7 @@ So when we run a container we refer to a tagged image like so:
 
     $ sudo docker run -t -i ubuntu:14.04 /bin/bash
 
-If instead we wanted to build an Ubuntu 12.04 image we'd use:
+If instead we wanted to run an Ubuntu 12.04 image we'd use:
 
     $ sudo docker run -t -i ubuntu:12.04 /bin/bash
 
@@ -92,6 +92,8 @@ download the `centos` image.
     511136ea3c5a: Download complete
     ef52fb1fe610: Download complete
     . . .
+
+    Status: Downloaded newer image for centos
 
 We can see that each layer of the image has been pulled down and now we
 can run a container from this image and we won't have to wait to
@@ -152,7 +154,7 @@ We've identified a suitable image, `training/sinatra`, and now we can download i
 
     $ sudo docker pull training/sinatra
 
-The team can now use this image by run their own containers.
+The team can now use this image by running their own containers.
 
     $ sudo docker run -t -i training/sinatra /bin/bash
     root@a8cb6ce02d85:/#
@@ -165,6 +167,7 @@ update and create images.
 
 1. We can update a container created from an image and commit the results to an image.
 2. We can use a `Dockerfile` to specify instructions to create an image.
+
 
 ### Updating and committing an image
 
@@ -453,7 +456,7 @@ Next we can see each instruction in the `Dockerfile` being executed
 step-by-step. We can see that each step creates a new container, runs
 the instruction inside that container and then commits that change -
 just like the `docker commit` work flow we saw earlier. When all the
-instructions have executed we're left with the `324104cde6ad` image
+instructions have executed we're left with the `97feabe5d2ed` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
@@ -475,6 +478,10 @@ We can then create a container from our new image.
 > detailed description and examples of every instruction.
 > To help you write a clear, readable, maintainable `Dockerfile`, we've also
 > written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
+
+### More
+
+To learn more, check out the [Dockerfile tutorial](/userguide/level1).
 
 ## Setting tags on an image
 
@@ -531,5 +538,9 @@ Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
+Test your Dockerfile knowledge with the
+[Dockerfile tutorial](/userguide/level1).
+
 Go to [Linking Containers Together](/userguide/dockerlinks).
+
 

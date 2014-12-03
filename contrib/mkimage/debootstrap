@@ -15,9 +15,12 @@ done
 suite="$1"
 shift
 
+# allow for DEBOOTSTRAP=qemu-debootstrap ./mkimage.sh ...
+: ${DEBOOTSTRAP:=debootstrap}
+
 (
 	set -x
-	debootstrap "${before[@]}" "$suite" "$rootfsDir" "$@"
+	$DEBOOTSTRAP "${before[@]}" "$suite" "$rootfsDir" "$@"
 )
 
 # now for some Docker-specific tweaks

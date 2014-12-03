@@ -15,22 +15,17 @@ func TestPushBusyboxImage(t *testing.T) {
 	// tag the image to upload it tot he private registry
 	repoName := fmt.Sprintf("%v/busybox", privateRegistryURL)
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
-	out, exitCode, err := runCommandWithOutput(tagCmd)
-	errorOut(err, t, fmt.Sprintf("%v %v", out, err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("image tagging failed")
+	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+		t.Fatalf("image tagging failed: %s, %v", out, err)
 	}
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	out, exitCode, err = runCommandWithOutput(pushCmd)
-	errorOut(err, t, fmt.Sprintf("%v %v", out, err))
+	if out, _, err := runCommandWithOutput(pushCmd); err != nil {
+		t.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
+	}
 
 	deleteImages(repoName)
 
-	if err != nil || exitCode != 0 {
-		t.Fatal("pushing the image to the private registry has failed")
-	}
 	logDone("push - push busybox to private registry")
 }
 
@@ -39,10 +34,8 @@ func TestPushUnprefixedRepo(t *testing.T) {
 	// skip this test until we're able to use a registry
 	t.Skip()
 	pushCmd := exec.Command(dockerBinary, "push", "busybox")
-	_, exitCode, err := runCommandWithOutput(pushCmd)
-
-	if err == nil || exitCode == 0 {
-		t.Fatal("pushing an unprefixed repo didn't result in a non-zero exit status")
+	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
+		t.Fatalf("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
 	}
 	logDone("push - push unprefixed busybox repo --> must fail")
 }

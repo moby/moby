@@ -5,18 +5,16 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
-	"path"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/reexec"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 )
 
 const (
@@ -30,6 +28,7 @@ func main() {
 	if reexec.Init() {
 		return
 	}
+
 	flag.Parse()
 	// FIXME: validate daemon flags here
 
@@ -37,8 +36,22 @@ func main() {
 		showVersion()
 		return
 	}
+
+	if *flLogLevel != "" {
+		lvl, err := log.ParseLevel(*flLogLevel)
+		if err != nil {
+			log.Fatalf("Unable to parse logging level: %s", *flLogLevel)
+		}
+		initLogging(lvl)
+	} else {
+		initLogging(log.InfoLevel)
+	}
+
+	// -D, --debug, -l/--log-level=debug processing
+	// When/if -D is removed this block can be deleted
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
+		initLogging(log.DebugLevel)
 	}
 
 	if len(flHosts) == 0 {
@@ -64,29 +77,20 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
-	err := os.MkdirAll(path.Dir(*flTrustKey), 0700)
-	if err != nil {
-		log.Fatal(err)
-	}
-	trustKey, keyErr := libtrust.LoadKeyFile(*flTrustKey)
-	if keyErr == libtrust.ErrKeyFileDoesNotExist {
-		trustKey, keyErr = libtrust.GenerateECP256PrivateKey()
-		if keyErr == nil {
-			keyErr = libtrust.SaveKey(*flTrustKey, trustKey)
-		}
-	}
-	if keyErr != nil {
-		log.Fatal(keyErr)
-	}
 	var (
 		cli       *client.DockerCli
 		tlsConfig tls.Config
 	)
 	tlsConfig.InsecureSkipVerify = true
 
+	// Regardless of whether the user sets it to true or false, if they
+	// specify --tlsverify at all then we need to turn on tls
+	if flag.IsSet("-tlsverify") {
+		*flTls = true
+	}
+
 	// If we should verify the server, we need to load a trusted ca
 	if *flTlsVerify {
-		*flTls = true
 		certPool := x509.NewCertPool()
 		file, err := ioutil.ReadFile(*flCa)
 		if err != nil {
@@ -109,12 +113,14 @@ func main() {
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
+		// Avoid fallback to SSL protocols < TLS1.0
+		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {

@@ -4,11 +4,12 @@ import (
 	"os"
 	"runtime"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -37,6 +38,11 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 		operatingSystem += " (containerized)"
 	}
 
+	meminfo, err := system.ReadMemInfo()
+	if err != nil {
+		log.Errorf("Could not read system memory info: %v", err)
+	}
+
 	// if we still have the original dockerinit binary from before we copied it locally, let's return the path to that, since that's more intuitive (the copied path is trivial to derive by hand given VERSION)
 	initPath := utils.DockerInitPath("")
 	if initPath == "" {
@@ -50,6 +56,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	v := &engine.Env{}
+	v.Set("ID", daemon.ID)
 	v.SetInt("Containers", len(daemon.List()))
 	v.SetInt("Images", imgcount)
 	v.Set("Driver", daemon.GraphDriver().String())
@@ -67,6 +74,12 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
+	v.SetInt("NCPU", runtime.NumCPU())
+	v.SetInt64("MemTotal", meminfo.MemTotal)
+	if hostname, err := os.Hostname(); err == nil {
+		v.Set("Name", hostname)
+	}
+	v.SetList("Labels", daemon.Config().Labels)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}

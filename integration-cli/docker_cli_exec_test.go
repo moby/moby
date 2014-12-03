@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -10,13 +11,15 @@ import (
 
 func TestExec(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	execCmd := exec.Command(dockerBinary, "exec", "testing", "cat", "/tmp/file")
-
-	out, _, err = runCommandWithOutput(execCmd)
-	errorOut(err, t, out)
+	out, _, err := runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	out = strings.Trim(out, "\r\n")
 
@@ -29,10 +32,51 @@ func TestExec(t *testing.T) {
 	logDone("exec - basic test")
 }
 
+func TestExecInteractiveStdinClose(t *testing.T) {
+	defer deleteAllContainers()
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "busybox", "/bin/cat"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contId := strings.TrimSpace(out)
+
+	returnchan := make(chan struct{})
+
+	go func() {
+		var err error
+		cmd := exec.Command(dockerBinary, "exec", "-i", contId, "/bin/ls", "/")
+		cmd.Stdin = os.Stdin
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatal(err, out)
+		}
+
+		if string(out) == "" {
+			t.Fatalf("Output was empty, likely blocked by standard input")
+		}
+
+		returnchan <- struct{}{}
+	}()
+
+	select {
+	case <-returnchan:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out running docker exec")
+	}
+
+	logDone("exec - interactive mode closes stdin after execution")
+}
+
 func TestExecInteractive(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	execCmd := exec.Command(dockerBinary, "exec", "-i", "testing", "sh")
 	stdin, err := execCmd.StdinPipe()
@@ -84,17 +128,22 @@ func TestExecInteractive(t *testing.T) {
 func TestExecAfterContainerRestart(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
 	runCmd = exec.Command(dockerBinary, "restart", cleanedContainerID)
-	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	runCmd = exec.Command(dockerBinary, "exec", cleanedContainerID, "echo", "hello")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	outStr := strings.TrimSpace(out)
 	if outStr != "hello" {
@@ -136,4 +185,48 @@ func TestExecAfterDaemonRestart(t *testing.T) {
 	}
 
 	logDone("exec - exec running container after daemon restart")
+}
+
+// Regresssion test for #9155, #9044
+func TestExecEnv(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run",
+		"-e", "LALA=value1",
+		"-e", "LALA=value2",
+		"-d", "--name", "testing", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	execCmd := exec.Command(dockerBinary, "exec", "testing", "env")
+	out, _, err := runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if strings.Contains(out, "LALA=value1") ||
+		!strings.Contains(out, "LALA=value2") ||
+		!strings.Contains(out, "HOME=/root") {
+		t.Errorf("exec env(%q), expect %q, %q", out, "LALA=value2", "HOME=/root")
+	}
+
+	logDone("exec - exec inherits correct env")
+}
+
+func TestExecExitStatus(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal (non-detached) case first
+	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
+	ec, _ := runCommand(cmd)
+
+	if ec != 23 {
+		t.Fatalf("Should have had an ExitCode of 23, not: %d", ec)
+	}
+
+	logDone("exec - exec non-zero ExitStatus")
 }

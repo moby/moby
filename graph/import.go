@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/archive"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/utils"
 )
 
@@ -57,5 +58,12 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		}
 	}
 	job.Stdout.Write(sf.FormatStatus("", img.ID))
+	logID := img.ID
+	if tag != "" {
+		logID += ":" + tag
+	}
+	if err = job.Eng.Job("log", "import", logID, "").Run(); err != nil {
+		log.Errorf("Error logging event 'import' for %s: %s", logID, err)
+	}
 	return engine.StatusOK
 }

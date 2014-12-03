@@ -173,13 +173,10 @@ func Getpidcon(pid int) (string, error) {
 }
 
 func Getexeccon() (string, error) {
-	return readCon("/proc/self/attr/exec")
+	return readCon(fmt.Sprintf("/proc/self/task/%d/attr/exec", syscall.Gettid()))
 }
 
 func writeCon(name string, val string) error {
-	if !SelinuxEnabled() {
-		return nil
-	}
 	out, err := os.OpenFile(name, os.O_WRONLY, 0)
 	if err != nil {
 		return err
@@ -388,9 +385,6 @@ func SecurityCheckContext(val string) error {
 }
 
 func CopyLevel(src, dest string) (string, error) {
-	if !SelinuxEnabled() {
-		return "", nil
-	}
 	if src == "" {
 		return "", nil
 	}
@@ -424,7 +418,7 @@ func badPrefix(fpath string) error {
 // If the fpath is a directory and recurse is true Chcon will walk the
 // directory tree setting the label
 func Chcon(fpath string, scon string, recurse bool) error {
-	if !SelinuxEnabled() {
+	if scon == "" {
 		return nil
 	}
 	if err := badPrefix(fpath); err != nil {
@@ -439,4 +433,29 @@ func Chcon(fpath string, scon string, recurse bool) error {
 	}
 
 	return Setfilecon(fpath, scon)
+}
+
+// DupSecOpt takes an SELinux process label and returns security options that
+// can will set the SELinux Type and Level for future container processes
+func DupSecOpt(src string) []string {
+	if src == "" {
+		return nil
+	}
+	con := NewContext(src)
+	if con["user"] == "" ||
+		con["role"] == "" ||
+		con["type"] == "" ||
+		con["level"] == "" {
+		return nil
+	}
+	return []string{"label:user:" + con["user"],
+		"label:role:" + con["role"],
+		"label:type:" + con["type"],
+		"label:level:" + con["level"]}
+}
+
+// DisableSecOpt returns a security opt that can be used to disabling SELinux
+// labeling support for future container processes
+func DisableSecOpt() []string {
+	return []string{"label:disable"}
 }

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type JSONLog struct {

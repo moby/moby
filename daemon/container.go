@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,17 +17,18 @@ import (
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/label"
 
-	"github.com/docker/docker/archive"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -77,6 +79,7 @@ type Container struct {
 
 	daemon                   *Daemon
 	MountLabel, ProcessLabel string
+	AppArmorProfile          string
 	RestartCount             int
 
 	// Maps container paths to volume paths.  The key in this is the path to which
@@ -99,13 +102,17 @@ func (container *Container) FromDisk() error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(pth)
+	jsonSource, err := os.Open(pth)
 	if err != nil {
 		return err
 	}
+	defer jsonSource.Close()
+
+	dec := json.NewDecoder(jsonSource)
+
 	// Load container settings
 	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
-	if err := json.Unmarshal(data, container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
+	if err := dec.Decode(container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
 		return err
 	}
 
@@ -213,6 +220,7 @@ func populateCommand(c *Container, env []string) error {
 				Bridge:      network.Bridge,
 				IPAddress:   network.IPAddress,
 				IPPrefixLen: network.IPPrefixLen,
+				MacAddress:  network.MacAddress,
 			}
 		}
 	case "container":
@@ -223,6 +231,18 @@ func populateCommand(c *Container, env []string) error {
 		en.ContainerID = nc.ID
 	default:
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
+	}
+
+	ipc := &execdriver.Ipc{}
+
+	if c.hostConfig.IpcMode.IsContainer() {
+		ic, err := c.getIpcContainer()
+		if err != nil {
+			return err
+		}
+		ipc.ContainerID = ic.ID
+	} else {
+		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
 	}
 
 	// Build lists of devices allowed and created within the container.
@@ -266,6 +286,7 @@ func populateCommand(c *Container, env []string) error {
 		InitPath:           "/.dockerinit",
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,
+		Ipc:                ipc,
 		Resources:          resources,
 		AllowedDevices:     allowedDevices,
 		AutoCreatedDevices: autoCreatedDevices,
@@ -275,6 +296,7 @@ func populateCommand(c *Container, env []string) error {
 		ProcessLabel:       c.GetProcessLabel(),
 		MountLabel:         c.GetMountLabel(),
 		LxcConfig:          lxcConfig,
+		AppArmorProfile:    c.AppArmorProfile,
 	}
 
 	return nil
@@ -292,6 +314,12 @@ func (container *Container) Start() (err error) {
 	// setup has been cleaned up properly
 	defer func() {
 		if err != nil {
+			container.setError(err)
+			// if no one else has set it, make sure we don't leave it at zero
+			if container.ExitCode == 0 {
+				container.ExitCode = 128
+			}
+			container.toDisk()
 			container.cleanup()
 		}
 	}()
@@ -409,7 +437,7 @@ func (container *Container) buildHostsFiles(IP string) error {
 	}
 	container.HostsPath = hostsPath
 
-	extraContent := make(map[string]string)
+	var extraContent []etchosts.Record
 
 	children, err := container.daemon.Children(container.Name)
 	if err != nil {
@@ -418,15 +446,15 @@ func (container *Container) buildHostsFiles(IP string) error {
 
 	for linkAlias, child := range children {
 		_, alias := path.Split(linkAlias)
-		extraContent[alias] = child.NetworkSettings.IPAddress
+		extraContent = append(extraContent, etchosts.Record{Hosts: alias, IP: child.NetworkSettings.IPAddress})
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
 		parts := strings.Split(extraHost, ":")
-		extraContent[parts[0]] = parts[1]
+		extraContent = append(extraContent, etchosts.Record{Hosts: parts[0], IP: parts[1]})
 	}
 
-	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, &extraContent)
+	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, extraContent)
 }
 
 func (container *Container) buildHostnameAndHostsFiles(IP string) error {
@@ -437,7 +465,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 	return container.buildHostsFiles(IP)
 }
 
-func (container *Container) allocateNetwork() error {
+func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	if container.Config.NetworkDisabled || !mode.IsPrivate() {
 		return nil
@@ -450,19 +478,26 @@ func (container *Container) allocateNetwork() error {
 	)
 
 	job := eng.Job("allocate_interface", container.ID)
+	job.Setenv("RequestedMac", container.Config.MacAddress)
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
-	if err := job.Run(); err != nil {
+	if err = job.Run(); err != nil {
 		return err
 	}
 
+	// Error handling: At this point, the interface is allocated so we have to
+	// make sure that it is always released in case of error, otherwise we
+	// might leak resources.
+
 	if container.Config.PortSpecs != nil {
-		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
+		if err = migratePortMappings(container.Config, container.hostConfig); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 		container.Config.PortSpecs = nil
-		if err := container.WriteHostConfig(); err != nil {
+		if err = container.WriteHostConfig(); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -491,7 +526,8 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.PortMapping = nil
 
 	for port := range portSpecs {
-		if err := container.allocatePort(eng, port, bindings); err != nil {
+		if err = container.allocatePort(eng, port, bindings); err != nil {
+			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 	}
@@ -501,25 +537,60 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.Bridge = env.Get("Bridge")
 	container.NetworkSettings.IPAddress = env.Get("IP")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
+	container.NetworkSettings.MacAddress = env.Get("MacAddress")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
 
 	return nil
 }
 
-func (container *Container) releaseNetwork() {
+func (container *Container) ReleaseNetwork() {
 	if container.Config.NetworkDisabled {
 		return
 	}
 	eng := container.daemon.eng
 
-	eng.Job("release_interface", container.ID).Run()
+	job := eng.Job("release_interface", container.ID)
+	job.SetenvBool("overrideShutdown", true)
+	job.Run()
 	container.NetworkSettings = &NetworkSettings{}
+}
+
+func (container *Container) isNetworkAllocated() bool {
+	return container.NetworkSettings.IPAddress != ""
+}
+
+func (container *Container) RestoreNetwork() error {
+	mode := container.hostConfig.NetworkMode
+	// Don't attempt a restore if we previously didn't allocate networking.
+	// This might be a legacy container with no network allocated, in which case the
+	// allocation will happen once and for all at start.
+	if !container.isNetworkAllocated() || container.Config.NetworkDisabled || !mode.IsPrivate() {
+		return nil
+	}
+
+	eng := container.daemon.eng
+
+	// Re-allocate the interface with the same IP and MAC address.
+	job := eng.Job("allocate_interface", container.ID)
+	job.Setenv("RequestedIP", container.NetworkSettings.IPAddress)
+	job.Setenv("RequestedMac", container.NetworkSettings.MacAddress)
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	// Re-allocate any previously allocated ports.
+	for port := range container.NetworkSettings.Ports {
+		if err := container.allocatePort(eng, port, container.NetworkSettings.Ports); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
-	container.releaseNetwork()
+	container.ReleaseNetwork()
 
 	// Disable all active links
 	if container.activeLinks != nil {
@@ -530,6 +601,10 @@ func (container *Container) cleanup() {
 
 	if err := container.Unmount(); err != nil {
 		log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+	}
+
+	for _, eConfig := range container.execCommands.s {
+		container.daemon.unregisterExecCommand(eConfig)
 	}
 }
 
@@ -646,6 +721,9 @@ func (container *Container) Restart(seconds int) error {
 }
 
 func (container *Container) Resize(h, w int) error {
+	if !container.IsRunning() {
+		return fmt.Errorf("Cannot resize container %s, container is not running", container.ID)
+	}
 	return container.command.ProcessConfig.Terminal.Resize(h, w)
 }
 
@@ -781,12 +859,17 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	var filter []string
-
 	basePath, err := container.getResourcePath(resource)
 	if err != nil {
 		container.Unmount()
 		return nil, err
+	}
+
+	// Check if this is actually in a volume
+	for _, mnt := range container.VolumeMounts() {
+		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
+			return mnt.Export(resource)
+		}
 	}
 
 	stat, err := os.Stat(basePath)
@@ -794,6 +877,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		container.Unmount()
 		return nil, err
 	}
+	var filter []string
 	if !stat.IsDir() {
 		d, f := path.Split(basePath)
 		basePath = d
@@ -875,22 +959,34 @@ func (container *Container) setupContainerDns() error {
 		return err
 	}
 
-	if config.NetworkMode != "host" && (len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0) {
-		var (
-			dns       = resolvconf.GetNameservers(resolvConf)
-			dnsSearch = resolvconf.GetSearchDomains(resolvConf)
-		)
-		if len(config.Dns) > 0 {
-			dns = config.Dns
-		} else if len(daemon.config.Dns) > 0 {
-			dns = daemon.config.Dns
+	if config.NetworkMode != "host" {
+		// check configurations for any container/daemon dns settings
+		if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
+			var (
+				dns       = resolvconf.GetNameservers(resolvConf)
+				dnsSearch = resolvconf.GetSearchDomains(resolvConf)
+			)
+			if len(config.Dns) > 0 {
+				dns = config.Dns
+			} else if len(daemon.config.Dns) > 0 {
+				dns = daemon.config.Dns
+			}
+			if len(config.DnsSearch) > 0 {
+				dnsSearch = config.DnsSearch
+			} else if len(daemon.config.DnsSearch) > 0 {
+				dnsSearch = daemon.config.DnsSearch
+			}
+			return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 		}
-		if len(config.DnsSearch) > 0 {
-			dnsSearch = config.DnsSearch
-		} else if len(daemon.config.DnsSearch) > 0 {
-			dnsSearch = daemon.config.DnsSearch
+
+		// replace any localhost/127.* nameservers
+		resolvConf = utils.RemoveLocalDns(resolvConf)
+		// if the resulting resolvConf is empty, use DefaultDns
+		if !bytes.Contains(resolvConf, []byte("nameserver")) {
+			log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
+			// prefix the default dns options with nameserver
+			resolvConf = append(resolvConf, []byte("\nnameserver "+strings.Join(DefaultDns, "\nnameserver "))...)
 		}
-		return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 	}
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
 }
@@ -908,7 +1004,7 @@ func (container *Container) updateParentsHosts() error {
 		c := container.daemon.Get(cid)
 		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
 			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
-				return fmt.Errorf("Failed to update /etc/hosts in parent container: %v", err)
+				log.Errorf("Failed to update /etc/hosts in parent container: %v", err)
 			}
 		}
 	}
@@ -964,7 +1060,7 @@ func (container *Container) initializeNetworking() error {
 		container.Config.NetworkDisabled = true
 		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	}
-	if err := container.allocateNetwork(); err != nil {
+	if err := container.AllocateNetwork(); err != nil {
 		return err
 	}
 	return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
@@ -1117,7 +1213,7 @@ func (container *Container) waitForStart() error {
 	// process or until the process is running in the container
 	select {
 	case <-container.monitor.startSignal:
-	case err := <-utils.Go(container.monitor.Start):
+	case err := <-promise.Go(container.monitor.Start):
 		return err
 	}
 
@@ -1144,7 +1240,6 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 			return err
 		}
 		if err := job.Run(); err != nil {
-			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
 		b.HostIp = portEnv.Get("HostIP")
@@ -1172,10 +1267,25 @@ func (container *Container) GetMountLabel() string {
 	return container.MountLabel
 }
 
+func (container *Container) getIpcContainer() (*Container, error) {
+	containerID := container.hostConfig.IpcMode.Container()
+	c := container.daemon.Get(containerID)
+	if c == nil {
+		return nil, fmt.Errorf("no such container to join IPC: %s", containerID)
+	}
+	if !c.IsRunning() {
+		return nil, fmt.Errorf("cannot join IPC of a non running container: %s", containerID)
+	}
+	return c, nil
+}
+
 func (container *Container) getNetworkedContainer() (*Container, error) {
 	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
 	case "container":
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("no container specified to join network")
+		}
 		nc := container.daemon.Get(parts[1])
 		if nc == nil {
 			return nil, fmt.Errorf("no such container to join network: %s", parts[1])

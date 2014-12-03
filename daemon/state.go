@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -13,8 +14,10 @@ type State struct {
 	Running    bool
 	Paused     bool
 	Restarting bool
+	OOMKilled  bool
 	Pid        int
 	ExitCode   int
+	Error      string // contains last known error when starting the container
 	StartedAt  time.Time
 	FinishedAt time.Time
 	waitChan   chan struct{}
@@ -44,6 +47,20 @@ func (s *State) String() string {
 	}
 
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+}
+
+// StateString returns a single string to describe state
+func (s *State) StateString() string {
+	if s.Running {
+		if s.Paused {
+			return "paused"
+		}
+		if s.Restarting {
+			return "restarting"
+		}
+		return "running"
+	}
+	return "exited"
 }
 
 func wait(waitChan <-chan struct{}, timeout time.Duration) error {
@@ -123,6 +140,7 @@ func (s *State) SetRunning(pid int) {
 }
 
 func (s *State) setRunning(pid int) {
+	s.Error = ""
 	s.Running = true
 	s.Paused = false
 	s.Restarting = false
@@ -133,25 +151,26 @@ func (s *State) setRunning(pid int) {
 	s.waitChan = make(chan struct{})
 }
 
-func (s *State) SetStopped(exitCode int) {
+func (s *State) SetStopped(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
-	s.setStopped(exitCode)
+	s.setStopped(exitStatus)
 	s.Unlock()
 }
 
-func (s *State) setStopped(exitCode int) {
+func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.Running = false
 	s.Restarting = false
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCode = exitCode
+	s.ExitCode = exitStatus.ExitCode
+	s.OOMKilled = exitStatus.OOMKilled
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 }
 
 // SetRestarting is when docker hanldes the auto restart of containers when they are
 // in the middle of a stop and being restarted again
-func (s *State) SetRestarting(exitCode int) {
+func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
 	// we should consider the container running when it is restarting because of
 	// all the checks in docker around rm/stop/etc
@@ -159,10 +178,18 @@ func (s *State) SetRestarting(exitCode int) {
 	s.Restarting = true
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCode = exitCode
+	s.ExitCode = exitStatus.ExitCode
+	s.OOMKilled = exitStatus.OOMKilled
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 	s.Unlock()
+}
+
+// setError sets the container's error state. This is useful when we want to
+// know the error that occurred when container transits to another state
+// when inspecting it
+func (s *State) setError(err error) {
+	s.Error = err.Error()
 }
 
 func (s *State) IsRestarting() bool {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"testing"
 )
@@ -10,7 +9,9 @@ import (
 func TestInspectApiContainerResponse(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to create a container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to create a container: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
@@ -23,13 +24,13 @@ func TestInspectApiContainerResponse(t *testing.T) {
 		if testVersion != "latest" {
 			endpoint = "/" + testVersion + endpoint
 		}
-		body, err := sockRequest("GET", endpoint)
+		body, err := sockRequest("GET", endpoint, nil)
 		if err != nil {
-			t.Fatal("sockRequest failed for %s version: %v", testVersion, err)
+			t.Fatalf("sockRequest failed for %s version: %v", testVersion, err)
 		}
 
-		var inspect_json map[string]interface{}
-		if err = json.Unmarshal(body, &inspect_json); err != nil {
+		var inspectJSON map[string]interface{}
+		if err = json.Unmarshal(body, &inspectJSON); err != nil {
 			t.Fatalf("unable to unmarshal body for %s version: %v", testVersion, err)
 		}
 
@@ -42,12 +43,12 @@ func TestInspectApiContainerResponse(t *testing.T) {
 		}
 
 		for _, key := range keys {
-			if _, ok := inspect_json[key]; !ok {
+			if _, ok := inspectJSON[key]; !ok {
 				t.Fatalf("%s does not exist in reponse for %s version", key, testVersion)
 			}
 		}
 		//Issue #6830: type not properly converted to JSON/back
-		if _, ok := inspect_json["Path"].(bool); ok {
+		if _, ok := inspectJSON["Path"].(bool); ok {
 			t.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
 		}
 	}

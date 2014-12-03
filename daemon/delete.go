@@ -5,8 +5,8 @@ import (
 	"os"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/log"
 )
 
 func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	container := daemon.Get(name)
 
 	if container == nil {
-		job.Errorf("No such container: %s", name)
+		return job.Errorf("No such container: %s", name)
 	}
 
 	if removeLink {

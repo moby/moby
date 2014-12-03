@@ -17,6 +17,9 @@ type Network struct {
 	// Prefix for the veth interfaces.
 	VethPrefix string `json:"veth_prefix,omitempty"`
 
+	// MacAddress contains the MAC address to set on the network interface
+	MacAddress string `json:"mac_address,omitempty"`
+
 	// Address contains the IPv4 and mask to set on the network interface
 	Address string `json:"address,omitempty"`
 
@@ -33,6 +36,11 @@ type Network struct {
 	// container's interfaces if a pair is created, specifically in the case of type veth
 	// Note: This does not apply to loopback interfaces.
 	Mtu int `json:"mtu,omitempty"`
+
+	// TxQueueLen sets the tx_queuelen value for the interface and will be mirrored on both the host and
+	// container's interfaces if a pair is created, specifically in the case of type veth
+	// Note: This does not apply to loopback interfaces.
+	TxQueueLen int `json:"txqueuelen,omitempty"`
 }
 
 // Struct describing the network specific runtime state that will be maintained by libcontainer for all running containers

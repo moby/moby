@@ -23,12 +23,12 @@
 		flag.Var(&flagVal, []string{"name"}, "help message for flagname")
 	For such flags, the default value is just the initial value of the variable.
 
-	You can also add "deprecated" flags, they are still usable, bur are not shown
+	You can also add "deprecated" flags, they are still usable, but are not shown
 	in the usage and will display a warning when you try to use them:
-		var ip = flag.Int([]string{"f", "#flagname", "-flagname"}, 1234, "help message for flagname")
-	this will display: `Warning: '-flagname' is deprecated, it will be replaced by '--flagname' soon. See usage.` and
+		var ip = flag.Int([]string{"#f", "#flagname", "-flagname2"}, 1234, "help message for flagname")
+	this will display: `Warning: '--flagname' is deprecated, it will be replaced by '--flagname2' soon. See usage.` and
 		var ip = flag.Int([]string{"f", "#flagname"}, 1234, "help message for flagname")
-	will display: `Warning: '-t' is deprecated, it will be removed soon. See usage.`
+	will display: `Warning: '-f' is deprecated, it will be removed soon. See usage.`
 
 	You can also group one letter flags, bif you declare
 		var v = flag.Bool([]string{"v", "-verbose"}, false, "help message for verbose")
@@ -394,10 +394,20 @@ func (f *FlagSet) Lookup(name string) *Flag {
 	return f.formal[name]
 }
 
+// Indicates whether the specified flag was specified at all on the cmd line
+func (f *FlagSet) IsSet(name string) bool {
+	return f.actual[name] != nil
+}
+
 // Lookup returns the Flag structure of the named command-line flag,
 // returning nil if none exists.
 func Lookup(name string) *Flag {
 	return CommandLine.formal[name]
+}
+
+// Indicates whether the specified flag was specified at all on the cmd line
+func IsSet(name string) bool {
+	return CommandLine.IsSet(name)
 }
 
 // Set sets the value of the named flag.

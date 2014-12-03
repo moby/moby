@@ -18,8 +18,9 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/libcontainer/label"
@@ -31,6 +32,8 @@ var (
 	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
 	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
 )
+
+const deviceSetMetaFile string = "deviceset-metadata"
 
 type DevInfo struct {
 	Hash          string     `json:"-"`
@@ -62,13 +65,13 @@ type MetaData struct {
 }
 
 type DeviceSet struct {
-	MetaData
-	sync.Mutex       // Protects Devices map and serializes calls into libdevmapper
+	MetaData         `json:"-"`
+	sync.Mutex       `json:"-"` // Protects Devices map and serializes calls into libdevmapper
 	root             string
 	devicePrefix     string
-	TransactionId    uint64
-	NewTransactionId uint64
-	nextDeviceId     int
+	TransactionId    uint64 `json:"-"`
+	NewTransactionId uint64 `json:"-"`
+	NextDeviceId     int    `json:"next_device_id"`
 
 	// Options
 	dataLoopbackSize     int64
@@ -81,6 +84,7 @@ type DeviceSet struct {
 	metadataDevice       string
 	doBlkDiscard         bool
 	thinpBlockSize       uint32
+	thinPoolDevice       string
 }
 
 type DiskUsage struct {
@@ -138,12 +142,19 @@ func (devices *DeviceSet) metadataFile(info *DevInfo) string {
 	return path.Join(devices.metadataDir(), file)
 }
 
+func (devices *DeviceSet) deviceSetMetaFile() string {
+	return path.Join(devices.metadataDir(), deviceSetMetaFile)
+}
+
 func (devices *DeviceSet) oldMetadataFile() string {
 	return path.Join(devices.loopbackDir(), "json")
 }
 
 func (devices *DeviceSet) getPoolName() string {
-	return devices.devicePrefix + "-pool"
+	if devices.thinPoolDevice == "" {
+		return devices.devicePrefix + "-pool"
+	}
+	return devices.thinPoolDevice
 }
 
 func (devices *DeviceSet) getPoolDevName() string {
@@ -200,11 +211,8 @@ func (devices *DeviceSet) removeMetadata(info *DevInfo) error {
 	return nil
 }
 
-func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
-	jsonData, err := json.Marshal(info)
-	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
-	}
+// Given json data and file path, write it to disk
+func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
 	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
 	if err != nil {
 		return fmt.Errorf("Error creating metadata file: %s", err)
@@ -223,12 +231,24 @@ func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
 	}
-	if err := os.Rename(tmpFile.Name(), devices.metadataFile(info)); err != nil {
+	if err := os.Rename(tmpFile.Name(), filePath); err != nil {
 		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
 	}
 
+	return nil
+}
+
+func (devices *DeviceSet) saveMetadata(info *DevInfo) error {
+	jsonData, err := json.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
+	}
+	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
+		return err
+	}
+
 	if devices.NewTransactionId != devices.TransactionId {
-		if err = setTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
+		if err = devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
 			return fmt.Errorf("Error setting devmapper transition ID: %s", err)
 		}
 		devices.TransactionId = devices.NewTransactionId
@@ -280,11 +300,11 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 	log.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
 
-	if devinfo, _ := getInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
+	if devinfo, _ := devicemapper.GetInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
 	}
 
-	return activateDevice(devices.getPoolDevName(), info.Name(), info.DeviceId, info.Size)
+	return devicemapper.ActivateDevice(devices.getPoolDevName(), info.Name(), info.DeviceId, info.Size)
 }
 
 func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
@@ -321,7 +341,7 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 }
 
 func (devices *DeviceSet) initMetaData() error {
-	_, _, _, params, err := getStatus(devices.getPoolName())
+	_, _, _, params, err := devicemapper.GetStatus(devices.getPoolName())
 	if err != nil {
 		return err
 	}
@@ -395,26 +415,41 @@ func (devices *DeviceSet) setupBaseImage() error {
 		}
 	}
 
-	log.Debugf("Initializing base device-manager snapshot")
+	if devices.thinPoolDevice != "" && oldInfo == nil {
+		_, transactionId, dataUsed, _, _, _, err := devices.poolStatus()
+		if err != nil {
+			return err
+		}
+		if dataUsed != 0 {
+			return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
+				devices.thinPoolDevice)
+		}
+		if transactionId != 0 {
+			return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction Id",
+				devices.thinPoolDevice)
+		}
+	}
 
-	id := devices.nextDeviceId
+	log.Debugf("Initializing base device-mapper thin volume")
+
+	id := devices.NextDeviceId
 
 	// Create initial device
-	if err := createDevice(devices.getPoolDevName(), &id); err != nil {
+	if err := devicemapper.CreateDevice(devices.getPoolDevName(), &id); err != nil {
 		return err
 	}
 
 	// Ids are 24bit, so wrap around
-	devices.nextDeviceId = (id + 1) & 0xffffff
+	devices.NextDeviceId = (id + 1) & 0xffffff
 
 	log.Debugf("Registering base device (id %v) with FS size %v", id, devices.baseFsSize)
 	info, err := devices.registerDevice(id, "", devices.baseFsSize)
 	if err != nil {
-		_ = deleteDevice(devices.getPoolDevName(), id)
+		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), id)
 		return err
 	}
 
-	log.Debugf("Creating filesystem on base device-manager snapshot")
+	log.Debugf("Creating filesystem on base device-mapper thin volume")
 
 	if err = devices.activateDeviceIfNeeded(info); err != nil {
 		return err
@@ -447,11 +482,12 @@ func setCloseOnExec(name string) {
 	}
 }
 
-func (devices *DeviceSet) log(level int, file string, line int, dmError int, message string) {
+func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
 	if level >= 7 {
 		return // Ignore _LOG_DEBUG
 	}
 
+	// FIXME(vbatts) push this back into ./pkg/devicemapper/
 	log.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 }
 
@@ -489,7 +525,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 		return fmt.Errorf("Can't shrink file")
 	}
 
-	dataloopback := FindLoopDeviceFor(datafile)
+	dataloopback := devicemapper.FindLoopDeviceFor(datafile)
 	if dataloopback == nil {
 		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
 	}
@@ -501,7 +537,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 	defer metadatafile.Close()
 
-	metadataloopback := FindLoopDeviceFor(metadatafile)
+	metadataloopback := devicemapper.FindLoopDeviceFor(metadatafile)
 	if metadataloopback == nil {
 		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
 	}
@@ -513,32 +549,56 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 
 	// Reload size for loopback device
-	if err := LoopbackSetCapacity(dataloopback); err != nil {
+	if err := devicemapper.LoopbackSetCapacity(dataloopback); err != nil {
 		return fmt.Errorf("Unable to update loopback capacity: %s", err)
 	}
 
 	// Suspend the pool
-	if err := suspendDevice(devices.getPoolName()); err != nil {
+	if err := devicemapper.SuspendDevice(devices.getPoolName()); err != nil {
 		return fmt.Errorf("Unable to suspend pool: %s", err)
 	}
 
 	// Reload with the new block sizes
-	if err := reloadPool(devices.getPoolName(), dataloopback, metadataloopback, devices.thinpBlockSize); err != nil {
+	if err := devicemapper.ReloadPool(devices.getPoolName(), dataloopback, metadataloopback, devices.thinpBlockSize); err != nil {
 		return fmt.Errorf("Unable to reload pool: %s", err)
 	}
 
 	// Resume the pool
-	if err := resumeDevice(devices.getPoolName()); err != nil {
+	if err := devicemapper.ResumeDevice(devices.getPoolName()); err != nil {
 		return fmt.Errorf("Unable to resume pool: %s", err)
 	}
 
 	return nil
 }
 
-func (devices *DeviceSet) initDevmapper(doInit bool) error {
-	logInit(devices)
+func (devices *DeviceSet) loadDeviceSetMetaData() error {
+	jsonData, err := ioutil.ReadFile(devices.deviceSetMetaFile())
+	if err != nil {
+		// For backward compatibility return success if file does
+		// not exist.
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
 
-	_, err := getDriverVersion()
+	return json.Unmarshal(jsonData, devices)
+}
+
+func (devices *DeviceSet) saveDeviceSetMetaData() error {
+	jsonData, err := json.Marshal(devices)
+	if err != nil {
+		return fmt.Errorf("Error encoding metadata to json: %s", err)
+	}
+
+	return devices.writeMetaFile(jsonData, devices.deviceSetMetaFile())
+}
+
+func (devices *DeviceSet) initDevmapper(doInit bool) error {
+	// give ourselves to libdm as a log handler
+	devicemapper.LogInit(devices)
+
+	_, err := devicemapper.GetDriverVersion()
 	if err != nil {
 		// Can't even get driver version, assume not supported
 		return graphdriver.ErrNotSupported
@@ -564,11 +624,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(sysSt.Dev), minor(sysSt.Dev), sysSt.Ino)
 	log.Debugf("Generated prefix: %s", devices.devicePrefix)
 
-	// Check for the existence of the device <prefix>-pool
+	// Check for the existence of the thin-pool device
 	log.Debugf("Checking for existence of the pool '%s'", devices.getPoolName())
-	info, err := getInfo(devices.getPoolName())
+	info, err := devicemapper.GetInfo(devices.getPoolName())
 	if info == nil {
-		log.Debugf("Error device getInfo: %s", err)
+		log.Debugf("Error device devicemapper.GetInfo: %s", err)
 		return err
 	}
 
@@ -583,7 +643,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	createdLoopback := false
 
 	// If the pool doesn't exist, create it
-	if info.Exists == 0 {
+	if info.Exists == 0 && devices.thinPoolDevice == "" {
 		log.Debugf("Pool doesn't exist. Creating it.")
 
 		var (
@@ -610,7 +670,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 				return err
 			}
 
-			dataFile, err = attachLoopDevice(data)
+			dataFile, err = devicemapper.AttachLoopDevice(data)
 			if err != nil {
 				return err
 			}
@@ -641,7 +701,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 				return err
 			}
 
-			metadataFile, err = attachLoopDevice(metadata)
+			metadataFile, err = devicemapper.AttachLoopDevice(metadata)
 			if err != nil {
 				return err
 			}
@@ -653,7 +713,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 		defer metadataFile.Close()
 
-		if err := createPool(devices.getPoolName(), dataFile, metadataFile, devices.thinpBlockSize); err != nil {
+		if err := devicemapper.CreatePool(devices.getPoolName(), dataFile, metadataFile, devices.thinpBlockSize); err != nil {
 			return err
 		}
 	}
@@ -664,6 +724,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		if err = devices.initMetaData(); err != nil {
 			return err
 		}
+	}
+
+	// Right now this loads only NextDeviceId. If there is more metatadata
+	// down the line, we might have to move it earlier.
+	if err = devices.loadDeviceSetMetaData(); err != nil {
+		return err
 	}
 
 	// Setup the base image
@@ -693,18 +759,18 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 		return fmt.Errorf("device %s already exists", hash)
 	}
 
-	deviceId := devices.nextDeviceId
+	deviceId := devices.NextDeviceId
 
-	if err := createSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
+	if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), &deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 		log.Debugf("Error creating snap device: %s", err)
 		return err
 	}
 
 	// Ids are 24bit, so wrap around
-	devices.nextDeviceId = (deviceId + 1) & 0xffffff
+	devices.NextDeviceId = (deviceId + 1) & 0xffffff
 
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
-		deleteDevice(devices.getPoolDevName(), deviceId)
+		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		log.Debugf("Error registering device: %s", err)
 		return err
 	}
@@ -717,13 +783,13 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		// on the thin pool when we remove a thinp device, so we do it
 		// manually
 		if err := devices.activateDeviceIfNeeded(info); err == nil {
-			if err := BlockDeviceDiscard(info.DevName()); err != nil {
+			if err := devicemapper.BlockDeviceDiscard(info.DevName()); err != nil {
 				log.Debugf("Error discarding block on device: %s (ignoring)", err)
 			}
 		}
 	}
 
-	devinfo, _ := getInfo(info.Name())
+	devinfo, _ := devicemapper.GetInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
 		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
 			log.Debugf("Error removing device: %s", err)
@@ -731,7 +797,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		}
 	}
 
-	if err := deleteDevice(devices.getPoolDevName(), info.DeviceId); err != nil {
+	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceId); err != nil {
 		log.Debugf("Error deleting device: %s", err)
 		return err
 	}
@@ -771,12 +837,17 @@ func (devices *DeviceSet) deactivatePool() error {
 	log.Debugf("[devmapper] deactivatePool()")
 	defer log.Debugf("[devmapper] deactivatePool END")
 	devname := devices.getPoolDevName()
-	devinfo, err := getInfo(devname)
+
+	devinfo, err := devicemapper.GetInfo(devname)
 	if err != nil {
 		return err
 	}
+	if d, err := devicemapper.GetDeps(devname); err == nil {
+		// Access to more Debug output
+		log.Debugf("[devmapper] devicemapper.GetDeps() %s: %#v", devname, d)
+	}
 	if devinfo.Exists != 0 {
-		return removeDevice(devname)
+		return devicemapper.RemoveDevice(devname)
 	}
 
 	return nil
@@ -792,7 +863,7 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 		log.Errorf("Warning: error waiting for device %s to close: %s", info.Hash, err)
 	}
 
-	devinfo, err := getInfo(info.Name())
+	devinfo, err := devicemapper.GetInfo(info.Name())
 	if err != nil {
 		return err
 	}
@@ -811,11 +882,11 @@ func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 	var err error
 
 	for i := 0; i < 1000; i++ {
-		err = removeDevice(devname)
+		err = devicemapper.RemoveDevice(devname)
 		if err == nil {
 			break
 		}
-		if err != ErrBusy {
+		if err != devicemapper.ErrBusy {
 			return err
 		}
 
@@ -843,7 +914,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 	defer log.Debugf("[deviceset %s] waitRemove(%s) END", devices.devicePrefix, devname)
 	i := 0
 	for ; i < 1000; i++ {
-		devinfo, err := getInfo(devname)
+		devinfo, err := devicemapper.GetInfo(devname)
 		if err != nil {
 			// If there is an error we assume the device doesn't exist.
 			// The error might actually be something else, but we can't differentiate.
@@ -872,7 +943,7 @@ func (devices *DeviceSet) waitRemove(devname string) error {
 func (devices *DeviceSet) waitClose(info *DevInfo) error {
 	i := 0
 	for ; i < 1000; i++ {
-		devinfo, err := getInfo(info.Name())
+		devinfo, err := devicemapper.GetInfo(info.Name())
 		if err != nil {
 			return err
 		}
@@ -893,7 +964,6 @@ func (devices *DeviceSet) waitClose(info *DevInfo) error {
 }
 
 func (devices *DeviceSet) Shutdown() error {
-
 	log.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
 	log.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
 	defer log.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
@@ -937,9 +1007,13 @@ func (devices *DeviceSet) Shutdown() error {
 	}
 
 	devices.Lock()
-	if err := devices.deactivatePool(); err != nil {
-		log.Debugf("Shutdown deactivate pool , error: %s", err)
+	if devices.thinPoolDevice == "" {
+		if err := devices.deactivatePool(); err != nil {
+			log.Debugf("Shutdown deactivate pool , error: %s", err)
+		}
 	}
+
+	devices.saveDeviceSetMetaData()
 	devices.Unlock()
 
 	return nil
@@ -1060,7 +1134,7 @@ func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
 
-	devinfo, _ := getInfo(info.Name())
+	devinfo, _ := devicemapper.GetInfo(info.Name())
 	return devinfo != nil && devinfo.Exists != 0
 }
 
@@ -1082,7 +1156,7 @@ func (devices *DeviceSet) List() []string {
 
 func (devices *DeviceSet) deviceStatus(devName string) (sizeInSectors, mappedSectors, highestMappedSector uint64, err error) {
 	var params string
-	_, sizeInSectors, _, params, err = getStatus(devName)
+	_, sizeInSectors, _, params, err = devicemapper.GetStatus(devName)
 	if err != nil {
 		return
 	}
@@ -1127,7 +1201,7 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 
 func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionId, dataUsed, dataTotal, metadataUsed, metadataTotal uint64, err error) {
 	var params string
-	if _, totalSizeInSectors, _, params, err = getStatus(devices.getPoolName()); err == nil {
+	if _, totalSizeInSectors, _, params, err = devicemapper.GetStatus(devices.getPoolName()); err == nil {
 		_, err = fmt.Sscanf(params, "%d %d/%d %d/%d", &transactionId, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal)
 	}
 	return
@@ -1170,7 +1244,7 @@ func (devices *DeviceSet) Status() *Status {
 }
 
 func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {
-	SetDevDir("/dev")
+	devicemapper.SetDevDir("/dev")
 
 	devices := &DeviceSet{
 		root:                 root,
@@ -1222,6 +1296,8 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			devices.metadataDevice = val
 		case "dm.datadev":
 			devices.dataDevice = val
+		case "dm.thinpooldev":
+			devices.thinPoolDevice = strings.TrimPrefix(val, "/dev/mapper/")
 		case "dm.blkdiscard":
 			foundBlkDiscard = true
 			devices.doBlkDiscard, err = strconv.ParseBool(val)
@@ -1241,7 +1317,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 	}
 
 	// By default, don't do blk discard hack on raw devices, its rarely useful and is expensive
-	if !foundBlkDiscard && devices.dataDevice != "" {
+	if !foundBlkDiscard && (devices.dataDevice != "" || devices.thinPoolDevice != "") {
 		devices.doBlkDiscard = false
 	}
 

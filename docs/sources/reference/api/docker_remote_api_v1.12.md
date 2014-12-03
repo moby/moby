@@ -8,8 +8,8 @@ page_keywords: API, Docker, rcli, REST, documentation
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [*Bind Docker to another host/port or a Unix socket*](
-   /use/basics/#bind-docker).
+   [Bind Docker to another host/port or a Unix socket](
+   /articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
@@ -416,7 +416,7 @@ Start the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain
 
 Json Parameters:
@@ -603,7 +603,7 @@ Status Codes:
     `STREAM_TYPE` can be:
 
 -   0: stdin (will be written on stdout)
--   1: stdou
+-   1: stdout
 -   2: stderr
 
     `SIZE1, SIZE2, SIZE3, SIZE4` are the 4 bytes of
@@ -930,7 +930,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-        POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+        POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -940,6 +940,7 @@ Query Parameters:
 
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
+-   **tag** - The new tag name
 
 Status Codes:
 
@@ -1207,7 +1208,7 @@ Create a new image from a container's changes
 
 **Example request**:
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
         Content-Type: application/json
 
         {
@@ -1255,7 +1256,7 @@ Query Parameters:
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
--   **m** – commit message
+-   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
     <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 

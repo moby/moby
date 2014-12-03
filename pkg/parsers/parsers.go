@@ -7,63 +7,59 @@ import (
 )
 
 // FIXME: Change this not to receive default value as parameter
-func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
-	var (
-		proto string
-		host  string
-		port  int
-	)
+func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
-	switch {
-	case addr == "tcp://":
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	case strings.HasPrefix(addr, "unix://"):
-		proto = "unix"
-		addr = strings.TrimPrefix(addr, "unix://")
-		if addr == "" {
-			addr = defaultUnix
-		}
-	case strings.HasPrefix(addr, "tcp://"):
-		proto = "tcp"
-		addr = strings.TrimPrefix(addr, "tcp://")
-	case strings.HasPrefix(addr, "fd://"):
+	if addr == "" {
+		addr = fmt.Sprintf("unix://%s", defaultUnixAddr)
+	}
+	addrParts := strings.Split(addr, "://")
+	if len(addrParts) == 1 {
+		addrParts = []string{"tcp", addrParts[0]}
+	}
+
+	switch addrParts[0] {
+	case "tcp":
+		return ParseTCPAddr(addrParts[1], defaultTCPAddr)
+	case "unix":
+		return ParseUnixAddr(addrParts[1], defaultUnixAddr)
+	case "fd":
 		return addr, nil
-	case addr == "":
-		proto = "unix"
-		addr = defaultUnix
 	default:
-		if strings.Contains(addr, "://") {
-			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)
-		}
-		proto = "tcp"
-	}
-
-	if proto != "unix" && strings.Contains(addr, ":") {
-		hostParts := strings.Split(addr, ":")
-		if len(hostParts) != 2 {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		} else {
-			host = defaultHost
-		}
-
-		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
-			port = p
-		} else {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-
-	} else if proto == "tcp" && !strings.Contains(addr, ":") {
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	} else {
-		host = addr
 	}
-	if proto == "unix" {
-		return fmt.Sprintf("%s://%s", proto, host), nil
+}
+
+func ParseUnixAddr(addr string, defaultAddr string) (string, error) {
+	addr = strings.TrimPrefix(addr, "unix://")
+	if strings.Contains(addr, "://") {
+		return "", fmt.Errorf("Invalid proto, expected unix: %s", addr)
 	}
-	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
+	if addr == "" {
+		addr = defaultAddr
+	}
+	return fmt.Sprintf("unix://%s", addr), nil
+}
+
+func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
+	addr = strings.TrimPrefix(addr, "tcp://")
+	if strings.Contains(addr, "://") || addr == "" {
+		return "", fmt.Errorf("Invalid proto, expected tcp: %s", addr)
+	}
+
+	hostParts := strings.Split(addr, ":")
+	if len(hostParts) != 2 {
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+	}
+	host := hostParts[0]
+	if host == "" {
+		host = defaultAddr
+	}
+
+	p, err := strconv.Atoi(hostParts[1])
+	if err != nil && p == 0 {
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+	}
+	return fmt.Sprintf("tcp://%s:%d", host, p), nil
 }
 
 // Get a repos name and returns the right reposName + tag

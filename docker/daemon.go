@@ -3,8 +3,7 @@
 package main
 
 import (
-	"log"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/registry"
 )
 
 const CanDaemon = true
@@ -33,8 +33,16 @@ func mainDaemon() {
 	}
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
+
+	daemonCfg.TrustKeyPath = *flTrustKey
+
 	// Load builtins
 	if err := builtins.Register(eng); err != nil {
+		log.Fatal(err)
+	}
+
+	// load registry service
+	if err := registry.NewService(daemonCfg.InsecureRegistries).Install(eng); err != nil {
 		log.Fatal(err)
 	}
 
@@ -46,6 +54,13 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+			dockerversion.VERSION,
+			dockerversion.GITCOMMIT,
+			d.ExecutionDriver().Name(),
+			d.GraphDriver().String(),
+		)
+
 		if err := d.Install(eng); err != nil {
 			log.Fatal(err)
 		}
@@ -59,13 +74,6 @@ func mainDaemon() {
 			log.Fatal(err)
 		}
 	}()
-	// TODO actually have a resolved graphdriver to show?
-	log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
-		dockerversion.VERSION,
-		dockerversion.GITCOMMIT,
-		daemonCfg.ExecDriver,
-		daemonCfg.GraphDriver,
-	)
 
 	// Serve api
 	job := eng.Job("serveapi", flHosts...)
@@ -79,7 +87,6 @@ func mainDaemon() {
 	job.Setenv("TlsCa", *flCa)
 	job.Setenv("TlsCert", *flCert)
 	job.Setenv("TlsKey", *flKey)
-	job.Setenv("TrustKey", *flTrustKey)
 	job.SetenvBool("BufferRequests", true)
 	if err := job.Run(); err != nil {
 		log.Fatal(err)

@@ -151,20 +151,16 @@ earlier. The `--link` flag takes the form:
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.
 
-Next, look at your linked containers using `docker ps`.
+Next, inspect your linked containers with `docker inspect`:
 
-    $ sudo docker ps
-    CONTAINER ID  IMAGE                     COMMAND               CREATED             STATUS             PORTS                    NAMES
-    349169744e49  training/postgres:latest  su postgres -c '/usr  About a minute ago  Up About a minute  5432/tcp                 db, web/db
-    aed84ee21bde  training/webapp:latest    python app.py         16 hours ago        Up 2 minutes       0.0.0.0:49154->5000/tcp  web
+    $ sudo docker inspect -f "{{ .HostConfig.Links }}" web
+    [/db:/web/db]
 
-You can see your named containers, `db` and `web`, and you can see that the `db`
-container also shows `web/db` in the `NAMES` column. This tells you that the
-`web` container is linked to the `db` container, which allows it to access information
-about the `db` container.
+You can see that the `web` container is now linked to the `db` container
+`web/db`. Which allows it to access information about the `db` container.
 
-So what does linking the containers actually do? You've learned that a link creates a
-source container that can provide information about itself to a recipient container. In
+So what does linking the containers actually do? You've learned that a link allows a
+source container to provide information about itself to a recipient container. In
 our example, the recipient, `web`, can access information about the source `db`. To do
 this, Docker creates a secure tunnel between the containers that doesn't need to
 expose any ports externally on the container; you'll note when we started the
@@ -178,7 +174,45 @@ recipient container in two ways:
 * Environment variables,
 * Updating the `/etc/hosts` file.
 
-Docker can set a number of environment variables. You run the `env`
+### Environment Variables
+
+When two containers are linked, Docker will set some environment variables
+in the target container to enable programmatic discovery of information
+related to the source container.
+
+First, Docker will set an `<alias>_NAME` environment variable specifying the
+alias of each target container that was given in a `--link` parameter. So,
+for example, if a new container called `web` is being linked to a database
+container called `db` via `--link db:webdb` then in the `web` container
+would be `WEBDB_NAME=/web/webdb`.
+
+Docker will then also define a set of environment variables for each
+port that is exposed by the source container. The pattern followed is:
+
+* `<name>_PORT_<port>_<protocol>` will contain a URL reference to the
+port. Where `<name>` is the alias name specified in the `--link` parameter
+(e.g. `webdb`), `<port>` is the port number being exposed, and `<protocol>`
+is either `TCP` or `UDP`. The format of the URL will be: 
+`<protocol>://<container_ip_address>:<port>`
+(e.g. `tcp://172.17.0.82:8080`).  This URL will then be
+split into the following 3 environment variables for convenience:
+* `<name>_PORT_<port>_<protocol>_ADDR` will contain just the IP address 
+from the URL (e.g. `WEBDB_PORT_8080_TCP_ADDR=172.17.0.82`).
+* `<name>_PORT_<port>_<protocol>_PORT` will contain just the port number
+from the URL (e.g. `WEBDB_PORT_8080_TCP_PORT=8080`).
+* `<name>_PORT_<port>_<protocol>_PROTO` will contain just the protocol
+from the URL (e.g. `WEBDB_PORT_8080_TCP_PROTO=tcp`).
+
+If there are multiple ports exposed then the above set of environment
+variables will be defined for each one.
+
+Finally, there will be an environment variable called `<alias>_PORT` that will
+contain the URL of the first exposed port of the source container.
+For example, `WEBDB_PORT=tcp://172.17.0.82:8080`. In this case, 'first'
+is defined as the lowest numbered port that is exposed. If that port is
+used for both tcp and udp, then the tcp one will be specified.
+
+Returning back to our database example, you can run the `env`
 command to list the specified container's environment variables.
 
 ```
@@ -205,6 +239,8 @@ were `db1`, the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
 on the `db` container. The connection will be secure and private; only the
 linked `web` container will be able to talk to the `db` container.
+
+### Updating the `/etc/hosts` file
 
 In addition to the environment variables, Docker adds a host entry for the
 source container to the `/etc/hosts` file. Here's an entry for the `web`

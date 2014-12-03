@@ -8,8 +8,8 @@ page_keywords: API, Docker, rcli, REST, documentation
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [*Bind Docker to another host/port or a Unix socket*](
-   /use/basics/#bind-docker).
+   [Bind Docker to another host/port or a Unix socket](
+   /articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
@@ -117,7 +117,6 @@ Create a container
              "AttachStdin":false,
              "AttachStdout":true,
              "AttachStderr":true,
-             "PortSpecs":null,
              "Tty":false,
              "OpenStdin":false,
              "StdinOnce":false,
@@ -125,16 +124,34 @@ Create a container
              "Cmd":[
                      "date"
              ],
+             "Entrypoint": "",
              "Image":"base",
              "Volumes":{
                      "/tmp": {}
              },
              "WorkingDir":"",
              "NetworkDisabled": false,
+             "MacAddress":"12:34:56:78:9a:bc",
              "ExposedPorts":{
                      "22/tcp": {}
              },
-             "RestartPolicy": { "Name": "always" }
+             "SecurityOpts": [""],
+             "HostConfig": {
+               "Binds":["/tmp:/tmp"],
+               "Links":["redis3:redis"],
+               "LxcConf":{"lxc.utsname":"docker"},
+               "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
+               "PublishAllPorts":false,
+               "Privileged":false,
+               "Dns": ["8.8.8.8"],
+               "DnsSearch": [""],
+               "VolumesFrom": ["parent", "other:ro"],
+               "CapAdd": ["NET_ADMIN"],
+               "CapDrop": ["MKNOD"],
+               "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
+               "NetworkMode": "bridge",
+               "Devices": []
+            }
         }
 
 **Example response**:
@@ -143,19 +160,78 @@ Create a container
         Content-Type: application/json
 
         {
-             "Id":"e90e34656806"
+             "Id":"f91ddc4b01e079c4481a8340bbbeca4dbd33d6e4a10662e499f8eacbb5bf252b"
              "Warnings":[]
         }
 
 Json Parameters:
 
--   **RestartPolicy** – The behavior to apply when the container exits.  The
-        value is an object with a `Name` property of either `"always"` to
-        always restart or `"on-failure"` to restart only when the container
-        exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
-        controls the number of times to retry before giving up.
-        The default is not to restart. (optional)
--   **config** – the container's configuration
+-   **Hostname** - A string value containing the desired hostname to use for the
+      container.
+-   **Domainname** - A string value containing the desired domain name to use
+      for the container.
+-   **User** - A string value containg the user to use inside the container.
+-   **Memory** - Memory limit in bytes.
+-   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
+-   **CpuShares** - An integer value containing the CPU Shares for container
+      (ie. the relative weight vs othercontainers).
+    **CpuSet** - String value containg the cgroups Cpuset to use.
+-   **AttachStdin** - Boolean value, attaches to stdin.
+-   **AttachStdout** - Boolean value, attaches to stdout.
+-   **AttachStderr** - Boolean value, attaches to stderr.
+-   **Tty** - Boolean value, Attach standard streams to a tty, including stdin if it is not closed.
+-   **OpenStdin** - Boolean value, opens stdin,
+-   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
+-   **Env** - A list of environment variables in the form of `VAR=value`
+-   **Cmd** - Command to run specified as a string or an array of strings.
+-   **Entrypoint** - Set the entrypoint for the container a a string or an array
+      of strings
+-   **Image** - String value containing the image name to use for the container
+-   **Volumes** – An object mapping mountpoint paths (strings) inside the
+        container to empty objects.
+-   **WorkingDir** - A string value containing the working dir for commands to
+      run in.
+-   **NetworkDisabled** - Boolean value, when true disables neworking for the
+      container
+-   **ExposedPorts** - An object mapping ports to an empty object in the form of:
+      `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+-   **SecurityOpts**: A list of string values to customize labels for MLS
+      systems, such as SELinux.
+-   **HostConfig**
+  -   **Binds** – A list of volume bindings for this container.  Each volume
+          binding is a string of the form `container_path` (to create a new
+          volume for the container), `host_path:container_path` (to bind-mount
+          a host path into the container), or `host_path:container_path:ro`
+          (to make the bind-mount read-only inside the container).
+  -   **Links** - A list of links for the container.  Each link entry should be of
+        of the form "container_name:alias".
+  -   **LxcConf** - LXC specific configurations.  These configurations will only
+        work when using the `lxc` execution driver.
+  -   **PortBindings** - A map of exposed container ports and the host port they
+        should map to. It should be specified in the form
+        `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
+        Take note that `port` is specified as a string and not an integer value.
+  -   **PublishAllPorts** - Allocates a random host port for all of a container's
+        exposed ports. Specified as a boolean value.
+  -   **Privileged** - Gives the container full access to the host.  Specified as
+        a boolean value.
+  -   **Dns** - A list of dns servers for the container to use.
+  -   **DnsSearch** - A list of DNS search domains
+  -   **VolumesFrom** - A list of volumes to inherit from another container.
+        Specified in the form `<container name>[:<ro|rw>]`
+  -   **CapAdd** - A list of kernel capabilties to add to the container.
+  -   **Capdrop** - A list of kernel capabilties to drop from the container.
+  -   **RestartPolicy** – The behavior to apply when the container exits.  The
+          value is an object with a `Name` property of either `"always"` to
+          always restart or `"on-failure"` to restart only when the container
+          exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
+          controls the number of times to retry before giving up.
+          The default is not to restart. (optional)
+  -   **NetworkMode** - Sets the networking mode for the container. Supported
+        values are: `bridge`, `host`, and `container:<name|id>`
+  -   **Devices** - A list of devices to add to the container specified in the
+        form
+        `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
 
 Query Parameters:
 
@@ -397,7 +473,7 @@ Status Codes:
 
 `GET /containers/(id)/resize?h=<height>&w=<width>`
 
-Resize the TTY of container `id` 
+Resize the TTY of container `id`
 
 **Example request**:
 
@@ -434,9 +510,13 @@ Start the container `id`
              "PublishAllPorts":false,
              "Privileged":false,
              "Dns": ["8.8.8.8"],
+             "DnsSearch": [""],
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
-             "CapDrop": ["MKNOD"]
+             "CapDrop": ["MKNOD"],
+             "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
+             "NetworkMode": "bridge",
+             "Devices": []
         }
 
 **Example response**:
@@ -445,7 +525,40 @@ Start the container `id`
 
 Json Parameters:
 
--   **hostConfig** – the container's host configuration (optional)
+-   **Binds** – A list of volume bindings for this container.  Each volume
+        binding is a string of the form `container_path` (to create a new
+        volume for the container), `host_path:container_path` (to bind-mount
+        a host path into the container), or `host_path:container_path:ro`
+        (to make the bind-mount read-only inside the container).
+-   **Links** - A list of links for the container.  Each link entry should be of
+      of the form "container_name:alias".
+-   **LxcConf** - LXC specific configurations.  These configurations will only
+      work when using the `lxc` execution driver.
+-   **PortBindings** - A map of exposed container ports and the host port they
+      should map to. It should be specified in the form
+      `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
+      Take note that `port` is specified as a string and not an integer value.
+-   **PublishAllPorts** - Allocates a random host port for all of a container's
+      exposed ports. Specified as a boolean value.
+-   **Privileged** - Gives the container full access to the host.  Specified as
+      a boolean value.
+-   **Dns** - A list of dns servers for the container to use.
+-   **DnsSearch** - A list of DNS search domains
+-   **VolumesFrom** - A list of volumes to inherit from another container.
+      Specified in the form `<container name>[:<ro|rw>]`
+-   **CapAdd** - A list of kernel capabilties to add to the container.
+-   **Capdrop** - A list of kernel capabilties to drop from the container.
+-   **RestartPolicy** – The behavior to apply when the container exits.  The
+        value is an object with a `Name` property of either `"always"` to
+        always restart or `"on-failure"` to restart only when the container
+        exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
+        controls the number of times to retry before giving up.
+        The default is not to restart. (optional)
+-   **NetworkMode** - Sets the networking mode for the container. Supported
+      values are: `bridge`, `host`, and `container:<name|id>`
+-   **Devices** - A list of devices to add to the container specified in the
+      form
+      `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
 
 Status Codes:
 
@@ -628,7 +741,7 @@ Status Codes:
     `STREAM_TYPE` can be:
 
 -   0: stdin (will be written on stdout)
--   1: stdou
+-   1: stdout
 -   2: stderr
 
     `SIZE1, SIZE2, SIZE3, SIZE4` are the 4 bytes of
@@ -952,7 +1065,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-        POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+        POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -962,6 +1075,7 @@ Query Parameters:
 
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
+-   **tag** - The new tag name
 
 Status Codes:
 
@@ -1074,7 +1188,7 @@ Build an image from Dockerfile via stdin
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/x-json-stream
+        Content-Type: application/json
 
         {"stream":"Step 1..."}
         {"stream":"..."}
@@ -1229,7 +1343,7 @@ Create a new image from a container's changes
 
 **Example request**:
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
         Content-Type: application/json
 
         {
@@ -1277,7 +1391,7 @@ Query Parameters:
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
--   **m** – commit message
+-   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
     <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 
@@ -1309,7 +1423,7 @@ and Docker images will report:
 **Example response**:
 
         HTTP/1.1 200 OK
-        Content-Type: application/x-json-stream
+        Content-Type: application/json
 
         {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
         {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
@@ -1427,6 +1541,115 @@ the root that contains a list of repository and tag names mapped to layer IDs.
     {"latest":"565a9d68a73f6706862bfe8409a7f659776d4d60a8d096eb4a3cbce6999cc2a1"}
 }
 ```
+
+### Exec Create
+
+`POST /containers/(id)/exec`
+
+Sets up an exec instance in a running container `id`
+
+**Example request**:
+
+        POST /containers/e90e34656806/exec HTTP/1.1
+        Content-Type: application/json
+
+        {
+	     "AttachStdin":false,
+	     "AttachStdout":true,
+	     "AttachStderr":true,
+	     "Tty":false,
+	     "Cmd":[
+                     "date"
+             ],
+        }
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: application/json
+
+        {
+             "Id":"f90e34656806"
+        }
+
+Json Parameters:
+
+-   **AttachStdin** - Boolean value, attaches to stdin of the exec command.
+-   **AttachStdout** - Boolean value, attaches to stdout of the exec command.
+-   **AttachStderr** - Boolean value, attaches to stderr of the exec command.
+-   **Tty** - Boolean value to allocate a pseudo-TTY
+-   **Cmd** - Command to run specified as a string or an array of strings.
+
+
+Status Codes:
+
+-   **201** – no error
+-   **404** – no such container
+
+### Exec Start
+
+`POST /exec/(id)/start`
+
+Starts a previously set up exec instance `id`. If `detach` is true, this API
+returns after starting the `exec` command. Otherwise, this API sets up an
+interactive session with the `exec` command.
+
+**Example request**:
+
+        POST /exec/e90e34656806/start HTTP/1.1
+        Content-Type: application/json
+
+        {
+	     "Detach":false,
+	     "Tty":false,
+        }
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: application/json
+
+        {{ STREAM }}
+
+Json Parameters:
+
+-   **Detach** - Detach from the exec command
+-   **Tty** - Boolean value to allocate a pseudo-TTY
+
+Status Codes:
+
+-   **201** – no error
+-   **404** – no such exec instance
+
+    **Stream details**:
+    Similar to the stream behavior of `POST /container/(id)/attach` API
+
+### Exec Resize
+
+`POST /exec/(id)/resize`
+
+Resizes the tty session used by the exec command `id`.
+This API is valid only if `tty` was specified as part of creating and starting the exec command.
+
+**Example request**:
+
+        POST /exec/e90e34656806/resize HTTP/1.1
+        Content-Type: plain/text
+
+**Example response**:
+
+        HTTP/1.1 201 OK
+        Content-Type: plain/text
+
+Query Parameters:
+
+-   **h** – height of tty session
+-   **w** – width
+
+Status Codes:
+
+-   **201** – no error
+-   **404** – no such exec instance
 
 # 3. Going further
 

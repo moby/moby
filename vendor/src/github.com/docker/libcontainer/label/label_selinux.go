@@ -17,7 +17,6 @@ func InitLabels(options []string) (string, string, error) {
 	if !selinux.SelinuxEnabled() {
 		return "", "", nil
 	}
-	var err error
 	processLabel, mountLabel := selinux.GetLxcContexts()
 	if processLabel != "" {
 		pcon := selinux.NewContext(processLabel)
@@ -38,7 +37,7 @@ func InitLabels(options []string) (string, string, error) {
 		processLabel = pcon.Get()
 		mountLabel = mcon.Get()
 	}
-	return processLabel, mountLabel, err
+	return processLabel, mountLabel, nil
 }
 
 // DEPRECATED: The GenLabels function is only to be used during the transition to the official API.
@@ -67,20 +66,17 @@ func FormatMountLabel(src, mountLabel string) string {
 // SetProcessLabel takes a process label and tells the kernel to assign the
 // label to the next program executed by the current process.
 func SetProcessLabel(processLabel string) error {
-	if selinux.SelinuxEnabled() {
-		return selinux.Setexeccon(processLabel)
+	if processLabel == "" {
+		return nil
 	}
-	return nil
+	return selinux.Setexeccon(processLabel)
 }
 
 // GetProcessLabel returns the process label that the kernel will assign
 // to the next program executed by the current process.  If "" is returned
 // this indicates that the default labeling will happen for the process.
 func GetProcessLabel() (string, error) {
-	if selinux.SelinuxEnabled() {
-		return selinux.Getexeccon()
-	}
-	return "", nil
+	return selinux.Getexeccon()
 }
 
 // SetFileLabel modifies the "path" label to the specified file label
@@ -110,9 +106,6 @@ func Relabel(path string, fileLabel string, relabel string) error {
 
 // GetPidLabel will return the label of the process running with the specified pid
 func GetPidLabel(pid int) (string, error) {
-	if !selinux.SelinuxEnabled() {
-		return "", nil
-	}
 	return selinux.Getpidcon(pid)
 }
 
@@ -135,4 +128,16 @@ func ReserveLabel(label string) error {
 func UnreserveLabel(label string) error {
 	selinux.FreeLxcContexts(label)
 	return nil
+}
+
+// DupSecOpt takes an process label and returns security options that
+// can be used to set duplicate labels on future container processes
+func DupSecOpt(src string) []string {
+	return selinux.DupSecOpt(src)
+}
+
+// DisableSecOpt returns a security opt that can disable labeling
+// support for future container processes
+func DisableSecOpt() []string {
+	return selinux.DisableSecOpt()
 }

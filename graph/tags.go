@@ -19,14 +19,15 @@ import (
 const DEFAULTTAG = "latest"
 
 var (
-	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,29}$`)
+	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
 )
 
 type TagStore struct {
-	path         string
-	graph        *Graph
-	mirrors      []string
-	Repositories map[string]Repository
+	path               string
+	graph              *Graph
+	mirrors            []string
+	insecureRegistries []string
+	Repositories       map[string]Repository
 	sync.Mutex
 	// FIXME: move push/pull-related fields
 	// to a helper type
@@ -54,18 +55,20 @@ func (r Repository) Contains(u Repository) bool {
 	return true
 }
 
-func NewTagStore(path string, graph *Graph, mirrors []string) (*TagStore, error) {
+func NewTagStore(path string, graph *Graph, mirrors []string, insecureRegistries []string) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
+
 	store := &TagStore{
-		path:         abspath,
-		graph:        graph,
-		mirrors:      mirrors,
-		Repositories: make(map[string]Repository),
-		pullingPool:  make(map[string]chan struct{}),
-		pushingPool:  make(map[string]chan struct{}),
+		path:               abspath,
+		graph:              graph,
+		mirrors:            mirrors,
+		insecureRegistries: insecureRegistries,
+		Repositories:       make(map[string]Repository),
+		pullingPool:        make(map[string]chan struct{}),
+		pushingPool:        make(map[string]chan struct{}),
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
@@ -218,11 +221,11 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	var repo Repository
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
+		if old, exists := store.Repositories[repoName][tag]; exists && !force {
+			return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", tag, old)
+		}
 	} else {
 		repo = make(map[string]string)
-		if old, exists := store.Repositories[repoName]; exists && !force {
-			return fmt.Errorf("Conflict: Tag %s:%s is already set to %s", repoName, tag, old)
-		}
 		store.Repositories[repoName] = repo
 	}
 	repo[tag] = img.ID
@@ -274,6 +277,20 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 	}
 	store.Unlock()
 	return reporefs
+}
+
+// isOfficialName returns whether a repo name is considered an official
+// repository.  Official repositories are repos with names within
+// the library namespace or which default to the library namespace
+// by not providing one.
+func isOfficialName(name string) bool {
+	if strings.HasPrefix(name, "library/") {
+		return true
+	}
+	if strings.IndexRune(name, '/') == -1 {
+		return true
+	}
+	return false
 }
 
 // Validate the name of a repository

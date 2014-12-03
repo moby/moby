@@ -23,6 +23,8 @@ It is also possible to specify a non-default registry to pull from.
 # EXAMPLES
 
 # Pull a repository with multiple images
+# Note that if the  image is previously downloaded then the status would be
+# 'Status: Image is up to date for fedora'
 
     $ sudo docker pull fedora
     Pulling repository fedora
@@ -30,6 +32,8 @@ It is also possible to specify a non-default registry to pull from.
     105182bb5e8b: Download complete
     511136ea3c5a: Download complete
     73bd853d2ea5: Download complete
+
+    Status: Downloaded newer image for fedora
 
     $ sudo docker images
     REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
@@ -39,12 +43,16 @@ It is also possible to specify a non-default registry to pull from.
     fedora       latest      105182bb5e8b    5 days ago   372.7 MB
 
 # Pull an image, manually specifying path to the registry and tag
+# Note that if the  image is previously downloaded then the status would be
+# 'Status: Image is up to date for registry.hub.docker.com/fedora:20'
 
     $ sudo docker pull registry.hub.docker.com/fedora:20
     Pulling repository fedora
     3f2fed40e4b0: Download complete 
     511136ea3c5a: Download complete 
     fd241224e9cf: Download complete 
+
+    Status: Downloaded newer image for registry.hub.docker.com/fedora:20
 
     $ sudo docker images
     REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE

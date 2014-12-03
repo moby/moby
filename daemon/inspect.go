@@ -47,6 +47,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.Set("ProcessLabel", container.ProcessLabel)
 		out.SetJson("Volumes", container.Volumes)
 		out.SetJson("VolumesRW", container.VolumesRW)
+		out.SetJson("AppArmorProfile", container.AppArmorProfile)
 
 		if children, err := daemon.Children(container.Name); err == nil {
 			for linkAlias, child := range children {
@@ -63,4 +64,22 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		return engine.StatusOK
 	}
 	return job.Errorf("No such container: %s", name)
+}
+
+func (daemon *Daemon) ContainerExecInspect(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("usage: %s ID", job.Name)
+	}
+	id := job.Args[0]
+	eConfig, err := daemon.getExecConfig(id)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	b, err := json.Marshal(*eConfig)
+	if err != nil {
+		return job.Error(err)
+	}
+	job.Stdout.Write(b)
+	return engine.StatusOK
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/utils"
 )
@@ -38,7 +39,7 @@ func NewRepository(configPath string, driver graphdriver.Driver) (*Repository, e
 	return repo, repo.restore()
 }
 
-func (r *Repository) NewVolume(path string, writable bool) (*Volume, error) {
+func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 	var (
 		isBindMount bool
 		err         error
@@ -54,6 +55,7 @@ func (r *Repository) NewVolume(path string, writable bool) (*Volume, error) {
 			return nil, err
 		}
 	}
+	path = filepath.Clean(path)
 
 	path, err = filepath.EvalSymlinks(path)
 	if err != nil {
@@ -65,7 +67,7 @@ func (r *Repository) NewVolume(path string, writable bool) (*Volume, error) {
 		Path:        path,
 		repository:  r,
 		Writable:    writable,
-		Containers:  make(map[string]struct{}),
+		containers:  make(map[string]struct{}),
 		configPath:  r.configPath + "/" + id,
 		IsBindMount: isBindMount,
 	}
@@ -73,10 +75,8 @@ func (r *Repository) NewVolume(path string, writable bool) (*Volume, error) {
 	if err := v.initialize(); err != nil {
 		return nil, err
 	}
-	if err := r.Add(v); err != nil {
-		return nil, err
-	}
-	return v, nil
+
+	return v, r.add(v)
 }
 
 func (r *Repository) restore() error {
@@ -85,11 +85,31 @@ func (r *Repository) restore() error {
 		return err
 	}
 
-	var ids []string
 	for _, v := range dir {
 		id := v.Name()
-		if r.driver.Exists(id) {
-			ids = append(ids, id)
+		path, err := r.driver.Get(id, "")
+		if err != nil {
+			log.Debugf("Could not find volume for %s: %v", id, err)
+			continue
+		}
+		vol := &Volume{
+			ID:         id,
+			configPath: r.configPath + "/" + id,
+			containers: make(map[string]struct{}),
+			Path:       path,
+		}
+		if err := vol.FromDisk(); err != nil {
+			if !os.IsNotExist(err) {
+				log.Debugf("Error restoring volume: %v", err)
+				continue
+			}
+			if err := vol.initialize(); err != nil {
+				log.Debugf("%s", err)
+				continue
+			}
+		}
+		if err := r.add(vol); err != nil {
+			log.Debugf("Error restoring volume: %v", err)
 		}
 	}
 	return nil
@@ -107,12 +127,16 @@ func (r *Repository) get(path string) *Volume {
 	if err != nil {
 		return nil
 	}
-	return r.volumes[path]
+	return r.volumes[filepath.Clean(path)]
 }
 
 func (r *Repository) Add(volume *Volume) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	return r.add(volume)
+}
+
+func (r *Repository) add(volume *Volume) error {
 	if vol := r.get(volume.Path); vol != nil {
 		return fmt.Errorf("Volume exists: %s", volume.ID)
 	}
@@ -137,20 +161,22 @@ func (r *Repository) Delete(path string) error {
 	if err != nil {
 		return err
 	}
-	volume := r.get(path)
+	volume := r.get(filepath.Clean(path))
 	if volume == nil {
 		return fmt.Errorf("Volume %s does not exist", path)
 	}
 
-	if volume.IsBindMount {
-		return fmt.Errorf("Volume %s is a bind-mount and cannot be removed", volume.Path)
-	}
-	if len(volume.Containers) > 0 {
-		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Path, volume.Containers)
+	containers := volume.Containers()
+	if len(containers) > 0 {
+		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Path, containers)
 	}
 
 	if err := os.RemoveAll(volume.configPath); err != nil {
 		return err
+	}
+
+	if volume.IsBindMount {
+		return nil
 	}
 
 	if err := r.driver.Remove(volume.ID); err != nil {
@@ -170,8 +196,23 @@ func (r *Repository) createNewVolumePath(id string) (string, error) {
 
 	path, err := r.driver.Get(id, "")
 	if err != nil {
-		return "", fmt.Errorf("Driver %s failed to get volume rootfs %s: %s", r.driver, id, err)
+		return "", fmt.Errorf("Driver %s failed to get volume rootfs %s: %v", r.driver, id, err)
 	}
 
 	return path, nil
+}
+
+func (r *Repository) FindOrCreateVolume(path string, writable bool) (*Volume, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if path == "" {
+		return r.newVolume(path, writable)
+	}
+
+	if v := r.get(path); v != nil {
+		return v, nil
+	}
+
+	return r.newVolume(path, writable)
 }

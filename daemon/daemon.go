@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,7 +14,8 @@ import (
 
 	"github.com/docker/libcontainer/label"
 
-	"github.com/docker/docker/archive"
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
@@ -27,17 +27,17 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/namesgenerator"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
 )
@@ -84,6 +84,7 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
+	ID             string
 	repository     string
 	sysInitPath    string
 	containers     *contStore
@@ -98,6 +99,7 @@ type Daemon struct {
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
+	trustStore     *trust.TrustStore
 }
 
 // Install installs daemon capabilities to eng.
@@ -128,12 +130,16 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
 		"execResize":        daemon.ContainerExecResize,
+		"execInspect":       daemon.ContainerExecInspect,
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err
 		}
 	}
 	if err := daemon.Repositories().Install(eng); err != nil {
+		return err
+	}
+	if err := daemon.trustStore.Install(eng); err != nil {
 		return err
 	}
 	// FIXME: this hack is necessary for legacy integration tests to access
@@ -228,7 +234,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		log.Debugf("killing old running container %s", container.ID)
 
 		existingPid := container.Pid
-		container.SetStopped(0)
+		container.SetStopped(&execdriver.ExitStatus{0, false})
 
 		// We only have to handle this for lxc because the other drivers will ensure that
 		// no processes are left when docker dies
@@ -260,7 +266,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 			log.Debugf("Marking as stopped")
 
-			container.SetStopped(-127)
+			container.SetStopped(&execdriver.ExitStatus{-127, false})
 			if err := container.ToDisk(); err != nil {
 				return err
 			}
@@ -301,7 +307,7 @@ func (daemon *Daemon) restore() error {
 	)
 
 	if !debug {
-		log.Infof("Loading containers: ")
+		log.Infof("Loading containers: start.")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
 	if err != nil {
@@ -385,13 +391,12 @@ func (daemon *Daemon) restore() error {
 	}
 
 	for _, c := range registeredContainers {
-		for _, mnt := range c.VolumeMounts() {
-			daemon.volumes.Add(mnt.volume)
-		}
+		c.registerVolumes()
 	}
 
 	if !debug {
-		log.Infof(": done.")
+		fmt.Println()
+		log.Infof("Loading containers: done.")
 	}
 
 	return nil
@@ -527,6 +532,31 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string)
 	return entrypoint, args
 }
 
+func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
+	var (
+		labelOpts []string
+		err       error
+	)
+
+	for _, opt := range config.SecurityOpt {
+		con := strings.SplitN(opt, ":", 2)
+		if len(con) == 1 {
+			return fmt.Errorf("Invalid --security-opt: %q", opt)
+		}
+		switch con[0] {
+		case "label":
+			labelOpts = append(labelOpts, con[1])
+		case "apparmor":
+			container.AppArmorProfile = con[1]
+		default:
+			return fmt.Errorf("Invalid --security-opt: %q", opt)
+		}
+	}
+
+	container.ProcessLabel, container.MountLabel, err = label.InitLabels(labelOpts)
+	return err
+}
+
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *image.Image) (*Container, error) {
 	var (
 		id  string
@@ -557,11 +587,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		execCommands:    newExecStore(),
 	}
 	container.root = daemon.containerRoot(container.ID)
-
-	if container.ProcessLabel, container.MountLabel, err = label.GenLabels(""); err != nil {
-		return nil, err
-	}
-	return container, nil
+	return container, err
 }
 
 func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error {
@@ -695,10 +721,8 @@ func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 }
 
 func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
-	// Apply configuration defaults
 	if config.Mtu == 0 {
-		// FIXME: GetDefaultNetwork Mtu doesn't need to be public anymore
-		config.Mtu = GetDefaultNetworkMtu()
+		config.Mtu = getDefaultNetworkMtu()
 	}
 	// Check for mutually incompatible config options
 	if config.BridgeIface != "" && config.BridgeIP != "" {
@@ -708,7 +732,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
 	if !config.EnableIptables && config.EnableIpMasq {
-		return nil, fmt.Errorf("You specified --iptables=false with --ipmasq=true. IP masquerading uses iptables to function. Please set --ipmasq to false or --iptables to true.")
+		config.EnableIpMasq = false
 	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
@@ -808,9 +832,18 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	log.Debugf("Creating repository list")
-	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, config.Mirrors)
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, config.Mirrors, config.InsecureRegistries)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
+	}
+
+	trustDir := path.Join(config.Root, "trust")
+	if err := os.MkdirAll(trustDir, 0700); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	t, err := trust.NewTrustStore(trustDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not create trust store: %s", err)
 	}
 
 	if !config.DisableNetwork {
@@ -862,7 +895,13 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	daemon := &Daemon{
+		ID:             trustKey.PublicKey().KeyID(),
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
 		execCommands:   newExecStore(),
@@ -877,9 +916,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
-	}
-	if err := daemon.checkLocaldns(); err != nil {
-		return nil, err
+		trustStore:     t,
 	}
 	if err := daemon.restore(); err != nil {
 		return nil, err
@@ -889,7 +926,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	eng.OnShutdown(func() {
 		// FIXME: if these cleanup steps can be called concurrently, register
 		// them as separate handlers to speed up total shutdown time
-		// FIXME: use engine logging instead of log.Errorf
 		if err := daemon.shutdown(); err != nil {
 			log.Errorf("daemon.shutdown(): %s", err)
 		}
@@ -939,6 +975,7 @@ func (daemon *Daemon) Mount(container *Container) error {
 	if container.basefs == "" {
 		container.basefs = dir
 	} else if container.basefs != dir {
+		daemon.driver.Put(container.ID)
 		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
 			daemon.driver, container.ID, container.basefs, dir)
 	}
@@ -960,7 +997,7 @@ func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
 	return daemon.driver.Diff(container.ID, initID)
 }
 
-func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	return daemon.execDriver.Run(c.command, pipes, startCallback)
 }
 
@@ -1038,20 +1075,6 @@ func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
 
 func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 	return daemon.containerGraph
-}
-
-func (daemon *Daemon) checkLocaldns() error {
-	resolvConf, err := resolvconf.Get()
-	if err != nil {
-		return err
-	}
-	resolvConf = utils.RemoveLocalDns(resolvConf)
-
-	if len(daemon.config.Dns) == 0 && !bytes.Contains(resolvConf, []byte("nameserver")) {
-		log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
-		daemon.config.Dns = DefaultDns
-	}
-	return nil
 }
 
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {

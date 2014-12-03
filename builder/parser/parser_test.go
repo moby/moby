@@ -71,8 +71,8 @@ func TestTestData(t *testing.T) {
 		}
 
 		if ast.Dump()+"\n" != string(content) {
-			fmt.Fprintln(os.Stderr, ast.Dump())
-			fmt.Fprintln(os.Stderr, string(content))
+			fmt.Fprintln(os.Stderr, "Result:\n"+ast.Dump())
+			fmt.Fprintln(os.Stderr, "Expected:\n"+string(content))
 			t.Fatalf("%s: AST dump of dockerfile does not match result", dir.Name())
 		}
 

@@ -4,9 +4,14 @@ page_keywords: API, Docker, rcli, REST, documentation
 
 # Docker Remote API
 
- - The Remote API is replacing `rcli`.
  - By default the Docker daemon listens on `unix:///var/run/docker.sock`
    and the client must have `root` access to interact with the daemon.
+ - If the Docker daemon is set to use an encrypted TCP socket (`--tls`,
+   or `--tlsverify`) as with Boot2Docker 1.3.0, then you need to add extra
+   parameters to `curl` or `wget` when making test API requests:
+   `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
+   or 
+   `wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://boot2docker:2376/images/json -O - -q`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
  - The API tends to be REST, but for some complex commands, like attach
@@ -20,14 +25,49 @@ page_keywords: API, Docker, rcli, REST, documentation
    "serveraddress" : "string", "auth": ""}`. Notice that `auth` is to be left
    empty, `serveraddress` is a domain/ip without protocol, and that double
    quotes (instead of single ones) are required.
+ - The Remote API uses an open schema model.  In this model, unknown 
+   properties in incoming messages will be ignored.
+   Client applications need to take this into account to ensure
+   they will not break when talking to newer Docker daemons.
 
-The current version of the API is v1.15
+The current version of the API is v1.16
 
 Calling `/info` is the same as calling
-`/v1.15/info`.
+`/v1.16/info`.
 
 You can still call an old version of the API using
-`/v1.14/info`.
+`/v1.15/info`.
+
+## v1.16
+
+### Full Documentation
+
+[*Docker Remote API v1.16*](/reference/api/docker_remote_api_v1.16/)
+
+### What's new
+
+`GET /info`
+
+**New!**
+`info` now returns the number of CPUs available on the machine (`NCPU`),
+total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
+a list of daemon labels (`Labels`).
+
+`POST /containers/create`
+
+**New!**
+You can set the new container's MAC address explicitly.
+
+`POST /containers/(id)/start`
+
+**New!**
+Passing the container's `HostConfig` on start is now deprecated.  You should
+set this when creating the container.
+
+`POST /containers/(id)/copy`
+
+**New!**
+You can now copy data which is contained in a volume.
 
 ## v1.15
 
@@ -37,11 +77,11 @@ You can still call an old version of the API using
 
 ### What's new
 
-`POST /build`
-`GET /events`
+`POST /containers/create`
 
 **New!**
-Now has header: `Content-Type: application/x-json-stream`.
+It is now possible to set a container's HostConfig when creating a container.
+Previously this was only available when starting a container.
 
 ## v1.14
 
@@ -83,7 +123,7 @@ the `tag` parameter at the same time will return an error.
 The `HostConfig.Links` field is now filled correctly
 
 **New!**
-`Sockets` parameter added to the `/info` endpoint listing all the sockets the
+`Sockets` parameter added to the `/info` endpoint listing all the sockets the 
 daemon is configured to listen on.
 
 `POST /containers/(name)/start`
@@ -411,7 +451,7 @@ Builder (/build):
    intermediary buffers
  - Simpler, less memory usage, less disk usage and faster
 
-> **Warning**:
+> **Warning**: 
 > The /build improvements are not reverse-compatible. Pre 1.3 clients will
 > break on /build.
 

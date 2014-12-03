@@ -325,7 +325,7 @@ Start the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain
 
 Json Parameters:
@@ -749,7 +749,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-        POST /images/test/tag?repo=myrepo&force=0 HTTP/1.1
+        POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -759,6 +759,7 @@ Query Parameters:
 
 -   **repo** – The repository to tag in
 -   **force** – 1/True/true or 0/False/false, default false
+-   **tag** - The new tag name
 
 Status Codes:
 
@@ -1063,4 +1064,4 @@ stdout and stderr on the same socket. This might change in the future.
 To enable cross origin requests to the remote api add the flag
 "--api-enable-cors" when running docker in daemon mode.
 
-> docker -d -H="192.168.1.9:2375" –api-enable-cors
+> docker -d -H="192.168.1.9:2375" -api-enable-cors

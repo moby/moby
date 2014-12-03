@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -18,14 +19,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/archive"
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/log"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
+	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -44,7 +48,8 @@ func (b *Builder) readContext(context io.Reader) error {
 	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version0); err != nil {
 		return err
 	}
-	if err := archive.Untar(b.context, tmpdirPath, nil); err != nil {
+
+	if err := chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
 		return err
 	}
 
@@ -213,7 +218,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	origPath = strings.TrimPrefix(origPath, "./")
 
 	// In the remote/URL case, download it and gen its hashcode
-	if utils.IsURL(origPath) {
+	if urlutil.IsURL(origPath) {
 		if !allowRemote {
 			return fmt.Errorf("Source can't be a URL for %s", cmdName)
 		}
@@ -253,8 +258,21 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		fmt.Fprintf(b.OutStream, "\n")
 		tmpFile.Close()
 
-		// Remove the mtime of the newly created tmp file
-		if err := system.UtimesNano(tmpFileName, make([]syscall.Timespec, 2)); err != nil {
+		// Set the mtime to the Last-Modified header value if present
+		// Otherwise just remove atime and mtime
+		times := make([]syscall.Timespec, 2)
+
+		lastMod := resp.Header.Get("Last-Modified")
+		if lastMod != "" {
+			mTime, err := http.ParseTime(lastMod)
+			// If we can't parse it then just let it default to 'zero'
+			// otherwise use the parsed time value
+			if err == nil {
+				times[1] = syscall.NsecToTimespec(mTime.UnixNano())
+			}
+		}
+
+		if err := system.UtimesNano(tmpFileName, times); err != nil {
 			return err
 		}
 
@@ -435,30 +453,26 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 	onBuildTriggers := b.Config.OnBuild
 	b.Config.OnBuild = []string{}
 
-	// FIXME rewrite this so that builder/parser is used; right now steps in
-	// onbuild are muted because we have no good way to represent the step
-	// number
+	// parse the ONBUILD triggers by invoking the parser
 	for stepN, step := range onBuildTriggers {
-		splitStep := strings.Split(step, " ")
-		stepInstruction := strings.ToUpper(strings.Trim(splitStep[0], " "))
-		switch stepInstruction {
-		case "ONBUILD":
-			return fmt.Errorf("Source image contains forbidden chained `ONBUILD ONBUILD` trigger: %s", step)
-		case "MAINTAINER", "FROM":
-			return fmt.Errorf("Source image contains forbidden %s trigger: %s", stepInstruction, step)
+		ast, err := parser.Parse(strings.NewReader(step))
+		if err != nil {
+			return err
 		}
 
-		// FIXME we have to run the evaluator manually here. This does not belong
-		// in this function. Once removed, the init() in evaluator.go should no
-		// longer be necessary.
+		for i, n := range ast.Children {
+			switch strings.ToUpper(n.Value) {
+			case "ONBUILD":
+				return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			case "MAINTAINER", "FROM":
+				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
+			}
 
-		if f, ok := evaluateTable[strings.ToLower(stepInstruction)]; ok {
 			fmt.Fprintf(b.OutStream, "Trigger %d, %s\n", stepN, step)
-			if err := f(b, splitStep[1:], nil); err != nil {
+
+			if err := b.dispatch(i, n); err != nil {
 				return err
 			}
-		} else {
-			return fmt.Errorf("%s doesn't appear to be a valid Dockerfile instruction", splitStep[0])
 		}
 	}
 
@@ -514,25 +528,19 @@ func (b *Builder) create() (*daemon.Container, error) {
 }
 
 func (b *Builder) run(c *daemon.Container) error {
-	var errCh chan error
-	if b.Verbose {
-		errCh = utils.Go(func() error {
-			// FIXME: call the 'attach' job so that daemon.Attach can be made private
-			//
-			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
-			// but without hijacking for stdin. Also, with attach there can be race
-			// condition because of some output already was printed before it.
-			return <-b.Daemon.Attach(&c.StreamConfig, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, nil, nil, b.OutStream, b.ErrStream)
-		})
-	}
-
 	//start the container
 	if err := c.Start(); err != nil {
 		return err
 	}
 
-	if errCh != nil {
-		if err := <-errCh; err != nil {
+	if b.Verbose {
+		logsJob := b.Engine.Job("logs", c.ID)
+		logsJob.Setenv("follow", "1")
+		logsJob.Setenv("stdout", "1")
+		logsJob.Setenv("stderr", "1")
+		logsJob.Stdout.Add(b.OutStream)
+		logsJob.Stderr.Add(b.ErrStream)
+		if err := logsJob.Run(); err != nil {
 			return err
 		}
 	}
@@ -622,7 +630,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		}
 
 		// try to successfully untar the orig
-		if err := archive.UntarPath(origPath, tarDest); err == nil {
+		if err := chrootarchive.UntarPath(origPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
 			log.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
@@ -632,7 +640,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
 		return err
 	}
-	if err := archive.CopyWithTar(origPath, destPath); err != nil {
+	if err := chrootarchive.CopyWithTar(origPath, destPath); err != nil {
 		return err
 	}
 
@@ -645,7 +653,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 }
 
 func copyAsDirectory(source, destination string, destinationExists bool) error {
-	if err := archive.CopyWithTar(source, destination); err != nil {
+	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 		return err
 	}
 

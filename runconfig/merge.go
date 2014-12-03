@@ -3,8 +3,8 @@ package runconfig
 import (
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/log"
 )
 
 func Merge(userConf, imageConf *Config) error {
@@ -88,7 +88,10 @@ func Merge(userConf, imageConf *Config) error {
 		if len(userConf.Cmd) == 0 {
 			userConf.Cmd = imageConf.Cmd
 		}
-		userConf.Entrypoint = imageConf.Entrypoint
+
+		if userConf.Entrypoint == nil {
+			userConf.Entrypoint = imageConf.Entrypoint
+		}
 	}
 	if userConf.WorkingDir == "" {
 		userConf.WorkingDir = imageConf.WorkingDir

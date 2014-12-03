@@ -3,8 +3,9 @@
 package devmapper
 
 import (
-	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver/graphtest"
 )
 
 func init() {
@@ -12,6 +13,9 @@ func init() {
 	DefaultDataLoopbackSize = 300 * 1024 * 1024
 	DefaultMetaDataLoopbackSize = 200 * 1024 * 1024
 	DefaultBaseFsSize = 300 * 1024 * 1024
+	if err := graphtest.InitLoopbacks(); err != nil {
+		panic(err)
+	}
 }
 
 // This avoids creating a new driver for each test if all tests are run

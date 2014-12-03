@@ -3,7 +3,6 @@ package registry
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,13 +14,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 )
 
 var (
 	ErrAlreadyExists         = errors.New("Image already exists")
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+	ErrDoesNotExist          = errors.New("Image does not exist")
 	errLoginRequired         = errors.New("Authentication is required.")
 	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
 	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
@@ -36,11 +36,16 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType) *http.Client {
-	tlsConfig := tls.Config{RootCAs: roots}
+func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
+	tlsConfig := tls.Config{
+		RootCAs: roots,
+		// Avoid fallback to SSL protocols < TLS1.0
+		MinVersion:   tls.VersionTLS10,
+		Certificates: certs,
+	}
 
-	if cert != nil {
-		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
+	if !secure {
+		tlsConfig.InsecureSkipVerify = true
 	}
 
 	httpTransport := &http.Transport{
@@ -53,7 +58,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 	case ConnectTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
 			// Set the connect timeout to 5 seconds
-			conn, err := net.DialTimeout(proto, addr, 5*time.Second)
+			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -63,7 +70,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 		}
 	case ReceiveTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			conn, err := net.Dial(proto, addr)
+			d := net.Dialer{DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -79,126 +88,77 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 	}
 }
 
-func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType) (*http.Response, *http.Client, error) {
-	hasFile := func(files []os.FileInfo, name string) bool {
-		for _, f := range files {
-			if f.Name() == name {
-				return true
-			}
-		}
-		return false
-	}
-
-	hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
-	fs, err := ioutil.ReadDir(hostDir)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, nil, err
-	}
-
+func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
 	var (
 		pool  *x509.CertPool
-		certs []*tls.Certificate
+		certs []tls.Certificate
 	)
 
-	for _, f := range fs {
-		if strings.HasSuffix(f.Name(), ".crt") {
-			if pool == nil {
-				pool = x509.NewCertPool()
+	if secure && req.URL.Scheme == "https" {
+		hasFile := func(files []os.FileInfo, name string) bool {
+			for _, f := range files {
+				if f.Name() == name {
+					return true
+				}
 			}
-			data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
-			if err != nil {
-				return nil, nil, err
-			}
-			pool.AppendCertsFromPEM(data)
+			return false
 		}
-		if strings.HasSuffix(f.Name(), ".cert") {
-			certName := f.Name()
-			keyName := certName[:len(certName)-5] + ".key"
-			if !hasFile(fs, keyName) {
-				return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
-			}
-			cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
-			if err != nil {
-				return nil, nil, err
-			}
-			certs = append(certs, &cert)
+
+		hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
+		log.Debugf("hostDir: %s", hostDir)
+		fs, err := ioutil.ReadDir(hostDir)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, nil, err
 		}
-		if strings.HasSuffix(f.Name(), ".key") {
-			keyName := f.Name()
-			certName := keyName[:len(keyName)-4] + ".cert"
-			if !hasFile(fs, certName) {
-				return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+
+		for _, f := range fs {
+			if strings.HasSuffix(f.Name(), ".crt") {
+				if pool == nil {
+					pool = x509.NewCertPool()
+				}
+				log.Debugf("crt: %s", hostDir+"/"+f.Name())
+				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
+				if err != nil {
+					return nil, nil, err
+				}
+				pool.AppendCertsFromPEM(data)
+			}
+			if strings.HasSuffix(f.Name(), ".cert") {
+				certName := f.Name()
+				keyName := certName[:len(certName)-5] + ".key"
+				log.Debugf("cert: %s", hostDir+"/"+f.Name())
+				if !hasFile(fs, keyName) {
+					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+				}
+				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
+				if err != nil {
+					return nil, nil, err
+				}
+				certs = append(certs, cert)
+			}
+			if strings.HasSuffix(f.Name(), ".key") {
+				keyName := f.Name()
+				certName := keyName[:len(keyName)-4] + ".cert"
+				log.Debugf("key: %s", hostDir+"/"+f.Name())
+				if !hasFile(fs, certName) {
+					return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+				}
 			}
 		}
 	}
 
 	if len(certs) == 0 {
-		client := newClient(jar, pool, nil, timeout)
+		client := newClient(jar, pool, nil, timeout, secure)
 		res, err := client.Do(req)
 		if err != nil {
 			return nil, nil, err
 		}
 		return res, client, nil
 	}
-	for i, cert := range certs {
-		client := newClient(jar, pool, cert, timeout)
-		res, err := client.Do(req)
-		// If this is the last cert, otherwise, continue to next cert if 403 or 5xx
-		if i == len(certs)-1 || err == nil && res.StatusCode != 403 && res.StatusCode < 500 {
-			return res, client, err
-		}
-	}
 
-	return nil, nil, nil
-}
-
-func pingRegistryEndpoint(endpoint string) (RegistryInfo, error) {
-	if endpoint == IndexServerAddress() {
-		// Skip the check, we now this one is valid
-		// (and we never want to fallback to http in case of error)
-		return RegistryInfo{Standalone: false}, nil
-	}
-
-	req, err := http.NewRequest("GET", endpoint+"_ping", nil)
-	if err != nil {
-		return RegistryInfo{Standalone: false}, err
-	}
-
-	resp, _, err := doRequest(req, nil, ConnectTimeout)
-	if err != nil {
-		return RegistryInfo{Standalone: false}, err
-	}
-
-	defer resp.Body.Close()
-
-	jsonString, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return RegistryInfo{Standalone: false}, fmt.Errorf("Error while reading the http response: %s", err)
-	}
-
-	// If the header is absent, we assume true for compatibility with earlier
-	// versions of the registry. default to true
-	info := RegistryInfo{
-		Standalone: true,
-	}
-	if err := json.Unmarshal(jsonString, &info); err != nil {
-		log.Debugf("Error unmarshalling the _ping RegistryInfo: %s", err)
-		// don't stop here. Just assume sane defaults
-	}
-	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
-		log.Debugf("Registry version header: '%s'", hdr)
-		info.Version = hdr
-	}
-	log.Debugf("RegistryInfo.Version: %q", info.Version)
-
-	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
-	log.Debugf("Registry standalone header: '%s'", standalone)
-	if !strings.EqualFold(standalone, "true") && standalone != "1" && len(standalone) > 0 {
-		// there is a header set, and it is not "true" or "1", so assume fails
-		info.Standalone = false
-	}
-	log.Debugf("RegistryInfo.Standalone: %q", info.Standalone)
-	return info, nil
+	client := newClient(jar, pool, certs, timeout, secure)
+	res, err := client.Do(req)
+	return res, client, err
 }
 
 func validateRepositoryName(repositoryName string) error {
@@ -250,33 +210,6 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	}
 
 	return hostname, reposName, nil
-}
-
-// this method expands the registry name as used in the prefix of a repo
-// to a full url. if it already is a url, there will be no change.
-// The registry is pinged to test if it http or https
-func ExpandAndVerifyRegistryUrl(hostname string) (string, error) {
-	if strings.HasPrefix(hostname, "http:") || strings.HasPrefix(hostname, "https:") {
-		// if there is no slash after https:// (8 characters) then we have no path in the url
-		if strings.LastIndex(hostname, "/") < 9 {
-			// there is no path given. Expand with default path
-			hostname = hostname + "/v1/"
-		}
-		if _, err := pingRegistryEndpoint(hostname); err != nil {
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
-		return hostname, nil
-	}
-	endpoint := fmt.Sprintf("https://%s/v1/", hostname)
-	if _, err := pingRegistryEndpoint(endpoint); err != nil {
-		log.Debugf("Registry %s does not work (%s), falling back to http", endpoint, err)
-		endpoint = fmt.Sprintf("http://%s/v1/", hostname)
-		if _, err = pingRegistryEndpoint(endpoint); err != nil {
-			//TODO: triggering highland build can be done there without "failing"
-			return "", errors.New("Invalid Registry endpoint: " + err.Error())
-		}
-	}
-	return endpoint, nil
 }
 
 func trustedLocation(req *http.Request) bool {
