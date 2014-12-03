@@ -500,21 +500,41 @@ func (devices *DeviceSet) incNextDeviceId() {
 	devices.NextDeviceId = (devices.NextDeviceId + 1) & MaxDeviceId
 }
 
-func (devices *DeviceSet) getNextDeviceId() int {
+func (devices *DeviceSet) getNextFreeDeviceId() (int, error) {
 	devices.incNextDeviceId()
-	return devices.NextDeviceId
+	for i := 0; i <= MaxDeviceId; i++ {
+		if devices.isDeviceIdFree(devices.NextDeviceId) {
+			devices.markDeviceIdUsed(devices.NextDeviceId)
+			return devices.NextDeviceId, nil
+		}
+		devices.incNextDeviceId()
+	}
+
+	return 0, fmt.Errorf("Unable to find a free device Id")
 }
 
 func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
-	deviceId := devices.getNextDeviceId()
+	deviceId, err := devices.getNextFreeDeviceId()
+	if err != nil {
+		return nil, err
+	}
+
 	for {
 		if err := devicemapper.CreateDevice(devices.getPoolDevName(), deviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
-				// Device Id already exists. Try a new one.
-				deviceId = devices.getNextDeviceId()
+				// Device Id already exists. This should not
+				// happen. Now we have a mechianism to find
+				// a free device Id. So something is not right.
+				// Give a warning and continue.
+				log.Errorf("Warning: Device Id %d exists in pool but it is supposed to be unused", deviceId)
+				deviceId, err = devices.getNextFreeDeviceId()
+				if err != nil {
+					return nil, err
+				}
 				continue
 			}
 			log.Debugf("Error creating device: %s", err)
+			devices.markDeviceIdFree(deviceId)
 			return nil, err
 		}
 		break
@@ -525,27 +545,41 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 	info, err := devices.registerDevice(deviceId, hash, devices.baseFsSize, transactionId)
 	if err != nil {
 		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
+		devices.markDeviceIdFree(deviceId)
 		return nil, err
 	}
 
 	if err := devices.updatePoolTransactionId(); err != nil {
 		devices.unregisterDevice(deviceId, hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
+		devices.markDeviceIdFree(deviceId)
 		return nil, err
 	}
 	return info, nil
 }
 
 func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInfo) error {
-	deviceId := devices.getNextDeviceId()
+	deviceId, err := devices.getNextFreeDeviceId()
+	if err != nil {
+		return err
+	}
+
 	for {
 		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), deviceId, baseInfo.Name(), baseInfo.DeviceId); err != nil {
 			if devicemapper.DeviceIdExists(err) {
-				// Device Id already exists. Try a new one.
-				deviceId = devices.getNextDeviceId()
+				// Device Id already exists. This should not
+				// happen. Now we have a mechianism to find
+				// a free device Id. So something is not right.
+				// Give a warning and continue.
+				log.Errorf("Warning: Device Id %d exists in pool but it is supposed to be unused", deviceId)
+				deviceId, err = devices.getNextFreeDeviceId()
+				if err != nil {
+					return err
+				}
 				continue
 			}
 			log.Debugf("Error creating snap device: %s", err)
+			devices.markDeviceIdFree(deviceId)
 			return err
 		}
 		break
@@ -554,6 +588,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInf
 	transactionId := devices.allocateTransactionId()
 	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size, transactionId); err != nil {
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
+		devices.markDeviceIdFree(deviceId)
 		log.Debugf("Error registering device: %s", err)
 		return err
 	}
@@ -561,6 +596,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInf
 	if err := devices.updatePoolTransactionId(); err != nil {
 		devices.unregisterDevice(deviceId, hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
+		devices.markDeviceIdFree(deviceId)
 		return err
 	}
 	return nil
@@ -965,6 +1001,8 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 	if err := devices.unregisterDevice(info.DeviceId, info.Hash); err != nil {
 		return err
 	}
+
+	devices.markDeviceIdFree(info.DeviceId)
 
 	return nil
 }
