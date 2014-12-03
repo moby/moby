@@ -274,13 +274,32 @@ func (devices *DeviceSet) lookupDevice(hash string) (*DevInfo, error) {
 	return info, nil
 }
 
-func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*DevInfo, error) {
+func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
+	log.Debugf("unregisterDevice(%v, %v)", id, hash)
+	info := &DevInfo{
+		Hash:     hash,
+		DeviceId: id,
+	}
+
+	devices.devicesLock.Lock()
+	delete(devices.Devices, hash)
+	devices.devicesLock.Unlock()
+
+	if err := devices.removeMetadata(info); err != nil {
+		log.Debugf("Error removing meta data: %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, transactionId uint64) (*DevInfo, error) {
 	log.Debugf("registerDevice(%v, %v)", id, hash)
 	info := &DevInfo{
 		Hash:          hash,
 		DeviceId:      id,
 		Size:          size,
-		TransactionId: devices.allocateTransactionId(),
+		TransactionId: transactionId,
 		Initialized:   false,
 		devices:       devices,
 	}
@@ -294,15 +313,6 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64) (*Dev
 		devices.devicesLock.Lock()
 		delete(devices.Devices, hash)
 		devices.devicesLock.Unlock()
-		return nil, err
-	}
-
-	if err := devices.updatePoolTransactionId(); err != nil {
-		// Remove unused device
-		devices.devicesLock.Lock()
-		delete(devices.Devices, hash)
-		devices.devicesLock.Unlock()
-		devices.removeMetadata(info)
 		return nil, err
 	}
 
@@ -489,10 +499,17 @@ func (devices *DeviceSet) setupBaseImage() error {
 		return err
 	}
 
+	transactionId := devices.allocateTransactionId()
 	log.Debugf("Registering base device (id %v) with FS size %v", deviceId, devices.baseFsSize)
-	info, err := devices.registerDevice(deviceId, "", devices.baseFsSize)
+	info, err := devices.registerDevice(deviceId, "", devices.baseFsSize, transactionId)
 	if err != nil {
 		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
+		return err
+	}
+
+	if err := devices.updatePoolTransactionId(); err != nil {
+		devices.unregisterDevice(deviceId, "")
+		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		return err
 	}
 
@@ -815,9 +832,16 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 		return err
 	}
 
-	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size); err != nil {
+	transactionId := devices.allocateTransactionId()
+	if _, err := devices.registerDevice(deviceId, hash, baseInfo.Size, transactionId); err != nil {
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		log.Debugf("Error registering device: %s", err)
+		return err
+	}
+
+	if err := devices.updatePoolTransactionId(); err != nil {
+		devices.unregisterDevice(deviceId, hash)
+		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceId)
 		return err
 	}
 	return nil
@@ -848,12 +872,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		return err
 	}
 
-	devices.devicesLock.Lock()
-	delete(devices.Devices, info.Hash)
-	devices.devicesLock.Unlock()
-
-	if err := devices.removeMetadata(info); err != nil {
-		log.Debugf("Error removing meta data: %s", err)
+	if err := devices.unregisterDevice(info.DeviceId, info.Hash); err != nil {
 		return err
 	}
 
