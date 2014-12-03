@@ -205,12 +205,10 @@ func (devices *DeviceSet) allocateTransactionId() uint64 {
 }
 
 func (devices *DeviceSet) updatePoolTransactionId() error {
-	if devices.NewTransactionId != devices.TransactionId {
-		if err := devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
-			return fmt.Errorf("Error setting devmapper transaction ID: %s", err)
-		}
-		devices.TransactionId = devices.NewTransactionId
+	if err := devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionId, devices.NewTransactionId); err != nil {
+		return fmt.Errorf("Error setting devmapper transaction ID: %s", err)
 	}
+	devices.TransactionId = devices.NewTransactionId
 	return nil
 }
 
