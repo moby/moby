@@ -114,10 +114,6 @@ func unmarshalJSON(data []byte, result interface{}) error {
 	return nil
 }
 
-func deepEqual(expected interface{}, result interface{}) bool {
-	return reflect.DeepEqual(result, expected)
-}
-
 func convertSliceOfStringsToMap(input []string) map[string]struct{} {
 	output := make(map[string]struct{})
 	for _, v := range input {

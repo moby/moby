@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"syscall"
@@ -1569,7 +1570,7 @@ func TestBuildWithVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	equal := deepEqual(&expected, &result)
+	equal := reflect.DeepEqual(&result, &expected)
 
 	if !equal {
 		t.Fatalf("Volumes %s, expected %s", result, expected)
