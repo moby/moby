@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -121,7 +122,7 @@ func TestLinksInspectLinksStarted(t *testing.T) {
 
 	output := convertSliceOfStringsToMap(result)
 
-	equal := deepEqual(expected, output)
+	equal := reflect.DeepEqual(output, expected)
 
 	if !equal {
 		t.Fatalf("Links %s, expected %s", result, expected)
@@ -150,7 +151,7 @@ func TestLinksInspectLinksStopped(t *testing.T) {
 
 	output := convertSliceOfStringsToMap(result)
 
-	equal := deepEqual(expected, output)
+	equal := reflect.DeepEqual(output, expected)
 
 	if !equal {
 		t.Fatalf("Links %s, but expected %s", result, expected)

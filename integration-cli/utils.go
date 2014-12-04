@@ -95,13 +95,6 @@ func runCommand(cmd *exec.Cmd) (exitCode int, err error) {
 	return
 }
 
-func startCommand(cmd *exec.Cmd) (exitCode int, err error) {
-	exitCode = 0
-	err = cmd.Start()
-	exitCode = processExitCode(err)
-	return
-}
-
 func logDone(message string) {
 	fmt.Printf("[PASSED]: %s\n", message)
 }
@@ -112,10 +105,6 @@ func stripTrailingCharacters(target string) string {
 	return target
 }
 
-func nLines(s string) int {
-	return strings.Count(s, "\n")
-}
-
 func unmarshalJSON(data []byte, result interface{}) error {
 	err := json.Unmarshal(data, result)
 	if err != nil {
@@ -123,10 +112,6 @@ func unmarshalJSON(data []byte, result interface{}) error {
 	}
 
 	return nil
-}
-
-func deepEqual(expected interface{}, result interface{}) bool {
-	return reflect.DeepEqual(result, expected)
 }
 
 func convertSliceOfStringsToMap(input []string) map[string]struct{} {
