@@ -47,7 +47,15 @@ This will create a new volume inside a container at `/webapp`.
 ### Mount a Host Directory as a Data Volume
 
 In addition to creating a volume using the `-v` flag you can also mount a
-directory from your own host into a container.
+directory from your Docker daemon's host into a container.
+
+> **Note:**
+> If you are using Boot2Docker, your Docker daemon only has limited access to
+> your OSX/Windows filesystem. Boot2Docker tries to auto-share your `/Users`
+> (OSX) or `C:\Users` (Windows) directory - and so you can mount files or directories
+> using `docker run -v /Users/<path>:/<container path> ...` (OSX) or
+> `docker run -v /c/Users/<path>:/<container path ...` (Windows). All other paths
+> come from the Boot2Docker virtual machine's filesystem.
 
     $ sudo docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
 
@@ -67,8 +75,8 @@ create it for you.
 
 > **Note:** 
 > This is not available from a `Dockerfile` due to the portability
-> and sharing purpose of it. As the host directory is, by its nature,
-> host-dependent, a host directory specified in a `Dockerfile` probably
+> and sharing purpose of built images. The host directory is, by its nature,
+> host-dependent, so a host directory specified in a `Dockerfile` probably
 > wouldn't work on all hosts.
 
 Docker defaults to a read-write volume but we can also mount a directory
