@@ -95,13 +95,6 @@ func runCommand(cmd *exec.Cmd) (exitCode int, err error) {
 	return
 }
 
-func startCommand(cmd *exec.Cmd) (exitCode int, err error) {
-	exitCode = 0
-	err = cmd.Start()
-	exitCode = processExitCode(err)
-	return
-}
-
 func logDone(message string) {
 	fmt.Printf("[PASSED]: %s\n", message)
 }
