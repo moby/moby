@@ -369,6 +369,13 @@ Note that in the future, a given host's docker daemon may not use LXC, so this
 is an implementation-specific configuration meant for operators already
 familiar with using LXC directly.
 
+> **Note:**
+> If you use `--lxc-conf` to modify a container's configuration which is also
+> managed by the Docker daemon, then the Docker daemon will not know about this
+> modification, and you will need to manage any conflicts yourself. For example,
+> you can use `--lxc-conf` to set a container's IP address, but this will not be
+> reflected in the `/etc/hosts` file.
+
 ## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder/#dockerbuilder)
