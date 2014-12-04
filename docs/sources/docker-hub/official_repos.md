@@ -184,6 +184,6 @@ For more examples, take a look at these repos:
 ## Submit your repo
 
 Once you've checked off everything in these guidelines, and are confident your
-image is ready for primetime, please contact us at
-[partners@docker.com](mailto:partners@docker.com) to have your project
-considered for the Official Repos program.
+image is ready for primetime, please create a pull request linking it into the
+[docker-library/official-images](https://github.com/docker-library/official-images)
+repository.
