@@ -88,36 +88,13 @@ upload_current_documentation() {
 	# a really complicated way to send only the files we want
 	# if there are too many in any one set, aws s3 sync seems to fall over with 2 files to go
 	#  versions.html_fragment
-	endings=( json txt html xml css js gif png JPG ttf svg woff html_fragment )
-	for i in ${endings[@]}; do
-		include=""
-		for j in ${endings[@]}; do
-			if [ "$i" != "$j" ];then
-				include="$include --exclude *.$j"
-			fi
-		done
-		include="--include *.$i $include"
+		include="--recursive --include \"*.$i\" "
 		echo "uploading *.$i"
-		run="aws s3 sync $OPTIONS --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read \
-			$include \
-			--exclude *.text* \
-			--exclude *.*~ \
-			--exclude *Dockerfile \
-			--exclude *.DS_Store \
-			--exclude *.psd \
-			--exclude *.ai \
-			--exclude *.eot \
-			--exclude *.otf \
-			--exclude *.rej \
-			--exclude *.rst \
-			--exclude *.orig \
-			--exclude *.py \
-			$src $dst"
+		run="aws s3 cp $src $dst $OPTIONS --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read $include"
 		echo "======================="
-		#echo "$run"
-		#echo "======================="
+		echo "$run"
+		echo "======================="
 		$run
-	done
 }
 
 if [ "$OPTIONS" != "--dryrun" ]; then
