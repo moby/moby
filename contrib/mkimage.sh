@@ -71,7 +71,7 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 EOF
 
-tarFile="$dir/rootfs.tar.xz"
+tarFile="$dir/rootfs.tar.bz2"
 touch "$tarFile"
 
 (
@@ -82,7 +82,7 @@ touch "$tarFile"
 echo >&2 "+ cat > '$dir/Dockerfile'"
 cat > "$dir/Dockerfile" <<'EOF'
 FROM scratch
-ADD rootfs.tar.xz /
+ADD rootfs.tar.bz2 /
 EOF
 
 # if our generated image has a decent shell, let's set a default command
