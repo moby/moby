@@ -129,6 +129,12 @@ func (m *containerMonitor) Start() error {
 			return err
 		}
 
+		if err := m.container.startLoggingToSyslog(); err != nil {
+			m.resetContainer(false)
+
+			return err
+		}
+
 		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
 		m.container.LogEvent("start")

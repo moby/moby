@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -38,6 +39,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/pkg/syslog"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
@@ -311,6 +313,65 @@ func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, strea
 		return err
 	}
 	src.AddWriter(log, stream)
+	return nil
+}
+
+type LineWriter struct {
+	buf  *bytes.Buffer
+	next io.WriteCloser
+}
+
+func NewLineWriter(w io.WriteCloser) *LineWriter {
+	return &LineWriter{
+		buf:  bytes.NewBuffer(nil),
+		next: w,
+	}
+}
+
+func (w *LineWriter) Write(p []byte) (n int, err error) {
+	w.buf.Write(p)
+
+	for {
+		if newlineIdx := bytes.IndexByte(w.buf.Bytes(), '\n'); newlineIdx == -1 {
+			break
+		}
+
+		// TODO: implement limiting line length
+
+		line, _ := w.buf.ReadString('\n')
+		line = strings.Trim(line, "\r\n")
+		w.next.Write([]byte(line))
+	}
+
+	return len(p), nil
+}
+
+func (w *LineWriter) Close() error {
+	return w.next.Close()
+}
+
+func (daemon *Daemon) LogToSyslog(src *broadcastwriter.BroadcastWriter, syslogConfig runconfig.SyslogConfig) error {
+	var (
+		log io.WriteCloser
+		err error
+	)
+	if syslogConfig.Url != "" {
+		var u *url.URL
+		u, err = url.Parse(syslogConfig.Url)
+		if err != nil {
+			return err
+		}
+
+		log, err = syslog.Dial(u.Scheme, u.Host, syslogConfig.Priority, syslogConfig.Tag)
+	} else {
+		log, err = syslog.New(syslogConfig.Priority, syslogConfig.Tag)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	src.AddWriter(NewLineWriter(log), "")
 	return nil
 }
 

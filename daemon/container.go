@@ -1332,6 +1332,22 @@ func (container *Container) startLoggingToDisk() error {
 	return nil
 }
 
+func (container *Container) startLoggingToSyslog() error {
+	syslogConfig := container.hostConfig.SyslogConfig
+	if syslogConfig != nil {
+		// Setup logging of stdout and stderr to syslog
+		if err := container.daemon.LogToSyslog(container.stdout, *syslogConfig); err != nil {
+			return err
+		}
+
+		if err := container.daemon.LogToSyslog(container.stderr, *syslogConfig); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (container *Container) waitForStart() error {
 	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
