@@ -131,8 +131,8 @@ Once the PR has the needed `LGTM`s, merge it, then publish to our beta server
 to test:
 
     git fetch upstream
-    git checkout post-1.2.0-docs-update-1
-    git reset --hard upstream/post-1.2.0-docs-update-1
+    git checkout docs
+    git reset --hard upstream/docs
     make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 
 Then go to http://beta-docs.docker.io.s3-website-us-west-2.amazonaws.com/
@@ -141,6 +141,8 @@ to view your results and make sure what you published is what you wanted.
 When you're happy with it, publish the docs to our live site:
 
     make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+
+Test the uncached version of the live docs at http://docs.docker.com.s3-website-us-east-1.amazonaws.com/
     
 Note that the new docs will not appear live on the site until the cache (a complex,
 distributed CDN system) is flushed. This requires someone with S3 keys. Contact Docker
