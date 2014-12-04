@@ -129,7 +129,9 @@ func TestCreateEchoStdout(t *testing.T) {
 
 func TestCreateVolumesCreated(t *testing.T) {
 	name := "test_create_volume"
-	cmd(t, "create", "--name", name, "-v", "/foo", "busybox")
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
+		t.Fatal(out, err)
+	}
 	dir, err := inspectFieldMap(name, "Volumes", "/foo")
 	if err != nil {
 		t.Fatalf("Error getting volume host path: %q", err)
