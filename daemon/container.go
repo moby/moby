@@ -18,7 +18,9 @@ import (
 	"github.com/docker/libcontainer/label"
 
 	log "github.com/Sirupsen/logrus"
+	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
@@ -91,9 +93,11 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks  map[string]*links.Link
-	monitor      *containerMonitor
-	execCommands *execStore
+	activeLinks   map[string]*links.Link
+	monitor       *containerMonitor
+	execCommands  *execStore
+	apiSocket     apiserver.Server
+	ApiSocketPath string
 }
 
 func (container *Container) FromDisk() error {
@@ -351,11 +355,52 @@ func (container *Container) Start() (err error) {
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
+
+	if container.hostConfig.Privileged {
+		if err := container.setupApiSocket(); err != nil {
+			return err
+		}
+	}
+
 	if err := container.setupMounts(); err != nil {
 		return err
 	}
 
 	return container.waitForStart()
+}
+
+func (container *Container) setupApiSocket() error {
+	log.Debugf("Setting up API socket for %s", container.ID)
+	if container.apiSocket != nil {
+		log.Debugf("API socket for %s already exists", container.ID)
+		return nil
+	}
+
+	socketPath, err := container.getRootResourcePath("docker.sock")
+	if err != nil {
+		return err
+	}
+
+	container.ApiSocketPath = socketPath
+	job := container.daemon.eng.Job("serveapi", "unix://"+container.ApiSocketPath)
+	job.SetenvBool("EnableCors", false)
+	job.Setenv("Version", dockerversion.VERSION)
+	job.SetenvBool("BufferRequests", true)
+
+	srv, err := apiserver.NewServer("unix", container.ApiSocketPath, job)
+	if err != nil {
+		return err
+	}
+
+	container.apiSocket = srv
+	go func() {
+		if err := srv.Serve(); err != nil && !strings.HasSuffix(err.Error(), "use of closed network connection") {
+			log.Debugf("Error with API socket for container %s: %v", container.ID, err)
+			srv.Close()
+			container.apiSocket = nil
+		}
+	}()
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -631,6 +676,14 @@ func (container *Container) KillSig(sig int) error {
 	// loop is enough
 	if container.Restarting {
 		return nil
+	}
+
+	if container.ApiSocketPath != "" && container.apiSocket != nil {
+		log.Debugf("Closing API socket for %s", container.ID)
+		if err := container.apiSocket.Close(); err != nil {
+			return err
+		}
+		container.apiSocket = nil
 	}
 
 	return container.daemon.Kill(container, sig)

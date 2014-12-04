@@ -2742,3 +2742,29 @@ func TestRunPortFromDockerRangeInUse(t *testing.T) {
 
 	logDone("run - find another port if port from autorange already bound")
 }
+
+func TestRunPrivilegedApiSocket(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "--name", "socketTest", "--privileged", "busybox", "/bin/sh", "-c", "[ -S /.docker.sock ]")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Stop it and start it back up to make sure it's still good
+	cmd = exec.Command(dockerBinary, "kill", "socketTest")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatalf("error stopping container: %q", err)
+	}
+	cmd = exec.Command(dockerBinary, "start", "-a", "socketTest")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Make sure container is removed correctly
+	cmd = exec.Command(dockerBinary, "rm", "-f", "socketTest")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	logDone("run - API socket is created for privileged containers")
+}

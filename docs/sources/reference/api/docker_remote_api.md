@@ -67,6 +67,10 @@ Volumes are now initialized when the container is created.
 Passing the container's `HostConfig` on start is now deprecated.  You should
 set this when creating the container.
 
+**New!**
+Privileged containers now get a Docker socket mounted into the container at
+`/var/run/docker.sock`
+
 `POST /containers/(id)/copy`
 
 **New!**
