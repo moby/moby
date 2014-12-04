@@ -884,7 +884,8 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 	indented.WriteString("]\n")
 
-	if tmpl == nil {
+	// On err, and no output, indented will be []\n so don't show it
+	if tmpl == nil && indented.Len() > 3 {
 		if _, err := io.Copy(cli.out, indented); err != nil {
 			return err
 		}

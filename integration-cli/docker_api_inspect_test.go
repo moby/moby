@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -56,4 +57,17 @@ func TestInspectApiContainerResponse(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("container json - check keys in container json response")
+}
+
+func TestInspectApiContainerErr(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "inspect", "000111000111")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatalf("Inspect was supposed to fail, but didn't")
+	}
+
+	// Just make sure that we don't show an empty JSON array
+	if strings.Contains(out, "[]") {
+		t.Fatal("Should not have an empty array: %s", out)
+	}
 }
