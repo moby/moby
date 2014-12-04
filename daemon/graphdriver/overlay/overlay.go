@@ -15,6 +15,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -346,7 +347,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader)
 		return 0, err
 	}
 
-	if err := archive.ApplyLayer(tmpRootDir, diff); err != nil {
+	if err := chrootarchive.ApplyLayer(tmpRootDir, diff); err != nil {
 		return 0, err
 	}
 
