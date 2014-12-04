@@ -1162,6 +1162,20 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// else.
 	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
 
+	// These variables can't be overridden; if they're specified, then they
+	// should reflect the actual values they represent.  This is a judgement
+	// call, but maybe a good one...
+	if container.Config.StdEnv {
+		stdenv := []string{
+			"DOCKER_CONTAINER=" + container.ID,
+			"DOCKER_IMAGE=" + container.Image,
+		}
+		if hostname, err := os.Hostname(); err == nil {
+			stdenv = append(stdenv, "DOCKER_HOST="+hostname)
+		}
+		env = utils.ReplaceOrAppendEnvValues(env, stdenv)
+	}
+
 	return env
 }
 

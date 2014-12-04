@@ -25,6 +25,7 @@ type Config struct {
 	OpenStdin       bool // Open stdin
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
 	Env             []string
+	StdEnv          bool // If true, add image/container info as DOCKER_* environment variables
 	Cmd             []string
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
@@ -50,6 +51,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Tty:             job.GetenvBool("Tty"),
 		OpenStdin:       job.GetenvBool("OpenStdin"),
 		StdinOnce:       job.GetenvBool("StdinOnce"),
+		StdEnv:          job.GetenvBool("StdEnv"),
 		Image:           job.Getenv("Image"),
 		WorkingDir:      job.Getenv("WorkingDir"),
 		NetworkDisabled: job.GetenvBool("NetworkDisabled"),

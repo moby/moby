@@ -732,7 +732,7 @@ func TestRunTwoConcurrentContainers(t *testing.T) {
 }
 
 func TestRunEnvironment(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env")
+	cmd := exec.Command(dockerBinary, "run", "--stdenv=false", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env")
 	cmd.Env = append(os.Environ(),
 		"TRUE=false",
 		"TRICKY=tri\ncky\n",
@@ -772,6 +772,77 @@ func TestRunEnvironment(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - verify environment")
+}
+
+func TestRunStdEnvironment(t *testing.T) {
+	var (
+		hostname string
+		iid      string
+	)
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "TestRunStdEnvironment", "busybox", "/bin/sh", "-c", "echo $DOCKER_IMAGE;echo $DOCKER_CONTAINER;echo $DOCKER_HOST")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	outlines := strings.Split(out, "\n")
+	if len(outlines) != 4 {
+		t.Fatal("Wrong amount of test output [%d lines]\n", len(outlines), out)
+	}
+	image := outlines[0]
+	container := outlines[1]
+	host := outlines[2]
+
+	if hostname, err = os.Hostname(); err != nil {
+		t.Fatal("Can't get hostname of the test host")
+	}
+
+	if hostname != host {
+		t.Fatalf("Returned hostname should be %s, not %s", hostname, host)
+	}
+
+	// Get and check the container ID.  Surely there's a better way?
+	cmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "TestRunStdEnvironment")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	cid := strings.Split(out, "\n")[0]
+
+	if container != cid {
+		t.Fatalf("Container ID should be %s, not %s", cid, container)
+	}
+
+	// Get the image ID.  Even worse than the last one... :(
+	cmd = exec.Command(dockerBinary, "images", "--no-trunc", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	iid = ""
+	outlines = strings.Split(out, "\n")
+	for i := range outlines {
+		fields := strings.Fields(outlines[i])
+		if fields[0] != "busybox" || fields[1] != "latest" {
+			continue
+		}
+		iid = fields[2]
+		break
+	}
+
+	if len(iid) == 0 {
+		t.Fatal("Can't find the busybox image ID")
+	}
+
+	// Check it.
+	if iid != image {
+		t.Fatal("Image ID should be %s, not %s", iid, image)
+	}
+
+	logDone("run - verify environment with standard variables")
+
 }
 
 func TestRunContainerNetwork(t *testing.T) {

@@ -37,6 +37,7 @@ docker-run - Run a command in a new container
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
 [**--sig-proxy**[=*true*]]
+[**--stdenv**[=*true*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -259,6 +260,25 @@ outside of a container on the host.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
+
+**--stdenv**=*true*|*false*
+   Provide information about the running container to that container via 
+environment variables.  By default (=*true*), the following environment
+variables will be set:
+
+   **DOCKER_CONTAINER**: The long UUID identifier of the running container.
+   **DOCKER_IMAGE**: The long UUID identifier of the image used for this container.
+   **DOCKER_HOST**: The FQDN of the host on which this container is running.
+
+   This information may be used for any purpose within the container.  Note,
+however, that some public registries do not properly secure the images
+themselves; therefore, you should not expose the value of DOCKER_IMAGE
+externally if you are using a public repository if you don't want people
+to download your image.  
+
+   If you run a large cluster and aggregate your application error logs,
+reporting these values may make it easier to isolate faults to a particular
+container, image, and/or host.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

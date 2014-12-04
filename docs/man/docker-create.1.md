@@ -34,6 +34,7 @@ docker-create - Create a new container
 [**--privileged**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
+[**--stdenv**[=*true*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -133,6 +134,9 @@ IMAGE [COMMAND] [ARG...]
 
 **--security-opt**=[]
    Security Options
+
+**--stdenv**=*true*|*false*
+   Supply identifying information about the container and the image it was created from through DOCKER_* environment variables.  The default is *true*.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
