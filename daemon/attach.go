@@ -8,7 +8,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/utils"
@@ -114,131 +113,97 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 func (daemon *Daemon) attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
+		cStdin           io.WriteCloser
 		nJobs            int
-		errors           = make(chan error, 3)
 	)
+
+	if stdin != nil && openStdin {
+		cStdin = streamConfig.StdinPipe()
+		nJobs++
+	}
+
+	if stdout != nil {
+		cStdout = streamConfig.StdoutPipe()
+		nJobs++
+	}
+
+	if stderr != nil {
+		cStderr = streamConfig.StderrPipe()
+		nJobs++
+	}
+
+	errors := make(chan error, nJobs)
 
 	// Connect stdin of container to the http conn.
 	if stdin != nil && openStdin {
-		nJobs++
 		// Get the stdin pipe.
-		if cStdin, err := streamConfig.StdinPipe(); err != nil {
-			errors <- err
-		} else {
-			go func() {
-				log.Debugf("attach: stdin: begin")
-				defer log.Debugf("attach: stdin: end")
+		cStdin = streamConfig.StdinPipe()
+		go func() {
+			log.Debugf("attach: stdin: begin")
+			defer func() {
 				if stdinOnce && !tty {
 					defer cStdin.Close()
 				} else {
 					// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-					defer func() {
-						if cStdout != nil {
-							cStdout.Close()
-						}
-						if cStderr != nil {
-							cStderr.Close()
-						}
-					}()
+					if cStdout != nil {
+						cStdout.Close()
+					}
+					if cStderr != nil {
+						cStderr.Close()
+					}
 				}
-				if tty {
-					_, err = utils.CopyEscapable(cStdin, stdin)
-				} else {
-					_, err = io.Copy(cStdin, stdin)
+				log.Debugf("attach: stdin: end")
+			}()
+			var err error
+			if tty {
+				_, err = utils.CopyEscapable(cStdin, stdin)
+			} else {
+				_, err = io.Copy(cStdin, stdin)
 
-				}
-				if err == io.ErrClosedPipe {
-					err = nil
-				}
-				if err != nil {
-					log.Errorf("attach: stdin: %s", err)
-				}
-				errors <- err
-			}()
-		}
-	}
-	if stdout != nil {
-		nJobs++
-		// Get a reader end of a pipe that is attached as stdout to the container.
-		if p, err := streamConfig.StdoutPipe(); err != nil {
-			errors <- err
-		} else {
-			cStdout = p
-			go func() {
-				log.Debugf("attach: stdout: begin")
-				defer log.Debugf("attach: stdout: end")
-				// If we are in StdinOnce mode, then close stdin
-				if stdinOnce && stdin != nil {
-					defer stdin.Close()
-				}
-				_, err := io.Copy(stdout, cStdout)
-				if err == io.ErrClosedPipe {
-					err = nil
-				}
-				if err != nil {
-					log.Errorf("attach: stdout: %s", err)
-				}
-				errors <- err
-			}()
-		}
-	} else {
-		// Point stdout of container to a no-op writer.
-		go func() {
-			if cStdout, err := streamConfig.StdoutPipe(); err != nil {
-				log.Errorf("attach: stdout pipe: %s", err)
-			} else {
-				io.Copy(&ioutils.NopWriter{}, cStdout)
 			}
+			if err == io.ErrClosedPipe {
+				err = nil
+			}
+			if err != nil {
+				log.Errorf("attach: stdin: %s", err)
+			}
+			errors <- err
 		}()
 	}
-	if stderr != nil {
-		nJobs++
-		if p, err := streamConfig.StderrPipe(); err != nil {
-			errors <- err
-		} else {
-			cStderr = p
-			go func() {
-				log.Debugf("attach: stderr: begin")
-				defer log.Debugf("attach: stderr: end")
-				// If we are in StdinOnce mode, then close stdin
-				// Why are we closing stdin here and above while handling stdout?
-				if stdinOnce && stdin != nil {
-					defer stdin.Close()
-				}
-				_, err := io.Copy(stderr, cStderr)
-				if err == io.ErrClosedPipe {
-					err = nil
-				}
-				if err != nil {
-					log.Errorf("attach: stderr: %s", err)
-				}
-				errors <- err
-			}()
+
+	attachStream := func(name string, stream io.Writer, streamPipe io.ReadCloser) {
+		if stream == nil {
+			return
 		}
-	} else {
-		// Point stderr at a no-op writer.
-		go func() {
-			if cStderr, err := streamConfig.StderrPipe(); err != nil {
-				log.Errorf("attach: stdout pipe: %s", err)
-			} else {
-				io.Copy(&ioutils.NopWriter{}, cStderr)
+		defer func() {
+			// Make sure stdin gets closed
+			if stdinOnce && cStdin != nil {
+				stdin.Close()
+				cStdin.Close()
 			}
+			streamPipe.Close()
 		}()
+
+		log.Debugf("attach: %s: begin", name)
+		defer log.Debugf("attach: %s: end", name)
+		_, err := io.Copy(stream, streamPipe)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			log.Errorf("attach: %s: %v", name, err)
+		}
+		errors <- err
 	}
+
+	go attachStream("stdout", stdout, cStdout)
+	go attachStream("stderr", stderr, cStderr)
 
 	return promise.Go(func() error {
-		defer func() {
-			if cStdout != nil {
-				cStdout.Close()
-			}
-			if cStderr != nil {
-				cStderr.Close()
-			}
-		}()
-
 		for i := 0; i < nJobs; i++ {
 			log.Debugf("attach: waiting for job %d/%d", i+1, nJobs)
-			if err := <-errors; err != nil {
+			err := <-errors
+			if err != nil {
 				log.Errorf("attach: job %d returned error %s, aborting all jobs", i+1, err)
 				return err
 			}
