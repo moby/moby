@@ -105,10 +105,6 @@ func stripTrailingCharacters(target string) string {
 	return target
 }
 
-func nLines(s string) int {
-	return strings.Count(s, "\n")
-}
-
 func unmarshalJSON(data []byte, result interface{}) error {
 	err := json.Unmarshal(data, result)
 	if err != nil {

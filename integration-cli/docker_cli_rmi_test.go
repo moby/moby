@@ -46,14 +46,14 @@ func TestRmiTag(t *testing.T) {
 	dockerCmd(t, "tag", "busybox", "utest:5000/docker:tag3")
 	{
 		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+3 {
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+3 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 	}
 	dockerCmd(t, "rmi", "utest/docker:tag2")
 	{
 		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+2 {
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+2 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
@@ -61,7 +61,7 @@ func TestRmiTag(t *testing.T) {
 	dockerCmd(t, "rmi", "utest:5000/docker:tag3")
 	{
 		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+1 {
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+1 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
@@ -69,7 +69,7 @@ func TestRmiTag(t *testing.T) {
 	dockerCmd(t, "rmi", "utest:tag1")
 	{
 		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+0 {
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+0 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
