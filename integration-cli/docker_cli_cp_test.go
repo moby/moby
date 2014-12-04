@@ -512,7 +512,7 @@ func TestCpToDot(t *testing.T) {
 	}
 	content, err := ioutil.ReadFile("./test")
 	if string(content) != "lololol\n" {
-		t.Fatal("Wrong content in copied file %q, should be %q", content, "lololol\n")
+		t.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")
 	}
 	logDone("cp - to dot path")
 }
