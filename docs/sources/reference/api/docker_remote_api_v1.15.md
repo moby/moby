@@ -913,7 +913,8 @@ Create an image, either by pulling it from the registry or by importing it
 Query Parameters:
 
 -   **fromImage** – name of the image to pull
--   **fromSrc** – source to import, - means stdin
+-   **fromSrc** – source to import.  The value may be a URL from which the image
+        can be retrieved or `-` to read the image from the request body.
 -   **repo** – repository
 -   **tag** – tag
 -   **registry** – the registry to pull from
