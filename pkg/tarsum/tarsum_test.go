@@ -132,6 +132,7 @@ func sizedTar(opts sizedOptions) io.Reader {
 		fh = bytes.NewBuffer([]byte{})
 	}
 	tarW := tar.NewWriter(fh)
+	defer tarW.Close()
 	for i := int64(0); i < opts.num; i++ {
 		err := tarW.WriteHeader(&tar.Header{
 			Name: fmt.Sprintf("/testdata%d", i),
