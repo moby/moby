@@ -360,6 +360,10 @@ operator wants to have all capabilities but `MKNOD` they could use:
 For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
+    $ docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
+    RTNETLINK answers: Operation not permitted
+    $ docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
+
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
 using one or more `--lxc-conf` parameters. These can be new parameters or
