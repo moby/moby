@@ -88,4 +88,12 @@ implementation, check out the [Docker User Guide](/userguide/).
 
 ## Release Notes
 
-A summary of the changes in each release in the current series can now be found on the separate [Release Notes page](/release-notes/)
+A summary of the changes in each release in the current series can now be found
+on the separate [Release Notes page](/release-notes/)
+
+## Licensing
+
+Docker is licensed under the Apache License, Version 2.0. See
+[LICENSE](https://github.com/docker/docker/blob/master/LICENSE) for the full
+license text.
+
