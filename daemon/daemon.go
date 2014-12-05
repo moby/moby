@@ -721,8 +721,13 @@ func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 }
 
 func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
+	// Apply configuration defaults
 	if config.Mtu == 0 {
 		config.Mtu = getDefaultNetworkMtu()
+	}
+	if config.StartPortRange == 0 && config.EndPortRange == 0 {
+		config.StartPortRange = portallocator.DefaultStartPortRange
+		config.EndPortRange = portallocator.DefaultEndPortRange
 	}
 	// Check for mutually incompatible config options
 	if config.BridgeIface != "" && config.BridgeIP != "" {
@@ -747,6 +752,11 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 			utils.RemovePidFile(config.Pidfile)
 		})
 	}
+	if config.StartPortRange-config.EndPortRange >= 0 || config.EndPortRange-config.StartPortRange < 0 {
+		return nil, fmt.Errorf("Invalid port range specified.")
+	}
+	portallocator.StartPortRange = config.StartPortRange
+	portallocator.EndPortRange = config.EndPortRange
 
 	// Check that the system is supported and we have sufficient privileges
 	if runtime.GOOS != "linux" {

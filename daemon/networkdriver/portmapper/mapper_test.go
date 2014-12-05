@@ -129,7 +129,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	}()
 
 	for i := 0; i < 10; i++ {
-		for i := portallocator.BeginPortRange; i < portallocator.EndPortRange; i++ {
+		for i := portallocator.DefaultStartPortRange; i < portallocator.DefaultEndPortRange; i++ {
 			if host, err = Map(srcAddr1, dstIp1, 0); err != nil {
 				t.Fatal(err)
 			}
@@ -137,8 +137,8 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 			hosts = append(hosts, host)
 		}
 
-		if _, err := Map(srcAddr1, dstIp1, portallocator.BeginPortRange); err == nil {
-			t.Fatalf("Port %d should be bound but is not", portallocator.BeginPortRange)
+		if _, err := Map(srcAddr1, dstIp1, portallocator.DefaultStartPortRange); err == nil {
+			t.Fatalf("Port %d should be bound but is not", portallocator.DefaultStartPortRange)
 		}
 
 		for _, val := range hosts {

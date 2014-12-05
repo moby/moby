@@ -1,9 +1,11 @@
 package daemon
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/docker/docker/daemon/networkdriver"
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -39,6 +41,8 @@ type Config struct {
 	Mtu                         int
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
+	StartPortRange              int
+	EndPortRange                int
 	Context                     map[string][]string
 	TrustKeyPath                string
 	Labels                      []string
@@ -63,7 +67,9 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", "Force the Docker runtime to use a specific storage driver")
 	flag.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, "native", "Force the Docker runtime to use a specific exec driver")
 	flag.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
-	flag.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, "Set the containers network MTU\nif no value is provided: default to the default route MTU or 1500 if no default route is available")
+	flag.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, fmt.Sprintf("Set the containers network MTU\nif no value is provided: default to the default route MTU or %d if no default route is available", defaultNetworkMtu))
+	flag.IntVar(&config.StartPortRange, []string{"#prs", "-port-range-start"}, portallocator.DefaultStartPortRange, fmt.Sprintf("Set range start for dynamic port allocator\nif no value is provided: default to %d", portallocator.DefaultStartPortRange))
+	flag.IntVar(&config.EndPortRange, []string{"#pre", "-port-range-end"}, portallocator.DefaultEndPortRange, fmt.Sprintf("Set range end for dynamic port allocator\nif no value is provided: default to %d", portallocator.DefaultEndPortRange))
 	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
 	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
