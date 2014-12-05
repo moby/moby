@@ -47,8 +47,8 @@ func testSymlink(tmpdir, path, expected, scope string) error {
 	return nil
 }
 
-func TestFollowSymlinkNormal(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkNormal")
+func TestFollowSymlinkAbsolute(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkAbsolute")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,8 +75,8 @@ func TestFollowSymlinkRelativePath(t *testing.T) {
 	}
 }
 
-func TestFollowSymlinkUnderLinkedDir(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkUnderLinkedDir")
+func TestFollowSymlinkSkipSymlinksOutsideScope(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkSkipSymlinksOutsideScope")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,9 +92,9 @@ func TestFollowSymlinkUnderLinkedDir(t *testing.T) {
 	}
 }
 
-func TestFollowSymlinkRandomString(t *testing.T) {
+func TestFollowSymlinkInvalidScopePathPair(t *testing.T) {
 	if _, err := FollowSymlinkInScope("toto", "testdata"); err == nil {
-		t.Fatal("Random string should fail but didn't")
+		t.Fatal("expected an error")
 	}
 }
 
@@ -112,8 +112,8 @@ func TestFollowSymlinkLastLink(t *testing.T) {
 	}
 }
 
-func TestFollowSymlinkRelativeLink(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkRelativeLink")
+func TestFollowSymlinkRelativeLinkChangeScope(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkRelativeLinkChangeScope")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,10 +124,15 @@ func TestFollowSymlinkRelativeLink(t *testing.T) {
 	if err := testSymlink(tmpdir, "testdata/fs/a/e/c/data", "testdata/fs/b/c/data", "testdata"); err != nil {
 		t.Fatal(err)
 	}
+	// avoid letting allowing symlink e lead us to ../b
+	// normalize to the "testdata/fs/a"
+	if err := testSymlink(tmpdir, "testdata/fs/a/e", "testdata/fs/a/b", "testdata/fs/a"); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func TestFollowSymlinkRelativeLinkScope(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkRelativeLinkScope")
+func TestFollowSymlinkDeepRelativeLinkChangeScope(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkDeepRelativeLinkChangeScope")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,6 +153,14 @@ func TestFollowSymlinkRelativeLinkScope(t *testing.T) {
 	if err := testSymlink(tmpdir, "testdata/fs/a/f", "testdata/fs/test", "testdata/fs"); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestFollowSymlinkRelativeLinkChain(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkRelativeLinkChain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
 
 	// avoid letting symlink g (pointed at by symlink h) take out of scope
 	// TODO: we should probably normalize to scope here because ../[....]/root
@@ -161,17 +174,14 @@ func TestFollowSymlinkRelativeLinkScope(t *testing.T) {
 	if err := testSymlink(tmpdir, "testdata/fs/b/h", "testdata/root", "testdata"); err != nil {
 		t.Fatal(err)
 	}
+}
 
-	// avoid letting allowing symlink e lead us to ../b
-	// normalize to the "testdata/fs/a"
-	if err := makeFs(tmpdir, []dirOrLink{
-		{path: "testdata/fs/a/e", target: "../b"},
-	}); err != nil {
+func TestFollowSymlinkBreakoutPath(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkBreakoutPath")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := testSymlink(tmpdir, "testdata/fs/a/e", "testdata/fs/a/b", "testdata/fs/a"); err != nil {
-		t.Fatal(err)
-	}
+	defer os.RemoveAll(tmpdir)
 
 	// avoid letting symlink -> ../directory/file escape from scope
 	// normalize to "testdata/fs/j"
@@ -181,6 +191,14 @@ func TestFollowSymlinkRelativeLinkScope(t *testing.T) {
 	if err := testSymlink(tmpdir, "testdata/fs/j/k", "testdata/fs/j/i/a", "testdata/fs/j"); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestFollowSymlinkToRoot(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkToRoot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
 
 	// make sure we don't allow escaping to /
 	// normalize to dir
@@ -190,25 +208,51 @@ func TestFollowSymlinkRelativeLinkScope(t *testing.T) {
 	if err := testSymlink(tmpdir, "foo", "", ""); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestFollowSymlinkSlashDotdot(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkSlashDotdot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	tmpdir = filepath.Join(tmpdir, "dir", "subdir")
 
 	// make sure we don't allow escaping to /
 	// normalize to dir
-	if err := makeFs(filepath.Join(tmpdir, "dir", "subdir"), []dirOrLink{{path: "foo", target: "/../../"}}); err != nil {
+	if err := makeFs(tmpdir, []dirOrLink{{path: "foo", target: "/../../"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := testSymlink(tmpdir, "foo", "", ""); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestFollowSymlinkDotdot(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkDotdot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	tmpdir = filepath.Join(tmpdir, "dir", "subdir")
 
 	// make sure we stay in scope without leaking information
 	// this also checks for escaping to /
 	// normalize to dir
-	if err := makeFs(filepath.Join(tmpdir, "dir", "subdir"), []dirOrLink{{path: "foo", target: "../../"}}); err != nil {
+	if err := makeFs(tmpdir, []dirOrLink{{path: "foo", target: "../../"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := testSymlink(tmpdir, "foo", "", ""); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestFollowSymlinkRelativePath2(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkRelativePath2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
 
 	if err := makeFs(tmpdir, []dirOrLink{{path: "bar/foo", target: "baz/target"}}); err != nil {
 		t.Fatal(err)
