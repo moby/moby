@@ -209,7 +209,7 @@ repository's full description.The build process will look for a
 > rewritten the next time the Automated Build has been built. To make changes,
 > modify the `README.md` from the Git repository.
 
-### Build triggers
+## Remote Build triggers
 
 If you need a way to trigger Automated Builds outside of GitHub or Bitbucket,
 you can set up a build trigger. When you turn on the build trigger for an
@@ -219,6 +219,16 @@ This will trigger the Automated Build, much as with a GitHub webhook.
 Build triggers are available under the Settings menu of each Automated Build
 repo on the Docker Hub.
 
+![Build trigger screen](/docker-hub/hub-images/build-trigger.png)
+
+You can use `curl` to trigger a build:
+
+```
+$ curl --data "build=true" -X POST https://registry.hub.docker.com/u/svendowideit/testhook/trigger/be579c
+82-7c0e-11e4-81c4-0242ac110020/
+OK
+```
+
 > **Note:** 
 > You can only trigger one build at a time and no more than one
 > every five minutes. If you already have a build pending, or if you
@@ -226,7 +236,7 @@ repo on the Docker Hub.
 > To verify everything is working correctly, check the logs of last
 > ten triggers on the settings page .
 
-### Webhooks
+## Webhooks
 
 Automated Builds also include a Webhooks feature. Webhooks can be called
 after a successful repository push is made. This includes when a new tag is added
@@ -280,7 +290,7 @@ in your chain.
 The first webhook in a chain will be called after a successful push. Subsequent
 URLs will be contacted after the callback has been validated.
 
-#### Validating a callback
+### Validating a callback
 
 In order to validate a callback in a webhook chain, you need to
 
@@ -293,7 +303,7 @@ In order to validate a callback in a webhook chain, you need to
 To help you debug or simply view the results of your webhook(s),
 view the "History" of the webhook available on its settings page.
 
-#### Callback JSON data
+### Callback JSON data
 
 The following parameters are recognized in callback data:
 
@@ -315,7 +325,7 @@ The following parameters are recognized in callback data:
       "target_url": "http://ci.acme.com/results/afd339c1c3d27"
     }
 
-### Repository links
+## Repository links
 
 Repository links are a way to associate one Automated Build with
 another. If one gets updated,the linking system triggers a rebuild
