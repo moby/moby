@@ -576,6 +576,31 @@ func NetworkSetMTU(iface *net.Interface, mtu int) error {
 	return s.HandleAck(wb.Seq)
 }
 
+// Set link queue length
+// This is identical to running: ip link set dev $name txqueuelen $QLEN
+func NetworkSetTxQueueLen(iface *net.Interface, txQueueLen int) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = DEFAULT_CHANGE
+	wb.AddData(msg)
+	wb.AddData(uint32Attr(syscall.IFLA_TXQLEN, uint32(txQueueLen)))
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+	return s.HandleAck(wb.Seq)
+}
+
 func networkMasterAction(iface *net.Interface, rtattr *RtAttr) error {
 	s, err := getNetlinkSocket()
 	if err != nil {
@@ -769,26 +794,38 @@ func NetworkLinkAddVlan(masterDev, vlanDev string, vlanId uint16) error {
 	return s.HandleAck(wb.Seq)
 }
 
-// Add MAC VLAN network interface with masterDev as its upper device
-// This is identical to running:
-// ip link add name $name link $masterdev type macvlan mode $mode
-func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
-	s, err := getNetlinkSocket()
-	if err != nil {
-		return err
-	}
-	defer s.Close()
+// MacVlan link has LowerDev, UpperDev and operates in Mode mode
+// This simplifies the code when creating MacVlan or MacVtap interface
+type MacVlanLink struct {
+	MasterDev string
+	SlaveDev  string
+	mode      string
+}
 
-	macVlan := map[string]uint32{
+func (m MacVlanLink) Mode() uint32 {
+	modeMap := map[string]uint32{
 		"private":  MACVLAN_MODE_PRIVATE,
 		"vepa":     MACVLAN_MODE_VEPA,
 		"bridge":   MACVLAN_MODE_BRIDGE,
 		"passthru": MACVLAN_MODE_PASSTHRU,
 	}
 
+	return modeMap[m.mode]
+}
+
+// Add MAC VLAN network interface with masterDev as its upper device
+// This is identical to running:
+// ip link add name $name link $masterdev type macvlan mode $mode
+func networkLinkMacVlan(dev_type string, mcvln *MacVlanLink) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
 	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
-	masterDevIfc, err := net.InterfaceByName(masterDev)
+	masterDevIfc, err := net.InterfaceByName(mcvln.MasterDev)
 	if err != nil {
 		return err
 	}
@@ -797,21 +834,37 @@ func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
 	wb.AddData(msg)
 
 	nest1 := newRtAttr(syscall.IFLA_LINKINFO, nil)
-	newRtAttrChild(nest1, IFLA_INFO_KIND, nonZeroTerminated("macvlan"))
+	newRtAttrChild(nest1, IFLA_INFO_KIND, nonZeroTerminated(dev_type))
 
 	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
 	macVlanData := make([]byte, 4)
-	native.PutUint32(macVlanData, macVlan[mode])
+	native.PutUint32(macVlanData, mcvln.Mode())
 	newRtAttrChild(nest2, IFLA_MACVLAN_MODE, macVlanData)
 	wb.AddData(nest1)
 
 	wb.AddData(uint32Attr(syscall.IFLA_LINK, uint32(masterDevIfc.Index)))
-	wb.AddData(newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(macVlanDev)))
+	wb.AddData(newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(mcvln.SlaveDev)))
 
 	if err := s.Send(wb); err != nil {
 		return err
 	}
 	return s.HandleAck(wb.Seq)
+}
+
+func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
+	return networkLinkMacVlan("macvlan", &MacVlanLink{
+		MasterDev: masterDev,
+		SlaveDev:  macVlanDev,
+		mode:      mode,
+	})
+}
+
+func NetworkLinkAddMacVtap(masterDev, macVlanDev string, mode string) error {
+	return networkLinkMacVlan("macvtap", &MacVlanLink{
+		MasterDev: masterDev,
+		SlaveDev:  macVlanDev,
+		mode:      mode,
+	})
 }
 
 func networkLinkIpAction(action, flags int, ifa IfAddr) error {

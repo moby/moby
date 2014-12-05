@@ -68,6 +68,10 @@ type Config struct {
 	// RestrictSys will remount /proc/sys, /sys, and mask over sysrq-trigger as well as /proc/irq and
 	// /proc/bus
 	RestrictSys bool `json:"restrict_sys,omitempty"`
+
+	// Rlimits specifies the resource limits, such as max open files, to set in the container
+	// If Rlimits are not set, the container will inherit rlimits from the parent process
+	Rlimits []Rlimit `json:"rlimits,omitempty"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started
@@ -89,4 +93,10 @@ type Route struct {
 
 	// The device to set this route up for, for example: eth0
 	InterfaceName string `json:"interface_name,omitempty"`
+}
+
+type Rlimit struct {
+	Type int    `json:"type,omitempty"`
+	Hard uint64 `json:"hard,omitempty"`
+	Soft uint64 `json:"soft,omitempty"`
 }
