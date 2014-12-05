@@ -54,7 +54,7 @@ unix://[/path/to/socket] to use.
   IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
 
 **--icc**=*true*|*false*
-  Enable inter\-container communication. Default is true.
+  Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
@@ -77,11 +77,14 @@ unix://[/path/to/socket] to use.
 **-p**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
-**--registry-mirror=<scheme>://<host>
+**--registry-mirror**=<scheme>://<host>
   Prepend a registry mirror to be used for image pulls. May be specified multiple times.
 
 **-s**=""
   Force the Docker runtime to use a specific storage driver.
+
+**--storage-opt**=[]
+  Set storage driver options. See STORAGE DRIVER OPTIONS.
 
 **-v**=*true*|*false*
   Print version information and quit. Default is false.
@@ -202,13 +205,87 @@ inside it)
 **docker-wait(1)**
   Block until a container stops, then print its exit code
 
-# EXAMPLES
+# STORAGE DRIVER OPTIONS
 
-For specific examples please see the man page for the specific Docker command.
-For example:
+Options to storage backend can be specified with **--storage-opt** flags. The
+only backend which currently takes options is *devicemapper*. Therefore use these
+flags with **-s=**devicemapper.
+
+Here is the list of *devicemapper* options:
+
+#### dm.basesize
+Specifies the size to use when creating the base device, which limits the size
+of images and containers. The default value is 10G. Note, thin devices are
+inherently "sparse", so a 10G device which is mostly empty doesn't use 10 GB
+of space on the pool. However, the filesystem will use more space for the empty
+case the larger the device is. **Warning**: This value affects the system-wide
+"base" empty filesystem that may already be initialized and inherited by pulled
+images.
+
+#### dm.loopdatasize
+Specifies the size to use when creating the loopback file for the "data"
+device which is used for the thin pool. The default size is 100G. Note that the
+file is sparse, so it will not initially take up this much space.
+
+#### dm.loopmetadatasize
+Specifies the size to use when creating the loopback file for the "metadadata"
+device which is used for the thin pool. The default size is 2G. Note that the
+file is sparse, so it will not initially take up this much space.
+
+#### dm.fs
+Specifies the filesystem type to use for the base device. The supported
+options are "ext4" and "xfs". The default is "ext4"
+
+#### dm.mkfsarg
+Specifies extra mkfs arguments to be used when creating the base device.
+
+#### dm.mountopt
+Specifies extra mount options used when mounting the thin devices.
+
+#### dm.datadev
+Specifies a custom blockdevice to use for data for the thin pool.
+
+If using a block device for device mapper storage, ideally both datadev and
+metadatadev should be specified to completely avoid using the loopback device.
+
+#### dm.metadatadev
+Specifies a custom blockdevice to use for metadata for the thin pool.
+
+For best performance the metadata should be on a different spindle than the
+data, or even better on an SSD.
+
+If setting up a new metadata pool it is required to be valid. This can be
+achieved by zeroing the first 4k to indicate empty metadata, like this:
+
+    dd if=/dev/zero of=/dev/metadata_dev bs=4096 count=1
+
+#### dm.blocksize
+Specifies a custom blocksize to use for the thin pool. The default blocksize
+is 64K.
+
+#### dm.blkdiscard
+Enables or disables the use of blkdiscard when removing devicemapper devices.
+This is enabled by default (only) if using loopback devices and is required to
+res-parsify the loopback file on image/container removal.
+
+Disabling this on loopback can lead to *much* faster container removal times,
+but will prevent the space used in `/var/lib/docker` directory from being returned to
+the system for other use when containers are removed.
+
+# EXAMPLES
+Launching docker daemon with *devicemapper* backend with particular block devices
+for data and metadata:
+
+    docker -d -s=devicemapper \
+      --storage-opt dm.datadev=/dev/vdb \
+      --storage-opt dm.metadatadev=/dev/vdc \
+      --storage-opt dm.basesize=20G
+
+#### Client
+For specific client examples please see the man page for the specific Docker
+command. For example:
 
     man docker run
 
 # HISTORY
-April 2014, Originally compiled by William Henry (whenry at redhat dot com) based
- on docker.com source material and internal work.
+April 2014, Originally compiled by William Henry (whenry at redhat dot com) based on docker.com source material and internal work.
