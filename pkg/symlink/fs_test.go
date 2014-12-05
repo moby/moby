@@ -261,3 +261,142 @@ func TestFollowSymlinkRelativePath2(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFollowSymlinkScopeLink(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkScopeLink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	if err := makeFs(tmpdir, []dirOrLink{
+		{path: "root2"},
+		{path: "root", target: "root2"},
+		{path: "root2/foo", target: "../bar"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "root/foo", "root/bar", "root"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFollowSymlinkRootScope(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkRootScope")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	expected, err := filepath.EvalSymlinks(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rewrite, err := FollowSymlinkInScope(tmpdir, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rewrite != expected {
+		t.Fatalf("expected %q got %q", expected, rewrite)
+	}
+}
+
+func TestFollowSymlinkEmpty(t *testing.T) {
+	res, err := FollowSymlinkInScope("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != wd {
+		t.Fatal("expected %q got %q", wd, res)
+	}
+}
+
+func TestFollowSymlinkCircular(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkCircular")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	if err := makeFs(tmpdir, []dirOrLink{{path: "root/foo", target: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "root/foo", "", "root"); err == nil {
+		t.Fatal("expected an error for foo -> foo")
+	}
+
+	if err := makeFs(tmpdir, []dirOrLink{
+		{path: "root/bar", target: "baz"},
+		{path: "root/baz", target: "../bak"},
+		{path: "root/bak", target: "/bar"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "root/foo", "", "root"); err == nil {
+		t.Fatal("expected an error for bar -> baz -> bak -> bar")
+	}
+}
+
+func TestFollowSymlinkComplexChainWithTargetPathsContainingLinks(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkComplexChainWithTargetPathsContainingLinks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	if err := makeFs(tmpdir, []dirOrLink{
+		{path: "root2"},
+		{path: "root", target: "root2"},
+		{path: "root/a", target: "r/s"},
+		{path: "root/r", target: "../root/t"},
+		{path: "root/root/t/s/b", target: "/../u"},
+		{path: "root/u/c", target: "."},
+		{path: "root/u/x/y", target: "../v"},
+		{path: "root/u/v", target: "/../w"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "root/a/b/c/x/y/z", "root/w/z", "root"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFollowSymlinkBreakoutNonExistent(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkBreakoutNonExistent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	if err := makeFs(tmpdir, []dirOrLink{
+		{path: "root/slash", target: "/"},
+		{path: "root/sym", target: "/idontexist/../slash"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "root/sym/file", "root/file", "root"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFollowSymlinkNoLexicalCleaning(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkNoLexicalCleaning")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	if err := makeFs(tmpdir, []dirOrLink{
+		{path: "root/sym", target: "/foo/bar"},
+		{path: "root/hello", target: "/sym/../baz"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "root/hello", "root/foo/baz", "root"); err != nil {
+		t.Fatal(err)
+	}
+}
