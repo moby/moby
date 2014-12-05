@@ -7,7 +7,7 @@ docker-kill - Kill a running container using SIGKILL or a specified signal
 # SYNOPSIS
 **docker kill**
 [**-s**|**--signal**[=*"KILL"*]]
- CONTAINER [CONTAINER...]
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 

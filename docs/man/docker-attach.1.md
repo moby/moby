@@ -8,7 +8,7 @@ docker-attach - Attach to a running container
 **docker attach**
 [**--no-stdin**[=*false*]]
 [**--sig-proxy**[=*true*]]
- CONTAINER
+CONTAINER
 
 # DESCRIPTION
 If you **docker run** a container in detached mode (**-d**), you can reattach to

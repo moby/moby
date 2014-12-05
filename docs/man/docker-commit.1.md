@@ -9,7 +9,7 @@ docker-commit - Create a new image from a container's changes
 [**-a**|**--author**[=*AUTHOR*]]
 [**-m**|**--message**[=*MESSAGE*]]
 [**-p**|**--pause**[=*true*]]
- CONTAINER [REPOSITORY[:TAG]]
+CONTAINER [REPOSITORY[:TAG]]
 
 # DESCRIPTION
 Using an existing container's name or ID you can create a new image.

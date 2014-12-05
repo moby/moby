@@ -10,7 +10,7 @@ docker-images - List images
 [**-f**|**--filter**[=*[]*]]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
- [REPOSITORY]
+[REPOSITORY]
 
 # DESCRIPTION
 This command lists the images stored in the local Docker repository.

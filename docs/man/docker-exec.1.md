@@ -1,6 +1,6 @@
 % DOCKER(1) Docker User Manuals
 % Docker Community
-% SEPT 2014
+% JUNE 2014
 # NAME
 docker-exec - Run a command in a running container
 
@@ -9,7 +9,7 @@ docker-exec - Run a command in a running container
 [**-d**|**--detach**[=*false*]]
 [**-i**|**--interactive**[=*false*]]
 [**-t**|**--tty**[=*false*]]
- CONTAINER COMMAND [ARG...]
+CONTAINER COMMAND [ARG...]
 
 # DESCRIPTION
 
@@ -19,17 +19,17 @@ The command started using `docker exec` will only run while the container's prim
 process (`PID 1`) is running, and will not be restarted if the container is restarted.
 
 If the container is paused, then the `docker exec` command will wait until the
-container is unpaused, and then run.
+container is unpaused, and then run
 
-# Options
-
+# OPTIONS
 **-d**, **--detach**=*true*|*false*
-   Detached mode. This runs the new process in the background.
+   Detached mode: run command in the background. The default is *false*.
 
 **-i**, **--interactive**=*true*|*false*
-   When set to true, keep STDIN open even if not attached. The default is false.
+   Keep STDIN open even if not attached. The default is *false*.
 
 **-t**, **--tty**=*true*|*false*
-   When set to true Docker can allocate a pseudo-tty and attach to the standard
-input of the process. This can be used, for example, to run a throwaway
-interactive shell. The default value is false.
+   Allocate a pseudo-TTY. The default is *false*.
+
+# HISTORY
+November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
