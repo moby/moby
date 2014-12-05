@@ -364,6 +364,30 @@ should use `--cap-add=NET_ADMIN` to modify the network interfaces.
     RTNETLINK answers: Operation not permitted
     $ docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
 
+To mount a FUSE based filesystem, you need to combine both `--cap-add` and
+`--device`:
+
+    $ docker run --rm -it --cap-add SYS_ADMIN sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    fuse: failed to open /dev/fuse: Operation not permitted
+    $ docker run --rm -it --device /dev/fuse sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    fusermount: mount failed: Operation not permitted
+    $ docker run --rm -it --cap-add SYS_ADMIN --device /dev/fuse sshfs
+    # sshfs sven@10.10.10.20:/home/sven /mnt
+    The authenticity of host '10.10.10.20 (10.10.10.20)' can't be established.
+    ECDSA key fingerprint is 25:34:85:75:25:b0:17:46:05:19:04:93:b5:dd:5f:c6.
+    Are you sure you want to continue connecting (yes/no)? yes
+    sven@10.10.10.20's password:
+    root@30aa0cfaf1b5:/# ls -la /mnt/src/docker
+    total 1516
+    drwxrwxr-x 1 1000 1000   4096 Dec  4 06:08 .
+    drwxrwxr-x 1 1000 1000   4096 Dec  4 11:46 ..
+    -rw-rw-r-- 1 1000 1000     16 Oct  8 00:09 .dockerignore
+    -rwxrwxr-x 1 1000 1000    464 Oct  8 00:09 .drone.yml
+    drwxrwxr-x 1 1000 1000   4096 Dec  4 06:11 .git
+    -rw-rw-r-- 1 1000 1000    461 Dec  4 06:08 .gitignore
+    ....
+
+
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
 using one or more `--lxc-conf` parameters. These can be new parameters or
