@@ -1136,15 +1136,19 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		}
 
 		defer func() {
-			if tcpc, ok := inStream.(*net.TCPConn); ok {
-				tcpc.CloseWrite()
+			if cw, ok := inStream.(interface {
+				CloseWrite() error
+			}); ok {
+				cw.CloseWrite()
 			} else {
 				inStream.Close()
 			}
 		}()
 		defer func() {
-			if tcpc, ok := outStream.(*net.TCPConn); ok {
-				tcpc.CloseWrite()
+			if cw, ok := outStream.(interface {
+				CloseWrite() error
+			}); ok {
+				cw.CloseWrite()
 			} else if closer, ok := outStream.(io.Closer); ok {
 				closer.Close()
 			}
