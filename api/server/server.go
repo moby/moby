@@ -38,7 +38,8 @@ import (
 )
 
 var (
-	activationLock chan struct{}
+	activationLock      chan struct{}
+	rawStreamHttpHeader = "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n"
 )
 
 type HttpServer struct {
@@ -63,6 +64,30 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	// Flush the options to make sure the client sets the raw mode
 	conn.Write([]byte{})
 	return conn, conn, nil
+}
+
+func closeConn(conn interface{}) {
+	if tcpc, ok := conn.(interface {
+		CloseWrite() error
+	}); ok {
+		tcpc.CloseWrite()
+	} else if closer, ok := conn.(io.Closer); ok {
+		closer.Close()
+	}
+}
+func setJobStreams(job *engine.Job, stdin io.Reader, stdout io.Writer, isTty bool) {
+	var stderr io.Writer
+
+	if isTty {
+		stdout = stdcopy.NewStdWriter(stdout, stdcopy.Stdout)
+		stderr = stdcopy.NewStdWriter(stdout, stdcopy.Stderr)
+	} else {
+		stderr = stdout
+	}
+
+	job.Stdin.Add(stdin)
+	job.Stdout.Add(stdout)
+	job.Stderr.Set(stderr)
 }
 
 // Check to make sure request's Content-Type is application/json
@@ -871,44 +896,22 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if tcpc, ok := inStream.(*net.TCPConn); ok {
-			tcpc.CloseWrite()
-		} else {
-			inStream.Close()
-		}
-	}()
-	defer func() {
-		if tcpc, ok := outStream.(*net.TCPConn); ok {
-			tcpc.CloseWrite()
-		} else if closer, ok := outStream.(io.Closer); ok {
-			closer.Close()
-		}
-	}()
+	defer closeConn(inStream)
+	defer closeConn(outStream)
 
-	var errStream io.Writer
-
-	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-
-	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
-	}
+	fmt.Fprintf(outStream, rawStreamHttpHeader)
 
 	job = eng.Job("attach", vars["name"])
+	isTty := c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6")
+	setJobStreams(job, inStream, outStream, isTty)
+
 	job.Setenv("logs", r.Form.Get("logs"))
 	job.Setenv("stream", r.Form.Get("stream"))
 	job.Setenv("stdin", r.Form.Get("stdin"))
 	job.Setenv("stdout", r.Form.Get("stdout"))
 	job.Setenv("stderr", r.Form.Get("stderr"))
-	job.Stdin.Add(inStream)
-	job.Stdout.Add(outStream)
-	job.Stderr.Set(errStream)
 	if err := job.Run(); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
-
 	}
 	return nil
 }
@@ -1134,38 +1137,12 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		if err != nil {
 			return err
 		}
+		defer closeConn(inStream)
+		defer closeConn(outStream)
 
-		defer func() {
-			if cw, ok := inStream.(interface {
-				CloseWrite() error
-			}); ok {
-				cw.CloseWrite()
-			} else {
-				inStream.Close()
-			}
-		}()
-		defer func() {
-			if cw, ok := outStream.(interface {
-				CloseWrite() error
-			}); ok {
-				cw.CloseWrite()
-			} else if closer, ok := outStream.(io.Closer); ok {
-				closer.Close()
-			}
-		}()
+		isTty := !job.GetenvBool("Tty") && version.GreaterThanOrEqualTo("1.6")
+		setJobStreams(job, inStream, outStream, isTty)
 
-		var errStream io.Writer
-
-		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-		if !job.GetenvBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
-			errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-			outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-		} else {
-			errStream = outStream
-		}
-		job.Stdin.Add(inStream)
-		job.Stdout.Add(outStream)
-		job.Stderr.Set(errStream)
 		errOut = outStream
 	}
 	// Now run the user process in container.
