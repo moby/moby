@@ -3523,3 +3523,63 @@ func TestBuildWithTabs(t *testing.T) {
 	}
 	logDone("build - with tabs")
 }
+
+func TestBuildBindcontext(t *testing.T) {
+	name := "testbuildbindcontext"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+BINDCONTEXT /context
+RUN [ -f /context/test_file ]
+RUN [ "$(sh /context/test_file)" = 'test!' ]`,
+		map[string]string{
+			"test_file": "echo 'test!'",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - bindcontext")
+}
+
+func TestBuildBindcontextWithUpdates(t *testing.T) {
+	name := "testbuildbindcontextwithupdates"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+BINDCONTEXT /context
+RUN [ "$(cat /context/test_file)" = 1111 ]
+RUN echo "2222" > /context/test_file
+RUN [ "$(cat /context/test_file)" = 2222 ]`,
+		map[string]string{
+			"test_file": "1111",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - bindcontext w/ updates")
+}
+
+func TestBuildBindcontextMultipleTimes(t *testing.T) {
+	name := "testbuildbindcontextmultipletimes"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+BINDCONTEXT /context-first
+RUN [ "$(cat /context-first/test_file)" = 1111 ]
+BINDCONTEXT /context-second
+RUN [ ! -f /context-first/test_file ]
+RUN [ "$(cat /context-second/test_file)" = 1111 ]`,
+		map[string]string{
+			"test_file": "1111",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - bindcontext used multiple times")
+}

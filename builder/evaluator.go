@@ -56,20 +56,21 @@ var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) e
 
 func init() {
 	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
-		"env":        env,
-		"maintainer": maintainer,
-		"add":        add,
-		"copy":       dispatchCopy, // copy() is a go builtin
-		"from":       from,
-		"onbuild":    onbuild,
-		"workdir":    workdir,
-		"run":        run,
-		"cmd":        cmd,
-		"entrypoint": entrypoint,
-		"expose":     expose,
-		"volume":     volume,
-		"user":       user,
-		"insert":     insert,
+		"env":         env,
+		"maintainer":  maintainer,
+		"add":         add,
+		"copy":        dispatchCopy, // copy() is a go builtin
+		"from":        from,
+		"onbuild":     onbuild,
+		"workdir":     workdir,
+		"run":         run,
+		"cmd":         cmd,
+		"entrypoint":  entrypoint,
+		"expose":      expose,
+		"volume":      volume,
+		"user":        user,
+		"insert":      insert,
+		"bindcontext": bindcontext,
 	}
 }
 
@@ -104,12 +105,13 @@ type Builder struct {
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 
-	dockerfile  *parser.Node  // the syntax tree of the dockerfile
-	image       string        // image name for commit processing
-	maintainer  string        // maintainer name. could probably be removed.
-	cmdSet      bool          // indicates is CMD was set in current Dockerfile
-	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
-	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)
+	dockerfile        *parser.Node  // the syntax tree of the dockerfile
+	image             string        // image name for commit processing
+	maintainer        string        // maintainer name. could probably be removed.
+	cmdSet            bool          // indicates is CMD was set in current Dockerfile
+	context           tarsum.TarSum // the context is a tarball that is uploaded by the client
+	contextPath       string        // the path of the temporary directory the local context is unpacked to (server side)
+	contextMountPoint string        // container path where the context is mounted (BINDCONTEXT)
 
 }
 

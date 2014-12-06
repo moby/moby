@@ -112,7 +112,7 @@ type copyInfo struct {
 	tmpDir     string
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, copyFiles bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -198,9 +198,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	}
 	defer container.Unmount()
 
-	for _, ci := range copyInfos {
-		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {
-			return err
+	if copyFiles {
+		for _, ci := range copyInfos {
+			if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -528,6 +530,13 @@ func (b *Builder) create() (*daemon.Container, error) {
 }
 
 func (b *Builder) run(c *daemon.Container) error {
+
+	// mount the context if requested (BINDCONTEXT)
+	if b.contextMountPoint != "" {
+		hc := c.HostConfig()
+		hc.Binds = append(hc.Binds, fmt.Sprintf("%s:%s", b.contextPath, b.contextMountPoint))
+	}
+
 	//start the container
 	if err := c.Start(); err != nil {
 		return err

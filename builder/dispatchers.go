@@ -88,7 +88,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return fmt.Errorf("ADD requires at least two arguments")
 	}
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return b.runContextCommand(args, true, true, true, "ADD")
 }
 
 // COPY foo /path
@@ -100,7 +100,23 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return fmt.Errorf("COPY requires at least two arguments")
 	}
 
-	return b.runContextCommand(args, false, false, "COPY")
+	return b.runContextCommand(args, false, false, true, "COPY")
+}
+
+// BINDCONTEXT /path
+//
+// Mount the context at /foo during the subsequent RUN commands
+//
+func bindcontext(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("BINDCONTEXT requires exactly one argument")
+	}
+	if !strings.HasPrefix(args[0], "/") {
+		return fmt.Errorf("BINDCONTEXT requires an absolute path")
+	}
+	b.contextMountPoint = args[0]
+
+	return b.runContextCommand([]string{".", b.contextMountPoint}, false, false, false, "BINDCONTEXT")
 }
 
 // FROM imagename
