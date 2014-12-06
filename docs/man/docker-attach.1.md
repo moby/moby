@@ -20,6 +20,9 @@ container, or `CTRL-\` to get a stacktrace of the Docker client when it quits.
 When you detach from a container the exit code will be returned to
 the client.
 
+It is forbidden to redirect the standard input of a docker attach command while
+attaching to a tty-enabled container (i.e.: launched with -t`).
+
 # OPTIONS
 **--no-stdin**=*true*|*false*
    Do not attach STDIN. The default is *false*.

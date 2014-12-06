@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -102,6 +103,16 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
 	return err
+}
+
+func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
+	// In order to attach to a container tty, input stream for the client must
+	// be a tty itself: redirecting or piping the client standard input is
+	// incompatible with `docker run -t`, `docker exec -t` or `docker attach`.
+	if ttyMode && attachStdin && !cli.isTerminalIn {
+		return errors.New("cannot enable tty mode on non tty input")
+	}
+	return nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey, proto, addr string, tlsConfig *tls.Config) *DockerCli {

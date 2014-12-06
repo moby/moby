@@ -267,6 +267,9 @@ outside of a container on the host.
 input of any container. This can be used, for example, to run a throwaway
 interactive shell. The default is value is false.
 
+The **-t** option is incompatible with a redirection of the docker client
+standard input.
+
 **-u**, **--user**=""
    Username or UID
 

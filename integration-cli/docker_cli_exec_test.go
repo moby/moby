@@ -273,7 +273,7 @@ func TestExecTtyCloseStdin(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cmd = exec.Command(dockerBinary, "exec", "-it", "exec_tty_stdin", "cat")
+	cmd = exec.Command(dockerBinary, "exec", "-i", "exec_tty_stdin", "cat")
 	stdinRw, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -303,4 +303,51 @@ func TestExecTtyCloseStdin(t *testing.T) {
 	}
 
 	logDone("exec - stdin is closed properly with tty enabled")
+}
+
+func TestExecTtyWithoutStdin(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "-ti", "busybox")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to start container: %v (%v)", out, err)
+	}
+
+	id := strings.TrimSpace(out)
+	if err := waitRun(id); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		cmd := exec.Command(dockerBinary, "kill", id)
+		if out, _, err := runCommandWithOutput(cmd); err != nil {
+			t.Fatalf("failed to kill container: %v (%v)", out, err)
+		}
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		cmd := exec.Command(dockerBinary, "exec", "-ti", id, "true")
+		if _, err := cmd.StdinPipe(); err != nil {
+			t.Fatal(err)
+		}
+
+		expected := "cannot enable tty mode"
+		if out, _, err := runCommandWithOutput(cmd); err == nil {
+			t.Fatal("exec should have failed")
+		} else if !strings.Contains(out, expected) {
+			t.Fatal("exec failed with error %q: expected %q", out, expected)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("exec is running but should have failed")
+	}
+
+	logDone("exec - forbid piped stdin to tty enabled container")
 }
