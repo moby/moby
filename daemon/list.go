@@ -27,22 +27,12 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		n           = job.GetenvInt("limit")
 		size        = job.GetenvBool("size")
 		psFilters   filters.Args
-		filt_exited []int
 	)
 	outs := engine.NewTable("Created", 0)
 
 	psFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
 		return job.Error(err)
-	}
-	if i, ok := psFilters["exited"]; ok {
-		for _, value := range i {
-			code, err := strconv.Atoi(value)
-			if err != nil {
-				return job.Error(err)
-			}
-			filt_exited = append(filt_exited, code)
-		}
 	}
 
 	names := map[string][]string{}
@@ -96,11 +86,19 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 && !container.Running {
+		if len(psFilters.GetAll("exited")) > 0 && !container.Running {
 			should_skip := true
-			for _, code := range filt_exited {
-				if code == container.ExitCode {
-					should_skip = false
+			for _, arg := range psFilters.GetAll("exited") {
+				code, err := strconv.Atoi(arg.Value)
+				if err != nil {
+					return err
+				}
+				switch arg.Operator {
+				case "=":
+					should_skip = !(code == container.ExitCode)
+					break
+				case "!=":
+					should_skip = !(code != container.ExitCode)
 					break
 				}
 			}

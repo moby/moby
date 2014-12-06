@@ -22,11 +22,9 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	if i, ok := imageFilters["dangling"]; ok {
-		for _, value := range i {
-			if strings.ToLower(value) == "true" {
-				filt_tagged = false
-			}
+	for _, arg := range imageFilters.GetAll("dangling") {
+		if arg.Operator == "=" && strings.ToLower(arg.Value) == "true" {
+			filt_tagged = false
 		}
 	}
 

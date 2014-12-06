@@ -49,6 +49,7 @@ const (
 )
 
 var (
+	// TODO(vbatts) make this a filter registration process
 	acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
 )
 
@@ -1358,9 +1359,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	}
 
-	for name := range imageFilterArgs {
-		if _, ok := acceptedImageFilterTags[name]; !ok {
-			return fmt.Errorf("Invalid filter '%s'", name)
+	for _, arg := range imageFilterArgs {
+		if _, ok := acceptedImageFilterTags[arg.Key]; !ok {
+			return fmt.Errorf("Invalid filter '%s'", arg.Key)
 		}
 	}
 

@@ -3,11 +3,16 @@ package filters
 import (
 	"encoding/json"
 	"errors"
-	"regexp"
-	"strings"
 )
 
-type Args map[string][]string
+// ParseArg returns an Arg from an opaque str parameter
+func ParseArg(str string) (Arg, error) {
+	items, err := SplitByOperators(str)
+	if err != nil {
+		return Arg{}, err
+	}
+	return Arg{Key: items[0], Operator: items[1], Value: items[2]}, nil
+}
 
 // Parse the argument to the filter flag. Like
 //
@@ -24,14 +29,11 @@ func ParseFlag(arg string, prev Args) (Args, error) {
 		return filters, nil
 	}
 
-	if !strings.Contains(arg, "=") {
-		return filters, ErrorBadFormat
+	a, err := ParseArg(arg)
+	if err != nil {
+		return filters, err
 	}
-
-	f := strings.SplitN(arg, "=", 2)
-	name := strings.ToLower(strings.TrimSpace(f[0]))
-	value := strings.TrimSpace(f[1])
-	filters[name] = append(filters[name], value)
+	filters = append(filters, a)
 
 	return filters, nil
 }
@@ -63,23 +65,4 @@ func FromParam(p string) (Args, error) {
 		return nil, err
 	}
 	return args, nil
-}
-
-func (filters Args) Match(field, source string) bool {
-	fieldValues := filters[field]
-
-	//do not filter if there is no filter set or cannot determine filter
-	if len(fieldValues) == 0 {
-		return true
-	}
-	for _, name2match := range fieldValues {
-		match, err := regexp.MatchString(name2match, source)
-		if err != nil {
-			continue
-		}
-		if match {
-			return true
-		}
-	}
-	return false
 }
