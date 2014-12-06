@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -36,6 +37,10 @@ func untar() {
 		fatal(err)
 	}
 	if err := archive.Unpack(os.Stdin, "/", options); err != nil {
+		fatal(err)
+	}
+	// fully consume stdin in case it is zero padded
+	if _, err := ioutil.ReadAll(os.Stdin); err != nil {
 		fatal(err)
 	}
 	os.Exit(0)
