@@ -89,7 +89,7 @@ implementation, check out the [Docker User Guide](/userguide/).
 ## Release Notes
 
 A summary of the changes in each release in the current series can now be found
-on the separate [Release Notes page](/release-notes/)
+on the separate [Release Notes page](/CHANGELOG.md)
 
 ## Licensing
 
