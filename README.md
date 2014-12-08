@@ -206,3 +206,19 @@ Docker is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://github.com/docker/docker/blob/master/LICENSE) for the full
 license text.
 
+Other Docker Related Projects
+=============================
+
+Leveraging Docker as the core technology for managing Linux containers on a 
+single host, the following projects are also under development to provide a 
+more comprehensive set of tooling to help round out the Docker platform:
+
+* [Docker Registry](https://github.com/docker/docker-registry): Registry 
+server for Docker (hosting/delivering of repositories and images) 
+* [Docker Machine](https://github.com/docker/machine): Machine management 
+for a container-centric world 
+* [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
+system 
+* [Docker Compose](https://github.com/docker/docker/issues/9694): 
+Multi-container application management
+
