@@ -3885,3 +3885,32 @@ func TestBuildSymlinkBreakout(t *testing.T) {
 	}
 	logDone("build - symlink breakout")
 }
+
+func TestBuildXZHost(t *testing.T) {
+	name := "testbuildxzhost"
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(`
+FROM busybox
+ADD xz /usr/local/sbin/
+RUN chmod 755 /usr/local/sbin/xz
+ADD test.xz /
+RUN [ ! -e /injected ]`,
+		map[string]string{
+			"test.xz": "\xfd\x37\x7a\x58\x5a\x00\x00\x04\xe6\xd6\xb4\x46\x02\x00" +
+				"\x21\x01\x16\x00\x00\x00\x74\x2f\xe5\xa3\x01\x00\x3f\xfd" +
+				"\x37\x7a\x58\x5a\x00\x00\x04\xe6\xd6\xb4\x46\x02\x00\x21",
+			"xz": "#!/bin/sh\ntouch /injected",
+		})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+
+	logDone("build - xz host is being used")
+}
