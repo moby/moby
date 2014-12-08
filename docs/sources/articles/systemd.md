@@ -71,10 +71,14 @@ This example overrides the default `docker.service` file.
 If you are behind a HTTP proxy server, for example in corporate settings,
 you will need to add this configuration in the Docker systemd service file.
 
-Copy file `/usr/lib/systemd/system/docker.service` to `/etc/systemd/system/docker/service`.
+First, create a systemd drop-in directory for the docker service:
 
-Add the following to the `[Service]` section in the new file:
+    mkdir /etc/systemd/system/docker.service.d
 
+Now create a file called `/etc/systemd/system/docker.service.d/http-proxy.conf`
+that adds the `HTTP_PROXY` environment variable:
+
+    [Service]
     Environment="HTTP_PROXY=http://proxy.example.com:80/"
 
 If you have internal Docker registries that you need to contact without
