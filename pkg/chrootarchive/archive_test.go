@@ -83,3 +83,19 @@ func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootApplyEmptyArchiveFromSlowReader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	dest := filepath.Join(tmpdir, "dest")
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		t.Fatal(err)
+	}
+	stream := &slowEmptyTarReader{size: 10240, chunkSize: 1024}
+	if err := ApplyLayer(dest, stream); err != nil {
+		t.Fatal(err)
+	}
+}

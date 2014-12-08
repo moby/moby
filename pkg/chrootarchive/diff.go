@@ -34,6 +34,8 @@ func applyLayer() {
 	if err != nil {
 		fatal(err)
 	}
+	os.RemoveAll(tmpDir)
+	flush(os.Stdin)
 	os.Exit(0)
 }
 
