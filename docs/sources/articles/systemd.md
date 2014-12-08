@@ -38,7 +38,7 @@ or `/etc/systemd/service`.
 You may want to control the disk space used for Docker images, containers
 and volumes by moving it to a separate partition.
 
-In this example, we'll assume that your `docker.services` file looks something like:
+In this example, we'll assume that your `docker.service` file looks something like:
 
     [Unit]
     Description=Docker Application Container Engine
