@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"runtime"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/dockerversion"
@@ -77,10 +78,22 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.SetInt("NCPU", runtime.NumCPU())
 	v.SetInt64("MemTotal", meminfo.MemTotal)
 	v.Set("DockerRootDir", daemon.Config().Root)
-	if hostname, err := os.Hostname(); err == nil {
-		v.SetJson("Name", hostname)
+
+	var labels []string
+	for _, label := range daemon.Config().Labels {
+		if strings.HasPrefix(label, "name=") {
+			v.Set("Name", strings.TrimPrefix(label, "name="))
+		} else {
+			labels = append(labels, label)
+		}
 	}
-	v.SetList("Labels", daemon.Config().Labels)
+	if !v.Exists("Name") {
+		if hostname, err := os.Hostname(); err == nil {
+			v.Set("Name", hostname)
+		}
+	}
+	v.SetList("Labels", labels)
+
 	if _, err := v.WriteTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}
