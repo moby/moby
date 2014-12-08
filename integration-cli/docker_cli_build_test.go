@@ -2994,6 +2994,118 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 	logDone("build - ADD tar")
 }
 
+func TestBuildAddTarXz(t *testing.T) {
+	name := "testbuildaddtarxz"
+	defer deleteImages(name)
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+			FROM busybox
+			ADD test.tar.xz /
+			RUN cat /test/foo | grep Hi`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
+		if err != nil {
+			t.Fatalf("failed to create test.tar archive: %v", err)
+		}
+		defer testTar.Close()
+
+		tw := tar.NewWriter(testTar)
+
+		if err := tw.WriteHeader(&tar.Header{
+			Name: "test/foo",
+			Size: 2,
+		}); err != nil {
+			t.Fatalf("failed to write tar file header: %v", err)
+		}
+		if _, err := tw.Write([]byte("Hi")); err != nil {
+			t.Fatalf("failed to write tar file content: %v", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("failed to close tar archive: %v", err)
+		}
+		xzCompressCmd := exec.Command("xz", "test.tar")
+		xzCompressCmd.Dir = tmpDir
+		out, _, err := runCommandWithOutput(xzCompressCmd)
+		if err != nil {
+			t.Fatal(err, out)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			t.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return &FakeContext{Dir: tmpDir}
+	}()
+
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("build failed to complete for TestBuildAddTarXz: %v", err)
+	}
+
+	logDone("build - ADD tar.xz")
+}
+
+func TestBuildAddTarXzGz(t *testing.T) {
+	name := "testbuildaddtarxzgz"
+	defer deleteImages(name)
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+			FROM busybox
+			ADD test.tar.xz.gz /
+			RUN ls /test.tar.xz.gz`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
+		if err != nil {
+			t.Fatalf("failed to create test.tar archive: %v", err)
+		}
+		defer testTar.Close()
+
+		tw := tar.NewWriter(testTar)
+
+		if err := tw.WriteHeader(&tar.Header{
+			Name: "test/foo",
+			Size: 2,
+		}); err != nil {
+			t.Fatalf("failed to write tar file header: %v", err)
+		}
+		if _, err := tw.Write([]byte("Hi")); err != nil {
+			t.Fatalf("failed to write tar file content: %v", err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("failed to close tar archive: %v", err)
+		}
+
+		xzCompressCmd := exec.Command("xz", "test.tar")
+		xzCompressCmd.Dir = tmpDir
+		out, _, err := runCommandWithOutput(xzCompressCmd)
+		if err != nil {
+			t.Fatal(err, out)
+		}
+
+		gzipCompressCmd := exec.Command("gzip", "test.tar.xz")
+		gzipCompressCmd.Dir = tmpDir
+		out, _, err = runCommandWithOutput(gzipCompressCmd)
+		if err != nil {
+			t.Fatal(err, out)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			t.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return &FakeContext{Dir: tmpDir}
+	}()
+
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("build failed to complete for TestBuildAddTarXz: %v", err)
+	}
+
+	logDone("build - ADD tar.xz.gz")
+}
+
 func TestBuildFromGIT(t *testing.T) {
 	name := "testbuildfromgit"
 	defer deleteImages(name)
