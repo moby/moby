@@ -333,6 +333,34 @@ To set the DNS server for all Docker containers, use
 To set the DNS search domain for all Docker containers, use
 `docker -d --dns-search example.com`.
 
+### Daemon labels
+
+To help you identify and describe a Docker daemon, you can add labels to it with the
+`--label` flag. For example, `docker -d --label region=us-west --label storage=ssd`
+would get output via `docker info` as follows:
+
+     $ docker info
+     ...
+     Name: ubuntu-saucy-64
+     ID: ODAI:IC6Q:MSBL:TPB5:HIEE:6IKC:VCAM:QRNH:PRGX:ERZT:OK46:PMFX
+     Labels:
+       region=us-west
+       storage=ssd
+     ...
+
+In addition, you can use the special label `name` to give a Docker daemon a unique
+name. For example, `docker -d --label name=my_docker --label storage=ssd` would
+get output via `docker info` as follows:
+
+     $ docker info
+     ...
+     Name: my_docker
+     ID: ODAI:IC6Q:MSBL:TPB5:HIEE:6IKC:VCAM:QRNH:PRGX:ERZT:OK46:PMFX
+     Labels:
+       storage=ssd
+     ...
+
+
 ### Insecure registries
 
 Docker considers a private registry either secure or insecure.
