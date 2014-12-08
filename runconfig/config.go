@@ -33,6 +33,15 @@ type Config struct {
 	NetworkDisabled bool
 	MacAddress      string
 	OnBuild         []string
+	Transactional   bool
+	TransactionCmds []ParsedCmd
+}
+
+type ParsedCmd struct {
+	Cmd        string
+	Args       []string
+	Attributes map[string]bool
+	Original   string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {

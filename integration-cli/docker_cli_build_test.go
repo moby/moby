@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/runconfig"
 )
 
 func TestBuildShCmdJSONEntrypoint(t *testing.T) {
@@ -3522,4 +3523,159 @@ func TestBuildWithTabs(t *testing.T) {
 		t.Fatalf("Missing tabs.\nGot:%s\nExp:%s", res, expected)
 	}
 	logDone("build - with tabs")
+}
+
+func TestBuildVerifyUncommittedTransactionFails(t *testing.T) {
+	name := "testbuildverifyuncommittedtransactionfails"
+	defer deleteImages(name)
+	_, err := buildImage(name, `FROM scratch
+		TRANSACTION a`, true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "Transaction a never committed") {
+			t.Fatalf("Wrong error %v, must be rejecting uncommitted transaction")
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - verify uncommitted transaction fails")
+}
+
+func TestBuildVerifyCommitOutsideTransactionFails(t *testing.T) {
+	name := "testbuildverifycommitoutsidetransactionfails"
+	defer deleteImages(name)
+	_, err := buildImage(name, `FROM scratch
+		COMMIT`, true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "COMMIT called outside of a transaction") {
+			t.Fatalf("Wrong error %v, must be rejecting COMMIT outside a transaction")
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - verify commit outside transaction fails")
+}
+
+func TestBuildTransactionalConfig(t *testing.T) {
+	name := "testbuildtransactionalconfig"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+		FROM busybox
+		TRANSACTION a
+		RUN mkdir /foo
+		RUN mkdir /bar
+		COMMIT`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(name, "Config.Transactional")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var transactional bool
+	if err := json.Unmarshal([]byte(res), &transactional); err != nil {
+		t.Fatal(err)
+	}
+	if !transactional {
+		t.Fatal("Image config not set as transactional")
+	}
+
+	res, err = inspectFieldJSON(name, "Config.TransactionCmds")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var transactionCmds []runconfig.ParsedCmd
+	if err = json.Unmarshal([]byte(res), &transactionCmds); err != nil {
+		t.Fatal(err)
+	}
+	if len(transactionCmds) != 2 {
+		t.Fatalf("Config.TransactionCmds has length %d, should be 2", len(transactionCmds))
+	}
+	if transactionCmds[0].Cmd != "run" || transactionCmds[1].Cmd != "run" {
+		t.Fatal("Config.TransactionCmds has wrong Cmd(s)")
+	}
+	if transactionCmds[0].Args[0] != "mkdir /foo" || transactionCmds[1].Args[0] != "mkdir /bar" {
+		t.Fatal("Config.TransactionCmds has wrong Arg(s)")
+	}
+
+	logDone("build - transactional config")
+}
+
+func TestBuildTransactionCache(t *testing.T) {
+	name := "testbuildtransactioncache"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`
+		FROM busybox
+		TRANSACTION a
+		RUN mkdir /foo
+		RUN mkdir /bar
+		COMMIT`, map[string]string{})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 != id2 {
+		t.Fatal("Transaction didn't use the cache")
+	}
+
+	id3, err := buildImage(name, `
+		FROM busybox
+		TRANSACTION a
+		RUN mkdir /foo
+		RUN mkdir /baz
+		COMMIT`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 == id3 {
+		t.Fatal("Transaction improperly used the cache")
+	}
+
+	logDone("build - transaction cache")
+}
+
+func TestBuildTransactionFlattensImage(t *testing.T) {
+	name := "testbuildtransactionflattensimage"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`
+		FROM busybox
+		TRANSACTION a
+		RUN touch foo.txt
+		RUN mkdir /bar
+		RUN touch /bar/baz.txt
+		COMMIT`, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+	containerCountBefore, err := getContainerCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = dockerCmdInDir(t, ctx.Dir, "build", "--rm=false", "-t", name, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	containerCountAfter, err := getContainerCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if containerCountBefore+1 != containerCountAfter {
+		t.Fatalf("build created wrong number of containers, created %d, should have created 1", containerCountAfter-containerCountBefore)
+	}
+	deleteAllContainers()
+	logDone("build - transaction flattens image")
 }

@@ -56,20 +56,22 @@ var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) e
 
 func init() {
 	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
-		"env":        env,
-		"maintainer": maintainer,
-		"add":        add,
-		"copy":       dispatchCopy, // copy() is a go builtin
-		"from":       from,
-		"onbuild":    onbuild,
-		"workdir":    workdir,
-		"run":        run,
-		"cmd":        cmd,
-		"entrypoint": entrypoint,
-		"expose":     expose,
-		"volume":     volume,
-		"user":       user,
-		"insert":     insert,
+		"env":         env,
+		"maintainer":  maintainer,
+		"add":         add,
+		"copy":        dispatchCopy, // copy() is a go builtin
+		"from":        from,
+		"onbuild":     onbuild,
+		"workdir":     workdir,
+		"run":         run,
+		"cmd":         cmd,
+		"entrypoint":  entrypoint,
+		"expose":      expose,
+		"volume":      volume,
+		"user":        user,
+		"insert":      insert,
+		"transaction": transaction,
+		"commit":      commit,
 	}
 }
 
@@ -111,6 +113,10 @@ type Builder struct {
 	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)
 
+	// used while processing transactions
+	inTransaction        bool
+	transactionName      string // stored in the image history
+	transactionContainer *daemon.Container
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -171,7 +177,9 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 			}
 			return "", err
 		}
-		fmt.Fprintf(b.OutStream, " ---> %s\n", utils.TruncateID(b.image))
+		if !b.inTransaction {
+			fmt.Fprintf(b.OutStream, " ---> %s\n", utils.TruncateID(b.image))
+		}
 		if b.Remove {
 			b.clearTmp()
 		}
@@ -179,6 +187,9 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	if b.image == "" {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
+	}
+	if b.inTransaction {
+		return "", fmt.Errorf("Transaction %s never committed", b.transactionName)
 	}
 
 	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
@@ -216,11 +227,23 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		ast = ast.Next
 		var str string
 		str = ast.Value
-		if _, ok := replaceEnvAllowed[cmd]; ok {
-			str = b.replaceEnv(ast.Value)
+		if !b.inTransaction {
+			if _, ok := replaceEnvAllowed[cmd]; ok {
+				str = b.replaceEnv(str)
+			}
 		}
 		strs = append(strs, str)
 		msg += " " + ast.Value
+	}
+
+	if b.inTransaction && cmd != "commit" {
+		if cmd != "run" {
+			return fmt.Errorf("Only RUN instructions allowed inside transaction")
+		}
+		b.Config.TransactionCmds = append(b.Config.TransactionCmds, runconfig.ParsedCmd{cmd, strs, attrs, original})
+		msg += " (deferred)"
+		fmt.Fprintln(b.OutStream, msg)
+		return nil
 	}
 
 	fmt.Fprintln(b.OutStream, msg)

@@ -56,9 +56,10 @@ to a new image if necessary, before finally outputting the ID of your
 new image. The Docker daemon will automatically clean up the context you
 sent.
 
-Note that each instruction is run independently, and causes a new image
-to be created - so `RUN cd /tmp` will not have any effect on the next
-instructions.
+Note that each instruction is run independently in a separate container
+execution - so `RUN cd /tmp` will not have any effect on the next instructions.
+Except for instructions within transactions, each instruction will cause a new
+image to be created.
 
 Whenever possible, Docker will re-use the intermediate images,
 accelerating `docker build` significantly (indicated by `Using cache` -
@@ -864,6 +865,19 @@ For example you might add something like this:
 > **Warning**: Chaining `ONBUILD` instructions using `ONBUILD ONBUILD` isn't allowed.
 
 > **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
+
+## TRANSACTION/COMMIT
+
+    TRANSACTION name
+    <instructions>
+    COMMIT
+
+The TRANSACTION instruction overrides the default behavior of committing each
+instruction to its own image. Within a transaction, a single container is
+successively executed with the instructions between TRANSACTION and COMMIT. When
+COMMIT is run, the results are committed to a single image and the image is
+given the history of `/bin/sh -c #(transaction) <name>`. Only RUN instructions
+are permitted inside of a transaction.
 
 ## Dockerfile Examples
 

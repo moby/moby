@@ -58,6 +58,9 @@ func (b *Builder) readContext(context io.Reader) error {
 }
 
 func (b *Builder) commit(id string, autoCmd []string, comment string) error {
+	if b.inTransaction {
+		return nil
+	}
 	if b.image == "" {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
@@ -97,6 +100,21 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 
 	// Commit the container
 	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
+	if err != nil {
+		return err
+	}
+	b.image = image.ID
+	return nil
+}
+
+func (b *Builder) commitTransaction() error {
+	if b.image == "" {
+		return fmt.Errorf("Please provide a source image with `from` prior to commit")
+	}
+	b.Config.Image = b.image
+	autoConfig := *b.Config
+	image, err := b.Daemon.Commit(b.transactionContainer, "", "", "", b.maintainer, true, &autoConfig)
+	b.transactionContainer = nil
 	if err != nil {
 		return err
 	}
@@ -508,6 +526,13 @@ func (b *Builder) create() (*daemon.Container, error) {
 
 	config := *b.Config
 
+	// instead of creating a new container, update it for this instruction
+	if b.inTransaction {
+		b.transactionContainer.Path = config.Cmd[0]
+		b.transactionContainer.Args = config.Cmd[1:]
+		return b.transactionContainer, nil
+	}
+
 	// Create the container
 	c, warnings, err := b.Daemon.Create(b.Config, nil, "")
 	if err != nil {
@@ -524,6 +549,22 @@ func (b *Builder) create() (*daemon.Container, error) {
 	c.Path = config.Cmd[0]
 	c.Args = config.Cmd[1:]
 
+	return c, nil
+}
+
+func (b *Builder) createTransaction() (*daemon.Container, error) {
+	if b.image == "" {
+		return nil, fmt.Errorf("Please provide a source image with `from` prior to transaction")
+	}
+	b.Config.Image = b.image
+	c, warnings, err := b.Daemon.Create(b.Config, nil, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, warning := range warnings {
+		fmt.Fprintf(b.OutStream, " ---> [Warning] %s\n", warning)
+	}
+	fmt.Fprintf(b.OutStream, " ---> Transaction running in %s\n", utils.TruncateID(c.ID))
 	return c, nil
 }
 
