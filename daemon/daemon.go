@@ -696,6 +696,9 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
+			if child.hostConfig.NetworkMode.IsHost() {
+				return runconfig.ErrConflictHostNetworkAndLinks
+			}
 			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
 				return err
 			}
