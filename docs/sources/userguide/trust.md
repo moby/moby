@@ -3,27 +3,35 @@ Docker uses a trust system based on public key cryptography and a global
 federated namespace to link users to keys and resources. Users never need
 to share their private keys and retain full control of extended permissions.
 
-## Login
-The `docker login` command can be used to register public keys with the trust
+## Trust CLI
+To manage the trust system on the command line, a tool called `trust` may be
+used. Trust has subcommands to manage the various life cycles of keys and ACLs.
+The tool will be able to interface with remote key servers to manage a local
+copy of a globally distributed set of keys and ACLs in the namespace. The cli
+is configurable to work with application specific trust and should be able to
+directly manage trust information used by an application using *libtrust*.
+
+### Key Registration
+The `trust register` command can be used to register public keys with the trust
 system. By default every client and daemon instance of Docker will generate a
-public key and using `docker login` will register that public key with the
-credentials provided on login. By default `docker login` registers against
-Docker Hub using Docker Hub credentials. A trust server URL may
-also be provided to register with.  The login command also supports setting
-a limited set of permission to the key, to keep the key from being able to
-perform any action on the users behalf.  The default permission is to be
+public key and using `trust register` will register that public key with the
+credentials provided on login. With no additional arguments `trust register`
+will register against a default trust server using basic authentication. 
+Docker Hub is the built in default using Docker Hub credentials, but a trust server
+URL may also be provided to register with.  The register command also supports
+setting a limited set of permission to the key, to keep the key from being able
+to perform any action on the users behalf.  The default permission is to be
 able to delegate any action, which includes extending permissions to other
 users.
 
-After logging in, the key identifier registered with trust server will be stored
+After registering, the key identifier registered with trust server will be stored
 in the local Docker configuration file (`~/.dockercfg`). The trust server will
 return the grant created and added to the global trust graph by the server . The
 grant will contain the key id, user namespace, and the actions delegated to the
-key. If the login server is not a trust server and does not support public key
-registration, the credentials will be stored in the configuration file.
+key.
 
-## Grant
-The `docker grant` command can be used to extend permission in the trust
+### Grant
+The `trust grant` command can be used to extend permission in the trust
 graph.  The `--delegate` flag can be used to allow the grant to be used to
 create further grants.  The `--grantee` flag is used to set the grantee which
 will be given permission.  The `--subject` flag is used to specify what 
@@ -32,18 +40,18 @@ element within the namespace the grantee is given permission to.
 ~~~~
 # Grants user jlhawn access to push to any repository under dmcgowan
 # as well as extend that permission to others
-docker grant push --delegate --grantee jlhawn --subject dmcgowan
+trust grant --delegate --grantee jlhawn --subject dmcgowan push
 
 # Grants user jlhawn access to push to the repository name
 # dmcgowan/my-app
-docker grant push --grantee jlhawn --subject dmcgowan/my-app
+trust grant --grantee jlhawn --subject dmcgowan/my-app push
 
 # Grants user jlhawn access to push and pull to the repository name
 # dmcgowan/my-app
-docker grant push pull --grantee jlhawn --subject dmcgowan/my-app
+trust grant --grantee jlhawn --subject dmcgowan/my-app push pull
 
 # Effectively giving jlhawn full access to the dmcgowan namespace
-docker grant all --delegate --grantee jlhawn --subject dmcgowan
+trust grant --delegate --grantee jlhawn --subject dmcgowan any
 ~~~~
 
 ## Trust Graph
