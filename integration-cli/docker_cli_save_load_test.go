@@ -104,6 +104,140 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 	logDone("save - do not save to a tty")
 }
 
+// save a repo using gz compression and try to load it using stdout
+func TestSaveXzAndLoadRepoStdout(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "test-save-xz-gz-load-repo-stdout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tarballPath := filepath.Join(tempDir, "foobar-save-load-test.tar.xz.gz")
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("failed to create a container: %v %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+
+	repoName := "foobar-save-load-test-xz-gz"
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("output should've been a container id: %v %v", cleanedContainerID, err)
+	}
+
+	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
+	out, _, err = runCommandWithOutput(commitCmd)
+	if err != nil {
+		t.Fatalf("failed to commit container: %v %v", out, err)
+	}
+
+	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	before, _, err := runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("the repo should exist before saving it: %v %v", before, err)
+	}
+
+	saveCmdTemplate := `%v save %v | xz -c | gzip -c > %s`
+	saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, repoName, tarballPath)
+	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
+	out, _, err = runCommandWithOutput(saveCmd)
+	if err != nil {
+		t.Fatalf("failed to save repo: %v %v", out, err)
+	}
+
+	deleteImages(repoName)
+
+	loadCmdFinal := fmt.Sprintf(`cat %s | docker load`, tarballPath)
+	loadCmd := exec.Command("bash", "-c", loadCmdFinal)
+	out, _, err = runCommandWithOutput(loadCmd)
+	if err == nil {
+		t.Fatalf("expected error, but succeeded with no error and output: %v", out)
+	}
+
+	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	after, _, err := runCommandWithOutput(inspectCmd)
+	if err == nil {
+		t.Fatalf("the repo should not exist: %v", after)
+	}
+
+	deleteContainer(cleanedContainerID)
+	deleteImages(repoName)
+
+	logDone("load - save a repo with xz compression & load it using stdout")
+}
+
+// save a repo using xz+gz compression and try to load it using stdout
+func TestSaveXzGzAndLoadRepoStdout(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "test-save-xz-gz-load-repo-stdout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tarballPath := filepath.Join(tempDir, "foobar-save-load-test.tar.xz.gz")
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("failed to create a container: %v %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+
+	repoName := "foobar-save-load-test-xz-gz"
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("output should've been a container id: %v %v", cleanedContainerID, err)
+	}
+
+	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
+	out, _, err = runCommandWithOutput(commitCmd)
+	if err != nil {
+		t.Fatalf("failed to commit container: %v %v", out, err)
+	}
+
+	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	before, _, err := runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("the repo should exist before saving it: %v %v", before, err)
+	}
+
+	saveCmdTemplate := `%v save %v | xz -c | gzip -c > %s`
+	saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, repoName, tarballPath)
+	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
+	out, _, err = runCommandWithOutput(saveCmd)
+	if err != nil {
+		t.Fatalf("failed to save repo: %v %v", out, err)
+	}
+
+	deleteImages(repoName)
+
+	loadCmdFinal := fmt.Sprintf(`cat %s | docker load`, tarballPath)
+	loadCmd := exec.Command("bash", "-c", loadCmdFinal)
+	out, _, err = runCommandWithOutput(loadCmd)
+	if err == nil {
+		t.Fatalf("expected error, but succeeded with no error and output: %v", out)
+	}
+
+	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	after, _, err := runCommandWithOutput(inspectCmd)
+	if err == nil {
+		t.Fatalf("the repo should not exist: %v", after)
+	}
+
+	deleteContainer(cleanedContainerID)
+	deleteImages(repoName)
+
+	logDone("load - save a repo with xz+gz compression & load it using stdout")
+}
+
 func TestSaveSingleTag(t *testing.T) {
 	repoName := "foobar-save-single-tag-test"
 
