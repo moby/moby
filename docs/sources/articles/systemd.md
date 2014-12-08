@@ -45,14 +45,14 @@ In this example, we'll assume that your `docker.services` file looks something l
     Documentation=http://docs.docker.com
     After=network.target docker.socket
     Requires=docker.socket
-    
+
     [Service]
     Type=notify
     EnvironmentFile=-/etc/sysconfig/docker
     ExecStart=/usr/bin/docker -d -H fd:// $OPTIONS
     LimitNOFILE=1048576
     LimitNPROC=1048576
-    
+
     [Install]
     Also=docker.socket
 
@@ -68,7 +68,7 @@ You can also set other environment variables in this file, for example, the
 
 This example overrides the default `docker.service` file.
 
-If you are behind a HTTP proxy server, for example in corporate settings, 
+If you are behind a HTTP proxy server, for example in corporate settings,
 you will need to add this configuration in the Docker systemd service file.
 
 Copy file `/usr/lib/systemd/system/docker.service` to `/etc/systemd/system/docker/service`.
@@ -85,7 +85,7 @@ proxying you can specify them via the `NO_PROXY` environment variable:
 Flush changes:
 
     $ sudo systemctl daemon-reload
-    
+
 Restart Docker:
 
     $ sudo systemctl restart docker
