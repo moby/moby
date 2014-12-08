@@ -180,7 +180,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		body = utils.ProgressReader(context, 0, cli.err, sf, true, "", "Sending build context to Docker daemon")
+		body = utils.ProgressReader(context, 0, cli.out, sf, true, "", "Sending build context to Docker daemon")
 	}
 	// Send the build context
 	v := &url.Values{}

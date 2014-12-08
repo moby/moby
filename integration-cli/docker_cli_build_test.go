@@ -3523,3 +3523,19 @@ func TestBuildWithTabs(t *testing.T) {
 	}
 	logDone("build - with tabs")
 }
+
+func TestBuildStderr(t *testing.T) {
+	// This test just makes sure that no non-error output goes
+	// to stderr
+	name := "testbuildstderr"
+	defer deleteImages(name)
+	_, _, stderr, err := buildImageWithStdoutStderr(name,
+		"FROM busybox\nRUN echo one", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stderr != "" {
+		t.Fatal("Stderr should have been empty, instead its: %q", stderr)
+	}
+	logDone("build - testing stderr")
+}

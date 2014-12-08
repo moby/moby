@@ -596,6 +596,25 @@ func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, 
 	return id, out, nil
 }
 
+func buildImageWithStdoutStderr(name, dockerfile string, useCache bool) (string, string, string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, "-")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Stdin = strings.NewReader(dockerfile)
+	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+	}
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", stdout, stderr, err
+	}
+	return id, stdout, stderr, nil
+}
+
 func buildImage(name, dockerfile string, useCache bool) (string, error) {
 	id, _, err := buildImageWithOut(name, dockerfile, useCache)
 	return id, err
