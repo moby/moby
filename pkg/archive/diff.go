@@ -15,24 +15,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
-// ApplyLayer parses a diff in the standard layer format from `layer`, and
-// applies it to the directory `dest`.
-func ApplyLayer(dest string, layer ArchiveReader) error {
-	dest = filepath.Clean(dest)
-
-	// We need to be able to set any perms
-	oldmask, err := system.Umask(0)
-	if err != nil {
-		return err
-	}
-
-	defer system.Umask(oldmask) // ignore err, ErrNotSupportedPlatform
-
-	layer, err = DecompressStream(layer)
-	if err != nil {
-		return err
-	}
-
+func UnpackLayer(dest string, layer ArchiveReader) error {
 	tr := tar.NewReader(layer)
 	trBuf := pools.BufioReader32KPool.Get(tr)
 	defer pools.BufioReader32KPool.Put(trBuf)
@@ -159,6 +142,24 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 			return err
 		}
 	}
-
 	return nil
+}
+
+// ApplyLayer parses a diff in the standard layer format from `layer`, and
+// applies it to the directory `dest`.
+func ApplyLayer(dest string, layer ArchiveReader) error {
+	dest = filepath.Clean(dest)
+
+	// We need to be able to set any perms
+	oldmask, err := system.Umask(0)
+	if err != nil {
+		return err
+	}
+	defer system.Umask(oldmask) // ignore err, ErrNotSupportedPlatform
+
+	layer, err = DecompressStream(layer)
+	if err != nil {
+		return err
+	}
+	return UnpackLayer(dest, layer)
 }

@@ -15,6 +15,15 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 )
 
+var chrootArchiver = &archive.Archiver{Untar}
+
+func chroot(path string) error {
+	if err := syscall.Chroot(path); err != nil {
+		return err
+	}
+	return syscall.Chdir("/")
+}
+
 func untar() {
 	runtime.LockOSThread()
 	flag.Parse()
@@ -38,11 +47,17 @@ func untar() {
 	os.Exit(0)
 }
 
-var (
-	chrootArchiver = &archive.Archiver{Untar}
-)
+func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
+	if tarArchive == nil {
+		return fmt.Errorf("Empty archive")
+	}
+	if options == nil {
+		options = &archive.TarOptions{}
+	}
+	if options.Excludes == nil {
+		options.Excludes = []string{}
+	}
 
-func Untar(archive io.Reader, dest string, options *archive.TarOptions) error {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(options); err != nil {
@@ -55,7 +70,7 @@ func Untar(archive io.Reader, dest string, options *archive.TarOptions) error {
 	}
 
 	cmd := reexec.Command("docker-untar", dest, buf.String())
-	cmd.Stdin = archive
+	cmd.Stdin = tarArchive
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Untar %s %s", err, out)
