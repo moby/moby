@@ -180,7 +180,10 @@ share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_p
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
-Call `docker -d -s overlay` to use it.
+Call `docker -d -s overlay` to use it. 
+> **Note:** 
+> It is currently unsupported on `btrfs` or any Copy on Write filesystem
+> and should only be used over `ext4` partitions.
 
 #### Storage driver options
 
