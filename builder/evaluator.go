@@ -39,6 +39,8 @@ import (
 
 var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
+	ExistImport        map[string]bool
+	steps              int
 )
 
 // Environment variable interpolation will happen on these statements only.
@@ -50,6 +52,7 @@ var replaceEnvAllowed = map[string]struct{}{
 	"expose":  {},
 	"volume":  {},
 	"user":    {},
+	"import":  {},
 }
 
 var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
@@ -70,6 +73,7 @@ func init() {
 		"volume":     volume,
 		"user":       user,
 		"insert":     insert,
+		"import":     dispatchImport, //import is a go key word
 	}
 }
 
@@ -153,6 +157,8 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	defer f.Close()
 
+	ExistImport = map[string]bool{}
+	steps = -1
 	ast, err := parser.Parse(f)
 	if err != nil {
 		return "", err
@@ -164,8 +170,9 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	b.Config = &runconfig.Config{}
 	b.TmpContainers = map[string]struct{}{}
 
-	for i, n := range b.dockerfile.Children {
-		if err := b.dispatch(i, n); err != nil {
+	for _, n := range b.dockerfile.Children {
+		steps++
+		if err := b.dispatch(steps, n); err != nil {
 			if b.ForceRemove {
 				b.clearTmp()
 			}

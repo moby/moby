@@ -10,14 +10,18 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/nat"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
@@ -367,6 +371,69 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	}
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
 		return err
+	}
+	return nil
+}
+
+func existImport(arg string) bool {
+	_, exist := ExistImport[arg]
+	return exist
+}
+
+// IMPORT /foo/Dockerfile
+//
+// Import the dockfile /foo/dockerfile for use. it use absolute path.
+//
+func dispatchImport(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if b.context == nil {
+		return fmt.Errorf("No context given. Impossible to use IMPORT")
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("Import cannot be empty")
+	}
+	for _, v := range args {
+		if existImport(v) {
+			return fmt.Errorf("Cannot import one dockerfile twice")
+		}
+		ExistImport[v] = true
+
+		filename := path.Join(b.contextPath, v)
+
+		fi, err := os.Stat(filename)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("Cannot import with a non-exist Dockerfile")
+		}
+		if fi.Size() == 0 {
+			return ErrDockerfileEmpty
+		}
+
+		fp, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+
+		defer fp.Close()
+
+		ast, err := parser.Parse(fp)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(b.OutStream, " ---> %s\n", utils.TruncateID(b.image))
+		// traverse the ast which produce by import command
+		for _, n := range ast.Children {
+			steps++
+			if err := b.dispatch(steps, n); err != nil {
+				if b.ForceRemove {
+					b.clearTmp()
+				}
+				return err
+			}
+			fmt.Fprintf(b.OutStream, " ---> %s\n", utils.TruncateID(b.image))
+			if b.Remove {
+				b.clearTmp()
+			}
+		}
 	}
 	return nil
 }

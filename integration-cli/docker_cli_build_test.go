@@ -3914,3 +3914,26 @@ RUN [ ! -e /injected ]`,
 
 	logDone("build - xz host is being used")
 }
+
+func TestBuildImportSingleFile(t *testing.T) {
+	name := "testbuildimportsinglefile"
+	defer deleteImages(name)
+	dockerfile := `
+		FROM busybox
+        	MAINTAINER dockerio
+        	IMPORT dockerfile1
+		RUN [ "$(cat /root/test)" = "hello import" ]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"dockerfile1": "ADD test /root/",
+		"test":        "hello import",
+	})
+	defer ctx.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - import single dockerfile fragment")
+}
