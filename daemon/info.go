@@ -76,6 +76,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.Set("InitPath", initPath)
 	v.SetInt("NCPU", runtime.NumCPU())
 	v.SetInt64("MemTotal", meminfo.MemTotal)
+	v.Set("DockerRootDir", daemon.Config().Root)
 	if hostname, err := os.Hostname(); err == nil {
 		v.Set("Name", hostname)
 	}
