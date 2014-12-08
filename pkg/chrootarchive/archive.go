@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -35,9 +34,7 @@ func untar() {
 		fatal(err)
 	}
 	// fully consume stdin in case it is zero padded
-	if _, err := ioutil.ReadAll(os.Stdin); err != nil {
-		fatal(err)
-	}
+	flush(os.Stdin)
 	os.Exit(0)
 }
 
