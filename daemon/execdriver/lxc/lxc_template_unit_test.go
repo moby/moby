@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/execdriver"
+	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/libcontainer/devices"
 )
 
@@ -104,6 +105,10 @@ func TestCustomLxcConfig(t *testing.T) {
 }
 
 func grepFile(t *testing.T, path string, pattern string) {
+	grepFileWithReverse(t, path, pattern, false)
+}
+
+func grepFileWithReverse(t *testing.T, path string, pattern string, inverseGrep bool) {
 	f, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
@@ -117,8 +122,14 @@ func grepFile(t *testing.T, path string, pattern string) {
 	for err == nil {
 		line, err = r.ReadString('\n')
 		if strings.Contains(line, pattern) == true {
+			if inverseGrep {
+				t.Fatalf("grepFile: pattern \"%s\" found in \"%s\"", pattern, path)
+			}
 			return
 		}
+	}
+	if inverseGrep {
+		return
 	}
 	t.Fatalf("grepFile: pattern \"%s\" not found in \"%s\"", pattern, path)
 }
@@ -227,4 +238,65 @@ func TestCustomLxcConfigMounts(t *testing.T) {
 
 	grepFile(t, p, fmt.Sprintf("lxc.mount.entry = %s %s none rbind,ro,create=%s 0 0", tempDir, "/"+tempDir, "dir"))
 	grepFile(t, p, fmt.Sprintf("lxc.mount.entry = %s %s none rbind,rw,create=%s 0 0", tempFile.Name(), "/"+tempFile.Name(), "file"))
+}
+
+func TestCustomLxcConfigMisc(t *testing.T) {
+	root, err := ioutil.TempDir("", "TestCustomLxcConfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
+	driver, err := NewDriver(root, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	processConfig := execdriver.ProcessConfig{
+		Privileged: false,
+	}
+
+	processConfig.Env = []string{"HOSTNAME=testhost"}
+	command := &execdriver.Command{
+		ID: "1",
+		LxcConfig: []string{
+			"lxc.cgroup.cpuset.cpus = 0,1",
+		},
+		Network: &execdriver.Network{
+			Mtu: 1500,
+			Interface: &execdriver.NetworkInterface{
+				Gateway:     "10.10.10.1",
+				IPAddress:   "10.10.10.10",
+				IPPrefixLen: 24,
+				Bridge:      "docker0",
+			},
+		},
+		ProcessConfig: processConfig,
+		CapAdd:        []string{"net_admin", "syslog"},
+		CapDrop:       []string{"kill", "mknod"},
+	}
+
+	p, err := driver.generateLXCConfig(command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// network
+	grepFile(t, p, "lxc.network.type = veth")
+	grepFile(t, p, "lxc.network.link = docker0")
+	grepFile(t, p, "lxc.network.name = eth0")
+	grepFile(t, p, "lxc.network.ipv4 = 10.10.10.10/24")
+	grepFile(t, p, "lxc.network.ipv4.gateway = 10.10.10.1")
+	grepFile(t, p, "lxc.network.flags = up")
+
+	// hostname
+	grepFile(t, p, "lxc.utsname = testhost")
+	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
+	container := nativeTemplate.New()
+	for _, cap := range container.Capabilities {
+		cap = strings.ToLower(cap)
+		if cap != "mknod" && cap != "kill" {
+			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", cap))
+		}
+	}
+	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = kill"), true)
+	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = mknod"), true)
 }
