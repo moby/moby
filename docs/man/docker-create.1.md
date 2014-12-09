@@ -36,6 +36,7 @@ docker-create - Create a new container
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
+[**--tmpfs**[=*[]*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
