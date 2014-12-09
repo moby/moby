@@ -57,6 +57,24 @@ func TestRmRunningContainer(t *testing.T) {
 	logDone("rm - running container")
 }
 
+func TestRmRunningContainerCheckError409(t *testing.T) {
+	createRunningContainer(t, "foo")
+
+	endpoint := "/containers/foo"
+	_, err := sockRequest("DELETE", endpoint, nil)
+
+	if err == nil {
+		t.Fatalf("Expected error, can't rm a running container")
+	}
+	if !strings.Contains(err.Error(), "409 Conflict") {
+		t.Fatalf("Expected error to contain '409 Conflict' but found", err)
+	}
+
+	deleteAllContainers()
+
+	logDone("rm - running container")
+}
+
 func TestRmForceRemoveRunningContainer(t *testing.T) {
 	createRunningContainer(t, "foo")
 

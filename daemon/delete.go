@@ -55,7 +55,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 					return job.Errorf("Could not kill running container, cannot remove - %v", err)
 				}
 			} else {
-				return job.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f")
+				return job.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
 			}
 		}
 		if err := daemon.Destroy(container); err != nil {
