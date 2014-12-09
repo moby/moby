@@ -260,7 +260,10 @@ func populateCommand(c *Container, env []string) error {
 	autoCreatedDevices := append(devices.DefaultAutoCreatedDevices, userSpecifiedDevices...)
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
-	lxcConfig := mergeLxcConfIntoOptions(c.hostConfig)
+	lxcConfig, err := mergeLxcConfIntoOptions(c.hostConfig)
+	if err != nil {
+		return err
+	}
 
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
