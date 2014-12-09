@@ -10,6 +10,13 @@ type MountConfig mount.MountConfig
 
 type Network network.Network
 
+// Namespace defines configuration for each namespace.  It specifies an
+// alternate path that is able to be joined via setns.
+type Namespace struct {
+	Name string `json:"name"`
+	Path string `json:"path,omitempty"`
+}
+
 // Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
 	// Mount specific options.
@@ -38,7 +45,7 @@ type Config struct {
 
 	// Namespaces specifies the container's namespaces that it should setup when cloning the init process
 	// If a namespace is not provided that namespace is shared from the container's parent process
-	Namespaces map[string]bool `json:"namespaces,omitempty"`
+	Namespaces []Namespace `json:"namespaces,omitempty"`
 
 	// Capabilities specify the capabilities to keep when executing the process inside the container
 	// All capbilities not specified will be dropped from the processes capability mask
@@ -46,9 +53,6 @@ type Config struct {
 
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks,omitempty"`
-
-	// Ipc specifies the container's ipc setup to be created
-	IpcNsPath string `json:"ipc,omitempty"`
 
 	// Routes can be specified to create entries in the route table as the container is started
 	Routes []*Route `json:"routes,omitempty"`
