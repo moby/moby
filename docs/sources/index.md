@@ -88,40 +88,4 @@ implementation, check out the [Docker User Guide](/userguide/).
 
 ## Release Notes
 
-**Version 1.3.0**
-
-This version fixes a number of bugs and issues and adds new functions and other
-improvements. These include:
-
-*New command: `docker exec`*
-
-The new `docker exec` command lets you run a process in an existing, active
-container. The command has APIs for both the daemon and the client. With
-`docker exec`, you'll be able to do things like add or remove devices from running containers, debug running containers, and run commands that are not
-part of the container's static specification.
-
-*New command: `docker create`*
-
-Traditionally, the `docker run` command has been used to both create a
-container and spawn a process to run it. The new `docker create` command breaks
-this apart, letting you set up a container without actually starting it. This
-provides more control over management of the container lifecycle, giving you the
-ability to configure things like volumes or port mappings before the container
-is started. For example, in a rapid-response scaling situation, you could use
-`create` to prepare and stage ten containers in anticipation of heavy loads.
-
-*New provenance features*
-
-Official images are now signed by Docker, Inc. to improve your confidence and
-security. Look for the blue ribbons on the [Docker Hub](https://hub.docker.com/).
-The Docker Engine has been updated to automatically verify that a given Official
-Repo has a current, valid signature. If no valid signature is detected, Docker
-Engine will use a prior image.
-
-
-*Other improvements & changes*
-
-We've added a new security options flag that lets you set SELinux and AppArmor
-labels and profiles. This means you'll longer have to use `docker run
---privileged on kernels that support SE Linux or AppArmor.
-
+A summary of the changes in each release in the current series can now be found on the separate [Release Notes page](/release-notes/)

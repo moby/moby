@@ -41,6 +41,17 @@ var (
 	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
+// Environment variable interpolation will happen on these statements only.
+var replaceEnvAllowed = map[string]struct{}{
+	"env":     {},
+	"add":     {},
+	"copy":    {},
+	"workdir": {},
+	"expose":  {},
+	"volume":  {},
+	"user":    {},
+}
+
 var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
@@ -149,7 +160,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	b.dockerfile = ast
 
 	// some initializations that would not have been supplied by the caller.
-	b.Config = &runconfig.Config{Entrypoint: []string{}, Cmd: nil}
+	b.Config = &runconfig.Config{}
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {
@@ -196,13 +207,18 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 
 	if cmd == "onbuild" {
 		ast = ast.Next.Children[0]
-		strs = append(strs, b.replaceEnv(ast.Value))
+		strs = append(strs, ast.Value)
 		msg += " " + ast.Value
 	}
 
 	for ast.Next != nil {
 		ast = ast.Next
-		strs = append(strs, b.replaceEnv(ast.Value))
+		var str string
+		str = ast.Value
+		if _, ok := replaceEnvAllowed[cmd]; ok {
+			str = b.replaceEnv(ast.Value)
+		}
+		strs = append(strs, str)
 		msg += " " + ast.Value
 	}
 
