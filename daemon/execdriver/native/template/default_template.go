@@ -25,12 +25,12 @@ func New() *libcontainer.Config {
 			"KILL",
 			"AUDIT_WRITE",
 		},
-		Namespaces: map[string]bool{
-			"NEWNS":  true,
-			"NEWUTS": true,
-			"NEWIPC": true,
-			"NEWPID": true,
-			"NEWNET": true,
+		Namespaces: []libcontainer.Namespace{
+			{Name: "NEWNS"},
+			{Name: "NEWUTS"},
+			{Name: "NEWIPC"},
+			{Name: "NEWPID"},
+			{Name: "NEWNET"},
 		},
 		Cgroups: &cgroups.Cgroup{
 			Parent:          "docker",

@@ -82,7 +82,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 
 func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Command) error {
 	if c.Network.HostNetworking {
-		container.Namespaces["NEWNET"] = false
+		removeNamespace(container, "NEWNET")
 		return nil
 	}
 
@@ -118,11 +118,9 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 		}
 		cmd := active.cmd
 
-		nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
-		container.Networks = append(container.Networks, &libcontainer.Network{
-			Type:   "netns",
-			NsPath: nspath,
-		})
+		if i := getNamespaceIndex(container, "NEWNET"); i != -1 {
+			container.Namespaces[i].Path = filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
+		}
 	}
 
 	return nil
@@ -130,7 +128,7 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 
 func (d *driver) createIpc(container *libcontainer.Config, c *execdriver.Command) error {
 	if c.Ipc.HostIpc {
-		container.Namespaces["NEWIPC"] = false
+		removeNamespace(container, "NEWIPC")
 		return nil
 	}
 
@@ -144,7 +142,9 @@ func (d *driver) createIpc(container *libcontainer.Config, c *execdriver.Command
 		}
 		cmd := active.cmd
 
-		container.IpcNsPath = filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "ipc")
+		if i := getNamespaceIndex(container, "NEWIPC"); i != -1 {
+			container.Namespaces[i].Path = filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "ipc")
+		}
 	}
 
 	return nil
@@ -206,4 +206,19 @@ func (d *driver) setupLabels(container *libcontainer.Config, c *execdriver.Comma
 	container.MountConfig.MountLabel = c.MountLabel
 
 	return nil
+}
+
+func getNamespaceIndex(container *libcontainer.Config, name string) int {
+	for i := 0; i < len(container.Namespaces); i++ {
+		if container.Namespaces[i].Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+func removeNamespace(container *libcontainer.Config, name string) {
+	if i := getNamespaceIndex(container, name); i != -1 {
+		container.Namespaces = append(container.Namespaces[:i], container.Namespaces[i+1:]...)
+	}
 }
