@@ -186,7 +186,7 @@ func (d *driver) setupCgroups(container *libcontainer.Config, c *execdriver.Comm
 func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Command) error {
 	for _, m := range c.Mounts {
 		container.MountConfig.Mounts = append(container.MountConfig.Mounts, &mount.Mount{
-			Type:        "bind",
+			Type:        m.Type,
 			Source:      m.Source,
 			Destination: m.Destination,
 			Writable:    m.Writable,
@@ -194,7 +194,6 @@ func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Comma
 			Slave:       m.Slave,
 		})
 	}
-
 	return nil
 }
 

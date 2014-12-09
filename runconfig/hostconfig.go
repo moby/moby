@@ -96,6 +96,7 @@ type HostConfig struct {
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
+	TmpfsMounts     []string
 }
 
 // This is used by the create command when you want to set both the
@@ -155,6 +156,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
 		hostConfig.CapDrop = CapDrop
+	}
+	if m := job.GetenvList("TmpfsMounts"); m != nil {
+		hostConfig.TmpfsMounts = m
 	}
 
 	return hostConfig

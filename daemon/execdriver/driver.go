@@ -93,6 +93,7 @@ type Resources struct {
 }
 
 type Mount struct {
+	Type        string `json:"type"`
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
 	Writable    bool   `json:"writable"`

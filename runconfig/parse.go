@@ -43,6 +43,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
 		flSecurityOpt = opts.NewListOpts(nil)
+		flTmpfsMounts = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -83,6 +84,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
+	cmd.Var(&flTmpfsMounts, []string{"-tmpfs"}, "Add tmpfs mounts to the container")
 
 	cmd.Require(flag.Min, 1)
 
@@ -305,6 +307,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CapDrop:         flCapDrop.GetAll(),
 		RestartPolicy:   restartPolicy,
 		SecurityOpt:     flSecurityOpt.GetAll(),
+		TmpfsMounts:     flTmpfsMounts.GetAll(),
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
