@@ -615,7 +615,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 	}
 
 	if fi.IsDir() {
-		return copyAsDirectory(origPath, destPath, destExists)
+		return copyAsDirectory(origPath, destPath)
 	}
 
 	// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
@@ -649,37 +649,31 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		resPath = path.Join(destPath, path.Base(origPath))
 	}
 
-	return fixPermissions(resPath, 0, 0)
+	return fixPermissions(origPath, resPath, 0, 0)
 }
 
-func copyAsDirectory(source, destination string, destinationExists bool) error {
+func copyAsDirectory(source, destination string) error {
 	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 		return err
 	}
+	return fixPermissions(source, destination, 0, 0)
+}
 
-	if destinationExists {
-		files, err := ioutil.ReadDir(source)
+func fixPermissions(source, destination string, uid, gid int) error {
+	// We Walk on the source rather than on the destination because we don't
+	// want to change permissions on things we haven't created or modified.
+	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
+		// Do not alter the walk root itself as it potentially existed before.
+		if source == fullpath {
+			return nil
+		}
+		// Path is prefixed by source: substitute with destination instead.
+		cleaned, err := filepath.Rel(source, fullpath)
 		if err != nil {
 			return err
 		}
-
-		for _, file := range files {
-			if err := fixPermissions(filepath.Join(destination, file.Name()), 0, 0); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	return fixPermissions(destination, 0, 0)
-}
-
-func fixPermissions(destination string, uid, gid int) error {
-	return filepath.Walk(destination, func(path string, info os.FileInfo, err error) error {
-		if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
+		fullpath = path.Join(destination, cleaned)
+		return os.Lchown(fullpath, uid, gid)
 	})
 }
 
