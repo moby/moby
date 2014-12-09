@@ -176,7 +176,7 @@ signed content must be a JSON Web Signature with the content type understood by
 the Trust Server. The Trust Server will use the public key of the valid
 signature, identifier associated with the content, and action from the content
 to query. The action may be derived from the content (image manifest means
-builds) or explicitly stated such as a “scope” field in a JWT. Requiring a
+builds) or explicitly stated such as a “actions” field in a JWT. Requiring a
 valid signature ensures that queries cannot be made for public keys and
 identifiers which have no association. This prevents potential abuse of the
 system by making it impossible to scrape the system for information which is
@@ -207,7 +207,7 @@ user1 allows user2 to build and pull
 ~~~~
 {
    "subject": "user1",
-   "scope": ["build", "pull"],
+   "actions": ["build", "pull"],
    "delegated": false,
    "revoked": false,
    "grantee": "user2",
@@ -220,7 +220,7 @@ user2 delegates to key
 ~~~~
 {
    "subject": "user2",
-   "scope": ["any"],
+   "actions": ["any"],
    "delegated": true,
    "revoked": false,
    "grantee": "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL",
@@ -273,27 +273,26 @@ Trust Server created key grant
 }
 ~~~~
 
-#### Scopes
-The scope used in grants and revocations are an array strings referring to
-verbs. Grants can be chained together through delegation verbs.  When the
-subject ends with a “/” the scope applies to all child elements.
+#### Actions
+The action used in grants and revocations are an array strings referring to
+verbs. Grants can be chained together through delegation verbs.
 
 ##### Example Scopes
-build - scope used for verifying build manifests
-connect - scope used for allowing connections to host or service
-pull - scoped used to allow pulling of a private image
+build - action used for verifying build manifests
+connect - action used for allowing connections to host or service
+pull - action used to allow pulling of a private image
 
 ##### Reserved Scopes
-any - Allows any scope
+any - Allows any action
 
 #### Subject
-The subject is the namespace in which the scope may be applied. When chaining
+The subject is the namespace in which the action may be applied. When chaining
 the subject must correspond to a grantee in the next link. When the subject
-ends with a “/”, the scope is considered to be applicable only on children, not
+ends with a “/”, the action is considered to be applicable only on children, not
 directly on the named subject.
 
 #### Grantee
-The grantee is the namespace which is permitted to perform the scope verb on
+The grantee is the namespace which is permitted to perform the action verb on
 the subject. The first grantee in a chain of grants will usually be a public
 key since a public key is easily authenticated through a signature. The first
 grantee should always be authenticated by the service consuming the trust graph.
