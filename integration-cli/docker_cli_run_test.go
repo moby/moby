@@ -2742,3 +2742,32 @@ func TestRunPortFromDockerRangeInUse(t *testing.T) {
 
 	logDone("run - find another port if port from autorange already bound")
 }
+
+func TestRunTtyWithPipe(t *testing.T) {
+	defer deleteAllContainers()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		cmd := exec.Command(dockerBinary, "run", "-ti", "busybox", "true")
+		if _, err := cmd.StdinPipe(); err != nil {
+			t.Fatal(err)
+		}
+
+		expected := "cannot enable tty mode"
+		if out, _, err := runCommandWithOutput(cmd); err == nil {
+			t.Fatal("run should have failed")
+		} else if !strings.Contains(out, expected) {
+			t.Fatal("run failed with error %q: expected %q", out, expected)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("container is running but should have failed")
+	}
+
+	logDone("run - forbid piped stdin with tty")
+}

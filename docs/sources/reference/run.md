@@ -94,9 +94,10 @@ specify to which of the three standard streams (`STDIN`, `STDOUT`,
 
     $ sudo docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
-For interactive processes (like a shell) you will typically want a tty
-as well as persistent standard input (`STDIN`), so you'll use `-i -t`
-together in most interactive cases.
+For interactive processes (like a shell), you must use `-i -t` together in
+order to allocate a tty for the container process. Specifying `-t` is however
+forbidden when the client standard output is redirected or pipe, such as in:
+`echo test | docker run -i busybox cat`.
 
 ## Container identification
 

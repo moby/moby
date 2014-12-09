@@ -87,3 +87,50 @@ func TestAttachMultipleAndRestart(t *testing.T) {
 
 	logDone("attach - multiple attach")
 }
+
+func TestAttachTtyWithoutStdin(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "-ti", "busybox")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to start container: %v (%v)", out, err)
+	}
+
+	id := strings.TrimSpace(out)
+	if err := waitRun(id); err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		cmd := exec.Command(dockerBinary, "kill", id)
+		if out, _, err := runCommandWithOutput(cmd); err != nil {
+			t.Fatalf("failed to kill container: %v (%v)", out, err)
+		}
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		cmd := exec.Command(dockerBinary, "attach", id)
+		if _, err := cmd.StdinPipe(); err != nil {
+			t.Fatal(err)
+		}
+
+		expected := "cannot enable tty mode"
+		if out, _, err := runCommandWithOutput(cmd); err == nil {
+			t.Fatal("attach should have failed")
+		} else if !strings.Contains(out, expected) {
+			t.Fatal("attach failed with error %q: expected %q", out, expected)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(attachWait):
+		t.Fatal("attach is running but should have failed")
+	}
+
+	logDone("attach - forbid piped stdin to tty enabled container")
+}

@@ -1974,6 +1974,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		tty    = config.GetBool("Tty")
 	)
 
+	if err := cli.CheckTtyInput(!*noStdin, tty); err != nil {
+		return err
+	}
+
 	if tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
 			log.Debugf("Error monitoring TTY size: %s", err)
@@ -2288,7 +2292,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
-	if *flDetach {
+	if !*flDetach {
+		if err := cli.CheckTtyInput(config.AttachStdin, config.Tty); err != nil {
+			return err
+		}
+	} else {
 		if fl := cmd.Lookup("attach"); fl != nil {
 			flAttach = fl.Value.(*opts.ListOpts)
 			if flAttach.Len() != 0 {
@@ -2600,7 +2608,11 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return nil
 	}
 
-	if execConfig.Detach {
+	if !execConfig.Detach {
+		if err := cli.CheckTtyInput(execConfig.AttachStdin, execConfig.Tty); err != nil {
+			return err
+		}
+	} else {
 		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, false)); err != nil {
 			return err
 		}

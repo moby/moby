@@ -31,5 +31,8 @@ container is unpaused, and then run
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
 
+The **-t** option is incompatible with a redirection of the docker client
+standard input.
+
 # HISTORY
 November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
