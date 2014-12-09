@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -46,21 +47,6 @@ func isGNUcoreutils() bool {
 	return false
 }
 
-func copyDir(src, dst string) error {
-	argv := make([]string, 0, 4)
-
-	if isGNUcoreutils() {
-		argv = append(argv, "-aT", "--reflink=auto", src, dst)
-	} else {
-		argv = append(argv, "-a", src+"/.", dst+"/.")
-	}
-
-	if output, err := exec.Command("cp", argv...).CombinedOutput(); err != nil {
-		return fmt.Errorf("Error VFS copying directory: %s (%s)", err, output)
-	}
-	return nil
-}
-
 func (d *Driver) Create(id, parent string) error {
 	dir := d.dir(id)
 	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
@@ -80,7 +66,7 @@ func (d *Driver) Create(id, parent string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	if err := copyDir(parentDir, dir); err != nil {
+	if err := chrootarchive.CopyWithTar(parentDir, dir); err != nil {
 		return err
 	}
 	return nil

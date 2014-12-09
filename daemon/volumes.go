@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volumes"
@@ -191,15 +191,20 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 func (container *Container) applyVolumesFrom() error {
 	volumesFrom := container.hostConfig.VolumesFrom
 
+	mountGroups := make([]map[string]*Mount, 0, len(volumesFrom))
+
 	for _, spec := range volumesFrom {
-		mounts, err := parseVolumesFromSpec(container.daemon, spec)
+		mountGroup, err := parseVolumesFromSpec(container.daemon, spec)
 		if err != nil {
 			return err
 		}
+		mountGroups = append(mountGroups, mountGroup)
+	}
 
+	for _, mounts := range mountGroups {
 		for _, mnt := range mounts {
 			mnt.container = container
-			if err = mnt.initialize(); err != nil {
+			if err := mnt.initialize(); err != nil {
 				return err
 			}
 		}
@@ -302,7 +307,7 @@ func copyExistingContents(source, destination string) error {
 
 		if len(srcList) == 0 {
 			// If the source volume is empty copy files from the root into the volume
-			if err := archive.CopyWithTar(source, destination); err != nil {
+			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 				return err
 			}
 		}

@@ -282,3 +282,81 @@ func TestPsListContainersFilterStatus(t *testing.T) {
 
 	logDone("ps - test ps filter status")
 }
+
+func TestPsListContainersFilterExited(t *testing.T) {
+	deleteAllContainers()
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "--name", "zero1", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	firstZero, err := getIDByName("zero1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--name", "zero2", "busybox", "true")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	secondZero, err := getIDByName("zero2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--name", "nonzero1", "busybox", "false")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatal("Should fail.", out, err)
+	}
+	firstNonZero, err := getIDByName("nonzero1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--name", "nonzero2", "busybox", "false")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatal("Should fail.", out, err)
+	}
+	secondNonZero, err := getIDByName("nonzero2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// filter containers by exited=0
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	ids := strings.Split(strings.TrimSpace(out), "\n")
+	if len(ids) != 2 {
+		t.Fatalf("Should be 2 zero exited containerst got %d", len(ids))
+	}
+	if ids[0] != secondZero {
+		t.Fatalf("First in list should be %q, got %q", secondZero, ids[0])
+	}
+	if ids[1] != firstZero {
+		t.Fatalf("Second in list should be %q, got %q", firstZero, ids[1])
+	}
+
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	ids = strings.Split(strings.TrimSpace(out), "\n")
+	if len(ids) != 2 {
+		t.Fatalf("Should be 2 zero exited containerst got %d", len(ids))
+	}
+	if ids[0] != secondNonZero {
+		t.Fatalf("First in list should be %q, got %q", secondNonZero, ids[0])
+	}
+	if ids[1] != firstNonZero {
+		t.Fatalf("Second in list should be %q, got %q", firstNonZero, ids[1])
+	}
+	logDone("ps - test ps filter exited")
+}

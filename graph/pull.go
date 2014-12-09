@@ -113,9 +113,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	secure := registry.IsSecure(hostname, s.insecureRegistries)
-
-	endpoint, err := registry.NewEndpoint(hostname, secure)
+	endpoint, err := registry.NewEndpoint(hostname, s.insecureRegistries)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -139,7 +137,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		mirrors = s.mirrors
 	}
 
-	if isOfficial || endpoint.Version == registry.APIVersion2 {
+	if len(mirrors) == 0 && (isOfficial || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
 			return job.Errorf("error updating trust base graph: %s", err)
