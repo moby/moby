@@ -3,12 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"os"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/graphdriver/devmapper"
+	"github.com/docker/docker/pkg/devicemapper"
 )
 
 func usage() {
@@ -60,7 +63,7 @@ func main() {
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
-		log.SetLevel("debug")
+		log.SetLevel(log.DebugLevel)
 	}
 
 	if flag.NArg() < 1 {
@@ -70,7 +73,7 @@ func main() {
 	args := flag.Args()
 
 	home := path.Join(*root, "devicemapper")
-	devices, err := devmapper.NewDeviceSet(home, false)
+	devices, err := devmapper.NewDeviceSet(home, false, nil)
 	if err != nil {
 		fmt.Println("Can't initialize device mapper: ", err)
 		os.Exit(1)
@@ -143,7 +146,7 @@ func main() {
 			usage()
 		}
 
-		err := devices.RemoveDevice(args[1])
+		err := devicemapper.RemoveDevice(args[1])
 		if err != nil {
 			fmt.Println("Can't remove device: ", err)
 			os.Exit(1)
@@ -154,7 +157,7 @@ func main() {
 			usage()
 		}
 
-		err := devices.MountDevice(args[1], args[2], false)
+		err := devices.MountDevice(args[1], args[2], "")
 		if err != nil {
 			fmt.Println("Can't create snap device: ", err)
 			os.Exit(1)
