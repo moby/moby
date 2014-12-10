@@ -4,6 +4,40 @@ page_keywords: docker, documentation, about, technology, understanding, release
 
 #Release Notes
 
+##Version 1.3.3
+(2014-12-11)
+ 
+This release fixes several security issues. In order to encourage immediate
+upgrading, this release also patches some critical bugs. All users are highly
+encouraged to upgrade as soon as possible.
+ 
+*Security fixes*
+ 
+Patches and changes were made to address the following vulnerabilities:
+ 
+* CVE-2014-9356: Path traversal during processing of absolute symlinks. 
+Absolute symlinks were not adequately checked for  traversal which created a
+vulnerability via image extraction and/or volume mounts.
+* CVE-2014-9357: Escalation of privileges during decompression of LZMA (.xz)
+archives. Docker 1.3.2 added `chroot` for archive extraction. This created a
+vulnerability that could allow malicious images or builds to write files to the
+host system and escape containerization, leading to privilege escalation.
+* CVE-2014-9358: Path traversal and spoofing opportunities via image
+identifiers. Image IDs passed either via `docker load` or registry communications
+were not sufficiently validated. This created a vulnerability to path traversal
+attacks wherein malicious images or repository spoofing could lead to graph
+corruption and manipulation.
+ 
+*Runtime fixes*
+ 
+* Fixed an issue that cause image archives to be read slowly.
+ 
+*Client fixes*
+ 
+* Fixed a regression related to STDIN redirection.
+* Fixed a regression involving `docker cp` when the current directory is the
+destination.
+
 ##Version 1.3.2
 (2014-11-24)
 
