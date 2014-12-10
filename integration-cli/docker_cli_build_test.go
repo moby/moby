@@ -3564,3 +3564,31 @@ func TestBuildStderr(t *testing.T) {
 	}
 	logDone("build - testing stderr")
 }
+
+func TestBuildChownSingleFile(t *testing.T) {
+	name := "testbuildchownsinglefile"
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(`
+FROM busybox
+COPY test /
+RUN ls -l /test
+RUN [ $(ls -l /test | awk '{print $3":"$4}') = 'root:root' ]
+`, map[string]string{
+		"test": "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if err := os.Chown(filepath.Join(ctx.Dir, "test"), 4242, 4242); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+
+	logDone("build - change permission on single file")
+}
