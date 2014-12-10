@@ -27,6 +27,28 @@
 		"application/json"
 	],
 	"paths": {
+		"/": {
+			"get": {
+				"summary": "Check that the registry implements this API",
+				"operationId": "versionCheck",
+				"tags": [
+					"meta"
+				],
+				"parameters": [],
+				"responses": {
+					"200": {
+						"description": "Registry does implement this API, and may supply information about supported endpoints",
+						"schema": {}
+					},
+					"204": {
+						"description": "Registry does implement this API, but does not specify supported endpoints"
+					},
+					"default": {
+						"description": "Client should proceed with the assumption that the registry does not implement this API."
+					}
+				}
+			}
+		}
 	},
 	"definitions": {
 		"error": {
