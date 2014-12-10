@@ -67,6 +67,7 @@ type Container struct {
 
 	NetworkSettings *NetworkSettings
 
+	JournalPath    string
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
@@ -327,6 +328,9 @@ func (container *Container) Start() (err error) {
 		}
 	}()
 
+	if err := container.setupContainerJournal(); err != nil {
+		return err
+	}
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
@@ -941,6 +945,27 @@ func (container *Container) DisableLink(name string) {
 			log.Debugf("Could not find active link for %s", name)
 		}
 	}
+}
+
+func (container *Container) setupContainerJournal() error {
+	var (
+		err         error
+		journalPath = getJournalPath(container.ID)
+	)
+
+	if journalPath == "" {
+		return nil
+	}
+	container.JournalPath, err = container.getRootResourcePath(fmt.Sprintf("%.32s", container.ID))
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(container.JournalPath, 0755); err != nil {
+		return err
+	}
+
+	return os.Symlink(container.JournalPath, journalPath)
 }
 
 func (container *Container) setupContainerDns() error {

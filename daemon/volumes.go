@@ -253,6 +253,10 @@ func (container *Container) setupMounts() error {
 		{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true},
 	}
 
+	if container.JournalPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.JournalPath, Destination: getJournalPath(container.ID), Writable: true, Private: true})
+	}
+
 	if container.HostnamePath != "" {
 		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
 	}
