@@ -539,7 +539,7 @@ func (b *Builder) run(c *daemon.Container) error {
 		logsJob.Setenv("stdout", "1")
 		logsJob.Setenv("stderr", "1")
 		logsJob.Stdout.Add(b.OutStream)
-		logsJob.Stderr.Add(b.ErrStream)
+		logsJob.Stderr.Set(b.ErrStream)
 		if err := logsJob.Run(); err != nil {
 			return err
 		}
