@@ -1,0 +1,31 @@
+{
+	"swagger": "2.0",
+	"info": {
+		"version": "3.0.0",
+		"title": "Docker registry API",
+		"description": "Publish and fetch Docker images",
+		"contact": {
+			"name": "Docker Support",
+			"email": "support@docker.com",
+			"url": "http://support.docker.com/"
+		},
+		"license": {
+			"name": "Apache 2.0",
+			"url": "http://www.apache.org/licenses/LICENSE-2.0"
+		},
+		"termsOfService": "https://www.docker.com/legal/terms_of_service/"
+	},
+	"host": "index.docker.io",
+	"basePath": "/v3",
+	"schemes": [
+		"https"
+	],
+	"consumes": [
+		"application/json"
+	],
+	"produces": [
+		"application/json"
+	],
+	"paths": {
+	}
+}
