@@ -27,5 +27,52 @@
 		"application/json"
 	],
 	"paths": {
+	},
+	"definitions": {
+		"error": {
+			"description": "Actionable failure conditions",
+			"type": "object",
+			"properties": {
+				"errors": {
+					"description": "Actionable failure conditions",
+					"type": "array",
+					"items": {
+						"description": "An error",
+						"type": "object",
+						"properties": {
+							"code": {
+								"description": "Stable identifier for this error type",
+								"type": "string",
+								"enum": [
+									"INVALID_DIGEST",
+									"INVALID_LENGTH",
+									"INVALID_NAME",
+									"INVALID_TAG",
+									"UNVERIFIED_MANIFEST",
+									"UNKNOWN_LAYER",
+									"UNTRUSTED_SIGNATURE"
+								]
+							},
+							"message": {
+								"description": "Brief description of the error",
+								"type": "string"
+							},
+							"detail": {
+								"description": "Additional details about the error",
+								"type": "object",
+								"additionalProperies": true
+							}
+						},
+						"required": [
+							"code",
+							"message"
+						]
+					}
+				}
+			},
+			"required": [
+				"errors"
+			]
+		}
 	}
 }
