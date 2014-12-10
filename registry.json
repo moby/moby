@@ -66,13 +66,17 @@
 								"description": "Stable identifier for this error type",
 								"type": "string",
 								"enum": [
-									"INVALID_DIGEST",
-									"INVALID_LENGTH",
-									"INVALID_NAME",
-									"INVALID_TAG",
-									"UNVERIFIED_MANIFEST",
-									"UNKNOWN_LAYER",
-									"UNTRUSTED_SIGNATURE"
+									"BLOB_UNKNOWN",
+									"BLOB_UPLOAD_UNKNOWN",
+									"DIGEST_INVALID",
+									"MANIFEST_INVALID",
+									"MANIFEST_UNKNOWN",
+									"MANIFEST_UNVERIFIED",
+									"NAME_INVALID",
+									"NAME_UNKNOWN",
+									"SIZE_INVALID",
+									"TAG_INVALID",
+									"UNKNOWN"
 								]
 							},
 							"message": {
