@@ -92,6 +92,11 @@ type Builder struct {
 	ForceRemove bool
 	Pull        bool
 
+	// If set, signals that the builder should consolidate
+	// all newly created layers into one image layer after
+	// a successful build.
+	Squash bool
+
 	AuthConfig     *registry.AuthConfig
 	AuthConfigFile *registry.ConfigFile
 
@@ -110,7 +115,7 @@ type Builder struct {
 	cmdSet      bool          // indicates is CMD was set in current Dockerfile
 	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)
-
+	baseImageID string        // image ID which the build is started from.
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -179,6 +184,14 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	if b.image == "" {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
+	}
+
+	if b.Squash {
+		fmt.Fprintf(b.OutStream, "Squashing image ID %q up to %q\n", b.image, b.baseImageID)
+		if b.image, err = b.Daemon.Graph().SquashLayers(b.image, b.baseImageID); err != nil {
+			return "", err
+		}
+
 	}
 
 	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))

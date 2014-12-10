@@ -37,6 +37,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		rm             = job.GetenvBool("rm")
 		forceRm        = job.GetenvBool("forcerm")
 		pull           = job.GetenvBool("pull")
+		squash         = job.GetenvBool("squash")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -118,6 +119,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
+		Squash:          squash,
 	}
 
 	id, err := builder.Run(context)
