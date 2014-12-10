@@ -290,7 +290,7 @@ The operator can also adjust the performance parameters of the
 container:
 
     -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-    -c=0 : CPU shares (relative weight)
+    -c=0 : CPU shares (relative weight) // PR for moving to a percentage model, where -c/--cpu-shares flag should have "100%" value rather than 0. 
 
 The operator can constrain the memory available to a container easily
 with `docker run -m`. If the host supports swap memory, then the `-m`
