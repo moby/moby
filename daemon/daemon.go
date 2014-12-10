@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -32,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
+	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -40,10 +42,11 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
+
+	"github.com/go-fsnotify/fsnotify"
 )
 
 var (
-	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
 	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 )
@@ -399,6 +402,60 @@ func (daemon *Daemon) restore() error {
 		log.Infof("Loading containers: done.")
 	}
 
+	return nil
+}
+
+// set up the watch on the host's /etc/resolv.conf so that we can update container's
+// live resolv.conf when the network changes on the host
+func (daemon *Daemon) setupResolvconfWatcher() error {
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+
+	//this goroutine listens for the events on the watch we add
+	//on the resolv.conf file on the host
+	go func() {
+		for {
+			select {
+			case event := <-watcher.Events:
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					// verify a real change happened before we go further--a file write may have happened
+					// without an actual change to the file
+					updatedResolvConf, newResolvConfHash, err := resolvconf.GetIfChanged()
+					if err != nil {
+						log.Debugf("Error retrieving updated host resolv.conf: %v", err)
+					} else if updatedResolvConf != nil {
+						// because the new host resolv.conf might have localhost nameservers..
+						updatedResolvConf, modified := resolvconf.RemoveReplaceLocalDns(updatedResolvConf)
+						if modified {
+							// changes have occurred during localhost cleanup: generate an updated hash
+							newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
+							if err != nil {
+								log.Debugf("Error generating hash of new resolv.conf: %v", err)
+							} else {
+								newResolvConfHash = newHash
+							}
+						}
+						log.Debugf("host network resolv.conf changed--walking container list for updates")
+						contList := daemon.containers.List()
+						for _, container := range contList {
+							if err := container.updateResolvConf(updatedResolvConf, newResolvConfHash); err != nil {
+								log.Debugf("Error on resolv.conf update check for container ID: %s: %v", container.ID, err)
+							}
+						}
+					}
+				}
+			case err := <-watcher.Errors:
+				log.Debugf("host resolv.conf notify error: %v", err)
+			}
+		}
+	}()
+
+	if err := watcher.Add("/etc/resolv.conf"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -924,6 +981,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if err := daemon.restore(); err != nil {
 		return nil, err
 	}
+
+	// set up filesystem watch on resolv.conf for network changes
+	if err := daemon.setupResolvconfWatcher(); err != nil {
+		return nil, err
+	}
+
 	// Setup shutdown handlers
 	// FIXME: can these shutdown handlers be registered closer to their source?
 	eng.OnShutdown(func() {

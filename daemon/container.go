@@ -81,6 +81,7 @@ type Container struct {
 	MountLabel, ProcessLabel string
 	AppArmorProfile          string
 	RestartCount             int
+	UpdateDns                bool
 
 	// Maps container paths to volume paths.  The key in this is the path to which
 	// the volume is being mounted inside the container.  Value is the path of the
@@ -945,6 +946,29 @@ func (container *Container) DisableLink(name string) {
 
 func (container *Container) setupContainerDns() error {
 	if container.ResolvConfPath != "" {
+		// check if this is an existing container that needs DNS update:
+		if container.UpdateDns {
+			// read the host's resolv.conf, get the hash and call updateResolvConf
+			log.Debugf("Check container (%s) for update to resolv.conf - UpdateDns flag was set", container.ID)
+			latestResolvConf, latestHash := resolvconf.GetLastModified()
+
+			// because the new host resolv.conf might have localhost nameservers..
+			updatedResolvConf, modified := resolvconf.RemoveReplaceLocalDns(latestResolvConf)
+			if modified {
+				// changes have occurred during resolv.conf localhost cleanup: generate an updated hash
+				newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
+				if err != nil {
+					return err
+				}
+				latestHash = newHash
+			}
+
+			if err := container.updateResolvConf(updatedResolvConf, latestHash); err != nil {
+				return err
+			}
+			// successful update of the restarting container; set the flag off
+			container.UpdateDns = false
+		}
 		return nil
 	}
 
@@ -983,15 +1007,84 @@ func (container *Container) setupContainerDns() error {
 		}
 
 		// replace any localhost/127.* nameservers
-		resolvConf = utils.RemoveLocalDns(resolvConf)
-		// if the resulting resolvConf is empty, use DefaultDns
-		if !bytes.Contains(resolvConf, []byte("nameserver")) {
-			log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
-			// prefix the default dns options with nameserver
-			resolvConf = append(resolvConf, []byte("\nnameserver "+strings.Join(DefaultDns, "\nnameserver "))...)
-		}
+		resolvConf, _ = resolvconf.RemoveReplaceLocalDns(resolvConf)
+	}
+	//get a sha256 hash of the resolv conf at this point so we can check
+	//for changes when the host resolv.conf changes (e.g. network update)
+	resolvHash, err := utils.HashData(bytes.NewReader(resolvConf))
+	if err != nil {
+		return err
+	}
+	resolvHashFile := container.ResolvConfPath + ".hash"
+	if err = ioutil.WriteFile(resolvHashFile, []byte(resolvHash), 0644); err != nil {
+		return err
 	}
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
+}
+
+// called when the host's resolv.conf changes to check whether container's resolv.conf
+// is unchanged by the container "user" since container start: if unchanged, the
+// container's resolv.conf will be updated to match the host's new resolv.conf
+func (container *Container) updateResolvConf(updatedResolvConf []byte, newResolvHash string) error {
+
+	if container.ResolvConfPath == "" {
+		return nil
+	}
+	if container.Running {
+		//set a marker in the hostConfig to update on next start/restart
+		container.UpdateDns = true
+		return nil
+	}
+
+	resolvHashFile := container.ResolvConfPath + ".hash"
+
+	//read the container's current resolv.conf and compute the hash
+	resolvBytes, err := ioutil.ReadFile(container.ResolvConfPath)
+	if err != nil {
+		return err
+	}
+	curHash, err := utils.HashData(bytes.NewReader(resolvBytes))
+	if err != nil {
+		return err
+	}
+
+	//read the hash from the last time we wrote resolv.conf in the container
+	hashBytes, err := ioutil.ReadFile(resolvHashFile)
+	if err != nil {
+		return err
+	}
+
+	//if the user has not modified the resolv.conf of the container since we wrote it last
+	//we will replace it with the updated resolv.conf from the host
+	if string(hashBytes) == curHash {
+		log.Debugf("replacing %q with updated host resolv.conf", container.ResolvConfPath)
+
+		// for atomic updates to these files, use temporary files with os.Rename:
+		dir := path.Dir(container.ResolvConfPath)
+		tmpHashFile, err := ioutil.TempFile(dir, "hash")
+		if err != nil {
+			return err
+		}
+		tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
+		if err != nil {
+			return err
+		}
+
+		// write the updates to the temp files
+		if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newResolvHash), 0644); err != nil {
+			return err
+		}
+		if err = ioutil.WriteFile(tmpResolvFile.Name(), updatedResolvConf, 0644); err != nil {
+			return err
+		}
+
+		// rename the temp files for atomic replace
+		if err = os.Rename(tmpHashFile.Name(), resolvHashFile); err != nil {
+			return err
+		}
+		return os.Rename(tmpResolvFile.Name(), container.ResolvConfPath)
+	}
+	return nil
 }
 
 func (container *Container) updateParentsHosts() error {

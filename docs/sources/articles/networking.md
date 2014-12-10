@@ -130,7 +130,7 @@ information.  You can see this by running `mount` inside a container:
     ...
     /dev/disk/by-uuid/1fec...ebdf on /etc/hostname type ext4 ...
     /dev/disk/by-uuid/1fec...ebdf on /etc/hosts type ext4 ...
-    tmpfs on /etc/resolv.conf type tmpfs ...
+    /dev/disk/by-uuid/1fec...ebdf on /etc/resolv.conf type ext4 ...
     ...
 
 This arrangement allows Docker to do clever things like keep
@@ -178,7 +178,20 @@ Four different options affect container domain name services.
 Note that Docker, in the absence of either of the last two options
 above, will make `/etc/resolv.conf` inside of each container look like
 the `/etc/resolv.conf` of the host machine where the `docker` daemon is
-running.  The options then modify this default configuration.
+running.  You might wonder what happens when the host machine's
+`/etc/resolv.conf` file changes.  The `docker` daemon has a file change
+notifier active which will watch for changes to the host DNS configuration.
+When the host file changes, all stopped containers which have a matching
+`resolv.conf` to the host will be updated immediately to this newest host
+configuration.  Containers which are running when the host configuration
+changes will need to stop and start to pick up the host changes due to lack
+of a facility to ensure atomic writes of the `resolv.conf` file while the
+container is running. If the container's `resolv.conf` has been edited since
+it was started with the default configuration, no replacement will be
+attempted as it would overwrite the changes performed by the container.
+If the options (`--dns` or `--dns-search`) have been used to modify the 
+default host configuration, then the replacement with an updated host's
+`/etc/resolv.conf` will not happen as well.
 
 ## Communication between containers and the wider world
 
