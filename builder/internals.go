@@ -660,11 +660,19 @@ func copyAsDirectory(source, destination string) error {
 }
 
 func fixPermissions(source, destination string, uid, gid int) error {
+	// The copied root permission should not be changed for previously existing
+	// directories.
+	s, err := os.Stat(destination)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	fixRootPermission := (err != nil) || !s.IsDir()
+
 	// We Walk on the source rather than on the destination because we don't
 	// want to change permissions on things we haven't created or modified.
 	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
 		// Do not alter the walk root itself as it potentially existed before.
-		if source == fullpath {
+		if !fixRootPermission && (source == fullpath) {
 			return nil
 		}
 		// Path is prefixed by source: substitute with destination instead.
