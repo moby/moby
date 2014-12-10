@@ -95,6 +95,77 @@
 			"required": [
 				"errors"
 			]
+		},
+		"manifest": {
+			"description": "Description of a Docker image",
+			"type": "object",
+			"properties": {
+				"name": {
+					"description": "Name of the image.",
+					"type": "string"
+				},
+				"tag": {
+					"description": "Tag for this version of the image",
+					"type": "string"
+				},
+				"fsLayers": {
+					"description": "List of filesystem layers with tarsums",
+					"type": "array",
+					"items": {
+						"#ref": "#/definitions/layerMetadata"
+					}
+				},
+				"signatures": {
+					"description": "List of signatures signing the signable manifest",
+					"type": "array",
+					"items": {
+						"#ref": "#/definitions/signature"
+					}
+				}
+			},
+			"required": [
+				"name",
+				"tag",
+				"fsLayers",
+				"signatures"
+			]
+		},
+		"layerMetadata": {
+			"description": "Metadata for a filesystem layer",
+			"type": "object",
+			"properties": {
+				"blobSum": {
+					"description": "Layer tarsum",
+					"type": "string",
+					"format": "tarsum"
+				}
+			},
+			"required": [
+				"blobSum"
+			]
+		},
+		"signature": {
+			"description": "[JSON Web Signature](http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-31#section-7.2)",
+			"type": "object",
+			"properties": {
+				"header": {
+					"description": "JWS Unprotected Header",
+					"type": "object",
+					"properties": {
+					}
+				},
+				"protected": {
+					"description": "BASE64URL(UTF8(JWS Protected Header))",
+					"type": "string"
+				},
+				"signature": {
+					"description": "BASE64URL(JWS Signature)",
+					"type": "string"
+				}
+			},
+			"required": [
+				"signature"
+			]
 		}
 	}
 }
