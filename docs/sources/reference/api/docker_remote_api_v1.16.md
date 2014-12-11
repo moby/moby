@@ -415,10 +415,6 @@ Status Codes:
 `DELETE /containers/(id)/logs`
 
 Fetch and Truncate to zero the STDOUT and STDERR logs for the container `id`.
-By default, the container whose logs are being truncated and 
-its processes will be paused while the logs are truncated. 
-This reduces the likelihood of loss of logs 
-or data corruption during the process.
 
 **Example request**:
 

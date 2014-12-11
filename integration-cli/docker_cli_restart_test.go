@@ -43,7 +43,7 @@ func TestRestartStoppedContainer(t *testing.T) {
 	}
 
 	if out != "foobar\nfoobar\n" {
-		t.Errorf("container should've printed 'foobar' twice")
+		t.Errorf("container should've printed 'foobar' twice, got:\n%s", out)
 	}
 
 	deleteAllContainers()
@@ -86,7 +86,7 @@ func TestRestartRunningContainer(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	if out != "foobar\nfoobar\n" {
-		t.Errorf("container should've printed 'foobar' twice")
+		t.Errorf("container should've printed 'foobar' twice, got:\n%s", out)
 	}
 
 	deleteAllContainers()
