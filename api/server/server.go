@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1358,10 +1359,24 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 	}
 
 	for method, routes := range m {
-		for route, fct := range routes {
-			log.Debugf("Registering %s, %s", method, route)
+		// sort route paths in reverse-lexicographic order
+		// this makes longer paths get added to the router first
+		// EXAMPLE: `DELETE /containers/{name:.*}` and `DELETE /containers/{name:.*}/logs`
+		// if a route is nested within another route, if the shorter route is added first, the longer one won't be picked up by the parser
+		// this is likely due to the use of "{name:.*}" in the routes
+		var paths sort.StringSlice
+		for path := range routes {
+			paths = append(paths, path)
+		}
+
+		sort.Strings(paths)
+		sort.Sort(sort.Reverse(paths))
+
+		for _, path := range paths {
+			fct := routes[path]
+			log.Debugf("Registering %s, %s", method, path)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
-			localRoute := route
+			localRoute := path
 			localFct := fct
 			localMethod := method
 

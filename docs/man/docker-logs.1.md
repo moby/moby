@@ -37,7 +37,7 @@ then continue streaming new output from the container’s stdout and stderr.
    Output the specified number of lines at the end of logs (defaults to all logs)
 
 **--truncate**=*true*|*false*
-    Fetch current logs and truncate to zero of a container
+    Fetch and truncate logs of a container
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

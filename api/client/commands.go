@@ -1853,7 +1853,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		follow   = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 		times    = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 		tail     = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
-		truncate = cmd.Bool([]string{"-truncate"}, false, "Fetch and truncate logs of a container")
+		truncate = cmd.Bool([]string{"-truncate"}, false, "Truncate logs of a container")
 	)
 	cmd.Require(flag.Exact, 1)
 

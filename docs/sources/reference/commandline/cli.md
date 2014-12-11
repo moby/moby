@@ -1344,11 +1344,7 @@ log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
 
 The `docker logs --truncate` command will fetch and truncate all existing
-logs before returning any new logs (for example, when combined with --follow)
-By default, the container whose logs are being truncated and 
-its processes will be paused while the logs are truncated. 
-This reduces the likelihood of loss of logs 
-or data corruption during the process.
+logs before returning any new logs (for example, when combined with --follow).
 
 ## pause
 
