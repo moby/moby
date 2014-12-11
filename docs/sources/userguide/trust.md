@@ -342,6 +342,30 @@ client will need to have the x509 root certificate to verify statements.
 Grants may be cached or exported/imported and remain verifiable against the
 chain of trust.
 
+#### x509 Certificate Authorities
+Certificate Authorities in the trust system will be used to sign leaf
+certificates with specific roles and namespace scope.  A top level
+CA is able to create leaf certificates over the entire namespace. A
+scoped CA is only able to generate leaf certificates for a sub-section
+of the namespace. The sub-section is determined by the Common name of the
+certificate. Certificate authorities may also have a limited role in which
+types of leaf certificates may be issued. The different roles are the
+key linkage (which allows linking a public key fingerprint into the namespace)
+or name linkage (which allows linking between two section of the namespace).
+The key link role is used to limit a certificates ability to manage grants
+between the namespace and only allow the linked keys to handle that role.
+The name link role is used to manage grants between namespace elements which
+includes the key link role. A trust server which supports the associate
+public key endpoint must have a leaf certificate signed by one of these
+Certificate Authorities.
+
+#### Self-signed Grants
+A self signed grant is a grant in which the key used to signed is also
+represented as the subject by the public key fingerprint. This can be used
+by entities which use a key pair for identity and grant permission to its
+resources directly. These grants may be verified and distributed by the
+trust server without needing to link directly into the x509 chain.
+
 #### Backends
 The trust server should have a pluggable interface to the graph datastore.
 The implementation of the graph queries and updates are up to implementation of
@@ -359,7 +383,7 @@ be pluggable either in process or by a subprocess/container.
 - Authentication is avoided by the trust server to allow anonymous querying to
 validate signed content. This makes any signed content which does not contain
 an expiration forever vulnerable to replay by anyone in possession of the
-signed content .
+signed content.
 
 - Leaking a “private” manifest allows making queries against the trust server
 which may expose a grant showing the user who build the image (if not part of
