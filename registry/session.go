@@ -505,7 +505,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	// Redirect if necessary
 	for res.StatusCode >= 300 && res.StatusCode < 400 {
 		log.Debugf("Redirected to %s", res.Header.Get("Location"))
-		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
+		req, err := r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
 		if err != nil {
 			return nil, err
 		}
@@ -515,10 +515,11 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		if validate {
 			req.Header["X-Docker-Endpoints"] = regs
 		}
-		res, _, err := r.doRequest(req)
+		redirect, _, err := r.doRequest(req)
 		if err != nil {
 			return nil, err
 		}
+		res = redirect
 		defer res.Body.Close()
 	}
 
