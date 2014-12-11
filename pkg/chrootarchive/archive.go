@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -15,34 +16,48 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 )
 
+var chrootArchiver = &archive.Archiver{Untar}
+
+func chroot(path string) error {
+	if err := syscall.Chroot(path); err != nil {
+		return err
+	}
+	return syscall.Chdir("/")
+}
+
 func untar() {
 	runtime.LockOSThread()
 	flag.Parse()
-
-	if err := syscall.Chroot(flag.Arg(0)); err != nil {
+	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
-	if err := syscall.Chdir("/"); err != nil {
+	var options *archive.TarOptions
+	if err := json.NewDecoder(strings.NewReader(flag.Arg(1))).Decode(&options); err != nil {
 		fatal(err)
 	}
-	options := new(archive.TarOptions)
-	dec := json.NewDecoder(strings.NewReader(flag.Arg(1)))
-	if err := dec.Decode(options); err != nil {
+	if err := archive.Unpack(os.Stdin, "/", options); err != nil {
 		fatal(err)
 	}
-	if err := archive.Untar(os.Stdin, "/", options); err != nil {
-		fatal(err)
-	}
+	// fully consume stdin in case it is zero padded
+	flush(os.Stdin)
 	os.Exit(0)
 }
 
-var (
-	chrootArchiver = &archive.Archiver{Untar}
-)
+func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
+	if tarArchive == nil {
+		return fmt.Errorf("Empty archive")
+	}
+	if options == nil {
+		options = &archive.TarOptions{}
+	}
+	if options.Excludes == nil {
+		options.Excludes = []string{}
+	}
 
-func Untar(archive io.Reader, dest string, options *archive.TarOptions) error {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
+	var (
+		buf bytes.Buffer
+		enc = json.NewEncoder(&buf)
+	)
 	if err := enc.Encode(options); err != nil {
 		return fmt.Errorf("Untar json encode: %v", err)
 	}
@@ -51,9 +66,15 @@ func Untar(archive io.Reader, dest string, options *archive.TarOptions) error {
 			return err
 		}
 	}
+	dest = filepath.Clean(dest)
+	decompressedArchive, err := archive.DecompressStream(tarArchive)
+	if err != nil {
+		return err
+	}
+	defer decompressedArchive.Close()
 
 	cmd := reexec.Command("docker-untar", dest, buf.String())
-	cmd.Stdin = archive
+	cmd.Stdin = decompressedArchive
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Untar %s %s", err, out)

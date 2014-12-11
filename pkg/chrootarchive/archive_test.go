@@ -1,10 +1,12 @@
 package chrootarchive
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
@@ -39,6 +41,61 @@ func TestChrootTarUntar(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := Untar(stream, dest, &archive.TarOptions{Excludes: []string{"lolo"}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type slowEmptyTarReader struct {
+	size      int
+	offset    int
+	chunkSize int
+}
+
+// Read is a slow reader of an empty tar (like the output of "tar c --files-from /dev/null")
+func (s *slowEmptyTarReader) Read(p []byte) (int, error) {
+	time.Sleep(100 * time.Millisecond)
+	count := s.chunkSize
+	if len(p) < s.chunkSize {
+		count = len(p)
+	}
+	for i := 0; i < count; i++ {
+		p[i] = 0
+	}
+	s.offset += count
+	if s.offset > s.size {
+		return count, io.EOF
+	}
+	return count, nil
+}
+
+func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarEmptyArchiveFromSlowReader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	dest := filepath.Join(tmpdir, "dest")
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		t.Fatal(err)
+	}
+	stream := &slowEmptyTarReader{size: 10240, chunkSize: 1024}
+	if err := Untar(stream, dest, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootApplyEmptyArchiveFromSlowReader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	dest := filepath.Join(tmpdir, "dest")
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		t.Fatal(err)
+	}
+	stream := &slowEmptyTarReader{size: 10240, chunkSize: 1024}
+	if err := ApplyLayer(dest, stream); err != nil {
 		t.Fatal(err)
 	}
 }
