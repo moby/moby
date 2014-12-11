@@ -464,32 +464,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	return pipeReader, nil
 }
 
-// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
-// and unpacks it into the directory at `dest`.
-// The archive may be compressed with one of the following algorithms:
-//  identity (uncompressed), gzip, bzip2, xz.
-// FIXME: specify behavior when target path exists vs. doesn't exist.
-func Untar(archive io.Reader, dest string, options *TarOptions) error {
-	dest = filepath.Clean(dest)
-
-	if options == nil {
-		options = &TarOptions{}
-	}
-
-	if archive == nil {
-		return fmt.Errorf("Empty archive")
-	}
-
-	if options.Excludes == nil {
-		options.Excludes = []string{}
-	}
-
-	decompressedArchive, err := DecompressStream(archive)
-	if err != nil {
-		return err
-	}
-	defer decompressedArchive.Close()
-
+func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) error {
 	tr := tar.NewReader(decompressedArchive)
 	trBuf := pools.BufioReader32KPool.Get(nil)
 	defer pools.BufioReader32KPool.Put(trBuf)
@@ -572,8 +547,31 @@ loop:
 			return err
 		}
 	}
-
 	return nil
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive may be compressed with one of the following algorithms:
+//  identity (uncompressed), gzip, bzip2, xz.
+// FIXME: specify behavior when target path exists vs. doesn't exist.
+func Untar(archive io.Reader, dest string, options *TarOptions) error {
+	if archive == nil {
+		return fmt.Errorf("Empty archive")
+	}
+	dest = filepath.Clean(dest)
+	if options == nil {
+		options = &TarOptions{}
+	}
+	if options.Excludes == nil {
+		options.Excludes = []string{}
+	}
+	decompressedArchive, err := DecompressStream(archive)
+	if err != nil {
+		return err
+	}
+	defer decompressedArchive.Close()
+	return Unpack(decompressedArchive, dest, options)
 }
 
 func (archiver *Archiver) TarUntar(src, dst string) error {

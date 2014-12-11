@@ -16,7 +16,7 @@ import (
 
 const (
 	testImageName = "myapp"
-	testImageID   = "foo"
+	testImageID   = "1a2d3c4d4e5fa2d2a21acea242a5e2345d3aefc3e7dfa2a2a2a21a2a2ad2d234"
 )
 
 func fakeTar() (io.Reader, error) {
