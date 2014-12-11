@@ -53,7 +53,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -s d -l daemon -d 'Enable
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns -d 'Force docker to use specific DNS servers'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s e -l exec-driver -d 'Force the docker runtime to use a specific exec driver'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s g -l graph -d 'Path to use as the root of the docker runtime'
-complete -c docker -f -n '__fish_docker_no_subcommand' -l icc -d 'Enable inter-container communication'
+complete -c docker -f -n '__fish_docker_no_subcommand' -l icc -d 'Allow unrestricted inter-container and Docker daemon host communication'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ip -d 'Default IP address to use when binding container ports'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ip-forward -d 'Disable enabling of net.ipv4.ip_forward'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l iptables -d "Disable docker's addition of iptables rules"
@@ -67,7 +67,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -s v -l version -d 'Print
 # attach
 complete -c docker -f -n '__fish_docker_no_subcommand' -a attach -d 'Attach to a running container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -l no-stdin -d 'Do not attach stdin'
-complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -l sig-proxy -d 'Proxify all received signal to the process (even in non-tty mode)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -l sig-proxy -d 'Proxify all received signal to the process (non-TTY mode only)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from attach' -a '(__fish_print_docker_containers running)' -d "Container"
 
 # build
@@ -185,7 +185,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s l -l latest -d '
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s n -d 'Show n last created containers, include non-running ones.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l no-trunc -d "Don't truncate output"
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s q -l quiet -d 'Only display numeric IDs'
-complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s s -l size -d 'Display sizes'
+complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -s s -l size -d 'Display total file sizes'
 complete -c docker -A -f -n '__fish_seen_subcommand_from ps' -l since -d 'Show only containers created since Id or Name, include non-running ones.'
 
 # pull
@@ -237,7 +237,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s p -l publish -d "Publish a container's port to the host (format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort) (use 'docker port' to see the actual mapping)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l privileged -d 'Give extended privileges to this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l rm -d 'Automatically remove the container when it exits (incompatible with -d)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l sig-proxy -d 'Proxify all received signal to the process (even in non-tty mode)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l sig-proxy -d 'Proxify all received signal to the process (non-TTY mode only)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s t -l tty -d 'Allocate a pseudo-tty'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s u -l user -d 'Username or UID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s v -l volume -d 'Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)'

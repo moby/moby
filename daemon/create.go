@@ -1,10 +1,13 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/libcontainer/label"
 )
 
 func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
@@ -50,12 +53,9 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 		job.Errorf("IPv4 forwarding is disabled.\n")
 	}
 	container.LogEvent("create")
-	// FIXME: this is necessary because daemon.Create might return a nil container
-	// with a non-nil error. This should not happen! Once it's fixed we
-	// can remove this workaround.
-	if container != nil {
-		job.Printf("%s\n", container.ID)
-	}
+
+	job.Printf("%s\n", container.ID)
+
 	for _, warning := range buildWarnings {
 		job.Errorf("%s\n", warning)
 	}
@@ -80,6 +80,12 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
+	if hostConfig != nil && hostConfig.SecurityOpt == nil {
+		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	if container, err = daemon.newContainer(name, config, img); err != nil {
 		return nil, nil, err
 	}
@@ -94,8 +100,33 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 	}
+	if err := container.Mount(); err != nil {
+		return nil, nil, err
+	}
+	defer container.Unmount()
+	if err := container.prepareVolumes(); err != nil {
+		return nil, nil, err
+	}
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
 	}
 	return container, warnings, nil
+}
+
+func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode) ([]string, error) {
+	if ipcMode.IsHost() {
+		return label.DisableSecOpt(), nil
+	}
+	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
+		c := daemon.Get(ipcContainer)
+		if c == nil {
+			return nil, fmt.Errorf("no such container to join IPC: %s", ipcContainer)
+		}
+		if !c.IsRunning() {
+			return nil, fmt.Errorf("cannot join IPC of a non running container: %s", ipcContainer)
+		}
+
+		return label.DupSecOpt(c.ProcessLabel), nil
+	}
+	return nil, nil
 }

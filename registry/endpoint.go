@@ -9,14 +9,14 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 )
 
 // for mocking in unit tests
 var lookupIP = net.LookupIP
 
 // scans string for api version in the URL path. returns the trimmed hostname, if version found, string and API version.
-func scanForApiVersion(hostname string) (string, APIVersion) {
+func scanForAPIVersion(hostname string) (string, APIVersion) {
 	var (
 		chunks        []string
 		apiVersionStr string
@@ -77,7 +77,7 @@ func newEndpoint(hostname string, insecureRegistries []string) (*Endpoint, error
 	if !strings.HasPrefix(hostname, "http") {
 		hostname = "https://" + hostname
 	}
-	trimmedHostname, endpoint.Version = scanForApiVersion(hostname)
+	trimmedHostname, endpoint.Version = scanForAPIVersion(hostname)
 	endpoint.URL, err = url.Parse(trimmedHostname)
 	if err != nil {
 		return nil, err

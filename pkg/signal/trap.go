@@ -1,11 +1,12 @@
 package signal
 
 import (
-	"log"
 	"os"
 	gosignal "os/signal"
 	"sync/atomic"
 	"syscall"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Trap sets up a simplified signal "trap", appropriate for common
@@ -28,14 +29,13 @@ func Trap(cleanup func()) {
 		interruptCount := uint32(0)
 		for sig := range c {
 			go func(sig os.Signal) {
-				log.Printf("Received signal '%v', starting shutdown of docker...\n", sig)
+				log.Infof("Received signal '%v', starting shutdown of docker...", sig)
 				switch sig {
 				case os.Interrupt, syscall.SIGTERM:
 					// If the user really wants to interrupt, let him do so.
 					if atomic.LoadUint32(&interruptCount) < 3 {
-						atomic.AddUint32(&interruptCount, 1)
 						// Initiate the cleanup only once
-						if atomic.LoadUint32(&interruptCount) == 1 {
+						if atomic.AddUint32(&interruptCount, 1) == 1 {
 							// Call cleanup handler
 							cleanup()
 							os.Exit(0)
@@ -43,7 +43,7 @@ func Trap(cleanup func()) {
 							return
 						}
 					} else {
-						log.Printf("Force shutdown of docker, interrupting cleanup\n")
+						log.Infof("Force shutdown of docker, interrupting cleanup")
 					}
 				case syscall.SIGQUIT:
 				}

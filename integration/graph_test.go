@@ -74,7 +74,7 @@ func TestInterruptedRegister(t *testing.T) {
 		Created: time.Now(),
 	}
 	w.CloseWithError(errors.New("But I'm not a tarball!")) // (Nobody's perfect, darling)
-	graph.Register(image, nil, badArchive)
+	graph.Register(image, badArchive)
 	if _, err := graph.Get(image.ID); err == nil {
 		t.Fatal("Image should not exist after Register is interrupted")
 	}
@@ -83,7 +83,7 @@ func TestInterruptedRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := graph.Register(image, nil, goodArchive); err != nil {
+	if err := graph.Register(image, goodArchive); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -133,7 +133,7 @@ func TestRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	err = graph.Register(image, nil, archive)
+	err = graph.Register(image, archive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Test delete twice (pull -> rm -> pull -> rm)
-	if err := graph.Register(img1, nil, archive); err != nil {
+	if err := graph.Register(img1, archive); err != nil {
 		t.Fatal(err)
 	}
 	if err := graph.Delete(img1.ID); err != nil {
@@ -262,9 +262,9 @@ func TestByParent(t *testing.T) {
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}
-	_ = graph.Register(parentImage, nil, archive1)
-	_ = graph.Register(childImage1, nil, archive2)
-	_ = graph.Register(childImage2, nil, archive3)
+	_ = graph.Register(parentImage, archive1)
+	_ = graph.Register(childImage1, archive2)
+	_ = graph.Register(childImage2, archive3)
 
 	byParent, err := graph.ByParent()
 	if err != nil {

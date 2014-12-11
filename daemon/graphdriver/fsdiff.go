@@ -1,13 +1,15 @@
+// +build daemon
+
 package graphdriver
 
 import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 

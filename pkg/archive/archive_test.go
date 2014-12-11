@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -62,6 +64,50 @@ func TestCmdStreamGood(t *testing.T) {
 	} else if s := string(output); s != "hello\n" {
 		t.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
 	}
+}
+
+func TestTarFiles(t *testing.T) {
+	// try without hardlinks
+	if err := checkNoChanges(1000, false); err != nil {
+		t.Fatal(err)
+	}
+	// try with hardlinks
+	if err := checkNoChanges(1000, true); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkNoChanges(fileNum int, hardlinks bool) error {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(srcDir)
+
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(destDir)
+
+	_, err = prepareUntarSourceDirectory(fileNum, srcDir, hardlinks)
+	if err != nil {
+		return err
+	}
+
+	err = TarUntar(srcDir, destDir)
+	if err != nil {
+		return err
+	}
+
+	changes, err := ChangesDirs(destDir, srcDir)
+	if err != nil {
+		return err
+	}
+	if len(changes) > 0 {
+		return fmt.Errorf("with %d files and %v hardlinks: expected 0 changes, got %d", fileNum, hardlinks, len(changes))
+	}
+	return nil
 }
 
 func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error) {
@@ -210,12 +256,99 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 	}
 }
 
-func prepareUntarSourceDirectory(numberOfFiles int, targetPath string) (int, error) {
+func TestTarWithHardLink(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-tar-hardlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(path.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(path.Join(origin, "1"), path.Join(origin, "2")); err != nil {
+		t.Fatal(err)
+	}
+
+	var i1, i2 uint64
+	if i1, err = getNlink(path.Join(origin, "1")); err != nil {
+		t.Fatal(err)
+	}
+	// sanity check that we can hardlink
+	if i1 != 2 {
+		t.Skipf("skipping since hardlinks don't work here; expected 2 links, got %d", i1)
+	}
+
+	dest, err := ioutil.TempDir("", "docker-test-tar-hardlink-dest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dest)
+
+	// we'll do this in two steps to separate failure
+	fh, err := Tar(origin, Uncompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ensure we can read the whole thing with no error, before writing back out
+	buf, err := ioutil.ReadAll(fh)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bRdr := bytes.NewReader(buf)
+	err = Untar(bRdr, dest, &TarOptions{Compression: Uncompressed})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if i1, err = getInode(path.Join(dest, "1")); err != nil {
+		t.Fatal(err)
+	}
+	if i2, err = getInode(path.Join(dest, "2")); err != nil {
+		t.Fatal(err)
+	}
+
+	if i1 != i2 {
+		t.Errorf("expected matching inodes, but got %d and %d", i1, i2)
+	}
+}
+
+func getNlink(path string) (uint64, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	statT, ok := stat.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
+	}
+	return statT.Nlink, nil
+}
+
+func getInode(path string) (uint64, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	statT, ok := stat.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
+	}
+	return statT.Ino, nil
+}
+
+func prepareUntarSourceDirectory(numberOfFiles int, targetPath string, makeLinks bool) (int, error) {
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
 		if err := ioutil.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
 			return 0, err
+		}
+		if makeLinks {
+			if err := os.Link(path.Join(targetPath, fileName), path.Join(targetPath, fileName+"-link")); err != nil {
+				return 0, err
+			}
 		}
 	}
 	totalSize := numberOfFiles * len(fileData)
@@ -232,14 +365,43 @@ func BenchmarkTarUntar(b *testing.B) {
 		b.Fatal(err)
 	}
 	target := path.Join(tempDir, "dest")
-	n, err := prepareUntarSourceDirectory(100, origin)
+	n, err := prepareUntarSourceDirectory(100, origin, false)
 	if err != nil {
 		b.Fatal(err)
 	}
-	b.ResetTimer()
-	b.SetBytes(int64(n))
 	defer os.RemoveAll(origin)
 	defer os.RemoveAll(tempDir)
+
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for n := 0; n < b.N; n++ {
+		err := TarUntar(origin, target)
+		if err != nil {
+			b.Fatal(err)
+		}
+		os.RemoveAll(target)
+	}
+}
+
+func BenchmarkTarUntarWithLinks(b *testing.B) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		b.Fatal(err)
+	}
+	tempDir, err := ioutil.TempDir("", "docker-test-untar-destination")
+	if err != nil {
+		b.Fatal(err)
+	}
+	target := path.Join(tempDir, "dest")
+	n, err := prepareUntarSourceDirectory(100, origin, true)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	defer os.RemoveAll(tempDir)
+
+	b.ResetTimer()
+	b.SetBytes(int64(n))
 	for n := 0; n < b.N; n++ {
 		err := TarUntar(origin, target)
 		if err != nil {
@@ -443,6 +605,21 @@ func TestUntarInvalidSymlink(t *testing.T) {
 	} {
 		if err := testBreakout("untar", "docker-TestUntarInvalidSymlink", headers); err != nil {
 			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestTempArchiveCloseMultipleTimes(t *testing.T) {
+	reader := ioutil.NopCloser(strings.NewReader("hello"))
+	tempArchive, err := NewTempArchive(reader, "")
+	buf := make([]byte, 10)
+	n, err := tempArchive.Read(buf)
+	if n != 5 {
+		t.Fatalf("Expected to read 5 bytes. Read %d instead", n)
+	}
+	for i := 0; i < 3; i++ {
+		if err = tempArchive.Close(); err != nil {
+			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
 		}
 	}
 }

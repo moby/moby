@@ -11,8 +11,14 @@ func TestVersion(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, v.String())
 	}
 
-	expected = "tarsum.dev"
+	expected = "tarsum.v1"
 	v = 1
+	if v.String() != expected {
+		t.Errorf("expected %q, got %q", expected, v.String())
+	}
+
+	expected = "tarsum.dev"
+	v = 2
 	if v.String() != expected {
 		t.Errorf("expected %q, got %q", expected, v.String())
 	}

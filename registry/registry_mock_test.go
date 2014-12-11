@@ -17,7 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -230,8 +230,8 @@ func handlerGetImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeHeaders(w)
-	layer_size := len(layer["layer"])
-	w.Header().Add("X-Docker-Size", strconv.Itoa(layer_size))
+	layerSize := len(layer["layer"])
+	w.Header().Add("X-Docker-Size", strconv.Itoa(layerSize))
 	io.WriteString(w, layer[vars["action"]])
 }
 
@@ -240,16 +240,16 @@ func handlerPutImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	image_id := vars["image_id"]
+	imageID := vars["image_id"]
 	action := vars["action"]
-	layer, exists := testLayers[image_id]
+	layer, exists := testLayers[imageID]
 	if !exists {
 		if action != "json" {
 			http.NotFound(w, r)
 			return
 		}
 		layer = make(map[string]string)
-		testLayers[image_id] = layer
+		testLayers[imageID] = layer
 	}
 	if checksum := r.Header.Get("X-Docker-Checksum"); checksum != "" {
 		if checksum != layer["checksum_simple"] && checksum != layer["checksum_tarsum"] {
@@ -349,9 +349,9 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	images := []map[string]string{}
-	for image_id, layer := range testLayers {
+	for imageID, layer := range testLayers {
 		image := make(map[string]string)
-		image["id"] = image_id
+		image["id"] = imageID
 		image["checksum"] = layer["checksum_tarsum"]
 		image["Tag"] = "latest"
 		images = append(images, image)

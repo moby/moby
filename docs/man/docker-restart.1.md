@@ -7,7 +7,7 @@ docker-restart - Restart a running container
 # SYNOPSIS
 **docker restart**
 [**-t**|**--time**[=*10*]]
- CONTAINER [CONTAINER...]
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 Restart each container listed.

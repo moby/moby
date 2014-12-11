@@ -27,7 +27,7 @@ type CpuUsage struct {
 
 type CpuStats struct {
 	CpuUsage       CpuUsage       `json:"cpu_usage,omitempty"`
-	ThrottlingData ThrottlingData `json:"throlling_data,omitempty"`
+	ThrottlingData ThrottlingData `json:"throttling_data,omitempty"`
 }
 
 type MemoryStats struct {
@@ -52,8 +52,12 @@ type BlkioStatEntry struct {
 type BlkioStats struct {
 	// number of bytes tranferred to and from the block device
 	IoServiceBytesRecursive []BlkioStatEntry `json:"io_service_bytes_recursive,omitempty"`
-	IoServicedRecursive     []BlkioStatEntry `json:"io_serviced_recusrive,omitempty"`
+	IoServicedRecursive     []BlkioStatEntry `json:"io_serviced_recursive,omitempty"`
 	IoQueuedRecursive       []BlkioStatEntry `json:"io_queue_recursive,omitempty"`
+	IoServiceTimeRecursive  []BlkioStatEntry `json:"io_service_time_recursive,omitempty"`
+	IoWaitTimeRecursive     []BlkioStatEntry `json:"io_wait_time_recursive,omitempty"`
+	IoMergedRecursive       []BlkioStatEntry `json:"io_merged_recursive,omitempty"`
+	IoTimeRecursive         []BlkioStatEntry `json:"io_time_recursive,omitempty"`
 	SectorsRecursive        []BlkioStatEntry `json:"sectors_recursive,omitempty"`
 }
 

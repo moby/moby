@@ -1,4 +1,4 @@
-## libcontainer - reference implementation for containers [![Build Status](https://travis-ci.org/docker/libcontainer.png?branch=master)](https://travis-ci.org/docker/libcontainer)
+## libcontainer - reference implementation for containers [![Build Status](https://ci.dockerproject.com/github.com/docker/libcontainer/status.svg?branch=master)](https://ci.dockerproject.com/github.com/docker/libcontainer) 
 
 ### Note on API changes:
 
@@ -56,7 +56,7 @@ Docs released under Creative commons.
 
 First of all, please familiarise yourself with the [libcontainer Principles](PRINCIPLES.md).
 
-If you're a *contributor* or aspiring contributor, you should read the [Contributors' Guide](CONTRIBUTORS_GUIDE.md).
+If you're a *contributor* or aspiring contributor, you should read the [Contributors' Guide](CONTRIBUTING.md).
 
 If you're a *maintainer* or aspiring maintainer, you should read the [Maintainers' Guide](MAINTAINERS_GUIDE.md) and
 "How can I become a maintainer?" in the Contributors' Guide.

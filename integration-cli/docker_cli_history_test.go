@@ -46,9 +46,8 @@ RUN echo "Z"`,
 	}
 
 	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistory"))
-	errorOut(err, t, fmt.Sprintf("image history failed: %v %v", out, err))
 	if err != nil || exitCode != 0 {
-		t.Fatal("failed to get image history")
+		t.Fatalf("failed to get image history: %s, %v", out, err)
 	}
 
 	actualValues := strings.Split(out, "\n")[1:27]

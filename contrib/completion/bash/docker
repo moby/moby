@@ -1,8 +1,8 @@
-#!bash
+#!/bin/bash
 #
 # bash completion file for core docker commands
 #
-# This script provides supports completion of:
+# This script provides completion of:
 #  - commands and their options
 #  - container ids and names
 #  - image repos and tags
@@ -11,9 +11,9 @@
 # To enable the completions either:
 #  - place this file in /etc/bash_completion.d
 #  or
-#  - copy this file and add the line below to your .bashrc after
-#    bash completion features are loaded
-#     . docker.bash
+#  - copy this file to e.g. ~/.docker-completion.sh and add the line
+#    below to your .bashrc after bash completion features are loaded
+#    . ~/.docker-completion.sh
 #
 # Note:
 # Currently, the completions will not work if the docker daemon is not
@@ -99,12 +99,59 @@ __docker_pos_first_nonflag() {
 	echo $counter
 }
 
+__docker_resolve_hostname() {
+	command -v host >/dev/null 2>&1 || return
+	COMPREPLY=( $(host 2>/dev/null "${cur%:}" | awk '/has address/ {print $4}') )
+}
+
+__docker_capabilities() {
+	# The list of capabilities is defined in types.go, ALL was added manually.
+	COMPREPLY=( $( compgen -W "
+		ALL
+		AUDIT_CONTROL
+		AUDIT_WRITE
+		BLOCK_SUSPEND
+		CHOWN
+		DAC_OVERRIDE
+		DAC_READ_SEARCH
+		FOWNER
+		FSETID
+		IPC_LOCK
+		IPC_OWNER
+		KILL
+		LEASE
+		LINUX_IMMUTABLE
+		MAC_ADMIN
+		MAC_OVERRIDE
+		MKNOD
+		NET_ADMIN
+		NET_BIND_SERVICE
+		NET_BROADCAST
+		NET_RAW
+		SETFCAP
+		SETGID
+		SETPCAP
+		SETUID
+		SYS_ADMIN
+		SYS_BOOT
+		SYS_CHROOT
+		SYSLOG
+		SYS_MODULE
+		SYS_NICE
+		SYS_PACCT
+		SYS_PTRACE
+		SYS_RAWIO
+		SYS_RESOURCE
+		SYS_TIME
+		SYS_TTY_CONFIG
+		WAKE_ALARM
+	" -- "$cur" ) )
+}
+
 _docker_docker() {
 	case "$prev" in
 		-H)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -138,8 +185,6 @@ _docker_build() {
 			__docker_image_repos_and_tags
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -159,8 +204,6 @@ _docker_commit() {
 	case "$prev" in
 		-m|--message|-a|--author|--run)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -222,7 +265,7 @@ _docker_create() {
 			__docker_containers_all
 			return
 			;;
-		-v|--volume)
+		-v|--volume|--device)
 			case "$cur" in
 				*:*)
 					# TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
@@ -255,19 +298,72 @@ _docker_create() {
 			esac
 			return
 			;;
-		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf)
+		--add-host)
+			case "$cur" in
+				*:)
+					__docker_resolve_hostname
+					return
+					;;
+			esac
+			;;
+		--cap-add|--cap-drop)
+			__docker_capabilities
 			return
 			;;
-		*)
+		--net)
+			case "$cur" in
+				container:*)
+					local cur=${cur#*:}
+					__docker_containers_all
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "bridge none container: host" -- "$cur") )
+					if [ "${COMPREPLY[*]}" = "container:" ] ; then
+						compopt -o nospace
+					fi
+					;;
+			esac
+			return
+			;;
+		--restart)
+			case "$cur" in
+				on-failure:*)
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "no on-failure on-failure: always" -- "$cur") )
+					;;
+			esac
+			return
+			;;
+		--security-opt)
+			case "$cur" in
+				label:*:*)
+					;;
+				label:*)
+					local cur=${cur##*:}
+					COMPREPLY=( $( compgen -W "user: role: type: level: disable" -- "$cur") )
+					if [ "${COMPREPLY[*]}" != "disable" ] ; then
+						compopt -o nospace
+					fi
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "label apparmor" -S ":" -- "$cur") )
+					compopt -o nospace
+					;;
+			esac
+			return
+			;;
+		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf|--dns-search)
+			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir -c --cpu-shares --name -a --attach -v --volume --link -e --env -p --publish --expose --dns --volumes-from --lxc-conf" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --name -a --attach -v --volume --link -e --env --env-file -p --publish --expose --dns --volumes-from --lxc-conf --security-opt --add-host --cap-add --cap-drop --device --dns-search --net --restart" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf')
+			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--env-file|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf|--security-opt|--add-host|--cap-add|--cap-drop|--device|--dns-search|--net|--restart')
 
 			if [ $cword -eq $counter ]; then
 				__docker_image_repos_and_tags_and_ids
@@ -288,15 +384,11 @@ _docker_events() {
 		--since)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--since" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -376,8 +468,6 @@ _docker_inspect() {
 		-f|--format)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -403,15 +493,11 @@ _docker_login() {
 		-u|--username|-p|--password|-e|--email)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "-u --username -p --password -e --email" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -452,15 +538,11 @@ _docker_ps() {
 		-n)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "-q --quiet -s --size -a --all --no-trunc -l --latest --since --before -n" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -469,8 +551,6 @@ _docker_pull() {
 	case "$prev" in
 		-t|--tag)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -499,8 +579,6 @@ _docker_restart() {
 		-t|--time)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
@@ -520,7 +598,6 @@ _docker_rm() {
 			return
 			;;
 		*)
-			local force=
 			for arg in "${COMP_WORDS[@]}"; do
 				case "$arg" in
 					-f|--force)
@@ -553,7 +630,7 @@ _docker_run() {
 			__docker_containers_all
 			return
 			;;
-		-v|--volume)
+		-v|--volume|--device)
 			case "$cur" in
 				*:*)
 					# TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
@@ -586,20 +663,72 @@ _docker_run() {
 			esac
 			return
 			;;
-		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf)
+		--add-host)
+			case "$cur" in
+				*:)
+					__docker_resolve_hostname
+					return
+					;;
+			esac
+			;;
+		--cap-add|--cap-drop)
+			__docker_capabilities
 			return
 			;;
-		*)
+		--net)
+			case "$cur" in
+				container:*)
+					local cur=${cur#*:}
+					__docker_containers_all
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "bridge none container: host" -- "$cur") )
+					if [ "${COMPREPLY[*]}" = "container:" ] ; then
+						compopt -o nospace
+					fi
+					;;
+			esac
+			return
+			;;
+		--restart)
+			case "$cur" in
+				on-failure:*)
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "no on-failure on-failure: always" -- "$cur") )
+					;;
+			esac
+			return
+			;;
+		--security-opt)
+			case "$cur" in
+				label:*:*)
+					;;
+				label:*)
+					local cur=${cur##*:}
+					COMPREPLY=( $( compgen -W "user: role: type: level: disable" -- "$cur") )
+					if [ "${COMPREPLY[*]}" != "disable" ] ; then
+						compopt -o nospace
+					fi
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "label apparmor" -S ":" -- "$cur") )
+					compopt -o nospace
+					;;
+			esac
+			return
+			;;
+		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf|--dns-search)
+			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--rm -d --detach -n --networking --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env -p --publish --expose --dns --volumes-from --lxc-conf --security-opt" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--rm -d --detach --privileged -P --publish-all -i --interactive -t --tty --cidfile --entrypoint -h --hostname -m --memory -u --user -w --workdir --cpuset -c --cpu-shares --sig-proxy --name -a --attach -v --volume --link -e --env --env-file -p --publish --expose --dns --volumes-from --lxc-conf --security-opt --add-host --cap-add --cap-drop --device --dns-search --net --restart" -- "$cur" ) )
 			;;
 		*)
-
-			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf|--security-opt')
+			local counter=$(__docker_pos_first_nonflag '--cidfile|--volumes-from|-v|--volume|-e|--env|--env-file|--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-a|--attach|--link|-p|--publish|--expose|--dns|--lxc-conf|--security-opt|--add-host|--cap-add|--cap-drop|--device|--dns-search|--net|--restart')
 
 			if [ $cword -eq $counter ]; then
 				__docker_image_repos_and_tags_and_ids
@@ -620,15 +749,11 @@ _docker_search() {
 		-s|--stars)
 			return
 			;;
-		*)
-			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--no-trunc --automated -s --stars" -- "$cur" ) )
-			;;
-		*)
 			;;
 	esac
 }
@@ -648,8 +773,6 @@ _docker_stop() {
 	case "$prev" in
 		-t|--time)
 			return
-			;;
-		*)
 			;;
 	esac
 
@@ -752,7 +875,7 @@ _docker() {
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
-	local command='docker'
+	local command='docker' cpos=0
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in

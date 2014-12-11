@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,11 +10,12 @@ import (
 	"strings"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volumes"
+	"github.com/docker/libcontainer/label"
 )
 
 type Mount struct {
@@ -22,6 +24,18 @@ type Mount struct {
 	volume      *volumes.Volume
 	Writable    bool
 	copyData    bool
+}
+
+func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
+	var name string
+	if resource == mnt.MountToPath[1:] {
+		name = filepath.Base(resource)
+	}
+	path, err := filepath.Rel(mnt.MountToPath[1:], resource)
+	if err != nil {
+		return nil, err
+	}
+	return mnt.volume.Export(path, name)
 }
 
 func (container *Container) prepareVolumes() error {
@@ -232,6 +246,12 @@ func (container *Container) setupMounts() error {
 
 	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
+	}
+
+	for _, m := range mounts {
+		if err := label.SetFileLabel(m.Source, container.MountLabel); err != nil {
+			return err
+		}
 	}
 
 	// Mount user specified volumes

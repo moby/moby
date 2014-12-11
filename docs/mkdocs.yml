@@ -17,7 +17,6 @@ use_absolute_urls: true
 # theme: docker
 theme_dir: ./theme/mkdocs/
 theme_center_lead: false
-include_search: true
 
 copyright: Copyright &copy; 2014, Docker, Inc.
 google_analytics: ['UA-6096819-11', 'docker.io']
@@ -99,6 +98,7 @@ pages:
 - ['articles/ambassador_pattern_linking.md', 'Articles', 'Cross-Host linking using ambassador containers']
 - ['articles/runmetrics.md', 'Articles', 'Runtime metrics']
 - ['articles/b2d_volume_resize.md', 'Articles', 'Increasing a Boot2Docker volume']
+- ['articles/systemd.md', 'Articles', 'Controlling and configuring Docker using Systemd']
 
 # Reference
 - ['reference/index.md', '**HIDDEN**']
@@ -113,6 +113,7 @@ pages:
 - ['reference/api/registry_api_client_libraries.md', 'Reference', 'Docker Registry API Client Libraries']
 - ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
+- ['reference/api/docker_remote_api_v1.16.md', 'Reference', 'Docker Remote API v1.16']
 - ['reference/api/docker_remote_api_v1.15.md', 'Reference', 'Docker Remote API v1.15']
 - ['reference/api/docker_remote_api_v1.14.md', 'Reference', 'Docker Remote API v1.14']
 - ['reference/api/docker_remote_api_v1.13.md', 'Reference', 'Docker Remote API v1.13']
@@ -148,3 +149,4 @@ pages:
 - ['contributing/index.md', '**HIDDEN**']
 - ['contributing/contributing.md', 'Contribute', 'Contributing']
 - ['contributing/devenvironment.md', 'Contribute', 'Development environment']
+- ['contributing/docs_style-guide.md', 'Contribute', 'Documentation style guide']

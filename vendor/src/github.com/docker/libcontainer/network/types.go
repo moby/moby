@@ -36,6 +36,11 @@ type Network struct {
 	// container's interfaces if a pair is created, specifically in the case of type veth
 	// Note: This does not apply to loopback interfaces.
 	Mtu int `json:"mtu,omitempty"`
+
+	// TxQueueLen sets the tx_queuelen value for the interface and will be mirrored on both the host and
+	// container's interfaces if a pair is created, specifically in the case of type veth
+	// Note: This does not apply to loopback interfaces.
+	TxQueueLen int `json:"txqueuelen,omitempty"`
 }
 
 // Struct describing the network specific runtime state that will be maintained by libcontainer for all running containers

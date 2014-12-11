@@ -201,7 +201,7 @@ func TestCollapseGrants(t *testing.T) {
 
 	collapsedGrants, expiration, err := CollapseStatements(statements, false)
 	if len(collapsedGrants) != 12 {
-		t.Fatalf("Unexpected number of grants\n\tExpected: %d\n\tActual: %s", 12, len(collapsedGrants))
+		t.Fatalf("Unexpected number of grants\n\tExpected: %d\n\tActual: %d", 12, len(collapsedGrants))
 	}
 	if expiration.After(time.Now().Add(time.Hour*5)) || expiration.Before(time.Now()) {
 		t.Fatalf("Unexpected expiration time: %s", expiration.String())
@@ -261,7 +261,7 @@ func TestCollapseGrants(t *testing.T) {
 
 	collapsedGrants, expiration, err = CollapseStatements(statements, false)
 	if len(collapsedGrants) != 12 {
-		t.Fatalf("Unexpected number of grants\n\tExpected: %d\n\tActual: %s", 12, len(collapsedGrants))
+		t.Fatalf("Unexpected number of grants\n\tExpected: %d\n\tActual: %d", 12, len(collapsedGrants))
 	}
 	if expiration.After(time.Now().Add(time.Hour*5)) || expiration.Before(time.Now()) {
 		t.Fatalf("Unexpected expiration time: %s", expiration.String())

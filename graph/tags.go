@@ -221,11 +221,11 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	var repo Repository
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
+		if old, exists := store.Repositories[repoName][tag]; exists && !force {
+			return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", tag, old)
+		}
 	} else {
 		repo = make(map[string]string)
-		if old, exists := store.Repositories[repoName]; exists && !force {
-			return fmt.Errorf("Conflict: Tag %s:%s is already set to %s", repoName, tag, old)
-		}
 		store.Repositories[repoName] = repo
 	}
 	repo[tag] = img.ID

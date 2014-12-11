@@ -25,6 +25,10 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
+func SetFileCreateLabel(fileLabel string) error {
+	return nil
+}
+
 func Relabel(path string, fileLabel string, relabel string) error {
 	return nil
 }
@@ -41,5 +45,17 @@ func ReserveLabel(label string) error {
 }
 
 func UnreserveLabel(label string) error {
+	return nil
+}
+
+// DupSecOpt takes an process label and returns security options that
+// can be used to set duplicate labels on future container processes
+func DupSecOpt(src string) []string {
+	return nil
+}
+
+// DisableSecOpt returns a security opt that can disable labeling
+// support for future container processes
+func DisableSecOpt() []string {
 	return nil
 }

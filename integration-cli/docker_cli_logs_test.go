@@ -16,14 +16,18 @@ func TestLogsContainerSmallerThanPage(t *testing.T) {
 	testLen := 32767
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	if len(out) != testLen+1 {
 		t.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
@@ -39,14 +43,18 @@ func TestLogsContainerBiggerThanPage(t *testing.T) {
 	testLen := 32768
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	if len(out) != testLen+1 {
 		t.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
@@ -62,14 +70,18 @@ func TestLogsContainerMuchBiggerThanPage(t *testing.T) {
 	testLen := 33000
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	if len(out) != testLen+1 {
 		t.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
@@ -85,14 +97,18 @@ func TestLogsTimestamps(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
 
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", "-t", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	lines := strings.Split(out, "\n")
 
@@ -124,14 +140,18 @@ func TestLogsSeparateStderr(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
 
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
 	stdout, stderr, _, err := runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("Expected empty stdout stream, got %v", stdout)
@@ -152,14 +172,18 @@ func TestLogsStderrInStdout(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
 
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
 	stdout, stderr, _, err := runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("Expected empty stderr stream, got %v", stdout)
@@ -180,14 +204,18 @@ func TestLogsTail(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
 
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", "--tail", "5", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	lines := strings.Split(out, "\n")
 
@@ -197,7 +225,9 @@ func TestLogsTail(t *testing.T) {
 
 	logsCmd = exec.Command(dockerBinary, "logs", "--tail", "all", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	lines = strings.Split(out, "\n")
 
@@ -207,7 +237,9 @@ func TestLogsTail(t *testing.T) {
 
 	logsCmd = exec.Command(dockerBinary, "logs", "--tail", "random", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(logsCmd)
-	errorOut(err, t, fmt.Sprintf("failed to log container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to log container: %s, %v", out, err)
+	}
 
 	lines = strings.Split(out, "\n")
 
@@ -223,7 +255,9 @@ func TestLogsFollowStopped(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
 
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("run failed with errors: %v", err))
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
@@ -249,4 +283,55 @@ func TestLogsFollowStopped(t *testing.T) {
 
 	deleteContainer(cleanedContainerID)
 	logDone("logs - logs follow stopped container")
+}
+
+// Regression test for #8832
+func TestLogsFollowSlowStdoutConsumer(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 200000;yes X | head -c 200000`)
+
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	stopSlowRead := make(chan bool)
+
+	go func() {
+		exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
+		stopSlowRead <- true
+	}()
+
+	logCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
+
+	stdout, err := logCmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := logCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// First read slowly
+	bytes1, err := consumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// After the container has finished we can continue reading fast
+	bytes2, err := consumeWithSpeed(stdout, 32*1024, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := bytes1 + bytes2
+	expected := 200000
+	if actual != expected {
+		t.Fatalf("Invalid bytes read: %d, expected %d", actual, expected)
+	}
+
+	logDone("logs - follow slow consumer")
 }

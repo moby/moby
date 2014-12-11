@@ -17,7 +17,6 @@ func InitLabels(options []string) (string, string, error) {
 	if !selinux.SelinuxEnabled() {
 		return "", "", nil
 	}
-	var err error
 	processLabel, mountLabel := selinux.GetLxcContexts()
 	if processLabel != "" {
 		pcon := selinux.NewContext(processLabel)
@@ -38,7 +37,7 @@ func InitLabels(options []string) (string, string, error) {
 		processLabel = pcon.Get()
 		mountLabel = mcon.Get()
 	}
-	return processLabel, mountLabel, err
+	return processLabel, mountLabel, nil
 }
 
 // DEPRECATED: The GenLabels function is only to be used during the transition to the official API.
@@ -88,6 +87,14 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
+// Tell the kernel the label for all files to be created
+func SetFileCreateLabel(fileLabel string) error {
+	if selinux.SelinuxEnabled() {
+		return selinux.Setfscreatecon(fileLabel)
+	}
+	return nil
+}
+
 // Change the label of path to the filelabel string.  If the relabel string
 // is "z", relabel will change the MCS label to s0.  This will allow all
 // containers to share the content.  If the relabel string is a "Z" then
@@ -129,4 +136,16 @@ func ReserveLabel(label string) error {
 func UnreserveLabel(label string) error {
 	selinux.FreeLxcContexts(label)
 	return nil
+}
+
+// DupSecOpt takes an process label and returns security options that
+// can be used to set duplicate labels on future container processes
+func DupSecOpt(src string) []string {
+	return selinux.DupSecOpt(src)
+}
+
+// DisableSecOpt returns a security opt that can disable labeling
+// support for future container processes
+func DisableSecOpt() []string {
+	return selinux.DisableSecOpt()
 }

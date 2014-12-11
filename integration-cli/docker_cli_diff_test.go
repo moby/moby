@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -11,14 +10,18 @@ import (
 func TestDiffFilenameShownInOutput(t *testing.T) {
 	containerCmd := `echo foo > /root/bar`
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
-	cid, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to start the container: %v", err))
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("failed to start the container: %s, %v", out, err)
+	}
 
-	cleanCID := stripTrailingCharacters(cid)
+	cleanCID := stripTrailingCharacters(out)
 
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
-	out, _, err := runCommandWithOutput(diffCmd)
-	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+	out, _, err = runCommandWithOutput(diffCmd)
+	if err != nil {
+		t.Fatalf("failed to run diff: %s %v", out, err)
+	}
 
 	found := false
 	for _, line := range strings.Split(out, "\n") {
@@ -44,14 +47,18 @@ func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		containerCmd := `echo foo > /root/bar`
 		runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
-		cid, _, err := runCommandWithOutput(runCmd)
-		errorOut(err, t, fmt.Sprintf("%s", err))
+		out, _, err := runCommandWithOutput(runCmd)
+		if err != nil {
+			t.Fatal(out, err)
+		}
 
-		cleanCID := stripTrailingCharacters(cid)
+		cleanCID := stripTrailingCharacters(out)
 
 		diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
-		out, _, err := runCommandWithOutput(diffCmd)
-		errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+		out, _, err = runCommandWithOutput(diffCmd)
+		if err != nil {
+			t.Fatalf("failed to run diff: %s, %v", out, err)
+		}
 
 		deleteContainer(cleanCID)
 
@@ -67,13 +74,18 @@ func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 
 func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sleep", "0")
-	cid, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("%s", err))
-	cleanCID := stripTrailingCharacters(cid)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	cleanCID := stripTrailingCharacters(out)
 
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
-	out, _, err := runCommandWithOutput(diffCmd)
-	errorOut(err, t, fmt.Sprintf("failed to run diff: %v %v", out, err))
+	out, _, err = runCommandWithOutput(diffCmd)
+	if err != nil {
+		t.Fatalf("failed to run diff: %s, %v", out, err)
+	}
 	deleteContainer(cleanCID)
 
 	expected := map[string]bool{
@@ -85,7 +97,7 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 
 	for _, line := range strings.Split(out, "\n") {
 		if line != "" && !expected[line] {
-			t.Errorf("'%s' is shown in the diff but shouldn't", line)
+			t.Errorf("%q is shown in the diff but shouldn't", line)
 		}
 	}
 

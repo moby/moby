@@ -11,12 +11,16 @@ func TestPortList(t *testing.T) {
 	// one port
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "9876:80", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 	firstID := stripTrailingCharacters(out)
 
 	runCmd = exec.Command(dockerBinary, "port", firstID, "80")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !assertPortList(t, out, []string{"0.0.0.0:9876"}) {
 		t.Error("Port list is not correct")
@@ -24,14 +28,17 @@ func TestPortList(t *testing.T) {
 
 	runCmd = exec.Command(dockerBinary, "port", firstID)
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !assertPortList(t, out, []string{"80/tcp -> 0.0.0.0:9876"}) {
 		t.Error("Port list is not correct")
 	}
 	runCmd = exec.Command(dockerBinary, "rm", "-f", firstID)
-	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	// three port
 	runCmd = exec.Command(dockerBinary, "run", "-d",
@@ -40,12 +47,16 @@ func TestPortList(t *testing.T) {
 		"-p", "9878:82",
 		"busybox", "top")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 	ID := stripTrailingCharacters(out)
 
 	runCmd = exec.Command(dockerBinary, "port", ID, "80")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !assertPortList(t, out, []string{"0.0.0.0:9876"}) {
 		t.Error("Port list is not correct")
@@ -53,7 +64,9 @@ func TestPortList(t *testing.T) {
 
 	runCmd = exec.Command(dockerBinary, "port", ID)
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !assertPortList(t, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
@@ -63,7 +76,9 @@ func TestPortList(t *testing.T) {
 	}
 	runCmd = exec.Command(dockerBinary, "rm", "-f", ID)
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	// more and one port mapped to the same container port
 	runCmd = exec.Command(dockerBinary, "run", "-d",
@@ -73,12 +88,16 @@ func TestPortList(t *testing.T) {
 		"-p", "9878:82",
 		"busybox", "top")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 	ID = stripTrailingCharacters(out)
 
 	runCmd = exec.Command(dockerBinary, "port", ID, "80")
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !assertPortList(t, out, []string{"0.0.0.0:9876", "0.0.0.0:9999"}) {
 		t.Error("Port list is not correct")
@@ -86,7 +105,9 @@ func TestPortList(t *testing.T) {
 
 	runCmd = exec.Command(dockerBinary, "port", ID)
 	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if !assertPortList(t, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
@@ -96,8 +117,9 @@ func TestPortList(t *testing.T) {
 		t.Error("Port list is not correct\n", out)
 	}
 	runCmd = exec.Command(dockerBinary, "rm", "-f", ID)
-	out, _, err = runCommandWithOutput(runCmd)
-	errorOut(err, t, out)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
 
 	deleteAllContainers()
 

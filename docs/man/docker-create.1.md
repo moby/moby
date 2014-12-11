@@ -22,21 +22,24 @@ docker-create - Create a new container
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
+[**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
+[**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--restart**[=*RESTART*]]
+[**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
- IMAGE [COMMAND] [ARG...]
+IMAGE [COMMAND] [ARG...]
 
 # OPTIONS
 **-a**, **--attach**=[]
@@ -61,10 +64,10 @@ docker-create - Create a new container
    CPUs in which to allow execution (0-3, 0,1)
 
 **--device**=[]
-   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
 **--dns-search**=[]
-   Set custom DNS search domains
+   Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
 
 **--dns**=[]
    Set custom DNS servers
@@ -79,13 +82,18 @@ docker-create - Create a new container
    Read in a line delimited file of environment variables
 
 **--expose**=[]
-   Expose a port from the container without publishing it to your host
+   Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
 
 **-h**, **--hostname**=""
    Container host name
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
+
+**--ipc**=""
+   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
+                               'container:<name|id>': reuses another container shared memory, semaphores and message queues
+                               'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
    Add link to another container in the form of name:alias
@@ -95,6 +103,9 @@ docker-create - Create a new container
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+
+**--mac-address**=""
+   Container MAC address (e.g. 92:d0:c6:0a:29:33)
 
 **--name**=""
    Assign a name to the container
@@ -120,6 +131,9 @@ docker-create - Create a new container
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
 
+**--security-opt**=[]
+   Security Options
+
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
 
@@ -138,3 +152,4 @@ docker-create - Create a new container
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 September 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

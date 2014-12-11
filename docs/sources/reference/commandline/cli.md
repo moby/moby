@@ -11,7 +11,7 @@ or execute `docker help`:
       Usage: docker [OPTIONS] COMMAND [arg...]
         -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
-      A self-sufficient runtime for linux containers.
+      A self-sufficient runtime for Linux containers.
 
       ...
 
@@ -69,12 +69,14 @@ expect an integer, and they can only be specified once.
                                                    use '' (the empty string) to disable setting of a group
       -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
       -H, --host=[]                              The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
-      --icc=true                                 Enable inter-container communication
+      --icc=true                                 Allow unrestricted inter-container and Docker daemon host communication
       --insecure-registry=[]                     Enable insecure communication with specified registries (disables certificate verification for HTTPS and enables HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)
       --ip=0.0.0.0                               Default IP address to use when binding container ports
       --ip-forward=true                          Enable net.ipv4.ip_forward
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
       --iptables=true                            Enable Docker's addition of iptables rules
+       -l, --log-level="info"                    Set the logging level
+      --label=[]                                 Set key=value labels to the daemon (displayed in `docker info`)
       --mtu=0                                    Set the containers network MTU
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
@@ -82,7 +84,7 @@ expect an integer, and they can only be specified once.
       -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
       --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
       --storage-opt=[]                           Set storage driver options
-      --tls=false                                Use TLS; implied by tls-verify flags
+      --tls=false                                Use TLS; implied by --tlsverify flag
       --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here
       --tlscert="/home/sven/.docker/cert.pem"    Path to TLS certificate file
       --tlskey="/home/sven/.docker/key.pem"      Path to TLS key file
@@ -100,7 +102,7 @@ To run the daemon with debug output, use `docker -d -D`.
 
 ### Daemon socket option
 
-The Docker daemon can listen for [Docker Remote API](reference/api/docker_remote_api/)
+The Docker daemon can listen for [Docker Remote API](/reference/api/docker_remote_api/)
 requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 
 By default, a `unix` domain socket (or IPC socket) is created at `/var/run/docker.sock`,
@@ -109,7 +111,7 @@ requiring either `root` permission, or `docker` group membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and un-authenticated
 direct access to the Docker daemon - and should be secured either using the
-[built in https encrypted socket](/articles/https/), or by putting a secure web
+[built in HTTPS encrypted socket](/articles/https/), or by putting a secure web
 proxy in front of it. You can listen on port `2375` on all network interfaces
 with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
 address: `-H tcp://192.168.59.103:2375`. It is conventional to use port `2375`
@@ -119,7 +121,7 @@ for un-encrypted, and port `2376` for encrypted communication with the daemon.
 > and greater are supported. Protocols SSLv3 and under are not supported anymore
 > for security reasons.
 
-On Systemd based systems, you can communicate with the daemon via 
+On Systemd based systems, you can communicate with the daemon via
 [systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
 `docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
 you can also specify individual sockets: `docker -d -H fd://3`. If the
@@ -153,8 +155,8 @@ string is equivalent to setting the `--tlsverify` flag. The following are equiva
 
 ### Daemon storage-driver option
 
-The Docker daemon has support for three different image layer storage drivers: `aufs`,
-`devicemapper`, and `btrfs`.
+The Docker daemon has support for several different image layer storage drivers: `aufs`,
+`devicemapper`, `btrfs` and `overlay`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
@@ -162,17 +164,155 @@ serious kernel crashes. However, `aufs` is also the only storage driver that all
 containers to share executable and shared library memory, so is a useful choice
 when running thousands of containers with the same program or libraries.
 
-The `devicemapper` driver uses thin provisioning and Copy on Write (CoW) snapshots.
-This driver will create a 100GB sparse file containing all your images and
-containers.  Each container will be limited to a 10 GB thin volume, and either of
-these will require tuning - see [~jpetazzo/Resizing Docker containers with the
-Device Mapper plugin]( http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
-To tell the Docker daemon to use `devicemapper`, use
-`docker -d -s devicemapper`.
+The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
+snapshots. For each devicemapper graph location – typically
+`/var/lib/docker/devicemapper` – a thin pool is created based on two block
+devices, one for data and one for metadata.  By default, these block devices
+are created automatically by using loopback mounts of automatically created
+sparse files. Refer to [Storage driver options](#storage-driver-options) below
+for a way how to customize this setup.
+[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](
+http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/) article
+explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
 share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
 
+The `overlay` is a very fast union filesystem. It is now merged in the main
+Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
+Call `docker -d -s overlay` to use it. 
+> **Note:** 
+> It is currently unsupported on `btrfs` or any Copy on Write filesystem
+> and should only be used over `ext4` partitions.
+
+#### Storage driver options
+
+Particular storage-driver can be configured with options specified with
+`--storage-opt` flags. The only driver accepting options is `devicemapper` as
+of now. All its options are prefixed with `dm`.
+
+Currently supported options are:
+
+ *  `dm.basesize`
+
+    Specifies the size to use when creating the base device, which limits the
+    size of images and containers. The default value is 10G. Note, thin devices
+    are inherently "sparse", so a 10G device which is mostly empty doesn't use
+    10 GB of space on the pool. However, the filesystem will use more space for
+    the empty case the larger the device is.
+    
+     **Warning**: This value affects the system-wide "base" empty filesystem
+     that may already be initialized and inherited by pulled images. Typically,
+     a change to this value will require additional steps to take effect:
+    
+        $ sudo service docker stop
+        $ sudo rm -rf /var/lib/docker
+        $ sudo service docker start
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.basesize=20G
+
+ *  `dm.loopdatasize`
+
+    Specifies the size to use when creating the loopback file for the "data"
+    device which is used for the thin pool. The default size is 100G. Note that
+    the file is sparse, so it will not initially take up this much space.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.loopdatasize=200G
+
+ *  `dm.loopmetadatasize`
+
+    Specifies the size to use when creating the loopback file for the
+    "metadata" device which is used for the thin pool. The default size is 2G.
+    Note that the file is sparse, so it will not initially take up this much
+    space.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.loopmetadatasize=4G
+
+ *  `dm.fs`
+
+    Specifies the filesystem type to use for the base device. The supported
+    options are "ext4" and "xfs". The default is "ext4"
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.fs=xfs
+
+ *  `dm.mkfsarg`
+
+    Specifies extra mkfs arguments to be used when creating the base device.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"
+
+ *  `dm.mountopt`
+
+    Specifies extra mount options used when mounting the thin devices.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.mountopt=nodiscard
+
+ *  `dm.datadev`
+
+    Specifies a custom blockdevice to use for data for the thin pool.
+
+    If using a block device for device mapper storage, ideally both datadev and
+    metadatadev should be specified to completely avoid using the loopback
+    device.
+
+    Example use:
+
+        $ sudo docker -d \
+            --storage-opt dm.datadev=/dev/sdb1 \
+            --storage-opt dm.metadatadev=/dev/sdc1
+
+ *  `dm.metadatadev`
+
+    Specifies a custom blockdevice to use for metadata for the thin pool.
+
+    For best performance the metadata should be on a different spindle than the
+    data, or even better on an SSD.
+
+    If setting up a new metadata pool it is required to be valid. This can be
+    achieved by zeroing the first 4k to indicate empty metadata, like this:
+
+        $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+
+    Example use:
+
+        $ sudo docker -d \
+            --storage-opt dm.datadev=/dev/sdb1 \
+            --storage-opt dm.metadatadev=/dev/sdc1
+
+ *  `dm.blocksize`
+
+    Specifies a custom blocksize to use for the thin pool. The default
+    blocksize is 64K.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.blocksize=512K
+
+ *  `dm.blkdiscard`
+
+    Enables or disables the use of blkdiscard when removing devicemapper
+    devices. This is enabled by default (only) if using loopback devices and is
+    required to res-parsify the loopback file on image/container removal.
+
+    Disabling this on loopback can lead to *much* faster container removal
+    times, but will make the space used in `/var/lib/docker` directory not be
+    returned to the system for other use when containers are removed.
+
+    Example use:
+
+        $ sudo docker -d --storage-opt dm.blkdiscard=false
 
 ### Docker exec-driver option
 
@@ -247,7 +387,7 @@ Docker supports softlinks for the Docker data directory
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxy all received signals to the process (even in non-TTY mode). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
+      --sig-proxy=true    Proxy all received signals to the process (non-TTY mode only). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
 
 The `attach` command lets you view or interact with any running container's
 primary process (`pid 1`).
@@ -456,7 +596,7 @@ Supported formats are: bzip2, gzip and xz.
 This will clone the GitHub repository and use the cloned repository as
 context. The Dockerfile at the root of the
 repository is used as Dockerfile. Note that you
-can specify an arbitrary Git repository by using the `git://`
+can specify an arbitrary Git repository by using the `git://` or `git@`
 schema.
 
 > **Note:** `docker build` will return a `no such file or directory` error
@@ -523,18 +663,22 @@ Creates a new container.
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
-      --dns-search=[]            Set custom DNS search domains
+      --dns-search=[]            Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
-      --expose=[]                Expose a port from the container without publishing it to your host
+      --expose=[]                Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
+      --ipc=""                   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
+                                   'container:<name|id>': reuses another container shared memory, semaphores and message queues
+                                   'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
       --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+      --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
                                    'bridge': creates a new network stack for the container on the docker bridge
@@ -547,6 +691,7 @@ Creates a new container.
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
+      --security-opt=[]          Security Options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
@@ -562,6 +707,8 @@ container at any point.
 
 This is useful when you want to set up a container configuration ahead
 of time so that it is ready to start when you need it.
+
+Please see the [run command](#run) section for more details.
 
 #### Example
 
@@ -617,6 +764,24 @@ and Docker images will report:
 
     untag, delete
 
+#### Filtering
+
+The filtering flag (`-f` or `--filter`) format is of "key=value". If you would like to use
+multiple filters, pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+
+Using the same filter multiple times will be handled as a *OR*; for example
+`--filter container=588a23dac085 --filter container=a8f7720b8c22` will display events for
+container 588a23dac085 *OR* container a8f7720b8c22
+
+Using multiple filters will be handled as a *AND*; for example
+`--filter container=588a23dac085 --filter event=start` will display events for container
+container 588a23dac085 *AND* the event type is *start*
+
+Current filters:
+ * event
+ * image
+ * container
+
 #### Examples
 
 You'll need two shells for this example.
@@ -625,37 +790,70 @@ You'll need two shells for this example.
 
     $ sudo docker events
 
-**Shell 2: Start and Stop a Container:**
+**Shell 2: Start and Stop containers:**
 
     $ sudo docker start 4386fb97867d
     $ sudo docker stop 4386fb97867d
+    $ sudo docker stop 7805c1d35632
 
 **Shell 1: (Again .. now showing events):**
 
-    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
-    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) start
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
 **Show events in the past from a specified time:**
 
     $ sudo docker events --since 1378216169
-    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-03-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-03-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
     $ sudo docker events --since '2013-09-03'
-    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) start
-    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) start
+    2014-09-03T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
     $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
-    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) die
-    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from 12de384bfb10) stop
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+**Filter events:**
+
+    $ sudo docker events --filter 'event=stop'
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-09-03T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+    $ sudo docker events --filter 'image=ubuntu-1:14.04'
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) start
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+
+    $ sudo docker events --filter 'container=7805c1d35632'
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+    $ sudo docker events --filter 'container=7805c1d35632' --filter 'container=4386fb97867d'
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+    $ sudo docker events --filter 'container=7805c1d35632' --filter 'event=stop'
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
 ## exec
 
     Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 
-    Run a command in an existing container
+    Run a command in a running container
 
       -d, --detach=false         Detached mode: run command in the background
       -i, --interactive=false    Keep STDIN open even if not attached
@@ -663,7 +861,11 @@ You'll need two shells for this example.
 
 The `docker exec` command runs a new command in a running container.
 
-The `docker exec` command will typically be used after `docker run` or `docker start`.
+The command started using `docker exec` will only run while the container's primary
+process (`PID 1`) is running, and will not be restarted if the container is restarted.
+
+If the container is paused, then the `docker exec` command will wait until the
+container is unpaused, and then run.
 
 #### Examples
 
@@ -676,7 +878,7 @@ This will create a container named `ubuntu_bash` and start a Bash session.
 This will create a new file `/tmp/execWorks` inside the running container
 `ubuntu_bash`, in the background.
 
-    $ sudo docker exec ubuntu_bash -it bash
+    $ sudo docker exec -it ubuntu_bash bash
 
 This will create a new Bash session in the container `ubuntu_bash`.
 
@@ -712,7 +914,7 @@ To see how the `docker:latest` image was built:
 
 ## images
 
-    Usage: docker images [OPTIONS] [NAME]
+    Usage: docker images [OPTIONS] [REPOSITORY]
 
     List images
 
@@ -729,19 +931,28 @@ decrease disk usage, and speed up `docker build` by
 allowing each step to be cached. These intermediate layers are not shown
 by default.
 
+The `VIRTUAL SIZE` is the cumulative space taken up by the image and all
+its parent images. This is also the disk space used by the contents of the
+Tar file created when you `docker save` an image.
+
+An image will be listed more than once if it has multiple repository names
+or tags. This single image (identifiable by its matching `IMAGE ID`)
+uses up the `VIRTUAL SIZE` listed only once.
+
 #### Listing the most recently created images
 
     $ sudo docker images | head
-    REPOSITORY                    TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-    <none>                        <none>              77af4d6b9913        19 hours ago        1.089 GB
-    committest                    latest              b6fa739cedf5        19 hours ago        1.089 GB
-    <none>                        <none>              78a85c484f71        19 hours ago        1.089 GB
-    docker                        latest              30557a29d5ab        20 hours ago        1.089 GB
-    <none>                        <none>              0124422dd9f9        20 hours ago        1.089 GB
-    <none>                        <none>              18ad6fad3402        22 hours ago        1.082 GB
-    <none>                        <none>              f9f1e26352f0        23 hours ago        1.089 GB
-    tryout                        latest              2629d1fa0b81        23 hours ago        131.5 MB
-    <none>                        <none>              5ed6274db6ce        24 hours ago        1.089 GB
+    REPOSITORY                TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    <none>                    <none>              77af4d6b9913        19 hours ago        1.089 GB
+    committ                   latest              b6fa739cedf5        19 hours ago        1.089 GB
+    <none>                    <none>              78a85c484f71        19 hours ago        1.089 GB
+    docker                    latest              30557a29d5ab        20 hours ago        1.089 GB
+    <none>                    <none>              5ed6274db6ce        24 hours ago        1.089 GB
+    postgres                  9                   746b819f315e        4 days ago          213.4 MB
+    postgres                  9.3                 746b819f315e        4 days ago          213.4 MB
+    postgres                  9.3.5               746b819f315e        4 days ago          213.4 MB
+    postgres                  latest              746b819f315e        4 days ago          213.4 MB
+
 
 #### Listing the full length image IDs
 
@@ -759,7 +970,7 @@ by default.
 
 #### Filtering
 
-The filtering flag (`-f` or `--filter`) format is of "key=value". If there are more
+The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
@@ -842,18 +1053,27 @@ For example:
     $ sudo docker -D info
     Containers: 14
     Images: 52
-    Storage Driver: btrfs
+    Storage Driver: aufs
+     Root Dir: /var/lib/docker/aufs
+     Dirs: 545
     Execution Driver: native-0.2
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
+    CPUs: 1
+    Name: prod-server-42
+    ID: 7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS
+    Total Memory: 2 GiB
     Debug mode (server): false
     Debug mode (client): true
     Fds: 10
     Goroutines: 9
     EventsListeners: 0
     Init Path: /usr/bin/docker
+    Docker Root Dir: /var/lib/docker
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
+    Labels:
+     storage=ssd
 
 The global `-D` option tells all `docker` commands to output debug information.
 
@@ -882,6 +1102,13 @@ For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
     $ sudo docker inspect --format='{{.NetworkSettings.IPAddress}}' $INSTANCE_ID
+
+**Get an instance's MAC Address:**
+
+For the most part, you can pick out any field from the JSON in a fairly
+straightforward manner.
+
+    $ sudo docker inspect --format='{{.NetworkSettings.MacAddress}}' $INSTANCE_ID
 
 **List All Port Bindings:**
 
@@ -1031,7 +1258,7 @@ used, which is observable by the process being suspended. With the cgroups freez
 the process is unaware, and unable to capture, that it is being suspended,
 and subsequently resumed.
 
-See the 
+See the
 [cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
 for further details.
 
@@ -1050,7 +1277,7 @@ for further details.
       -n=-1                 Show n last created containers, include non-running ones.
       --no-trunc=false      Don't truncate output
       -q, --quiet=false     Only display numeric IDs
-      -s, --size=false      Display sizes
+      -s, --size=false      Display total file sizes
       --since=""            Show only containers created since Id or Name, include non-running ones.
 
 Running `docker ps` showing 2 linked containers.
@@ -1070,6 +1297,7 @@ than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bi
 
 Current filters:
  * exited (int - the code of exited containers. Only useful with '--all')
+ * status (restarting|running|paused|exited)
 
 ##### Successfully exited containers
 
@@ -1107,9 +1335,8 @@ use `docker pull`:
     # will pull the debian:latest image, its intermediate layers
     # and any aliases of the same id
     $ sudo docker pull debian:testing
-    # will pull the image named ubuntu:trusty, ubuntu:14.04
-    # which is an alias of the same image
-    # and any intermediate layers it is based on.
+    # will pull the image named debian:testing and any intermediate
+    # layers it is based on.
     # (Typically the empty `scratch` image, a MAINTAINER layer,
     # and the un-tarred base).
     $ sudo docker pull --all-tags centos
@@ -1221,18 +1448,22 @@ removed before the image is removed.
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
       -d, --detach=false         Detached mode: run the container in the background and print the new container ID
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc)
+      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
-      --dns-search=[]            Set custom DNS search domains
+      --dns-search=[]            Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
       --env-file=[]              Read in a line delimited file of environment variables
-      --expose=[]                Expose a port from the container without publishing it to your host
+      --expose=[]                Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
+      --ipc=""                   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
+                                   'container:<name|id>': reuses another container shared memory, semaphores and message queues
+                                   'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
       --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+      --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
                                    'bridge': creates a new network stack for the container on the docker bridge
@@ -1246,7 +1477,8 @@ removed before the image is removed.
       --privileged=false         Give extended privileges to this container
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
-      --sig-proxy=true           Proxy received signals to the process (even in non-TTY mode). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      --security-opt=[]          Security Options
+      --sig-proxy=true           Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
@@ -1259,6 +1491,9 @@ specified image, and then `starts` it using the specified command. That is,
 `/containers/(id)/start`. A stopped container can be restarted with all its
 previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
+
+There is detailed information about `docker run` in the [Docker run reference](
+/reference/run/).
 
 The `docker run` command can be used in combination with `docker commit` to
 [*change the command that a container runs*](#commit-an-existing-container).
@@ -1430,8 +1665,31 @@ option enables that.  For example, a specific block storage device or loop
 device or audio device can be added to an otherwise unprivileged container
 (without the `--privileged` flag) and have the application directly access it.
 
+By default, the container will be able to `read`, `write` and `mknod` these devices.
+This can be overridden using a third `:rwm` set of options to each `--device`
+flag:
+
+
+```
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+	You will not be able to write the partition table.
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+	fdisk: unable to open /dev/xvdc: Operation not permitted
+```
+
 **Note:**
-> `--device` cannot be safely used with ephemeral devices. Block devices that may be removed should not be added to untrusted containers with `--device`.
+> `--device` cannot be safely used with ephemeral devices. Block devices that
+> may be removed should not be added to untrusted containers with `--device`.
 
 **A complete example:**
 
@@ -1492,6 +1750,30 @@ container exits with a non-zero exit status more than 10 times in a row
 Docker will abort trying to restart the container.  Providing a maximum
 restart limit is only valid for the ** on-failure ** policy.
 
+### Adding entries to a container hosts file
+
+You can add other hosts into a container's `/etc/hosts` file by using one or more
+`--add-host` flags. This example adds a static address for a host named `docker`:
+
+```
+    $ docker run --add-host=docker:10.180.0.1 --rm -it debian
+    $$ ping docker
+    PING docker (10.180.0.1): 48 data bytes
+    56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
+    56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
+    ^C--- docker ping statistics ---
+    2 packets transmitted, 2 packets received, 0% packet loss
+    round-trip min/avg/max/stddev = 7.600/19.152/30.705/11.553 ms
+```
+
+> **Note:**
+> Sometimes you need to connect to the Docker host, which means getting the IP
+> address of the host. You can use the following shell commands to simplify this
+> process:
+>
+>      $ alias hostip="ip route show 0.0.0.0/0 | grep -Eo 'via \S+' | awk '{ print \$2 }'"
+>      $ docker run  --add-host=docker:$(hostip) --rm -it debian
+
 ## save
 
     Usage: docker save [OPTIONS] IMAGE [IMAGE...]
@@ -1541,8 +1823,8 @@ more details on finding shared images from the command line.
 
     Restart a stopped container
 
-      -a, --attach=false         Attach container's `STDOUT` and `STDERR` and forward all signals to the process
-      -i, --interactive=false    Attach container's `STDIN`
+      -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
+      -i, --interactive=false    Attach container's STDIN
 
 When run on a container that has already been started,
 takes no action and succeeds unconditionally.
@@ -1551,7 +1833,7 @@ takes no action and succeeds unconditionally.
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
-    Stop a running container by sending `SIGTERM` and then `SIGKILL` after a grace period
+    Stop a running container by sending SIGTERM and then SIGKILL after a grace period
 
       -t, --time=10      Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
 
@@ -1585,7 +1867,7 @@ them to [*Share Images via Repositories*](
 The `docker unpause` command uses the cgroups freezer to un-suspend all
 processes in a container.
 
-See the 
+See the
 [cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
 for further details.
 

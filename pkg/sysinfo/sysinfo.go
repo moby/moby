@@ -2,10 +2,10 @@ package sysinfo
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer/cgroups"
 )
 

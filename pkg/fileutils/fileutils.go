@@ -1,7 +1,7 @@
 package fileutils
 
 import (
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 	"path/filepath"
 )
 

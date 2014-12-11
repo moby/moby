@@ -32,8 +32,8 @@ func ChangeInterfaceName(old, newName string) error {
 	return netlink.NetworkChangeName(iface, newName)
 }
 
-func CreateVethPair(name1, name2 string) error {
-	return netlink.NetworkCreateVethPair(name1, name2)
+func CreateVethPair(name1, name2 string, txQueueLen int) error {
+	return netlink.NetworkCreateVethPair(name1, name2, txQueueLen)
 }
 
 func SetInterfaceInNamespacePid(name string, nsPid int) error {
@@ -94,4 +94,12 @@ func SetMtu(name string, mtu int) error {
 		return err
 	}
 	return netlink.NetworkSetMTU(iface, mtu)
+}
+
+func SetHairpinMode(name string, enabled bool) error {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.SetHairpinMode(iface, enabled)
 }

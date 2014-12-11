@@ -12,10 +12,10 @@ sh:
 GO_PACKAGES = $(shell find . -not \( -wholename ./vendor -prune -o -wholename ./.git -prune \) -name '*.go' -print0 | xargs -0n1 dirname | sort -u)
 
 direct-test:
-	go test -cover -v $(GO_PACKAGES)
+	go test $(TEST_TAGS) -cover -v $(GO_PACKAGES)
 
 direct-test-short:
-	go test -cover -test.short -v $(GO_PACKAGES)
+	go test $(TEST_TAGS) -cover -test.short -v $(GO_PACKAGES)
 
 direct-build:
 	go build -v $(GO_PACKAGES)

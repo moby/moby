@@ -458,7 +458,7 @@ on a private network without having to rely on an external entity
 controlled by Docker Inc.
 
 In this case, the registry will be launched in a special mode
-(–standalone? ne? –no-index?). In this mode, the only thing which changes is
+(-standalone? ne? -no-index?). In this mode, the only thing which changes is
 that Registry will never contact the Docker Hub to verify a token. It will be
 the Registry owner responsibility to authenticate the user who pushes
 (or even pulls) an image using any mechanism (HTTP auth, IP based,
@@ -579,13 +579,19 @@ The following naming restrictions apply:
 
 ### Get all tags:
 
-GET /v1/repositories/<namespace>/<repository_name>/tags
+    GET /v1/repositories/<namespace>/<repository_name>/tags
 
     **Return**: HTTP 200
-    { "latest":
-    "9e89cc6f0bc3c38722009fe6857087b486531f9a779a0c17e3ed29dae8f12c4f",
-    “0.1.1”:
-    “b486531f9a779a0c17e3ed29dae8f12c4f9e89cc6f0bc3c38722009fe6857087” }
+    [
+        {
+            "layer": "9e89cc6f",
+            "name": "latest"
+        },
+        {
+            "layer": "b486531f",
+            "name": "0.1.1",
+        }
+    ]
 
 **4.3.2 Read the content of a tag (resolve the image id):**
 

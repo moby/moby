@@ -2,17 +2,18 @@ package proxy
 
 import (
 	"encoding/binary"
-	"log"
 	"net"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
 	UDPConnTrackTimeout = 90 * time.Second
-	UDPBufSize          = 2048
+	UDPBufSize          = 65507
 )
 
 // A net.Addr where the IP is split into two fields so you can use it as a key

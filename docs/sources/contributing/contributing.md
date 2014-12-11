@@ -21,4 +21,4 @@ https://github.com/docker/docker/blob/master/docs/Dockerfile)
 specifies the tools and versions used to build the Documentation.
 
 Further interesting details can be found in the [Packaging hints](
-https://github.com/docker/docker/blob/master/hack/PACKAGERS.md).
+https://github.com/docker/docker/blob/master/project/PACKAGERS.md).

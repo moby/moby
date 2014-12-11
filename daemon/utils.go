@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -32,9 +33,9 @@ func migratePortMappings(config *runconfig.Config, hostConfig *runconfig.HostCon
 	return nil
 }
 
-func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) []string {
+func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) ([]string, error) {
 	if hostConfig == nil {
-		return nil
+		return nil, nil
 	}
 
 	out := []string{}
@@ -44,10 +45,13 @@ func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) []string {
 		for _, pair := range lxcConf {
 			// because lxc conf gets the driver name lxc.XXXX we need to trim it off
 			// and let the lxc driver add it back later if needed
+			if !strings.Contains(pair.Key, ".") {
+				return nil, errors.New("Illegal Key passed into LXC Configurations")
+			}
 			parts := strings.SplitN(pair.Key, ".", 2)
 			out = append(out, fmt.Sprintf("%s=%s", parts[1], pair.Value))
 		}
 	}
 
-	return out
+	return out, nil
 }

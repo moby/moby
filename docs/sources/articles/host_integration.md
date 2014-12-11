@@ -4,31 +4,51 @@ page_keywords: systemd, upstart, supervisor, docker, documentation, host integra
 
 # Automatically Start Containers
 
-You can use your Docker containers with process managers like
-`upstart`, `systemd` and `supervisor`.
+As of Docker 1.2,
+[restart policies](/reference/commandline/cli/#restart-policies) are the
+built-in Docker mechanism for restarting containers when they exit. If set,
+restart policies will be used when the Docker daemon starts up, as typically
+happens after a system boot. Restart policies will ensure that linked containers
+are started in the correct order.
 
-## Introduction
+If restart policies don't suit your needs (i.e., you have non-Docker processes
+that depend on Docker containers), you can use a process manager like
+[upstart](http://upstart.ubuntu.com/),
+[systemd](http://freedesktop.org/wiki/Software/systemd/) or
+[supervisor](http://supervisord.org/) instead.
 
-If you want a process manager to manage your containers you will need to
-run the docker daemon with the `-r=false` so that docker will not
-automatically restart your containers when the host is restarted.
+
+## Using a Process Manager
+
+Docker does not set any restart policies by default, but be aware that they will
+conflict with most process managers. So don't set restart policies if you are
+using a process manager.
+
+*Note:* Prior to Docker 1.2, restarting of Docker containers had to be
+explicitly disabled. Refer to the
+[previous version](/v1.1/articles/host_integration/) of this article for the
+details on how to do that.
 
 When you have finished setting up your image and are happy with your
 running container, you can then attach a process manager to manage it.
-When you run `docker start -a` docker will automatically attach to the
+When you run `docker start -a`, Docker will automatically attach to the
 running container, or start it if needed and forward all signals so that
 the process manager can detect when a container stops and correctly
 restart it.
 
 Here are a few sample scripts for systemd and upstart to integrate with
-docker.
+Docker.
 
-## Sample Upstart Script
 
-In this example We've already created a container to run Redis with
-`--name redis_server`. To create an upstart script for our container, we
-create a file named `/etc/init/redis.conf` and place the following into
-it:
+## Examples
+
+The examples below show configuration files for two popular process managers,
+upstart and systemd. In these examples, we'll assume that we have already
+created a container to run Redis with `--name=redis_server`. These files define
+a new service that will be started after the docker daemon service has started.
+
+
+### upstart
 
     description "Redis container"
     author "Me"
@@ -39,12 +59,8 @@ it:
       /usr/bin/docker start -a redis_server
     end script
 
-Next, we have to configure docker so that it's run with the option
-`-r=false`. Run the following command:
 
-    $ sudo sh -c "echo 'DOCKER_OPTS=\"-r=false\"' >> /etc/default/docker"
-
-## Sample systemd Script
+### systemd
 
     [Unit]
     Description=Redis container

@@ -46,7 +46,7 @@
 #### Builder
 - Fix escaping `$` for environment variables
 - Fix issue with lowercase `onbuild` Dockerfile instruction
-- Restrict envrionment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`, `EXPOSE`, `VOLUME` and `USER`
+- Restrict environment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`, `EXPOSE`, `VOLUME` and `USER`
 
 ## 1.3.0 (2014-10-14)
 
