@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/docker/libcontainer"
 )
 
 func TestExecPS(t *testing.T) {
@@ -55,7 +57,6 @@ func TestIPCPrivate(t *testing.T) {
 	}
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = true
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +88,8 @@ func TestIPCHost(t *testing.T) {
 	}
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = false
+	i := getNamespaceIndex(config, "NEWIPC")
+	config.Namespaces = append(config.Namespaces[:i], config.Namespaces[i+1:]...)
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
 	if err != nil {
 		t.Fatal(err)
@@ -119,8 +121,8 @@ func TestIPCJoinPath(t *testing.T) {
 	}
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = false
-	config.IpcNsPath = "/proc/1/ns/ipc"
+	i := getNamespaceIndex(config, "NEWIPC")
+	config.Namespaces[i].Path = "/proc/1/ns/ipc"
 
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
 	if err != nil {
@@ -148,8 +150,8 @@ func TestIPCBadPath(t *testing.T) {
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = false
-	config.IpcNsPath = "/proc/1/ns/ipcc"
+	i := getNamespaceIndex(config, "NEWIPC")
+	config.Namespaces[i].Path = "/proc/1/ns/ipcc"
 
 	_, _, err = runContainer(config, "", "true")
 	if err == nil {
@@ -176,4 +178,13 @@ func TestRlimit(t *testing.T) {
 	if limit := strings.TrimSpace(out.Stdout.String()); limit != "1024" {
 		t.Fatalf("expected rlimit to be 1024, got %s", limit)
 	}
+}
+
+func getNamespaceIndex(config *libcontainer.Config, name string) int {
+	for i, v := range config.Namespaces {
+		if v.Name == name {
+			return i
+		}
+	}
+	return -1
 }
