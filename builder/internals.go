@@ -615,7 +615,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 	}
 
 	if fi.IsDir() {
-		return copyAsDirectory(origPath, destPath)
+		return copyAsDirectory(origPath, destPath, destExists)
 	}
 
 	// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
@@ -649,37 +649,43 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		resPath = path.Join(destPath, path.Base(origPath))
 	}
 
-	return fixPermissions(origPath, resPath, 0, 0)
+	return fixPermissions(origPath, resPath, 0, 0, destExists)
 }
 
-func copyAsDirectory(source, destination string) error {
+func copyAsDirectory(source, destination string, destExisted bool) error {
 	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 		return err
 	}
-	return fixPermissions(source, destination, 0, 0)
+	return fixPermissions(source, destination, 0, 0, destExisted)
 }
 
-func fixPermissions(source, destination string, uid, gid int) error {
-	// The copied root permission should not be changed for previously existing
-	// directories.
-	s, err := os.Stat(destination)
-	if err != nil && !os.IsNotExist(err) {
+func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
+	// If the destination didn't already exist, or the destination isn't a
+	// directory, then we should Lchown the destination. Otherwise, we shouldn't
+	// Lchown the destination.
+	destStat, err := os.Stat(destination)
+	if err != nil {
+		// This should *never* be reached, because the destination must've already
+		// been created while untar-ing the context.
 		return err
 	}
-	fixRootPermission := (err != nil) || !s.IsDir()
+	doChownDestination := !destExisted || !destStat.IsDir()
 
 	// We Walk on the source rather than on the destination because we don't
 	// want to change permissions on things we haven't created or modified.
 	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
-		// Do not alter the walk root itself as it potentially existed before.
-		if !fixRootPermission && (source == fullpath) {
+		// Do not alter the walk root iff. it existed before, as it doesn't fall under
+		// the domain of "things we should chown".
+		if !doChownDestination && (source == fullpath) {
 			return nil
 		}
+
 		// Path is prefixed by source: substitute with destination instead.
 		cleaned, err := filepath.Rel(source, fullpath)
 		if err != nil {
 			return err
 		}
+
 		fullpath = path.Join(destination, cleaned)
 		return os.Lchown(fullpath, uid, gid)
 	})
