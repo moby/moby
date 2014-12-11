@@ -114,9 +114,9 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 		displayed++
 		out := &engine.Env{}
-		out.Set("Id", container.ID)
+		out.SetJson("Id", container.ID)
 		out.SetList("Names", names[container.ID])
-		out.Set("Image", daemon.Repositories().ImageName(container.Image))
+		out.SetJson("Image", daemon.Repositories().ImageName(container.Image))
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {

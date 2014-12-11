@@ -113,7 +113,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 				return err
 			}
 			out := &engine.Env{}
-			out.Set("Deleted", img.ID)
+			out.SetJson("Deleted", img.ID)
 			imgs.Add(out)
 			eng.Job("log", "delete", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
