@@ -3,16 +3,12 @@ package main
 import (
 	"bytes"
 	"io"
-	"os"
 	"os/exec"
 	"testing"
 )
 
 func TestLoginWithoutTTY(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "login")
-	// setup STDOUT and STDERR so that we see any output and errors in our console
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	// create a buffer with text then a new line as a return
 	buf := bytes.NewBuffer([]byte("buffer test string \n"))
