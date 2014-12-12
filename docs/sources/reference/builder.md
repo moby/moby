@@ -397,8 +397,10 @@ For most command line uses this should act as expected, for example:
     ADD hom* /mydir/        # adds all files starting with "hom"
     ADD hom?.txt /mydir/    # ? is replaced with any single character
 
-The `<dest>` is the absolute path to which the source will be copied inside the
-destination container.
+The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
+the source will be copied inside the destination container.
+
+    ADD test aDir/          # adds "test" to `WORKDIR`/aDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -494,8 +496,10 @@ For most command line uses this should act as expected, for example:
     COPY hom* /mydir/        # adds all files starting with "hom"
     COPY hom?.txt /mydir/    # ? is replaced with any single character
 
-The `<dest>` is the absolute path to which the source will be copied inside the
-destination container.
+The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
+the source will be copied inside the destination container.
+
+    COPY test aDir/          # adds "test" to `WORKDIR`/aDir/
 
 All new files and directories are created with a UID and GID of 0.
 

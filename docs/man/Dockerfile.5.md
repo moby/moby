@@ -132,12 +132,22 @@ or
 
 **ADD**
  --**ADD <src>... <dest>** The ADD instruction copies new files, directories
- or remote file URLs to the filesystem of the container at path <dest>.  
+ or remote file URLs to the filesystem of the container at path <dest>.
  Mutliple <src> resources may be specified but if they are files or directories
- then they must be relative to the source directory that is being built 
- (the context of the build).  <dest> is the absolute path to
- which the source is copied inside the target container.  All new files and
- directories are created with mode 0755, with uid and gid 0.
+ then they must be relative to the source directory that is being built
+ (the context of the build). The <dest> is the absolute path, or path relative
+ to `WORKDIR`, into which the source is copied inside the target container.
+ All new files and directories are created with mode 0755 and with the uid 
+ and gid of 0.
+
+**COPY**
+ --**COPY <src> <dest>** The COPY instruction copies new files from <src> and
+ adds them to the filesystem of the container at path <dest>. The <src> must be
+ the path to a file or directory relative to the source directory that is
+ being built (the context of the build) or a remote file URL. The `<dest>` is an
+ absolute path, or a path relative to `WORKDIR`, into which the source will
+ be copied inside the target container. All new files and directories are
+ created with mode 0755 and with the uid and gid of 0.
 
 **ENTRYPOINT**
  --**ENTRYPOINT** has two forms: ENTRYPOINT ["executable", "param1", "param2"]
