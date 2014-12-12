@@ -253,7 +253,7 @@ If this is a MAJOR.MINOR.0 release, you need to make an branch for the previous 
 documentation:
 
 ```bash
-git checkout -b docs-$PREVIOUS_MAJOR_MINOR docs
+git checkout -b docs-$PREVIOUS_MAJOR_MINOR
 git fetch
 git reset --hard origin/docs
 git push -f origin docs-$PREVIOUS_MAJOR_MINOR
@@ -282,8 +282,8 @@ Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrom
 git checkout master
 git fetch
 git reset --hard origin/master
-git merge origin/release
 git checkout -b merge_release_$VERSION
+git merge origin/release
 echo ${VERSION#v}-dev > VERSION
 git add VERSION
 git commit -m "Change version to $(cat VERSION)"
