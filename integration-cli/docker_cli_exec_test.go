@@ -339,7 +339,7 @@ func TestExecTtyWithoutStdin(t *testing.T) {
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			t.Fatal("exec should have failed")
 		} else if !strings.Contains(out, expected) {
-			t.Fatal("exec failed with error %q: expected %q", out, expected)
+			t.Fatalf("exec failed with error %q: expected %q", out, expected)
 		}
 	}()
 

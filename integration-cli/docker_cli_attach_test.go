@@ -122,7 +122,7 @@ func TestAttachTtyWithoutStdin(t *testing.T) {
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			t.Fatal("attach should have failed")
 		} else if !strings.Contains(out, expected) {
-			t.Fatal("attach failed with error %q: expected %q", out, expected)
+			t.Fatalf("attach failed with error %q: expected %q", out, expected)
 		}
 	}()
 
