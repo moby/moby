@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,10 @@ import (
 
 	"github.com/docker/docker/utils"
 )
+
+type tokenResponse struct {
+	Token string `json:"token"`
+}
 
 func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) (token string, err error) {
 	realm, ok := params["realm"]
@@ -57,14 +62,20 @@ func getToken(username, password string, params map[string]string, registryEndpo
 	}
 	defer resp.Body.Close()
 
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent) {
+	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("token auth attempt for registry %s: %s request failed with status: %d %s", registryEndpoint, req.URL, resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
-	token = resp.Header.Get("X-Auth-Token")
-	if token == "" {
-		return "", errors.New("token server did not include a token in the response header")
+	decoder := json.NewDecoder(resp.Body)
+
+	tr := new(tokenResponse)
+	if err = decoder.Decode(tr); err != nil {
+		return "", fmt.Errorf("unable to decode token response: %s", err)
 	}
 
-	return token, nil
+	if tr.Token == "" {
+		return "", errors.New("authorization server did not include a token in the response")
+	}
+
+	return tr.Token, nil
 }
