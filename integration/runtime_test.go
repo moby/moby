@@ -653,7 +653,7 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container2.SetStopped(&execdriver.ExitStatus{0, false})
+	container2.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 }
 
 func TestDefaultContainerName(t *testing.T) {
