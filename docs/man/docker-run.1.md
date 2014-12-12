@@ -266,14 +266,14 @@ outside of a container on the host.
 environment variables.  By default (=*true*), the following environment
 variables will be set:
 
-   **DOCKER_CONTAINER**: The long UUID identifier of the running container.
-   **DOCKER_IMAGE**: The long UUID identifier of the image used for this container.
-   **DOCKER_HOST**: The FQDN of the host on which this container is running.
+   **CONTAINER_ID**: The long UUID identifier of the running container.
+   **CONTAINER_IMAGE**: The long UUID identifier of the image used for this container.
+   **CONTAINER_HOST**: The FQDN of the host on which this container is running.
 
    This information may be used for any purpose within the container.  Note,
 however, that some public registries do not properly secure the images
-themselves; therefore, you should not expose the value of DOCKER_IMAGE
-externally if you are using a public repository if you don't want people
+themselves; therefore, you should not expose the value of CONTAINER_IMAGE
+externally if you are using a public repository and you don't want people
 to download your image.  
 
    If you run a large cluster and aggregate your application error logs,

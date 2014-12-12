@@ -1167,11 +1167,11 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// call, but maybe a good one...
 	if container.Config.StdEnv {
 		stdenv := []string{
-			"DOCKER_CONTAINER=" + container.ID,
-			"DOCKER_IMAGE=" + container.Image,
+			"CONTAINER_ID=" + container.ID,
+			"CONTAINER_IMAGE=" + container.Image,
 		}
 		if hostname, err := os.Hostname(); err == nil {
-			stdenv = append(stdenv, "DOCKER_HOST="+hostname)
+			stdenv = append(stdenv, "CONTAINER_HOST="+hostname)
 		}
 		env = utils.ReplaceOrAppendEnvValues(env, stdenv)
 	}

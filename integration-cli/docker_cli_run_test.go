@@ -780,7 +780,7 @@ func TestRunStdEnvironment(t *testing.T) {
 		iid      string
 	)
 
-	cmd := exec.Command(dockerBinary, "run", "--name", "TestRunStdEnvironment", "busybox", "/bin/sh", "-c", "echo $DOCKER_IMAGE;echo $DOCKER_CONTAINER;echo $DOCKER_HOST")
+	cmd := exec.Command(dockerBinary, "run", "--name", "TestRunStdEnvironment", "busybox", "/bin/sh", "-c", "echo $CONTAINER_IMAGE;echo $CONTAINER_ID;echo $CONTAINER_HOST")
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
