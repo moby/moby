@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -119,4 +122,132 @@ func TestContainerApiGetChanges(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("container REST API - check GET containers/changes")
+}
+
+func TestContainerApiStartVolumeBinds(t *testing.T) {
+	defer deleteAllContainers()
+	name := "testing"
+	config := map[string]interface{}{
+		"Image":   "busybox",
+		"Volumes": map[string]struct{}{"/tmp": {}},
+	}
+
+	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatal(err)
+	}
+
+	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config = map[string]interface{}{
+		"Binds": []string{bindPath + ":/tmp"},
+	}
+	if _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+		t.Fatal(err)
+	}
+
+	pth, err := inspectFieldMap(name, "Volumes", "/tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pth != bindPath {
+		t.Fatalf("expected volume host path to be %s, got %s", bindPath, pth)
+	}
+
+	logDone("container REST API - check volume binds on start")
+}
+
+func TestContainerApiStartVolumesFrom(t *testing.T) {
+	defer deleteAllContainers()
+	volName := "voltst"
+	volPath := "/tmp"
+
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", volName, "-v", volPath, "busybox")); err != nil {
+		t.Fatal(out, err)
+	}
+
+	name := "testing"
+	config := map[string]interface{}{
+		"Image":   "busybox",
+		"Volumes": map[string]struct{}{volPath: {}},
+	}
+
+	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatal(err)
+	}
+
+	config = map[string]interface{}{
+		"VolumesFrom": []string{volName},
+	}
+	if _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+		t.Fatal(err)
+	}
+
+	pth, err := inspectFieldMap(name, "Volumes", volPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pth != pth2 {
+		t.Fatalf("expected volume host path to be %s, got %s", pth, pth2)
+	}
+
+	logDone("container REST API - check VolumesFrom on start")
+}
+
+// Ensure that volumes-from has priority over binds/anything else
+// This is pretty much the same as TestRunApplyVolumesFromBeforeVolumes, except with passing the VolumesFrom and the bind on start
+func TestVolumesFromHasPriority(t *testing.T) {
+	defer deleteAllContainers()
+	volName := "voltst"
+	volPath := "/tmp"
+
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", volName, "-v", volPath, "busybox")); err != nil {
+		t.Fatal(out, err)
+	}
+
+	name := "testing"
+	config := map[string]interface{}{
+		"Image":   "busybox",
+		"Volumes": map[string]struct{}{volPath: {}},
+	}
+
+	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatal(err)
+	}
+
+	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config = map[string]interface{}{
+		"VolumesFrom": []string{volName},
+		"Binds":       []string{bindPath + ":/tmp"},
+	}
+	if _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+		t.Fatal(err)
+	}
+
+	pth, err := inspectFieldMap(name, "Volumes", volPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pth != pth2 {
+		t.Fatalf("expected volume host path to be %s, got %s", pth, pth2)
+	}
+
+	logDone("container REST API - check VolumesFrom has priority")
 }
