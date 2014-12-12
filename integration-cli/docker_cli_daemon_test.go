@@ -66,7 +66,7 @@ func TestDaemonRestartWithVolumesRefs(t *testing.T) {
 	if err := d.Restart(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox"); err != nil {
+	if _, err := d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
 		t.Fatal(err)
 	}
 	if out, err := d.Cmd("rm", "-fv", "volrestarttest2"); err != nil {
