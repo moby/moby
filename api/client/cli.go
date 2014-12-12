@@ -76,7 +76,8 @@ func (cli *DockerCli) Cmd(args ...string) error {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp()
+			cli.CmdHelp()
+			os.Exit(2)
 		}
 		return method(args[1:]...)
 	}
