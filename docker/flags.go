@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 
@@ -17,7 +18,11 @@ var (
 
 func init() {
 	if dockerCertPath == "" {
-		dockerCertPath = filepath.Join(getHomeDir(), ".docker")
+		if currentUser, err := user.Current(); err != nil || currentUser.Uid == "0" {
+			dockerCertPath = "/etc/docker"
+		} else {
+			dockerCertPath = filepath.Join(getHomeDir(), ".docker")
+		}
 	}
 }
 
