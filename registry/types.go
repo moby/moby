@@ -55,14 +55,15 @@ func (av APIVersion) String() string {
 	return apiVersions[av]
 }
 
-var DefaultAPIVersion APIVersion = APIVersion1
 var apiVersions = map[APIVersion]string{
 	1: "v1",
 	2: "v2",
 }
 
+// API Version identifiers.
 const (
-	APIVersion1 = iota + 1
+	APIVersionUnknown = iota
+	APIVersion1
 	APIVersion2
 )
 

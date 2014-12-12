@@ -8,8 +8,10 @@ func TestEndpointParse(t *testing.T) {
 		expected string
 	}{
 		{IndexServerAddress(), IndexServerAddress()},
-		{"http://0.0.0.0:5000", "http://0.0.0.0:5000/v1/"},
-		{"0.0.0.0:5000", "https://0.0.0.0:5000/v1/"},
+		{"http://0.0.0.0:5000/v1/", "http://0.0.0.0:5000/v1/"},
+		{"http://0.0.0.0:5000/v2/", "http://0.0.0.0:5000/v2/"},
+		{"http://0.0.0.0:5000", "http://0.0.0.0:5000/v0/"},
+		{"0.0.0.0:5000", "https://0.0.0.0:5000/v0/"},
 	}
 	for _, td := range testData {
 		e, err := newEndpoint(td.str, false)

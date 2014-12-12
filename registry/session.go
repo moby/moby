@@ -65,7 +65,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 }
 
 func (r *Session) doRequest(req *http.Request) (*http.Response, *http.Client, error) {
-	return doRequest(req, r.jar, r.timeout, r.indexEndpoint.secure)
+	return doRequest(req, r.jar, r.timeout, r.indexEndpoint.IsSecure)
 }
 
 // Retrieve the history of a given image from the Registry.
