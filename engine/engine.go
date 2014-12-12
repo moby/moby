@@ -250,11 +250,3 @@ func (eng *Engine) ParseJob(input string) (*Job, error) {
 	job.Env().Init(&env)
 	return job, nil
 }
-
-func (eng *Engine) Logf(format string, args ...interface{}) (n int, err error) {
-	if !eng.Logging {
-		return 0, nil
-	}
-	prefixedFormat := fmt.Sprintf("[%s] %s\n", eng, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(eng.Stderr, prefixedFormat, args...)
-}

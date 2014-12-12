@@ -1,11 +1,12 @@
 package lxc
 
 import (
+	"github.com/docker/docker/daemon/execdriver"
+	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/libcontainer/label"
+	"os"
 	"strings"
 	"text/template"
-
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/libcontainer/label"
 )
 
 const LxcTemplate = `
@@ -15,6 +16,13 @@ lxc.network.type = veth
 lxc.network.link = {{.Network.Interface.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = {{.Network.Mtu}}
+{{if .Network.Interface.IPAddress}}
+lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefixLen}}
+{{end}}
+{{if .Network.Interface.Gateway}}
+lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
+{{end}}
+lxc.network.flags = up
 {{else if .Network.HostNetworking}}
 lxc.network.type = none
 {{else}}
@@ -70,10 +78,23 @@ lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMo
 lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" ""}} 0 0
 
 {{range $value := .Mounts}}
+{{$createVal := isDirectory $value.Source}}
 {{if $value.Writable}}
-lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,rw 0 0
+lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,rw,create={{$createVal}} 0 0
 {{else}}
-lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,ro 0 0
+lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,ro,create={{$createVal}} 0 0
+{{end}}
+{{end}}
+
+{{if .ProcessConfig.Env}}
+lxc.utsname = {{getHostname .ProcessConfig.Env}}
+{{end}}
+
+{{if .ProcessConfig.Privileged}}
+# No cap values are needed, as lxc is starting in privileged mode
+{{else}}
+{{range $value := keepCapabilities .CapAdd .CapDrop}}
+lxc.cap.keep = {{$value}}
 {{end}}
 {{end}}
 
@@ -117,6 +138,33 @@ func escapeFstabSpaces(field string) string {
 	return strings.Replace(field, " ", "\\040", -1)
 }
 
+func keepCapabilities(adds []string, drops []string) []string {
+	container := nativeTemplate.New()
+	caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
+	var newCaps []string
+	for _, cap := range caps {
+		newCaps = append(newCaps, strings.ToLower(cap))
+	}
+	if err != nil {
+		return []string{}
+	}
+	return newCaps
+}
+
+func isDirectory(source string) string {
+	f, err := os.Stat(source)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "dir"
+		}
+		return ""
+	}
+	if f.IsDir() {
+		return "dir"
+	}
+	return "file"
+}
+
 func getMemorySwap(v *execdriver.Resources) int64 {
 	// By default, MemorySwap is set to twice the size of RAM.
 	// If you want to omit MemorySwap, set it to `-1'.
@@ -137,12 +185,25 @@ func getLabel(c map[string][]string, name string) string {
 	return ""
 }
 
+func getHostname(env []string) string {
+	for _, kv := range env {
+		parts := strings.SplitN(kv, "=", 2)
+		if parts[0] == "HOSTNAME" && len(parts) == 2 {
+			return parts[1]
+		}
+	}
+	return ""
+}
+
 func init() {
 	var err error
 	funcMap := template.FuncMap{
 		"getMemorySwap":     getMemorySwap,
 		"escapeFstabSpaces": escapeFstabSpaces,
 		"formatMountLabel":  label.FormatMountLabel,
+		"isDirectory":       isDirectory,
+		"keepCapabilities":  keepCapabilities,
+		"getHostname":       getHostname,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
 	if err != nil {

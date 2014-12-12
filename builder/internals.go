@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -18,17 +19,17 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
+	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -217,7 +218,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	origPath = strings.TrimPrefix(origPath, "./")
 
 	// In the remote/URL case, download it and gen its hashcode
-	if utils.IsURL(origPath) {
+	if urlutil.IsURL(origPath) {
 		if !allowRemote {
 			return fmt.Errorf("Source can't be a URL for %s", cmdName)
 		}
@@ -257,8 +258,21 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		fmt.Fprintf(b.OutStream, "\n")
 		tmpFile.Close()
 
-		// Remove the mtime of the newly created tmp file
-		if err := system.UtimesNano(tmpFileName, make([]syscall.Timespec, 2)); err != nil {
+		// Set the mtime to the Last-Modified header value if present
+		// Otherwise just remove atime and mtime
+		times := make([]syscall.Timespec, 2)
+
+		lastMod := resp.Header.Get("Last-Modified")
+		if lastMod != "" {
+			mTime, err := http.ParseTime(lastMod)
+			// If we can't parse it then just let it default to 'zero'
+			// otherwise use the parsed time value
+			if err == nil {
+				times[1] = syscall.NsecToTimespec(mTime.UnixNano())
+			}
+		}
+
+		if err := system.UtimesNano(tmpFileName, times); err != nil {
 			return err
 		}
 
@@ -514,25 +528,19 @@ func (b *Builder) create() (*daemon.Container, error) {
 }
 
 func (b *Builder) run(c *daemon.Container) error {
-	var errCh chan error
-	if b.Verbose {
-		errCh = promise.Go(func() error {
-			// FIXME: call the 'attach' job so that daemon.Attach can be made private
-			//
-			// FIXME (LK4D4): Also, maybe makes sense to call "logs" job, it is like attach
-			// but without hijacking for stdin. Also, with attach there can be race
-			// condition because of some output already was printed before it.
-			return <-b.Daemon.Attach(&c.StreamConfig, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, nil, nil, b.OutStream, b.ErrStream)
-		})
-	}
-
 	//start the container
 	if err := c.Start(); err != nil {
 		return err
 	}
 
-	if errCh != nil {
-		if err := <-errCh; err != nil {
+	if b.Verbose {
+		logsJob := b.Engine.Job("logs", c.ID)
+		logsJob.Setenv("follow", "1")
+		logsJob.Setenv("stdout", "1")
+		logsJob.Setenv("stderr", "1")
+		logsJob.Stdout.Add(b.OutStream)
+		logsJob.Stderr.Set(b.ErrStream)
+		if err := logsJob.Run(); err != nil {
 			return err
 		}
 	}
@@ -641,37 +649,45 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		resPath = path.Join(destPath, path.Base(origPath))
 	}
 
-	return fixPermissions(resPath, 0, 0)
+	return fixPermissions(origPath, resPath, 0, 0, destExists)
 }
 
-func copyAsDirectory(source, destination string, destinationExists bool) error {
+func copyAsDirectory(source, destination string, destExisted bool) error {
 	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 		return err
 	}
+	return fixPermissions(source, destination, 0, 0, destExisted)
+}
 
-	if destinationExists {
-		files, err := ioutil.ReadDir(source)
+func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
+	// If the destination didn't already exist, or the destination isn't a
+	// directory, then we should Lchown the destination. Otherwise, we shouldn't
+	// Lchown the destination.
+	destStat, err := os.Stat(destination)
+	if err != nil {
+		// This should *never* be reached, because the destination must've already
+		// been created while untar-ing the context.
+		return err
+	}
+	doChownDestination := !destExisted || !destStat.IsDir()
+
+	// We Walk on the source rather than on the destination because we don't
+	// want to change permissions on things we haven't created or modified.
+	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
+		// Do not alter the walk root iff. it existed before, as it doesn't fall under
+		// the domain of "things we should chown".
+		if !doChownDestination && (source == fullpath) {
+			return nil
+		}
+
+		// Path is prefixed by source: substitute with destination instead.
+		cleaned, err := filepath.Rel(source, fullpath)
 		if err != nil {
 			return err
 		}
 
-		for _, file := range files {
-			if err := fixPermissions(filepath.Join(destination, file.Name()), 0, 0); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	return fixPermissions(destination, 0, 0)
-}
-
-func fixPermissions(destination string, uid, gid int) error {
-	return filepath.Walk(destination, func(path string, info os.FileInfo, err error) error {
-		if err := os.Lchown(path, uid, gid); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
+		fullpath = path.Join(destination, cleaned)
+		return os.Lchown(fullpath, uid, gid)
 	})
 }
 

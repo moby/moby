@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/log"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
@@ -74,7 +74,7 @@ func (s *TagStore) CmdSet(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
-	if err := s.graph.Register(img, imgJSON, layer); err != nil {
+	if err := s.graph.Register(img, layer); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
@@ -150,6 +150,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		out.Set("Os", image.OS)
 		out.SetInt64("Size", image.Size)
 		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+		out.Set("Checksum", image.Checksum)
 		if _, err = out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}

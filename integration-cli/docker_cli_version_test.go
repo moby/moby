@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -10,11 +9,9 @@ import (
 // ensure docker version works
 func TestVersionEnsureSucceeds(t *testing.T) {
 	versionCmd := exec.Command(dockerBinary, "version")
-	out, exitCode, err := runCommandWithOutput(versionCmd)
-	errorOut(err, t, fmt.Sprintf("encountered error while running docker version: %v", err))
-
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to execute docker version")
+	out, _, err := runCommandWithOutput(versionCmd)
+	if err != nil {
+		t.Fatalf("failed to execute docker version: %s, %v", out, err)
 	}
 
 	stringsToCheck := []string{

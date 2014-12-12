@@ -9,12 +9,12 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -24,6 +24,7 @@ type execConfig struct {
 	sync.Mutex
 	ID            string
 	Running       bool
+	ExitCode      int
 	ProcessConfig execdriver.ProcessConfig
 	StreamConfig
 	OpenStdin  bool
@@ -97,7 +98,9 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 	if !container.IsRunning() {
 		return nil, fmt.Errorf("Container %s is not running", name)
 	}
-
+	if container.IsPaused() {
+		return nil, fmt.Errorf("Container %s is paused, unpause the container before exec", name)
+	}
 	return container, nil
 }
 
@@ -117,13 +120,14 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	config := runconfig.ExecConfigFromJob(job)
+	config, err := runconfig.ExecConfigFromJob(job)
+	if err != nil {
+		return job.Error(err)
+	}
 
 	entrypoint, args := d.getEntrypointAndArgs(nil, config.Cmd)
 
 	processConfig := execdriver.ProcessConfig{
-		Privileged: config.Privileged,
-		User:       config.User,
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
@@ -155,7 +159,6 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
-		cStdinCloser     io.Closer
 		execName         = job.Args[0]
 	)
 
@@ -183,10 +186,10 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
+			defer log.Debugf("Closing buffered stdin pipe")
 			io.Copy(w, job.Stdin)
 		}()
 		cStdin = r
-		cStdinCloser = job.Stdin
 	}
 	if execConfig.OpenStdout {
 		cStdout = job.Stdout
@@ -204,12 +207,13 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		execConfig.StreamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 
-	attachErr := d.Attach(&execConfig.StreamConfig, execConfig.OpenStdin, false, execConfig.ProcessConfig.Tty, cStdin, cStdinCloser, cStdout, cStderr)
+	attachErr := d.attach(&execConfig.StreamConfig, execConfig.OpenStdin, true, execConfig.ProcessConfig.Tty, cStdin, cStdout, cStderr)
 
 	execErr := make(chan error)
 
-	// Remove exec from daemon and container.
-	defer d.unregisterExecCommand(execConfig)
+	// Note, the execConfig data will be removed when the container
+	// itself is deleted.  This allows us to query it (for things like
+	// the exitStatus) even after the cmd is done running.
 
 	go func() {
 		err := container.Exec(execConfig)
@@ -232,7 +236,17 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 }
 
 func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	return d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
+	exitStatus, err := d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
+
+	// On err, make sure we don't leave ExitCode at zero
+	if err != nil && exitStatus == 0 {
+		exitStatus = 128
+	}
+
+	execConfig.ExitCode = exitStatus
+	execConfig.Running = false
+
+	return exitStatus, err
 }
 
 func (container *Container) Exec(execConfig *execConfig) error {

@@ -1,8 +1,10 @@
-# Generate AUTHORS: hack/generate-authors.sh
+# Generate AUTHORS: project/generate-authors.sh
 
 # Tip for finding duplicates (besides scanning the output of AUTHORS for name
 # duplicates that aren't also email duplicates): scan the output of:
 #   git log --format='%aE - %aN' | sort -uf
+#
+# For explanation on this file format: man git-shortlog
 
 <charles.hooper@dotcloud.com> <chooper@plumata.com>
 <daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
@@ -29,6 +31,7 @@ Andy Smith <github@anarkystic.com>
 <victor.vieux@docker.com> <dev@vvieux.com>
 <victor.vieux@docker.com> <victor@docker.com>
 <victor.vieux@docker.com> <vieux@docker.com>
+<victor.vieux@docker.com> <victorvieux@gmail.com>
 <dominik@honnef.co> <dominikh@fork-bomb.org>
 <ehanchrow@ine.com> <eric.hanchrow@gmail.com>
 Walter Stanish <walter@pratyeka.org>
@@ -54,6 +57,7 @@ Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
 <proppy@google.com> <proppy@aminche.com>
 <michael@docker.com> <michael@crosbymichael.com>
 <michael@docker.com> <crosby.michael@gmail.com>
+<michael@docker.com> <crosbymichael@gmail.com>
 <github@developersupport.net> <github@metaliveblog.com> 
 <brandon@ifup.org> <brandon@ifup.co>
 <dano@spotify.com> <daniel.norberg@gmail.com>
@@ -63,10 +67,13 @@ Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
 <sjoerd-github@linuxonly.nl> <sjoerd@byte.nl>
 <solomon@docker.com> <solomon.hykes@dotcloud.com>
 <solomon@docker.com> <solomon@dotcloud.com>
+<solomon@docker.com> <s@docker.com>
 Sven Dowideit <SvenDowideit@home.org.au>
 Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@fosiki.com>
 Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@docker.com>
 Sven Dowideit <SvenDowideit@home.org.au> <¨SvenDowideit@home.org.au¨>
+Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@users.noreply.github.com>
+Sven Dowideit <SvenDowideit@home.org.au> <sven@t440s.home.gateway>
 unclejack <unclejacksons@gmail.com> <unclejack@users.noreply.github.com>
 <alexl@redhat.com> <alexander.larsson@gmail.com>
 Alexandr Morozov <lk4d4math@gmail.com>
@@ -97,3 +104,24 @@ Matthew Heon <mheon@redhat.com> <mheon@mheonlaptop.redhat.com>
 <andrew.weiss@outlook.com> <andrew.weiss@microsoft.com>
 Francisco Carriedo <fcarriedo@gmail.com>
 <julienbordellier@gmail.com> <git@julienbordellier.com>
+<ahmetb@microsoft.com> <ahmetalpbalkan@gmail.com>
+<lk4d4@docker.com> <lk4d4math@gmail.com>
+<arnaud.porterie@docker.com> <icecrime@gmail.com>
+<baloo@gandi.net> <superbaloo+registrations.github@superbaloo.net>
+Brian Goff <cpuguy83@gmail.com>
+<cpuguy83@gmail.com> <bgoff@cpuguy83-mbp.home>
+<ewindisch@docker.com> <eric@windisch.us>
+<frank.rosquin+github@gmail.com> <frank.rosquin@gmail.com>
+Hollie Teal <hollie@docker.com>
+<hollie@docker.com> <hollie.teal@docker.com>
+<hollie@docker.com> <hollietealok@users.noreply.github.com>
+<huu@prismskylabs.com> <whoshuu@gmail.com>
+Jessica Frazelle <jess@docker.com> Jessie Frazelle <jfrazelle@users.noreply.github.com>
+<jess@docker.com> <jfrazelle@users.noreply.github.com>
+<konrad.wilhelm.kleine@gmail.com> <kwk@users.noreply.github.com>
+<tintypemolly@gmail.com> <tintypemolly@Ohui-MacBook-Pro.local>
+<estesp@linux.vnet.ibm.com> <estesp@gmail.com>
+<github@gone.nl> <thaJeztah@users.noreply.github.com>
+Thomas LEVEIL <thomasleveil@gmail.com> Thomas LÉVEIL <thomasleveil@users.noreply.github.com>
+<oi@truffles.me.uk> <timruffles@googlemail.com>
+<Vincent.Bernat@exoscale.ch> <bernat@luffy.cx>

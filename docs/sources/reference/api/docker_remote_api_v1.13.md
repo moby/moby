@@ -407,7 +407,7 @@ Start the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain
 
 Json Parameters:
@@ -596,7 +596,7 @@ Status Codes:
     `STREAM_TYPE` can be:
 
 -   0: stdin (will be written on stdout)
--   1: stdou
+-   1: stdout
 -   2: stderr
 
     `SIZE1, SIZE2, SIZE3, SIZE4` are the 4 bytes of
@@ -1063,7 +1063,7 @@ Query Parameters:
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 -   **rm** - remove intermediate containers after a successful build (default behavior)
--   **forcerm - always remove intermediate containers (includes rm)
+-   **forcerm** - always remove intermediate containers (includes rm)
 
     Request Headers:
 
@@ -1197,7 +1197,7 @@ Create a new image from a container's changes
 
 **Example request**:
 
-        POST /commit?container=44c004db4b17&m=message&repo=myrepo HTTP/1.1
+        POST /commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
         Content-Type: application/json
 
         {
@@ -1245,7 +1245,7 @@ Query Parameters:
 -   **container** – source container
 -   **repo** – repository
 -   **tag** – tag
--   **m** – commit message
+-   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
     <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
 

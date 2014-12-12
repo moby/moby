@@ -366,8 +366,19 @@ body {
   text-decoration: none;
   color: #eeeeee;
 }
+#footer .social {
+  width: 100px;
+  float: left;
+}
 #footer .social li a {
   padding-left: 28px;
+}
+#footer .social li span {
+  float: left;
+  width: 24px;
+  height: 25px;
+  position: absolute;
+  margin: 1px 0px 2px -28px;
 }
 #footer .social .blog {
   background: url(../img/footer/docker-blog-24.png) no-repeat;
@@ -392,6 +403,23 @@ body {
 #footer .social .slideshare {
   background: url(../img/footer/slideshare-24.png) no-repeat;
   background-position: 0px -3px;
+}
+#footer .social .linkedin {
+  background: url(../img/footer/sprites-small_360.png) no-repeat;
+  background-position: -168px -3px;
+}
+#footer .social .github {
+  background: url(../img/footer/sprites-small_360.png) no-repeat;
+  background-position: -48px -3px;
+}
+#footer .social .reddit {
+  background: url(../img/footer/sprites-small_360.png) no-repeat;
+  background-position: -192px -3px;
+}
+#footer .social .angellist {
+  background: url(../img/footer/angellist-white.svg) no-repeat;
+  background-position: 5px;
+  height: 20px;
 }
 /* Social Links */
 @media only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min--moz-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (min-device-pixel-ratio: 2), only screen and (min-resolution: 192dpi), only screen and (min-resolution: 2dppx) {

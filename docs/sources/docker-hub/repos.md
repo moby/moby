@@ -1,6 +1,6 @@
 page_title: Repositories and Images on Docker Hub
 page_description: Repositories and Images on Docker Hub
-page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation
+page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, webhooks, docs, documentation
 
 # Repositories and Images on Docker Hub
 
@@ -110,35 +110,80 @@ similar to the example shown below.
 
 *Example webhook JSON payload:*
 
-    {
-       "push_data":{
-          "pushed_at":1385141110,
-          "images":[
-             "imagehash1",
-             "imagehash2",
-             "imagehash3"
-          ],
-          "pusher":"username"
-       },
-       "repository":{
-          "status":"Active",
-          "description":"my docker repo that does cool things",
-          "is_automated":false,
-          "full_description":"This is my full description",
-          "repo_url":"https://registry.hub.docker.com/u/username/reponame/",
-          "owner":"username",
-          "is_official":false,
-          "is_private":false,
-          "name":"reponame",
-          "namespace":"username",
-          "star_count":1,
-          "comment_count":1,
-          "date_created":1370174400,
-          "dockerfile":"my full dockerfile is listed here",
-          "repo_name":"username/reponame"
-       }
-    }
+```
+{
+  "callback_url": "https://registry.hub.docker.com/u/svendowideit/busybox/hook/2141bc0cdec4hebec411i4c1g40242eg110020/",
+  "push_data": {
+    "images": [],
+    "pushed_at": 1.417566822e+09,
+    "pusher": "svendowideit"
+  },
+  "repository": {
+    "comment_count": 0,
+    "date_created": 1.417566665e+09,
+    "description": "",
+    "full_description": "webhook triggered from a 'docker push'",
+    "is_official": false,
+    "is_private": false,
+    "is_trusted": false,
+    "name": "busybox",
+    "namespace": "svendowideit",
+    "owner": "svendowideit",
+    "repo_name": "svendowideit/busybox",
+    "repo_url": "https://registry.hub.docker.com/u/svendowideit/busybox/",
+    "star_count": 0,
+    "status": "Active"
+}
+```
 
 Webhooks allow you to notify people, services and other applications of
-new updates to your images and repositories.
+new updates to your images and repositories. To get started adding webhooks,
+go to the desired repo in the Hub, and click "Webhooks" under the "Settings"
+box.
 
+### Webhook chains
+
+Webhook chains allow you to chain calls to multiple services. For example,
+you can use this to trigger a deployment of your container only after
+it has been successfully tested, then update a separate Changelog once the
+deployment is complete.
+After clicking the "Add webhook" button, simply add as many URLs as necessary
+in your chain.
+
+The first webhook in a chain will be called after a successful push. Subsequent
+URLs will be contacted after the callback has been validated.
+
+#### Validating a callback
+
+In order to validate a callback in a webhook chain, you need to
+
+1. Retrieve the `callback_url` value in the request's JSON payload.
+1. Send a POST request to this URL containing a valid JSON body.
+
+> **Note**: A chain request will only be considered complete once the last
+> callback has been validated.
+
+To help you debug or simply view the results of your webhook(s),
+view the "History" of the webhook available on its settings page.
+
+#### Callback JSON data
+
+The following parameters are recognized in callback data:
+
+* `state` (required): Accepted values are `success`, `failure` and `error`.
+  If the state isn't `success`, the webhook chain will be interrupted.
+* `description`: A string containing miscellaneous information that will be
+  available on the Docker Hub. Maximum 255 characters.
+* `context`: A string containing the context of the operation. Can be retrieved
+  from the Docker Hub. Maximum 100 characters.
+* `target_url`: The URL where the results of the operation can be found. Can be
+  retrieved on the Docker Hub.
+
+*Example callback payload:*
+
+    {
+      "state": "success",
+      "description": "387 tests PASSED",
+      "context": "Continuous integration by Acme CI",
+      "target_url": "http://ci.acme.com/results/afd339c1c3d27"
+    }

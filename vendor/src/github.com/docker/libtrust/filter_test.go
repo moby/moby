@@ -27,6 +27,8 @@ func TestFilter(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// we use both []interface{} and []string here because jwt uses
+		// []interface{} format, while PEM uses []string
 		switch {
 		case i == 0:
 			// Don't add entries for this key, key 0.
@@ -36,10 +38,10 @@ func TestFilter(t *testing.T) {
 			key.AddExtendedField("hosts", []interface{}{"*.even.example.com"})
 		case i == 7:
 			// Should catch only the last key, and make it match any hostname.
-			key.AddExtendedField("hosts", []interface{}{"*"})
+			key.AddExtendedField("hosts", []string{"*"})
 		default:
 			// should catch keys 1, 3, 5.
-			key.AddExtendedField("hosts", []interface{}{"*.example.com"})
+			key.AddExtendedField("hosts", []string{"*.example.com"})
 		}
 
 		keys = append(keys, key)

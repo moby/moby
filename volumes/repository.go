@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -166,9 +166,6 @@ func (r *Repository) Delete(path string) error {
 		return fmt.Errorf("Volume %s does not exist", path)
 	}
 
-	if volume.IsBindMount {
-		return fmt.Errorf("Volume %s is a bind-mount and cannot be removed", volume.Path)
-	}
 	containers := volume.Containers()
 	if len(containers) > 0 {
 		return fmt.Errorf("Volume %s is being used and cannot be removed: used by containers %s", volume.Path, containers)
@@ -176,6 +173,10 @@ func (r *Repository) Delete(path string) error {
 
 	if err := os.RemoveAll(volume.configPath); err != nil {
 		return err
+	}
+
+	if volume.IsBindMount {
+		return nil
 	}
 
 	if err := r.driver.Remove(volume.ID); err != nil {

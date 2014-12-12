@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.0 (2014-12-11)
+
+#### Notable Features since 1.3.0
++ Set key=value labels to the daemon (displayed in `docker info`), applied with
+  new `-label` daemon flag
++ Add support for `ENV` in Dockerfile of the form: 
+  `ENV name=value name2=value2...`
++ New Overlayfs Storage Driver
++ `docker info` now returns an `ID` and `Name` field
++ Filter events by event name, container, or image
++ `docker cp` now supports copying from container volumes
+- Fixed `docker tag`, so it honors `--force` when overriding a tag for existing
+  image.
+
 ## 1.3.3 (2014-12-11)
 
 #### Security
@@ -46,7 +60,7 @@
 #### Builder
 - Fix escaping `$` for environment variables
 - Fix issue with lowercase `onbuild` Dockerfile instruction
-- Restrict envrionment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`, `EXPOSE`, `VOLUME` and `USER`
+- Restrict environment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`, `EXPOSE`, `VOLUME` and `USER`
 
 ## 1.3.0 (2014-10-14)
 

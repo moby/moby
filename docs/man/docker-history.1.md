@@ -8,7 +8,7 @@ docker-history - Show the history of an image
 **docker history**
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
- IMAGE
+IMAGE
 
 # DESCRIPTION
 

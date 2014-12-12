@@ -23,7 +23,6 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-docker-version	0.6.1
 FROM	ubuntu:14.04
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 

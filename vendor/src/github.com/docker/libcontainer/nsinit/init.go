@@ -8,7 +8,6 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/docker/libcontainer/namespaces"
-	"github.com/docker/libcontainer/syncpipe"
 )
 
 var (
@@ -41,12 +40,8 @@ func initAction(context *cli.Context) {
 		log.Fatal(err)
 	}
 
-	syncPipe, err := syncpipe.NewSyncPipeFromFd(0, uintptr(pipeFd))
-	if err != nil {
-		log.Fatalf("unable to create sync pipe: %s", err)
-	}
-
-	if err := namespaces.Init(container, rootfs, console, syncPipe, []string(context.Args())); err != nil {
+	pipe := os.NewFile(uintptr(pipeFd), "pipe")
+	if err := namespaces.Init(container, rootfs, console, pipe, []string(context.Args())); err != nil {
 		log.Fatalf("unable to initialize for container: %s", err)
 	}
 }

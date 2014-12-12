@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -13,7 +12,9 @@ func TestRmiWithContainerFails(t *testing.T) {
 	// create a container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to create a container: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to create a container: %s, %v", out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
@@ -28,7 +29,7 @@ func TestRmiWithContainerFails(t *testing.T) {
 	}
 
 	// make sure it didn't delete the busybox name
-	images, _, _ := cmd(t, "images")
+	images, _, _ := dockerCmd(t, "images")
 	if !strings.Contains(images, "busybox") {
 		t.Fatalf("The name 'busybox' should not have been removed from images: %q", images)
 	}
@@ -39,41 +40,41 @@ func TestRmiWithContainerFails(t *testing.T) {
 }
 
 func TestRmiTag(t *testing.T) {
-	imagesBefore, _, _ := cmd(t, "images", "-a")
-	cmd(t, "tag", "busybox", "utest:tag1")
-	cmd(t, "tag", "busybox", "utest/docker:tag2")
-	cmd(t, "tag", "busybox", "utest:5000/docker:tag3")
+	imagesBefore, _, _ := dockerCmd(t, "images", "-a")
+	dockerCmd(t, "tag", "busybox", "utest:tag1")
+	dockerCmd(t, "tag", "busybox", "utest/docker:tag2")
+	dockerCmd(t, "tag", "busybox", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+3 {
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+3 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 	}
-	cmd(t, "rmi", "utest/docker:tag2")
+	dockerCmd(t, "rmi", "utest/docker:tag2")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+2 {
-			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
-		}
-
-	}
-	cmd(t, "rmi", "utest:5000/docker:tag3")
-	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+1 {
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+2 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
 	}
-	cmd(t, "rmi", "utest:tag1")
+	dockerCmd(t, "rmi", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _, _ := cmd(t, "images", "-a")
-		if nLines(imagesAfter) != nLines(imagesBefore)+0 {
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+1 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 
 	}
-	logDone("tag,rmi- tagging the same images multiple times then removing tags")
+	dockerCmd(t, "rmi", "utest:tag1")
+	{
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+0 {
+			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
+		}
+
+	}
+	logDone("rmi - tag,rmi- tagging the same images multiple times then removing tags")
 }
 
 func TestRmiTagWithExistingContainers(t *testing.T) {
@@ -97,4 +98,24 @@ func TestRmiTagWithExistingContainers(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("rmi - delete tag with existing containers")
+}
+
+func TestRmiForceWithExistingContainers(t *testing.T) {
+	image := "busybox-clone"
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "/docker-busybox")); err != nil {
+		t.Fatalf("Could not build %s: %s, %v", image, out, err)
+	}
+
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "test-force-rmi", image, "/bin/true")); err != nil {
+		t.Fatalf("Could not run container: %s, %v", out, err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rmi", "-f", image))
+	if err != nil {
+		t.Fatalf("Could not remove image %s:  %s, %v", image, out, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("rmi - force delete with existing containers")
 }

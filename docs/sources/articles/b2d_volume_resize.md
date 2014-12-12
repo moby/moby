@@ -28,7 +28,7 @@ it.
 
 Using the command line VirtualBox tools, clone the VMDK image to a VDI image:
 
-    $ vboxmanage clonehd /full/path/to/boot2docker-hd.vmdk /full/path/to/<newVDIimage>.vdi -—format VDI -—variant Standard
+    $ vboxmanage clonehd /full/path/to/boot2docker-hd.vmdk /full/path/to/<newVDIimage>.vdi --format VDI --variant Standard
 
 ## 3. Resize the VDI volume
 
@@ -36,7 +36,7 @@ Choose a size that will be appropriate for your needs. If you’re spinning up a
 lot of containers, or your containers are particularly large, larger will be 
 better:
 
-    $ vboxmanage modifyhd /full/path/to/<newVDIimage>.vdi —-resize <size in MB>
+    $ vboxmanage modifyhd /full/path/to/<newVDIimage>.vdi --resize <size in MB>
 
 ## 4. Download a disk partitioning tool ISO 
 

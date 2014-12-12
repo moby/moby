@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -96,13 +95,6 @@ func runCommand(cmd *exec.Cmd) (exitCode int, err error) {
 	return
 }
 
-func startCommand(cmd *exec.Cmd) (exitCode int, err error) {
-	exitCode = 0
-	err = cmd.Start()
-	exitCode = processExitCode(err)
-	return
-}
-
 func logDone(message string) {
 	fmt.Printf("[PASSED]: %s\n", message)
 }
@@ -113,22 +105,6 @@ func stripTrailingCharacters(target string) string {
 	return target
 }
 
-func errorOut(err error, t *testing.T, message string) {
-	if err != nil {
-		t.Fatal(message)
-	}
-}
-
-func errorOutOnNonNilError(err error, t *testing.T, message string) {
-	if err == nil {
-		t.Fatalf(message)
-	}
-}
-
-func nLines(s string) int {
-	return strings.Count(s, "\n")
-}
-
 func unmarshalJSON(data []byte, result interface{}) error {
 	err := json.Unmarshal(data, result)
 	if err != nil {
@@ -136,10 +112,6 @@ func unmarshalJSON(data []byte, result interface{}) error {
 	}
 
 	return nil
-}
-
-func deepEqual(expected interface{}, result interface{}) bool {
-	return reflect.DeepEqual(result, expected)
 }
 
 func convertSliceOfStringsToMap(input []string) map[string]struct{} {
@@ -265,4 +237,27 @@ func makeRandomString(n int) string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
+}
+
+// Reads chunkSize bytes from reader after every interval.
+// Returns total read bytes.
+func consumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
+	buffer := make([]byte, chunkSize)
+	for {
+		select {
+		case <-stop:
+			return
+		default:
+			var readBytes int
+			readBytes, err = reader.Read(buffer)
+			n += readBytes
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				return
+			}
+			time.Sleep(interval)
+		}
+	}
 }

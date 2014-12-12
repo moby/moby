@@ -1,3 +1,5 @@
+// +build linux
+
 package graph
 
 import (
@@ -7,11 +9,11 @@ import (
 	"os"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -124,7 +126,7 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 				}
 			}
 		}
-		if err := s.graph.Register(img, imageJson, layer); err != nil {
+		if err := s.graph.Register(img, layer); err != nil {
 			return err
 		}
 	}

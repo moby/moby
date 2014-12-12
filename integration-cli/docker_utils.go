@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -41,10 +43,10 @@ func NewDaemon(t *testing.T) *Daemon {
 		t.Fatal("Please set the DEST environment variable")
 	}
 
-	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().Unix()))
+	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().UnixNano()%100000000))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
-		t.Fatalf("Could not make '%s' an absolute path: %v", dir, err)
+		t.Fatalf("Could not make %q an absolute path: %v", dir, err)
 	}
 
 	if err := os.MkdirAll(filepath.Join(daemonFolder, "graph"), 0600); err != nil {
@@ -69,10 +71,23 @@ func (d *Daemon) Start(arg ...string) error {
 
 	args := []string{
 		"--host", d.sock(),
-		"--daemon", "--debug",
+		"--daemon",
 		"--graph", fmt.Sprintf("%s/graph", d.folder),
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 	}
+
+	// If we don't explicitly set the log-level or debug flag(-D) then
+	// turn on debug mode
+	foundIt := false
+	for _, a := range arg {
+		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") {
+			foundIt = true
+		}
+	}
+	if !foundIt {
+		args = append(args, "--debug")
+	}
+
 	if d.storageDriver != "" {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
@@ -83,7 +98,7 @@ func (d *Daemon) Start(arg ...string) error {
 	args = append(args, arg...)
 	d.cmd = exec.Command(dockerBinary, args...)
 
-	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
 		d.t.Fatalf("Could not create %s/docker.log: %v", d.folder, err)
 	}
@@ -107,8 +122,13 @@ func (d *Daemon) Start(arg ...string) error {
 
 	tick := time.Tick(500 * time.Millisecond)
 	// make sure daemon is ready to receive requests
+	startTime := time.Now().Unix()
 	for {
 		d.t.Log("waiting for daemon to start")
+		if time.Now().Unix()-startTime > 5 {
+			// After 5 seconds, give up
+			return errors.New("Daemon exited and never started")
+		}
 		select {
 		case <-time.After(2 * time.Second):
 			return errors.New("timeout: daemon does not respond")
@@ -231,7 +251,7 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
-func sockRequest(method, endpoint string) ([]byte, error) {
+func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
 	// FIX: the path to sock should not be hardcoded
 	sock := filepath.Join("/", "var", "run", "docker.sock")
 	c, err := net.DialTimeout("unix", sock, time.Duration(10*time.Second))
@@ -242,7 +262,12 @@ func sockRequest(method, endpoint string) ([]byte, error) {
 	client := httputil.NewClientConn(c, nil)
 	defer client.Close()
 
-	req, err := http.NewRequest(method, endpoint, nil)
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(method, endpoint, jsonData)
 	req.Header.Set("Content-Type", "application/json")
 	if err != nil {
 		return nil, fmt.Errorf("could not create new request: %v", err)
@@ -254,7 +279,8 @@ func sockRequest(method, endpoint string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received status != 200 OK: %s", resp.Status)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
 	}
 
 	return ioutil.ReadAll(resp.Body)
@@ -302,8 +328,51 @@ func deleteAllContainers() error {
 	return nil
 }
 
+func getPausedContainers() (string, error) {
+	getPausedContainersCmd := exec.Command(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
+	out, exitCode, err := runCommandWithOutput(getPausedContainersCmd)
+	if exitCode != 0 && err == nil {
+		err = fmt.Errorf("failed to get a list of paused containers: %v\n", out)
+	}
+
+	return out, err
+}
+
+func unpauseContainer(container string) error {
+	unpauseCmd := exec.Command(dockerBinary, "unpause", container)
+	exitCode, err := runCommand(unpauseCmd)
+	if exitCode != 0 && err == nil {
+		err = fmt.Errorf("failed to unpause container")
+	}
+
+	return nil
+}
+
+func unpauseAllContainers() error {
+	containers, err := getPausedContainers()
+	if err != nil {
+		fmt.Println(containers)
+		return err
+	}
+
+	containers = strings.Replace(containers, "\n", " ", -1)
+	containers = strings.Trim(containers, " ")
+	containerList := strings.Split(containers, " ")
+
+	for _, value := range containerList {
+		if err = unpauseContainer(value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func deleteImages(images ...string) error {
-	rmiCmd := exec.Command(dockerBinary, "rmi", strings.Join(images, " "))
+	args := make([]string, 1, 2)
+	args[0] = "rmi"
+	args = append(args, images...)
+	rmiCmd := exec.Command(dockerBinary, args...)
 	exitCode, err := runCommand(rmiCmd)
 	// set error manually if not set
 	if exitCode != 0 && err == nil {
@@ -317,7 +386,7 @@ func imageExists(image string) error {
 	inspectCmd := exec.Command(dockerBinary, "inspect", image)
 	exitCode, err := runCommand(inspectCmd)
 	if exitCode != 0 && err == nil {
-		err = fmt.Errorf("couldn't find image '%s'", image)
+		err = fmt.Errorf("couldn't find image %q", image)
 	}
 	return err
 }
@@ -328,20 +397,17 @@ func pullImageIfNotExist(image string) (err error) {
 		_, exitCode, err := runCommandWithOutput(pullCmd)
 
 		if err != nil || exitCode != 0 {
-			err = fmt.Errorf("image '%s' wasn't found locally and it couldn't be pulled: %s", image, err)
+			err = fmt.Errorf("image %q wasn't found locally and it couldn't be pulled: %s", image, err)
 		}
 	}
 	return
 }
 
-// deprecated, use dockerCmd instead
-func cmd(t *testing.T, args ...string) (string, int, error) {
-	return dockerCmd(t, args...)
-}
-
 func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	errorOut(err, t, fmt.Sprintf("'%s' failed with errors: %v (%v)", strings.Join(args, " "), err, out))
+	if err != nil {
+		t.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
+	}
 	return out, status, err
 }
 
@@ -349,7 +415,7 @@ func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
 	if err != nil {
-		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -360,7 +426,7 @@ func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, err
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutput(dockerCommand)
 	if err != nil {
-		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -371,7 +437,7 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutputAndTimeout(dockerCommand, timeout)
 	if err != nil {
-		return out, status, fmt.Errorf("'%s' failed with errors: %v : %q)", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -531,7 +597,7 @@ func getContainerState(t *testing.T, id string) (int, bool, error) {
 	)
 	out, exitCode, err := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
 	if err != nil || exitCode != 0 {
-		return 0, false, fmt.Errorf("'%s' doesn't exist: %s", id, err)
+		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, err)
 	}
 
 	out = strings.Trim(out, "\n")
@@ -568,6 +634,25 @@ func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, 
 		return "", out, err
 	}
 	return id, out, nil
+}
+
+func buildImageWithStdoutStderr(name, dockerfile string, useCache bool) (string, string, string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, "-")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Stdin = strings.NewReader(dockerfile)
+	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+	}
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", stdout, stderr, err
+	}
+	return id, stdout, stderr, nil
 }
 
 func buildImage(name, dockerfile string, useCache bool) (string, error) {
@@ -711,4 +796,37 @@ func readFile(src string, t *testing.T) (content string) {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+func containerStorageFile(containerId, basename string) string {
+	return filepath.Join("/var/lib/docker/containers", containerId, basename)
+}
+
+// docker commands that use this function must be run with the '-d' switch.
+func runCommandAndReadContainerFile(filename string, cmd *exec.Cmd) ([]byte, error) {
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%v: %q", err, out)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	contID := strings.TrimSpace(out)
+
+	return readContainerFile(contID, filename)
+}
+
+func readContainerFile(containerId, filename string) ([]byte, error) {
+	f, err := os.Open(containerStorageFile(containerId, filename))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return content, nil
 }

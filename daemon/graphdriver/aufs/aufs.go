@@ -30,10 +30,10 @@ import (
 	"sync"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/log"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
@@ -99,7 +99,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if err := graphdriver.MakePrivate(root); err != nil {
+	if err := mountpk.MakePrivate(root); err != nil {
 		return nil, err
 	}
 
@@ -301,6 +301,7 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression: archive.Uncompressed,
+		Excludes:    []string{".wh..wh.*"},
 	})
 }
 
@@ -412,39 +413,44 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 	}()
 
-	if err = a.tryMount(ro, rw, target, mountLabel); err != nil {
-		if err = a.mountRw(rw, target, mountLabel); err != nil {
-			return
-		}
+	// Mount options are clipped to page size(4096 bytes). If there are more
+	// layers then these are remounted individually using append.
 
-		for _, layer := range ro {
-			data := label.FormatMountLabel(fmt.Sprintf("append:%s=ro+wh", layer), mountLabel)
-			if err = mount("none", target, "aufs", MsRemount, data); err != nil {
-				return
+	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-50) // room for xino & mountLabel
+	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
+
+	firstMount := true
+	i := 0
+
+	for {
+		for ; i < len(ro); i++ {
+			layer := fmt.Sprintf(":%s=ro+wh", ro[i])
+
+			if firstMount {
+				if bp+len(layer) > len(b) {
+					break
+				}
+				bp += copy(b[bp:], layer)
+			} else {
+				data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
+				if err = mount("none", target, "aufs", MsRemount, data); err != nil {
+					return
+				}
 			}
 		}
+
+		if firstMount {
+			data := label.FormatMountLabel(fmt.Sprintf("%s,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
+			if err = mount("none", target, "aufs", 0, data); err != nil {
+				return
+			}
+			firstMount = false
+		}
+
+		if i == len(ro) {
+			break
+		}
 	}
+
 	return
-}
-
-// Try to mount using the aufs fast path, if this fails then
-// append ro layers.
-func (a *Driver) tryMount(ro []string, rw, target, mountLabel string) (err error) {
-	var (
-		rwBranch   = fmt.Sprintf("%s=rw", rw)
-		roBranches = fmt.Sprintf("%s=ro+wh:", strings.Join(ro, "=ro+wh:"))
-		data       = label.FormatMountLabel(fmt.Sprintf("br:%v:%v,xino=/dev/shm/aufs.xino", rwBranch, roBranches), mountLabel)
-	)
-	return mount("none", target, "aufs", 0, data)
-}
-
-func (a *Driver) mountRw(rw, target, mountLabel string) error {
-	data := label.FormatMountLabel(fmt.Sprintf("br:%s,xino=/dev/shm/aufs.xino", rw), mountLabel)
-	return mount("none", target, "aufs", 0, data)
-}
-
-func rollbackMount(target string, err error) {
-	if err != nil {
-		Unmount(target)
-	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -16,8 +17,15 @@ var (
 
 func init() {
 	if dockerCertPath == "" {
-		dockerCertPath = filepath.Join(os.Getenv("HOME"), ".docker")
+		dockerCertPath = filepath.Join(getHomeDir(), ".docker")
 	}
+}
+
+func getHomeDir() string {
+	if runtime.GOOS == "windows" {
+		return os.Getenv("USERPROFILE")
+	}
+	return os.Getenv("HOME")
 }
 
 var (
@@ -25,8 +33,9 @@ var (
 	flDaemon      = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug       = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode\nuse '' (the empty string) to disable setting of a group")
+	flLogLevel    = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
 	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
-	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
+	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify flag")
 	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
@@ -62,7 +71,7 @@ func init() {
 			{"create", "Create a new container"},
 			{"diff", "Inspect changes on a container's filesystem"},
 			{"events", "Get real time events from the server"},
-			{"exec", "Run a command in an existing container"},
+			{"exec", "Run a command in a running container"},
 			{"export", "Stream the contents of a container as a tar archive"},
 			{"history", "Show the history of an image"},
 			{"images", "List images"},

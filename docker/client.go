@@ -3,7 +3,7 @@
 package main
 
 import (
-	"log"
+	"log" // see gh#8745, client needs to use go log pkg
 )
 
 const CanDaemon = false

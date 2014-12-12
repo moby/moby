@@ -14,7 +14,10 @@ func TestMergeLxcConfig(t *testing.T) {
 		},
 	}
 
-	out := mergeLxcConfIntoOptions(hostConfig)
+	out, err := mergeLxcConfIntoOptions(hostConfig)
+	if err != nil {
+		t.Fatalf("Failed to merge Lxc Config ", err)
+	}
 
 	cpuset := out[0]
 	if expected := "cgroups.cpuset=1,2"; cpuset != expected {

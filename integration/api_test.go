@@ -21,100 +21,6 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-func TestGetContainersJSON(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err := job.Stdout.AddTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-	beginLen := len(outs.Data)
-
-	containerID := createTestContainer(eng, &runconfig.Config{
-		Image: unitTestImageID,
-		Cmd:   []string{"echo", "test"},
-	}, t)
-
-	if containerID == "" {
-		t.Fatalf("Received empty container ID")
-	}
-
-	req, err := http.NewRequest("GET", "/containers/json?all=1", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-	containers := engine.NewTable("", 0)
-	if _, err := containers.ReadListFrom(r.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	if len(containers.Data) != beginLen+1 {
-		t.Fatalf("Expected %d container, %d found (started with: %d)", beginLen+1, len(containers.Data), beginLen)
-	}
-	if id := containers.Data[0].Get("Id"); id != containerID {
-		t.Fatalf("Container ID mismatch. Expected: %s, received: %s\n", containerID, id)
-	}
-}
-
-func TestGetContainersExport(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	// Create a container and remove a file
-	containerID := createTestContainer(eng,
-		&runconfig.Config{
-			Image: unitTestImageID,
-			Cmd:   []string{"touch", "/test"},
-		},
-		t,
-	)
-	containerRun(eng, containerID, t)
-
-	r := httptest.NewRecorder()
-
-	req, err := http.NewRequest("GET", "/containers/"+containerID+"/export", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-
-	found := false
-	for tarReader := tar.NewReader(r.Body); ; {
-		h, err := tarReader.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			t.Fatal(err)
-		}
-		if h.Name == "test" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("The created test file has not been found in the exported image")
-	}
-}
-
 func TestSaveImageAndThenLoad(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
@@ -183,46 +89,6 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	}
 	if r.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-}
-
-func TestGetContainersChanges(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	// Create a container and remove a file
-	containerID := createTestContainer(eng,
-		&runconfig.Config{
-			Image: unitTestImageID,
-			Cmd:   []string{"/bin/rm", "/etc/passwd"},
-		},
-		t,
-	)
-	containerRun(eng, containerID, t)
-
-	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/containers/"+containerID+"/changes", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
-	assertHttpNotError(r, t)
-	outs := engine.NewTable("", 0)
-	if _, err := outs.ReadListFrom(r.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-
-	// Check the changelog
-	success := false
-	for _, elem := range outs.Data {
-		if elem.Get("Path") == "/etc/passwd" && elem.GetInt("Kind") == 2 {
-			success = true
-		}
-	}
-	if !success {
-		t.Fatalf("/etc/passwd as been removed but is not present in the diff")
 	}
 }
 
@@ -919,8 +785,8 @@ func TestGetEnabledCors(t *testing.T) {
 	if allowOrigin != "*" {
 		t.Errorf("Expected header Access-Control-Allow-Origin to be \"*\", %s found.", allowOrigin)
 	}
-	if allowHeaders != "Origin, X-Requested-With, Content-Type, Accept" {
-		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept\", %s found.", allowHeaders)
+	if allowHeaders != "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth" {
+		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth\", %s found.", allowHeaders)
 	}
 	if allowMethods != "GET, POST, DELETE, PUT, OPTIONS" {
 		t.Errorf("Expected hearder Access-Control-Allow-Methods to be \"GET, POST, DELETE, PUT, OPTIONS\", %s found.", allowMethods)

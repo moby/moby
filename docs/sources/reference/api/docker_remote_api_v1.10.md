@@ -363,14 +363,14 @@ Start the container `id`
              "LxcConf":[{"Key":"lxc.utsname","Value":"docker"}],
              "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts":false,
-             "Privileged":false
+             "Privileged":false,
              "Dns": ["8.8.8.8"],
              "VolumesFrom": ["parent", "other:ro"]
         }
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain
 
 Json Parameters:
@@ -519,7 +519,7 @@ Status Codes:
     `STREAM_TYPE` can be:
 
 -   0: stdin (will be written on stdout)
--   1: stdou
+-   1: stdout
 -   2: stderr
 
     `SIZE1, SIZE2, SIZE3, SIZE4` are the 4 bytes of

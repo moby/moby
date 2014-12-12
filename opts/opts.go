@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 
@@ -41,6 +41,10 @@ func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 
 func MirrorListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateMirror), names, usage)
+}
+
+func LabelListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, ValidateLabel), names, usage)
 }
 
 // ListOpts type
@@ -151,13 +155,13 @@ func ValidatePath(val string) (string, error) {
 	splited := strings.SplitN(val, ":", 2)
 	if len(splited) == 1 {
 		containerPath = splited[0]
-		val = filepath.Clean(splited[0])
+		val = path.Clean(splited[0])
 	} else {
 		containerPath = splited[1]
-		val = fmt.Sprintf("%s:%s", splited[0], filepath.Clean(splited[1]))
+		val = fmt.Sprintf("%s:%s", splited[0], path.Clean(splited[1]))
 	}
 
-	if !filepath.IsAbs(containerPath) {
+	if !path.IsAbs(containerPath) {
 		return val, fmt.Errorf("%s is not an absolute path", containerPath)
 	}
 	return val, nil
@@ -226,4 +230,11 @@ func ValidateMirror(val string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
+}
+
+func ValidateLabel(val string) (string, error) {
+	if strings.Count(val, "=") != 1 {
+		return "", fmt.Errorf("bad attribute format: %s", val)
+	}
+	return val, nil
 }

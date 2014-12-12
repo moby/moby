@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -46,7 +48,7 @@ const (
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
-	if job.Eng.IsShutdown() {
+	if job.Eng.IsShutdown() && !job.GetenvBool("overrideShutdown") {
 		return fmt.Errorf("engine is shutdown")
 	}
 	// FIXME: this is a temporary workaround to avoid Engine.Shutdown
@@ -66,10 +68,12 @@ func (job *Job) Run() error {
 		return fmt.Errorf("%s: job has already completed", job.Name)
 	}
 	// Log beginning and end of the job
-	job.Eng.Logf("+job %s", job.CallString())
-	defer func() {
-		job.Eng.Logf("-job %s%s", job.CallString(), job.StatusString())
-	}()
+	if job.Eng.Logging {
+		log.Infof("+job %s", job.CallString())
+		defer func() {
+			log.Infof("-job %s%s", job.CallString(), job.StatusString())
+		}()
+	}
 	var errorMessage = bytes.NewBuffer(nil)
 	job.Stderr.Add(errorMessage)
 	if job.handler == nil {

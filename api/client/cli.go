@@ -3,12 +3,16 @@ package client
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
 	"text/template"
+	"time"
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
@@ -34,6 +38,7 @@ type DockerCli struct {
 	isTerminalIn bool
 	// isTerminalOut describes if client's STDOUT is a TTY
 	isTerminalOut bool
+	transport     *http.Transport
 }
 
 var funcMap = template.FuncMap{
@@ -71,11 +76,11 @@ func (cli *DockerCli) Cmd(args ...string) error {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
 			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp(args[1:]...)
+			return cli.CmdHelp()
 		}
 		return method(args[1:]...)
 	}
-	return cli.CmdHelp(args...)
+	return cli.CmdHelp()
 }
 
 func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {
@@ -98,6 +103,16 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
 	return err
+}
+
+func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
+	// In order to attach to a container tty, input stream for the client must
+	// be a tty itself: redirecting or piping the client standard input is
+	// incompatible with `docker run -t`, `docker exec -t` or `docker attach`.
+	if ttyMode && attachStdin && !cli.isTerminalIn {
+		return errors.New("cannot enable tty mode on non tty input")
+	}
+	return nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey, proto, addr string, tlsConfig *tls.Config) *DockerCli {
@@ -131,6 +146,23 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 		err = out
 	}
 
+	// The transport is created here for reuse during the client session
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	// Why 32? See issue 8035
+	timeout := 32 * time.Second
+	if proto == "unix" {
+		// no need in compressing for local communications
+		tr.DisableCompression = true
+		tr.Dial = func(_, _ string) (net.Conn, error) {
+			return net.DialTimeout(proto, addr, timeout)
+		}
+	} else {
+		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
+	}
+
 	return &DockerCli{
 		proto:         proto,
 		addr:          addr,
@@ -144,5 +176,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 		isTerminalOut: isTerminalOut,
 		tlsConfig:     tlsConfig,
 		scheme:        scheme,
+		transport:     tr,
 	}
 }

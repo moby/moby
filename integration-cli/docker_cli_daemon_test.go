@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -91,4 +93,194 @@ func TestDaemonStartIptablesFalse(t *testing.T) {
 	d.Stop()
 
 	logDone("daemon - started daemon with iptables=false")
+}
+
+// Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
+// no longer has an IP associated, we should gracefully handle that case and associate
+// an IP with it rather than fail daemon start
+func TestDaemonStartBridgeWithoutIPAssociation(t *testing.T) {
+	d := NewDaemon(t)
+	// rather than depending on brctl commands to verify docker0 is created and up
+	// let's start the daemon and stop it, and then make a modification to run the
+	// actual test
+	if err := d.Start(); err != nil {
+		t.Fatalf("Could not start daemon: %v", err)
+	}
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	// now we will remove the ip from docker0 and then try starting the daemon
+	ipCmd := exec.Command("ip", "addr", "flush", "dev", "docker0")
+	stdout, stderr, _, err := runCommandWithStdoutStderr(ipCmd)
+	if err != nil {
+		t.Fatalf("failed to remove docker0 IP association: %v, stdout: %q, stderr: %q", err, stdout, stderr)
+	}
+
+	if err := d.Start(); err != nil {
+		warning := "**WARNING: Docker bridge network in bad state--delete docker0 bridge interface to fix"
+		t.Fatalf("Could not start daemon when docker0 has no IP address: %v\n%s", err, warning)
+	}
+
+	// cleanup - stop the daemon if test passed
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	logDone("daemon - successful daemon start when bridge has no IP association")
+}
+
+func TestDaemonIptablesClean(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top: %s, %v", out, err)
+	}
+
+	// get output from iptables with container running
+	ipTablesSearchString := "tcp dpt:80"
+	ipTablesCmd := exec.Command("iptables", "-nvL")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	// get output from iptables after restart
+	ipTablesCmd = exec.Command("iptables", "-nvL")
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output should not have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("daemon - run,iptables - iptables rules cleaned after daemon restart")
+}
+
+func TestDaemonIptablesCreate(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top", "--restart=always", "-p", "80", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top: %s, %v", out, err)
+	}
+
+	// get output from iptables with container running
+	ipTablesSearchString := "tcp dpt:80"
+	ipTablesCmd := exec.Command("iptables", "-nvL")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	if err := d.Restart(); err != nil {
+		t.Fatalf("Could not restart daemon: %v", err)
+	}
+
+	// make sure the container is not running
+	runningOut, err := d.Cmd("inspect", "--format='{{.State.Running}}'", "top")
+	if err != nil {
+		t.Fatalf("Could not inspect on container: %s, %v", out, err)
+	}
+	if strings.TrimSpace(runningOut) != "true" {
+		t.Fatalf("Container should have been restarted after daemon restart. Status running should have been true but was: %q", strings.TrimSpace(runningOut))
+	}
+
+	// get output from iptables after restart
+	ipTablesCmd = exec.Command("iptables", "-nvL")
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		t.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, ipTablesSearchString) {
+		t.Fatalf("iptables output after restart should have contained %q, but was %q", ipTablesSearchString, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("daemon - run,iptables - iptables rules for always restarted container created after daemon restart")
+}
+
+func TestDaemonLoggingLevel(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.Start("--log-level=bogus"); err == nil {
+		t.Fatal("Daemon should not have been able to start")
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--log-level=debug"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ := ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--log-level=fatal"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Should not have level="debug" in log file:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("-D"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file using -D:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--debug"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file using --debug:\n%s`, string(content))
+	}
+
+	d = NewDaemon(t)
+	if err := d.Start("--debug", "--log-level=fatal"); err != nil {
+		t.Fatal(err)
+	}
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), `level="debug"`) {
+		t.Fatalf(`Missing level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
+	}
+
+	logDone("daemon - Logging Level")
 }

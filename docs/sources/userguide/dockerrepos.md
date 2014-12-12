@@ -24,12 +24,12 @@ Docker itself provides access to Docker Hub services via the `docker search`,
 
 ### Account creation and login
 Typically, you'll want to start by creating an account on Docker Hub (if you haven't
-already) and logging in. You can create your account directly on 
+already) and logging in. You can create your account directly on
 [Docker Hub](https://hub.docker.com/account/signup/), or by running:
 
     $ sudo docker login
 
-This will prompt you for a user name, which will become the public namespace for your 
+This will prompt you for a user name, which will become the public namespace for your
 public repositories.
 If your user name is available, Docker will prompt you to enter a password and your
 e-mail address. It will then automatically log you in. You can now commit and
@@ -161,6 +161,9 @@ Webhooks are attached to your repositories and allow you to trigger an
 event when an image or updated image is pushed to the repository. With
 a webhook you can specify a target URL and a JSON payload that will be
 delivered when the image is pushed.
+
+See the Docker Hub documentation for [more information on
+webhooks](http://docs.docker.com/docker-hub/repos/#webhooks)
 
 ## Next steps
 

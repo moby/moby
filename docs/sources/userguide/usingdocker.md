@@ -25,7 +25,7 @@ The `docker` client is pretty simple. Each action you can take
 with Docker is a command and each command can take a series of
 flags and arguments.
 
-    # Usage:  [sudo] docker [flags] [command] [arguments] ..
+    # Usage:  [sudo] docker [command] [flags] [arguments] ..
     # Example:
     $ sudo docker run -i -t ubuntu /bin/bash
 
@@ -85,7 +85,7 @@ This will display the help text and all available flags:
     Attach to a running container
 
       --no-stdin=false: Do not attach stdin
-      --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
+      --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
 
 > **Note:** 
 > You can see a full list of Docker's commands

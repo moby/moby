@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious", "berserk", "high", "romantic", "prickly", "evil"}
+	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious", "berserk", "high", "romantic", "prickly", "evil", "admiring", "adoring", "reverent", "serene", "fervent", "modest", "gloomy", "elated"}
 	// Docker 0.7.x generates names from notable scientists and hackers.
 	//
 	// Ada Lovelace invented the first algorithm. http://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
@@ -22,6 +22,7 @@ var (
 	// Charles Babbage invented the concept of a programmable computer. http://en.wikipedia.org/wiki/Charles_Babbage.
 	// Charles Darwin established the principles of natural evolution. http://en.wikipedia.org/wiki/Charles_Darwin.
 	// Dennis Ritchie and Ken Thompson created UNIX and the C programming language. http://en.wikipedia.org/wiki/Dennis_Ritchie http://en.wikipedia.org/wiki/Ken_Thompson
+	// Dorothy Hodgkin was a British biochemist, credited with the development of protein crystallography. She was awarded the Nobel Prize in Chemistry in 1964. http://en.wikipedia.org/wiki/Dorothy_Hodgkin
 	// Douglas Engelbart gave the mother of all demos: http://en.wikipedia.org/wiki/Douglas_Engelbart
 	// Elizabeth Blackwell - American doctor and first American woman to receive a medical degree - http://en.wikipedia.org/wiki/Elizabeth_Blackwell
 	// Emmett Brown invented time travel. http://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
@@ -31,6 +32,7 @@ var (
 	// Françoise Barré-Sinoussi - French virologist and Nobel Prize Laureate in Physiology or Medicine; her work was fundamental in identifying HIV as the cause of AIDS. http://en.wikipedia.org/wiki/Fran%C3%A7oise_Barr%C3%A9-Sinoussi
 	// Galileo was a founding father of modern astronomy, and faced politics and obscurantism to establish scientific truth.  http://en.wikipedia.org/wiki/Galileo_Galilei
 	// Gertrude Elion - American biochemist, pharmacologist and the 1988 recipient of the Nobel Prize in Medicine - http://en.wikipedia.org/wiki/Gertrude_Elion
+	// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. http://en.wikipedia.org/wiki/Gerty_Cori
 	// Grace Hopper developed the first compiler for a computer programming language and  is credited with popularizing the term "debugging" for fixing computer glitches. http://en.wikipedia.org/wiki/Grace_Hopper
 	// Henry Poincare made fundamental contributions in several fields of mathematics. http://en.wikipedia.org/wiki/Henri_Poincar%C3%A9
 	// Hypatia - Greek Alexandrine Neoplatonist philosopher in Egypt who was one of the earliest mothers of mathematics - http://en.wikipedia.org/wiki/Hypatia
@@ -56,7 +58,7 @@ var (
 	// Mary Leakey - British paleoanthropologist who discovered the first fossilized Proconsul skull - http://en.wikipedia.org/wiki/Mary_Leakey
 	// Muhammad ibn Jābir al-Ḥarrānī al-Battānī was a founding father of astronomy. http://en.wikipedia.org/wiki/Mu%E1%B8%A5ammad_ibn_J%C4%81bir_al-%E1%B8%A4arr%C4%81n%C4%AB_al-Batt%C4%81n%C4%AB
 	// Niels Bohr is the father of quantum theory. http://en.wikipedia.org/wiki/Niels_Bohr.
-	// Nikola Tesla invented the AC electric system and every gaget ever used by a James Bond villain. http://en.wikipedia.org/wiki/Nikola_Tesla
+	// Nikola Tesla invented the AC electric system and every gadget ever used by a James Bond villain. http://en.wikipedia.org/wiki/Nikola_Tesla
 	// Pierre de Fermat pioneered several aspects of modern mathematics. http://en.wikipedia.org/wiki/Pierre_de_Fermat
 	// Rachel Carson - American marine biologist and conservationist, her book Silent Spring and other writings are credited with advancing the global environmental movement. http://en.wikipedia.org/wiki/Rachel_Carson
 	// Radia Perlman is a software designer and network engineer and most famous for her invention of the spanning-tree protocol (STP). http://en.wikipedia.org/wiki/Radia_Perlman
@@ -64,6 +66,7 @@ var (
 	// Richard Matthew Stallman - the founder of the Free Software movement, the GNU project, the Free Software Foundation, and the League for Programming Freedom. He also invented the concept of copyleft to protect the ideals of this movement, and enshrined this concept in the widely-used GPL (General Public License) for software. http://en.wikiquote.org/wiki/Richard_Stallman
 	// Rob Pike was a key contributor to Unix, Plan 9, the X graphic system, utf-8, and the Go programming language. http://en.wikipedia.org/wiki/Rob_Pike
 	// Rosalind Franklin - British biophysicist and X-ray crystallographer whose research was critical to the understanding of DNA - http://en.wikipedia.org/wiki/Rosalind_Franklin
+	// Rosalyn Sussman Yalow - Rosalyn Sussman Yalow was an American medical physicist, and a co-winner of the 1977 Nobel Prize in Physiology or Medicine for development of the radioimmunoassay technique. http://en.wikipedia.org/wiki/Rosalyn_Sussman_Yalow
 	// Sophie Kowalevski - Russian mathematician responsible for important original contributions to analysis, differential equations and mechanics - http://en.wikipedia.org/wiki/Sofia_Kovalevskaya
 	// Sophie Wilson designed the first Acorn Micro-Computer and the instruction set for ARM processors. http://en.wikipedia.org/wiki/Sophie_Wilson
 	// Stephen Hawking pioneered the field of cosmology by combining general relativity and quantum mechanics. http://en.wikipedia.org/wiki/Stephen_Hawking
@@ -73,7 +76,8 @@ var (
 	//	http://en.wikipedia.org/wiki/John_Bardeen
 	//	http://en.wikipedia.org/wiki/Walter_Houser_Brattain
 	//	http://en.wikipedia.org/wiki/William_Shockley
-	right = [...]string{"albattani", "almeida", "archimedes", "ardinghelli", "babbage", "bardeen", "bartik", "bell", "blackwell", "bohr", "brattain", "brown", "carson", "colden", "curie", "darwin", "davinci", "einstein", "elion", "engelbart", "euclid", "fermat", "fermi", "feynman", "franklin", "galileo", "goldstine", "goodall", "hawking", "heisenberg", "hoover", "hopper", "hypatia", "jones", "kirch", "kowalevski", "lalande", "leakey", "lovelace", "lumiere", "mayer", "mccarthy", "mcclintock", "mclean", "meitner", "mestorf", "morse", "newton", "nobel", "pare", "pasteur", "perlman", "pike", "poincare", "ptolemy", "ritchie", "rosalind", "sammet", "shockley", "sinoussi", "stallman", "tesla", "thompson", "torvalds", "turing", "wilson", "wozniak", "wright", "yonath"}
+	// Yeong-Sil Jang was a Korean scientist and astronomer during the Joseon Dynasty; he invented the first metal printing press and water gauge. http://en.wikipedia.org/wiki/Jang_Yeong-sil
+	right = [...]string{"albattani", "almeida", "archimedes", "ardinghelli", "babbage", "bardeen", "bartik", "bell", "blackwell", "bohr", "brattain", "brown", "carson", "colden", "cori", "curie", "darwin", "davinci", "einstein", "elion", "engelbart", "euclid", "fermat", "fermi", "feynman", "franklin", "galileo", "goldstine", "goodall", "hawking", "heisenberg", "hodgkin", "hoover", "hopper", "hypatia", "jang", "jones", "kirch", "kowalevski", "lalande", "leakey", "lovelace", "lumiere", "mayer", "mccarthy", "mcclintock", "mclean", "meitner", "mestorf", "morse", "newton", "nobel", "pare", "pasteur", "perlman", "pike", "poincare", "ptolemy", "ritchie", "rosalind", "sammet", "shockley", "sinoussi", "stallman", "tesla", "thompson", "torvalds", "turing", "wilson", "wozniak", "wright", "yalow", "yonath"}
 )
 
 func GetRandomName(retry int) string {

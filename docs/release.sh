@@ -14,6 +14,8 @@ If you're publishing the current release's documentation, also set `BUILD_ROOT=y
 make AWS_S3_BUCKET=docs-stage.docker.com docs-release
 
 will then push the documentation site to your s3 bucket.
+
+ Note: you can add `OPTIONS=--dryrun` to see what will be done without sending to the server
 EOF
 	exit 1
 }
@@ -22,7 +24,7 @@ EOF
 
 VERSION=$(cat VERSION)
 
-if [ "$$AWS_S3_BUCKET" == "docs.docker.com" ]; then
+if [ "$AWS_S3_BUCKET" == "docs.docker.com" ]; then
 	if [ "${VERSION%-dev}" != "$VERSION" ]; then
 		echo "Please do not push '-dev' documentation to docs.docker.com ($VERSION)"
 		exit 1
@@ -86,39 +88,18 @@ upload_current_documentation() {
 	# a really complicated way to send only the files we want
 	# if there are too many in any one set, aws s3 sync seems to fall over with 2 files to go
 	#  versions.html_fragment
-	endings=( json txt html xml css js gif png JPG ttf svg woff html_fragment )
-	for i in ${endings[@]}; do
-		include=""
-		for j in ${endings[@]}; do
-			if [ "$i" != "$j" ];then
-				include="$include --exclude *.$j"
-			fi
-		done
-		include="--include *.$i $include"
+		include="--recursive --include \"*.$i\" "
 		echo "uploading *.$i"
-		run="aws s3 sync --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read \
-			$include \
-			--exclude *.text* \
-			--exclude *.*~ \
-			--exclude *Dockerfile \
-			--exclude *.DS_Store \
-			--exclude *.psd \
-			--exclude *.ai \
-			--exclude *.eot \
-			--exclude *.otf \
-			--exclude *.rej \
-			--exclude *.rst \
-			--exclude *.orig \
-			--exclude *.py \
-			$src $dst"
+		run="aws s3 cp $src $dst $OPTIONS --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read $include"
 		echo "======================="
-		#echo "$run"
-		#echo "======================="
+		echo "$run"
+		echo "======================="
 		$run
-	done
 }
 
-setup_s3
+if [ "$OPTIONS" != "--dryrun" ]; then
+	setup_s3
+fi
 
 # Default to only building the version specific docs so we don't clober the latest by accident with old versions
 if [ "$BUILD_ROOT" == "yes" ]; then

@@ -99,16 +99,6 @@ func TestEngineString(t *testing.T) {
 	}
 }
 
-func TestEngineLogf(t *testing.T) {
-	eng := New()
-	input := "Test log line"
-	if n, err := eng.Logf("%s\n", input); err != nil {
-		t.Fatal(err)
-	} else if n < len(input) {
-		t.Fatalf("Test: Logf() should print at least as much as the input\ninput=%d\nprinted=%d", len(input), n)
-	}
-}
-
 func TestParseJob(t *testing.T) {
 	eng := New()
 	// Verify that the resulting job calls to the right place

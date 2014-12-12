@@ -126,8 +126,8 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 				return &configFile, err
 			}
 			authConfig.Auth = ""
-			configFile.Configs[k] = authConfig
 			authConfig.ServerAddress = k
+			configFile.Configs[k] = authConfig
 		}
 	}
 	return &configFile, nil
@@ -229,7 +229,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 				return "", err
 			}
 			if resp.StatusCode == 200 {
-				status = "Login Succeeded"
+				return "Login Succeeded", nil
 			} else if resp.StatusCode == 401 {
 				return "", fmt.Errorf("Wrong login/password, please try again")
 			} else if resp.StatusCode == 403 {
@@ -237,12 +237,11 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
 				}
 				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-			} else {
-				return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 			}
-		} else {
-			return "", fmt.Errorf("Registration: %s", reqBody)
+			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 		}
+		return "", fmt.Errorf("Registration: %s", reqBody)
+
 	} else if reqStatusCode == 401 {
 		// This case would happen with private registries where /v1/users is
 		// protected, so people can use `docker login` as an auth check.
@@ -258,7 +257,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 			return "", err
 		}
 		if resp.StatusCode == 200 {
-			status = "Login Succeeded"
+			return "Login Succeeded", nil
 		} else if resp.StatusCode == 401 {
 			return "", fmt.Errorf("Wrong login/password, please try again")
 		} else {

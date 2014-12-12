@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 )
 
@@ -35,15 +35,16 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
+func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
 	tlsConfig := tls.Config{
 		RootCAs: roots,
 		// Avoid fallback to SSL protocols < TLS1.0
-		MinVersion: tls.VersionTLS10,
+		MinVersion:   tls.VersionTLS10,
+		Certificates: certs,
 	}
 
-	if cert != nil {
-		tlsConfig.Certificates = append(tlsConfig.Certificates, *cert)
+	if !secure {
+		tlsConfig.InsecureSkipVerify = true
 	}
 
 	if !secure {
@@ -60,7 +61,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 	case ConnectTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
 			// Set the connect timeout to 5 seconds
-			conn, err := net.DialTimeout(proto, addr, 5*time.Second)
+			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -70,7 +73,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 		}
 	case ReceiveTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			conn, err := net.Dial(proto, addr)
+			d := net.Dialer{DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +94,7 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, cert *tls.Certificate, 
 func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
 	var (
 		pool  *x509.CertPool
-		certs []*tls.Certificate
+		certs []tls.Certificate
 	)
 
 	if secure && req.URL.Scheme == "https" {
@@ -132,7 +137,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 				if err != nil {
 					return nil, nil, err
 				}
-				certs = append(certs, &cert)
+				certs = append(certs, cert)
 			}
 			if strings.HasSuffix(f.Name(), ".key") {
 				keyName := f.Name()
@@ -154,16 +159,9 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 		return res, client, nil
 	}
 
-	for i, cert := range certs {
-		client := newClient(jar, pool, cert, timeout, secure)
-		res, err := client.Do(req)
-		// If this is the last cert, otherwise, continue to next cert if 403 or 5xx
-		if i == len(certs)-1 || err == nil && res.StatusCode != 403 && res.StatusCode < 500 {
-			return res, client, err
-		}
-	}
-
-	return nil, nil, nil
+	client := newClient(jar, pool, certs, timeout, secure)
+	res, err := client.Do(req)
+	return res, client, err
 }
 
 func validateRepositoryName(repositoryName string) error {

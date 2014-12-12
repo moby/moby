@@ -23,7 +23,6 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-docker-version	0.6.1
 FROM	ubuntu:14.04
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
@@ -69,7 +68,10 @@ RUN	cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 ENV	DOCKER_CROSSPLATFORMS	\
 	linux/386 linux/arm \
 	darwin/amd64 darwin/386 \
-	freebsd/amd64 freebsd/386 freebsd/arm
+	freebsd/amd64 freebsd/386 freebsd/arm 
+#	windows is experimental for now
+#	windows/amd64 windows/386
+
 # (set an explicit GOARM of 5 for maximum compatibility)
 ENV	GOARM	5
 RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
@@ -104,7 +106,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/docker/docker
-ENV	DOCKER_BUILDTAGS	apparmor selinux
+ENV	DOCKER_BUILDTAGS	apparmor selinux btrfs_noversion
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]

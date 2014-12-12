@@ -189,6 +189,17 @@ func EnterPid(cgroupPaths map[string]string, pid int) error {
 			}
 		}
 	}
-
 	return nil
+}
+
+// RemovePaths iterates over the provided paths removing them.
+// If an error is encountered the removal proceeds and the first error is
+// returned to ensure a partial removal is not possible.
+func RemovePaths(paths map[string]string) (err error) {
+	for _, path := range paths {
+		if rerr := os.RemoveAll(path); err == nil {
+			err = rerr
+		}
+	}
+	return err
 }

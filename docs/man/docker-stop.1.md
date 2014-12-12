@@ -7,7 +7,7 @@ docker-stop - Stop a running container by sending SIGTERM and then SIGKILL after
 # SYNOPSIS
 **docker stop**
 [**-t**|**--time**[=*10*]]
- CONTAINER [CONTAINER...]
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 Stop a running container (Send SIGTERM, and then SIGKILL after

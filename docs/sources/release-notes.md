@@ -1,6 +1,6 @@
-page_title: Docker 1.x Series Release Notes page_description: Release Notes for
-Docker 1.x. page_keywords: docker, documentation, about, technology,
-understanding, release
+page_title: Docker 1.x Series Release Notes
+page_description: Release Notes for Docker 1.x.
+page_keywords: docker, documentation, about, technology, understanding, release
 
 #Release Notes
 
@@ -74,25 +74,28 @@ This release fixes some bugs and addresses some security issues.
 
 *Security fixes*
 
-Patches and changes were made to address CVE-2014-5277 and CVE-2014-3566. Specifically, changes were made to:
+Patches and changes were made to address [CVE-2014-5277 and CVE-2014-3566](https://groups.google.com/forum/#!topic/docker-user/oYm0i3xShJU).
+Specifically, changes were made to:
+
 * Prevent fallback to SSL protocols < TLS 1.0 for client, daemon and registry
-* Secure HTTPS connection to registries with certificate verification and without HTTP fallback unless `--insecure-registry` is specified.
+* Secure HTTPS connection to registries with certificate verification and without HTTP fallback unless [`--insecure-registry`](/reference/commandline/cli/#run) is specified.
 
 *Runtime fixes*
 
-* Fixed issue where volumes would not be shared
+* Fixed issue where volumes would not be shared.
 
 *Client fixes*
 
 * Fixed issue with `--iptables=false` not automatically setting
-`--ip-masq=false`
-* Fixed docker run output to non-TTY stdout
+`--ip-masq=false`.
+* Fixed docker run output to non-TTY stdout.
 
 *Builder fixes*
 
-* Fixed escaping `$` for environment variables
-* Fixed issue with lowercase `onbuild` Dockerfile instruction
-
+* Fixed escaping `$` for environment variables.
+* Fixed issue with lowercase `onbuild` instruction in a `Dockerfile`.
+* Restricted environment variable expansion to `ENV`, `ADD`, `COPY`, `WORKDIR`,
+`EXPOSE`, `VOLUME`, and `USER`
 
 ##Version 1.3.0
 
@@ -174,7 +177,7 @@ accept an optional maximum restart count (e.g. `on-failure:5`). * `always` –
 Always restart the container no matter what exit code is returned. This
 deprecates the `--restart` flag on the Docker daemon.
 
-*New flags for `docker run`: `--cap-add` and `–-cap-drop`*
+*New flags for `docker run`: `--cap-add` and `--cap-drop`*
 
 In previous releases, Docker containers could either be given complete
 capabilities or they could all follow a whitelist of allowed capabilities while
@@ -187,7 +190,7 @@ This release introduces two new flags for `docker run`, `--cap-add` and
 `--cap-drop`, that give you fine-grain control over the specific capabilities
 you want grant to a particular container.
 
-*New `-–device` flag for `docker run`*
+*New `--device` flag for `docker run`*
 
 Previously, you could only use devices inside your containers by bind mounting
 them (with `-v`) in a `--privileged` container. With this release, we introduce

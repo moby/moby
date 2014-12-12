@@ -2,9 +2,10 @@ package proxy
 
 import (
 	"io"
-	"log"
 	"net"
 	"syscall"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type TCPProxy struct {

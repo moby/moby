@@ -325,7 +325,7 @@ Start the container `id`
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain
 
 Json Parameters:
@@ -1064,4 +1064,4 @@ stdout and stderr on the same socket. This might change in the future.
 To enable cross origin requests to the remote api add the flag
 "--api-enable-cors" when running docker in daemon mode.
 
-> docker -d -H="192.168.1.9:2375" –api-enable-cors
+> docker -d -H="192.168.1.9:2375" -api-enable-cors
