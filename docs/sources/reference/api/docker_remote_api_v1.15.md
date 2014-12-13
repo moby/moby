@@ -88,6 +88,7 @@ Query Parameters:
         non-running ones.
 -   **size** – 1/True/true or 0/False/false, Show the containers
         sizes
+-   **filters** - a json encoded value of the filters (a map[string][]string) to process on the containers list.
 
 Status Codes:
 
