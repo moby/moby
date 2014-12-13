@@ -81,7 +81,7 @@ use the `-G` flag to specify an alternative group.
 > **Warning**: 
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) details.
+> /articles/security/#docker-daemon-attack-surface) details.
 
 **Example:**
 
