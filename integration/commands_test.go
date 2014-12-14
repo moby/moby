@@ -507,27 +507,3 @@ func TestRunAutoRemove(t *testing.T) {
 		t.Fatalf("failed to remove container automatically: container %s still exists", temporaryContainerID)
 	}
 }
-
-// Expected behaviour: error out when attempting to bind mount non-existing source paths
-func TestRunErrorBindNonExistingSource(t *testing.T) {
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(nil, nil, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		// This check is made at runtime, can't be "unit tested"
-		if err := cli.CmdRun("-v", "/i/dont/exist:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
-			t.Fatal("should have failed to run when using /i/dont/exist as a source for the bind mount")
-		}
-	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
-}
