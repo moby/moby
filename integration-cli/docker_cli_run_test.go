@@ -1949,6 +1949,7 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 			t.Fatalf("Did not find the correct output in /etc/%s: %s %#v", fn, out, lines)
 		}
 	}
+	logDone("run - mutable network files")
 }
 
 // Ensure that CIDFile gets deleted if it's empty
