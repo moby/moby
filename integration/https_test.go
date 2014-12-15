@@ -90,7 +90,7 @@ func TestHttpsInfoRogueServerCert(t *testing.T) {
 		}
 
 		if !strings.Contains(err.Error(), errCaUnknown) {
-			t.Fatalf("Expected error: %s, got instead: %s", errBadCertificate, err)
+			t.Fatalf("Expected error: %s, got instead: %s", errCaUnknown, err)
 		}
 
 	})
