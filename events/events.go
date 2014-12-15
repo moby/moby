@@ -104,19 +104,19 @@ func (e *Events) SubscribersCount(job *engine.Job) engine.Status {
 }
 
 func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.Args) error {
-	isFiltered := func(field string, filter []string) bool {
-		if len(filter) == 0 {
+	isFiltered := func(field string, args filters.Args) bool {
+		if len(args) == 0 {
 			return false
 		}
-		for _, v := range filter {
-			if v == field {
+		for _, v := range args {
+			if v.Key == field {
 				return false
 			}
 		}
 		return true
 	}
 
-	if isFiltered(event.Status, eventFilters["event"]) || isFiltered(event.From, eventFilters["image"]) || isFiltered(event.ID, eventFilters["container"]) {
+	if isFiltered(event.Status, eventFilters.GetAll("event")) || isFiltered(event.From, eventFilters.GetAll("image")) || isFiltered(event.ID, eventFilters.GetAll("container")) {
 		return nil
 	}
 
