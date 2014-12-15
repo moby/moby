@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
-
-	"github.com/docker/docker-registry/digest"
 )
 
 // TestErrorCodes ensures that error code format, mappings and
@@ -61,7 +59,7 @@ func TestErrorsManagement(t *testing.T) {
 
 	errs.Push(ErrorCodeDigestInvalid)
 	errs.Push(ErrorCodeBlobUnknown,
-		map[string]digest.Digest{"digest": "sometestblobsumdoesntmatter"})
+		map[string]string{"digest": "sometestblobsumdoesntmatter"})
 
 	p, err := json.Marshal(errs)
 

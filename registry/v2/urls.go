@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker-registry/digest"
 	"github.com/gorilla/mux"
 )
 
@@ -88,10 +87,10 @@ func (ub *URLBuilder) BuildManifestURL(name, tag string) (string, error) {
 }
 
 // BuildBlobURL constructs the url for the blob identified by name and dgst.
-func (ub *URLBuilder) BuildBlobURL(name string, dgst digest.Digest) (string, error) {
+func (ub *URLBuilder) BuildBlobURL(name string, dgst string) (string, error) {
 	route := ub.cloneRoute(RouteNameBlob)
 
-	layerURL, err := route.URL("name", name, "digest", dgst.String())
+	layerURL, err := route.URL("name", name, "digest", dgst)
 	if err != nil {
 		return "", err
 	}
