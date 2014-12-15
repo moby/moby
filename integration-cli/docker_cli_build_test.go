@@ -3914,3 +3914,37 @@ RUN [ ! -e /injected ]`,
 
 	logDone("build - xz host is being used")
 }
+
+func TestBuildVolumesRetainContents(t *testing.T) {
+	var (
+		name     = "testbuildvolumescontent"
+		expected = "some text"
+	)
+	defer deleteImages(name)
+	ctx, err := fakeContext(`
+FROM busybox
+COPY content /foo/file
+VOLUME /foo
+CMD cat /foo/file`,
+		map[string]string{
+			"content": expected,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, false); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != expected {
+		t.Fatalf("expected file contents for /foo/file to be %q but received %q", expected, out)
+	}
+
+	logDone("build - volumes retain contents in build")
+}
