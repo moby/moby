@@ -42,6 +42,8 @@ RUN	apt-get update && apt-get install -y \
 	lxc=1.0* \
 	mercurial \
 	parallel \
+	python-mock \
+	python-pip \
 	reprepro \
 	ruby1.9.1 \
 	ruby1.9.1-dev \

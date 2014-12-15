@@ -56,7 +56,7 @@ docs-release: docs-build
 	$(DOCKER_RUN_DOCS) -e OPTIONS -e BUILD_ROOT "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
 test: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration test-integration-cli
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration test-integration-cli test-docker-py
 
 test-unit: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
