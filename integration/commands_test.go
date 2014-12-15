@@ -114,55 +114,6 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-// Expected behaviour: the process dies when the client disconnects
-func TestRunDisconnect(t *testing.T) {
-
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c1 := make(chan struct{})
-	go func() {
-		// We're simulating a disconnect so the return value doesn't matter. What matters is the
-		// fact that CmdRun returns.
-		cli.CmdRun("-i", unitTestImageID, "/bin/cat")
-		close(c1)
-	}()
-
-	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	// Close pipes (simulate disconnect)
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-		t.Fatal(err)
-	}
-
-	// as the pipes are close, we expect the process to die,
-	// therefore CmdRun to unblock. Wait for CmdRun
-	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
-		<-c1
-	})
-
-	// Client disconnect after run -i should cause stdin to be closed, which should
-	// cause /bin/cat to exit.
-	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
-		container := globalDaemon.List()[0]
-		container.WaitStop(-1 * time.Second)
-		if container.IsRunning() {
-			t.Fatalf("/bin/cat is still running after closing stdin")
-		}
-	})
-}
-
 // TestRunDetach checks attaching and detaching with the escape sequence.
 func TestRunDetach(t *testing.T) {
 	stdout, stdoutPipe := io.Pipe()
