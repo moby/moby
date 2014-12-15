@@ -349,7 +349,8 @@ accessible from the host by default. To expose ports to the host, at runtime,
     ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be passed to all future `RUN` instructions. This is
+`<value>`. This value will be passed to all future 
+`RUN`, `ENTRYPOINT`, and `CMD` instructions. This is
 functionally equivalent to prefixing the command with `<key>=<value>`
 
 The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
