@@ -23,13 +23,14 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM	ubuntu:14.04
+FROM	debian:jessie
 MAINTAINER	Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
 RUN	apt-get update && apt-get install -y \
 	aufs-tools \
 	automake \
+	ca-certificates \
 	btrfs-tools \
 	build-essential \
 	curl \
@@ -39,22 +40,25 @@ RUN	apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
-	lxc=1.0* \
+	lxc=1:1.0* \
 	mercurial \
 	parallel \
+	procps \
 	reprepro \
-	ruby1.9.1 \
-	ruby1.9.1-dev \
-	s3cmd=1.1.0* \
+	ruby \
+	ruby-dev \
+	s3cmd=1.5.0* \
 	--no-install-recommends
 
 # Get lvm2 source for compiling statically
-RUN	git clone --no-checkout https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2 && cd /usr/local/lvm2 && git checkout -q v2_02_103
+RUN	git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
 # see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
-# note: we don't use "git clone -b" above because it then spews big nasty warnings about 'detached HEAD' state that we can't silence as easily as we can silence them using "git checkout" directly
 
 # Compile and install lvm2
-RUN	cd /usr/local/lvm2 && ./configure --enable-static_link && make device-mapper && make install_device-mapper
+RUN	cd /usr/local/lvm2 \
+	&& ./configure --enable-static_link \
+	&& make device-mapper \
+	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
@@ -82,10 +86,10 @@ RUN	go get golang.org/x/tools/cmd/cover
 RUN	gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install man page generator
-RUN mkdir -p /go/src/github.com/cpuguy83 \
-    && git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
-    && cd /go/src/github.com/cpuguy83/go-md2man \
-    && go get -v ./...
+RUN	mkdir -p /go/src/github.com/cpuguy83 \
+	&& git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
+	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday \
+	&& go install -v github.com/cpuguy83/go-md2man
 
 # Get the "busybox" image source so we can build locally instead of pulling
 RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
@@ -100,12 +104,12 @@ RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_
 RUN	git config --global user.email 'docker-dummy@example.com'
 
 # Add an unprivileged user to be used for tests which need it
-RUN groupadd -r docker
-RUN useradd --create-home --gid docker unprivilegeduser
+RUN	groupadd -r docker
+RUN	useradd --create-home --gid docker unprivilegeduser
 
 VOLUME	/var/lib/docker
 WORKDIR	/go/src/github.com/docker/docker
-ENV	DOCKER_BUILDTAGS	apparmor selinux btrfs_noversion
+ENV	DOCKER_BUILDTAGS	apparmor selinux
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT	["hack/dind"]
