@@ -116,13 +116,13 @@ Finally, you need to remove the passphrase from the client and server key:
 Now you can make the Docker daemon only accept connections from clients
 providing a certificate trusted by our CA:
 
-    $ sudo docker -d --tlsverify --tlscacert=ca.pem --tlscert=server-cert.pem --tlskey=server-key.pem \
+    $ docker -d --tlsverify --tlscacert=ca.pem --tlscert=server-cert.pem --tlskey=server-key.pem \
       -H=0.0.0.0:2376
 
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
-    $ sudo docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
+    $ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
       -H=dns-name-of-docker-host:2376 version
 
 > **Note**:
@@ -150,7 +150,7 @@ the files to the `.docker` directory in your home directory - and set the
 
 Docker will now connect securely by default:
 
-    $ sudo docker ps
+    $ docker ps
 
 ## Other modes
 
@@ -177,7 +177,7 @@ if you want to store your keys in another location, you can specify that
 location using the environment variable `DOCKER_CERT_PATH`.
 
     $ export DOCKER_CERT_PATH=${HOME}/.docker/zone1/
-    $ sudo docker --tlsverify ps
+    $ docker --tlsverify ps
 
 ### Connecting to the Secure Docker port using `curl`
 
