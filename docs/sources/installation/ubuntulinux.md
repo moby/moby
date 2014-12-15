@@ -17,15 +17,15 @@ Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 ## Ubuntu Trusty 14.04 (LTS) (64-bit)
 
 Ubuntu Trusty comes with a 3.13.0 Linux kernel, and a `docker.io` package which
-installs Docker 0.9.1 and all its prerequisites from Ubuntu's repository.
+installs Docker 1.0.1 and all its prerequisites from Ubuntu's repository.
 
 > **Note**:
 > Ubuntu (and Debian) contain a much older KDE3/GNOME2 package called ``docker``, so the
-> package and the executable are called ``docker.io``.
+> Ubuntu-maintained package and executable are named ``docker.io``.
 
-### Installation
+### Ubuntu-maintained Package Installation
 
-To install the latest Ubuntu package (may not be the latest Docker release):
+To install the latest Ubuntu package (this is **not** the most recent Docker release):
 
     $ sudo apt-get update
     $ sudo apt-get install docker.io
@@ -33,6 +33,13 @@ To install the latest Ubuntu package (may not be the latest Docker release):
 Then, to enable tab-completion of Docker commands in BASH, either restart BASH or:
 
     $ source /etc/bash_completion.d/docker.io
+
+> **Note**:
+> Since the Ubuntu package is quite dated at this point, you may want to use
+> the following section to install the most recent release of Docker.
+> If you install the Docker version, you do not need to install ``docker.io`` from Ubuntu.
+
+### Docker-maintained Package Installation
 
 If you'd like to try the latest version of Docker:
 
