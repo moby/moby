@@ -23,7 +23,6 @@ type Mount struct {
 	container   *Container
 	volume      *volumes.Volume
 	Writable    bool
-	copyData    bool
 }
 
 func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
@@ -90,7 +89,7 @@ func (m *Mount) initialize() error {
 	m.container.VolumesRW[m.MountToPath] = m.Writable
 	m.container.Volumes[m.MountToPath] = m.volume.Path
 	m.volume.AddContainer(m.container.ID)
-	if m.Writable && m.copyData {
+	if m.Writable {
 		// Copy whatever is in the container at the mntToPath to the volume
 		copyExistingContents(containerMntPath, m.volume.Path)
 	}
@@ -166,7 +165,6 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			MountToPath: path,
 			volume:      vol,
 			Writable:    true,
-			copyData:    true,
 		}
 	}
 
