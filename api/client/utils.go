@@ -91,7 +91,20 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	} else if method == "POST" {
 		req.Header.Set("Content-Type", "plain/text")
 	}
+
+	sigchan := make(chan os.Signal, 1)
+	pipe := catchPIPE(sigchan)
+
 	resp, err := cli.HTTPClient().Do(req)
+
+	defer func() {
+		gosignal.Stop(sigchan)
+		close(sigchan)
+		if <-pipe {
+			log.Debugf("An error occurred trying to connect.")
+		}
+	}()
+
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, -1, ErrConnectionRefused
@@ -198,6 +211,21 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	if _, _, err := readBody(cli.call("POST", path+v.Encode(), nil, false)); err != nil {
 		log.Debugf("Error resize: %s", err)
 	}
+}
+
+func catchPIPE(sigchan chan os.Signal) chan bool {
+	pipe := make(chan bool)
+
+	gosignal.Notify(sigchan, signal.SignalMap["PIPE"])
+	go func() {
+		_, ok := <-sigchan
+		if ok {
+			pipe <- true
+		} else {
+			pipe <- false
+		}
+	}()
+	return pipe
 }
 
 func waitForExit(cli *DockerCli, containerId string) (int, error) {
