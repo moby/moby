@@ -88,7 +88,9 @@ Query Parameters:
         non-running ones.
 -   **size** – 1/True/true or 0/False/false, Show the containers
         sizes
--   **filters** - a json encoded value of the filters (a map[string][]string) to process on the containers list.
+-   **filters** - a json encoded value of the filters (a map[string][]string) to process on the containers list. Available filters:
+  -   exited=&lt;int&gt; -- containers with exit code of &lt;int&gt;
+  -   status=(restarting|running|paused|exited)
 
 Status Codes:
 
@@ -885,7 +887,8 @@ Status Codes:
 Query Parameters:
 
 -   **all** – 1/True/true or 0/False/false, default false
--   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
+-   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
+  -   dangling=true
 
 ### Create an image
 
