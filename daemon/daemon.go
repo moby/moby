@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -40,6 +41,11 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
+)
+
+var (
+	ErrNotFound        = errors.New("No such container: %s")
+	ErrAmbiguousPrefix = errors.New("Too many containers found with provided prefix")
 )
 
 var (
@@ -158,6 +164,42 @@ func (daemon *Daemon) Get(name string) *Container {
 		return c
 	}
 	return nil
+}
+
+func (daemon *Daemon) GetWithError(prefix string) (*Container, error) {
+	if containerByID := daemon.containers.Get(prefix); containerByID != nil {
+		return containerByID, nil
+	}
+
+	containerByName, _ := daemon.GetByName(prefix)
+
+	containerId, indexError := daemon.idIndex.Get(prefix)
+
+	if containerByName != nil {
+		switch indexError {
+		case truncindex.ErrNotFound:
+			return containerByName, nil
+		case truncindex.ErrMultipleResults:
+			return nil, ErrAmbiguousPrefix
+		case nil:
+			if containerByName.ID == containerId {
+				return containerByName, nil
+			} else {
+				return nil, ErrAmbiguousPrefix
+			}
+		}
+	} else if containerId != "" {
+		return daemon.containers.Get(containerId), nil
+	} else {
+		switch indexError {
+		case truncindex.ErrMultipleResults:
+			return nil, ErrAmbiguousPrefix
+		case truncindex.ErrNotFound:
+			return nil, fmt.Errorf(ErrNotFound.Error(), prefix)
+		}
+	}
+
+	return nil, indexError
 }
 
 // Exists returns a true if a container of the specified ID or name exists,

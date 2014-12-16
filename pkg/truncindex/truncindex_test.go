@@ -59,6 +59,11 @@ func TestTruncIndex(t *testing.T) {
 	assertIndexGet(t, index, id[:4], "", true)
 	assertIndexGet(t, index, id[:1], "", true)
 
+	// An ambiguous id prefix should return ErrMultipleResults
+	if _, err := index.Get(id[:4]); err == nil || err != ErrMultipleResults {
+		t.Fatalf("An ambiguous id prefix should return %s", ErrMultipleResults)
+	}
+
 	// 7 characters should NOT conflict
 	assertIndexGet(t, index, id[:7], id, false)
 	assertIndexGet(t, index, id2[:7], id2, false)
