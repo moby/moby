@@ -202,8 +202,8 @@ func ResolveRepositoryName(reposName string) (string, string, error) {
 	}
 	hostname := nameParts[0]
 	reposName = nameParts[1]
-	if strings.Contains(hostname, "index.docker.io") {
-		return "", "", fmt.Errorf("Invalid repository name, try \"%s\" instead", reposName)
+	if strings.HasSuffix(hostname, "docker.io") {
+		return "", "", fmt.Errorf("You cannot specify the central docker registry explicitly. Try \"%s\" instead if that's what you intended", reposName)
 	}
 	if err := validateRepositoryName(reposName); err != nil {
 		return "", "", err
