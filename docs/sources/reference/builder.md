@@ -34,7 +34,7 @@ whole context must be transferred to the daemon. The Docker CLI reports
 "Sending build context to Docker daemon" when the context is sent to the daemon.
 
 > **Warning**
-> Avoid using your root directory, `/`, as the root of the source repository. The 
+> Avoid using your root directory, `/`, as the root of the source repository. The
 > `docker build` command will use whatever directory contains the Dockerfile as the build
 > context (including all of its subdirectories). The build context will be sent to the
 > Docker daemon before building the image, which means if you use `/` as the source
@@ -124,7 +124,7 @@ whitespace, like `${foo}_bar`.
 
 Escaping is possible by adding a `\` before the variable: `\$foo` or `\${foo}`,
 for example, will translate to `$foo` and `${foo}` literals respectively.
- 
+
 Example (parsed representation is displayed after the `#`):
 
     FROM busybox
@@ -239,13 +239,13 @@ commands using a base image that does not contain `/bin/sh`.
 > Unlike the *shell* form, the *exec* form does not invoke a command shell.
 > This means that normal shell processing does not happen. For example,
 > `RUN [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `RUN [ "sh", "-c", "echo", "$HOME" ]`.
 
 The cache for `RUN` instructions isn't invalidated automatically during
-the next build. The cache for an instruction like 
-`RUN apt-get dist-upgrade -y` will be reused during the next build.  The 
-cache for `RUN` instructions can be invalidated by using the `--no-cache` 
+the next build. The cache for an instruction like
+`RUN apt-get dist-upgrade -y` will be reused during the next build.  The
+cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
@@ -278,8 +278,8 @@ the executable, in which case you must specify an `ENTRYPOINT`
 instruction as well.
 
 > **Note**:
-> If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
-> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
+> If `CMD` is used to provide default arguments for the `ENTRYPOINT`
+> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified
 > with the JSON array format.
 
 > **Note**:
@@ -290,7 +290,7 @@ instruction as well.
 > Unlike the *shell* form, the *exec* form does not invoke a command shell.
 > This means that normal shell processing does not happen. For example,
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
@@ -333,7 +333,7 @@ Guide](/userguide/dockerlinks)) and to determine which ports to expose to the
 host when [using the -P flag](/reference/run/#expose-incoming-ports).
 **Note:**
 `EXPOSE` doesn't define which ports can be exposed to the host or make ports
-accessible from the host by default. To expose ports to the host, at runtime, 
+accessible from the host by default. To expose ports to the host, at runtime,
 [use the `-p` flag](/userguide/dockerlinks) or
 [the -P flag](/reference/run/#expose-incoming-ports).
 
@@ -348,12 +348,12 @@ functionally equivalent to prefixing the command with `<key>=<value>`
 
 The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
 will set a single variable to a value. The entire string after the first
-space will be treated as the `<value>` - including characters such as 
+space will be treated as the `<value>` - including characters such as
 spaces and quotes.
 
-The second form, `ENV <key>=<value> ...`, allows for multiple variables to 
-be set at one time. Notice that the second form uses the equals sign (=) 
-in the syntax, while the first form does not. Like command line parsing, 
+The second form, `ENV <key>=<value> ...`, allows for multiple variables to
+be set at one time. Notice that the second form uses the equals sign (=)
+in the syntax, while the first form does not. Like command line parsing,
 quotes and backslashes can be used to include spaces within values.
 
 For example:
@@ -367,7 +367,7 @@ and
     ENV myDog Rex The Dog
     ENV myCat fluffy
 
-will yield the same net results in the final container, but the first form 
+will yield the same net results in the final container, but the first form
 does it all in one layer.
 
 The environment variables set using `ENV` will persist when a container is run
@@ -384,10 +384,10 @@ change them using `docker run --env <key>=<value>`.
     ADD <src>... <dest>
 
 The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
-and adds them to the filesystem of the container at the path `<dest>`.  
+and adds them to the filesystem of the container at the path `<dest>`.
 
-Multiple `<src>` resource may be specified but if they are files or 
-directories then they must be relative to the source directory that is 
+Multiple `<src>` resource may be specified but if they are files or
+directories then they must be relative to the source directory that is
 being built (the context of the build).
 
 Each `<src>` may contain wildcards and matching will be done using Go's
@@ -420,6 +420,14 @@ of whether or not the file has changed and the cache should be updated.
 > archive will get used at the context of the build.
 
 > **Note**:
+> The hardcoded UID and GID of 0 for all new files contrasts the
+> `USER`-compliant way in which `COPY` operates (where the currently set `USER`
+> owns all new files). This discrepancy is intentional, and is due to the fact
+> that `COPY` and `ADD` were devised with different purposes in mind, the
+> abundance of "magic" that `ADD` has makes `USER`-compliance an illogical
+> feature, as well as series of backward compatibility concerns.
+
+> **Note**:
 > If your URL files are protected using authentication, you
 > will need to use `RUN wget`, `RUN curl` or use another tool from
 > within the container as the `ADD` instruction does not support
@@ -450,8 +458,8 @@ The copy obeys the following rules:
   appropriate filename can be discovered in this case (`http://example.com`
   will not work).
 
-- If `<src>` is a directory, the entire contents of the directory are copied, 
-  including filesystem metadata. 
+- If `<src>` is a directory, the entire contents of the directory are copied,
+  including filesystem metadata.
 > **Note**:
 > The directory itself is not copied, just its contents.
 
@@ -470,7 +478,7 @@ The copy obeys the following rules:
   at `<dest>/base(<src>)`.
 
 - If multiple `<src>` resources are specified, either directly or due to the
-  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  use of a wildcard, then `<dest>` must be a directory, and it must end with
   a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
@@ -501,7 +509,17 @@ the source will be copied inside the destination container.
 
     COPY test aDir/          # adds "test" to `WORKDIR`/aDir/
 
-All new files and directories are created with a UID and GID of 0.
+All files and directories copied to the filesystem of the container (using
+`COPY`) are owned by the current user set by the `USER` instruction (or UID and
+GID of 0, if no user has been set).
+
+> **Note**:
+> In the past, `Dockerfile`s didn't change the owner of copied files to the
+> currently set `USER`. They rather changed the owner to `root` (similar to
+> `ADD`s behaviour). Images built from `Dockerfile`s written at that time remain
+> essentially unchanged -- other than potentially containing `no-op` `chown`
+> layers. However, it is recommended that you update your `Dockerfile`s to take
+> advantage of this functionality.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
@@ -514,8 +532,8 @@ The copy obeys the following rules:
   `docker build` is to send the context directory (and subdirectories) to the
   docker daemon.
 
-- If `<src>` is a directory, the entire contents of the directory are copied, 
-  including filesystem metadata. 
+- If `<src>` is a directory, the entire contents of the directory are copied,
+  including filesystem metadata.
 > **Note**:
 > The directory itself is not copied, just its contents.
 
@@ -525,7 +543,7 @@ The copy obeys the following rules:
   at `<dest>/base(<src>)`.
 
 - If multiple `<src>` resources are specified, either directly or due to the
-  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  use of a wildcard, then `<dest>` must be a directory, and it must end with
   a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
@@ -554,7 +572,7 @@ Command line arguments to `docker run <image>` will be appended after all
 elements in an *exec* form `ENTRYPOINT`, and will override all elements specified
 using `CMD`.
 This allows arguments to be passed to the entry point, i.e., `docker run <image> -d`
-will pass the `-d` argument to the entry point. 
+will pass the `-d` argument to the entry point.
 You can override the `ENTRYPOINT` instruction using the `docker run --entrypoint`
 flag.
 
@@ -585,10 +603,10 @@ When you run the container, you can see that `top` is the only process:
     %Cpu(s):  0.1 us,  0.1 sy,  0.0 ni, 99.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
     KiB Mem:   2056668 total,  1616832 used,   439836 free,    99352 buffers
     KiB Swap:  1441840 total,        0 used,  1441840 free.  1324440 cached Mem
-    
+
       PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND
         1 root      20   0   19744   2336   2080 R  0.0  0.1   0:00.04 top
-    
+
 To examine the result further, you can use `docker exec`:
 
     $ docker exec -it test ps aux
@@ -693,7 +711,7 @@ sys	0m 0.03s
 > Unlike the *shell* form, the *exec* form does not invoke a command shell.
 > This means that normal shell processing does not happen. For example,
 > `ENTRYPOINT [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `ENTRYPOINT [ "sh", "-c", "echo", "$HOME" ]`.
 > Variables that are defined in the `Dockerfile`using `ENV`, will be substituted by
 > the `Dockerfile` parser.
@@ -780,7 +798,8 @@ documentation.
 
 The `USER` instruction sets the user name or UID to use when running the image
 and for any `RUN`, `CMD` and `ENTRYPOINT` instructions that follow it in the
-`Dockerfile`.
+`Dockerfile`. It also sets the user name or UID of the owner of any files copied
+to the image using the `COPY` instruction.
 
 ## WORKDIR
 
