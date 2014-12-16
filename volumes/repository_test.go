@@ -5,9 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/docker/docker/daemon/graphdriver"
-	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 )
 
 func TestRepositoryFindOrCreate(t *testing.T) {
@@ -22,20 +19,19 @@ func TestRepositoryFindOrCreate(t *testing.T) {
 	}
 
 	// no path
-	v, err := repo.FindOrCreateVolume("", true)
+	v, err := repo.FindOrCreateVolume("", "vfs")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// FIXME: volumes are heavily dependent on the vfs driver, but this should not be so!
-	expected := filepath.Join(root, "repo-graph", "vfs", "dir", v.ID)
+	expected := filepath.Join(root, "repo-data", "vfs", v.ID)
 	if v.Path != expected {
 		t.Fatalf("expected new path to be created in %s, got %s", expected, v.Path)
 	}
 
 	// with a non-existant path
 	dir := filepath.Join(root, "doesntexist")
-	v, err = repo.FindOrCreateVolume(dir, true)
+	v, err = repo.FindOrCreateVolume(dir, "host")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +46,7 @@ func TestRepositoryFindOrCreate(t *testing.T) {
 
 	// with a pre-existing path
 	// can just use the same path from above since it now exists
-	v, err = repo.FindOrCreateVolume(dir, true)
+	v, err = repo.FindOrCreateVolume(dir, "host")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +67,7 @@ func TestRepositoryGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v, err := repo.FindOrCreateVolume("", true)
+	v, err := repo.FindOrCreateVolume("", "vfs")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +93,7 @@ func TestRepositoryDelete(t *testing.T) {
 	}
 
 	// with a normal volume
-	v, err := repo.FindOrCreateVolume("", true)
+	v, err := repo.FindOrCreateVolume("", "vfs")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +112,7 @@ func TestRepositoryDelete(t *testing.T) {
 
 	// with a bind mount
 	dir := filepath.Join(root, "test")
-	v, err = repo.FindOrCreateVolume(dir, true)
+	v, err = repo.FindOrCreateVolume(dir, "host")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,17 +131,17 @@ func TestRepositoryDelete(t *testing.T) {
 
 	// with container refs
 	dir = filepath.Join(root, "test")
-	v, err = repo.FindOrCreateVolume(dir, true)
+	v, err = repo.FindOrCreateVolume(dir, "host")
 	if err != nil {
 		t.Fatal(err)
 	}
-	v.AddContainer("1234")
+	v.Link("1234")
 
 	if err := repo.Delete(v.Path); err == nil {
 		t.Fatalf("expected volume delete to fail due to container refs")
 	}
 
-	v.RemoveContainer("1234")
+	v.Unlink("1234")
 	if err := repo.Delete(v.Path); err != nil {
 		t.Fatal(err)
 	}
@@ -153,12 +149,5 @@ func TestRepositoryDelete(t *testing.T) {
 }
 
 func newRepo(root string) (*Repository, error) {
-	configPath := filepath.Join(root, "repo-config")
-	graphDir := filepath.Join(root, "repo-graph")
-
-	driver, err := graphdriver.GetDriver("vfs", graphDir, []string{})
-	if err != nil {
-		return nil, err
-	}
-	return NewRepository(configPath, driver)
+	return NewRepository(filepath.Join(root, "repo-config"), filepath.Join(root, "repo-data"))
 }

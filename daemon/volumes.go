@@ -21,6 +21,7 @@ type volumeMount struct {
 	writable      bool
 	copyData      bool
 	from          string
+	driver        string
 }
 
 func (container *Container) prepareVolumes() error {
@@ -60,6 +61,7 @@ func (container *Container) createVolumes() error {
 			containerPath: path,
 			writable:      true,
 			copyData:      true,
+			driver:        "vfs",
 		}
 		mounts[mnt.containerPath] = mnt
 	}
@@ -112,18 +114,18 @@ func (container *Container) createVolumes() error {
 		}
 
 		// Create the actual volume
-		v, err := container.daemon.volumes.FindOrCreateVolume(mnt.hostPath, mnt.writable)
+		v, err := container.daemon.volumes.FindOrCreateVolume(mnt.hostPath, mnt.driver)
 		if err != nil {
 			return err
 		}
 
 		container.VolumesRW[mnt.containerPath] = mnt.writable
 		container.Volumes[mnt.containerPath] = v.Path
-		v.AddContainer(container.ID)
 		if mnt.from != "" {
 			container.AppliedVolumesFrom[mnt.from] = struct{}{}
 		}
 
+		v.Link(container.ID)
 		if mnt.writable && mnt.copyData {
 			// Copy whatever is in the container at the containerPath to the volume
 			copyExistingContents(containerMntPath, v.Path)
@@ -155,21 +157,16 @@ func (container *Container) VolumePaths() map[string]struct{} {
 func (container *Container) registerVolumes() {
 	for path := range container.VolumePaths() {
 		if v := container.daemon.volumes.Get(path); v != nil {
-			v.AddContainer(container.ID)
 			continue
 		}
 
 		// if container was created with an old daemon, this volume may not be registered so we need to make sure it gets registered
-		writable := true
-		if rw, exists := container.VolumesRW[path]; exists {
-			writable = rw
-		}
-		v, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
+		v, err := container.daemon.volumes.FindOrCreateVolume(path, "")
 		if err != nil {
 			logrus.Debugf("error registering volume %s: %v", path, err)
 			continue
 		}
-		v.AddContainer(container.ID)
+		v.Link(container.ID)
 	}
 }
 
@@ -180,7 +177,6 @@ func (container *Container) derefVolumes() {
 			logrus.Debugf("Volume %s was not found and could not be dereferenced", path)
 			continue
 		}
-		vol.RemoveContainer(container.ID)
 	}
 }
 
@@ -207,6 +203,7 @@ func parseBindMountSpec(spec string) (*volumeMount, error) {
 
 	mnt.hostPath = filepath.Clean(mnt.hostPath)
 	mnt.containerPath = filepath.Clean(mnt.containerPath)
+	mnt.driver = "host"
 	return mnt, nil
 }
 
@@ -284,7 +281,12 @@ func (container *Container) volumeMounts() map[string]*volumeMount {
 			logrus.Debugf("reference by container %s to non-existent volume path %s", container.ID, path)
 			continue
 		}
-		mounts[containerPath] = &volumeMount{hostPath: path, containerPath: containerPath, writable: container.VolumesRW[containerPath]}
+		mounts[containerPath] = &volumeMount{
+			hostPath:      path,
+			containerPath: containerPath,
+			writable:      container.VolumesRW[containerPath],
+			driver:        v.DriverName,
+		}
 	}
 
 	return mounts
