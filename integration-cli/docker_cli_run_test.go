@@ -318,6 +318,7 @@ func TestRunWithoutNetworking(t *testing.T) {
 
 // Regression test for #4741
 func TestRunWithVolumesAsFiles(t *testing.T) {
+	defer deleteAllContainers()
 	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/etc/hosts:/target-file", "busybox", "true")
 	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil && exitCode != 0 {
@@ -329,7 +330,6 @@ func TestRunWithVolumesAsFiles(t *testing.T) {
 	if err != nil && exitCode != 0 {
 		t.Fatal("2", out, stderr, err)
 	}
-	deleteAllContainers()
 
 	logDone("run - regression test for #4741 - volumes from as files")
 }
@@ -462,23 +462,22 @@ func TestRunApplyVolumesFromBeforeVolumes(t *testing.T) {
 }
 
 func TestRunMultipleVolumesFrom(t *testing.T) {
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent1", "-v", "/test", "busybox", "touch", "/test/foo")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--name", "parent2", "-v", "/other", "busybox", "touch", "/other/bar")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent1", "--volumes-from", "parent2",
 		"busybox", "sh", "-c", "cat /test/foo && cat /other/bar")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
 	}
-
-	deleteAllContainers()
 
 	logDone("run - multiple volumes from")
 }
