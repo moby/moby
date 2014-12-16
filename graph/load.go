@@ -17,15 +17,26 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+var Pause = make(chan bool, 0)
+
+func SetPauseSize(size int) {
+	Pause = make(chan bool, size)
+}
+
 // Loads a set of images into the repository. This is the complementary of ImageExport.
 // The input stream is an uncompressed tar ball containing images and metadata.
 func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
+
+	if cap(Pause) != 0 {
+		Pause <- true
+	}
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
 		return job.Error(err)
 	}
-	defer os.RemoveAll(tmpImageDir)
-
+	if cap(Pause) == 0 {
+		defer os.RemoveAll(tmpImageDir)
+	}
 	var (
 		repoTarFile = path.Join(tmpImageDir, "repo.tar")
 		repoDir     = path.Join(tmpImageDir, "repo")
@@ -91,7 +102,10 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 	} else if !os.IsNotExist(err) {
 		return job.Error(err)
 	}
-
+	if cap(Pause) != 0 {
+		os.RemoveAll(tmpImageDir)
+		<-Pause
+	}
 	return engine.StatusOK
 }
 

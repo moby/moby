@@ -813,6 +813,8 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	graph.SetPauseSize(config.Batch)
+
 	// Migrate the container if it is aufs and aufs is enabled
 	if err = migrateIfAufs(driver, config.Root); err != nil {
 		return nil, err
@@ -966,6 +968,7 @@ func (daemon *Daemon) shutdown() error {
 		}
 	}
 	group.Wait()
+	close(graph.Pause)
 
 	return nil
 }
