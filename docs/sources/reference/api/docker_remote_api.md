@@ -366,7 +366,7 @@ output is now generated in the client, using the
 You can now split stderr from stdout. This is done by
 prefixing a header to each transmission. See
 [`POST /containers/(id)/attach`](
-/reference/api/docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
+/reference/api/docker_remote_api_v1.9/#attach-to-a-container "POST /containers/(id)/attach").
 The WebSocket attach is unchanged. Note that attach calls on the
 previous API version didn't change. Stdout and stderr are merged.
 
