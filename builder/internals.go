@@ -86,9 +86,9 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 		}
 		defer container.Unmount()
 	}
-	container := b.Daemon.Get(id)
-	if container == nil {
-		return fmt.Errorf("An error occured while creating the container")
+	container, err := b.Daemon.Get(id)
+	if err != nil {
+		return err
 	}
 
 	// Note: Actually copy the struct
@@ -709,7 +709,11 @@ func fixPermissions(source, destination string, uid, gid int, destExisted bool) 
 
 func (b *Builder) clearTmp() {
 	for c := range b.TmpContainers {
-		tmp := b.Daemon.Get(c)
+		tmp, err := b.Daemon.Get(c)
+		if err != nil {
+			fmt.Fprint(b.OutStream, err.Error())
+		}
+
 		if err := b.Daemon.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 			return

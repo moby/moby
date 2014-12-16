@@ -282,12 +282,12 @@ func TestDaemonCreate(t *testing.T) {
 	}
 
 	// Make sure we can get the container with Get()
-	if daemon.Get(container.ID) == nil {
+	if _, err := daemon.Get(container.ID); err != nil {
 		t.Errorf("Unable to get newly created container")
 	}
 
 	// Make sure it is the right container
-	if daemon.Get(container.ID) != container {
+	if c, _ := daemon.Get(container.ID); c != container {
 		t.Errorf("Get() returned the wrong container")
 	}
 
@@ -383,8 +383,8 @@ func TestDestroy(t *testing.T) {
 	}
 
 	// Make sure daemon.Get() refuses to return the unexisting container
-	if daemon.Get(container.ID) != nil {
-		t.Errorf("Unable to get newly created container")
+	if c, _ := daemon.Get(container.ID); c != nil {
+		t.Errorf("Got a container that should not exist")
 	}
 
 	// Test double destroy
@@ -407,16 +407,16 @@ func TestGet(t *testing.T) {
 	container3, _, _ := mkContainer(daemon, []string{"_", "ls", "-al"}, t)
 	defer daemon.Destroy(container3)
 
-	if daemon.Get(container1.ID) != container1 {
-		t.Errorf("Get(test1) returned %v while expecting %v", daemon.Get(container1.ID), container1)
+	if c, _ := daemon.Get(container1.ID); c != container1 {
+		t.Errorf("Get(test1) returned %v while expecting %v", c, container1)
 	}
 
-	if daemon.Get(container2.ID) != container2 {
-		t.Errorf("Get(test2) returned %v while expecting %v", daemon.Get(container2.ID), container2)
+	if c, _ := daemon.Get(container2.ID); c != container2 {
+		t.Errorf("Get(test2) returned %v while expecting %v", c, container2)
 	}
 
-	if daemon.Get(container3.ID) != container3 {
-		t.Errorf("Get(test3) returned %v while expecting %v", daemon.Get(container3.ID), container3)
+	if c, _ := daemon.Get(container3.ID); c != container3 {
+		t.Errorf("Get(test3) returned %v while expecting %v", c, container3)
 	}
 
 }
@@ -485,9 +485,9 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(id)
-	if container == nil {
-		t.Fatalf("Couldn't fetch test container %s", id)
+	container, err := daemon.Get(id)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	setTimeout(t, "Waiting for the container to be started timed out", 2*time.Second, func() {
@@ -646,8 +646,8 @@ func TestRestore(t *testing.T) {
 	if runningCount != 0 {
 		t.Fatalf("Expected 0 container alive, %d found", runningCount)
 	}
-	container3 := daemon2.Get(container1.ID)
-	if container3 == nil {
+	container3, err := daemon2.Get(container1.ID)
+	if err != nil {
 		t.Fatal("Unable to Get container")
 	}
 	if err := container3.Run(); err != nil {
@@ -666,16 +666,21 @@ func TestDefaultContainerName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "some_name"))
+	container, err := daemon.Get(createNamedTestContainer(eng, config, t, "some_name"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	containerID := container.ID
 
 	if container.Name != "/some_name" {
 		t.Fatalf("Expect /some_name got %s", container.Name)
 	}
 
-	if c := daemon.Get("/some_name"); c == nil {
+	c, err := daemon.Get("/some_name")
+	if err != nil {
 		t.Fatalf("Couldn't retrieve test container as /some_name")
-	} else if c.ID != containerID {
+	}
+	if c.ID != containerID {
 		t.Fatalf("Container /some_name has ID %s instead of %s", c.ID, containerID)
 	}
 }
@@ -690,14 +695,17 @@ func TestRandomContainerName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createTestContainer(eng, config, t))
+	container, err := daemon.Get(createTestContainer(eng, config, t))
+	if err != nil {
+		t.Fatal(err)
+	}
 	containerID := container.ID
 
 	if container.Name == "" {
 		t.Fatalf("Expected not empty container name")
 	}
 
-	if c := daemon.Get(container.Name); c == nil {
+	if c, err := daemon.Get(container.Name); err != nil {
 		log.Fatalf("Could not lookup container %s by its name", container.Name)
 	} else if c.ID != containerID {
 		log.Fatalf("Looking up container name %s returned id %s instead of %s", container.Name, c.ID, containerID)
@@ -737,13 +745,16 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		container := daemon.Get(engine.Tail(outputBuffer, 1))
+		container, err := daemon.Get(engine.Tail(outputBuffer, 1))
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if container.Name != "/"+test.Name {
 			t.Fatalf("Expect /%s got %s", test.Name, container.Name)
 		}
 
-		if c := daemon.Get("/" + test.Name); c == nil {
+		if c, err := daemon.Get("/" + test.Name); err != nil {
 			t.Fatalf("Couldn't retrieve test container as /%s", test.Name)
 		} else if c.ID != container.ID {
 			t.Fatalf("Container /%s has ID %s instead of %s", test.Name, c.ID, container.ID)
@@ -762,7 +773,10 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	container, err := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	webapp, err := daemon.GetByName("/webapp")
 	if err != nil {
@@ -778,7 +792,10 @@ func TestLinkChildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	childContainer := daemon.Get(createTestContainer(eng, config, t))
+	childContainer, err := daemon.Get(createTestContainer(eng, config, t))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := daemon.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)
@@ -804,7 +821,10 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	container := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	container, err := daemon.Get(createNamedTestContainer(eng, config, t, "/webapp"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	webapp, err := daemon.GetByName("/webapp")
 	if err != nil {
@@ -820,7 +840,10 @@ func TestGetAllChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	childContainer := daemon.Get(createTestContainer(eng, config, t))
+	childContainer, err := daemon.Get(createTestContainer(eng, config, t))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := daemon.RegisterLink(webapp, childContainer, "db"); err != nil {
 		t.Fatal(err)

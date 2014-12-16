@@ -14,12 +14,12 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s container_id", job.Name)
 	}
 	var (
-		name      = job.Args[0]
-		container = daemon.Get(name)
+		name = job.Args[0]
 	)
 
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	if container.IsPaused() {

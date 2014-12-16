@@ -11,9 +11,9 @@ func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
 	oldName := job.Args[0]
 	newName := job.Args[1]
 
-	container := daemon.Get(oldName)
-	if container == nil {
-		return job.Errorf("No such container: %s", oldName)
+	container, err := daemon.Get(oldName)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	oldName = container.Name

@@ -117,7 +117,7 @@ func containerAssertExists(eng *engine.Engine, id string, t Fataler) {
 
 func containerAssertNotExists(eng *engine.Engine, id string, t Fataler) {
 	daemon := mkDaemonFromEngine(eng, t)
-	if c := daemon.Get(id); c != nil {
+	if c, _ := daemon.Get(id); c != nil {
 		t.Fatal(fmt.Errorf("Container %s should not exist", id))
 	}
 }
@@ -142,9 +142,9 @@ func assertHttpError(r *httptest.ResponseRecorder, t Fataler) {
 
 func getContainer(eng *engine.Engine, id string, t Fataler) *daemon.Container {
 	daemon := mkDaemonFromEngine(eng, t)
-	c := daemon.Get(id)
-	if c == nil {
-		t.Fatal(fmt.Errorf("No such container: %s", id))
+	c, err := daemon.Get(id)
+	if err != nil {
+		t.Fatal(err)
 	}
 	return c
 }

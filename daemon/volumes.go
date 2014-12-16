@@ -266,9 +266,9 @@ func (container *Container) applyVolumesFrom() error {
 			continue
 		}
 
-		c := container.daemon.Get(id)
-		if c == nil {
-			return fmt.Errorf("container %s not found, impossible to mount its volumes", id)
+		c, err := container.daemon.Get(id)
+		if err != nil {
+			return err
 		}
 
 		var (
