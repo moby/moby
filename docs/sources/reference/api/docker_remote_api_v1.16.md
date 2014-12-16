@@ -390,8 +390,10 @@ Get stdout and stderr logs from the container ``id``
 
 **Example response**:
 
-       HTTP/1.1 200 OK
+       HTTP/1.1 101 UPGRADED
        Content-Type: application/vnd.docker.raw-stream
+       Connection: Upgrade
+       Upgrade: tcp
 
        {{ STREAM }}
 
@@ -406,7 +408,8 @@ Query Parameters:
 
 Status Codes:
 
--   **200** – no error
+-   **101** – no error, hints proxy about hijacking
+-   **200** – no error, no upgrade header found
 -   **404** – no such container
 -   **500** – server error
 
@@ -641,8 +644,10 @@ Attach to the container `id`
 
 **Example response**:
 
-        HTTP/1.1 200 OK
+        HTTP/1.1 101 UPGRADED
         Content-Type: application/vnd.docker.raw-stream
+        Connection: Upgrade
+        Upgrade: tcp
 
         {{ STREAM }}
 
@@ -660,7 +665,8 @@ Query Parameters:
 
 Status Codes:
 
--   **200** – no error
+-   **101** – no error, hints proxy about hijacking
+-   **200** – no error, no upgrade header found
 -   **400** – bad parameter
 -   **404** – no such container
 -   **500** – server error
@@ -1739,7 +1745,18 @@ As an example, the `docker run` command line makes the following API calls:
 ## 3.2 Hijacking
 
 In this version of the API, /attach, uses hijacking to transport stdin,
-stdout and stderr on the same socket. This might change in the future.
+stdout and stderr on the same socket.
+
+To hint potential proxies about connection hijacking, Docker client sends
+connection upgrade headers similarly to websocket.
+
+    Upgrade: tcp
+    Connection: Upgrade
+
+When Docker daemon detects the `Upgrade` header, it will switch its status code
+from **200 OK** to **101 UPGRADED** and resend the same headers.
+
+This might change in the future.
 
 ## 3.3 CORS Requests
 
