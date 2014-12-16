@@ -3903,7 +3903,7 @@ func TestBuildStderr(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stderr != "" {
-		t.Fatal("Stderr should have been empty, instead its: %q", stderr)
+		t.Fatalf("Stderr should have been empty, instead its: %q", stderr)
 	}
 	logDone("build - testing stderr")
 }

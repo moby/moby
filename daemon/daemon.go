@@ -234,7 +234,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		log.Debugf("killing old running container %s", container.ID)
 
 		existingPid := container.Pid
-		container.SetStopped(&execdriver.ExitStatus{0, false})
+		container.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 
 		// We only have to handle this for lxc because the other drivers will ensure that
 		// no processes are left when docker dies
@@ -266,7 +266,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 			log.Debugf("Marking as stopped")
 
-			container.SetStopped(&execdriver.ExitStatus{-127, false})
+			container.SetStopped(&execdriver.ExitStatus{ExitCode: -127})
 			if err := container.ToDisk(); err != nil {
 				return err
 			}

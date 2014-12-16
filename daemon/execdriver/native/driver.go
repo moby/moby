@@ -74,7 +74,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c)
 	if err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	var term execdriver.Terminal
@@ -85,7 +85,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
 	if err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	c.ProcessConfig.Terminal = term
 
@@ -102,12 +102,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	)
 
 	if err := d.createContainerRoot(c.ID); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	defer d.cleanContainer(c.ID)
 
 	if err := d.writeContainerFile(container, c.ID); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	execOutputChan := make(chan execOutput, 1)
@@ -146,7 +146,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	select {
 	case execOutput := <-execOutputChan:
-		return execdriver.ExitStatus{execOutput.exitCode, false}, execOutput.err
+		return execdriver.ExitStatus{ExitCode: execOutput.exitCode}, execOutput.err
 	case <-waitForStart:
 		break
 	}
@@ -161,7 +161,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// wait for the container to exit.
 	execOutput := <-execOutputChan
 
-	return execdriver.ExitStatus{execOutput.exitCode, oomKill}, execOutput.err
+	return execdriver.ExitStatus{ExitCode: execOutput.exitCode, OOMKilled: oomKill}, execOutput.err
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {

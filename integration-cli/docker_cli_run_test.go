@@ -2760,7 +2760,7 @@ func TestRunTtyWithPipe(t *testing.T) {
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			t.Fatal("run should have failed")
 		} else if !strings.Contains(out, expected) {
-			t.Fatal("run failed with error %q: expected %q", out, expected)
+			t.Fatalf("run failed with error %q: expected %q", out, expected)
 		}
 	}()
 

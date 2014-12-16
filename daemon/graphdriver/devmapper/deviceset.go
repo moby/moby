@@ -45,15 +45,15 @@ type Transaction struct {
 }
 
 type DevInfo struct {
-	Hash          string     `json:"-"`
-	DeviceId      int        `json:"device_id"`
-	Size          uint64     `json:"size"`
-	TransactionId uint64     `json:"transaction_id"`
-	Initialized   bool       `json:"initialized"`
-	devices       *DeviceSet `json:"-"`
+	Hash          string `json:"-"`
+	DeviceId      int    `json:"device_id"`
+	Size          uint64 `json:"size"`
+	TransactionId uint64 `json:"transaction_id"`
+	Initialized   bool   `json:"initialized"`
+	devices       *DeviceSet
 
-	mountCount int    `json:"-"`
-	mountPath  string `json:"-"`
+	mountCount int
+	mountPath  string
 
 	// The global DeviceSet lock guarantees that we serialize all
 	// the calls to libdevmapper (which is not threadsafe), but we
@@ -65,12 +65,12 @@ type DevInfo struct {
 	// the global lock while holding the per-device locks all
 	// device locks must be aquired *before* the device lock, and
 	// multiple device locks should be aquired parent before child.
-	lock sync.Mutex `json:"-"`
+	lock sync.Mutex
 }
 
 type MetaData struct {
 	Devices     map[string]*DevInfo `json:"Devices"`
-	devicesLock sync.Mutex          `json:"-"` // Protects all read/writes to Devices map
+	devicesLock sync.Mutex          // Protects all read/writes to Devices map
 }
 
 type DeviceSet struct {

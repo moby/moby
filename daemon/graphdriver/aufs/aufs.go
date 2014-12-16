@@ -134,15 +134,15 @@ func supportsAufs() error {
 	return ErrAufsNotSupported
 }
 
-func (a Driver) rootPath() string {
+func (a *Driver) rootPath() string {
 	return a.root
 }
 
-func (Driver) String() string {
+func (*Driver) String() string {
 	return "aufs"
 }
 
-func (a Driver) Status() [][2]string {
+func (a *Driver) Status() [][2]string {
 	ids, _ := loadIds(path.Join(a.rootPath(), "layers"))
 	return [][2]string{
 		{"Root Dir", a.rootPath()},
@@ -152,7 +152,7 @@ func (a Driver) Status() [][2]string {
 
 // Exists returns true if the given id is registered with
 // this driver
-func (a Driver) Exists(id string) bool {
+func (a *Driver) Exists(id string) bool {
 	if _, err := os.Lstat(path.Join(a.rootPath(), "layers", id)); err != nil {
 		return false
 	}
