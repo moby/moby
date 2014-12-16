@@ -3004,11 +3004,33 @@ docker.com>"
 		t.Fatal(err)
 	}
 
-	if res != "Docker IO <io@docker.com>" {
-		t.Fatal("Parsed string did not match the escaped string")
+	if res != "\"Docker IO <io@docker.com>\"" {
+		t.Fatalf("Parsed string did not match the escaped string. Got: %q", res)
 	}
 
 	logDone("build - validate escaping whitespace")
+}
+
+func TestBuildVerifyIntString(t *testing.T) {
+	// Verify that strings that look like ints are still passed as strings
+	name := "testbuildstringing"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  MAINTAINER 123
+  `, true)
+
+	out, rc, err := runCommandWithOutput(exec.Command(dockerBinary, "inspect", name))
+	if rc != 0 || err != nil {
+		t.Fatalf("Unexcepted error from inspect: rc: %v  err: %v", rc, err)
+	}
+
+	if !strings.Contains(out, "\"123\"") {
+		t.Fatalf("Output does not contain the int as a string:\n%s", out)
+	}
+
+	logDone("build - verify int/strings as strings")
 }
 
 func TestBuildDockerignore(t *testing.T) {

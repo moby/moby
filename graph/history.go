@@ -31,7 +31,7 @@ func (s *TagStore) CmdHistory(job *engine.Job) engine.Status {
 	outs := engine.NewTable("Created", 0)
 	err = foundImage.WalkHistory(func(img *image.Image) error {
 		out := &engine.Env{}
-		out.Set("Id", img.ID)
+		out.SetJson("Id", img.ID)
 		out.SetInt64("Created", img.Created.Unix())
 		out.Set("CreatedBy", strings.Join(img.ContainerConfig.Cmd, " "))
 		out.SetList("Tags", lookupMap[img.ID])
