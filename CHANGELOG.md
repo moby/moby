@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1 (2014-12-15)
+
+#### Runtime
+- Fix issue with volumes-from and bind mounts not being honored after create
+
 ## 1.4.0 (2014-12-11)
 
 #### Notable Features since 1.3.0

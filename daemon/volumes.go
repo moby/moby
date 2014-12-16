@@ -24,6 +24,7 @@ type Mount struct {
 	volume      *volumes.Volume
 	Writable    bool
 	copyData    bool
+	from        *Container
 }
 
 func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
@@ -42,9 +43,6 @@ func (container *Container) prepareVolumes() error {
 	if container.Volumes == nil || len(container.Volumes) == 0 {
 		container.Volumes = make(map[string]string)
 		container.VolumesRW = make(map[string]bool)
-		if err := container.applyVolumesFrom(); err != nil {
-			return err
-		}
 	}
 
 	return container.createVolumes()
@@ -73,13 +71,27 @@ func (container *Container) createVolumes() error {
 		}
 	}
 
-	return nil
+	// On every start, this will apply any new `VolumesFrom` entries passed in via HostConfig, which may override volumes set in `create`
+	return container.applyVolumesFrom()
 }
 
 func (m *Mount) initialize() error {
 	// No need to initialize anything since it's already been initialized
-	if _, exists := m.container.Volumes[m.MountToPath]; exists {
-		return nil
+	if hostPath, exists := m.container.Volumes[m.MountToPath]; exists {
+		// If this is a bind-mount/volumes-from, maybe it was passed in at start instead of create
+		// We need to make sure bind-mounts/volumes-from passed on start can override existing ones.
+		if !m.volume.IsBindMount && m.from == nil {
+			return nil
+		}
+		if m.volume.Path == hostPath {
+			return nil
+		}
+
+		// Make sure we remove these old volumes we don't actually want now.
+		// Ignore any errors here since this is just cleanup, maybe someone volumes-from'd this volume
+		v := m.container.daemon.volumes.Get(hostPath)
+		v.RemoveContainer(m.container.ID)
+		m.container.daemon.volumes.Delete(v.Path)
 	}
 
 	// This is the full path to container fs + mntToPath
@@ -217,6 +229,7 @@ func (container *Container) applyVolumesFrom() error {
 
 	for _, mounts := range mountGroups {
 		for _, mnt := range mounts {
+			mnt.from = mnt.container
 			mnt.container = container
 			if err := mnt.initialize(); err != nil {
 				return err
