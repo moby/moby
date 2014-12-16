@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,9 +12,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
@@ -1940,6 +1943,85 @@ func TestBuildExpose(t *testing.T) {
 		t.Fatalf("Exposed ports %s, expected %s", res, expected)
 	}
 	logDone("build - expose")
+}
+
+func TestBuildExposeMorePorts(t *testing.T) {
+	// start building docker file with a large number of ports
+	portList := make([]string, 50)
+	line := make([]string, 100)
+	expectedPorts := make([]int, len(portList)*len(line))
+	for i := 0; i < len(portList); i++ {
+		for j := 0; j < len(line); j++ {
+			p := i*len(line) + j + 1
+			line[j] = strconv.Itoa(p)
+			expectedPorts[p-1] = p
+		}
+		if i == len(portList)-1 {
+			portList[i] = strings.Join(line, " ")
+		} else {
+			portList[i] = strings.Join(line, " ") + ` \`
+		}
+	}
+
+	dockerfile := `FROM scratch
+	EXPOSE {{range .}} {{.}}
+	{{end}}`
+	tmpl := template.Must(template.New("dockerfile").Parse(dockerfile))
+	buf := bytes.NewBuffer(nil)
+	tmpl.Execute(buf, portList)
+
+	name := "testbuildexpose"
+	defer deleteImages(name)
+	_, err := buildImage(name, buf.String(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if all the ports are saved inside Config.ExposedPorts
+	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exposedPorts map[string]interface{}
+	if err := json.Unmarshal([]byte(res), &exposedPorts); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range expectedPorts {
+		ep := fmt.Sprintf("%d/tcp", p)
+		if _, ok := exposedPorts[ep]; !ok {
+			t.Errorf("Port(%s) is not exposed", ep)
+		} else {
+			delete(exposedPorts, ep)
+		}
+	}
+	if len(exposedPorts) != 0 {
+		t.Errorf("Unexpected extra exposed ports %v", exposedPorts)
+	}
+	logDone("build - expose large number of ports")
+}
+
+func TestBuildExposeOrder(t *testing.T) {
+	buildID := func(name, exposed string) string {
+		_, err := buildImage(name, fmt.Sprintf(`FROM scratch
+		EXPOSE %s`, exposed), true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := inspectField(name, "Id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	id1 := buildID("testbuildexpose1", "80 2375")
+	id2 := buildID("testbuildexpose2", "2375 80")
+	defer deleteImages("testbuildexpose1", "testbuildexpose2")
+	if id1 != id2 {
+		t.Errorf("EXPOSE should invalidate the cache only when ports actually changed")
+	}
+	logDone("build - expose order")
 }
 
 func TestBuildEmptyEntrypointInheritance(t *testing.T) {
