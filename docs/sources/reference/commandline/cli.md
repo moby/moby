@@ -179,14 +179,17 @@ The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
 serious kernel crashes. However, `aufs` is also the only storage driver that allows
 containers to share executable and shared library memory, so is a useful choice
-when running thousands of containers with the same program or libraries.
+when running thousands of containers with the same program or libraries. AUFS
+driver can be configured with `--storage-opt` flags. Refer to [AUFS
+storage driver options](#aufs-storage-driver-options) below for a way to
+customize this setup.
 
 The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
 snapshots. For each devicemapper graph location – typically
 `/var/lib/docker/devicemapper` – a thin pool is created based on two block
 devices, one for data and one for metadata.  By default, these block devices
 are created automatically by using loopback mounts of automatically created
-sparse files. Refer to [Storage driver options](#storage-driver-options) below
+sparse files. Refer to [Devicemapper storage driver options](#devicemapper-storage-driver-options) below
 for a way how to customize this setup.
 [~jpetazzo/Resizing Docker containers with the Device Mapper plugin](
 http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/) article
@@ -205,10 +208,12 @@ Call `docker -d -s overlay` to use it.
 #### Storage driver options
 
 Particular storage-driver can be configured with options specified with
-`--storage-opt` flags. The only driver accepting options is `devicemapper` as
-of now. All its options are prefixed with `dm`.
+`--storage-opt` flags. The only drivers accepting options are `devicemapper`
+and `aufs` as of now.
 
-Currently supported options are:
+##### Devicemapper storage driver options
+
+The devicemapper options are prefixed with `dm`. Currently supported options are:
 
  *  `dm.basesize`
 
@@ -330,6 +335,24 @@ Currently supported options are:
     Example use:
 
         $ sudo docker -d --storage-opt dm.blkdiscard=false
+
+##### AUFS storage driver options
+
+The aufs options are prefixed with `aufs`. Current supported options are:
+
+ * `aufs.mountopt`
+
+    Specifies extra mount options used when mounting the aufs layers.
+
+    Example use:
+
+        # Tell aufs to check the permission bits of the directory on the
+        # topmost branch and ignore the permission bits on all lower branches.
+        # This option is only available for kernel with `dirperm1` patches and
+        # can be used to fix aufs' permission bug (i.e. upper layer having
+        # broader mask than the lower layer). More information about the
+        # bug can be found at https://github.com/docker/docker/issues/783
+        $ sudo docker -d --storage-opt aufs.mountopt=dirperm1
 
 ### Docker exec-driver option
 
