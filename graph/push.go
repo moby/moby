@@ -117,7 +117,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, localName,
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", localName, nTag))
 
 		for _, imgId := range imgList {
-			if r.LookupRemoteImage(imgId, ep, repoData.Tokens) {
+			if _, err := r.LookupRemoteImage(imgId, ep, repoData.Tokens); err != nil {
 				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 			} else {
 				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
