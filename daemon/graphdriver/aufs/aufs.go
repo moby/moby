@@ -62,7 +62,7 @@ type Driver struct {
 	mountOptions string
 }
 
-// New returns a new AUFS driver.
+// Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
 func Init(root string, options []string) (graphdriver.Driver, error) {
 
