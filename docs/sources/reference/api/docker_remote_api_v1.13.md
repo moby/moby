@@ -739,7 +739,8 @@ Status Codes:
 Query Parameters:
 
 -   **all** – 1/True/true or 0/False/false, default false
--   **filters** – a json encoded value of the filters (a map[string][string]) to process on the images list.
+-   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
+  -   dangling=true
 
 ### Create an image
 
