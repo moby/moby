@@ -135,6 +135,14 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
+	e := &Entity{id}
+
+	parentPath, name := splitPath(fullPath)
+	parent, err := db.get(parentPath)
+	if err != nil {
+		return nil, err
+	}
+
 	rollback := func() {
 		db.conn.Exec("ROLLBACK")
 	}
@@ -153,10 +161,7 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 			return nil, err
 		}
 	}
-	e := &Entity{id}
-
-	parentPath, name := splitPath(fullPath)
-	if err := db.setEdge(parentPath, name, e); err != nil {
+	if err := db.setEdge(parent, name, e); err != nil {
 		rollback()
 		return nil, err
 	}
@@ -179,11 +184,7 @@ func (db *Database) Exists(name string) bool {
 	return e != nil
 }
 
-func (db *Database) setEdge(parentPath, name string, e *Entity) error {
-	parent, err := db.get(parentPath)
-	if err != nil {
-		return err
-	}
+func (db *Database) setEdge(parent *Entity, name string, e *Entity) error {
 	if parent.id == e.id {
 		return fmt.Errorf("Cannot set self as child")
 	}
