@@ -41,7 +41,7 @@ with the name of branch or revision number.
 ## Build the Environment
 
 This following command builds a development environment using the
-Dockerfile in the current directory. Essentially, it installs all
+`Dockerfile` in the current directory. Essentially, it installs all
 the build and runtime dependencies necessary to build and test Docker.
 Your first build will take some time to complete. On Linux systems:
 
