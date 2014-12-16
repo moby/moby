@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+BINARY_NAME="pulldocker-$VERSION"
+if [ "$(go env GOOS)" = 'windows' ]; then
+	BINARY_NAME+='.exe'
+fi
+
+go build \
+	-o "$DEST/$BINARY_NAME" \
+	"${BUILDFLAGS[@]}" \
+	-ldflags "
+		$LDFLAGS
+		$LDFLAGS_STATIC_DOCKER
+	" \
+	./pulldocker
+echo "Created binary: $DEST/$BINARY_NAME"
+ln -sf "$BINARY_NAME" "$DEST/pulldocker"
+
+hash_files "$DEST/$BINARY_NAME"
