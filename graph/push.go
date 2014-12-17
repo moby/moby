@@ -113,18 +113,35 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, repoInfo *
 	if tag == "" {
 		nTag = len(localRepo)
 	}
+	completed := make(chan bool)
+	needsPush := make([]bool, len(imgList))
 	for _, ep := range repoData.Endpoints {
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", repoInfo.CanonicalName, nTag))
-		for _, imgId := range imgList {
-			if err := r.LookupRemoteImage(imgId, ep, repoData.Tokens); err != nil {
-				log.Errorf("Error in LookupRemoteImage: %s", err)
-				if _, err := s.pushImage(r, out, imgId, ep, repoData.Tokens, sf); err != nil {
+
+		for i, imgId := range imgList {
+			go func(i int, imgId string) {
+				if err := r.LookupRemoteImage(imgId, ep, repoData.Tokens); err == nil {
+					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
+					needsPush[i] = false
+				} else {
+					log.Errorf("Error in LookupRemoteImage: %s", err)
+					out.Write(sf.FormatStatus("", "Image %s not pushed, adding to queue", utils.TruncateID(imgId)))
+					needsPush[i] = true
+				}
+				completed <- true
+			}(i, imgId)
+		}
+		for i := 0; i < len(imgList); i++ {
+			<-completed
+		}
+		for i, imgId := range imgList {
+			if needsPush[i] {
+				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
 					// FIXME: Continue on error?
 					return err
 				}
-			} else {
-				out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 			}
+
 			for _, tag := range tagsByImage[imgId] {
 				out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(imgId), ep+"repositories/"+repoInfo.RemoteName+"/tags/"+tag))
 
