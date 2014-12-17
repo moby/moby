@@ -53,14 +53,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 
 	var beforeCont, sinceCont *Container
 	if before != "" {
-		beforeCont = daemon.Get(before)
+		beforeCont, _ = daemon.Get(before)
 		if beforeCont == nil {
 			return job.Error(fmt.Errorf("Could not find container with name or id %s", before))
 		}
 	}
 
 	if since != "" {
-		sinceCont = daemon.Get(since)
+		sinceCont, _ = daemon.Get(since)
 		if sinceCont == nil {
 			return job.Error(fmt.Errorf("Could not find container with name or id %s", since))
 		}

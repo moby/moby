@@ -16,8 +16,7 @@ func (daemon *Daemon) ContainerCopy(job *engine.Job) engine.Status {
 		resource = job.Args[1]
 	)
 
-	if container := daemon.Get(name); container != nil {
-
+	if container, err := daemon.Get(name); container != nil {
 		data, err := container.Copy(resource)
 		if err != nil {
 			return job.Error(err)
@@ -28,6 +27,7 @@ func (daemon *Daemon) ContainerCopy(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		return engine.StatusOK
+	} else {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
 }

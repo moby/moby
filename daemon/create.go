@@ -118,7 +118,7 @@ func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode) ([]string, 
 		return label.DisableSecOpt(), nil
 	}
 	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
-		c := daemon.Get(ipcContainer)
+		c, _ := daemon.Get(ipcContainer)
 		if c == nil {
 			return nil, fmt.Errorf("no such container to join IPC: %s", ipcContainer)
 		}

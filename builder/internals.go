@@ -86,7 +86,7 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 		}
 		defer container.Unmount()
 	}
-	container := b.Daemon.Get(id)
+	container, _ := b.Daemon.Get(id)
 	if container == nil {
 		return fmt.Errorf("An error occured while creating the container")
 	}
@@ -693,7 +693,7 @@ func fixPermissions(source, destination string, uid, gid int, destExisted bool) 
 
 func (b *Builder) clearTmp() {
 	for c := range b.TmpContainers {
-		tmp := b.Daemon.Get(c)
+		tmp, _ := b.Daemon.Get(c)
 		if err := b.Daemon.Destroy(tmp); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 			return

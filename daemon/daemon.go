@@ -156,17 +156,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
-func (daemon *Daemon) Get(name string) *Container {
-	if id, err := daemon.idIndex.Get(name); err == nil {
-		return daemon.containers.Get(id)
-	}
-	if c, _ := daemon.GetByName(name); c != nil {
-		return c
-	}
-	return nil
-}
-
-func (daemon *Daemon) GetWithError(prefix string) (*Container, error) {
+func (daemon *Daemon) Get(prefix string) (*Container, error) {
 	if containerByID := daemon.containers.Get(prefix); containerByID != nil {
 		return containerByID, nil
 	}
@@ -205,7 +195,8 @@ func (daemon *Daemon) GetWithError(prefix string) (*Container, error) {
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
 func (daemon *Daemon) Exists(id string) bool {
-	return daemon.Get(id) != nil
+	c, _ := daemon.Get(id)
+	return c != nil
 }
 
 func (daemon *Daemon) containerRoot(id string) string {
@@ -692,7 +683,7 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 	children := make(map[string]*Container)
 
 	err = daemon.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
-		c := daemon.Get(e.ID())
+		c, _ := daemon.Get(e.ID())
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
 		}

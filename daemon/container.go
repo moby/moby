@@ -1004,7 +1004,7 @@ func (container *Container) updateParentsHosts() error {
 			continue
 		}
 
-		c := container.daemon.Get(cid)
+		c, _ := container.daemon.Get(cid)
 		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
 			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, container.Name[1:]); err != nil {
 				log.Errorf("Failed to update /etc/hosts in parent container: %v", err)
@@ -1272,7 +1272,7 @@ func (container *Container) GetMountLabel() string {
 
 func (container *Container) getIpcContainer() (*Container, error) {
 	containerID := container.hostConfig.IpcMode.Container()
-	c := container.daemon.Get(containerID)
+	c, _ := container.daemon.Get(containerID)
 	if c == nil {
 		return nil, fmt.Errorf("no such container to join IPC: %s", containerID)
 	}
@@ -1289,7 +1289,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("no container specified to join network")
 		}
-		nc := container.daemon.Get(parts[1])
+		nc, _ := container.daemon.Get(parts[1])
 		if nc == nil {
 			return nil, fmt.Errorf("no such container to join network: %s", parts[1])
 		}

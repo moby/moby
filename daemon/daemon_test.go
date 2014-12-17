@@ -69,32 +69,32 @@ func TestGet(t *testing.T) {
 		containerGraph: graph,
 	}
 
-	if container, _ := daemon.GetWithError("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
+	if container, _ := daemon.Get("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
 		t.Fatal("Should explicitly match full container IDs")
 	}
 
-	if container, _ := daemon.GetWithError("75fb0b8009"); container != c4 {
+	if container, _ := daemon.Get("75fb0b8009"); container != c4 {
 		t.Fatal("Should match a partial ID")
 	}
 
-	if container, _ := daemon.GetWithError("drunk_hawking"); container != c2 {
+	if container, _ := daemon.Get("drunk_hawking"); container != c2 {
 		t.Fatal("Should match a full name")
 	}
 
 	// c3.Name is a partial match for both c3.ID and c2.ID
-	if _, err := daemon.GetWithError("3cdbd1aa"); err != ErrAmbiguousPrefix {
+	if _, err := daemon.Get("3cdbd1aa"); err != ErrAmbiguousPrefix {
 		t.Fatal("Should return ErrAmbiguousPrefix when provided a container name that collides with another container's ID")
 	}
 
-	if container, _ := daemon.GetWithError("d22d69a2b896"); container != c5 {
+	if container, _ := daemon.Get("d22d69a2b896"); container != c5 {
 		t.Fatal("Should match a container where the provided prefix is an exact match to the it's name, and is also a prefix for it's ID")
 	}
 
-	if _, err := daemon.GetWithError("3cdbd1"); err != ErrAmbiguousPrefix {
+	if _, err := daemon.Get("3cdbd1"); err != ErrAmbiguousPrefix {
 		t.Fatal("Should return ErrAmbiguousPrefix when provided a prefix that partially matches multiple container ID's")
 	}
 
-	if _, err := daemon.GetWithError("nothing"); err.Error() != fmt.Sprintf(ErrNotFound.Error(), "nothing") {
+	if _, err := daemon.Get("nothing"); err.Error() != fmt.Sprintf(ErrNotFound.Error(), "nothing") {
 		t.Fatal("Should return ErrNotFound when provided a prefix that is neither a name or a partial match to an ID")
 	}
 

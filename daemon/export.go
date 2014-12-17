@@ -11,7 +11,7 @@ func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s container_id", job.Name)
 	}
 	name := job.Args[0]
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		data, err := container.Export()
 		if err != nil {
 			return job.Errorf("%s: %s", name, err)
@@ -25,6 +25,7 @@ func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
 		// FIXME: factor job-specific LogEvent to engine.Job.Run()
 		container.LogEvent("export")
 		return engine.StatusOK
+	} else {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
 }
