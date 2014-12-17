@@ -9,7 +9,7 @@ func (daemon *Daemon) ContainerChanges(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s CONTAINER", job.Name)
 	}
 	name := job.Args[0]
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		outs := engine.NewTable("", 0)
 		changes, err := container.Changes()
 		if err != nil {
@@ -26,7 +26,7 @@ func (daemon *Daemon) ContainerChanges(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 	} else {
-		return job.Errorf("No such container: %s", name)
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }

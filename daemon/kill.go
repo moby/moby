@@ -38,7 +38,7 @@ func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
 		}
 	}
 
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 		if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
 			if err := container.Kill(); err != nil {
@@ -53,7 +53,7 @@ func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
 			// FIXME: Add event for signals
 		}
 	} else {
-		return job.Errorf("No such container: %s", name)
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }

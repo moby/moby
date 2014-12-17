@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 		psArgs = job.Args[1]
 	}
 
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		if !container.IsRunning() {
 			return job.Errorf("Container %s is not running", name)
 		}
@@ -74,6 +74,7 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 		out.WriteTo(job.Stdout)
 		return engine.StatusOK
 
+	} else {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
 }

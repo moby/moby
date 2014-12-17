@@ -20,13 +20,14 @@ func (daemon *Daemon) ContainerResize(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		if err := container.Resize(height, width); err != nil {
 			return job.Error(err)
 		}
 		return engine.StatusOK
+	} else {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
 }
 
 func (daemon *Daemon) ContainerExecResize(job *engine.Job) engine.Status {

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -40,6 +41,11 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
+)
+
+var (
+	ErrNotFound        = errors.New("No such container: %s")
+	ErrAmbiguousPrefix = errors.New("Too many containers found with provided prefix")
 )
 
 var (
@@ -150,20 +156,47 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
-func (daemon *Daemon) Get(name string) *Container {
-	if id, err := daemon.idIndex.Get(name); err == nil {
-		return daemon.containers.Get(id)
+func (daemon *Daemon) Get(prefix string) (*Container, error) {
+	if containerByID := daemon.containers.Get(prefix); containerByID != nil {
+		return containerByID, nil
 	}
-	if c, _ := daemon.GetByName(name); c != nil {
-		return c
+
+	containerByName, _ := daemon.GetByName(prefix)
+
+	containerId, indexError := daemon.idIndex.Get(prefix)
+
+	if containerByName != nil {
+		switch indexError {
+		case truncindex.ErrNotFound:
+			return containerByName, nil
+		case truncindex.ErrMultipleResults:
+			return nil, ErrAmbiguousPrefix
+		case nil:
+			if containerByName.ID == containerId {
+				return containerByName, nil
+			} else {
+				return nil, ErrAmbiguousPrefix
+			}
+		}
+	} else if containerId != "" {
+		return daemon.containers.Get(containerId), nil
+	} else {
+		switch indexError {
+		case truncindex.ErrMultipleResults:
+			return nil, ErrAmbiguousPrefix
+		case truncindex.ErrNotFound:
+			return nil, fmt.Errorf(ErrNotFound.Error(), prefix)
+		}
 	}
-	return nil
+
+	return nil, indexError
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
 func (daemon *Daemon) Exists(id string) bool {
-	return daemon.Get(id) != nil
+	c, _ := daemon.Get(id)
+	return c != nil
 }
 
 func (daemon *Daemon) containerRoot(id string) string {
@@ -650,7 +683,7 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 	children := make(map[string]*Container)
 
 	err = daemon.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
-		c := daemon.Get(e.ID())
+		c, _ := daemon.Get(e.ID())
 		if c == nil {
 			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
 		}

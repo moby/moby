@@ -15,11 +15,11 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 	}
 	var (
 		name      = job.Args[0]
-		container = daemon.Get(name)
+		container, err = daemon.Get(name)
 	)
 
 	if container == nil {
-		return job.Errorf("No such container: %s", name)
+		return job.Error(err)
 	}
 
 	if container.IsRunning() {

@@ -15,7 +15,7 @@ func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
 	if job.EnvExists("t") {
 		t = job.GetenvInt("t")
 	}
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		if !container.IsRunning() {
 			return job.Errorf("Container already stopped")
 		}
@@ -24,7 +24,7 @@ func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
 		}
 		container.LogEvent("stop")
 	} else {
-		return job.Errorf("No such container: %s\n", name)
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }

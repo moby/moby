@@ -13,7 +13,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		return job.Errorf("usage: %s NAME", job.Name)
 	}
 	name := job.Args[0]
-	if container := daemon.Get(name); container != nil {
+	if container, err := daemon.Get(name); container != nil {
 		container.Lock()
 		defer container.Unlock()
 		if job.GetenvBool("raw") {
@@ -63,8 +63,9 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		return engine.StatusOK
+	} else {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
 }
 
 func (daemon *Daemon) ContainerExecInspect(job *engine.Job) engine.Status {
