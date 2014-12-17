@@ -37,6 +37,59 @@ type ConfigFile struct {
 	rootPath string
 }
 
+type RequestAuthorization struct {
+	Token    string
+	Username string
+	Password string
+}
+
+func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) (*RequestAuthorization, error) {
+	var auth RequestAuthorization
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			Proxy:             http.ProxyFromEnvironment,
+		},
+		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+	}
+	factory := HTTPRequestFactory(nil)
+
+	for _, challenge := range registryEndpoint.AuthChallenges {
+		log.Debugf("Using %q auth challenge with params %s for %s", challenge.Scheme, challenge.Parameters, authConfig.Username)
+
+		switch strings.ToLower(challenge.Scheme) {
+		case "basic":
+			auth.Username = authConfig.Username
+			auth.Password = authConfig.Password
+		case "bearer":
+			params := map[string]string{}
+			for k, v := range challenge.Parameters {
+				params[k] = v
+			}
+			params["scope"] = fmt.Sprintf("%s:%s:%s", resource, scope, strings.Join(actions, ","))
+			token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
+			if err != nil {
+				return nil, err
+			}
+
+			auth.Token = token
+		default:
+			log.Infof("Unsupported auth scheme: %q", challenge.Scheme)
+		}
+	}
+
+	return &auth, nil
+}
+
+func (auth *RequestAuthorization) Authorize(req *http.Request) {
+	if auth.Token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", auth.Token))
+	} else if auth.Username != "" && auth.Password != "" {
+		req.SetBasicAuth(auth.Username, auth.Password)
+	}
+}
+
 // create a base64 encoded auth string to store in config
 func encodeAuth(authConfig *AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password

@@ -133,7 +133,12 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			return job.Errorf("error updating trust base graph: %s", err)
 		}
 
-		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err == nil {
+		auth, err := r.GetV2Authorization(repoInfo.RemoteName, true)
+		if err != nil {
+			return job.Errorf("error getting authorization: %s", err)
+		}
+
+		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel"), auth); err == nil {
 			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
 				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
 			}
@@ -423,23 +428,23 @@ type downloadInfo struct {
 	err        chan error
 }
 
-func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
+func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) error {
 	var layersDownloaded bool
 	if tag == "" {
 		log.Debugf("Pulling tag list from V2 registry for %s", repoInfo.CanonicalName)
-		tags, err := r.GetV2RemoteTags(repoInfo.RemoteName, nil)
+		tags, err := r.GetV2RemoteTags(repoInfo.RemoteName, auth)
 		if err != nil {
 			return err
 		}
 		for _, t := range tags {
-			if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, t, sf, parallel); err != nil {
+			if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, t, sf, parallel, auth); err != nil {
 				return err
 			} else if downloaded {
 				layersDownloaded = true
 			}
 		}
 	} else {
-		if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, tag, sf, parallel); err != nil {
+		if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, tag, sf, parallel, auth); err != nil {
 			return err
 		} else if downloaded {
 			layersDownloaded = true
@@ -454,9 +459,9 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 	return nil
 }
 
-func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) (bool, error) {
+func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
-	manifestBytes, err := r.GetV2ImageManifest(repoInfo.RemoteName, tag, nil)
+	manifestBytes, err := r.GetV2ImageManifest(repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
@@ -525,7 +530,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return err
 				}
 
-				r, l, err := r.GetV2ImageBlobReader(repoInfo.RemoteName, sumType, checksum, nil)
+				r, l, err := r.GetV2ImageBlobReader(repoInfo.RemoteName, sumType, checksum, auth)
 				if err != nil {
 					return err
 				}

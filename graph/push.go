@@ -290,26 +290,24 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err2)
 	}
 
-	var isOfficial bool
-	if endpoint.String() == registry.IndexServerAddress() {
-		isOfficial = isOfficialName(remoteName)
-		if isOfficial && strings.IndexRune(remoteName, '/') == -1 {
-			remoteName = "library/" + remoteName
-		}
-	}
-
 	if len(tag) == 0 {
 		tag = DEFAULTTAG
 	}
-	if isOfficial || endpoint.Version == registry.APIVersion2 {
+
+	if repoInfo.Official || endpoint.Version == registry.APIVersion2 {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
 			return job.Errorf("error updating trust base graph: %s", err)
 		}
 
-		repoData, err := r.PushImageJSONIndex(remoteName, []*registry.ImgData{}, false, nil)
+		// Get authentication type
+		auth, err := r.GetV2Authorization(repoInfo.RemoteName, false)
 		if err != nil {
-			return job.Error(err)
+			return job.Errorf("error getting authorization: %s", err)
+		}
+
+		if len(manifestBytes) == 0 {
+			// TODO Create manifest and sign
 		}
 
 		// try via manifest
@@ -359,13 +357,13 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 			}
 
 			// Call mount blob
-			exists, err := r.PostV2ImageMountBlob(remoteName, sumParts[0], manifestSum, repoData.Tokens)
+			exists, err := r.PostV2ImageMountBlob(repoInfo.RemoteName, sumParts[0], manifestSum, auth)
 			if err != nil {
 				job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 				return job.Error(err)
 			}
 			if !exists {
-				_, err = r.PutV2ImageBlob(remoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), job.Stdout, sf, false, utils.TruncateID(img.ID), "Pushing"), repoData.Tokens)
+				err = r.PutV2ImageBlob(repoInfo.RemoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), job.Stdout, sf, false, utils.TruncateID(img.ID), "Pushing"), auth)
 				if err != nil {
 					job.Stdout.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 					return job.Error(err)
@@ -377,35 +375,36 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		}
 
 		// push the manifest
-		err = r.PutV2ImageManifest(remoteName, tag, bytes.NewReader([]byte(manifestBytes)), repoData.Tokens)
+		err = r.PutV2ImageManifest(repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth)
 		if err != nil {
 			return job.Error(err)
 		}
 
 		// done, no fallback to V1
 		return engine.StatusOK
-	}
+	} else {
 
-	if err != nil {
-		reposLen := 1
-		if tag == "" {
-			reposLen = len(s.Repositories[repoInfo.LocalName])
-		}
-		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
-		// If it fails, try to get the repository
-		if localRepo, exists := s.Repositories[repoInfo.LocalName]; exists {
-			if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
-				return job.Error(err)
+		if err != nil {
+			reposLen := 1
+			if tag == "" {
+				reposLen = len(s.Repositories[repoInfo.LocalName])
 			}
-			return engine.StatusOK
+			job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
+			// If it fails, try to get the repository
+			if localRepo, exists := s.Repositories[repoInfo.LocalName]; exists {
+				if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
+					return job.Error(err)
+				}
+				return engine.StatusOK
+			}
+			return job.Error(err)
 		}
-		return job.Error(err)
-	}
 
-	var token []string
-	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", repoInfo.CanonicalName))
-	if _, err := s.pushImage(r, job.Stdout, img.ID, endpoint.String(), token, sf); err != nil {
-		return job.Error(err)
+		var token []string
+		job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", repoInfo.CanonicalName))
+		if _, err := s.pushImage(r, job.Stdout, img.ID, endpoint.String(), token, sf); err != nil {
+			return job.Error(err)
+		}
+		return engine.StatusOK
 	}
-	return engine.StatusOK
 }
