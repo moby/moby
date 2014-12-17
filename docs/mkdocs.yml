@@ -45,7 +45,7 @@ pages:
 - ['installation/archlinux.md', 'Installation', 'Arch Linux']
 - ['installation/frugalware.md', 'Installation', 'FrugalWare']
 - ['installation/fedora.md', 'Installation', 'Fedora']
-- ['installation/openSUSE.md', 'Installation', 'openSUSE']
+- ['installation/SUSE.md', 'Installation', 'SUSE']
 - ['installation/cruxlinux.md', 'Installation', 'CRUX Linux']
 - ['installation/windows.md', 'Installation', 'Microsoft Windows']
 - ['installation/binaries.md', 'Installation', 'Binaries']
