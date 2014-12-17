@@ -17,7 +17,7 @@ import (
 // NewIdentityAuthTLSConfig creates a tls.Config for the client to use for
 // libtrust identity authentication
 func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, knownHostsPath, proto, addr string) (*tls.Config, error) {
-	tlsConfig := createTLSConfig()
+	tlsConfig := newTLSConfig()
 
 	// Load known hosts
 	knownHosts, err := libtrust.LoadKeySetFile(knownHostsPath)
@@ -68,30 +68,13 @@ func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, knownHostsPath, prot
 		}
 		opts.Intermediates.AddCert(cert)
 	}
-	_, err = certs[0].Verify(opts)
-	if err != nil {
+
+	if _, err := certs[0].Verify(opts); err != nil {
 		if _, ok := err.(x509.UnknownAuthorityError); ok {
-			pubKey, err := libtrust.FromCryptoPublicKey(certs[0].PublicKey)
-			if err != nil {
-				return nil, fmt.Errorf("Error extracting public key from certificate: %s", err)
-			}
-
-			// If server is not a known host, prompt user to ask whether it should
-			// be trusted and add to the known hosts file
-			if promptUnknownKey(pubKey, addr) {
-				pubKey.AddExtendedField("hosts", []string{addr})
-				err = libtrust.AddKeySetFile(knownHostsPath, pubKey)
-				if err != nil {
-					return nil, fmt.Errorf("Error saving updated host keys file: %s", err)
-				}
-
-				ca, err := libtrust.GenerateCACert(trustKey, pubKey)
-				if err != nil {
-					return nil, fmt.Errorf("Error generating CA: %s", err)
-				}
-				tlsConfig.RootCAs.AddCert(ca)
+			if ca, err := checkTrustedPeer(trustKey, certs[0], addr, knownHostsPath); err != nil {
+				return nil, err
 			} else {
-				return nil, fmt.Errorf("Cancelling request due to invalid certificate")
+				tlsConfig.RootCAs.AddCert(ca)
 			}
 		} else {
 			return nil, fmt.Errorf("TLS verification error: %s", err)
@@ -107,7 +90,7 @@ func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, knownHostsPath, prot
 // NewCertAuthTLSConfig creates a tls.Config for the client to use for
 // certificate authentication
 func NewCertAuthTLSConfig(caPath, certPath, keyPath string) (*tls.Config, error) {
-	tlsConfig := createTLSConfig()
+	tlsConfig := newTLSConfig()
 
 	// Verify the server against a CA certificate?
 	if caPath != "" {
@@ -124,28 +107,54 @@ func NewCertAuthTLSConfig(caPath, certPath, keyPath string) (*tls.Config, error)
 
 	// Try to load and send client certificates
 	if certPath != "" && keyPath != "" {
-		_, errCert := os.Stat(certPath)
-		_, errKey := os.Stat(keyPath)
-		if errCert == nil && errKey == nil {
-			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-			if err != nil {
+		if cert, err := tls.LoadX509KeyPair(certPath, keyPath); err != nil {
+			// If one of the files do not exist, skip setting cert and do not return error
+			if !os.IsNotExist(err) {
 				return nil, fmt.Errorf("Couldn't load X509 key pair: %s. Key encrypted?", err)
 			}
+		} else {
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
 	}
 	return tlsConfig, nil
 }
 
-// createTLSConfig creates the base tls.Config used by auth methods with some
+// newTLSConfig creates the base tls.Config used by auth methods with some
 // sensible defaults
-func createTLSConfig() *tls.Config {
+func newTLSConfig() *tls.Config {
 	return &tls.Config{
 		// Avoid fallback to SSL protocols < TLS1.0
 		MinVersion: tls.VersionTLS10,
 	}
 }
 
+// checkTrustedPeer checks a x509 peer certificate by prompting
+// for whether the public key should be trusted
+func checkTrustedPeer(trustKey libtrust.PrivateKey, peer *x509.Certificate, host string, knownHostsPath string) (*x509.Certificate, error) {
+	pubKey, err := libtrust.FromCryptoPublicKey(peer.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("Error extracting public key from certificate: %s", err)
+	}
+
+	// If server is not a known host, prompt user to ask whether it should
+	// be trusted and add to the known hosts file
+	if promptUnknownKey(pubKey, host) {
+		pubKey.AddExtendedField("hosts", []string{host})
+		if err := libtrust.AddKeySetFile(knownHostsPath, pubKey); err != nil {
+			return nil, fmt.Errorf("Error saving updated host keys file: %s", err)
+		}
+
+		ca, err := libtrust.GenerateCACert(trustKey, pubKey)
+		if err != nil {
+			return nil, fmt.Errorf("Error generating CA: %s", err)
+		}
+		return ca, nil
+	}
+	return nil, fmt.Errorf("Cancelling request due to invalid certificate")
+}
+
+// promptUnknownKey prompts STDIN for whether a public key is trusted
+// based on its cryptographic fingerprint and intended host name
 func promptUnknownKey(key libtrust.PublicKey, host string) bool {
 	fmt.Printf("The authenticity of host %q can't be established.\nRemote key ID %s\n", host, key.KeyID())
 	fmt.Printf("Are you sure you want to continue connecting (yes/no)? ")

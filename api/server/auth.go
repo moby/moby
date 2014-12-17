@@ -41,15 +41,15 @@ func NewClientKeyManager(trustKey libtrust.PrivateKey, clientFile, clientDir str
 
 	return m, nil
 }
-func (c *ClientKeyManager) loadKeys() error {
+
+func (c *ClientKeyManager) loadKeys() (err error) {
 	// Load authorized keys file
 	var clients []libtrust.PublicKey
 	if c.clientFile != "" {
-		fileClients, err := libtrust.LoadKeySetFile(c.clientFile)
+		clients, err = libtrust.LoadKeySetFile(c.clientFile)
 		if err != nil {
 			return fmt.Errorf("unable to load authorized keys: %s", err)
 		}
-		clients = fileClients
 	}
 
 	// Add clients from authorized keys directory
@@ -97,7 +97,7 @@ func (c *ClientKeyManager) RegisterTLSConfig(tlsConfig *tls.Config) error {
 // NewIdentityAuthTLSConfig creates a tls.Config for the server to use for
 // libtrust identity authentication
 func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, clients *ClientKeyManager, addr string) (*tls.Config, error) {
-	tlsConfig := createTLSConfig()
+	tlsConfig := newTLSConfig()
 
 	tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	if err := clients.RegisterTLSConfig(tlsConfig); err != nil {
@@ -127,7 +127,7 @@ func NewIdentityAuthTLSConfig(trustKey libtrust.PrivateKey, clients *ClientKeyMa
 // NewCertAuthTLSConfig creates a tls.Config for the server to use for
 // certificate authentication
 func NewCertAuthTLSConfig(caPath, certPath, keyPath string) (*tls.Config, error) {
-	tlsConfig := createTLSConfig()
+	tlsConfig := newTLSConfig()
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
@@ -151,7 +151,7 @@ func NewCertAuthTLSConfig(caPath, certPath, keyPath string) (*tls.Config, error)
 	return tlsConfig, nil
 }
 
-func createTLSConfig() *tls.Config {
+func newTLSConfig() *tls.Config {
 	return &tls.Config{
 		NextProtos: []string{"http/1.1"},
 		// Avoid fallback on insecure SSL protocols
