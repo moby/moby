@@ -39,7 +39,7 @@ clone() {
 	echo done
 }
 
-clone git github.com/kr/pty 67e2db24c8
+clone git github.com/kr/pty 05017fcccf
 
 clone git github.com/gorilla/context 14f550f51a
 
