@@ -708,6 +708,9 @@ container at any point.
 This is useful when you want to set up a container configuration ahead
 of time so that it is ready to start when you need it.
 
+Note that volumes set by `create` may be over-ridden by options set with
+`start`.
+
 Please see the [run command](#run) section for more details.
 
 #### Example

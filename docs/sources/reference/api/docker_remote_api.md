@@ -61,12 +61,6 @@ You can set the new container's MAC address explicitly.
 **New!**
 Volumes are now initialized when the container is created.
 
-`POST /containers/(id)/start`
-
-**New!**
-Passing the container's `HostConfig` on start is now deprecated.  You should
-set this when creating the container.
-
 `POST /containers/(id)/copy`
 
 **New!**
