@@ -7,6 +7,11 @@ page_keywords: docker, documentation, about, technology, understanding, release
 You can view release notes for earlier version of Docker by selecting the
 desired version from the drop-down list at the top right of this page.
 
+##Version 1.4.1
+(2014-12-17)
+ 
+This release fixes an issue related to mounting volumes on `create`. Details available in the [Github milestone](https://github.com/docker/docker/issues?q=milestone%3A1.4.1+is%3Aclosed).
+
 ##Version 1.4.0
 (2014-12-11)
  
