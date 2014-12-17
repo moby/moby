@@ -30,7 +30,8 @@
     { "Condition": { "KeyPrefixEquals": "examples/ambassador_pattern_linking/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "articles/ambassador_pattern_linking/" } },
     { "Condition": { "KeyPrefixEquals": "examples/using_supervisord/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "articles/using_supervisord/" } },
     { "Condition": { "KeyPrefixEquals": "reference/api/registry_index_spec/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "reference/api/hub_registry_spec/" } },
-    { "Condition": { "KeyPrefixEquals": "use/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "examples/" } }
+    { "Condition": { "KeyPrefixEquals": "use/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "examples/" } },
+    { "Condition": { "KeyPrefixEquals": "installation/openSUSE/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "installation/SUSE/" } }
   ]
 }
 
