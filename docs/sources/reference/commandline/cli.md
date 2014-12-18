@@ -867,8 +867,17 @@ The `docker exec` command runs a new command in a running container.
 The command started using `docker exec` will only run while the container's primary
 process (`PID 1`) is running, and will not be restarted if the container is restarted.
 
-If the container is paused, then the `docker exec` command will wait until the
-container is unpaused, and then run.
+If the container is paused, then the `docker exec` command will fail with an error:
+
+    $ docker pause test
+    test
+    $ docker ps
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                   PORTS               NAMES
+    1ae3b36715d2        ubuntu:latest       "bash"              17 seconds ago      Up 16 seconds (Paused)                       test
+    $ docker exec test ls
+    FATA[0000] Error response from daemon: Container test is paused, unpause the container before exec
+    $ echo $?
+    1
 
 #### Examples
 
