@@ -3,14 +3,12 @@
 package graphdriver
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/utils"
 )
 
 // naiveDiffDriver takes a ProtoDriver and adds the
@@ -27,8 +25,8 @@ type naiveDiffDriver struct {
 // it may or may not support on its own:
 //     Diff(id, parent string) (archive.Archive, error)
 //     Changes(id, parent string) ([]archive.Change, error)
-//     ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error)
-//     DiffSize(id, parent string) (bytes int64, err error)
+//     ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
+//     DiffSize(id, parent string) (size int64, err error)
 func NaiveDiffDriver(driver ProtoDriver) Driver {
 	return &naiveDiffDriver{ProtoDriver: driver}
 }
@@ -111,7 +109,7 @@ func (gdw *naiveDiffDriver) Changes(id, parent string) ([]archive.Change, error)
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error) {
+func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error) {
 	driver := gdw.ProtoDriver
 
 	// Mount the root filesystem so we can apply the diff/layer.
@@ -123,34 +121,18 @@ func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveRea
 
 	start := time.Now().UTC()
 	log.Debugf("Start untar layer")
-	if err = chrootarchive.ApplyLayer(layerFs, diff); err != nil {
+	if size, err = chrootarchive.ApplyLayer(layerFs, diff); err != nil {
 		return
 	}
 	log.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
-	if parent == "" {
-		return utils.TreeSize(layerFs)
-	}
-
-	parentFs, err := driver.Get(parent, "")
-	if err != nil {
-		err = fmt.Errorf("Driver %s failed to get image parent %s: %s", driver, parent, err)
-		return
-	}
-	defer driver.Put(parent)
-
-	changes, err := archive.ChangesDirs(layerFs, parentFs)
-	if err != nil {
-		return
-	}
-
-	return archive.ChangesSize(layerFs, changes), nil
+	return
 }
 
 // DiffSize calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (gdw *naiveDiffDriver) DiffSize(id, parent string) (bytes int64, err error) {
+func (gdw *naiveDiffDriver) DiffSize(id, parent string) (size int64, err error) {
 	driver := gdw.ProtoDriver
 
 	changes, err := gdw.Changes(id, parent)

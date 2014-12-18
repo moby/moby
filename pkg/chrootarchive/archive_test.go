@@ -95,7 +95,7 @@ func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	stream := &slowEmptyTarReader{size: 10240, chunkSize: 1024}
-	if err := ApplyLayer(dest, stream); err != nil {
+	if _, err := ApplyLayer(dest, stream); err != nil {
 		t.Fatal(err)
 	}
 }

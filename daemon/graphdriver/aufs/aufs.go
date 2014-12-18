@@ -312,7 +312,7 @@ func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
 // DiffSize calculates the changes between the specified id
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (a *Driver) DiffSize(id, parent string) (bytes int64, err error) {
+func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 	// AUFS doesn't need the parent layer to calculate the diff size.
 	return utils.TreeSize(path.Join(a.rootPath(), "diff", id))
 }
@@ -320,7 +320,7 @@ func (a *Driver) DiffSize(id, parent string) (bytes int64, err error) {
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (a *Driver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error) {
+func (a *Driver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error) {
 	// AUFS doesn't need the parent id to apply the diff.
 	if err = a.applyDiff(id, diff); err != nil {
 		return
