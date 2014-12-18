@@ -33,7 +33,7 @@ of another container. Of course, if the host system is setup
 accordingly, containers can interact with each other through their
 respective network interfaces — just like they can interact with
 external hosts. When you specify public ports for your containers or use
-[*links*](/userguide/dockerlinks/#working-with-links-names)
+[*links*](/userguide/dockerlinks)
 then IP traffic is allowed between containers. They can ping each other,
 send/receive UDP packets, and establish TCP connections, but that can be
 restricted if necessary. From a network architecture point of view, all

@@ -7,7 +7,7 @@ page_keywords: docker, run, configure, runtime
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its own file system,
 its own networking, and its own isolated process tree.  The
-[*Image*](/terms/image/#image-def) which starts the process may define
+[*Image*](/terms/image/#image) which starts the process may define
 defaults related to the binary to run, the networking to expose, and
 more, but `docker run` gives final control to the operator who starts
 the container from the image. That's the main reason
@@ -114,7 +114,7 @@ The UUID identifiers come from the Docker daemon, and if you do not
 assign a name to the container with `--name` then the daemon will also
 generate a random string name too. The name can become a handy way to
 add meaning to a container since you can use this name when defining
-[*links*](/userguide/dockerlinks/#working-with-links-names) (or any
+[*links*](/userguide/dockerlinks) (or any
 other place you need to identify a container). This works for both
 background and foreground Docker containers.
 
@@ -420,7 +420,7 @@ familiar with using LXC directly.
 
 ## Overriding Dockerfile image defaults
 
-When a developer builds an image from a [*Dockerfile*](/reference/builder/#dockerbuilder)
+When a developer builds an image from a [*Dockerfile*](/reference/builder)
 or when she commits it, the developer can set a number of default parameters
 that take effect when the image starts up as a container.
 
@@ -634,7 +634,7 @@ container's `/etc/hosts` entry will be automatically updated.
 
 The volumes commands are complex enough to have their own documentation
 in section [*Managing data in 
-containers*](/userguide/dockervolumes/#volume-def). A developer can define
+containers*](/userguide/dockervolumes). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

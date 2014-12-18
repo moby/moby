@@ -21,7 +21,7 @@ Docker.
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/terms/layer/#ufs-def) to provide several useful features for
+System*](/terms/layer/#union-file-system) to provide several useful features for
 persistent or shared data:
 
 - Data volumes can be shared and reused between containers
