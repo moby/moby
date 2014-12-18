@@ -33,6 +33,11 @@ In the root of the `docker` source directory:
 If you have any issues you need to debug, you can use `make docs-shell` and then
 run `mkdocs serve`
 
+## Testing the links
+
+You can use `make docs-test` to generate a report of missing links that are referenced in
+the documentation - there should be none.
+
 ## Adding a new document
 
 New document (`.md`) files are added to the documentation builds by adding them

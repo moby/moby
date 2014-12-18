@@ -36,8 +36,8 @@ e-mail address. It will then automatically log you in. You can now commit and
 push your own images up to your repos on Docker Hub.
 
 > **Note:**
-> Your authentication credentials will be stored in the [`.dockercfg`
-> authentication file](#authentication-file) in your home directory.
+> Your authentication credentials will be stored in the `.dockercfg`
+> authentication file in your home directory.
 
 ## Searching for images
 

@@ -459,7 +459,7 @@ Use this command to build Docker images from a Dockerfile and a
 
 The files at `PATH` or `URL` are called the "context" of the build. The
 build process may refer to any of the files in the context, for example
-when using an [*ADD*](/reference/builder/#dockerfile-add) instruction.
+when using an [*ADD*](/reference/builder/#add) instruction.
 When a single Dockerfile is given as `URL` or is piped through `STDIN`
 (`docker build - < Dockerfile`), then no context is set.
 
@@ -539,7 +539,7 @@ machine and that no parsing of the Dockerfile
 happens at the client side (where you're running
 `docker build`). That means that *all* the files at
 `PATH` get sent, not just the ones listed to
-[*ADD*](/reference/builder/#dockerfile-add) in the Dockerfile.
+[*ADD*](/reference/builder/#add) in the Dockerfile.
 
 The transfer of context from the local machine to the Docker daemon is
 what the `docker` client means when you see the
@@ -1817,7 +1817,7 @@ Search [Docker Hub](https://hub.docker.com) for images
       -s, --stars=0        Only displays with at least x stars
 
 See [*Find Public Images on Docker Hub*](
-/userguide/dockerrepos/#find-public-images-on-docker-hub) for
+/userguide/dockerrepos/#searching-for-images) for
 more details on finding shared images from the command line.
 
 ## start
@@ -1853,7 +1853,7 @@ grace period, `SIGKILL`.
 
 You can group your images together using names and tags, and then upload
 them to [*Share Images via Repositories*](
-/userguide/dockerrepos/#working-with-the-repository).
+/userguide/dockerrepos/#contributing-to-docker-hub).
 
 ## top
 

@@ -6,8 +6,8 @@ page_keywords: Docker, Docker documentation, installation, debian
 
 Docker is supported on the following versions of Debian:
 
- - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-8-64-bit)
- - [*Debian 7.5 Wheezy (64-bit)*](#debian-wheezy-7-64-bit)
+ - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
+ - [*Debian 7.5 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
 
 ## Debian Jessie 8.0 (64-bit)
 
@@ -81,7 +81,7 @@ use the `-G` flag to specify an alternative group.
 > **Warning**: 
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) details.
+> /articles/security/#docker-daemon-attack-surface) details.
 
 **Example:**
 

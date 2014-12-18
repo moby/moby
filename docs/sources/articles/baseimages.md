@@ -5,7 +5,7 @@ page_keywords: Examples, Usage, base image, docker, documentation, examples
 # Create a Base Image
 
 So you want to create your own [*Base Image*](
-/terms/image/#base-image-def)? Great!
+/terms/image/#base-image)? Great!
 
 The specific process will depend heavily on the Linux distribution you
 want to package. We have some examples below, and you are encouraged to
