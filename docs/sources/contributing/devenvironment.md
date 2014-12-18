@@ -52,8 +52,9 @@ On Mac OS X, from within the `boot2docker` shell:
     $ make build
 
 > **Note**:
-> On Mac OS X, **do not** build Docker make targets such as `build`, `binary`, and `test`
-> under root using the `sudo` command. 
+> On Mac OS X, the Docker make targets such as `build`, `binary`, and `test`
+> should **not** be built by the 'root' user. Therefore, you shouldn't use `sudo` when 
+> running these commands on OS X. 
 
 If the build is successful, congratulations! You have produced a clean
 build of docker, neatly encapsulated in a standard build environment.
