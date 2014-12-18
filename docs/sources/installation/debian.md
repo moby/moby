@@ -7,7 +7,7 @@ page_keywords: Docker, Docker documentation, installation, debian
 Docker is supported on the following versions of Debian:
 
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
- - [*Debian 7.5 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
+ - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
 
 ## Debian Jessie 8.0 (64-bit)
 
