@@ -41,13 +41,13 @@ Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more detail
 on why 3.8 is required, see discussion on
 [bug #407](https://github.com/docker/docker/issues/407%20kernel%20versions)).
 
-Fortunately, wheezy-backports currently has [Kernel 3.14
+Fortunately, wheezy-backports currently has [Kernel 3.16
 ](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
 which is officially supported by Docker.
 
 ### Installation
 
-1. Install Kernel 3.14 from wheezy-backports
+1. Install Kernel from wheezy-backports
  
     Add the following line to your `/etc/apt/sources.list`
 
