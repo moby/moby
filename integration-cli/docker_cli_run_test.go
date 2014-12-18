@@ -428,6 +428,7 @@ func TestRunVolumesMountedAsReadonly(t *testing.T) {
 }
 
 func TestRunVolumesFromInReadonlyMode(t *testing.T) {
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -438,13 +439,12 @@ func TestRunVolumesFromInReadonlyMode(t *testing.T) {
 		t.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 
-	deleteAllContainers()
-
 	logDone("run - volumes from as readonly mount")
 }
 
 // Regression test for #1201
 func TestRunVolumesFromInReadWriteMode(t *testing.T) {
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -456,7 +456,7 @@ func TestRunVolumesFromInReadWriteMode(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:bar", "busybox", "touch", "/test/file")
-	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Invalid mode for volumes-from: bar") {
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "invalid mode for volumes-from: bar") {
 		t.Fatalf("running --volumes-from foo:bar should have failed with invalid mount mode: %q", out)
 	}
 
@@ -465,12 +465,11 @@ func TestRunVolumesFromInReadWriteMode(t *testing.T) {
 		t.Fatalf("running --volumes-from parent failed with output: %q\nerror: %v", out, err)
 	}
 
-	deleteAllContainers()
-
 	logDone("run - volumes from as read write mount")
 }
 
 func TestVolumesFromGetsProperMode(t *testing.T) {
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -490,8 +489,6 @@ func TestVolumesFromGetsProperMode(t *testing.T) {
 	if _, err := runCommand(cmd); err == nil {
 		t.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
 	}
-
-	deleteAllContainers()
 
 	logDone("run - volumes from ignores `rw` if inherrited volume is `ro`")
 }
@@ -3057,4 +3054,32 @@ func TestRunContainerWithReadonlyRootfs(t *testing.T) {
 		t.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
 	}
 	logDone("run - read only rootfs")
+}
+
+func TestRunVolumesFromRestartAfterRemoved(t *testing.T) {
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "voltest", "-v", "/foo", "busybox"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "restarter", "--volumes-from", "voltest", "busybox", "top"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Remove the main volume container and restart the consuming container
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "rm", "-f", "voltest"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	// This should not fail since the volumes-from were already applied
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "restart", "restarter"))
+	if err != nil {
+		t.Fatalf("expected container to restart successfully: %v\n%s", err, out)
+	}
+
+	logDone("run - can restart a volumes-from container after producer is removed")
 }
