@@ -28,7 +28,7 @@ var (
 
 type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
-	ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error)
+	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 }
 
 type naiveDiffDriverWithApply struct {
@@ -309,7 +309,7 @@ func (d *Driver) Put(id string) {
 	delete(d.active, id)
 }
 
-func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader) (bytes int64, err error) {
+func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader) (size int64, err error) {
 	dir := d.dir(id)
 
 	if parent == "" {
@@ -347,7 +347,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader)
 		return 0, err
 	}
 
-	if err := chrootarchive.ApplyLayer(tmpRootDir, diff); err != nil {
+	if size, err = chrootarchive.ApplyLayer(tmpRootDir, diff); err != nil {
 		return 0, err
 	}
 
@@ -356,12 +356,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader)
 		return 0, err
 	}
 
-	changes, err := archive.ChangesDirs(rootDir, parentRootDir)
-	if err != nil {
-		return 0, err
-	}
-
-	return archive.ChangesSize(rootDir, changes), nil
+	return
 }
 
 func (d *Driver) Exists(id string) bool {

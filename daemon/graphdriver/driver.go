@@ -63,11 +63,11 @@ type Driver interface {
 	// ApplyDiff extracts the changeset from the given diff into the
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
-	ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error)
+	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.
-	DiffSize(id, parent string) (bytes int64, err error)
+	DiffSize(id, parent string) (size int64, err error)
 }
 
 var (
