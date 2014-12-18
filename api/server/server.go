@@ -459,6 +459,22 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 	return nil
 }
 
+func deleteContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	job := eng.Job("truncate_logs", vars["name"])
+	job.Setenv("timestamps", r.Form.Get("timestamps"))
+	w.Header().Set("Content-Type", "text/plain")
+	job.Stdout.Add(w)
+
+	return job.Run()
+}
+
 func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1312,8 +1328,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/exec/{name:.*}/resize":        postContainerExecResize,
 		},
 		"DELETE": {
-			"/containers/{name:.*}": deleteContainers,
-			"/images/{name:.*}":     deleteImages,
+			"/containers/{name:.*}/logs": deleteContainersLogs,
+			"/containers/{name:.*}":      deleteContainers,
+			"/images/{name:.*}":          deleteImages,
 		},
 		"OPTIONS": {
 			"": optionsHandler,

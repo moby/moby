@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/filewriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -94,6 +95,7 @@ type Container struct {
 	activeLinks  map[string]*links.Link
 	monitor      *containerMonitor
 	execCommands *execStore
+	logWriter    *filewriter.FileWriter
 }
 
 func (container *Container) FromDisk() error {
@@ -1191,20 +1193,34 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) startLoggingToDisk() error {
-	// Setup logging of stdout and stderr to disk
+func (container *Container) setupLogWriter() error {
 	pth, err := container.logPath("json")
 	if err != nil {
 		return err
 	}
+	container.logWriter = filewriter.NewFileWriter(pth)
+	return nil
+}
 
-	if err := container.daemon.LogToDisk(container.stdout, pth, "stdout"); err != nil {
+func (container *Container) truncateLogs() ([]byte, error) {
+	if container.logWriter == nil {
+		if err := container.setupLogWriter(); err != nil {
+			return nil, err
+		}
+	}
+	return container.logWriter.Truncate()
+}
+
+func (container *Container) startLoggingToDisk() error {
+	if container.logWriter != nil {
+		container.logWriter.Close()
+	}
+	if err := container.setupLogWriter(); err != nil {
 		return err
 	}
-
-	if err := container.daemon.LogToDisk(container.stderr, pth, "stderr"); err != nil {
-		return err
-	}
+	// Setup logging of stdout and stderr to disk
+	container.stdout.AddWriter(container.logWriter, "stdout")
+	container.stderr.AddWriter(container.logWriter, "stderr")
 
 	return nil
 }

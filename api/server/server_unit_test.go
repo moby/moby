@@ -384,6 +384,79 @@ func TestLogsNoStreams(t *testing.T) {
 	}
 }
 
+func TestTruncateLogs(t *testing.T) {
+	eng := engine.New()
+	var truncate_logs bool
+	expected := "fetch and truncate"
+	eng.Register("truncate_logs", func(job *engine.Job) engine.Status {
+		truncate_logs = true
+		if len(job.Args) == 0 {
+			t.Fatal("Job arguments is empty")
+		}
+		if job.Args[0] != "test" {
+			t.Fatalf("Container name %s, must be test", job.Args[0])
+		}
+
+		timestamps := job.Getenv("timestamps")
+		if timestamps != "1" {
+			t.Fatalf("timestamps %q, must be 1", timestamps)
+		}
+
+		job.Stdout.Write([]byte(expected))
+
+		return engine.StatusOK
+	})
+	r := serveRequest("DELETE", "/containers/test/logs?timestamps=1", nil, eng, t)
+	if !truncate_logs {
+		t.Fatal("truncate_logs job was not called")
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusOK)
+	}
+
+	res := r.Body.String()
+	if res != expected {
+		t.Fatalf("Output %q, expected %q", res, expected)
+	}
+	assertContentType(r, "text/plain", t)
+}
+
+func TestTruncateLogsNoTimestamps(t *testing.T) {
+	eng := engine.New()
+	var truncate_logs bool
+	expected := "fetch and truncate"
+	eng.Register("truncate_logs", func(job *engine.Job) engine.Status {
+		truncate_logs = true
+		if len(job.Args) == 0 {
+			t.Fatal("Job arguments is empty")
+		}
+		if job.Args[0] != "test" {
+			t.Fatalf("Container name %s, must be test", job.Args[0])
+		}
+
+		timestamps := job.Getenv("timestamps")
+		if timestamps != "" {
+			t.Fatalf("timestamps %q should have been empty", timestamps)
+		}
+
+		job.Stdout.Write([]byte(expected))
+
+		return engine.StatusOK
+	})
+	r := serveRequest("DELETE", "/containers/test/logs", nil, eng, t)
+	if !truncate_logs {
+		t.Fatal("truncate_logs job was not called")
+	}
+	if r.Code != http.StatusOK {
+		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusOK)
+	}
+	res := r.Body.String()
+	if res != expected {
+		t.Fatalf("Output %q, expected %q", res, expected)
+	}
+	assertContentType(r, "text/plain", t)
+}
+
 func TestGetImagesHistory(t *testing.T) {
 	eng := engine.New()
 	imageName := "docker-test-image"

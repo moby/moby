@@ -416,6 +416,33 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
+### Truncate container logs
+
+`DELETE /containers/(id)/logs`
+
+Fetch and Truncate to zero the STDOUT and STDERR logs for the container `id`.
+
+**Example request**:
+
+DELETE /containers/4fa6e0f0c678/logs HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: text/plain
+
+        {{ TEXT }}
+
+Query Parameters:
+-   **timestamps** – 1/True/true or 0/False/false, print timestamps for
+        every log line. Default false
+
+Status Codes:
+
+-   **200** – no error
+-   **404** – no such container
+-   **500** – server error
+
 ### Inspect changes on a container's filesystem
 
 `GET /containers/(id)/changes`

@@ -124,6 +124,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"start":             daemon.ContainerStart,
 		"stop":              daemon.ContainerStop,
 		"top":               daemon.ContainerTop,
+		"truncate_logs":     daemon.ContainerTruncateLogs,
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
 		"image_delete":      daemon.ImageDelete, // FIXME: see above
@@ -287,15 +288,6 @@ func (daemon *Daemon) ensureName(container *Container) error {
 			log.Debugf("Error saving container name %s", err)
 		}
 	}
-	return nil
-}
-
-func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, stream string) error {
-	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-	src.AddWriter(log, stream)
 	return nil
 }
 

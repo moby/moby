@@ -146,3 +146,50 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	return engine.StatusOK
 }
+
+func (daemon *Daemon) ContainerTruncateLogs(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name   = job.Args[0]
+		times  = job.GetenvBool("timestamps")
+		format string
+	)
+
+	if times {
+		format = timeutils.RFC3339NanoFixed
+	}
+
+	container := daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+
+	b, err := container.truncateLogs()
+	if err != nil {
+		return job.Errorf("error truncating logs: %v", err)
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	l := &jsonlog.JSONLog{}
+
+	for {
+		if err := dec.Decode(l); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Errorf("Error streaming logs: %s", err)
+			break
+		}
+
+		logLine := l.Log
+		if times {
+			logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
+		}
+		io.WriteString(job.Stdout, logLine)
+		l.Reset()
+	}
+
+	container.LogEvent("truncate_logs")
+	return engine.StatusOK
+}
