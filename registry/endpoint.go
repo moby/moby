@@ -174,38 +174,36 @@ func isSecure(hostname string, insecureRegistries []string) (bool, error) {
 		// assume hostname is of the form `host` without the port and go on.
 		host = hostname
 	}
-	addrs, err := lookupIP(host)
-	if err != nil {
+
+	for _, r := range insecureRegistries {
+		r_host, _, err := net.SplitHostPort(r)
+		if err != nil {
+			r_host = r
+		}
+
+		// host matches insecure registry
+		if host == r_host {
+			return false, nil
+		}
+
+		// now assume a CIDR was passed to --insecure-registry
+		_, ipnet, err := net.ParseCIDR(r)
+		if err != nil {
+			// if could not parse it as a CIDR, even after removing
+			// assume it's not a CIDR and go on with the next candidate
+			continue
+		}
+
+		// check if hostname is an IP
 		ip := net.ParseIP(host)
 		if ip == nil {
-			// if resolving `host` fails, error out, since host is to be net.Dial-ed anyway
-			return true, fmt.Errorf("issecure: could not resolve %q: %v", host, err)
+			// it's a name, not an IP
+			continue
 		}
-		addrs = []net.IP{ip}
-	}
-	if len(addrs) == 0 {
-		return true, fmt.Errorf("issecure: could not resolve %q", host)
-	}
 
-	for _, addr := range addrs {
-		for _, r := range insecureRegistries {
-			// hostname matches insecure registry
-			if hostname == r {
-				return false, nil
-			}
-
-			// now assume a CIDR was passed to --insecure-registry
-			_, ipnet, err := net.ParseCIDR(r)
-			if err != nil {
-				// if could not parse it as a CIDR, even after removing
-				// assume it's not a CIDR and go on with the next candidate
-				continue
-			}
-
-			// check if the addr falls in the subnet
-			if ipnet.Contains(addr) {
-				return false, nil
-			}
+		// check if the addr falls in the subnet
+		if ipnet.Contains(ip) {
+			return false, nil
 		}
 	}
 
