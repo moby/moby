@@ -10,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -228,11 +226,9 @@ func (ts *tarSum) Sum(extra []byte) string {
 		h.Write(extra)
 	}
 	for _, fis := range ts.sums {
-		log.Debugf("-->%s<--", fis.Sum())
 		h.Write([]byte(fis.Sum()))
 	}
 	checksum := ts.Version().String() + "+" + ts.tHash.Name() + ":" + hex.EncodeToString(h.Sum(nil))
-	log.Debugf("checksum processed: %s", checksum)
 	return checksum
 }
 
