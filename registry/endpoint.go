@@ -176,8 +176,13 @@ func isSecure(hostname string, insecureRegistries []string) (bool, error) {
 	}
 
 	for _, r := range insecureRegistries {
-		// hostname matches insecure registry
-		if hostname == r {
+		r_host, _, err := net.SplitHostPort(r)
+		if err != nil {
+			r_host = r
+		}
+
+		// host matches insecure registry
+		if host == r_host {
 			return false, nil
 		}
 
