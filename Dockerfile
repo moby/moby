@@ -78,6 +78,9 @@ ENV	DOCKER_CROSSPLATFORMS	\
 ENV	GOARM	5
 RUN	cd /usr/local/go/src && bash -xc 'for platform in $DOCKER_CROSSPLATFORMS; do GOOS=${platform%/*} GOARCH=${platform##*/} ./make.bash --no-clean 2>&1; done'
 
+# reinstall standard library with netgo
+RUN go clean -i net && go install -tags netgo std
+
 # Grab Go's cover tool for dead-simple code coverage testing
 RUN	go get golang.org/x/tools/cmd/cover
 
