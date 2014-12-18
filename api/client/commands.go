@@ -83,6 +83,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
+	squash := cmd.Bool([]string{"-squash"}, false, "Squash all newly built layers into a single layer")
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
@@ -221,6 +222,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	if *pull {
 		v.Set("pull", "1")
+	}
+	if *squash {
+		v.Set("squash", "1")
 	}
 	cli.LoadConfigFile()
 

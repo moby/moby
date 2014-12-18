@@ -447,6 +447,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 
 func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 	b.image = img.ID
+	b.baseImageID = img.ID
 
 	if img.Config != nil {
 		b.Config = img.Config
