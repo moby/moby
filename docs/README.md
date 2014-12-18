@@ -145,11 +145,13 @@ to view your results and make sure what you published is what you wanted.
 
 When you're happy with it, publish the docs to our live site:
 
-    make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+    make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes DISTRIBUTION_ID=C2K6......FL2F docs-release
 
 Test the uncached version of the live docs at http://docs.docker.com.s3-website-us-east-1.amazonaws.com/
     
 Note that the new docs will not appear live on the site until the cache (a complex,
-distributed CDN system) is flushed. This requires someone with S3 keys. Contact Docker
-(Sven Dowideit or John Costa) for assistance. 
+distributed CDN system) is flushed. The `make docs-release` command will do this
+_if_ the `DISTRIBUTION_ID` is set to the Cloudfront distribution ID (ask the meta
+team) - this will take at least 15 minutes to run and you can check its progress
+with the CDN Cloudfront Chrome addin.
 

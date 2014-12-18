@@ -53,7 +53,7 @@ docs-shell: docs-build
 	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" bash
 
 docs-release: docs-build
-	$(DOCKER_RUN_DOCS) -e OPTIONS -e BUILD_ROOT "$(DOCKER_DOCS_IMAGE)" ./release.sh
+	$(DOCKER_RUN_DOCS) -e OPTIONS -e BUILD_ROOT -e DISTRIBUTION_ID "$(DOCKER_DOCS_IMAGE)" ./release.sh
 
 docs-test: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./test.sh
@@ -83,6 +83,7 @@ build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
 
 docs-build:
+	git diff --name-status upstream/release..upstream/docs docs/ > docs/changed-files
 	cp ./VERSION docs/VERSION
 	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
 	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
