@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
@@ -113,13 +114,15 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, repoInfo *
 	if tag == "" {
 		nTag = len(localRepo)
 	}
-	completed := make(chan bool)
+	var wg sync.WaitGroup
 	needsPush := make([]bool, len(imgList))
 	for _, ep := range repoData.Endpoints {
 		out.Write(sf.FormatStatus("", "Pushing repository %s (%d tags)", repoInfo.CanonicalName, nTag))
 
 		for i, imgId := range imgList {
+			wg.Add(1)
 			go func(i int, imgId string) {
+				defer wg.Done()
 				if err := r.LookupRemoteImage(imgId, ep, repoData.Tokens); err == nil {
 					out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(imgId)))
 					needsPush[i] = false
@@ -128,12 +131,11 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer, repoInfo *
 					out.Write(sf.FormatStatus("", "Image %s not pushed, adding to queue", utils.TruncateID(imgId)))
 					needsPush[i] = true
 				}
-				completed <- true
 			}(i, imgId)
 		}
-		for i := 0; i < len(imgList); i++ {
-			<-completed
-		}
+
+		wg.Wait()
+
 		for i, imgId := range imgList {
 			if needsPush[i] {
 				if _, err := s.pushImage(r, out, remoteName, imgId, ep, repoData.Tokens, sf); err != nil {
