@@ -349,7 +349,7 @@ verification failed (i.e., wrong CA).
 By default, Docker assumes all, but local (see local registries below), registries are secure.
 Communicating with an insecure registry is not possible if Docker assumes that registry is secure.
 In order to communicate with an insecure registry, the Docker daemon requires `--insecure-registry`
-in one of the following two forms: 
+in one of the following two forms:
 
 * `--insecure-registry myregistry:5000` tells the Docker daemon that myregistry:5000 should be considered insecure.
 * `--insecure-registry 10.1.0.0/16` tells the Docker daemon that all registries whose domain resolve to an IP address is part
@@ -1291,6 +1291,7 @@ for further details.
       -q, --quiet=false     Only display numeric IDs
       -s, --size=false      Display total file sizes
       --since=""            Show only containers created since Id or Name, include non-running ones.
+      -x, --expanded=false    Turn on the expanded formatting mode.
 
 Running `docker ps` showing 2 linked containers.
 
@@ -1320,6 +1321,36 @@ Current filters:
     48ee228c9464        fedora:20         bash                   2 weeks ago         Exited (0) 2 weeks ago                              tender_torvalds
 
 This shows all the containers that have exited with status of '0'
+
+#### Expanded formating mode
+
+The expanded format mode provides the results of `docker ps` by using vertical output, to make the content readable  when your terminal width is small.
+
+##### Example of expanded view
+
+    $ sudo docker ps -a -x
+    - [ 6e73b3ce8098 ] -+----------------------------------------------------------
+    Container_id        | 6e73b3ce8098
+    Image               | ubuntu:14.04
+    Command             | "sleep 10000"
+    Created             | 41 hours ago
+    Status              | Exited (-1) 40 hours ago
+    Name                | modest_nobel
+    - [ ef78c54845c0 ] -+----------------------------------------------------------
+    Container_id        | ef78c54845c0
+    Image               | mysql:5
+    Command             | "/entrypoint.sh mysq
+    Created             | 43 hours ago
+    Status              | Exited (1) 43 hours ago
+    Name                | sad_meitner
+    - [ 4f82da9cd562 ] -+----------------------------------------------------------
+    Container_id        | 4f82da9cd562
+    Image               | 84401c0b05c0
+    Command             | "/bin/sh -c 'cd /usr
+    Created             | 44 hours ago
+    Status              | Exited (-1) 44 hours ago
+    Name                | dreamy_sinoussi
+
 
 ## pull
 

@@ -14,6 +14,7 @@ docker-ps - List containers
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [**-s**|**--size**[=*false*]]
+[**-x**|**--expanded**[=*false*]]
 [**--since**[=*SINCE*]]
 
 
@@ -51,6 +52,9 @@ the running containers.
 
 **--since**=""
    Show only containers created since Id or Name, include non-running ones.
+
+**-x**=""
+    Turn on the expanded formatting mode.
 
 # EXAMPLES
 # Display all containers, including non-running
