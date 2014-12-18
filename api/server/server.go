@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
@@ -1502,6 +1503,32 @@ func setupUnixHttp(addr string, job *engine.Job) (*HttpServer, error) {
 	return &HttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
 }
 
+func allocateDaemonPort(addr string) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		return err
+	}
+
+	var hostIPs []net.IP
+	if parsedIP := net.ParseIP(host); parsedIP != nil {
+		hostIPs = append(hostIPs, parsedIP)
+	} else if hostIPs, err = net.LookupIP(host); err != nil {
+		return fmt.Errorf("failed to lookup %s address in host specification", host)
+	}
+
+	for _, hostIP := range hostIPs {
+		if _, err := portallocator.RequestPort(hostIP, "tcp", intPort); err != nil {
+			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
+		}
+	}
+	return nil
+}
+
 func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 	if !strings.HasPrefix(addr, "127.0.0.1") && !job.GetenvBool("TlsVerify") {
 		log.Infof("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
@@ -1514,6 +1541,10 @@ func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 
 	l, err := newListener("tcp", addr, job.GetenvBool("BufferRequests"))
 	if err != nil {
+		return nil, err
+	}
+
+	if err := allocateDaemonPort(addr); err != nil {
 		return nil, err
 	}
 
