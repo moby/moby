@@ -77,8 +77,10 @@ var (
 
 	bridgeIface       string
 	bridgeIPv4Network *net.IPNet
+	gatewayIPv4       net.IP
 	bridgeIPv6Addr    net.IP
 	globalIPv6Network *net.IPNet
+	gatewayIPv6       net.IP
 	portMapper        *portmapper.PortMapper
 	once              sync.Once
 
@@ -103,6 +105,8 @@ type Config struct {
 	IP                          string
 	FixedCIDR                   string
 	FixedCIDRv6                 string
+	DefaultGatewayIPv4          string
+	DefaultGatewayIPv6          string
 	InterContainerCommunication bool
 }
 
@@ -278,6 +282,12 @@ func InitDriver(config *Config) error {
 		}
 	}
 
+	if gateway, err := requestDefaultGateway(config.DefaultGatewayIPv4, bridgeIPv4Network); err != nil {
+		return err
+	} else {
+		gatewayIPv4 = gateway
+	}
+
 	if config.FixedCIDRv6 != "" {
 		_, subnet, err := net.ParseCIDR(config.FixedCIDRv6)
 		if err != nil {
@@ -289,6 +299,12 @@ func InitDriver(config *Config) error {
 			return err
 		}
 		globalIPv6Network = subnet
+
+		if gateway, err := requestDefaultGateway(config.DefaultGatewayIPv6, globalIPv6Network); err != nil {
+			return err
+		} else {
+			gatewayIPv6 = gateway
+		}
 	}
 
 	// Block BridgeIP in IP allocator
@@ -473,6 +489,24 @@ func setupIPv6Bridge(bridgeIPv6 string) error {
 	return nil
 }
 
+func requestDefaultGateway(requestedGateway string, network *net.IPNet) (gateway net.IP, err error) {
+	if requestedGateway != "" {
+		gateway = net.ParseIP(requestedGateway)
+
+		if gateway == nil {
+			return nil, fmt.Errorf("Bad parameter: invalid gateway ip %s", requestedGateway)
+		}
+
+		if !network.Contains(gateway) {
+			return nil, fmt.Errorf("Gateway ip %s must be part of the network %s", requestedGateway, network.String())
+		}
+
+		ipAllocator.RequestIP(network, gateway)
+	}
+
+	return gateway, nil
+}
+
 func createBridgeIface(name string) error {
 	kv, err := kernel.GetKernelVersion()
 	// Only set the bridge's mac address if the kernel version is > 3.3
@@ -522,10 +556,12 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 // Allocate a network interface
 func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Settings, error) {
 	var (
-		ip         net.IP
-		mac        net.HardwareAddr
-		err        error
-		globalIPv6 net.IP
+		ip            net.IP
+		mac           net.HardwareAddr
+		err           error
+		globalIPv6    net.IP
+		defaultGWIPv4 net.IP
+		defaultGWIPv6 net.IP
 	)
 
 	ip, err = ipAllocator.RequestIP(bridgeIPv4Network, net.ParseIP(requestedIP))
@@ -560,6 +596,18 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 
 	maskSize, _ := bridgeIPv4Network.Mask.Size()
 
+	if gatewayIPv4 != nil {
+		defaultGWIPv4 = gatewayIPv4
+	} else {
+		defaultGWIPv4 = bridgeIPv4Network.IP
+	}
+
+	if gatewayIPv6 != nil {
+		defaultGWIPv6 = gatewayIPv6
+	} else {
+		defaultGWIPv6 = bridgeIPv6Addr
+	}
+
 	// If linklocal IPv6
 	localIPv6Net, err := linkLocalIPv6FromMac(mac.String())
 	if err != nil {
@@ -569,7 +617,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 
 	networkSettings := &network.Settings{
 		IPAddress:            ip.String(),
-		Gateway:              bridgeIPv4Network.IP.String(),
+		Gateway:              defaultGWIPv4.String(),
 		MacAddress:           mac.String(),
 		Bridge:               bridgeIface,
 		IPPrefixLen:          maskSize,
@@ -580,7 +628,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 		networkSettings.GlobalIPv6Address = globalIPv6.String()
 		maskV6Size, _ := globalIPv6Network.Mask.Size()
 		networkSettings.GlobalIPv6PrefixLen = maskV6Size
-		networkSettings.IPv6Gateway = bridgeIPv6Addr.String()
+		networkSettings.IPv6Gateway = defaultGWIPv6.String()
 	}
 
 	currentInterfaces.Set(id, &networkInterface{
