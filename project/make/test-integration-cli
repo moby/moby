@@ -40,7 +40,9 @@ exec > >(tee -a $DEST/test.log) 2>&1
 
 	for pid in $(find "$DEST" -name docker.pid); do
 		DOCKER_PID=$(set -x; cat "$pid")
-		( set -x; kill $DOCKER_PID )
-		wait $DOCKERD_PID || true
+		if ps -p $DOCKER_PID > /dev/null ; then
+			( set -x; kill $DOCKER_PID )
+			wait $DOCKERD_PID || true
+		fi
 	done
 )
