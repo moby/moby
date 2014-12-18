@@ -217,6 +217,18 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	}
 	origPath = strings.TrimPrefix(origPath, "./")
 
+	// Twiddle the destPath when its a relative path - meaning, make it
+	// relative to the WORKINGDIR
+	if !filepath.IsAbs(destPath) {
+		hasSlash := strings.HasSuffix(destPath, "/")
+		destPath = filepath.Join("/", b.Config.WorkingDir, destPath)
+
+		// Make sure we preserve any trailing slash
+		if hasSlash {
+			destPath += "/"
+		}
+	}
+
 	// In the remote/URL case, download it and gen its hashcode
 	if urlutil.IsURL(origPath) {
 		if !allowRemote {
