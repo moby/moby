@@ -1696,7 +1696,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		ports.ReadListFrom([]byte(out.Get("Ports")))
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, out.Get("Image"), outCommand,
+		image := out.Get("Image")
+		if image == "" {
+			image = "<no image>"
+		}
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, image, outCommand,
 			units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))),
 			out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
 

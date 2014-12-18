@@ -58,7 +58,7 @@ func (b *Builder) readContext(context io.Reader) error {
 }
 
 func (b *Builder) commit(id string, autoCmd []string, comment string) error {
-	if b.image == "" {
+	if b.image == "" && !b.noBaseImage {
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.Config.Image = b.image
@@ -513,7 +513,7 @@ func (b *Builder) probeCache() (bool, error) {
 }
 
 func (b *Builder) create() (*daemon.Container, error) {
-	if b.image == "" {
+	if b.image == "" && !b.noBaseImage {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.Config.Image = b.image

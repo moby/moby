@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libcontainer/label"
@@ -68,15 +69,22 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	var (
 		container *Container
 		warnings  []string
+		img       *image.Image
+		imgID     string
+		err       error
 	)
 
-	img, err := daemon.repositories.LookupImage(config.Image)
-	if err != nil {
-		return nil, nil, err
+	if config.Image != "" {
+		img, err = daemon.repositories.LookupImage(config.Image)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err = img.CheckDepth(); err != nil {
+			return nil, nil, err
+		}
+		imgID = img.ID
 	}
-	if err := img.CheckDepth(); err != nil {
-		return nil, nil, err
-	}
+
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
@@ -86,13 +94,13 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 	}
-	if container, err = daemon.newContainer(name, config, img); err != nil {
+	if container, err = daemon.newContainer(name, config, imgID); err != nil {
 		return nil, nil, err
 	}
 	if err := daemon.Register(container); err != nil {
 		return nil, nil, err
 	}
-	if err := daemon.createRootfs(container, img); err != nil {
+	if err := daemon.createRootfs(container); err != nil {
 		return nil, nil, err
 	}
 	if hostConfig != nil {

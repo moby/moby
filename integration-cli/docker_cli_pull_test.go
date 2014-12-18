@@ -9,11 +9,11 @@ import (
 
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
-	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
+	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		t.Fatalf("pulling the scratch image from the registry has failed: %s, %v", out, err)
+		t.Fatalf("pulling the hello-world image from the registry has failed: %s, %v", out, err)
 	}
-	logDone("pull - pull scratch")
+	logDone("pull - pull hello-world")
 }
 
 // pulling a non-existing image from the central registry should return a non-zero exit code

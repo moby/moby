@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.SetList("Args", container.Args)
 		out.SetJson("Config", container.Config)
 		out.SetJson("State", container.State)
-		out.SetJson("Image", container.Image)
+		out.Set("Image", container.ImageID)
 		out.SetJson("NetworkSettings", container.NetworkSettings)
 		out.Set("ResolvConfPath", container.ResolvConfPath)
 		out.Set("HostnamePath", container.HostnamePath)
