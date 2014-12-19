@@ -57,14 +57,20 @@ Let's try the `hello-world` example image. Run
 
 This should download the very small `hello-world` image and print a `Hello from Docker.` message.
 
-# Login with PUTTY instead of using the CMD
+## Login with PUTTY instead of using the CMD
 
-boot2docker generates and uses the public/private key pair in your %HOMEPATH%\.ssh directory so to login you need to use the private key from this same directory.
+Boot2Docker generates and uses the public/private key pair in your `%HOMEPATH%\.ssh`
+directory so to log in you need to use the private key from this same directory.
 
-The private key needs to be converted into a format that putty can use so  for this purpose you can use <a href="http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html">puttygen</a>
-Open puttygen.exe and load the private key from %HOMEPATH%\.ssh\id_boot2docker  (File->Load) ,
-then simply click : Save Private Key.
-You can use the saved file to login with putty using docker@127.0.0.1:2022
+The private key needs to be converted into the format PuTTY uses.
+
+You can do this with
+[puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
+
+- Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
+  `%HOMEPATH%\.ssh\id_boot2docker`
+- then click: "Save Private Key".
+- Then use the saved file to login with PuTTY using `docker@127.0.0.1:2022`.
 
 # Further Details
 
