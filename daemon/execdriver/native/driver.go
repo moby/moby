@@ -148,20 +148,20 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	case execOutput := <-execOutputChan:
 		return execdriver.ExitStatus{ExitCode: execOutput.exitCode}, execOutput.err
 	case <-waitForStart:
-		break
+		oomKillNotification, err := d.notifyOnOOM(container)
+		if err != nil {
+			log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+			execOutput := <-execOutputChan
+			return execdriver.ExitStatus{ExitCode: execOutput.exitCode, OOMKilled: false}, execOutput.err
+		}
+		select {
+		case <-oomKillNotification:
+			execOutput := <-execOutputChan
+			return execdriver.ExitStatus{ExitCode: execOutput.exitCode, OOMKilled: true}, execOutput.err
+		case execOutput := <-execOutputChan:
+			return execdriver.ExitStatus{ExitCode: execOutput.exitCode, OOMKilled: false}, execOutput.err
+		}
 	}
-
-	oomKill := false
-	oomKillNotification, err := d.notifyOnOOM(container)
-	if err == nil {
-		_, oomKill = <-oomKillNotification
-	} else {
-		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
-	}
-	// wait for the container to exit.
-	execOutput := <-execOutputChan
-
-	return execdriver.ExitStatus{ExitCode: execOutput.exitCode, OOMKilled: oomKill}, execOutput.err
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
