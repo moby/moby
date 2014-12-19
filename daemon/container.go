@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -986,9 +987,10 @@ func (container *Container) setupContainerDns() error {
 		resolvConf = utils.RemoveLocalDns(resolvConf)
 		// if the resulting resolvConf is empty, use DefaultDns
 		if !bytes.Contains(resolvConf, []byte("nameserver")) {
-			log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use it. Using default external servers : %v", DefaultDns)
+			bridgeIP := daemon.eng.Hack_GetGlobalVar("httpapi.bridgeIP").(net.IP)
+			log.Infof("No non localhost DNS resolver found in resolv.conf and containers can't use localhost directly. Using bridge address (%v) to reach the host.", bridgeIP)
 			// prefix the default dns options with nameserver
-			resolvConf = append(resolvConf, []byte("\nnameserver "+strings.Join(DefaultDns, "\nnameserver "))...)
+			resolvConf = append(resolvConf, []byte("\nnameserver "+bridgeIP.String()+"\n")...)
 		}
 	}
 	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)

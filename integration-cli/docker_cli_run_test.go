@@ -1279,7 +1279,7 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 	logDone("run - volumes are bind mounted recursively")
 }
 
-func TestRunDnsDefaultOptions(t *testing.T) {
+func TestRunLocalDNS(t *testing.T) {
 	// ci server has default resolv.conf
 	// so rewrite it for the test
 	origResolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
@@ -1307,9 +1307,23 @@ func TestRunDnsDefaultOptions(t *testing.T) {
 		return
 	}
 
-	// check that the actual defaults are there
-	// if we ever change the defaults from google dns, this will break
-	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	//Get the bridge IP.
+	cmd = exec.Command("ip", "-o", "-4", "addr", "show", "docker0")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Error(err, out)
+		return
+	}
+
+	bridgeCIDR := strings.Fields(out)[3]
+	bridgeIP, _, err := net.ParseCIDR(bridgeCIDR)
+	if err != nil {
+		t.Error("Could not parse bridge IP from output %s", err, out)
+		return
+	}
+
+	//Check that the nameserver matches the bridge address.
+	expected := "\nnameserver " + bridgeIP.String() + "\n"
 	if actual != expected {
 		t.Errorf("expected resolv.conf be: %q, but was: %q", expected, actual)
 		return
@@ -1317,7 +1331,7 @@ func TestRunDnsDefaultOptions(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - dns default options")
+	logDone("run - local DNS")
 }
 
 func TestRunDnsOptions(t *testing.T) {
