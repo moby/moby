@@ -270,6 +270,7 @@ func populateCommand(c *Container, env []string) error {
 		MemorySwap: c.Config.MemorySwap,
 		CpuShares:  c.Config.CpuShares,
 		Cpuset:     c.Config.Cpuset,
+		Slice:      c.Config.Slice,
 	}
 
 	processConfig := execdriver.ProcessConfig{
