@@ -42,6 +42,9 @@ RUN	apt-get update && apt-get install -y \
 	lxc=1.0* \
 	mercurial \
 	parallel \
+	python-mock \
+	python-pip \
+	python-websocket \
 	reprepro \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
@@ -92,6 +95,9 @@ RUN	git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.gi
 
 # Get the "cirros" image source so we can import it instead of fetching it during tests
 RUN	curl -sSL -o /cirros.tar.gz https://github.com/ewindisch/docker-cirros/raw/1cded459668e8b9dbf4ef976c94c05add9bbd8e9/cirros-0.3.0-x86_64-lxc.tar.gz
+
+# Get the "docker-py" source so we can run their integration tests
+RUN	git clone -b 0.7.0 https://github.com/docker/docker-py.git /docker-py
 
 # Setup s3cmd config
 RUN	/bin/echo -e '[default]\naccess_key=$AWS_ACCESS_KEY\nsecret_key=$AWS_SECRET_KEY' > $HOME/.s3cfg

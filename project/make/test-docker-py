@@ -3,21 +3,20 @@ set -e
 
 DEST=$1
 
-bundle_test_integration_cli() {
-	go_test_dir ./integration-cli
-}
-
 # subshell so that we can export PATH without breaking other things
 exec > >(tee -a $DEST/test.log) 2>&1
 (
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
 
-	# pull the busybox image before running the tests
-	sleep 2
+	dockerPy='/docker-py'
+	[ -d "$dockerPy" ] || {
+		dockerPy="$DEST/docker-py"
+		git clone https://github.com/docker/docker-py.git "$dockerPy"
+	}
 
-	source "$(dirname "$BASH_SOURCE")/.ensure-busybox"
-
-	bundle_test_integration_cli
+	cd "$dockerPy"
+	export PYTHONPATH=. # import "docker" from "."
+	python tests/integration_test.py
 
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
 )
