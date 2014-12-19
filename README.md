@@ -187,7 +187,7 @@ documentation, please take a look at this [README.md](https://github.com/docker/
 These instructions are probably not perfect, please let us know if anything
 feels wrong or incomplete.
 
-Want to run Docker from a master build? You can can download 
+Want to run Docker from a master build? You can download 
 master builds at [master.dockerproject.com](https://master.dockerproject.com). 
 They are updated with each commit merged into the master branch.
 
