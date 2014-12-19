@@ -163,7 +163,10 @@ func (e Endpoint) Ping() (RegistryInfo, error) {
 // If the subnet contains one of the IPs of the registry specified by hostname, the latter is considered
 // insecure.
 //
-// hostname should be a URL.Host (`host:port` or `host`)
+// hostname should be a URL.Host (`host:port` or `host`) where the `host` part can be either a domain name
+// or an IP address. If it is a domain name, then it will be resolved in order to check if the IP is contained
+// in a subnet. If the resolving is not successful, isSecure will only try to match hostname to any element
+// of insecureRegistries.
 func isSecure(hostname string, insecureRegistries []string) (bool, error) {
 	if hostname == IndexServerURL.Host {
 		return true, nil
@@ -177,29 +180,30 @@ func isSecure(hostname string, insecureRegistries []string) (bool, error) {
 	addrs, err := lookupIP(host)
 	if err != nil {
 		ip := net.ParseIP(host)
-		if ip == nil {
-			// if resolving `host` fails, error out, since host is to be net.Dial-ed anyway
-			return true, fmt.Errorf("issecure: could not resolve %q: %v", host, err)
+		if ip != nil {
+			addrs = []net.IP{ip}
 		}
-		addrs = []net.IP{ip}
-	}
-	if len(addrs) == 0 {
-		return true, fmt.Errorf("issecure: could not resolve %q", host)
+
+		// if ip == nil, then `host` is neither an IP nor it could be looked up,
+		// either because the index is unreachable, or because the index is behind an HTTP proxy.
+		// So, len(addrs) == 0 and we're not aborting.
 	}
 
-	for _, addr := range addrs {
-		for _, r := range insecureRegistries {
+	for _, r := range insecureRegistries {
+		if hostname == r || host == r {
 			// hostname matches insecure registry
-			if hostname == r {
-				return false, nil
-			}
+			return false, nil
+		}
+
+		// Try CIDR notation only if addrs has any elements, i.e. if `host`'s IP could be determined.
+		for _, addr := range addrs {
 
 			// now assume a CIDR was passed to --insecure-registry
 			_, ipnet, err := net.ParseCIDR(r)
 			if err != nil {
-				// if could not parse it as a CIDR, even after removing
+				// if we could not parse it as a CIDR, even after removing
 				// assume it's not a CIDR and go on with the next candidate
-				continue
+				break
 			}
 
 			// check if the addr falls in the subnet
