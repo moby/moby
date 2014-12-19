@@ -1,4 +1,4 @@
-.PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration test-integration-cli validate
+.PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration test-integration-cli test-docker-py validate
 
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make DOCKER_CLIENTONLY=1 binary` easily
@@ -66,6 +66,9 @@ test-integration: build
 
 test-integration-cli: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-cli
+
+test-docker-py: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-docker-py
 
 validate: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-gofmt validate-dco

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for pid in $(find "$DEST" -name docker.pid); do
+	DOCKER_PID=$(set -x; cat "$pid")
+	( set -x; kill $DOCKER_PID )
+	wait $DOCKERD_PID || true
+done
