@@ -127,7 +127,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName += ":" + tag
 	}
 
-	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Official || endpoint.Version == registry.APIVersion2) {
+	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
 			return job.Errorf("error updating trust base graph: %s", err)

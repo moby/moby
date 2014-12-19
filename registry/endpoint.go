@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/registry/v2"
 )
 
 // for mocking in unit tests
@@ -103,6 +104,7 @@ type Endpoint struct {
 	Version        APIVersion
 	IsSecure       bool
 	AuthChallenges []*AuthorizationChallenge
+	URLBuilder     *v2.URLBuilder
 }
 
 // Get the formated URL for the root of this registry Endpoint

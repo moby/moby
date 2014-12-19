@@ -13,30 +13,36 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-var registryURLBuilder *v2.URLBuilder
-
-func init() {
-	u, err := url.Parse(REGISTRYSERVER)
-	if err != nil {
-		panic(fmt.Errorf("invalid registry url: %s", err))
-	}
-	registryURLBuilder = v2.NewURLBuilder(u)
-}
-
 func getV2Builder(e *Endpoint) *v2.URLBuilder {
-	return registryURLBuilder
+	if e.URLBuilder == nil {
+		e.URLBuilder = v2.NewURLBuilder(e.URL)
+	}
+	return e.URLBuilder
 }
 
 // GetV2Authorization gets the authorization needed to the given image
 // If readonly access is requested, then only the authorization may
 // only be used for Get operations.
-func (r *Session) GetV2Authorization(imageName string, readOnly bool) (*RequestAuthorization, error) {
+func (r *Session) GetV2Authorization(imageName string, readOnly bool) (auth *RequestAuthorization, err error) {
 	scopes := []string{"pull"}
 	if !readOnly {
 		scopes = append(scopes, "push")
 	}
 
-	return NewRequestAuthorization(r.GetAuthConfig(true), r.indexEndpoint, "repository", imageName, scopes)
+	var registry *Endpoint
+	if r.indexEndpoint.URL.Host == IndexServerURL.Host {
+		registry, err = NewEndpoint(REGISTRYSERVER, nil)
+		if err != nil {
+			return
+		}
+	} else {
+		registry = r.indexEndpoint
+	}
+	registry.URLBuilder = v2.NewURLBuilder(registry.URL)
+	r.indexEndpoint = registry
+
+	log.Debugf("Getting authorization for %s %s", imageName, scopes)
+	return NewRequestAuthorization(r.GetAuthConfig(true), registry, "repository", imageName, scopes)
 }
 
 //

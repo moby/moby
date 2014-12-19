@@ -294,13 +294,14 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		tag = DEFAULTTAG
 	}
 
-	if repoInfo.Official || endpoint.Version == registry.APIVersion2 {
-		j := job.Eng.Job("trust_update_base")
-		if err = j.Run(); err != nil {
-			return job.Errorf("error updating trust base graph: %s", err)
+	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
+		if repoInfo.Official {
+			j := job.Eng.Job("trust_update_base")
+			if err = j.Run(); err != nil {
+				return job.Errorf("error updating trust base graph: %s", err)
+			}
 		}
 
-		// Get authentication type
 		auth, err := r.GetV2Authorization(repoInfo.RemoteName, false)
 		if err != nil {
 			return job.Errorf("error getting authorization: %s", err)
@@ -383,7 +384,6 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		// done, no fallback to V1
 		return engine.StatusOK
 	} else {
-
 		if err != nil {
 			reposLen := 1
 			if tag == "" {
