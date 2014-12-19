@@ -13,9 +13,9 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/storage"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -27,18 +27,18 @@ var (
 )
 
 type ApplyDiffProtoDriver interface {
-	graphdriver.ProtoDriver
+	storage.ProtoDriver
 	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 }
 
 type naiveDiffDriverWithApply struct {
-	graphdriver.Driver
+	storage.Driver
 	applyDiff ApplyDiffProtoDriver
 }
 
-func NaiveDiffDriverWithApply(driver ApplyDiffProtoDriver) graphdriver.Driver {
+func NaiveDiffDriverWithApply(driver ApplyDiffProtoDriver) storage.Driver {
 	return &naiveDiffDriverWithApply{
-		Driver:    graphdriver.NaiveDiffDriver(driver),
+		Driver:    storage.NaiveDiffDriver(driver),
 		applyDiff: driver,
 	}
 }
@@ -91,12 +91,12 @@ type Driver struct {
 }
 
 func init() {
-	graphdriver.Register("overlay", Init)
+	storage.Register("overlay", Init)
 }
 
-func Init(home string, options []string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (storage.Driver, error) {
 	if err := supportsOverlay(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return nil, storage.ErrNotSupported
 	}
 
 	// Create the driver home dir
@@ -130,7 +130,7 @@ func supportsOverlay() error {
 		}
 	}
 	log.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-	return graphdriver.ErrNotSupported
+	return storage.ErrNotSupported
 }
 
 func (d *Driver) String() string {

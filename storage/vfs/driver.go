@@ -7,20 +7,20 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/storage"
 	"github.com/docker/libcontainer/label"
 )
 
 func init() {
-	graphdriver.Register("vfs", Init)
+	storage.Register("vfs", Init)
 }
 
-func Init(home string, options []string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (storage.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
-	return graphdriver.NaiveDiffDriver(d), nil
+	return storage.NaiveDiffDriver(d), nil
 }
 
 type Driver struct {

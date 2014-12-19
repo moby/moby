@@ -3,9 +3,9 @@
 package daemon
 
 import (
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/storage"
 )
 
-func migrateIfAufs(driver graphdriver.Driver, root string) error {
+func migrateIfAufs(driver storage.Driver, root string) error {
 	return nil
 }

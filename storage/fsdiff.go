@@ -1,6 +1,6 @@
 // +build daemon
 
-package graphdriver
+package storage
 
 import (
 	"time"

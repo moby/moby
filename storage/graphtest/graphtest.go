@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/storage"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 )
 
 type Driver struct {
-	graphdriver.Driver
+	storage.Driver
 	root     string
 	refCount int
 }
@@ -71,9 +71,9 @@ func newDriver(t *testing.T, name string) *Driver {
 		t.Fatal(err)
 	}
 
-	d, err := graphdriver.GetDriver(name, root, nil)
+	d, err := storage.GetDriver(name, root, nil)
 	if err != nil {
-		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites {
+		if err == storage.ErrNotSupported || err == storage.ErrPrerequisites {
 			t.Skipf("Driver %s not supported", name)
 		}
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func cleanup(t *testing.T, d *Driver) {
 	os.RemoveAll(d.root)
 }
 
-func GetDriver(t *testing.T, name string) graphdriver.Driver {
+func GetDriver(t *testing.T, name string) storage.Driver {
 	if drv == nil {
 		drv = newDriver(t, name)
 	} else {
@@ -183,7 +183,7 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 
 }
 
-func createBase(t *testing.T, driver graphdriver.Driver, name string) {
+func createBase(t *testing.T, driver storage.Driver, name string) {
 	// We need to be able to set any perms
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
@@ -212,7 +212,7 @@ func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 	}
 }
 
-func verifyBase(t *testing.T, driver graphdriver.Driver, name string) {
+func verifyBase(t *testing.T, driver storage.Driver, name string) {
 	dir, err := driver.Get(name, "")
 	if err != nil {
 		t.Fatal(err)

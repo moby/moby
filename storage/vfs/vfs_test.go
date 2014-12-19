@@ -3,7 +3,7 @@ package vfs
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/docker/docker/storage/graphtest"
 
 	"github.com/docker/docker/pkg/reexec"
 )

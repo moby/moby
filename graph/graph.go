@@ -13,12 +13,12 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/storage"
 	"github.com/docker/docker/utils"
 )
 
@@ -26,12 +26,12 @@ import (
 type Graph struct {
 	Root    string
 	idIndex *truncindex.TruncIndex
-	driver  graphdriver.Driver
+	driver  storage.Driver
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
 // `root` will be created if it doesn't exist.
-func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
+func NewGraph(root string, driver storage.Driver) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -392,6 +392,6 @@ func (graph *Graph) ImageRoot(id string) string {
 	return path.Join(graph.Root, id)
 }
 
-func (graph *Graph) Driver() graphdriver.Driver {
+func (graph *Graph) Driver() storage.Driver {
 	return graph.driver
 }

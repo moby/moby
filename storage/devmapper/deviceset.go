@@ -19,10 +19,10 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
+	"github.com/docker/docker/storage"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -940,7 +940,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	_, err := devicemapper.GetDriverVersion()
 	if err != nil {
 		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
+		return storage.ErrNotSupported
 	}
 
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {

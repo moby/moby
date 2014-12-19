@@ -3,5 +3,5 @@
 package daemon
 
 import (
-	_ "github.com/docker/docker/daemon/graphdriver/overlay"
+	_ "github.com/docker/docker/storage/overlay"
 )

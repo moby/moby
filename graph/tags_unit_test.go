@@ -7,9 +7,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	_ "github.com/docker/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/storage"
+	_ "github.com/docker/docker/storage/vfs" // import the vfs driver so it is used in the tests
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
@@ -45,7 +45,7 @@ func fakeTar() (io.Reader, error) {
 }
 
 func mkTestTagStore(root string, t *testing.T) *TagStore {
-	driver, err := graphdriver.New(root, nil)
+	driver, err := storage.New(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,3 @@ Code pertaining to running containers:
 
  - execdriver
  - networkdriver
-
-Code pertaining to storing images:
-
- - graphdriver

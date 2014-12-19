@@ -2,7 +2,7 @@
 
 ### Theory of operation
 
-The device mapper graphdriver uses the device mapper thin provisioning
+The device mapper storage driver uses the device mapper thin provisioning
 module (dm-thinp) to implement CoW snapshots. For each devicemapper
 graph location (typically `/var/lib/docker/devicemapper`, $graph below)
 a thin pool is created based on two block devices, one for data and

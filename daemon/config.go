@@ -33,8 +33,8 @@ type Config struct {
 	FixedCIDR                   string
 	InsecureRegistries          []string
 	InterContainerCommunication bool
-	GraphDriver                 string
-	GraphOptions                []string
+	StorageDriver               string
+	StorageOptions              []string
 	ExecDriver                  string
 	Mtu                         int
 	DisableNetwork              bool
@@ -60,12 +60,12 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs (ex: 10.20.0.0/16)\nthis subnet must be nested in the bridge subnet (which is defined by -b or --bip)")
 	opts.ListVar(&config.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)")
 	flag.BoolVar(&config.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Allow unrestricted inter-container and Docker daemon host communication")
-	flag.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", "Force the Docker runtime to use a specific storage driver")
+	flag.StringVar(&config.StorageDriver, []string{"s", "-storage-driver"}, "", "Force the Docker runtime to use a specific storage driver")
 	flag.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, "native", "Force the Docker runtime to use a specific exec driver")
 	flag.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
 	flag.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, "Set the containers network MTU\nif no value is provided: default to the default route MTU or 1500 if no default route is available")
 	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP address to use when binding container ports")
-	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
+	opts.ListVar(&config.StorageOptions, []string{"-storage-opt"}, "Set storage driver options")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
