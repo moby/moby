@@ -1877,7 +1877,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 	if err := cli.stream("GET", "/containers/"+image+"/export", nil, output, nil); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
