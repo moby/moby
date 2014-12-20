@@ -38,56 +38,70 @@ type ConfigFile struct {
 }
 
 type RequestAuthorization struct {
-	Token    string
-	Username string
-	Password string
+	authConfig       *AuthConfig
+	registryEndpoint *Endpoint
+	resource         string
+	scope            string
+	actions          []string
 }
 
-func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) (*RequestAuthorization, error) {
-	var auth RequestAuthorization
+func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) *RequestAuthorization {
+	return &RequestAuthorization{
+		authConfig:       authConfig,
+		registryEndpoint: registryEndpoint,
+		resource:         resource,
+		scope:            scope,
+		actions:          actions,
+	}
+}
 
+func (auth *RequestAuthorization) getToken() (string, error) {
+	// TODO check if already has token and before expiration
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment,
-		},
+			Proxy:             http.ProxyFromEnvironment},
 		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
 	}
 	factory := HTTPRequestFactory(nil)
 
-	for _, challenge := range registryEndpoint.AuthChallenges {
-		log.Debugf("Using %q auth challenge with params %s for %s", challenge.Scheme, challenge.Parameters, authConfig.Username)
-
+	for _, challenge := range auth.registryEndpoint.AuthChallenges {
 		switch strings.ToLower(challenge.Scheme) {
 		case "basic":
-			auth.Username = authConfig.Username
-			auth.Password = authConfig.Password
+			// no token necessary
 		case "bearer":
+			log.Debugf("Getting bearer token with %s for %s", challenge.Parameters, auth.authConfig.Username)
 			params := map[string]string{}
 			for k, v := range challenge.Parameters {
 				params[k] = v
 			}
-			params["scope"] = fmt.Sprintf("%s:%s:%s", resource, scope, strings.Join(actions, ","))
-			token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
+			params["scope"] = fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
+			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint, client, factory)
 			if err != nil {
-				return nil, err
+				return "", err
 			}
+			// TODO cache token and set expiration to one minute from now
 
-			auth.Token = token
+			return token, nil
 		default:
 			log.Infof("Unsupported auth scheme: %q", challenge.Scheme)
 		}
 	}
-
-	return &auth, nil
+	// TODO no expiration, do not reattempt to get a token
+	return "", nil
 }
 
-func (auth *RequestAuthorization) Authorize(req *http.Request) {
-	if auth.Token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", auth.Token))
-	} else if auth.Username != "" && auth.Password != "" {
-		req.SetBasicAuth(auth.Username, auth.Password)
+func (auth *RequestAuthorization) Authorize(req *http.Request) error {
+	token, err := auth.getToken()
+	if err != nil {
+		return err
 	}
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	} else if auth.authConfig.Username != "" && auth.authConfig.Password != "" {
+		req.SetBasicAuth(auth.authConfig.Username, auth.authConfig.Password)
+	}
+	return nil
 }
 
 // create a base64 encoded auth string to store in config

@@ -42,7 +42,7 @@ func (r *Session) GetV2Authorization(imageName string, readOnly bool) (auth *Req
 	r.indexEndpoint = registry
 
 	log.Debugf("Getting authorization for %s %s", imageName, scopes)
-	return NewRequestAuthorization(r.GetAuthConfig(true), registry, "repository", imageName, scopes)
+	return NewRequestAuthorization(r.GetAuthConfig(true), registry, "repository", imageName, scopes), nil
 }
 
 //
@@ -65,7 +65,9 @@ func (r *Session) GetV2ImageManifest(imageName, tagName string, auth *RequestAut
 	if err != nil {
 		return nil, err
 	}
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
@@ -103,7 +105,9 @@ func (r *Session) PostV2ImageMountBlob(imageName, sumType, sum string, auth *Req
 	if err != nil {
 		return false, err
 	}
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return false, err
@@ -132,7 +136,9 @@ func (r *Session) GetV2ImageBlob(imageName, sumType, sum string, blobWrtr io.Wri
 	if err != nil {
 		return err
 	}
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return err
@@ -161,7 +167,9 @@ func (r *Session) GetV2ImageBlobReader(imageName, sumType, sum string, auth *Req
 	if err != nil {
 		return nil, 0, err
 	}
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return nil, 0, err
@@ -196,7 +204,9 @@ func (r *Session) PutV2ImageBlob(imageName, sumType, sumStr string, blobRdr io.R
 		return err
 	}
 
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return err
@@ -212,7 +222,9 @@ func (r *Session) PutV2ImageBlob(imageName, sumType, sumStr string, blobRdr io.R
 	queryParams := url.Values{}
 	queryParams.Add("digest", sumType+":"+sumStr)
 	req.URL.RawQuery = queryParams.Encode()
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err = r.doRequest(req)
 	if err != nil {
 		return err
@@ -242,7 +254,9 @@ func (r *Session) PutV2ImageManifest(imageName, tagName string, manifestRdr io.R
 	if err != nil {
 		return err
 	}
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return err
@@ -274,7 +288,9 @@ func (r *Session) GetV2RemoteTags(imageName string, auth *RequestAuthorization) 
 	if err != nil {
 		return nil, err
 	}
-	auth.Authorize(req)
+	if err := auth.Authorize(req) {
+		return nil, err
+	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
