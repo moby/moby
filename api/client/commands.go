@@ -1849,7 +1849,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 func (cli *DockerCli) CmdExport(args ...string) error {
 	cmd := cli.Subcmd("export", "CONTAINER", "Export the contents of a filesystem to a tar archive (streamed to STDOUT by default)")
-	outfile := cmd.String([]string{"o", "-output"}, "", "Write to a file, instead of STDOUT")
+	outfile := cmd.String([]string{"-o", "--output"}, "", "Write to a file, instead of STDOUT")
 
 	if err := cmd.Parse(args); err != nil {
 		return err
@@ -1879,11 +1879,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 		   return err
 		}
 	} else {
-	        v := url.Values{}
-		for _, arg := range cmd.Args() {
-			v.Add("names", arg)
-		}
-		if err := cli.stream("GET", "/containers/get?"+v.Encode(), nil, output, nil); err != nil {
+		if err := cli.stream("GET", "/containers/"+v.Encode()+"/export", nil, output, nil); err != nil {
 			return err
 		}
 	}
