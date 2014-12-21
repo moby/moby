@@ -42,21 +42,21 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 
 	job.GetenvJson("authConfig", authConfig)
 
+	secure := true
 	if authConfig.ServerAddress != "" {
 		index, err := ResolveIndexInfo(job, authConfig.ServerAddress)
 		if err != nil {
 			return job.Error(err)
 		}
-		if !index.Official {
-			endpoint, err := NewEndpoint(index)
-			if err != nil {
-				return job.Error(err)
-			}
-			authConfig.ServerAddress = endpoint.String()
+		endpoint, err := NewEndpoint(index)
+		if err != nil {
+			return job.Error(err)
 		}
+		secure = endpoint.secure
+		authConfig.ServerAddress = endpoint.String()
 	}
 
-	status, err := Login(authConfig, HTTPRequestFactory(nil))
+	status, err := Login(authConfig, HTTPRequestFactory(nil), secure)
 	if err != nil {
 		return job.Error(err)
 	}
