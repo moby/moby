@@ -3925,7 +3925,7 @@ func TestBuildWithTabs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := "[\"/bin/sh\",\"-c\",\"echo\\u0009one\\u0009\\u0009two\"]"
+	expected := `["/bin/sh","-c","echo\tone\t\ttwo"]`
 	if res != expected {
 		t.Fatalf("Missing tabs.\nGot:%s\nExp:%s", res, expected)
 	}
