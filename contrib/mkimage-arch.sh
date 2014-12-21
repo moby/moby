@@ -18,7 +18,32 @@ ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/rootfs-archlinux-XXXXXXXXXX)
 chmod 755 $ROOTFS
 
 # packages to ignore for space savings
-PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
+PKGIGNORE=(
+    cryptsetup
+    device-mapper
+    dhcpcd
+    iproute2
+    jfsutils
+    linux
+    lvm2
+    man-db
+    man-pages
+    mdadm
+    nano
+    netctl
+    openresolv
+    pciutils
+    pcmciautils
+    reiserfsprogs
+    s-nail
+    systemd-sysvcompat
+    usbutils
+    vi
+    xfsprogs
+)
+IFS=','
+PKGIGNORE="${PKGIGNORE[*]}"
+unset IFS
 
 expect <<EOF
 	set send_slow {1 .1}
