@@ -509,7 +509,6 @@ func LinkContainers(job *engine.Job) engine.Status {
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
-		chain        = iptables.Chain{}
 	)
 
 	switch action {
@@ -532,14 +531,11 @@ func LinkContainers(job *engine.Job) engine.Status {
 		return job.Errorf("child IP '%s' is invalid", childIP)
 	}
 
-	chain.Name = "DOCKER"
-	chain.Bridge = bridgeIface
+	chain := iptables.Chain{Name: "DOCKER", Bridge: bridgeIface}
 	for _, p := range ports {
 		port := nat.Port(p)
 		if err := chain.Link(nfAction, ip1, ip2, port.Int(), port.Proto()); !ignoreErrors && err != nil {
-			fmt.Print(err)
 			return job.Error(err)
-
 		}
 	}
 	return engine.StatusOK
