@@ -52,11 +52,10 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		return nil, err
 	}
 	parsedArgs := cmd.Args()
-	if len(parsedArgs) < 2 {
-		return nil, fmt.Errorf("not enough arguments to create exec command")
+	if len(parsedArgs) > 1 {
+		container = cmd.Arg(0)
+		execCmd = parsedArgs[1:]
 	}
-	container = cmd.Arg(0)
-	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
 		// TODO(vishh): Expose '-u' flag once it is supported.
