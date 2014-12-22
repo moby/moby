@@ -2693,3 +2693,15 @@ func TestRunTtyWithPipe(t *testing.T) {
 
 	logDone("run - forbid piped stdin with tty")
 }
+
+func TestRunNonLocalMacAddress(t *testing.T) {
+	defer deleteAllContainers()
+	addr := "00:16:3E:08:00:50"
+
+	cmd := exec.Command(dockerBinary, "run", "--mac-address", addr, "busybox", "ifconfig")
+	if out, _, err := runCommandWithOutput(cmd); err != nil || !strings.Contains(out, addr) {
+		t.Fatalf("Output should have contained %q: %s, %v", addr, out, err)
+	}
+
+	logDone("run - use non-local mac-address")
+}
