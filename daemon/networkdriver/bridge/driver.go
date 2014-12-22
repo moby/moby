@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -144,12 +143,16 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	// We can always try removing the iptables
-	if err := iptables.RemoveExistingChain("DOCKER"); err != nil {
+	if err := iptables.RemoveExistingChain("DOCKER", iptables.Nat); err != nil {
 		return job.Error(err)
 	}
 
 	if enableIPTables {
-		chain, err := iptables.NewChain("DOCKER", bridgeIface)
+		_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Nat)
+		if err != nil {
+			return job.Error(err)
+		}
+		chain, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -501,35 +504,38 @@ func AllocatePort(job *engine.Job) engine.Status {
 func LinkContainers(job *engine.Job) engine.Status {
 	var (
 		action       = job.Args[0]
+		nfAction     iptables.Action
 		childIP      = job.Getenv("ChildIP")
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
-	for _, value := range ports {
-		port := nat.Port(value)
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", port.Proto(),
-			"-s", parentIP,
-			"--dport", strconv.Itoa(port.Int()),
-			"-d", childIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
-			return job.Error(err)
-		} else if len(output) != 0 {
-			return job.Errorf("Error toggle iptables forward: %s", output)
-		}
 
-		if output, err := iptables.Raw(action, "FORWARD",
-			"-i", bridgeIface, "-o", bridgeIface,
-			"-p", port.Proto(),
-			"-s", childIP,
-			"--sport", strconv.Itoa(port.Int()),
-			"-d", parentIP,
-			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+	switch action {
+	case "-A":
+		nfAction = iptables.Append
+	case "-I":
+		nfAction = iptables.Insert
+	case "-D":
+		nfAction = iptables.Delete
+	default:
+		return job.Errorf("Invalid action '%s' specified", action)
+	}
+
+	ip1 := net.ParseIP(parentIP)
+	if ip1 == nil {
+		return job.Errorf("parent IP '%s' is invalid", parentIP)
+	}
+	ip2 := net.ParseIP(childIP)
+	if ip2 == nil {
+		return job.Errorf("child IP '%s' is invalid", childIP)
+	}
+
+	chain := iptables.Chain{Name: "DOCKER", Bridge: bridgeIface}
+	for _, p := range ports {
+		port := nat.Port(p)
+		if err := chain.Link(nfAction, ip1, ip2, port.Int(), port.Proto()); !ignoreErrors && err != nil {
 			return job.Error(err)
-		} else if len(output) != 0 {
-			return job.Errorf("Error toggle iptables forward: %s", output)
 		}
 	}
 	return engine.StatusOK

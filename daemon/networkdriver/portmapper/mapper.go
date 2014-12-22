@@ -93,7 +93,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if err := forward(iptables.Add, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
+	if err := forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
 		return nil, err
 	}
 
