@@ -15,10 +15,14 @@ exec 41>&1 42>&2
 DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
 
-( set -x; exec \
-	docker --daemon --debug \
-	--storage-driver "$DOCKER_GRAPHDRIVER" \
-	--exec-driver "$DOCKER_EXECDRIVER" \
-	--pidfile "$DEST/docker.pid" \
-		&> "$DEST/docker.log"
-) &
+if [ -z "$DOCKER_TEST_HOST" ]; then
+    ( set -x; exec \
+        docker --daemon --debug \
+        --storage-driver "$DOCKER_GRAPHDRIVER" \
+        --exec-driver "$DOCKER_EXECDRIVER" \
+        --pidfile "$DEST/docker.pid" \
+            &> "$DEST/docker.log"
+    ) &
+else
+    export DOCKER_HOST="$DOCKER_TEST_HOST"
+fi

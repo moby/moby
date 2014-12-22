@@ -100,9 +100,7 @@ func logDone(message string) {
 }
 
 func stripTrailingCharacters(target string) string {
-	target = strings.Trim(target, "\n")
-	target = strings.Trim(target, " ")
-	return target
+	return strings.TrimSpace(target)
 }
 
 func unmarshalJSON(data []byte, result interface{}) error {
