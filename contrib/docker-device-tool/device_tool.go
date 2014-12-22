@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/storage/devmapper"
 )
 
 func usage() {

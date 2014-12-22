@@ -168,8 +168,8 @@ will need the following tag to not check for btrfs version headers:
 export DOCKER_BUILDTAGS='btrfs_noversion'
 ```
 
-There are build tags for disabling graphdrivers as well. By default, support
-for all graphdrivers are built in.
+There are build tags for disabling storage drivers as well. By default, support
+for all storage drivers are built in.
 
 To disable btrfs:
 ```bash

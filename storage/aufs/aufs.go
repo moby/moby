@@ -31,24 +31,24 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/storage"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
 )
 
 var (
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
-	incompatibleFsMagic = []graphdriver.FsMagic{
-		graphdriver.FsMagicBtrfs,
-		graphdriver.FsMagicAufs,
+	incompatibleFsMagic = []storage.FsMagic{
+		storage.FsMagicBtrfs,
+		storage.FsMagicAufs,
 	}
 )
 
 func init() {
-	graphdriver.Register("aufs", Init)
+	storage.Register("aufs", Init)
 }
 
 type Driver struct {
@@ -59,10 +59,10 @@ type Driver struct {
 
 // New returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func Init(root string, options []string) (graphdriver.Driver, error) {
+func Init(root string, options []string) (storage.Driver, error) {
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return nil, storage.ErrNotSupported
 	}
 
 	rootdir := path.Dir(root)
@@ -73,8 +73,8 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 	}
 
 	for _, magic := range incompatibleFsMagic {
-		if graphdriver.FsMagic(buf.Type) == magic {
-			return nil, graphdriver.ErrIncompatibleFS
+		if storage.FsMagic(buf.Type) == magic {
+			return nil, storage.ErrIncompatibleFS
 		}
 	}
 

@@ -9,9 +9,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/storage"
 )
 
 var (
@@ -23,10 +23,10 @@ func init() {
 	reexec.Init()
 }
 
-func testInit(dir string, t *testing.T) graphdriver.Driver {
+func testInit(dir string, t *testing.T) storage.Driver {
 	d, err := Init(dir, nil)
 	if err != nil {
-		if err == graphdriver.ErrNotSupported {
+		if err == storage.ErrNotSupported {
 			t.Skip(err)
 		} else {
 			t.Fatal(err)

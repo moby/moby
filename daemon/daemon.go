@@ -19,8 +19,6 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
-	"github.com/docker/docker/daemon/graphdriver"
-	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 	_ "github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/dockerversion"
@@ -37,6 +35,8 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/storage"
+	_ "github.com/docker/docker/storage/vfs"
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
@@ -97,7 +97,7 @@ type Daemon struct {
 	eng            *engine.Engine
 	config         *Config
 	containerGraph *graphdb.Database
-	driver         graphdriver.Driver
+	driver         storage.Driver
 	execDriver     execdriver.Driver
 	trustStore     *trust.TrustStore
 }
@@ -793,10 +793,10 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	// Set the default driver
-	graphdriver.DefaultDriver = config.GraphDriver
+	storage.DefaultDriver = config.StorageDriver
 
 	// Load storage driver
-	driver, err := graphdriver.New(config.Root, config.GraphOptions)
+	driver, err := storage.New(config.Root, config.StorageOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +824,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
+	volumesDriver, err := storage.GetDriver("vfs", config.Root, config.StorageOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -1068,7 +1068,7 @@ func (daemon *Daemon) SystemInitPath() string {
 	return daemon.sysInitPath
 }
 
-func (daemon *Daemon) GraphDriver() graphdriver.Driver {
+func (daemon *Daemon) StorageDriver() storage.Driver {
 	return daemon.driver
 }
 

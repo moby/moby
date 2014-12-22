@@ -16,15 +16,15 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/storage"
 )
 
 func init() {
-	graphdriver.Register("btrfs", Init)
+	storage.Register("btrfs", Init)
 }
 
-func Init(home string, options []string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (storage.Driver, error) {
 	rootdir := path.Dir(home)
 
 	var buf syscall.Statfs_t
@@ -32,8 +32,8 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicBtrfs {
-		return nil, graphdriver.ErrPrerequisites
+	if storage.FsMagic(buf.Type) != storage.FsMagicBtrfs {
+		return nil, storage.ErrPrerequisites
 	}
 
 	if err := os.MkdirAll(home, 0700); err != nil {
@@ -48,7 +48,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home: home,
 	}
 
-	return graphdriver.NaiveDiffDriver(driver), nil
+	return storage.NaiveDiffDriver(driver), nil
 }
 
 type Driver struct {

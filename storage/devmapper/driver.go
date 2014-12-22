@@ -9,14 +9,14 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/units"
+	"github.com/docker/docker/storage"
 )
 
 func init() {
-	graphdriver.Register("devicemapper", Init)
+	storage.Register("devicemapper", Init)
 }
 
 // Placeholder interfaces, to be replaced
@@ -29,7 +29,7 @@ type Driver struct {
 	home string
 }
 
-func Init(home string, options []string) (graphdriver.Driver, error) {
+func Init(home string, options []string) (storage.Driver, error) {
 	deviceSet, err := NewDeviceSet(home, true, options)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home:      home,
 	}
 
-	return graphdriver.NaiveDiffDriver(d), nil
+	return storage.NaiveDiffDriver(d), nil
 }
 
 func (d *Driver) String() string {

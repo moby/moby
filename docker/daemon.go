@@ -54,11 +54,11 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+		log.Infof("docker daemon: %s %s; execdriver: %s; storagedriver: %s",
 			dockerversion.VERSION,
 			dockerversion.GITCOMMIT,
 			d.ExecutionDriver().Name(),
-			d.GraphDriver().String(),
+			d.StorageDriver().String(),
 		)
 
 		if err := d.Install(eng); err != nil {

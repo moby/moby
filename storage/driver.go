@@ -1,4 +1,4 @@
-package graphdriver
+package storage
 
 import (
 	"errors"

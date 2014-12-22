@@ -2,11 +2,11 @@ package docker
 
 import (
 	"errors"
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/storage"
 	"github.com/docker/docker/utils"
 	"io"
 	"io/ioutil"
@@ -288,12 +288,12 @@ func assertNImages(graph *graph.Graph, t *testing.T, n int) {
 	}
 }
 
-func tempGraph(t *testing.T) (*graph.Graph, graphdriver.Driver) {
+func tempGraph(t *testing.T) (*graph.Graph, storage.Driver) {
 	tmp, err := ioutil.TempDir("", "docker-graph-")
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver, err := graphdriver.New(tmp, nil)
+	driver, err := storage.New(tmp, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

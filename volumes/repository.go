@@ -8,18 +8,18 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/storage"
 	"github.com/docker/docker/utils"
 )
 
 type Repository struct {
 	configPath string
-	driver     graphdriver.Driver
+	driver     storage.Driver
 	volumes    map[string]*Volume
 	lock       sync.Mutex
 }
 
-func NewRepository(configPath string, driver graphdriver.Driver) (*Repository, error) {
+func NewRepository(configPath string, driver storage.Driver) (*Repository, error) {
 	abspath, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, err

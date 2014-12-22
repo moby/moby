@@ -5,7 +5,7 @@ package devmapper
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/docker/docker/storage/graphtest"
 )
 
 func init() {
