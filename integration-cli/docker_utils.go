@@ -206,20 +206,33 @@ func (d *Daemon) Stop() error {
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		return fmt.Errorf("could not send signal: %v", err)
 	}
-out:
+out1:
 	for {
 		select {
 		case err := <-d.wait:
 			return err
-		case <-time.After(20 * time.Second):
+		case <-time.After(15 * time.Second):
+			// time for stopping jobs and run onShutdown hooks
 			d.t.Log("timeout")
-			break out
+			break out1
+		}
+	}
+
+out2:
+	for {
+		select {
+		case err := <-d.wait:
+			return err
 		case <-tick:
-			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i+1, d.cmd.Process.Pid)
+			i++
+			if i > 4 {
+				d.t.Log("tried to interrupt daemon for %d times, now try to kill it", i)
+				break out2
+			}
+			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 				return fmt.Errorf("could not send signal: %v", err)
 			}
-			i++
 		}
 	}
 
