@@ -47,16 +47,23 @@ func NewEndpoint(index *IndexInfo) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
 
+	return endpoint, nil
+}
+
+func validateEndpoint(endpoint *Endpoint) error {
 	log.Debugf("pinging registry endpoint %s", endpoint)
 
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
 	if _, err := endpoint.Ping(); err != nil {
-		if index.Secure {
+		if endpoint.IsSecure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
 			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
-			return nil, fmt.Errorf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
+			return fmt.Errorf("invalid registry endpoint %s: %v. If this private registry supports only HTTP or HTTPS with an unknown CA certificate, please add `--insecure-registry %s` to the daemon's arguments. In the case of HTTPS, if you have access to the registry's CA certificate, no need for the flag; simply place the CA certificate at /etc/docker/certs.d/%s/ca.crt", endpoint, err, endpoint.URL.Host, endpoint.URL.Host)
 		}
 
 		// If registry is insecure and HTTPS failed, fallback to HTTP.
@@ -65,13 +72,13 @@ func NewEndpoint(index *IndexInfo) (*Endpoint, error) {
 
 		var err2 error
 		if _, err2 = endpoint.Ping(); err2 == nil {
-			return endpoint, nil
+			return nil
 		}
 
-		return nil, fmt.Errorf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
+		return fmt.Errorf("invalid registry endpoint %q. HTTPS attempt: %v. HTTP attempt: %v", endpoint, err, err2)
 	}
 
-	return endpoint, nil
+	return nil
 }
 
 func newEndpoint(address string, secure bool) (*Endpoint, error) {

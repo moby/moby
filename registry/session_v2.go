@@ -30,8 +30,12 @@ func (r *Session) GetV2Authorization(imageName string, readOnly bool) (auth *Req
 	}
 
 	var registry *Endpoint
-	if r.indexEndpoint.URL.Host == IndexServerURL.Host {
-		registry, err = NewEndpoint(REGISTRYSERVER, nil)
+	if r.indexEndpoint.String() == IndexServerAddress() {
+		registry, err = newEndpoint(REGISTRYSERVER, true)
+		if err != nil {
+			return
+		}
+		err = validateEndpoint(registry)
 		if err != nil {
 			return
 		}

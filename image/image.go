@@ -94,28 +94,29 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error 
 
 	// If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		layerDataDecompressed, err := archive.DecompressStream(layerData)
-		if err != nil {
+		// If the image doesn't have a checksum, we should add it. The layer
+		// checksums are verified when they are pulled from a remote, but when
+		// a container is committed it should be added here.
+		if img.Checksum == "" {
+			layerDataDecompressed, err := archive.DecompressStream(layerData)
+			if err != nil {
+				return err
+			}
+			defer layerDataDecompressed.Close()
+
+			if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.VersionDev); err != nil {
+				return err
+			}
+
+			if size, err = driver.ApplyDiff(img.ID, img.Parent, layerTarSum); err != nil {
+				return err
+			}
+
+			img.Checksum = layerTarSum.Sum(nil)
+		} else if size, err = driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
 			return err
 		}
 
-		defer layerDataDecompressed.Close()
-
-		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.VersionDev); err != nil {
-			return err
-		}
-
-		if size, err = driver.ApplyDiff(img.ID, img.Parent, layerTarSum); err != nil {
-			return err
-		}
-
-		checksum := layerTarSum.Sum(nil)
-
-		if img.Checksum != "" && img.Checksum != checksum {
-			log.Warnf("image layer checksum mismatch: computed %q, expected %q", checksum, img.Checksum)
-		}
-
-		img.Checksum = checksum
 	}
 
 	img.Size = size

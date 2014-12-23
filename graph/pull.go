@@ -15,6 +15,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
@@ -112,6 +113,8 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	}
 	defer s.poolRemove("pull", repoInfo.LocalName+":"+tag)
 
+
+	log.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {
 		return job.Error(err)
@@ -127,6 +130,10 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName += ":" + tag
 	}
 
+	// Calling the v2 code path might change the session
+	// endpoint value, so save the original one!
+	originalSession := *r
+
 	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
@@ -138,6 +145,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			return job.Errorf("error getting authorization: %s", err)
 		}
 
+		log.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
 		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel"), auth); err == nil {
 			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
 				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
@@ -146,8 +154,13 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		} else if err != registry.ErrDoesNotExist {
 			log.Errorf("Error from V2 registry: %s", err)
 		}
+
+		log.Debug("image does not exist on v2 registry, falling back to v1")
 	}
 
+	r = &originalSession
+
+	log.Debugf("pulling v1 repository with local name %q", repoInfo.LocalName)
 	if err = s.pullRepository(r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err != nil {
 		return job.Error(err)
 	}
@@ -174,7 +187,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	log.Debugf("Retrieving the tag list")
 	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName, repoData.Tokens)
 	if err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("unable to get remote tags: %s", err)
 		return err
 	}
 
@@ -535,7 +548,20 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return err
 				}
 				defer r.Close()
-				io.Copy(tmpFile, utils.ProgressReader(r, int(l), out, sf, false, utils.TruncateID(img.ID), "Downloading"))
+
+				// Wrap the reader with the appropriate TarSum reader.
+				tarSumReader, err := tarsum.NewTarSumForLabel(r, true, sumType)
+				if err != nil {
+					return fmt.Errorf("unable to wrap image blob reader with TarSum: %s", err)
+				}
+
+				io.Copy(tmpFile, utils.ProgressReader(ioutil.NopCloser(tarSumReader), int(l), out, sf, false, utils.TruncateID(img.ID), "Downloading"))
+
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Verifying Checksum", nil))
+
+				if finalChecksum := tarSumReader.Sum(nil); !strings.EqualFold(finalChecksum, sumStr) {
+					return fmt.Errorf("image verification failed: checksum mismatch - expected %q but got %q", sumStr, finalChecksum)
+				}
 
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
 
