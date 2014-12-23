@@ -50,6 +50,8 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.SetJson("VolumesRW", container.VolumesRW)
 		out.SetJson("AppArmorProfile", container.AppArmorProfile)
 
+		out.SetList("ExecIDs", container.GetExecIDs())
+
 		if children, err := daemon.Children(container.Name); err == nil {
 			for linkAlias, child := range children {
 				container.hostConfig.Links = append(container.hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
