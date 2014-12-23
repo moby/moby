@@ -197,11 +197,11 @@ type ExecUser struct {
 	Home     string
 }
 
-// GetExecUserFile is a wrapper for GetExecUser. It reads data from each of the
+// GetExecUserPath is a wrapper for GetExecUser. It reads data from each of the
 // given file paths and uses that data as the arguments to GetExecUser. If the
 // files cannot be opened for any reason, the error is ignored and a nil
 // io.Reader is passed instead.
-func GetExecUserFile(userSpec string, defaults *ExecUser, passwdPath, groupPath string) (*ExecUser, error) {
+func GetExecUserPath(userSpec string, defaults *ExecUser, passwdPath, groupPath string) (*ExecUser, error) {
 	passwd, err := os.Open(passwdPath)
 	if err != nil {
 		passwd = nil

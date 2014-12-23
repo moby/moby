@@ -5,6 +5,8 @@ package namespaces
 import (
 	"os"
 	"syscall"
+
+	"github.com/docker/libcontainer"
 )
 
 type initError struct {
@@ -13,6 +15,15 @@ type initError struct {
 
 func (i initError) Error() string {
 	return i.Message
+}
+
+var namespaceInfo = map[string]int{
+	"NEWNET":  syscall.CLONE_NEWNET,
+	"NEWNS":   syscall.CLONE_NEWNS,
+	"NEWUSER": syscall.CLONE_NEWUSER,
+	"NEWIPC":  syscall.CLONE_NEWIPC,
+	"NEWUTS":  syscall.CLONE_NEWUTS,
+	"NEWPID":  syscall.CLONE_NEWPID,
 }
 
 // New returns a newly initialized Pipe for communication between processes
@@ -26,13 +37,9 @@ func newInitPipe() (parent *os.File, child *os.File, err error) {
 
 // GetNamespaceFlags parses the container's Namespaces options to set the correct
 // flags on clone, unshare, and setns
-func GetNamespaceFlags(namespaces map[string]bool) (flag int) {
-	for key, enabled := range namespaces {
-		if enabled {
-			if ns := GetNamespace(key); ns != nil {
-				flag |= ns.Value
-			}
-		}
+func GetNamespaceFlags(namespaces []libcontainer.Namespace) (flag int) {
+	for _, v := range namespaces {
+		flag |= namespaceInfo[v.Name]
 	}
 	return flag
 }
