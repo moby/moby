@@ -64,12 +64,12 @@ func TestConfigJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
-	if !container.Namespaces["NEWNET"] {
+	if !container.Namespaces.Contains(NEWNET) {
 		t.Log("namespaces should contain NEWNET")
 		t.Fail()
 	}
 
-	if container.Namespaces["NEWUSER"] {
+	if container.Namespaces.Contains(NEWUSER) {
 		t.Log("namespaces should not contain NEWUSER")
 		t.Fail()
 	}
