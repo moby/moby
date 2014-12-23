@@ -9,22 +9,22 @@ import (
 
 // Unix-specific path to the passwd and group formatted files.
 const (
-	unixPasswdFile = "/etc/passwd"
-	unixGroupFile  = "/etc/group"
+	unixPasswdPath = "/etc/passwd"
+	unixGroupPath  = "/etc/group"
 )
 
-func GetPasswdFile() (string, error) {
-	return unixPasswdFile, nil
+func GetPasswdPath() (string, error) {
+	return unixPasswdPath, nil
 }
 
 func GetPasswd() (io.ReadCloser, error) {
-	return os.Open(unixPasswdFile)
+	return os.Open(unixPasswdPath)
 }
 
-func GetGroupFile() (string, error) {
-	return unixGroupFile, nil
+func GetGroupPath() (string, error) {
+	return unixGroupPath, nil
 }
 
 func GetGroup() (io.ReadCloser, error) {
-	return os.Open(unixGroupFile)
+	return os.Open(unixGroupPath)
 }

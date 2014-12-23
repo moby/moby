@@ -90,4 +90,8 @@ func expectMemoryStatEquals(t *testing.T, expected, actual cgroups.MemoryStats) 
 			t.Fail()
 		}
 	}
+	if expected.Failcnt != actual.Failcnt {
+		log.Printf("Expected memory failcnt %d but found %d\n", expected.Failcnt, actual.Failcnt)
+		t.Fail()
+	}
 }

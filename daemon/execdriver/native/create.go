@@ -82,7 +82,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 
 func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Command) error {
 	if c.Network.HostNetworking {
-		container.Namespaces["NEWNET"] = false
+		container.Namespaces.Remove(libcontainer.NEWNET)
 		return nil
 	}
 
@@ -119,10 +119,7 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 		cmd := active.cmd
 
 		nspath := filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "net")
-		container.Networks = append(container.Networks, &libcontainer.Network{
-			Type:   "netns",
-			NsPath: nspath,
-		})
+		container.Namespaces.Add(libcontainer.NEWNET, nspath)
 	}
 
 	return nil
@@ -130,7 +127,7 @@ func (d *driver) createNetwork(container *libcontainer.Config, c *execdriver.Com
 
 func (d *driver) createIpc(container *libcontainer.Config, c *execdriver.Command) error {
 	if c.Ipc.HostIpc {
-		container.Namespaces["NEWIPC"] = false
+		container.Namespaces.Remove(libcontainer.NEWIPC)
 		return nil
 	}
 
@@ -144,7 +141,7 @@ func (d *driver) createIpc(container *libcontainer.Config, c *execdriver.Command
 		}
 		cmd := active.cmd
 
-		container.IpcNsPath = filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "ipc")
+		container.Namespaces.Add(libcontainer.NEWIPC, filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "ipc"))
 	}
 
 	return nil

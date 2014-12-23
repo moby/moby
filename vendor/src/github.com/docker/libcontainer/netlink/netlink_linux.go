@@ -522,11 +522,10 @@ func NetworkSetMacAddress(iface *net.Interface, macaddr string) error {
 
 	var (
 		MULTICAST byte = 0x1
-		LOCALOUI  byte = 0x2
 	)
 
-	if hwaddr[0]&0x1 == MULTICAST || hwaddr[0]&0x2 != LOCALOUI {
-		return fmt.Errorf("Incorrect Local MAC Address specified: %s", macaddr)
+	if hwaddr[0]&0x1 == MULTICAST {
+		return fmt.Errorf("Multicast MAC Address is not supported: %s", macaddr)
 	}
 
 	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
