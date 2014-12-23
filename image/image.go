@@ -82,7 +82,7 @@ func LoadImage(root string) (*Image, error) {
 // StoreImage stores file system layer data for the given image to the
 // image's registered storage driver. Image metadata is stored in a file
 // at the specified root directory. This function also computes the TarSum
-// of `layerData` (currently using tarsum.dev).
+// of `layerData` (currently using tarsum.v1).
 func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error {
 	// Store the layer
 	var (
@@ -101,7 +101,7 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error 
 
 		defer layerDataDecompressed.Close()
 
-		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.VersionDev); err != nil {
+		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.Version1); err != nil {
 			return err
 		}
 
