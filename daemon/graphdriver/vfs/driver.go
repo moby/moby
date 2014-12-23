@@ -1,10 +1,8 @@
 package vfs
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 
 	"github.com/docker/docker/daemon/graphdriver"
@@ -37,14 +35,6 @@ func (d *Driver) Status() [][2]string {
 
 func (d *Driver) Cleanup() error {
 	return nil
-}
-
-func isGNUcoreutils() bool {
-	if stdout, err := exec.Command("cp", "--version").Output(); err == nil {
-		return bytes.Contains(stdout, []byte("GNU coreutils"))
-	}
-
-	return false
 }
 
 func (d *Driver) Create(id, parent string) error {
