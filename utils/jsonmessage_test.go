@@ -30,7 +30,7 @@ func TestProgress(t *testing.T) {
 	}
 
 	// this number can't be negetive gh#7136
-	expected = "[==============================================================>]     50 B/40 B"
+	expected = "[==================================================>]     50 B/40 B"
 	jp4 := JSONProgress{Current: 50, Total: 40}
 	if jp4.String() != expected {
 		t.Fatalf("Expected %q, got %q", expected, jp4.String())
