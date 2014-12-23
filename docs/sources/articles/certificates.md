@@ -31,7 +31,7 @@ repository.
 
 > **Note:**
 > If there are multiple certificates, each will be tried in alphabetical
-> order. If there is an authentication error (e.g., 403, 5xx, etc.), Docker
+> order. If there is an authentication error (e.g., 403, 404, 5xx, etc.), Docker
 > will continue to try with the next certificate.
 
 Our example is set up like this:

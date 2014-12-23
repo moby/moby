@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -575,6 +576,31 @@ func NetworkSetMTU(iface *net.Interface, mtu int) error {
 	return s.HandleAck(wb.Seq)
 }
 
+// Set link queue length
+// This is identical to running: ip link set dev $name txqueuelen $QLEN
+func NetworkSetTxQueueLen(iface *net.Interface, txQueueLen int) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = DEFAULT_CHANGE
+	wb.AddData(msg)
+	wb.AddData(uint32Attr(syscall.IFLA_TXQLEN, uint32(txQueueLen)))
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+	return s.HandleAck(wb.Seq)
+}
+
 func networkMasterAction(iface *net.Interface, rtattr *RtAttr) error {
 	s, err := getNetlinkSocket()
 	if err != nil {
@@ -681,7 +707,7 @@ func NetworkChangeName(iface *net.Interface, newName string) error {
 
 // Add a new VETH pair link on the host
 // This is identical to running: ip link add name $name type veth peer name $peername
-func NetworkCreateVethPair(name1, name2 string) error {
+func NetworkCreateVethPair(name1, name2 string, txQueueLen int) error {
 	s, err := getNetlinkSocket()
 	if err != nil {
 		return err
@@ -696,6 +722,11 @@ func NetworkCreateVethPair(name1, name2 string) error {
 	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(name1))
 	wb.AddData(nameData)
 
+	txqLen := make([]byte, 4)
+	native.PutUint32(txqLen, uint32(txQueueLen))
+	txqData := newRtAttr(syscall.IFLA_TXQLEN, txqLen)
+	wb.AddData(txqData)
+
 	nest1 := newRtAttr(syscall.IFLA_LINKINFO, nil)
 	newRtAttrChild(nest1, IFLA_INFO_KIND, zeroTerminated("veth"))
 	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
@@ -703,6 +734,10 @@ func NetworkCreateVethPair(name1, name2 string) error {
 
 	newIfInfomsgChild(nest3, syscall.AF_UNSPEC)
 	newRtAttrChild(nest3, syscall.IFLA_IFNAME, zeroTerminated(name2))
+
+	txqLen2 := make([]byte, 4)
+	native.PutUint32(txqLen2, uint32(txQueueLen))
+	newRtAttrChild(nest3, syscall.IFLA_TXQLEN, txqLen2)
 
 	wb.AddData(nest1)
 
@@ -759,26 +794,38 @@ func NetworkLinkAddVlan(masterDev, vlanDev string, vlanId uint16) error {
 	return s.HandleAck(wb.Seq)
 }
 
-// Add MAC VLAN network interface with masterDev as its upper device
-// This is identical to running:
-// ip link add name $name link $masterdev type macvlan mode $mode
-func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
-	s, err := getNetlinkSocket()
-	if err != nil {
-		return err
-	}
-	defer s.Close()
+// MacVlan link has LowerDev, UpperDev and operates in Mode mode
+// This simplifies the code when creating MacVlan or MacVtap interface
+type MacVlanLink struct {
+	MasterDev string
+	SlaveDev  string
+	mode      string
+}
 
-	macVlan := map[string]uint32{
+func (m MacVlanLink) Mode() uint32 {
+	modeMap := map[string]uint32{
 		"private":  MACVLAN_MODE_PRIVATE,
 		"vepa":     MACVLAN_MODE_VEPA,
 		"bridge":   MACVLAN_MODE_BRIDGE,
 		"passthru": MACVLAN_MODE_PASSTHRU,
 	}
 
+	return modeMap[m.mode]
+}
+
+// Add MAC VLAN network interface with masterDev as its upper device
+// This is identical to running:
+// ip link add name $name link $masterdev type macvlan mode $mode
+func networkLinkMacVlan(dev_type string, mcvln *MacVlanLink) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
 	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
-	masterDevIfc, err := net.InterfaceByName(masterDev)
+	masterDevIfc, err := net.InterfaceByName(mcvln.MasterDev)
 	if err != nil {
 		return err
 	}
@@ -787,21 +834,37 @@ func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
 	wb.AddData(msg)
 
 	nest1 := newRtAttr(syscall.IFLA_LINKINFO, nil)
-	newRtAttrChild(nest1, IFLA_INFO_KIND, nonZeroTerminated("macvlan"))
+	newRtAttrChild(nest1, IFLA_INFO_KIND, nonZeroTerminated(dev_type))
 
 	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
 	macVlanData := make([]byte, 4)
-	native.PutUint32(macVlanData, macVlan[mode])
+	native.PutUint32(macVlanData, mcvln.Mode())
 	newRtAttrChild(nest2, IFLA_MACVLAN_MODE, macVlanData)
 	wb.AddData(nest1)
 
 	wb.AddData(uint32Attr(syscall.IFLA_LINK, uint32(masterDevIfc.Index)))
-	wb.AddData(newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(macVlanDev)))
+	wb.AddData(newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(mcvln.SlaveDev)))
 
 	if err := s.Send(wb); err != nil {
 		return err
 	}
 	return s.HandleAck(wb.Seq)
+}
+
+func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
+	return networkLinkMacVlan("macvlan", &MacVlanLink{
+		MasterDev: masterDev,
+		SlaveDev:  macVlanDev,
+		mode:      mode,
+	})
+}
+
+func NetworkLinkAddMacVtap(masterDev, macVlanDev string, mode string) error {
+	return networkLinkMacVlan("macvtap", &MacVlanLink{
+		MasterDev: masterDev,
+		SlaveDev:  macVlanDev,
+		mode:      mode,
+	})
 }
 
 func networkLinkIpAction(action, flags int, ifa IfAddr) error {
@@ -993,28 +1056,23 @@ func AddRoute(destination, source, gateway, device string) error {
 	}
 
 	if source != "" {
-		srcIP, srcNet, err := net.ParseCIDR(source)
-		if err != nil {
-			return fmt.Errorf("source CIDR %s couldn't be parsed", source)
+		srcIP := net.ParseIP(source)
+		if srcIP == nil {
+			return fmt.Errorf("source IP %s couldn't be parsed", source)
 		}
 		srcFamily := getIpFamily(srcIP)
 		if currentFamily != -1 && currentFamily != srcFamily {
 			return fmt.Errorf("source and destination ip were not the same IP family")
 		}
 		currentFamily = srcFamily
-		srcLen, bits := srcNet.Mask.Size()
-		if srcLen == 0 && bits == 0 {
-			return fmt.Errorf("source CIDR %s generated a non-canonical Mask", source)
-		}
 		msg.Family = uint8(srcFamily)
-		msg.Src_len = uint8(srcLen)
 		var srcData []byte
 		if srcFamily == syscall.AF_INET {
 			srcData = srcIP.To4()
 		} else {
 			srcData = srcIP.To16()
 		}
-		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_SRC, srcData))
+		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_PREFSRC, srcData))
 	}
 
 	if gateway != "" {
@@ -1195,6 +1253,28 @@ func SetMacAddress(name, addr string) error {
 	return nil
 }
 
+func SetHairpinMode(iface *net.Interface, enabled bool) error {
+	sysPath := filepath.Join("/sys/class/net", iface.Name, "brport/hairpin_mode")
+
+	sysFile, err := os.OpenFile(sysPath, os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer sysFile.Close()
+
+	var writeVal []byte
+	if enabled {
+		writeVal = []byte("1")
+	} else {
+		writeVal = []byte("0")
+	}
+	if _, err := sysFile.Write(writeVal); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ChangeName(iface *net.Interface, newName string) error {
 	if len(newName) >= IFNAMSIZ {
 		return fmt.Errorf("Interface name %s too long", newName)
@@ -1215,5 +1295,6 @@ func ChangeName(iface *net.Interface, newName string) error {
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.SIOCSIFNAME, uintptr(unsafe.Pointer(&data[0]))); errno != 0 {
 		return errno
 	}
+
 	return nil
 }

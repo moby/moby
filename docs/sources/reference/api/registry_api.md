@@ -14,9 +14,9 @@ page_keywords: API, Docker, index, registry, REST, documentation
    service using tokens
  - It supports different storage backends (S3, cloud files, local FS)
  - It doesn't have a local database
- - It will be open-sourced at some point
+ - The registry is open source: [Docker Registry](https://github.com/docker/docker-registry)
 
-We expect that there will be multiple registries out there. To help to
+ We expect that there will be multiple registries out there. To help to
 grasp the context, here are some examples of registries:
 
  - **sponsor registry**: such a registry is provided by a third-party
@@ -500,6 +500,47 @@ Status Codes:
 - **200** – OK
 - **401** – Requires authorization
 - **404** – Repository not found
+
+## Search
+
+If you need to search the index, this is the endpoint you would use.
+
+`GET /v1/search`
+
+Search the Index given a search term. It accepts
+
+    [GET](http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.3)
+    only.
+
+**Example request**:
+
+        GET /v1/search?q=search_term HTTP/1.1
+        Host: index.docker.io
+        Accept: application/json
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Vary: Accept
+        Content-Type: application/json
+
+        {"query":"search_term",
+          "num_results": 3,
+          "results" : [
+             {"name": "ubuntu", "description": "An ubuntu image..."},
+             {"name": "centos", "description": "A centos image..."},
+             {"name": "fedora", "description": "A fedora image..."}
+           ]
+         }
+
+Query Parameters:
+
+- **q** – what you want to search for
+
+Status Codes:
+
+- **200** – no error
+- **500** – server error
 
 ## Status
 

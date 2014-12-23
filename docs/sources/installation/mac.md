@@ -22,8 +22,8 @@ virtual machine (using VirtualBox) that's all set up to run the Docker daemon.
 ## Installation
 
 1. Download the latest release of the [Docker for OS X Installer](
-   https://github.com/boot2docker/osx-installer/releases) (Look for the green
-   Boot2Docker-x.x.x.pkg button near the bottom of the page.)
+   https://github.com/boot2docker/osx-installer/releases/latest) (Look for the
+   green Boot2Docker-x.x.x.pkg button near the bottom of the page.)
 
 2. Run the installer by double-clicking the downloaded package, which will install a
 VirtualBox VM, Docker itself, and the Boot2Docker management tool.
@@ -55,7 +55,7 @@ for more information.
 ## Upgrading
 
 1. Download the latest release of the [Docker for OS X Installer](
-   https://github.com/boot2docker/osx-installer/releases)
+   https://github.com/boot2docker/osx-installer/releases/latest)
 
 2. If Boot2Docker is currently running, stop it with `boot2docker stop`. Then, run
 the installer package, which will update Docker and the Boot2Docker management tool.

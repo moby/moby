@@ -53,3 +53,9 @@ service:
 To start on system boot:
 
     $ sudo systemctl enable docker
+
+## Custom daemon options
+
+If you need to add an HTTP Proxy, set a different directory or partition for the
+Docker runtime files, or make other customizations, read our systemd article to
+learn how to [customize your systemd Docker daemon options](/articles/systemd/).

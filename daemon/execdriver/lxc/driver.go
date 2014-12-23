@@ -17,8 +17,8 @@ import (
 
 	"github.com/kr/pty"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/cgroups"
@@ -55,7 +55,7 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
-func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	var (
 		term execdriver.Terminal
 		err  error
@@ -76,20 +76,27 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	})
 
 	if err := d.generateEnvConfig(c); err != nil {
-		return -1, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
-		return -1, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 	params := []string{
 		"lxc-start",
 		"-n", c.ID,
 		"-f", configPath,
-		"--",
-		c.InitPath,
+	}
+	if c.Network.ContainerID != "" {
+		params = append(params,
+			"--share-net", c.Network.ContainerID,
+		)
 	}
 
+	params = append(params,
+		"--",
+		c.InitPath,
+	)
 	if c.Network.Interface != nil {
 		params = append(params,
 			"-g", c.Network.Interface.Gateway,
@@ -114,14 +121,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	if c.WorkingDir != "" {
 		params = append(params, "-w", c.WorkingDir)
-	}
-
-	if len(c.CapAdd) > 0 {
-		params = append(params, fmt.Sprintf("-cap-add=%s", strings.Join(c.CapAdd, ":")))
-	}
-
-	if len(c.CapDrop) > 0 {
-		params = append(params, fmt.Sprintf("-cap-drop=%s", strings.Join(c.CapDrop, ":")))
 	}
 
 	params = append(params, "--", c.ProcessConfig.Entrypoint)
@@ -155,11 +154,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ProcessConfig.Args = append([]string{name}, arg...)
 
 	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
-		return -1, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 
 	if err := c.ProcessConfig.Start(); err != nil {
-		return -1, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 
 	var (
@@ -183,7 +182,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			c.ProcessConfig.Process.Kill()
 			c.ProcessConfig.Wait()
 		}
-		return -1, err
+		return execdriver.ExitStatus{-1, false}, err
 	}
 
 	c.ContainerPid = pid
@@ -194,7 +193,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	<-waitLock
 
-	return getExitCode(c), waitErr
+	return execdriver.ExitStatus{getExitCode(c), false}, waitErr
 }
 
 /// Return the exit code of the process

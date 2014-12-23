@@ -40,6 +40,8 @@ type Config struct {
 	DisableNetwork              bool
 	EnableSelinuxSupport        bool
 	Context                     map[string][]string
+	TrustKeyPath                string
+	Labels                      []string
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -57,7 +59,7 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.BridgeIface, []string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge\nuse 'none' to disable container networking")
 	flag.StringVar(&config.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs (ex: 10.20.0.0/16)\nthis subnet must be nested in the bridge subnet (which is defined by -b or --bip)")
 	opts.ListVar(&config.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)")
-	flag.BoolVar(&config.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Enable inter-container communication")
+	flag.BoolVar(&config.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Allow unrestricted inter-container and Docker daemon host communication")
 	flag.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", "Force the Docker runtime to use a specific storage driver")
 	flag.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, "native", "Force the Docker runtime to use a specific exec driver")
 	flag.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support. SELinux does not presently support the BTRFS storage driver")
@@ -68,6 +70,7 @@ func (config *Config) InstallFlags() {
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "Force Docker to use specific DNS servers")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "Force Docker to use specific DNS search domains")
 	opts.MirrorListVar(&config.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
+	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon (displayed in `docker info`)")
 
 	// Localhost is by default considered as an insecure registry
 	// This is a stop-gap for people who are running a private registry on localhost (especially on Boot2docker).
@@ -78,7 +81,7 @@ func (config *Config) InstallFlags() {
 	config.InsecureRegistries = append(config.InsecureRegistries, "127.0.0.0/8")
 }
 
-func GetDefaultNetworkMtu() int {
+func getDefaultNetworkMtu() int {
 	if iface, err := networkdriver.GetDefaultRouteIface(); err == nil {
 		return iface.MTU
 	}

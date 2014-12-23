@@ -7,9 +7,9 @@ import (
 	"os"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 )
 
@@ -30,24 +30,21 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	defer os.RemoveAll(tempdir)
 
 	rootRepoMap := map[string]Repository{}
+	addKey := func(name string, tag string, id string) {
+		log.Debugf("add key [%s:%s]", name, tag)
+		if repo, ok := rootRepoMap[name]; !ok {
+			rootRepoMap[name] = Repository{tag: id}
+		} else {
+			repo[tag] = id
+		}
+	}
 	for _, name := range job.Args {
 		log.Debugf("Serializing %s", name)
 		rootRepo := s.Repositories[name]
 		if rootRepo != nil {
 			// this is a base repo name, like 'busybox'
-			for _, id := range rootRepo {
-				if _, ok := rootRepoMap[name]; !ok {
-					rootRepoMap[name] = rootRepo
-				} else {
-					log.Debugf("Duplicate key [%s]", name)
-					if rootRepoMap[name].Contains(rootRepo) {
-						log.Debugf("skipping, because it is present [%s:%q]", name, rootRepo)
-						continue
-					}
-					log.Debugf("updating [%s]: [%q] with [%q]", name, rootRepoMap[name], rootRepo)
-					rootRepoMap[name].Update(rootRepo)
-				}
-
+			for tag, id := range rootRepo {
+				addKey(name, tag, id)
 				if err := s.exportImage(job.Eng, id, tempdir); err != nil {
 					return job.Error(err)
 				}
@@ -65,18 +62,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 				// check this length, because a lookup of a truncated has will not have a tag
 				// and will not need to be added to this map
 				if len(repoTag) > 0 {
-					if _, ok := rootRepoMap[repoName]; !ok {
-						rootRepoMap[repoName] = Repository{repoTag: img.ID}
-					} else {
-						log.Debugf("Duplicate key [%s]", repoName)
-						newRepo := Repository{repoTag: img.ID}
-						if rootRepoMap[repoName].Contains(newRepo) {
-							log.Debugf("skipping, because it is present [%s:%q]", repoName, newRepo)
-							continue
-						}
-						log.Debugf("updating [%s]: [%q] with [%q]", repoName, rootRepoMap[repoName], newRepo)
-						rootRepoMap[repoName].Update(newRepo)
-					}
+					addKey(repoName, repoTag, img.ID)
 				}
 				if err := s.exportImage(job.Eng, img.ID, tempdir); err != nil {
 					return job.Error(err)

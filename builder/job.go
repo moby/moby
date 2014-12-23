@@ -5,13 +5,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -36,6 +36,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		noCache        = job.GetenvBool("nocache")
 		rm             = job.GetenvBool("rm")
 		forceRm        = job.GetenvBool("forcerm")
+		pull           = job.GetenvBool("pull")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -58,8 +59,8 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	if remoteURL == "" {
 		context = ioutil.NopCloser(job.Stdin)
-	} else if utils.IsGIT(remoteURL) {
-		if !strings.HasPrefix(remoteURL, "git://") {
+	} else if urlutil.IsGitURL(remoteURL) {
+		if !urlutil.IsGitTransport(remoteURL) {
 			remoteURL = "https://" + remoteURL
 		}
 		root, err := ioutil.TempDir("", "docker-build-git")
@@ -77,7 +78,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		context = c
-	} else if utils.IsURL(remoteURL) {
+	} else if urlutil.IsURL(remoteURL) {
 		f, err := utils.Download(remoteURL)
 		if err != nil {
 			return job.Error(err)
@@ -112,6 +113,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		UtilizeCache:    !noCache,
 		Remove:          rm,
 		ForceRemove:     forceRm,
+		Pull:            pull,
 		OutOld:          job.Stdout,
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
@@ -124,7 +126,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 	}
 
 	if repoName != "" {
-		b.Daemon.Repositories().Set(repoName, tag, id, false)
+		b.Daemon.Repositories().Set(repoName, tag, id, true)
 	}
 	return engine.StatusOK
 }

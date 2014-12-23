@@ -73,45 +73,55 @@ func IsNonUniqueNameError(err error) bool {
 }
 
 // Create a new graph database initialized with a root entity
-func NewDatabase(conn *sql.DB, init bool) (*Database, error) {
+func NewDatabase(conn *sql.DB) (*Database, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("Database connection cannot be nil")
 	}
 	db := &Database{conn: conn}
 
-	if init {
-		if _, err := conn.Exec(createEntityTable); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec(createEdgeTable); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec(createEdgeIndices); err != nil {
-			return nil, err
-		}
-
-		rollback := func() {
-			conn.Exec("ROLLBACK")
-		}
-
-		// Create root entities
-		if _, err := conn.Exec("BEGIN"); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
-			rollback()
-			return nil, err
-		}
-
-		if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
-			rollback()
-			return nil, err
-		}
-
-		if _, err := conn.Exec("COMMIT"); err != nil {
-			return nil, err
-		}
+	if _, err := conn.Exec(createEntityTable); err != nil {
+		return nil, err
 	}
+	if _, err := conn.Exec(createEdgeTable); err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(createEdgeIndices); err != nil {
+		return nil, err
+	}
+
+	rollback := func() {
+		conn.Exec("ROLLBACK")
+	}
+
+	// Create root entities
+	if _, err := conn.Exec("BEGIN"); err != nil {
+		return nil, err
+	}
+
+	if _, err := conn.Exec("DELETE FROM entity where id = ?", "0"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("DELETE FROM edge where entity_id=? and name=?", "0", "/"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
+		rollback()
+		return nil, err
+	}
+
+	if _, err := conn.Exec("COMMIT"); err != nil {
+		return nil, err
+	}
+
 	return db, nil
 }
 
@@ -131,8 +141,8 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 	if _, err := db.conn.Exec("BEGIN EXCLUSIVE"); err != nil {
 		return nil, err
 	}
-	var entityId string
-	if err := db.conn.QueryRow("SELECT id FROM entity WHERE id = ?;", id).Scan(&entityId); err != nil {
+	var entityID string
+	if err := db.conn.QueryRow("SELECT id FROM entity WHERE id = ?;", id).Scan(&entityID); err != nil {
 		if err == sql.ErrNoRows {
 			if _, err := db.conn.Exec("INSERT INTO entity (id) VALUES(?);", id); err != nil {
 				rollback()
@@ -320,14 +330,14 @@ func (db *Database) RefPaths(id string) Edges {
 
 	for rows.Next() {
 		var name string
-		var parentId string
-		if err := rows.Scan(&name, &parentId); err != nil {
+		var parentID string
+		if err := rows.Scan(&name, &parentID); err != nil {
 			return refs
 		}
 		refs = append(refs, &Edge{
 			EntityID: id,
 			Name:     name,
-			ParentID: parentId,
+			ParentID: parentID,
 		})
 	}
 	return refs
@@ -443,11 +453,11 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 	defer rows.Close()
 
 	for rows.Next() {
-		var entityId, entityName string
-		if err := rows.Scan(&entityId, &entityName); err != nil {
+		var entityID, entityName string
+		if err := rows.Scan(&entityID, &entityName); err != nil {
 			return nil, err
 		}
-		child := &Entity{entityId}
+		child := &Entity{entityID}
 		edge := &Edge{
 			ParentID: e.id,
 			Name:     entityName,
@@ -490,11 +500,11 @@ func (db *Database) parents(e *Entity) (parents []string, err error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var parentId string
-		if err := rows.Scan(&parentId); err != nil {
+		var parentID string
+		if err := rows.Scan(&parentID); err != nil {
 			return nil, err
 		}
-		parents = append(parents, parentId)
+		parents = append(parents, parentID)
 	}
 
 	return parents, nil

@@ -29,11 +29,15 @@
   font-weight: 700;
   color: #394d54;
   line-height: 1;
-  margin: 0px 0 10px 0;
+  margin: 10px 0 10px 0;
   padding-left: 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+#leftnav li.active {
+  margin-bottom: 10px;
 }
 
 .content-body {

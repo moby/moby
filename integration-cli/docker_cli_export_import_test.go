@@ -26,19 +26,23 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	exportCmdTemplate := `%v export %v > /tmp/testexp.tar`
 	exportCmdFinal := fmt.Sprintf(exportCmdTemplate, dockerBinary, cleanedContainerID)
 	exportCmd := exec.Command("bash", "-c", exportCmdFinal)
-	out, _, err = runCommandWithOutput(exportCmd)
-	errorOut(err, t, fmt.Sprintf("failed to export container: %v %v", out, err))
+	if out, _, err = runCommandWithOutput(exportCmd); err != nil {
+		t.Fatalf("failed to export container: %s, %v", out, err)
+	}
 
 	importCmdFinal := `cat /tmp/testexp.tar | docker import - repo/testexp:v1`
 	importCmd := exec.Command("bash", "-c", importCmdFinal)
 	out, _, err = runCommandWithOutput(importCmd)
-	errorOut(err, t, fmt.Sprintf("failed to import image: %v %v", out, err))
+	if err != nil {
+		t.Fatalf("failed to import image: %s, %v", out, err)
+	}
 
 	cleanedImageID := stripTrailingCharacters(out)
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", cleanedImageID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("output should've been an image id: %v %v", out, err))
+	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
+		t.Fatalf("output should've been an image id: %s, %v", out, err)
+	}
 
 	deleteContainer(cleanedContainerID)
 	deleteImages("repo/testexp:v1")

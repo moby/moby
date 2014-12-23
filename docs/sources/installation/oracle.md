@@ -75,6 +75,12 @@ and set `enabled=1` in the `[ol6_addons]` or the `[ol7_addons]` stanza.
 
 **Done!**
 
+## Custom daemon options
+
+If you need to add an HTTP Proxy, set a different directory or partition for the
+Docker runtime files, or make other customizations, read our systemd article to
+learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+
 ## Using the btrfs storage engine
 
 Docker on Oracle Linux 6 and 7 supports the use of the btrfs storage engine.
@@ -116,5 +122,4 @@ Request at [My Oracle Support](http://support.oracle.com).
 
 If you do not have an Oracle Linux Support Subscription, you can use the [Oracle
 Linux
-Forum](https://community.oracle.com/community/server_%26_storage_systems/linux/
-oracle_linux) for community-based support.
+Forum](https://community.oracle.com/community/server_%26_storage_systems/linux/oracle_linux) for community-based support.

@@ -446,3 +446,32 @@ func TestParseGentooMountinfo(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestParseFedoraMountinfoFields(t *testing.T) {
+	r := bytes.NewBuffer([]byte(fedoraMountinfo))
+	infos, err := parseInfoFile(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedLength := 58
+	if len(infos) != expectedLength {
+		t.Fatalf("Expected %d entries, got %d", expectedLength, len(infos))
+	}
+	mi := MountInfo{
+		Id:         15,
+		Parent:     35,
+		Major:      0,
+		Minor:      3,
+		Root:       "/",
+		Mountpoint: "/proc",
+		Opts:       "rw,nosuid,nodev,noexec,relatime",
+		Optional:   "shared:5",
+		Fstype:     "proc",
+		Source:     "proc",
+		VfsOpts:    "rw",
+	}
+
+	if *infos[0] != mi {
+		t.Fatalf("expected %#v, got %#v", mi, infos[0])
+	}
+}

@@ -53,8 +53,3 @@ type Cgroup struct {
 	Freezer           FreezerState      `json:"freezer,omitempty"`            // set the freeze value for the process
 	Slice             string            `json:"slice,omitempty"`              // Parent slice to use for systemd
 }
-
-type ActiveCgroup interface {
-	Cleanup() error
-	Paths() (map[string]string, error)
-}

@@ -103,10 +103,6 @@ func Parse(rwc io.Reader) (*Node, error) {
 
 	for scanner.Scan() {
 		scannedLine := strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace)
-		if stripComments(scannedLine) == "" {
-			continue
-		}
-
 		line, child, err := parseLine(scannedLine)
 		if err != nil {
 			return nil, err
@@ -127,6 +123,12 @@ func Parse(rwc io.Reader) (*Node, error) {
 
 				if child != nil {
 					break
+				}
+			}
+			if child == nil && line != "" {
+				line, child, err = parseLine(line)
+				if err != nil {
+					return nil, err
 				}
 			}
 		}

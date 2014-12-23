@@ -3,6 +3,7 @@ package registry
 import (
 	"bytes"
 	"crypto/sha256"
+	// this is required for some certificates
 	_ "crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -16,8 +17,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/httputils"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/utils"
 )
@@ -229,11 +230,7 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 		}
 
 		result := make(map[string]string)
-		rawJSON, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal(rawJSON, &result); err != nil {
+		if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -243,11 +240,11 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 
 func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 	var endpoints []string
-	parsedUrl, err := url.Parse(indexEp)
+	parsedURL, err := url.Parse(indexEp)
 	if err != nil {
 		return nil, err
 	}
-	var urlScheme = parsedUrl.Scheme
+	var urlScheme = parsedURL.Scheme
 	// The Registry's URL scheme has to match the Index'
 	for _, ep := range headers {
 		epList := strings.Split(ep, ",")
@@ -304,12 +301,8 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 		endpoints = append(endpoints, fmt.Sprintf("%s://%s/v1/", r.indexEndpoint.URL.Scheme, req.URL.Host))
 	}
 
-	checksumsJSON, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
 	remoteChecksums := []*ImgData{}
-	if err := json.Unmarshal(checksumsJSON, &remoteChecksums); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&remoteChecksums); err != nil {
 		return nil, err
 	}
 
@@ -469,7 +462,6 @@ func (r *Session) PushRegistryTag(remote, revision, tag, registry string, token 
 
 func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
 	cleanImgList := []*ImgData{}
-
 	if validate {
 		for _, elem := range imgList {
 			if elem.Checksum != "" {
@@ -491,43 +483,28 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote, suffix)
 	log.Debugf("[registry] PUT %s", u)
 	log.Debugf("Image list pushed to index:\n%s", imgListJSON)
-	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
-	if err != nil {
-		return nil, err
+	headers := map[string][]string{
+		"Content-type":   {"application/json"},
+		"X-Docker-Token": {"true"},
 	}
-	req.Header.Add("Content-type", "application/json")
-	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
-	req.ContentLength = int64(len(imgListJSON))
-	req.Header.Set("X-Docker-Token", "true")
 	if validate {
-		req.Header["X-Docker-Endpoints"] = regs
+		headers["X-Docker-Endpoints"] = regs
 	}
-
-	res, _, err := r.doRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
 
 	// Redirect if necessary
-	for res.StatusCode >= 300 && res.StatusCode < 400 {
-		log.Debugf("Redirected to %s", res.Header.Get("Location"))
-		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
-		if err != nil {
+	var res *http.Response
+	for {
+		if res, err = r.putImageRequest(u, headers, imgListJSON); err != nil {
 			return nil, err
 		}
-		req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
-		req.ContentLength = int64(len(imgListJSON))
-		req.Header.Set("X-Docker-Token", "true")
-		if validate {
-			req.Header["X-Docker-Endpoints"] = regs
+		if !shouldRedirect(res) {
+			break
 		}
-		res, _, err := r.doRequest(req)
-		if err != nil {
-			return nil, err
-		}
-		defer res.Body.Close()
+		res.Body.Close()
+		u = res.Header.Get("Location")
+		log.Debugf("Redirected to %s", u)
 	}
+	defer res.Body.Close()
 
 	var tokens, endpoints []string
 	if !validate {
@@ -570,6 +547,27 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	}, nil
 }
 
+func (r *Session) putImageRequest(u string, headers map[string][]string, body []byte) (*http.Response, error) {
+	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
+	req.ContentLength = int64(len(body))
+	for k, v := range headers {
+		req.Header[k] = v
+	}
+	response, _, err := r.doRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func shouldRedirect(response *http.Response) bool {
+	return response.StatusCode >= 300 && response.StatusCode < 400
+}
+
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	log.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
@@ -589,12 +587,8 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	if res.StatusCode != 200 {
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
 	}
-	rawData, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
 	result := new(SearchResults)
-	err = json.Unmarshal(rawData, result)
+	err = json.NewDecoder(res.Body).Decode(result)
 	return result, err
 }
 

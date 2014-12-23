@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"os/exec"
 	"runtime"
@@ -14,7 +13,6 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/libcontainer/netlink"
 )
 
 // Args provided to the init function for a driver
@@ -59,12 +57,7 @@ func setupNamespace(args *InitArgs) error {
 	if err := setupEnv(args); err != nil {
 		return err
 	}
-	if err := setupHostname(args); err != nil {
-		return err
-	}
-	if err := setupNetworking(args); err != nil {
-		return err
-	}
+
 	if err := finalizeNamespace(args); err != nil {
 		return err
 	}
@@ -133,59 +126,6 @@ func setupEnv(args *InitArgs) error {
 			parts = append(parts, "")
 		}
 		os.Setenv(parts[0], parts[1])
-	}
-
-	return nil
-}
-
-func setupHostname(args *InitArgs) error {
-	hostname := getEnv(args, "HOSTNAME")
-	if hostname == "" {
-		return nil
-	}
-	return setHostname(hostname)
-}
-
-// Setup networking
-func setupNetworking(args *InitArgs) error {
-	if args.Ip != "" {
-		// eth0
-		iface, err := net.InterfaceByName("eth0")
-		if err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
-		ip, ipNet, err := net.ParseCIDR(args.Ip)
-		if err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
-		if err := netlink.NetworkLinkAddIp(iface, ip, ipNet); err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
-		if err := netlink.NetworkSetMTU(iface, args.Mtu); err != nil {
-			return fmt.Errorf("Unable to set MTU: %v", err)
-		}
-		if err := netlink.NetworkLinkUp(iface); err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
-
-		// loopback
-		iface, err = net.InterfaceByName("lo")
-		if err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
-		if err := netlink.NetworkLinkUp(iface); err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
-	}
-	if args.Gateway != "" {
-		gw := net.ParseIP(args.Gateway)
-		if gw == nil {
-			return fmt.Errorf("Unable to set up networking, %s is not a valid gateway IP", args.Gateway)
-		}
-
-		if err := netlink.AddDefaultGw(gw.String(), "eth0"); err != nil {
-			return fmt.Errorf("Unable to set up networking: %v", err)
-		}
 	}
 
 	return nil

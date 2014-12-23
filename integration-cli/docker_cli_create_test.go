@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -12,13 +12,17 @@ import (
 func TestCreateArgs(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	inspectOut, _, err := runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("out should've been a container id: %v %v", inspectOut, err))
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("out should've been a container id: %s, %v", out, err)
+	}
 
 	containers := []struct {
 		ID      string
@@ -27,7 +31,7 @@ func TestCreateArgs(t *testing.T) {
 		Args    []string
 		Image   string
 	}{}
-	if err := json.Unmarshal([]byte(inspectOut), &containers); err != nil {
+	if err := json.Unmarshal([]byte(out), &containers); err != nil {
 		t.Fatalf("Error inspecting the container: %s", err)
 	}
 	if len(containers) != 1 {
@@ -60,20 +64,24 @@ func TestCreateArgs(t *testing.T) {
 func TestCreateHostConfig(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "create", "-P", "busybox", "echo")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	inspectOut, _, err := runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("out should've been a container id: %v %v", inspectOut, err))
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("out should've been a container id: %s, %v", out, err)
+	}
 
 	containers := []struct {
 		HostConfig *struct {
 			PublishAllPorts bool
 		}
 	}{}
-	if err := json.Unmarshal([]byte(inspectOut), &containers); err != nil {
+	if err := json.Unmarshal([]byte(out), &containers); err != nil {
 		t.Fatalf("Error inspecting the container: %s", err)
 	}
 	if len(containers) != 1 {
@@ -98,19 +106,43 @@ func TestCreateHostConfig(t *testing.T) {
 func TestCreateEchoStdout(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "echo", "test123")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
 	runCmd = exec.Command(dockerBinary, "start", "-ai", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, out)
+	if err != nil {
+		t.Fatal(out, err)
+	}
 
 	if out != "test123\n" {
-		t.Errorf("container should've printed 'test123', got '%s'", out)
+		t.Errorf("container should've printed 'test123', got %q", out)
 	}
 
 	deleteAllContainers()
 
 	logDone("create - echo test123")
+}
+
+func TestCreateVolumesCreated(t *testing.T) {
+	name := "test_create_volume"
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
+		t.Fatal(out, err)
+	}
+	dir, err := inspectFieldMap(name, "Volumes", "/foo")
+	if err != nil {
+		t.Fatalf("Error getting volume host path: %q", err)
+	}
+
+	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
+		t.Fatalf("Volume was not created")
+	}
+	if err != nil {
+		t.Fatalf("Error statting volume host path: %q", err)
+	}
+
+	logDone("create - volumes are created")
 }

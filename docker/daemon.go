@@ -3,8 +3,7 @@
 package main
 
 import (
-	"log"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
@@ -35,6 +34,8 @@ func mainDaemon() {
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 
+	daemonCfg.TrustKeyPath = *flTrustKey
+
 	// Load builtins
 	if err := builtins.Register(eng); err != nil {
 		log.Fatal(err)
@@ -53,6 +54,13 @@ func mainDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+			dockerversion.VERSION,
+			dockerversion.GITCOMMIT,
+			d.ExecutionDriver().Name(),
+			d.GraphDriver().String(),
+		)
+
 		if err := d.Install(eng); err != nil {
 			log.Fatal(err)
 		}
@@ -66,13 +74,6 @@ func mainDaemon() {
 			log.Fatal(err)
 		}
 	}()
-	// TODO actually have a resolved graphdriver to show?
-	log.Printf("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
-		dockerversion.VERSION,
-		dockerversion.GITCOMMIT,
-		daemonCfg.ExecDriver,
-		daemonCfg.GraphDriver,
-	)
 
 	// Serve api
 	job := eng.Job("serveapi", flHosts...)

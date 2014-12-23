@@ -12,14 +12,8 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/pkg/system"
 )
-
-// Linux device nodes are a bit weird due to backwards compat with 16 bit device nodes.
-// They are, from low to high: the lower 8 bits of the minor, then 12 bits of the major,
-// then the top 12 bits of the minor
-func mkdev(major int64, minor int64) uint32 {
-	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
-}
 
 func UnpackLayer(dest string, layer ArchiveReader) error {
 	tr := tar.NewReader(layer)
@@ -155,11 +149,15 @@ func UnpackLayer(dest string, layer ArchiveReader) error {
 // applies it to the directory `dest`.
 func ApplyLayer(dest string, layer ArchiveReader) error {
 	dest = filepath.Clean(dest)
-	// We need to be able to set any perms
-	oldmask := syscall.Umask(0)
-	defer syscall.Umask(oldmask)
 
-	layer, err := DecompressStream(layer)
+	// We need to be able to set any perms
+	oldmask, err := system.Umask(0)
+	if err != nil {
+		return err
+	}
+	defer system.Umask(oldmask) // ignore err, ErrNotSupportedPlatform
+
+	layer, err = DecompressStream(layer)
 	if err != nil {
 		return err
 	}

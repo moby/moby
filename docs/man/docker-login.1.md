@@ -9,7 +9,7 @@ docker-login - Register or log in to a Docker registry server, if no server is s
 [**-e**|**--email**[=*EMAIL*]]
 [**-p**|**--password**[=*PASSWORD*]]
 [**-u**|**--username**[=*USERNAME*]]
- [SERVER]
+[SERVER]
 
 # DESCRIPTION
 Register or Login to a docker registry server, if no server is

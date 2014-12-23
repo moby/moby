@@ -11,9 +11,12 @@ import (
 )
 
 var (
-	IMAGE_ID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
-	TOKEN    = []string{"fake-token"}
-	REPO     = "foo42/bar"
+	token = []string{"fake-token"}
+)
+
+const (
+	imageID = "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d"
+	REPO    = "foo42/bar"
 )
 
 func spawnTestRegistrySession(t *testing.T) *Session {
@@ -43,27 +46,27 @@ func TestPingRegistryEndpoint(t *testing.T) {
 
 func TestGetRemoteHistory(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	hist, err := r.GetRemoteHistory(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(hist), 2, "Expected 2 images in history")
-	assertEqual(t, hist[0], IMAGE_ID, "Expected "+IMAGE_ID+"as first ancestry")
+	assertEqual(t, hist[0], imageID, "Expected "+imageID+"as first ancestry")
 	assertEqual(t, hist[1], "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 		"Unexpected second ancestry")
 }
 
 func TestLookupRemoteImage(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	found := r.LookupRemoteImage(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	found := r.LookupRemoteImage(imageID, makeURL("/v1/"), token)
 	assertEqual(t, found, true, "Expected remote lookup to succeed")
-	found = r.LookupRemoteImage("abcdef", makeURL("/v1/"), TOKEN)
+	found = r.LookupRemoteImage("abcdef", makeURL("/v1/"), token)
 	assertEqual(t, found, false, "Expected remote lookup to fail")
 }
 
 func TestGetRemoteImageJSON(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	json, size, err := r.GetRemoteImageJSON(IMAGE_ID, makeURL("/v1/"), TOKEN)
+	json, size, err := r.GetRemoteImageJSON(imageID, makeURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +75,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 		t.Fatal("Expected non-empty json")
 	}
 
-	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), TOKEN)
+	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), token)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -80,7 +83,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 
 func TestGetRemoteImageLayer(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	data, err := r.GetRemoteImageLayer(IMAGE_ID, makeURL("/v1/"), TOKEN, 0)
+	data, err := r.GetRemoteImageLayer(imageID, makeURL("/v1/"), token, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +91,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 		t.Fatal("Expected non-nil data result")
 	}
 
-	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), TOKEN, 0)
+	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), token, 0)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -96,14 +99,14 @@ func TestGetRemoteImageLayer(t *testing.T) {
 
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO, TOKEN)
+	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO, token)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(tags), 1, "Expected one tag")
-	assertEqual(t, tags["latest"], IMAGE_ID, "Expected tag latest to map to "+IMAGE_ID)
+	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
 
-	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz", TOKEN)
+	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz", token)
 	if err == nil {
 		t.Fatal("Expected error when fetching tags for bogus repo")
 	}
@@ -111,11 +114,11 @@ func TestGetRemoteTags(t *testing.T) {
 
 func TestGetRepositoryData(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	parsedUrl, err := url.Parse(makeURL("/v1/"))
+	parsedURL, err := url.Parse(makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	host := "http://" + parsedUrl.Host + "/v1/"
+	host := "http://" + parsedURL.Host + "/v1/"
 	data, err := r.GetRepositoryData("foo42/bar")
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +140,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
 	}
 
-	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"), TOKEN)
+	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +149,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 func TestPushImageLayerRegistry(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	layer := strings.NewReader("")
-	_, _, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
+	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeURL("/v1/"), token, []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +183,7 @@ func TestResolveRepositoryName(t *testing.T) {
 
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	err := r.PushRegistryTag("foo42/bar", IMAGE_ID, "stable", makeURL("/v1/"), TOKEN)
+	err := r.PushRegistryTag("foo42/bar", imageID, "stable", makeURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}

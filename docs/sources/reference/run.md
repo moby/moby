@@ -1,8 +1,8 @@
-page_title: Docker Run Reference
+page_title: Docker run reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
-# Docker Run Reference
+# Docker run reference
 
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its own file system,
@@ -14,7 +14,7 @@ the container from the image. That's the main reason
 [*run*](/reference/commandline/cli/#run) has more options than any
 other `docker` command.
 
-## General Form
+## General form
 
 The basic `docker run` command takes this form:
 
@@ -39,7 +39,7 @@ behavior, allowing them to override all defaults set by
 the developer during `docker build` and nearly all the defaults set by
 the Docker runtime itself.
 
-## Operator Exclusive Options
+## Operator exclusive options
 
 Only the operator (the person executing `docker run`) can set the
 following options.
@@ -50,12 +50,13 @@ following options.
  - [Container Identification](#container-identification)
      - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
+ - [IPC Settings](#ipc-settings)
  - [Network Settings](#network-settings)
  - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
 
-## Detached vs Foreground
+## Detached vs foreground
 
 When starting a Docker container, you must first decide if you want to
 run the container in the background in a "detached" mode or in the
@@ -82,7 +83,7 @@ and pass along signals. All of that is configurable:
 
     -a=[]           : Attach to `STDIN`, `STDOUT` and/or `STDERR`
     -t=false        : Allocate a pseudo-tty
-    --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
+    --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
     -i=false        : Keep STDIN open even if not attached
 
 If you do not specify `-a` then Docker will [attach all standard
@@ -93,13 +94,14 @@ specify to which of the three standard streams (`STDIN`, `STDOUT`,
 
     $ sudo docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
-For interactive processes (like a shell) you will typically want a tty
-as well as persistent standard input (`STDIN`), so you'll use `-i -t`
-together in most interactive cases.
+For interactive processes (like a shell), you must use `-i -t` together in
+order to allocate a tty for the container process. Specifying `-t` is however
+forbidden when the client standard output is redirected or pipe, such as in:
+`echo test | docker run -i busybox cat`.
 
-## Container Identification
+## Container identification
 
-### Name (–-name)
+### Name (--name)
 
 The operator can identify a container in three ways:
 
@@ -116,7 +118,7 @@ add meaning to a container since you can use this name when defining
 other place you need to identify a container). This works for both
 background and foreground Docker containers.
 
-### PID Equivalent
+### PID equivalent
 
 Finally, to help with automation, you can have Docker write the
 container ID out to a file of your choosing. This is similar to how some
@@ -131,15 +133,32 @@ While not strictly a means of identifying a container, you can specify a version
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
 
-## Network Settings
+## IPC Settings
+    --ipc=""  : Set the IPC mode for the container,
+                                 'container:<name|id>': reuses another container's IPC namespace
+                                 'host': use the host's IPC namespace inside the container
+By default, all containers have the IPC namespace enabled 
 
-    --dns=[]        : Set custom dns servers for the container
-    --net="bridge"  : Set the Network mode for the container
-                                 'bridge': creates a new network stack for the container on the docker bridge
-                                 'none': no networking for this container
-                                 'container:<name|id>': reuses another container network stack
-                                 'host': use the host network stack inside the container
-    --add-host=""   : Add a line to /etc/hosts (host:IP)
+IPC (POSIX/SysV IPC) namespace provides separation of named shared memory segments, semaphores and message queues.  
+
+Shared memory segments are used to accelerate inter-process communication at
+memory speed, rather than through pipes or through the network stack. Shared
+memory is commonly used by databases and custom-built (typically C/OpenMPI, 
+C++/using boost libraries) high performance applications for scientific
+computing and financial services industries. If these types of applications
+are broken into multiple containers, you might need to share the IPC mechanisms
+of the containers.
+
+## Network settings
+
+    --dns=[]         : Set custom dns servers for the container
+    --net="bridge"   : Set the Network mode for the container
+                                  'bridge': creates a new network stack for the container on the docker bridge
+                                  'none': no networking for this container
+                                  'container:<name|id>': reuses another container network stack
+                                  'host': use the host network stack inside the container
+    --add-host=""    : Add a line to /etc/hosts (host:IP)
+    --mac-address="" : Sets the container's Ethernet device's MAC address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -149,6 +168,10 @@ networking. In cases like this, you would perform I/O through files or
 
 Your container will use the same DNS servers as the host by default, but
 you can override this with `--dns`.
+
+By default a random MAC is generated. You can set the container's MAC address
+explicitly by providing a MAC via the `--mac-address` parameter (format:
+`12:34:56:78:9a:bc`).
 
 Supported networking modes are:
 
@@ -213,7 +236,7 @@ container itself as well as `localhost` and a few other common things.  The
     ::1	            localhost ip6-localhost ip6-loopback
     86.75.30.9      db-static
 
-## Clean Up (–-rm)
+## Clean up (--rm)
 
 By default a container's file system persists even after the container
 exits. This makes debugging a lot easier (since you can inspect the
@@ -225,7 +248,7 @@ the container exits**, you can add the `--rm` flag:
 
     --rm=false: Automatically remove the container when it exits (incompatible with -d)
 
-## Security Configuration
+## Security configuration
     --security-opt="label:user:USER"   : Set the label user for the container
     --security-opt="label:role:ROLE"   : Set the label role for the container
     --security-opt="label:type:TYPE"   : Set the label type for the container
@@ -261,7 +284,7 @@ Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
 
-## Runtime Constraints on CPU and Memory
+## Runtime constraints on CPU and memory
 
 The operator can also adjust the performance parameters of the
 container:
@@ -279,7 +302,20 @@ get the same proportion of CPU cycles, but you can tell the kernel to
 give more shares of CPU time to one or more containers when you start
 them via Docker.
 
-## Runtime Privilege, Linux Capabilities, and LXC Configuration
+The flag `-c` or `--cpu-shares` with value 0 indicates that the running
+container has access to all 1024 (default) CPU shares. However, this value
+can be modified to run a container with a different priority or different
+proportion of CPU cycles.
+
+E.g., If we start three {C0, C1, C2} containers with default values
+(`-c` OR `--cpu-shares` = 0) and one {C3} with (`-c` or `--cpu-shares`=512)
+then C0, C1, and C2 would have access to 100% CPU shares (1024) and C3 would
+only have access to 50% CPU shares (512). In the context of a time-sliced OS
+with time quantum set as 100 milliseconds, containers C0, C1, and C2 will run
+for full-time quantum, and container C3 will run for half-time quantum i.e 50
+milliseconds.
+
+## Runtime privilege, Linux capabilities, and LXC configuration
 
     --cap-add: Add Linux capabilities
     --cap-drop: Drop Linux capabilities
@@ -308,6 +344,26 @@ will be accessible within the container.
 
     $ sudo docker run --device=/dev/snd:/dev/snd ...
 
+By default, the container will be able to `read`, `write`, and `mknod` these devices.
+This can be overridden using a third `:rwm` set of options to each `--device` flag:
+
+
+```
+	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+
+	Command (m for help): q
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+	You will not be able to write the partition table.
+
+	Command (m for help): q
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
+        crash....
+
+	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+	fdisk: unable to open /dev/xvdc: Operation not permitted
+```
+
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
 list of capabilities that are kept. Both flags support the value `all`, so if the
@@ -318,6 +374,34 @@ operator wants to have all capabilities but `MKNOD` they could use:
 For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
+    $ docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
+    RTNETLINK answers: Operation not permitted
+    $ docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
+
+To mount a FUSE based filesystem, you need to combine both `--cap-add` and
+`--device`:
+
+    $ docker run --rm -it --cap-add SYS_ADMIN sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    fuse: failed to open /dev/fuse: Operation not permitted
+    $ docker run --rm -it --device /dev/fuse sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    fusermount: mount failed: Operation not permitted
+    $ docker run --rm -it --cap-add SYS_ADMIN --device /dev/fuse sshfs
+    # sshfs sven@10.10.10.20:/home/sven /mnt
+    The authenticity of host '10.10.10.20 (10.10.10.20)' can't be established.
+    ECDSA key fingerprint is 25:34:85:75:25:b0:17:46:05:19:04:93:b5:dd:5f:c6.
+    Are you sure you want to continue connecting (yes/no)? yes
+    sven@10.10.10.20's password:
+    root@30aa0cfaf1b5:/# ls -la /mnt/src/docker
+    total 1516
+    drwxrwxr-x 1 1000 1000   4096 Dec  4 06:08 .
+    drwxrwxr-x 1 1000 1000   4096 Dec  4 11:46 ..
+    -rw-rw-r-- 1 1000 1000     16 Oct  8 00:09 .dockerignore
+    -rwxrwxr-x 1 1000 1000    464 Oct  8 00:09 .drone.yml
+    drwxrwxr-x 1 1000 1000   4096 Dec  4 06:11 .git
+    -rw-rw-r-- 1 1000 1000    461 Dec  4 06:08 .gitignore
+    ....
+
+
 If the Docker daemon was started using the `lxc` exec-driver
 (`docker -d --exec-driver=lxc`) then the operator can also specify LXC options
 using one or more `--lxc-conf` parameters. These can be new parameters or
@@ -327,7 +411,14 @@ Note that in the future, a given host's docker daemon may not use LXC, so this
 is an implementation-specific configuration meant for operators already
 familiar with using LXC directly.
 
-## Overriding Dockerfile Image Defaults
+> **Note:**
+> If you use `--lxc-conf` to modify a container's configuration which is also
+> managed by the Docker daemon, then the Docker daemon will not know about this
+> modification, and you will need to manage any conflicts yourself. For example,
+> you can use `--lxc-conf` to set a container's IP address, but this will not be
+> reflected in the `/etc/hosts` file.
+
+## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder/#dockerbuilder)
 or when she commits it, the developer can set a number of default parameters
@@ -347,7 +438,7 @@ Dockerfile instruction and how the operator can override that setting.
  - [USER](#user)
  - [WORKDIR](#workdir)
 
-## CMD (Default Command or Options)
+## CMD (default command or options)
 
 Recall the optional `COMMAND` in the Docker
 commandline:
@@ -363,7 +454,7 @@ image), you can override that `CMD` instruction just by specifying a new
 If the image also specifies an `ENTRYPOINT` then the `CMD` or `COMMAND`
 get appended as arguments to the `ENTRYPOINT`.
 
-## ENTRYPOINT (Default Command to Execute at Runtime)
+## ENTRYPOINT (default command to execute at runtime)
 
     --entrypoint="": Overwrite the default entrypoint set by the image
 
@@ -386,14 +477,14 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     $ sudo docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
     $ sudo docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
-## EXPOSE (Incoming Ports)
+## EXPOSE (incoming ports)
 
 The Dockerfile doesn't give much control over networking, only providing
 the `EXPOSE` instruction to give a hint to the operator about what
 incoming ports might provide services. The following options work with
 or override the Dockerfile's exposed defaults:
 
-    --expose=[]: Expose a port from the container
+    --expose=[]: Expose a port or a range of ports from the container
                 without publishing it to your host
     -P=false   : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port to the host (format:
@@ -402,7 +493,7 @@ or override the Dockerfile's exposed defaults:
                  (use 'docker port' to see the actual mapping)
     --link=""  : Add link to another container (name:alias)
 
-As mentioned previously, `EXPOSE` (and `--expose`) make a port available
+As mentioned previously, `EXPOSE` (and `--expose`) makes ports available
 **in** a container for incoming connections. The port number on the
 inside of the container (where the service listens) does not need to be
 the same number as the port exposed on the outside of the container
@@ -426,7 +517,7 @@ then the client container can access the exposed port via a private
 networking interface.  Docker will set some environment variables in the
 client container to help indicate which interface and port to use.
 
-## ENV (Environment Variables)
+## ENV (environment variables)
 
 When a new container is created, Docker will set the following environment
 variables automatically:
@@ -535,7 +626,7 @@ mechanism to communicate with a linked container by its alias:
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
 
-## VOLUME (Shared Filesystems)
+## VOLUME (shared filesystems)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
            If "container-dir" is missing, then docker creates a new volume.

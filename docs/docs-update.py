@@ -104,6 +104,11 @@ def update_man_pages():
         re.MULTILINE | re.DOTALL
     )
 
+    options_re = re.compile(
+        r".*# OPTIONS(.*?)# (HISTORY|EXAMPLES?).*",
+        re.MULTILINE | re.DOTALL
+    )
+
     example_re = re.compile(
         r".*# EXAMPLES?(.*)# HISTORY.*",
         re.MULTILINE | re.DOTALL
@@ -116,8 +121,12 @@ def update_man_pages():
 
     for command in cmds:
         print "COMMAND: "+command
+        if command == "":
+            print "SKIPPING"
+            continue
         history = ""
         description = ""
+        original_options = ""
         examples = ""
         if os.path.isfile("docs/man/docker-"+command+".1.md"):
             intext = open("docs/man/docker-"+command+".1.md", "r")
@@ -126,6 +135,10 @@ def update_man_pages():
             match = desc_re.match(txt)
             if match:
                 description = match.group(1)
+            match = options_re.match(txt)
+            if match:
+                original_options = match.group(1)
+		#print "MATCHED OPTIONS\n" + original_options
             match = example_re.match(txt)
             if match:
                 examples = match.group(1)
@@ -148,7 +161,7 @@ def update_man_pages():
             help_string = e.output
 
         last_key = ""
-        for l in str(help).split("\n"):
+        for l in str(help_string).split("\n"):
             l = l.rstrip()
             if l != "":
                 match = re.match("Usage: docker {}(.*)".format(command), l)
@@ -170,7 +183,7 @@ def update_man_pages():
 
         # replace [OPTIONS] with the list of params
         options = ""
-        match = re.match("\[OPTIONS\](.*)", usage)
+        match = re.match("\[OPTIONS\]\s*(.*)", usage)
         if match:
             usage = match.group(1)
 
@@ -178,11 +191,13 @@ def update_man_pages():
         # TODO: sort without the `-`'s
         for key in sorted(params.keys(), key=lambda s: s.lower()):
             # split on commas, remove --?.*=.*, put in *'s mumble
+            flags = []
             ps = []
             opts = []
             for k in key_params[key].split(","):
                 match = re.match("(-+)([A-Za-z-0-9]*)(?:=(.*))?", k.lstrip())
                 if match:
+                    flags.append("{}{}".format(match.group(1), match.group(2)))
                     p = "**{}{}**".format(match.group(1), match.group(2))
                     o = "**{}{}**".format(match.group(1), match.group(2))
                     if match.group(3):
@@ -203,7 +218,25 @@ def update_man_pages():
                 else:
                     print "nomatch:{}".format(k)
             new_usage = "{}\n[{}]".format(new_usage, "|".join(ps))
+
             options = "{}{}\n   {}\n\n".format(options, ", ".join(opts), params[key])
+
+            # look at the original options documentation and if its hand written, add it too.
+            print "SVEN_re: "+flags[0]
+            singleoption_re = re.compile(
+                r".*[\r\n]\*\*"+flags[0]+"\*\*([^\r\n]*)[\r\n]+(.*?)[\r\n](\*\*-|# [A-Z]|\*\*[A-Z]+\*\*).*",
+                #r""+flags[0]+"(.*)(^\*\*-.*)?",
+                re.MULTILINE | re.DOTALL
+            )
+            match = singleoption_re.match(original_options)
+            if match:
+                info = match.group(2).strip()
+                print "MATCHED: " + match.group(1).strip()
+                if info != params[key].strip():
+                    #info = re.sub(params[key].strip(), '', info, flags=re.MULTILINE)
+                    print "INFO changed: " +info
+                    options = "{}   {}\n\n".format(options, info.strip())
+
         if new_usage != "":
             new_usage = "{}\n".format(new_usage.strip())
         usage = new_usage + usage
@@ -230,8 +263,8 @@ def update_man_pages():
             ".*{}.*".format(date_string),
             re.MULTILINE | re.DOTALL
         )
-        if not recent_history_re.match(history):
-            outtext.write("{}, updated by Sven Dowideit <SvenDowideit@home.org.au>\n".format(date_string))
+#        if not recent_history_re.match(history):
+#            outtext.write("{}, updated by Sven Dowideit <SvenDowideit@home.org.au>\n".format(date_string))
         outtext.close()
 
 # main

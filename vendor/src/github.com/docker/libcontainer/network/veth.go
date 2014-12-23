@@ -19,8 +19,9 @@ const defaultDevice = "eth0"
 
 func (v *Veth) Create(n *Network, nspid int, networkState *NetworkState) error {
 	var (
-		bridge = n.Bridge
-		prefix = n.VethPrefix
+		bridge     = n.Bridge
+		prefix     = n.VethPrefix
+		txQueueLen = n.TxQueueLen
 	)
 	if bridge == "" {
 		return fmt.Errorf("bridge is not specified")
@@ -28,7 +29,7 @@ func (v *Veth) Create(n *Network, nspid int, networkState *NetworkState) error {
 	if prefix == "" {
 		return fmt.Errorf("veth prefix is not specified")
 	}
-	name1, name2, err := createVethPair(prefix)
+	name1, name2, err := createVethPair(prefix, txQueueLen)
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func (v *Veth) Initialize(config *Network, networkState *NetworkState) error {
 
 // createVethPair will automatically generage two random names for
 // the veth pair and ensure that they have been created
-func createVethPair(prefix string) (name1 string, name2 string, err error) {
+func createVethPair(prefix string, txQueueLen int) (name1 string, name2 string, err error) {
 	for i := 0; i < 10; i++ {
 		if name1, err = utils.GenerateRandomName(prefix, 7); err != nil {
 			return
@@ -106,7 +107,7 @@ func createVethPair(prefix string) (name1 string, name2 string, err error) {
 			return
 		}
 
-		if err = CreateVethPair(name1, name2); err != nil {
+		if err = CreateVethPair(name1, name2, txQueueLen); err != nil {
 			if err == netlink.ErrInterfaceExists {
 				continue
 			}

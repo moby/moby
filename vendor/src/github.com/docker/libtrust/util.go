@@ -2,6 +2,7 @@ package libtrust
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/base32"
@@ -50,6 +51,21 @@ func keyIDEncode(b []byte) string {
 	}
 	buf.WriteString(s[i*4:])
 	return buf.String()
+}
+
+func keyIDFromCryptoKey(pubKey PublicKey) string {
+	// Generate and return a 'libtrust' fingerprint of the public key.
+	// For an RSA key this should be:
+	//   SHA256(DER encoded ASN1)
+	// Then truncated to 240 bits and encoded into 12 base32 groups like so:
+	//   ABCD:EFGH:IJKL:MNOP:QRST:UVWX:YZ23:4567:ABCD:EFGH:IJKL:MNOP
+	derBytes, err := x509.MarshalPKIXPublicKey(pubKey.CryptoPublicKey())
+	if err != nil {
+		return ""
+	}
+	hasher := crypto.SHA256.New()
+	hasher.Write(derBytes)
+	return keyIDEncode(hasher.Sum(nil)[:30])
 }
 
 func stringFromMap(m map[string]interface{}, key string) (string, error) {

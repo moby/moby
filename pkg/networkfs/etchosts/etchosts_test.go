@@ -7,6 +7,32 @@ import (
 	"testing"
 )
 
+func TestBuildDefault(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	// check that /etc/hosts has consistent ordering
+	for i := 0; i <= 5; i++ {
+		err = Build(file.Name(), "", "", "", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		content, err := ioutil.ReadFile(file.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := "127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost ip6-loopback\nfe00::0\tip6-localnet\nff00::0\tip6-mcastprefix\nff02::1\tip6-allnodes\nff02::2\tip6-allrouters\n"
+
+		if expected != string(content) {
+			t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+		}
+	}
+}
+
 func TestBuildHostnameDomainname(t *testing.T) {
 	file, err := ioutil.TempFile("", "")
 	if err != nil {

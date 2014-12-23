@@ -14,7 +14,7 @@ Docker made the choice `172.17.42.1/16` when I started it a few minutes
 ago, for example — a 16-bit netmask providing 65,534 addresses for the
 host machine and its containers.
 
-> **Note:** 
+> **Note:**
 > This document discusses advanced networking configuration
 > and options for Docker. In most cases you won't need this information.
 > If you're looking to get started with a simpler explanation of Docker
@@ -104,6 +104,9 @@ Finally, several networking options can only be provided when calling
  *  `--net=bridge|none|container:NAME_or_ID|host` — see
     [How Docker networks a container](#container-networking)
 
+ *  `--mac-address=MACADDRESS...` — see
+    [How Docker networks a container](#container-networking)
+
  *  `-p SPEC` or `--publish=SPEC` — see
     [Binding container ports](#binding-ports)
 
@@ -170,6 +173,7 @@ Four different options affect container domain name services.
     When a container process attempts to access `host` and the search
     domain `example.com` is set, for instance, the DNS logic will not
     only look up `host` but also `host.example.com`.
+    Use `--dns-search=.` if you don't wish to set the search domain.
 
 Note that Docker, in the absence of either of the last two options
 above, will make `/etc/resolv.conf` inside of each container look like
@@ -536,9 +540,15 @@ The steps with which Docker configures a container are:
     separate and unique network interface namespace, there are no
     physical interfaces with which this name could collide.
 
-4.  Give the container's `eth0` a new IP address from within the
+4.  Set the interface's MAC address according to the `--mac-address`
+    parameter or generate a random one.
+
+5.  Give the container's `eth0` a new IP address from within the
     bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge.
+    the IP address that the Docker host owns on the bridge. If available
+    the IP address is generated from the MAC address. This prevents ARP
+    cache invalidation problems, when a new container comes up with an
+    IP used in the past by another container with another MAC.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with
@@ -620,6 +630,7 @@ Docker do all of the configuration:
 
     $ sudo ip link set B netns $pid
     $ sudo ip netns exec $pid ip link set dev B name eth0
+    $ sudo ip netns exec $pid ip link set eth0 address 12:34:56:78:9a:bc
     $ sudo ip netns exec $pid ip link set eth0 up
     $ sudo ip netns exec $pid ip addr add 172.17.42.99/16 dev eth0
     $ sudo ip netns exec $pid ip route add default via 172.17.42.1
