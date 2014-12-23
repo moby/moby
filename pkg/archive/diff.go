@@ -21,20 +21,7 @@ func mkdev(major int64, minor int64) uint32 {
 	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
 }
 
-// ApplyLayer parses a diff in the standard layer format from `layer`, and
-// applies it to the directory `dest`.
-func ApplyLayer(dest string, layer ArchiveReader) error {
-	dest = filepath.Clean(dest)
-
-	// We need to be able to set any perms
-	oldmask := syscall.Umask(0)
-	defer syscall.Umask(oldmask)
-
-	layer, err := DecompressStream(layer)
-	if err != nil {
-		return err
-	}
-
+func UnpackLayer(dest string, layer ArchiveReader) error {
 	tr := tar.NewReader(layer)
 	trBuf := pools.BufioReader32KPool.Get(tr)
 	defer pools.BufioReader32KPool.Put(trBuf)
@@ -94,12 +81,14 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 		}
 
 		path := filepath.Join(dest, hdr.Name)
-		base := filepath.Base(path)
-
-		// Prevent symlink breakout
-		if !strings.HasPrefix(path, dest) {
-			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		rel, err := filepath.Rel(dest, path)
+		if err != nil {
+			return err
 		}
+		if strings.HasPrefix(rel, "..") {
+			return breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
+		}
+		base := filepath.Base(path)
 
 		if strings.HasPrefix(base, ".wh.") {
 			originalBase := base[len(".wh."):]
@@ -159,6 +148,20 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 			return err
 		}
 	}
-
 	return nil
+}
+
+// ApplyLayer parses a diff in the standard layer format from `layer`, and
+// applies it to the directory `dest`.
+func ApplyLayer(dest string, layer ArchiveReader) error {
+	dest = filepath.Clean(dest)
+	// We need to be able to set any perms
+	oldmask := syscall.Umask(0)
+	defer syscall.Umask(oldmask)
+
+	layer, err := DecompressStream(layer)
+	if err != nil {
+		return err
+	}
+	return UnpackLayer(dest, layer)
 }
