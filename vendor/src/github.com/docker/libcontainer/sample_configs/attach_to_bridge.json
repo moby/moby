@@ -175,13 +175,13 @@
         "TERM=xterm"
     ],
     "hostname": "koye",
-    "namespaces": {
-        "NEWIPC": true,
-        "NEWNET": true,
-        "NEWNS": true,
-        "NEWPID": true,
-        "NEWUTS": true
-    },
+    "namespaces": [
+        {"name": "NEWIPC"},
+        {"name": "NEWNET"},
+        {"name": "NEWNS"},
+        {"name": "NEWPID"},
+        {"name": "NEWUTS"}
+    ],
     "networks": [
         {
             "address": "127.0.0.1/0",

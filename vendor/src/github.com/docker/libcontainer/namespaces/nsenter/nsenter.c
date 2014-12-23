@@ -15,6 +15,10 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#ifndef PR_SET_CHILD_SUBREAPER
+#define PR_SET_CHILD_SUBREAPER 36
+#endif
+
 static const kBufSize = 256;
 static const char *kNsEnter = "nsenter";
 
@@ -32,8 +36,8 @@ void get_args(int *argc, char ***argv)
 		contents_size += kBufSize;
 		contents = (char *)realloc(contents, contents_size);
 		bytes_read =
-			read(fd, contents + contents_offset,
-			     contents_size - contents_offset);
+		    read(fd, contents + contents_offset,
+			 contents_size - contents_offset);
 		contents_offset += bytes_read;
 	}
 	while (bytes_read > 0);
@@ -90,16 +94,17 @@ void nsenter()
 	}
 
 	if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) == -1) {
-                fprintf(stderr, "nsenter: failed to set child subreaper: %s", strerror(errno));
-                exit(1);
-        }
+		fprintf(stderr, "nsenter: failed to set child subreaper: %s",
+			strerror(errno));
+		exit(1);
+	}
 
 	static const struct option longopts[] = {
 		{"nspid", required_argument, NULL, 'n'},
 		{"console", required_argument, NULL, 't'},
 		{NULL, 0, NULL, 0}
 	};
-    
+
 	pid_t init_pid = -1;
 	char *init_pid_str = NULL;
 	char *console = NULL;

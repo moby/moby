@@ -18,7 +18,7 @@ func (s *CpusetGroup) Set(d *data) error {
 	if err != nil {
 		return err
 	}
-	return s.SetDir(dir, d.c.CpusetCpus, d.pid)
+	return s.SetDir(dir, d.c.CpusetCpus, d.c.CpusetMems, d.pid)
 }
 
 func (s *CpusetGroup) Remove(d *data) error {
@@ -29,7 +29,7 @@ func (s *CpusetGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }
 
-func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
+func (s *CpusetGroup) SetDir(dir, cpus string, mems string, pid int) error {
 	if err := s.ensureParent(dir); err != nil {
 		return err
 	}
@@ -40,10 +40,15 @@ func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
 		return err
 	}
 
-	// If we don't use --cpuset, the default cpuset.cpus is set in
-	// s.ensureParent, otherwise, use the value we set
-	if value != "" {
-		if err := writeFile(dir, "cpuset.cpus", value); err != nil {
+	// If we don't use --cpuset-xxx, the default value inherit from parent cgroup
+	// is set in s.ensureParent, otherwise, use the value we set
+	if cpus != "" {
+		if err := writeFile(dir, "cpuset.cpus", cpus); err != nil {
+			return err
+		}
+	}
+	if mems != "" {
+		if err := writeFile(dir, "cpuset.mems", mems); err != nil {
 			return err
 		}
 	}

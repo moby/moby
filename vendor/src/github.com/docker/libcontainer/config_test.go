@@ -64,12 +64,12 @@ func TestConfigJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
-	if !container.Namespaces["NEWNET"] {
+	if getNamespaceIndex(container, "NEWNET") == -1 {
 		t.Log("namespaces should contain NEWNET")
 		t.Fail()
 	}
 
-	if container.Namespaces["NEWUSER"] {
+	if getNamespaceIndex(container, "NEWUSER") != -1 {
 		t.Log("namespaces should not contain NEWUSER")
 		t.Fail()
 	}
@@ -157,4 +157,13 @@ func TestSelinuxLabels(t *testing.T) {
 	if container.MountConfig.MountLabel != label {
 		t.Fatalf("expected mount label %q but received %q", label, container.MountConfig.MountLabel)
 	}
+}
+
+func getNamespaceIndex(config *Config, name string) int {
+	for i, v := range config.Namespaces {
+		if v.Name == name {
+			return i
+		}
+	}
+	return -1
 }
