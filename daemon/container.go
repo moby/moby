@@ -882,7 +882,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	// Check if this is actually in a volume
 	for _, mnt := range container.VolumeMounts() {
-		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
+		if mnt.hasResource(filepath.Join("/", resource)) {
 			return mnt.Export(resource)
 		}
 	}

@@ -389,6 +389,7 @@ func TestCpUnprivilegedUser(t *testing.T) {
 }
 
 func TestCpVolumePath(t *testing.T) {
+	defer deleteAllContainers()
 	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
 	if err != nil {
 		t.Fatal(err)
@@ -410,7 +411,6 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
 	if err != nil || stripTrailingCharacters(out) != "0" {
@@ -492,6 +492,80 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	logDone("cp - volume path")
+}
+
+// #9787
+func TestCpVolumePathSimilar(t *testing.T) {
+	defer deleteAllContainers()
+	// path looks like a volume
+	pathLikeVolDir, err := ioutil.TempDir(os.TempDir(), "cp_path_like_volume")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(pathLikeVolDir)
+
+	// Test with normal volume
+	out, _, err := dockerCmd(t, "run", "-d", "--name", "test_cp_path_like_volume", "-v", "/foo", "busybox", "/bin/sh", "-c", "echo 'test' > /foo.")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "cp", "test_cp_path_like_volume:/foo.", pathLikeVolDir)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	b, err := ioutil.ReadFile(pathLikeVolDir + "/foo.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal([]byte("test"), b) {
+		t.Fatalf("couldn't cp path similar to volume path")
+	}
+	os.Remove(pathLikeVolDir + "/foo.")
+
+	// Test with bind-mount
+	bindTestPath, err := ioutil.TempDir(os.TempDir(), "cp_path_like_volume")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err = dockerCmd(t, "run", "-d", "--name", "test_cp_path_like_volume_binds", "-v", bindTestPath+":/foo", "busybox", "/bin/sh", "-c", "echo 'test' > /foo.")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "cp", "test_cp_path_like_volume_binds:/foo.", pathLikeVolDir)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	b, err = ioutil.ReadFile(pathLikeVolDir + "/foo.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal([]byte("test"), b) {
+		t.Fatalf("couldn't cp path similar to volume path")
+	}
+	os.Remove(pathLikeVolDir + "/foo.")
+
+	// with volumes-from
+	out, _, err = dockerCmd(t, "run", "-d", "--name", "test_cp_path_like_volume_from", "--volumes-from", "test_cp_path_like_volume", "busybox", "/bin/sh", "-c", "echo 'test' > /foo.")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "cp", "test_cp_path_like_volume_binds:/foo.", pathLikeVolDir)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	b, err = ioutil.ReadFile(pathLikeVolDir + "/foo.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal([]byte("test"), b) {
+		t.Fatalf("couldn't cp path similar to volume path")
+	}
+
+	logDone("cp - volume path similar")
 }
 
 func TestCpToDot(t *testing.T) {
