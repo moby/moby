@@ -5,14 +5,14 @@ import (
 	"github.com/docker/libcontainer/cgroups/fs"
 )
 
-func Get(id, parent string) (*cgroups.Stats, error) {
+func Get(id, parent string, pid int) (*cgroups.Stats, error) {
 
 	c := &cgroups.Cgroup{
 		Name:   id,
 		Parent: parent,
 	}
 
-	stats, err := fs.GetStats(c)
+	stats, err := fs.GetAllStats(c, pid)
 
 	if err != nil {
 		return nil, err

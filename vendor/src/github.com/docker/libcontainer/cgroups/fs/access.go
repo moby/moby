@@ -100,3 +100,27 @@ func SetResources(c *cgroups.Cgroup, pid int) (*data, error) {
 
 	return d, nil
 }
+
+func GetAllStats(c *cgroups.Cgroup, pid int) (*cgroups.Stats, error) {
+	d, err := getCgroupData(c, pid)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := make(map[string]string)
+	for name, sys := range subsystems {
+		if err := sys.Set(d); err != nil {
+			return nil, err
+		}
+		p, err := d.path(name)
+		if err != nil {
+			if cgroups.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		paths[name] = p
+	}
+
+	return GetStats(paths)
+}
