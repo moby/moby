@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/sweep"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/libcontainer/label"
@@ -1673,7 +1672,7 @@ func (devices *DeviceSet) OpenCount(hash string) (int32, error) {
 	defer devices.Unlock()
 
 	info, _ := devices.lookupDevice(hash)
-	devinfo, err := getInfo(info.Name())
+	devinfo, err := devicemapper.GetInfo(info.Name())
 	if err != nil {
 		return -1, err
 	}

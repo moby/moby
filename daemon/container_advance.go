@@ -3,12 +3,12 @@ package daemon
 import (
 	"reflect"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/daemon/sweep"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/broadcastwriter"
-	"github.com/docker/docker/pkg/log"
 	"github.com/docker/docker/utils"
 )
 
@@ -70,7 +70,7 @@ func (container *Container) DeviceIsBusy() (bool, error) {
 		if opencount, err := devices.OpenCount(container.ID); err != nil {
 			return false, err
 		} else {
-			container.daemon.eng.Logf("%s: opencount=%d", container.ID, opencount)
+			log.Info("%s: opencount=%d", container.ID, opencount)
 			return opencount != 0, nil
 		}
 	}
