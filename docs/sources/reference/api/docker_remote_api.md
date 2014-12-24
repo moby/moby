@@ -51,6 +51,11 @@ You can still call an old version of the API using
 **New!**
 Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
 
+`GET /containers/(id)/json`
+
+**New!**
+This endpoint now returns the list current execs associated with the container (`ExecIDs`).
+
 ## v1.16
 
 ### Full Documentation

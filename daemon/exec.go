@@ -64,7 +64,7 @@ func (e *execStore) Delete(id string) {
 func (e *execStore) List() []string {
 	var IDs []string
 	e.RLock()
-	for id, _ := range e.s {
+	for id := range e.s {
 		IDs = append(IDs, id)
 	}
 	e.RUnlock()
