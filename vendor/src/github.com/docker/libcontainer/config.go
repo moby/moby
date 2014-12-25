@@ -30,26 +30,26 @@ type Namespace struct {
 
 type Namespaces []Namespace
 
-func (n Namespaces) Remove(t NamespaceType) bool {
+func (n *Namespaces) Remove(t NamespaceType) bool {
 	i := n.index(t)
 	if i == -1 {
 		return false
 	}
-	n = append(n[:i], n[i+1:]...)
+	*n = append((*n)[:i], (*n)[i+1:]...)
 	return true
 }
 
-func (n Namespaces) Add(t NamespaceType, path string) {
+func (n *Namespaces) Add(t NamespaceType, path string) {
 	i := n.index(t)
 	if i == -1 {
-		n = append(n, Namespace{Type: t, Path: path})
+		*n = append(*n, Namespace{Type: t, Path: path})
 		return
 	}
-	n[i].Path = path
+	(*n)[i].Path = path
 }
 
-func (n Namespaces) index(t NamespaceType) int {
-	for i, ns := range n {
+func (n *Namespaces) index(t NamespaceType) int {
+	for i, ns := range *n {
 		if ns.Type == t {
 			return i
 		}
@@ -57,7 +57,7 @@ func (n Namespaces) index(t NamespaceType) int {
 	return -1
 }
 
-func (n Namespaces) Contains(t NamespaceType) bool {
+func (n *Namespaces) Contains(t NamespaceType) bool {
 	return n.index(t) != -1
 }
 
