@@ -16,12 +16,6 @@ lxc.network.type = veth
 lxc.network.link = {{.Network.Interface.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = {{.Network.Mtu}}
-{{if .Network.Interface.IPAddress}}
-lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefixLen}}
-{{end}}
-{{if .Network.Interface.Gateway}}
-lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
-{{end}}
 lxc.network.flags = up
 {{else if .Network.HostNetworking}}
 lxc.network.type = none
@@ -86,18 +80,6 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{end}}
 {{end}}
 
-{{if .ProcessConfig.Env}}
-lxc.utsname = {{getHostname .ProcessConfig.Env}}
-{{end}}
-
-{{if .ProcessConfig.Privileged}}
-# No cap values are needed, as lxc is starting in privileged mode
-{{else}}
-{{range $value := keepCapabilities .CapAdd .CapDrop}}
-lxc.cap.keep = {{$value}}
-{{end}}
-{{end}}
-
 {{if .ProcessConfig.Privileged}}
 {{if .AppArmor}}
 lxc.aa_profile = unconfined
@@ -126,6 +108,27 @@ lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
 {{if .LxcConfig}}
 {{range $value := .LxcConfig}}
 lxc.{{$value}}
+{{end}}
+{{end}}
+
+{{if .Network.Interface}}
+{{if .Network.Interface.IPAddress}}
+lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefixLen}}
+{{end}}
+{{if .Network.Interface.Gateway}}
+lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
+{{end}}
+
+{{if .ProcessConfig.Env}}
+lxc.utsname = {{getHostname .ProcessConfig.Env}}
+{{end}}
+
+{{if .ProcessConfig.Privileged}}
+# No cap values are needed, as lxc is starting in privileged mode
+{{else}}
+{{range $value := keepCapabilities .CapAdd .CapDrop}}
+lxc.cap.keep = {{$value}}
+{{end}}
 {{end}}
 {{end}}
 `
