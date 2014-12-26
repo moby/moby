@@ -69,6 +69,7 @@ var (
 	// Rosalyn Sussman Yalow - Rosalyn Sussman Yalow was an American medical physicist, and a co-winner of the 1977 Nobel Prize in Physiology or Medicine for development of the radioimmunoassay technique. http://en.wikipedia.org/wiki/Rosalyn_Sussman_Yalow
 	// Sophie Kowalevski - Russian mathematician responsible for important original contributions to analysis, differential equations and mechanics - http://en.wikipedia.org/wiki/Sofia_Kovalevskaya
 	// Sophie Wilson designed the first Acorn Micro-Computer and the instruction set for ARM processors. http://en.wikipedia.org/wiki/Sophie_Wilson
+	// Stefan Banach - Polish mathematician, was one of the founders of modern functional analysis. http://en.wikipedia.org/wiki/Stefan_Banach
 	// Stephen Hawking pioneered the field of cosmology by combining general relativity and quantum mechanics. http://en.wikipedia.org/wiki/Stephen_Hawking
 	// Steve Wozniak invented the Apple I and Apple II. http://en.wikipedia.org/wiki/Steve_Wozniak
 	// Werner Heisenberg was a founding father of quantum mechanics. http://en.wikipedia.org/wiki/Werner_Heisenberg
@@ -77,7 +78,7 @@ var (
 	//	http://en.wikipedia.org/wiki/Walter_Houser_Brattain
 	//	http://en.wikipedia.org/wiki/William_Shockley
 	// Yeong-Sil Jang was a Korean scientist and astronomer during the Joseon Dynasty; he invented the first metal printing press and water gauge. http://en.wikipedia.org/wiki/Jang_Yeong-sil
-	right = [...]string{"albattani", "almeida", "archimedes", "ardinghelli", "babbage", "bardeen", "bartik", "bell", "blackwell", "bohr", "brattain", "brown", "carson", "colden", "cori", "curie", "darwin", "davinci", "einstein", "elion", "engelbart", "euclid", "fermat", "fermi", "feynman", "franklin", "galileo", "goldstine", "goodall", "hawking", "heisenberg", "hodgkin", "hoover", "hopper", "hypatia", "jang", "jones", "kirch", "kowalevski", "lalande", "leakey", "lovelace", "lumiere", "mayer", "mccarthy", "mcclintock", "mclean", "meitner", "mestorf", "morse", "newton", "nobel", "pare", "pasteur", "perlman", "pike", "poincare", "ptolemy", "ritchie", "rosalind", "sammet", "shockley", "sinoussi", "stallman", "tesla", "thompson", "torvalds", "turing", "wilson", "wozniak", "wright", "yalow", "yonath"}
+	right = [...]string{"albattani", "almeida", "archimedes", "ardinghelli", "babbage", "banach", "bardeen", "bartik", "bell", "blackwell", "bohr", "brattain", "brown", "carson", "colden", "cori", "curie", "darwin", "davinci", "einstein", "elion", "engelbart", "euclid", "fermat", "fermi", "feynman", "franklin", "galileo", "goldstine", "goodall", "hawking", "heisenberg", "hodgkin", "hoover", "hopper", "hypatia", "jang", "jones", "kirch", "kowalevski", "lalande", "leakey", "lovelace", "lumiere", "mayer", "mccarthy", "mcclintock", "mclean", "meitner", "mestorf", "morse", "newton", "nobel", "pare", "pasteur", "perlman", "pike", "poincare", "ptolemy", "ritchie", "rosalind", "sammet", "shockley", "sinoussi", "stallman", "tesla", "thompson", "torvalds", "turing", "wilson", "wozniak", "wright", "yalow", "yonath"}
 )
 
 func GetRandomName(retry int) string {
