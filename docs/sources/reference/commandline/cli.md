@@ -1236,6 +1236,56 @@ timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
 
+## net
+
+    Usage: docker net [SUBCOMMAND]
+
+    Manage networks
+
+    Commands:
+        create         Create a network
+        join           Add a container to a network
+        leave          Remove a container from a network
+        ls             List networks
+        rm             Remove a network
+
+The `docker net` command is the entrypoint to manage networks. A network is a
+named entity managed by a *network driver*. A containers may dynamically join
+and leave any number of networks.
+
+Invoking `docker net` without subcommand has the same effect `docker net ls`.
+
+    Usage: docker net create NAME
+
+The `docker net create` subcommand creates a new network under the specified
+name. Once created, a network may be joined by containers. The concrete effects
+of network creation entirely depend on the driver in use.
+
+    Usage: docker net rm NETWORK
+
+The `docker net rm` subcommand deletes the specified network. The concrete
+effects of network removal entirely depend on the driver managing `NETWORK`.
+
+    Usage: docker net join NETWORK CONTAINER NAME
+
+The `docker net join` subcommand makes `CONTAINER` join the network `NETWORK`
+wunder the name `NAME`. When the command succeeds, the container becomes
+reachable in the specified network under the name `NAME`. The concrete effects
+of joining a network entirely depend on the driver responsible for managing
+`NETWORK`.
+
+    Usage: docker net leave NETWORK CONTAINER
+
+The `docker net leave` subcommand removes `CONTAINER` from the network
+`NETWORK`. When the command succeeds, the name under which the container
+previously joined the network is relinquished and available for reuse. The
+concrete effets of leaving a network entirely depend on the driver reponsible
+for managing `NETWORK`.
+
+    Usage: docker net ls
+
+The `docker net ls` subcommand lists all available networks.
+
 ## port
 
     Usage: docker port CONTAINER [PRIVATE_PORT[/PROTO]]

@@ -1130,7 +1130,106 @@ Status Codes:
 -   **200** – no error
 -   **500** – server error
 
-## 2.3 Misc
+## 2.3 Networks
+
+All network related API endpoints go through the generic `/cmd` with a JSON
+payload identifying:
+
+-   The action in the `"Name"` field
+-   Optional arguments in the `"Args"` field
+-   Optional daemon job environment in the `"Env"` field
+
+### List networks
+
+**Example request**:
+
+    POST /cmd HTTP/1.1
+    Content-type: application/json
+
+    {
+       "Name": "net_ls"
+    }
+
+**Example response**:
+
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    [
+        {
+            "Name": "default0"
+        },
+        {
+            "Name": "private_network"
+        }
+    ]
+
+### Create a network
+
+**Example request**:
+
+    POST /cmd HTTP/1.1
+    Content-type: application/json
+
+    {
+       "Name": "net_create",
+       "Args": ["public_network"]
+    }
+
+**Example response**:
+
+    HTTP/1.1 200
+    Content-Type: text/plain; charset=utf-8
+
+    public_network
+
+### Delete a network
+
+**Example request**:
+
+    POST /cmd HTTP/1.1
+    Content-type: application/json
+
+    {
+       "Name": "net_rm",
+       "Args": ["public_network"]
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+
+### Join a network
+
+**Example request**:
+
+    POST /cmd HTTP/1.1
+    Content-type: application/json
+
+    {
+       "Name": "net_join",
+       "Args": ["private_network", "f37e582e3e1c", "secret_santa"]
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+
+### Leave a network
+
+    POST /cmd HTTP/1.1
+    Content-type: application/json
+
+    {
+       "Name": "net_leave",
+       "Args": ["private_network", "f37e582e3e1c"]
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+
+## 2.4 Misc
 
 ### Build an image from Dockerfile via stdin
 
