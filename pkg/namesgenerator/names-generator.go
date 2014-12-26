@@ -8,7 +8,7 @@ import (
 
 var (
 	left = [...]string{"happy", "jolly", "dreamy", "sad", "angry", "pensive", "focused", "sleepy", "grave", "distracted", "determined", "stoic", "stupefied", "sharp", "agitated", "cocky", "tender", "goofy", "furious", "desperate", "hopeful", "compassionate", "silly", "lonely", "condescending", "naughty", "kickass", "drunk", "boring", "nostalgic", "ecstatic", "insane", "cranky", "mad", "jovial", "sick", "hungry", "thirsty", "elegant", "backstabbing", "clever", "trusting", "loving", "suspicious", "berserk", "high", "romantic", "prickly", "evil", "admiring", "adoring", "reverent", "serene", "fervent", "modest", "gloomy", "elated"}
-	// Docker 0.7.x generates names from notable scientists and hackers.
+	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
 	//
 	// Ada Lovelace invented the first algorithm. http://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
 	// Ada Yonath - an Israeli crystallographer, the first woman from the Middle East to win a Nobel prize in the sciences. http://en.wikipedia.org/wiki/Ada_Yonath
