@@ -38,7 +38,7 @@ container, or image. For more information, see  the
 * The `docker cp` command now supports copying files from the filesystem of a
 container's volumes. For more information, see  the 
 [remote API reference](http://docs.docker.com/reference/api/docker_remote_api/).
-* The `docker tag` command has been fixed so that it correctly honors `--force`
+* The `docker tag` command has been fixed so that it correctly requires `--force`
 when overriding a tag for existing image. For more information, see 
 the [command line reference](http://docs.docker.com/reference/commandline/cli/#tag).
 
