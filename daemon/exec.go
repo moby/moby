@@ -311,5 +311,7 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 		}
 	}
 
+	container.execCommands.Delete(execConfig.ID)
+
 	return err
 }
