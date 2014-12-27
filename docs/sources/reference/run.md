@@ -434,6 +434,7 @@ Dockerfile instruction and how the operator can override that setting.
     #entrypoint-default-command-to-execute-at-runtime)
  - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
  - [ENV (Environment Variables)](#env-environment-variables)
+ - [ANNOTATE (Container Metadata)](#annotate-container-metadata)
  - [VOLUME (Shared Filesystems)](#volume-shared-filesystems)
  - [USER](#user)
  - [WORKDIR](#workdir)
@@ -625,6 +626,29 @@ mechanism to communicate with a linked container by its alias:
 
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
+
+## ANNOTATE (container metadata)
+
+An operator or developer can set annotation values for a
+container. These are arbitrary, namespaced metadata that can be
+reported by `docker inspect` (and unlike env entries, set at any time
+with `docker annotate`).
+
+When running the container, an operator can use the flag `-A` to give
+a value to an annotation:
+
+    $ sudo docker run -A 'docker.io/smellslike=teenspirit' ubuntu /bin/bash
+
+The value given is any JSON literal, or characters which are
+unparseable as JSON (which will be treated as a string).
+
+In a Dockerfile, annotations can be set with the `ANNOTATE`
+instruction:
+
+    ANNOTATE docker.io/smellslike teenspirit
+
+Annotation values set in `docker run` will override those given in the
+Dockerfile.
 
 ## VOLUME (shared filesystems)
 

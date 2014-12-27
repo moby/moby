@@ -379,6 +379,18 @@ change them using `docker run --env <key>=<value>`.
 > `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
 > is run interactively; for example: `docker run -t -i image bash`
 
+## ANNOTATE
+
+    ANNOTATE <key> <value>
+
+The `ANNOTATE` instruction sets an initial value for the annotation
+named `<key>`. The annotation value is not available to the container
+itself, but may be reported by `docker inspect` and overidden by
+`docker annotate`.
+
+The value should be a JSON literal; if it cannot be parsed as such, it
+will be treated as a string.
+
 ## ADD
 
     ADD <src>... <dest>
