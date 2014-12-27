@@ -351,3 +351,19 @@ func TestExecTtyWithoutStdin(t *testing.T) {
 
 	logDone("exec - forbid piped stdin to tty enabled container")
 }
+
+func TestExecParseError(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal (non-detached) case first
+	cmd := exec.Command(dockerBinary, "exec", "top")
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Usage:") {
+		t.Fatalf("Should have thrown error & given usage: %s", out)
+	}
+	logDone("exec - error on parseExec should return usage")
+}
