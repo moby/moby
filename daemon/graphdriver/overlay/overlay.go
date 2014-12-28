@@ -99,6 +99,21 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		return nil, graphdriver.ErrNotSupported
 	}
 
+	// check if they are running over btrfs
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(path.Dir(home), &buf); err != nil {
+		return nil, err
+	}
+
+	switch graphdriver.FsMagic(buf.Type) {
+	case graphdriver.FsMagicBtrfs:
+		log.Error("'overlay' is not supported over btrfs.")
+		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicAufs:
+		log.Error("'overlay' is not supported over aufs.")
+		return nil, graphdriver.ErrIncompatibleFS
+	}
+
 	// Create the driver home dir
 	if err := os.MkdirAll(home, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
