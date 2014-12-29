@@ -368,7 +368,18 @@ _docker_kill() {
 }
 
 _docker_load() {
-	return
+	case "$prev" in
+		-i|--input)
+			_filedir
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-i --input" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_login() {
@@ -516,9 +527,11 @@ _docker_run() {
 		--env-file
 		--expose
 		-h --hostname
+		--ipc
 		--link
 		--lxc-conf
 		-m --memory
+		--mac-address
 		--name
 		--net
 		-p --publish
@@ -575,6 +588,21 @@ _docker_run() {
 		-e|--env)
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			compopt -o nospace
+			return
+			;;
+		--ipc)
+			case "$cur" in
+				*:*)
+					cur="${cur#*:}"
+					__docker_containers_running
+					;;
+				*)
+					COMPREPLY=( $( compgen -W 'host container:' -- "$cur" ) )
+					if [ "$COMPREPLY" = "container:" ]; then
+						compopt -o nospace
+					fi
+					;;
+			esac
 			return
 			;;
 		--link)
@@ -644,7 +672,7 @@ _docker_run() {
 			esac
 			return
 			;;
-		--entrypoint|-h|--hostname|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf|--dns-search)
+		--entrypoint|-h|--hostname|--mac-address|-m|--memory|-u|--user|-w|--workdir|--cpuset|-c|--cpu-shares|-n|--name|-p|--publish|--expose|--dns|--lxc-conf|--dns-search)
 			return
 			;;
 	esac
@@ -664,10 +692,21 @@ _docker_run() {
 }
 
 _docker_save() {
-	local counter=$(__docker_pos_first_nonflag)
-	if [ $cword -eq $counter ]; then
-		__docker_image_repos_and_tags_and_ids
-	fi
+	case "$prev" in
+		-o|--output)
+			_filedir
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-o --output" -- "$cur" ) )
+			;;
+		*)
+			__docker_image_repos_and_tags_and_ids
+			;;
+	esac
 }
 
 _docker_search() {
