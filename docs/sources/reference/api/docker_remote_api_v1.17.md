@@ -310,6 +310,9 @@ Return low-level information on the container `id`
                      "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
                      "Volumes": {},
+                     "ExecIDs": [
+                         "15f211491dced6a353a2e0f37fe3f3692ee2370a4782418e9bf7052865c10fde"
+                     ],
                      "HostConfig": {
                          "Binds": null,
                          "ContainerIDFile": "",
