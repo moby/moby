@@ -2,7 +2,25 @@ page_title: Network Configuration
 page_description: Docker networking
 page_keywords: network, networking, bridge, docker, documentation
 
-# Network Configuration
+# Network concepts
+
+Networks are first class citizens in Docker. They can be managed independently
+from containers using the `docker net` command. Once a network is created with
+the `docker net create` command, you can have containers *join* it using the
+`docker net join` subcommand. Containers inside a given network can communicate
+with each other.
+
+A network is linked to a particular *network driver*, which takes care of
+translating user actions to specific operations, such as creating network
+interfaces or allocating range of IP.
+
+In order to provide working networking features out of the box, a default
+network `default`, managed by the default `simplebridge` driver, is creating at
+Docker start time. Newly created containers will automatically join this
+default network, either under the user provided name, or under a randomly
+generated name.
+
+# The simple bridge network driver
 
 ## TL;DR
 
