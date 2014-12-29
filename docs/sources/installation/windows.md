@@ -49,6 +49,8 @@ and the Boot2Docker management tool.
 
 ## Running Docker
 
+{{ include "no-remote-sudo.md" }}
+
 Boot2Docker will log you in automatically so you can start using Docker right away.
 
 Let's try the `hello-world` example image. Run

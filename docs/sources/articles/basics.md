@@ -37,7 +37,7 @@ image cache.
 > characters of the full image ID - which can be found using
 > `docker inspect` or `docker images --no-trunc=true`
 
-**If you're using OS X** then you shouldn't use `sudo`.
+{{ include "no-remote-sudo.md" }}
 
 ## Running an interactive shell
 

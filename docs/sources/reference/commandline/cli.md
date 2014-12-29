@@ -4,6 +4,8 @@ page_keywords: Docker, Docker documentation, CLI, command line
 
 # Command Line
 
+{{ include "no-remote-sudo.md" }}
+
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:
 
