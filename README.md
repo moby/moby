@@ -178,7 +178,7 @@ Contributing to Docker
 ======================
 
 [![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
-[![Build Status](https://ci.dockerproject.com/github.com/docker/docker/status.svg?branch=master)](https://ci.dockerproject.com/github.com/docker/docker)
+[![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! There are instructions to get you
 started [here](CONTRIBUTING.md). If you'd like to contribute to the
