@@ -102,7 +102,7 @@ LDFLAGS='
 '
 
 if [ -z "$DEBUG" ]; then
-    LDFLAGS="-w $LDFLAGS"
+	LDFLAGS="-w $LDFLAGS"
 fi
 
 LDFLAGS_STATIC='-linkmode external'
