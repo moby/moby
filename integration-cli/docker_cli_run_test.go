@@ -2520,11 +2520,11 @@ func TestRunModeIpcHost(t *testing.T) {
 
 	out2 = strings.Trim(out2, "\n")
 	if hostIpc == out2 {
-		t.Fatalf("IPC should be different without --ipc=host %s != %s\n", hostIpc, out2)
+		t.Fatalf("IPC should be different without --ipc=host %s == %s\n", hostIpc, out2)
 	}
 	deleteAllContainers()
 
-	logDone("run - hostname and several network modes")
+	logDone("run - ipc host mode")
 }
 
 func TestRunModeIpcContainer(t *testing.T) {
@@ -2562,7 +2562,7 @@ func TestRunModeIpcContainer(t *testing.T) {
 	}
 	deleteAllContainers()
 
-	logDone("run - hostname and several network modes")
+	logDone("run - ipc container mode")
 }
 
 func TestContainerNetworkMode(t *testing.T) {
@@ -2708,18 +2708,32 @@ func TestRunNonLocalMacAddress(t *testing.T) {
 
 func TestRunNetHost(t *testing.T) {
 	defer deleteAllContainers()
-	iplinkHost, err := exec.Command("ip", "link", "list").CombinedOutput()
+	hostNet, err := os.Readlink("/proc/1/ns/net")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	iplinkCont, err := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ip", "link", "list").CombinedOutput()
+	cmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "readlink", "/proc/self/ns/net")
+	out2, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err, out2)
 	}
 
-	if !bytes.Equal(iplinkHost, iplinkCont) {
-		t.Fatalf("Container network:\n%s\nis not equal to host network:\n%s", iplinkCont, iplinkHost)
+	out2 = strings.Trim(out2, "\n")
+	if hostNet != out2 {
+		t.Fatalf("Net namespace different with --net=host %s != %s\n", hostNet, out2)
 	}
-	logDone("run - host network")
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "readlink", "/proc/self/ns/net")
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostNet == out2 {
+		t.Fatalf("Net namespace should be different without --net=host %s == %s\n", hostNet, out2)
+	}
+
+	logDone("run - net host mode")
 }
