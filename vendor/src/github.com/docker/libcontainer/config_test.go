@@ -158,3 +158,15 @@ func TestSelinuxLabels(t *testing.T) {
 		t.Fatalf("expected mount label %q but received %q", label, container.MountConfig.MountLabel)
 	}
 }
+
+func TestRemoveNamespace(t *testing.T) {
+	ns := Namespaces{
+		{Type: NEWNET},
+	}
+	if !ns.Remove(NEWNET) {
+		t.Fatal("NEWNET was not removed")
+	}
+	if len(ns) != 0 {
+		t.Fatalf("namespaces should have 0 items but reports %d", len(ns))
+	}
+}

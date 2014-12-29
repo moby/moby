@@ -2705,3 +2705,21 @@ func TestRunNonLocalMacAddress(t *testing.T) {
 
 	logDone("run - use non-local mac-address")
 }
+
+func TestRunNetHost(t *testing.T) {
+	defer deleteAllContainers()
+	iplinkHost, err := exec.Command("ip", "link", "list").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iplinkCont, err := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ip", "link", "list").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(iplinkHost, iplinkCont) {
+		t.Fatalf("Container network:\n%s\nis not equal to host network:\n%s", iplinkCont, iplinkHost)
+	}
+	logDone("run - host network")
+}
