@@ -514,7 +514,7 @@ Search the Index given a search term. It accepts
 
 **Example request**:
 
-        GET /v1/search?q=search_term HTTP/1.1
+        GET /v1/search?q=search_term&page=1&n=25 HTTP/1.1
         Host: index.docker.io
         Accept: application/json
 
@@ -536,6 +536,8 @@ Search the Index given a search term. It accepts
 Query Parameters:
 
 - **q** – what you want to search for
+- **n** - number of results you want returned per page (default: 25)
+- **page** - page number of results
 
 Status Codes:
 
