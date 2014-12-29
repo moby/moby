@@ -2520,11 +2520,11 @@ func TestRunModeIpcHost(t *testing.T) {
 
 	out2 = strings.Trim(out2, "\n")
 	if hostIpc == out2 {
-		t.Fatalf("IPC should be different without --ipc=host %s != %s\n", hostIpc, out2)
+		t.Fatalf("IPC should be different without --ipc=host %s == %s\n", hostIpc, out2)
 	}
 	deleteAllContainers()
 
-	logDone("run - hostname and several network modes")
+	logDone("run - ipc host mode")
 }
 
 func TestRunModeIpcContainer(t *testing.T) {
@@ -2562,7 +2562,7 @@ func TestRunModeIpcContainer(t *testing.T) {
 	}
 	deleteAllContainers()
 
-	logDone("run - hostname and several network modes")
+	logDone("run - ipc container mode")
 }
 
 func TestContainerNetworkMode(t *testing.T) {
