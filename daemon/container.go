@@ -1055,6 +1055,7 @@ func (container *Container) initializeNetworking() error {
 		}
 		container.HostsPath = nc.HostsPath
 		container.ResolvConfPath = nc.ResolvConfPath
+		container.HostnamePath = nc.HostnamePath
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
 		return nil
