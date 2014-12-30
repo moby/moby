@@ -79,6 +79,9 @@ You can set the new container's MAC address explicitly.
 **New!**
 Volumes are now initialized when the container is created.
 
+**New!**
+You can set the new container's ID explicitly.
+
 `POST /containers/(id)/copy`
 
 **New!**

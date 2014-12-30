@@ -13,6 +13,59 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
+func TestContainerApiCreateWithId(t *testing.T) {
+	var (
+		body     []byte
+		err      error
+		fakeId   = "ab2d4b2c37227ba6c9ce9ecbf80114b5192a9c4a7dab90e8259ff6303859ff39"
+		response struct {
+			Id string
+		}
+	)
+
+	// Regular case: Create a container without specifying an ID and let the
+	// daemon generate one.
+	body, err = sockRequest("POST", "/containers/create", map[string]interface{}{"Cmd": "true"})
+	if err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatalf("POST containers sockRequest failed: %v", err)
+	}
+	if err = json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("unable to unmarshal response body: %v", err)
+	}
+	if len(response.Id) == 0 {
+		t.Fatalf("Create didn't return an Id")
+	}
+
+	// Force an ID at container creation and verify that it becomes the actual
+	// container ID.
+	body, err = sockRequest("POST", "/containers/create", map[string]interface{}{"ID": fakeId, "Cmd": "true"})
+	if err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatalf("POST containers sockRequest failed: %v", err)
+	}
+	if err = json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("unable to unmarshal response body: %v", err)
+	}
+	if response.Id != fakeId {
+		t.Fatalf("Create returned a different ID: %s", response.Id)
+	}
+
+	// Try to force an ID already being used and expect it to fail.
+	body, err = sockRequest("POST", "/containers/create", map[string]interface{}{"ID": fakeId, "Cmd": "true"})
+	if err == nil {
+		t.Fatal("Create succeeded with an already existing ID")
+	}
+
+	// Try to force an illegal ID and expect it to fail.
+	body, err = sockRequest("POST", "/containers/create", map[string]interface{}{"ID": "foobar", "Cmd": "true"})
+	if err == nil {
+		t.Fatal("Create succeeded with an illegal ID")
+	}
+
+	deleteAllContainers()
+
+	logDone("container REST API - check create container with an ID")
+}
+
 func TestContainerApiGetAll(t *testing.T) {
 	startCount, err := getContainerCount()
 	if err != nil {

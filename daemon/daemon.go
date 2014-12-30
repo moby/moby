@@ -431,11 +431,21 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 	return warnings, nil
 }
 
-func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
+func (daemon *Daemon) generateIdAndName(id, name string) (string, string, error) {
 	var (
 		err error
-		id  = utils.GenerateRandomID()
 	)
+
+	if id == "" {
+		id = utils.GenerateRandomID()
+	}
+	if err := utils.ValidateID(id); err != nil {
+		return "", "", err
+	}
+
+	if daemon.Exists(id) {
+		return "", "", fmt.Errorf("Container ID %s is already in use", id)
+	}
 
 	if name == "" {
 		if name, err = daemon.generateNewName(id); err != nil {
@@ -562,7 +572,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 		id  string
 		err error
 	)
-	id, name, err = daemon.generateIdAndName(name)
+	id, name, err = daemon.generateIdAndName(config.ID, name)
 	if err != nil {
 		return nil, err
 	}

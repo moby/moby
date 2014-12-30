@@ -195,7 +195,7 @@ func GenerateRandomID() string {
 
 func ValidateID(id string) error {
 	if ok := validHex.MatchString(id); !ok {
-		err := fmt.Errorf("image ID '%s' is invalid", id)
+		err := fmt.Errorf("ID '%s' is invalid", id)
 		return err
 	}
 	return nil
