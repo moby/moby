@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 
@@ -37,6 +38,13 @@ func getHomeDir() string {
 	return os.Getenv("HOME")
 }
 
+func getDaemonConfDir() string {
+	if runtime.GOOS == "windows" {
+		return path.Join(os.Getenv("USERPROFILE"), ".docker")
+	}
+	return "/etc/docker"
+}
+
 var (
 	flVersion     = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 	flDaemon      = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
@@ -63,6 +71,16 @@ var (
 	flHosts      []string
 )
 
+func setDefaultConfFlag(flag *string, def string) {
+	if *flag == "" {
+		if *flDaemon {
+			*flag = path.Join(getDaemonConfDir(), def)
+		} else {
+			*flag = path.Join(getHomeDir(), ".docker", def)
+		}
+	}
+}
+
 func init() {
 	dockerHome := filepath.Join(getHomeDir(), ".docker")
 
@@ -74,9 +92,9 @@ func init() {
 	}
 
 	flAuth = flag.String([]string{"-auth"}, dockerAuth, "Method used to authenticate the connection between client and daemon. Possible methods: identity, cert, none")
-	flTrustHosts = flag.String([]string{"-auth-known-hosts"}, filepath.Join(dockerHome, defaultHostKeysFile), "Path to file containing known hosts for identity auth")
-	flTrustDir = flag.String([]string{"-auth-authorized-keys"}, filepath.Join(dockerHome, defaultClientKeysDir), "Path to directory containing authorized public key files for identity auth")
-	flTrustKey = flag.String([]string{"i", "-identity"}, filepath.Join(dockerHome, defaultTrustKeyFile), "Path to libtrust key file")
+	flTrustHosts = flag.String([]string{"-auth-known-hosts"}, "", "Path to file containing known hosts for identity auth")
+	flTrustDir = flag.String([]string{"-auth-authorized-keys"}, "", "Path to directory containing authorized public key files for identity auth")
+	flTrustKey = flag.String([]string{"i", "-identity"}, "", "Path to libtrust key file")
 
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
 

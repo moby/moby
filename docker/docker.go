@@ -81,6 +81,10 @@ func main() {
 		flHosts = append(flHosts, defaultHost)
 	}
 
+	setDefaultConfFlag(flTrustHosts, defaultHostKeysFile)
+	setDefaultConfFlag(flTrustDir, defaultClientKeysDir)
+	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
+
 	if *flDaemon {
 		mainDaemon()
 		return
