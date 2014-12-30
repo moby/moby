@@ -230,6 +230,8 @@ Json Parameters:
           exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
           controls the number of times to retry before giving up.
           The default is not to restart. (optional)
+          An ever increasing delay (double the previous delay, starting at 100mS)
+          is added before each restart to prevent flooding the server.
   -   **NetworkMode** - Sets the networking mode for the container. Supported
         values are: `bridge`, `host`, and `container:<name|id>`
   -   **Devices** - A list of devices to add to the container specified in the
