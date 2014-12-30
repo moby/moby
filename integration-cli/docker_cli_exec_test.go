@@ -453,3 +453,38 @@ func TestExecCgroup(t *testing.T) {
 
 	logDone("exec - exec has the container cgroups")
 }
+
+func TestInspectExecID(t *testing.T) {
+	defer deleteAllContainers()
+
+	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "top"))
+	if exitCode != 0 || err != nil {
+		t.Fatalf("failed to run container: %s, %v", out, err)
+	}
+	id := strings.TrimSuffix(out, "\n")
+
+	out, err = inspectField(id, "ExecIDs")
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+	if out != "<no value>" {
+		t.Fatalf("ExecIDs should be empty, got: %s", out)
+	}
+
+	exitCode, err = runCommand(exec.Command(dockerBinary, "exec", "-d", id, "ls", "/"))
+	if exitCode != 0 || err != nil {
+		t.Fatalf("failed to exec in container: %s, %v", out, err)
+	}
+
+	out, err = inspectField(id, "ExecIDs")
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+
+	out = strings.TrimSuffix(out, "\n")
+	if out == "[]" || out == "<no value>" {
+		t.Fatalf("ExecIDs should not be empty, got: %s", out)
+	}
+
+	logDone("inspect - inspect a container with ExecIDs")
+}
