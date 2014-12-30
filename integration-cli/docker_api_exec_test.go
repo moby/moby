@@ -1,3 +1,5 @@
+// +build !test_no_exec
+
 package main
 
 import (
