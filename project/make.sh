@@ -95,6 +95,10 @@ if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
 fi
 
+if [ "$DOCKER_EXECDRIVER" ]; then
+	DOCKER_BUILDTAGS+=" test_execdriver_$DOCKER_EXECDRIVER"
+fi
+
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
 	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
