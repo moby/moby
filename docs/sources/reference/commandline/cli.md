@@ -1768,6 +1768,16 @@ application change:
 Using the `--restart` flag on Docker run you can specify a restart policy for
 how a container should or should not be restarted on exit.
 
+An ever increasing delay (double the previous delay, starting at 100 milliseconds)
+is added before each restart to prevent flooding the server. This means the daemaon
+will wait for 100 mS, then 200 mS, 400, 800, 1600, and so on until either the
+`on-failure` limit is hit, or when you `docker stop` or even `docker rm -f`
+the container.
+
+When a restart policy is active on a container, it will be shown in `docker ps`
+as either `Up` or `Restarting` in `docker ps`. It can also be useful to use
+`docker events` to see the restart policy in effect.
+
 ** no ** - Do not restart the container when it exits.
 
 ** on-failure ** - Restart the container only if it exits with a non zero exit status.
