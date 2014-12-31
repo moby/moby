@@ -24,6 +24,7 @@ containers that bypasses the [*Union File
 System*](/terms/layer/#union-file-system) to provide several useful features for
 persistent or shared data:
 
+- Volumes are initialized when a container is created
 - Data volumes can be shared and reused between containers
 - Changes to a data volume are made directly
 - Changes to a data volume will not be included when you update an image
@@ -32,9 +33,9 @@ persistent or shared data:
 ### Adding a data volume
 
 You can add a data volume to a container using the `-v` flag with the
-`docker run` command. You can use the `-v` multiple times in a single
-`docker run` to mount multiple data volumes. Let's mount a single volume
-now in our web application container.
+`docker create` and `docker run` command. You can use the `-v` multiple times
+to mount multiple data volumes. Let's mount a single volume now in our web
+application container.
 
     $ sudo docker run -d -P --name web -v /webapp training/webapp python app.py
 
@@ -105,8 +106,10 @@ create a named Data Volume Container, and then to mount the data from
 it.
 
 Let's create a new named container with a volume to share.
+While this container doesn't run an application, it reuses the `training/postgres`
+image so that all containers are using layers in common, saveing disk space.
 
-    $ sudo docker run -d -v /dbdata --name dbdata training/postgres echo Data-only container for postgres
+    $ sudo docker create -v /dbdata --name dbdata training/postgres
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 
