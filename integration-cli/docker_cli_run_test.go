@@ -890,62 +890,6 @@ func TestRunUnPrivilegedCanMknod(t *testing.T) {
 	logDone("run - test un-privileged can mknod")
 }
 
-func TestRunCapDropInvalid(t *testing.T) {
-	defer deleteAllContainers()
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=CHPASS", "busybox", "ls")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatal(err, out)
-	}
-
-	logDone("run - test --cap-drop=CHPASS invalid")
-}
-
-func TestRunCapDropCannotMknod(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatal(err, out)
-	}
-
-	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
-		t.Fatalf("expected output not ok received %s", actual)
-	}
-	deleteAllContainers()
-
-	logDone("run - test --cap-drop=MKNOD cannot mknod")
-}
-
-func TestRunCapDropCannotMknodLowerCase(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=mknod", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatal(err, out)
-	}
-
-	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
-		t.Fatalf("expected output not ok received %s", actual)
-	}
-	deleteAllContainers()
-
-	logDone("run - test --cap-drop=mknod cannot mknod lowercase")
-}
-
-func TestRunCapDropALLCannotMknod(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatal(err, out)
-	}
-
-	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
-		t.Fatalf("expected output not ok received %s", actual)
-	}
-	deleteAllContainers()
-
-	logDone("run - test --cap-drop=ALL cannot mknod")
-}
-
 func TestRunCapDropALLAddMknodCannotMknod(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
@@ -961,18 +905,6 @@ func TestRunCapDropALLAddMknodCannotMknod(t *testing.T) {
 	logDone("run - test --cap-drop=ALL --cap-add=MKNOD can mknod")
 }
 
-func TestRunCapAddInvalid(t *testing.T) {
-	defer deleteAllContainers()
-
-	cmd := exec.Command(dockerBinary, "run", "--cap-add=CHPASS", "busybox", "ls")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatal(err, out)
-	}
-
-	logDone("run - test --cap-add=CHPASS invalid")
-}
-
 func TestRunCapAddCanDownInterface(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--cap-add=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
@@ -986,21 +918,6 @@ func TestRunCapAddCanDownInterface(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - test --cap-add=NET_ADMIN can set eth0 down")
-}
-
-func TestRunCapAddALLCanDownInterface(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-add=ALL", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatal(err, out)
-	}
-
-	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
-		t.Fatalf("expected output ok received %s", actual)
-	}
-	deleteAllContainers()
-
-	logDone("run - test --cap-add=ALL can set eth0 down")
 }
 
 func TestRunCapAddALLDropNetAdminCanDownInterface(t *testing.T) {
@@ -1034,33 +951,6 @@ func TestRunPrivilegedCanMount(t *testing.T) {
 	logDone("run - test privileged can mount")
 }
 
-func TestRunUnPrivilegedCannotMount(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
-
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil {
-		t.Fatal(err, out)
-	}
-
-	if actual := strings.Trim(out, "\r\n"); actual == "ok" {
-		t.Fatalf("expected output not ok received %s", actual)
-	}
-	deleteAllContainers()
-
-	logDone("run - test un-privileged cannot mount")
-}
-
-func TestRunSysNotWritableInNonPrivilegedContainers(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", "/sys/kernel/profiling")
-	if code, err := runCommand(cmd); err == nil || code == 0 {
-		t.Fatal("sys should not be writable in a non privileged container")
-	}
-
-	deleteAllContainers()
-
-	logDone("run - sys not writable in non privileged container")
-}
-
 func TestRunSysWritableInPrivilegedContainers(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "touch", "/sys/kernel/profiling")
 	if code, err := runCommand(cmd); err != nil || code != 0 {
@@ -1070,17 +960,6 @@ func TestRunSysWritableInPrivilegedContainers(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - sys writable in privileged container")
-}
-
-func TestRunProcNotWritableInNonPrivilegedContainers(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", "/proc/sysrq-trigger")
-	if code, err := runCommand(cmd); err == nil || code == 0 {
-		t.Fatal("proc should not be writable in a non privileged container")
-	}
-
-	deleteAllContainers()
-
-	logDone("run - proc not writable in non privileged container")
 }
 
 func TestRunProcWritableInPrivilegedContainers(t *testing.T) {
@@ -2692,18 +2571,6 @@ func TestRunTtyWithPipe(t *testing.T) {
 	}
 
 	logDone("run - forbid piped stdin with tty")
-}
-
-func TestRunNonLocalMacAddress(t *testing.T) {
-	defer deleteAllContainers()
-	addr := "00:16:3E:08:00:50"
-
-	cmd := exec.Command(dockerBinary, "run", "--mac-address", addr, "busybox", "ifconfig")
-	if out, _, err := runCommandWithOutput(cmd); err != nil || !strings.Contains(out, addr) {
-		t.Fatalf("Output should have contained %q: %s, %v", addr, out, err)
-	}
-
-	logDone("run - use non-local mac-address")
 }
 
 func TestRunNetHost(t *testing.T) {

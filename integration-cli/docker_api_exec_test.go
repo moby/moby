@@ -1,3 +1,5 @@
+// +build !test_execdriver_lxc
+
 package main
 
 import (
