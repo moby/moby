@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,10 +9,12 @@ import (
 	"io/ioutil"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/libtrust"
 )
 
 func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
@@ -49,11 +52,15 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 		Tag:           tag,
 		SchemaVersion: 1,
 	}
-	localRepo, exists := s.Repositories[localName]
-	if !exists {
+	localRepo, err := s.Get(localName)
+	if err != nil {
+		return nil, err
+	}
+	if localRepo == nil {
 		return nil, fmt.Errorf("Repo does not exist: %s", localName)
 	}
 
+	// Get the top-most layer id which the tag points to
 	layerId, exists := localRepo[tag]
 	if !exists {
 		return nil, fmt.Errorf("Tag does not exist for %s: %s", localName, tag)
@@ -102,7 +109,6 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 		}
 
 		tarId := tarSum.Sum(nil)
-		// Save tarsum to image json
 
 		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: tarId})
 
@@ -120,4 +126,71 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 	}
 
 	return manifestBytes, nil
+}
+
+func (s *TagStore) verifyManifest(eng *engine.Engine, manifestBytes []byte) (*registry.ManifestData, bool, error) {
+	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
+	if err != nil {
+		return nil, false, fmt.Errorf("error parsing payload: %s", err)
+	}
+
+	keys, err := sig.Verify()
+	if err != nil {
+		return nil, false, fmt.Errorf("error verifying payload: %s", err)
+	}
+
+	payload, err := sig.Payload()
+	if err != nil {
+		return nil, false, fmt.Errorf("error retrieving payload: %s", err)
+	}
+
+	var manifest registry.ManifestData
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		return nil, false, fmt.Errorf("error unmarshalling manifest: %s", err)
+	}
+	if manifest.SchemaVersion != 1 {
+		return nil, false, fmt.Errorf("unsupported schema version: %d", manifest.SchemaVersion)
+	}
+
+	var verified bool
+	for _, key := range keys {
+		job := eng.Job("trust_key_check")
+		b, err := key.MarshalJSON()
+		if err != nil {
+			return nil, false, fmt.Errorf("error marshalling public key: %s", err)
+		}
+		namespace := manifest.Name
+		if namespace[0] != '/' {
+			namespace = "/" + namespace
+		}
+		stdoutBuffer := bytes.NewBuffer(nil)
+
+		job.Args = append(job.Args, namespace)
+		job.Setenv("PublicKey", string(b))
+		// Check key has read/write permission (0x03)
+		job.SetenvInt("Permission", 0x03)
+		job.Stdout.Add(stdoutBuffer)
+		if err = job.Run(); err != nil {
+			return nil, false, fmt.Errorf("error running key check: %s", err)
+		}
+		result := engine.Tail(stdoutBuffer, 1)
+		log.Debugf("Key check result: %q", result)
+		if result == "verified" {
+			verified = true
+		}
+	}
+
+	return &manifest, verified, nil
+}
+
+func checkValidManifest(manifest *registry.ManifestData) error {
+	if len(manifest.FSLayers) != len(manifest.History) {
+		return fmt.Errorf("length of history not equal to number of layers")
+	}
+
+	if len(manifest.FSLayers) == 0 {
+		return fmt.Errorf("no FSLayers in manifest")
+	}
+
+	return nil
 }

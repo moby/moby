@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -16,7 +15,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 )
 
 const (
@@ -79,21 +77,9 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
-	err := os.MkdirAll(path.Dir(*flTrustKey), 0700)
+	trustKey, err := api.LoadOrCreateTrustKey(*flTrustKey)
 	if err != nil {
 		log.Fatal(err)
-	}
-	trustKey, err := libtrust.LoadKeyFile(*flTrustKey)
-	if err == libtrust.ErrKeyFileDoesNotExist {
-		trustKey, err = libtrust.GenerateECP256PrivateKey()
-		if err != nil {
-			log.Fatalf("Error generating key: %s", err)
-		}
-		if err := libtrust.SaveKey(*flTrustKey, trustKey); err != nil {
-			log.Fatalf("Error saving key file: %s", err)
-		}
-	} else if err != nil {
-		log.Fatalf("Error loading key file: %s", err)
 	}
 
 	var (

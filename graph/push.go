@@ -311,14 +311,13 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 			// TODO Create manifest and sign
 		}
 
-		// try via manifest
 		manifest, verified, err := s.verifyManifest(job.Eng, []byte(manifestBytes))
 		if err != nil {
 			return job.Errorf("error verifying manifest: %s", err)
 		}
 
-		if len(manifest.FSLayers) != len(manifest.History) {
-			return job.Errorf("length of history not equal to number of layers")
+		if err := checkValidManifest(manifest); err != nil {
+			return job.Errorf("invalid manifest: %s", err)
 		}
 
 		if !verified {
@@ -336,11 +335,6 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 				return job.Errorf("Invalid checksum: %s", sumStr)
 			}
 			manifestSum := sumParts[1]
-
-			// for each layer, check if it exists ...
-			// XXX wait this requires having the TarSum of the layer.tar first
-			// skip this step for now. Just push the layer every time for this naive implementation
-			//shouldPush, err := r.PostV2ImageMountBlob(imageName, sumType, sum string, token []string)
 
 			img, err := image.NewImgJSON(imgJSON)
 			if err != nil {

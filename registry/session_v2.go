@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
@@ -223,7 +222,7 @@ func (r *Session) PutV2ImageBlob(imageName, sumType, sumStr string, blobRdr io.R
 	if err != nil {
 		return err
 	}
-	queryParams := url.Values{}
+	queryParams := req.URL.Query()
 	queryParams.Add("digest", sumType+":"+sumStr)
 	req.URL.RawQuery = queryParams.Encode()
 	if err := auth.Authorize(req); err != nil {
