@@ -213,7 +213,7 @@ license text.
 Other Docker Related Projects
 =============================
 There are a number of projects under development that are based on Docker's
-core technology. These projects seek to expand the tooling built around the
+core technology. These projects expand the tooling built around the
 Docker platform to broaden its application and utility. 
 
 If you know of another project underway that should be listed here, please help
@@ -225,6 +225,6 @@ server for Docker (hosting/delivering of repositories and images)
 for a container-centric world 
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
 system 
-* [Docker Compose](https://github.com/docker/docker/issues/9694): 
+* [Docker Compose, aka Fig](https://github.com/docker/fig): 
 Multi-container application management
 
