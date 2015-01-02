@@ -898,7 +898,7 @@ This will create a new Bash session in the container `ubuntu_bash`.
 
     Usage: docker export [OPTIONS] CONTAINER
 
-    Export a container to a tar archive (streamed to STDOUT by default)
+    Export the contents of a filesystem to a tar archive (streamed to STDOUT by default)
 
       -o, --output=""    Write to a file, instead of STDOUT
 
@@ -907,9 +907,9 @@ This will create a new Bash session in the container `ubuntu_bash`.
    For example:
 
     $ sudo docker export red_panda > latest.tar
-   
+
    Or
-   
+
     $ sudo docker export --output="latest.tar" red_panda
 
 ## history
