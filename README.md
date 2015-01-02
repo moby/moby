@@ -213,7 +213,7 @@ license text.
 Other Docker Related Projects
 =============================
 There are a number of projects under development that are based on Docker's
-core technology. These projects seek to expand the tooling built around the
+core technology. These projects expand the tooling built around the
 Docker platform to broaden its application and utility. 
 
 If you know of another project underway that should be listed here, please help
