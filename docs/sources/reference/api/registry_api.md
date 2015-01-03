@@ -518,26 +518,37 @@ Search the Index given a search term. It accepts
         Host: index.docker.io
         Accept: application/json
 
+Query Parameters:
+
+- **q** – what you want to search for
+- **n** - number of results you want returned per page (default: 25, min:1, max:100)
+- **page** - page number of results
+
 **Example response**:
 
         HTTP/1.1 200 OK
         Vary: Accept
         Content-Type: application/json
 
-        {"query":"search_term",
+        {"num_pages": 1,
           "num_results": 3,
           "results" : [
              {"name": "ubuntu", "description": "An ubuntu image..."},
              {"name": "centos", "description": "A centos image..."},
              {"name": "fedora", "description": "A fedora image..."}
-           ]
+           ],
+          "page_size": 25,
+          "query":"search_term",
+          "page": 1
          }
 
-Query Parameters:
-
-- **q** – what you want to search for
-- **n** - number of results you want returned per page (default: 25)
-- **page** - page number of results
+Response Items:
+- **num_pages** - Total number of pages returned by query
+- **num_results** - Total number of results returned by query
+- **results** - List of results for the current page
+- **page_size** - How many results returned per page
+- **query** - Your search term
+- **page** - Current page number
 
 Status Codes:
 
