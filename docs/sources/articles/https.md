@@ -26,10 +26,8 @@ it will only connect to servers with a certificate signed by that CA.
 
 ## Create a CA, server and client keys with OpenSSL
 
-First, initialize the CA serial file and generate CA private and public
-keys:
+First generate CA private and public keys:
 
-    $ echo 01 > ca.srl
     $ openssl genrsa -aes256 -out ca-key.pem 2048
     Generating RSA private key, 2048 bit long modulus
     ......+++
@@ -68,7 +66,7 @@ name) matches the hostname you will use to connect to Docker:
 Next, we're going to sign the key with our CA:
 
     $ openssl x509 -req -days 365 -in server.csr -CA ca.pem -CAkey ca-key.pem \
-      -out server-cert.pem
+      -CAcreateserial -out server-cert.pem
     Signature ok
     subject=/CN=your.host.com
     Getting CA Private Key
@@ -92,7 +90,7 @@ config file:
 Now sign the key:
 
     $ openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem \
-      -out cert.pem -extfile extfile.cnf
+      -CAcreateserial -out cert.pem -extfile extfile.cnf
     Signature ok
     subject=/CN=client
     Getting CA Private Key
