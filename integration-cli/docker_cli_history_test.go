@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -81,4 +82,50 @@ func TestHistoryNonExistentImage(t *testing.T) {
 		t.Fatal("history on a non-existent image didn't result in a non-zero exit status")
 	}
 	logDone("history - history on non-existent image must pass")
+}
+
+func TestHistoryImageWithComment(t *testing.T) {
+
+	// make a image through docker commit <container id> [ -m messages ]
+	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %s, %v", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+
+	waitCmd := exec.Command(dockerBinary, "wait", cleanedContainerID)
+	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("error thrown while waiting for container: %s, %v", out, err)
+	}
+
+	commitCmd := exec.Command(dockerBinary, "commit", "-m=This is a comment", cleanedContainerID)
+	out, _, err = runCommandWithOutput(commitCmd)
+	if err != nil {
+		t.Fatalf("failed to commit container to image: %s, %v", out, err)
+	}
+
+	cleanedImageID := stripTrailingCharacters(out)
+	deleteContainer(cleanedContainerID)
+	defer deleteImages(cleanedImageID)
+
+	// test docker history <image id> to check comment messages
+	historyCmd := exec.Command(dockerBinary, "history", cleanedImageID)
+	out, exitCode, err := runCommandWithOutput(historyCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to get image history: %s, %v", out, err)
+	}
+
+	expectedValue := "This is a comment"
+
+	outputLine := strings.Split(out, "\n")[1]
+	outputTabs := regexp.MustCompile("  +").Split(outputLine, -1)
+	actualValue := outputTabs[len(outputTabs)-1]
+
+	if !strings.Contains(actualValue, expectedValue) {
+		t.Fatalf("Expected comments \"%s\", but found \"%s\"", expectedValue, actualValue)
+	}
+
+	logDone("history - history on image with comment")
 }
