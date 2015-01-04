@@ -98,7 +98,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
 
-	var imageCache *ImageCache
+	var imageCache *imageCache
 	if !noCache {
 		images, err := b.Daemon.Graph().Map()
 		if err != nil {
