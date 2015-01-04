@@ -27,11 +27,6 @@ func newImageCache(images map[string]*image.Image) *imageCache {
 	}
 }
 
-func (cache *imageCache) Dispose() {
-	cache.images = nil
-	cache.children = nil
-}
-
 func (cache *imageCache) Get(parentID string, config *runconfig.Config) (*image.Image, error) {
 	// Loop on the children of the given image and check the config
 	var match *image.Image

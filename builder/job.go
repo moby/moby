@@ -105,7 +105,6 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		imageCache = newImageCache(images)
-		defer imageCache.Dispose()
 	}
 
 	builder := &Builder{
