@@ -30,14 +30,14 @@ First, initialize the CA serial file and generate CA private and public
 keys:
 
     $ echo 01 > ca.srl
-    $ openssl genrsa -des3 -out ca-key.pem 2048
+    $ openssl genrsa -aes256 -out ca-key.pem 2048
     Generating RSA private key, 2048 bit long modulus
     ......+++
     ...............+++
     e is 65537 (0x10001)
     Enter pass phrase for ca-key.pem:
     Verifying - Enter pass phrase for ca-key.pem:
-    $ openssl req -new -x509 -days 365 -key ca-key.pem -out ca.pem
+    $ openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
     Enter pass phrase for ca-key.pem:
      You are about to be asked to enter information that will be incorporated
      into your certificate request.
