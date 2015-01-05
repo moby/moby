@@ -167,4 +167,7 @@ location using the environment variable `DOCKER_CERT_PATH`.
 To use `curl` to make test API requests, you need to use three extra command line
 flags:
 
-    $ curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
+    $ curl https://boot2docker:2376/images/json \
+      --cert ~/.docker/cert.pem \
+      --key ~/.docker/key.pem \
+      --cacert ~/.docker/ca.pem
