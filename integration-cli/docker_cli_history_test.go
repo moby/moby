@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
-	"regexp"
 )
 
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
@@ -84,7 +84,6 @@ func TestHistoryNonExistentImage(t *testing.T) {
 	logDone("history - history on non-existent image must fail")
 }
 
-
 func TestHistoryImageWithComment(t *testing.T) {
 
 	// make a image through docker commit <container id> [ -m messages ]
@@ -118,15 +117,15 @@ func TestHistoryImageWithComment(t *testing.T) {
 	if err != nil || exitCode != 0 {
 		t.Fatalf("failed to get image history: %s, %v", out, err)
 	}
-	
+
 	expectedValue := "This is a comment"
 
 	outputLine := strings.Split(out, "\n")[1]
 	outputTabs := regexp.MustCompile("  +").Split(outputLine, -1)
-	actualValue := outputTabs[len(outputTabs) - 1]
-	
+	actualValue := outputTabs[len(outputTabs)-1]
+
 	if strings.Contains(actualValue, expectedValue) {
-		
+
 		logDone("history - history on image with comment")
 		return
 	}
