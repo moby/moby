@@ -230,6 +230,8 @@ Json Parameters:
           exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
           controls the number of times to retry before giving up.
           The default is not to restart. (optional)
+          An ever increasing delay (double the previous delay, starting at 100mS)
+          is added before each restart to prevent flooding the server.
   -   **NetworkMode** - Sets the networking mode for the container. Supported
         values are: `bridge`, `host`, and `container:<name|id>`
   -   **Devices** - A list of devices to add to the container specified in the
@@ -310,6 +312,9 @@ Return low-level information on the container `id`
                      "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
                      "ResolvConfPath": "/etc/resolv.conf",
                      "Volumes": {},
+                     "ExecIDs": [
+                         "15f211491dced6a353a2e0f37fe3f3692ee2370a4782418e9bf7052865c10fde"
+                     ],
                      "HostConfig": {
                          "Binds": null,
                          "ContainerIDFile": "",
@@ -1375,7 +1380,7 @@ polling (using since).
 
 Docker containers will report the following events:
 
-    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+    create, destroy, die, exec_create, exec_start, export, kill, oom, pause, restart, start, stop, unpause
 
 and Docker images will report:
 

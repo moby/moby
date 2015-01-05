@@ -190,7 +190,7 @@ func isSecure(hostname string, insecureRegistries []string) (bool, error) {
 	}
 
 	for _, r := range insecureRegistries {
-		if hostname == r || host == r {
+		if hostname == r {
 			// hostname matches insecure registry
 			return false, nil
 		}

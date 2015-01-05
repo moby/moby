@@ -350,7 +350,8 @@ func TestIsSecure(t *testing.T) {
 		{"42.42.42.42:5000", []string{"42.1.1.1/8"}, false},
 		{"invalid.domain.com", []string{"42.42.0.0/16"}, true},
 		{"invalid.domain.com", []string{"invalid.domain.com"}, false},
-		{"invalid.domain.com:5000", []string{"invalid.domain.com"}, false},
+		{"invalid.domain.com:5000", []string{"invalid.domain.com"}, true},
+		{"invalid.domain.com:5000", []string{"invalid.domain.com:5000"}, false},
 	}
 	for _, tt := range tests {
 		// TODO: remove this once we remove localhost insecure by default

@@ -97,6 +97,10 @@ func FinalizeSetns(container *libcontainer.Config, args []string) error {
 		return err
 	}
 
+	if err := setupRlimits(container); err != nil {
+		return fmt.Errorf("setup rlimits %s", err)
+	}
+
 	if err := FinalizeNamespace(container); err != nil {
 		return err
 	}

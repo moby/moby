@@ -2589,6 +2589,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 
 	execConfig, err := runconfig.ParseExec(cmd, args)
 	if err != nil {
+		cmd.Usage()
 		return err
 	}
 	if execConfig.Container == "" {

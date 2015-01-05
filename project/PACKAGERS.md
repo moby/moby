@@ -44,12 +44,12 @@ need to package Docker your way, without denaturing it in the process.
 
 To build Docker, you will need the following:
 
-* A recent version of git and mercurial
+* A recent version of Git and Mercurial
 * Go version 1.3 or later
 * A clean checkout of the source added to a valid [Go
   workspace](http://golang.org/doc/code.html#Workspaces) under the path
   *src/github.com/docker/docker* (unless you plan to use `AUTO_GOPATH`,
-  explained in more detail below).
+  explained in more detail below)
 
 To build the Docker daemon, you will additionally need:
 
@@ -57,8 +57,9 @@ To build the Docker daemon, you will additionally need:
 * SQLite version 3.7.9 or later
 * libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version
   2.02.89 or later
-* btrfs-progs version 3.8 or later (including commit e5cb128 from 2013-01-07)
-  for the necessary btrfs headers
+* btrfs-progs version 3.16.1 or later (unless using an older version is
+  absolutely necessary, in which case 3.8 is the minimum and the note below
+  regarding `btrfs_noversion` applies)
 
 Be sure to also check out Docker's Dockerfile for the most up-to-date list of
 these build-time dependencies.
@@ -162,7 +163,7 @@ SELinux, you will need to use the `selinux` build tag:
 export DOCKER_BUILDTAGS='selinux'
 ```
 
-If your version of btrfs-progs is < 3.16.1 (also called btrfs-tools), then you
+If your version of btrfs-progs (also called btrfs-tools) is < 3.16.1, then you
 will need the following tag to not check for btrfs version headers:
 ```bash
 export DOCKER_BUILDTAGS='btrfs_noversion'

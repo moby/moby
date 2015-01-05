@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/docker/libcontainer"
 )
 
 func TestExecPS(t *testing.T) {
@@ -55,7 +57,6 @@ func TestIPCPrivate(t *testing.T) {
 	}
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = true
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +88,7 @@ func TestIPCHost(t *testing.T) {
 	}
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = false
+	config.Namespaces.Remove(libcontainer.NEWIPC)
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
 	if err != nil {
 		t.Fatal(err)
@@ -119,8 +120,7 @@ func TestIPCJoinPath(t *testing.T) {
 	}
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = false
-	config.IpcNsPath = "/proc/1/ns/ipc"
+	config.Namespaces.Add(libcontainer.NEWIPC, "/proc/1/ns/ipc")
 
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
 	if err != nil {
@@ -148,8 +148,7 @@ func TestIPCBadPath(t *testing.T) {
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
-	config.Namespaces["NEWIPC"] = false
-	config.IpcNsPath = "/proc/1/ns/ipcc"
+	config.Namespaces.Add(libcontainer.NEWIPC, "/proc/1/ns/ipcc")
 
 	_, _, err = runContainer(config, "", "true")
 	if err == nil {

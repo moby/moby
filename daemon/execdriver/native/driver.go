@@ -61,10 +61,6 @@ func NewDriver(root, initPath string) (*driver, error) {
 	}, nil
 }
 
-func (d *driver) notifyOnOOM(config *libcontainer.Config) (<-chan struct{}, error) {
-	return fs.NotifyOnOOM(config.Cgroups)
-}
-
 type execOutput struct {
 	exitCode int
 	err      error
@@ -152,11 +148,16 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	oomKill := false
-	oomKillNotification, err := d.notifyOnOOM(container)
+	state, err := libcontainer.GetState(filepath.Join(d.root, c.ID))
 	if err == nil {
-		_, oomKill = <-oomKillNotification
+		oomKillNotification, err := libcontainer.NotifyOnOOM(state)
+		if err == nil {
+			_, oomKill = <-oomKillNotification
+		} else {
+			log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+		}
 	} else {
-		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+		log.Warnf("Failed to get container state, oom notify will not work: %s", err)
 	}
 	// wait for the container to exit.
 	execOutput := <-execOutputChan

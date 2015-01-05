@@ -154,6 +154,9 @@ func (m *containerMonitor) Start() error {
 
 		if m.shouldRestart(exitStatus.ExitCode) {
 			m.container.SetRestarting(&exitStatus)
+			if exitStatus.OOMKilled {
+				m.container.LogEvent("oom")
+			}
 			m.container.LogEvent("die")
 			m.resetContainer(true)
 
@@ -170,6 +173,9 @@ func (m *containerMonitor) Start() error {
 			continue
 		}
 		m.container.ExitCode = exitStatus.ExitCode
+		if exitStatus.OOMKilled {
+			m.container.LogEvent("oom")
+		}
 		m.container.LogEvent("die")
 		m.resetContainer(true)
 		return err

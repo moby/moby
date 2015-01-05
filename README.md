@@ -178,7 +178,7 @@ Contributing to Docker
 ======================
 
 [![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
-[![Build Status](https://ci.dockerproject.com/github.com/docker/docker/status.svg?branch=master)](https://ci.dockerproject.com/github.com/docker/docker)
+[![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! There are instructions to get you
 started [here](CONTRIBUTING.md). If you'd like to contribute to the
@@ -209,4 +209,20 @@ Licensing
 Docker is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://github.com/docker/docker/blob/master/LICENSE) for the full
 license text.
+
+Other Docker Related Projects
+=============================
+
+There are a number of projects under development that are based on Docker's
+core technology. These projects expand the tooling built around the
+Docker platform to broaden its application and utility.
+
+* [Docker Registry](https://github.com/docker/docker-registry): Registry 
+server for Docker (hosting/delivering of repositories and images) 
+* [Docker Machine](https://github.com/docker/machine): Machine management 
+for a container-centric world 
+* [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
+system 
+* [Docker Compose, aka Fig](https://github.com/docker/fig): 
+Multi-container application management
 

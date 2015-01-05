@@ -351,3 +351,44 @@ func TestExecTtyWithoutStdin(t *testing.T) {
 
 	logDone("exec - forbid piped stdin to tty enabled container")
 }
+
+func TestExecParseError(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal (non-detached) case first
+	cmd := exec.Command(dockerBinary, "exec", "top")
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Usage:") {
+		t.Fatalf("Should have thrown error & given usage: %s", out)
+	}
+	logDone("exec - error on parseExec should return usage")
+}
+
+func TestExecStopNotHanging(t *testing.T) {
+	defer deleteAllContainers()
+	if out, err := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top").CombinedOutput(); err != nil {
+		t.Fatal(out, err)
+	}
+
+	if err := exec.Command(dockerBinary, "exec", "testing", "top").Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	wait := make(chan struct{})
+	go func() {
+		if out, err := exec.Command(dockerBinary, "stop", "testing").CombinedOutput(); err != nil {
+			t.Fatal(out, err)
+		}
+		close(wait)
+	}()
+	select {
+	case <-time.After(3 * time.Second):
+		t.Fatal("Container stop timed out")
+	case <-wait:
+	}
+	logDone("exec - container with exec not hanging on stop")
+}

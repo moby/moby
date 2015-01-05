@@ -192,7 +192,7 @@ Now we have a container with the change we want to make. We can then
 commit a copy of this container to an image using the `docker commit`
 command.
 
-    $ sudo docker commit -m="Added json gem" -a="Kate Smith" \
+    $ sudo docker commit -m "Added json gem" -a "Kate Smith" \
     0b2616b0e5a8 ouruser/sinatra:v2
     4f177bd27a9ff0f6dc2a830403925b5360bfe0b93d476f7fc3231110e7f71b1c
 
@@ -273,7 +273,7 @@ Sinatra gem.
 
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
-    $ sudo docker build -t="ouruser/sinatra:v2" .
+    $ sudo docker build -t ouruser/sinatra:v2 .
     Sending build context to Docker daemon 2.048 kB
     Sending build context to Docker daemon 
     Step 0 : FROM ubuntu:14.04
