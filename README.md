@@ -213,9 +213,9 @@ license text.
 Other Docker Related Projects
 =============================
 
-Leveraging Docker as the core technology for managing Linux containers on a 
-single host, the following projects are also under development to provide a 
-more comprehensive set of tooling to help round out the Docker platform:
+There are a number of projects under development that are based on Docker's
+core technology. These projects expand the tooling built around the
+Docker platform to broaden its application and utility.
 
 * [Docker Registry](https://github.com/docker/docker-registry): Registry 
 server for Docker (hosting/delivering of repositories and images) 
@@ -223,6 +223,6 @@ server for Docker (hosting/delivering of repositories and images)
 for a container-centric world 
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
 system 
-* [Docker Compose](https://github.com/docker/docker/issues/9694): 
+* [Docker Compose, aka Fig](https://github.com/docker/fig): 
 Multi-container application management
 
