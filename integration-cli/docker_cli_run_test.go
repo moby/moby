@@ -2737,3 +2737,27 @@ func TestRunNetHost(t *testing.T) {
 
 	logDone("run - net host mode")
 }
+
+func TestRunAllowPortRangeThroughPublish(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--expose", "3000-3003", "-p", "3000-3003", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	defer deleteAllContainers()
+
+	id := strings.TrimSpace(out)
+	portstr, err := inspectFieldJSON(id, "NetworkSettings.Ports")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ports nat.PortMap
+	err = unmarshalJSON([]byte(portstr), &ports)
+	for port, binding := range ports {
+		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
+		if portnum < 3000 || portnum > 3003 {
+			t.Fatalf("Port is out of range ", portnum, binding, out)
+		}
+		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
+			t.Fatal("Port is not mapped for the port "+port, out)
+		}
+	}
+	logDone("run - allow port range through --expose flag")
+}
