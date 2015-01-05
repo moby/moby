@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -125,18 +127,37 @@ func New(root string, options []string) (driver Driver, err error) {
 			}
 			return nil, err
 		}
+		checkPriorDriver(name, root)
 		return driver, nil
 	}
 
 	// Check all registered drivers if no priority driver is found
-	for _, initFunc := range drivers {
+	for name, initFunc := range drivers {
 		if driver, err = initFunc(root, options); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
 			}
 			return nil, err
 		}
+		checkPriorDriver(name, root)
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
+}
+
+func checkPriorDriver(name string, root string) error {
+
+	var priorDrivers []string
+
+	for prior := range drivers {
+		if _, err := os.Stat(path.Join(root, prior)); err == nil && prior != name {
+			priorDrivers = append(priorDrivers, prior)
+		}
+	}
+
+	if len(priorDrivers) > 0 {
+		log.Warnf("graphdriver %s selected. Warning: your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
+	}
+
+	return nil
 }
