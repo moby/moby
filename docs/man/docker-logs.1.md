@@ -6,6 +6,7 @@ docker-logs - Fetch the logs of a container
 
 # SYNOPSIS
 **docker logs**
+[**-r**|**--filter**]
 [**-f**|**--follow**[=*false*]]
 [**-t**|**--timestamps**[=*false*]]
 [**--tail**[=*"all"*]]
@@ -22,6 +23,11 @@ The **docker logs --follow** command combines commands **docker logs** and
 then continue streaming new output from the container’s stdout and stderr.
 
 # OPTIONS
+
+**-r**, **--filter=[]**    Provide filter values. Valid filters:
+                           since=*"yyyy-mm-dd hh:mm"*|*yyyy-mm-dd*|*hh:mm* - Show logs since
+                           before=*"yyyy-mm-dd hh:mm"*|*yyyy-mm-dd*|*hh:mm* - Show logs before
+
 **-f**, **--follow**=*true*|*false*
    Follow log output. The default is *false*.
 

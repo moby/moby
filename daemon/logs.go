@@ -8,10 +8,13 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/pkg/timeutils"
 )
@@ -22,17 +25,37 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 
 	var (
-		name   = job.Args[0]
-		stdout = job.GetenvBool("stdout")
-		stderr = job.GetenvBool("stderr")
-		tail   = job.Getenv("tail")
-		follow = job.GetenvBool("follow")
-		times  = job.GetenvBool("timestamps")
-		lines  = -1
-		format string
+		name       = job.Args[0]
+		stdout     = job.GetenvBool("stdout")
+		stderr     = job.GetenvBool("stderr")
+		tail       = job.Getenv("tail")
+		follow     = job.GetenvBool("follow")
+		times      = job.GetenvBool("timestamps")
+		lines      = -1
+		format     string
+		sinceDate  time.Time
+		beforeDate time.Time
 	)
 	if !(stdout || stderr) {
 		return job.Errorf("You must choose at least one stream")
+	}
+	filters, err := filters.FromParam(job.Getenv("filters"))
+	if err != nil {
+		return job.Error(err)
+	}
+	if since, ok := filters["since"]; ok {
+		var err error
+		sinceDate, err = parsers.ParseFilterDate(since[0])
+		if err != nil {
+			return job.Errorf("Error parsing since: %s", err)
+		}
+	}
+	if before, ok := filters["before"]; ok {
+		var err error
+		beforeDate, err = parsers.ParseFilterDate(before[0])
+		if err != nil {
+			return job.Errorf("Error parsing before: %s", err)
+		}
 	}
 	if times {
 		format = timeutils.RFC3339NanoFixed
@@ -96,6 +119,12 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 				} else if err != nil {
 					log.Errorf("Error streaming logs: %s", err)
 					break
+				}
+				if !beforeDate.IsZero() && l.Created.After(beforeDate) {
+					continue
+				}
+				if !sinceDate.IsZero() && l.Created.Before(sinceDate) {
+					continue
 				}
 				logLine := l.Log
 				if times {

@@ -36,7 +36,6 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
@@ -1804,42 +1803,34 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	}
 	var (
 		v               = url.Values{}
-		loc             = time.FixedZone(time.Now().Zone())
 		eventFilterArgs = filters.Args{}
 	)
 
-	// Consolidate all filter flags, and sanity check them early.
-	// They'll get process in the daemon/server.
-	for _, f := range flFilter.GetAll() {
-		var err error
-		eventFilterArgs, err = filters.ParseFlag(f, eventFilterArgs)
-		if err != nil {
-			return err
-		}
-	}
-	var setTime = func(key, value string) {
-		format := timeutils.RFC3339NanoFixed
-		if len(value) < len(format) {
-			format = format[:len(value)]
-		}
-		if t, err := time.ParseInLocation(format, value, loc); err == nil {
-			v.Set(key, strconv.FormatInt(t.Unix(), 10))
-		} else {
-			v.Set(key, value)
-		}
-	}
 	if *since != "" {
-		setTime("since", *since)
+		// 0 is not a valid number for since
+		if *since == "0" {
+			v.Set("since", "1")
+		} else {
+			sinceDate, err := parsers.ParseFilterDate(*since)
+			if err != nil {
+				return err
+			}
+			v.Set("since", strconv.FormatInt(sinceDate.Unix(), 10))
+		}
 	}
 	if *until != "" {
-		setTime("until", *until)
-	}
-	if len(eventFilterArgs) > 0 {
-		filterJson, err := filters.ToParam(eventFilterArgs)
+		untilDate, err := parsers.ParseFilterDate(*until)
 		if err != nil {
 			return err
 		}
-		v.Set("filters", filterJson)
+		v.Set("until", strconv.FormatInt(untilDate.Unix(), 10))
+	}
+	json, err := eventFilterArgs.GetAsJSON(flFilter)
+	if err != nil {
+		return err
+	}
+	if json != "" {
+		v.Set("filters", json)
 	}
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
 		return err
@@ -1901,11 +1892,15 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	var (
-		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
-		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
-		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
-		tail   = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
+		cmd        = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container")
+		follow     = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+		times      = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+		tail       = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
+		logFilter  = opts.NewListOpts(nil)
+		filterArgs = filters.Args{}
 	)
+	// r is for refine
+	cmd.Var(&logFilter, []string{"r", "-filter"}, "Provide filter values (i.e. 'since=01:00')")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -1939,6 +1934,14 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		v.Set("follow", "1")
 	}
 	v.Set("tail", *tail)
+
+	json, err := filterArgs.GetAsJSON(logFilter)
+	if err != nil {
+		return err
+	}
+	if json != "" {
+		v.Set("filters", json)
+	}
 
 	return cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), env.GetSubEnv("Config").GetBool("Tty"), nil, cli.out, cli.err, nil)
 }

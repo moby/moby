@@ -3,6 +3,7 @@ package filters
 import (
 	"encoding/json"
 	"errors"
+	"github.com/docker/docker/opts"
 	"regexp"
 	"strings"
 )
@@ -82,4 +83,20 @@ func (filters Args) Match(field, source string) bool {
 		}
 	}
 	return false
+}
+
+// Consolidate all filter flags, and sanity check them early.
+// They'll get process in the daemon/server.
+func (args Args) GetAsJSON(opts opts.ListOpts) (string, error) {
+	for _, f := range opts.GetAll() {
+		var err error
+		args, err = ParseFlag(f, args)
+		if err != nil {
+			return "", err
+		}
+	}
+	if len(args) > 0 {
+		return ToParam(args)
+	}
+	return "", nil
 }
