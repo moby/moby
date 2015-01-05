@@ -22,6 +22,7 @@ docker-create - Create a new container
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
+[**--ignore-cgroups**[=*[]*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
@@ -89,6 +90,10 @@ IMAGE [COMMAND] [ARG...]
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
+
+**--ignore-cgroups**=""
+   Ignore processes in the named Linux control groups when killing processes
+   related to a container.
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container

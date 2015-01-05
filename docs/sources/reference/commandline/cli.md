@@ -672,6 +672,7 @@ Creates a new container.
       --expose=[]                Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
+      --ignore-cgroups=[]        A CDL of control groups, whereby the processes are ignored when the container is killed
       --ipc=""                   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                    'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                    'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.

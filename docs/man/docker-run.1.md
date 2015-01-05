@@ -23,6 +23,7 @@ docker-run - Run a command in a new container
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**-i**|**--interactive**[=*false*]]
+[**--ignore-cgroups**[=*[]*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
@@ -158,6 +159,11 @@ ENTRYPOINT.
 
    When set to true, keep stdin open even if not attached. The default is false.
 
+[**--ignore-cgroups**[=*[]*]]
++   Ignore processes in the named Linux control groups when killing processes
++   related to a container.
+
+   
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
