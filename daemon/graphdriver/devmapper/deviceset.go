@@ -1433,7 +1433,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	}
 
 	log.Debugf("[devmapper] Unmount(%s)", info.mountPath)
-	if err := syscall.Unmount(info.mountPath, 0); err != nil {
+	if err := syscall.Unmount(info.mountPath, syscall.MNT_DETACH); err != nil {
 		return err
 	}
 	log.Debugf("[devmapper] Unmount done")
