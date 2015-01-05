@@ -218,16 +218,16 @@ Inspect changes on container `id`'s filesystem
 
         [
              {
-                     "Path":"/dev",
-                     "Kind":0
+                     "Path": "/dev",
+                     "Kind": 0
              },
              {
-                     "Path":"/dev/kmsg",
-                     "Kind":1
+                     "Path": "/dev/kmsg",
+                     "Kind": 1
              },
              {
-                     "Path":"/test",
-                     "Kind":1
+                     "Path": "/test",
+                     "Kind": 1
              }
         ]
 
@@ -400,7 +400,7 @@ Block until container `id` stops, then returns the exit code
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"StatusCode":0}
+        {"StatusCode": 0}
 
 Status Codes:
 
@@ -632,14 +632,14 @@ Return the history of the image `name`
 
         [
              {
-                     "Id":"b750fe79269d",
-                     "Created":1364102658,
-                     "CreatedBy":"/bin/bash"
+                     "Id": "b750fe79269d",
+                     "Created": 1364102658,
+                     "CreatedBy": "/bin/bash"
              },
              {
-                     "Id":"27cf78414709",
-                     "Created":1364068391,
-                     "CreatedBy":""
+                     "Id": "27cf78414709",
+                     "Created": 1364068391,
+                     "CreatedBy": ""
              }
         ]
 
@@ -919,7 +919,7 @@ Create a new image from a container's changes
         HTTP/1.1 201 OK
         Content-Type: application/vnd.docker.raw-stream
 
-        {"Id":"596069db4bf5"}
+        {"Id": "596069db4bf5"}
 
 Query Parameters:
 
