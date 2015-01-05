@@ -516,3 +516,135 @@ func TestCpToDot(t *testing.T) {
 	}
 	logDone("cp - to dot path")
 }
+
+// Check to see if a single file is copied from container to a file name on the host
+func TestCpFileToFile(t *testing.T) {
+	containerFile := cpTestPath + "/someotherFile"
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+containerFile)
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
+		t.Fatal(err)
+	}
+
+	hostFile, err := os.Create(cpFullPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hostFile.Close()
+	defer os.RemoveAll(cpTestPathParent)
+
+	fmt.Fprintf(hostFile, "%s", cpHostContents)
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpname := filepath.Join(tmpdir, cpTestName)
+	defer os.RemoveAll(tmpdir)
+
+	runCmd := exec.Command(dockerBinary, "cp", "-f", cleanedContainerID+":"+containerFile, tmpname)
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, containerFile, err)
+	}
+
+	file, err := os.Open(tmpname)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	test, err := ioutil.ReadAll(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(test) == cpHostContents {
+		t.Errorf("output matched host file -- relative path can escape container rootfs")
+	}
+
+	if string(test) != cpContainerContents {
+		t.Errorf("output doesn't match the input for relative path")
+	}
+
+	logDone("cp - copies a file from container to host with different name")
+}
+
+// Check to see if a single file is copied from container to a file name on the host
+func TestCpFileSameName(t *testing.T) {
+	containerFile := cpTestPath + "/someotherFile"
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+containerFile)
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
+		t.Fatal(err)
+	}
+
+	hostFile, err := os.Create(cpFullPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hostFile.Close()
+	defer os.RemoveAll(cpTestPathParent)
+
+	fmt.Fprintf(hostFile, "%s", cpHostContents)
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpname := filepath.Join(tmpdir, "someotherFile")
+	defer os.RemoveAll(tmpdir)
+
+	runCmd := exec.Command(dockerBinary, "cp", "-f", cleanedContainerID+":"+containerFile, tmpdir)
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, containerFile, err)
+	}
+
+	file, err := os.Open(tmpname)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	test, err := ioutil.ReadAll(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(test) == cpHostContents {
+		t.Errorf("output matched host file -- relative path can escape container rootfs")
+	}
+
+	if string(test) != cpContainerContents {
+		t.Errorf("output doesn't match the input for relative path")
+	}
+
+	logDone("cp - copies a file from container to host with same name")
+}

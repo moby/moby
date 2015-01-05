@@ -644,9 +644,14 @@ If this behavior is undesired, set the 'p' option to false.
 Copy files/folders from a container's filesystem to the host
 path.  Paths are relative to the root of the filesystem.
 
-    Usage: docker cp CONTAINER:PATH HOSTPATH
+    Usage: docker cp [OPTIONS] CONTAINER:PATH HOSTPATH
 
     Copy files/folders from the PATH to the HOSTPATH
+
+      -f, --file=false    Copy a file only, when this flag is specified cp tries to copy 
+			  just a single file from the container to the host, for example
+			  'docker cp -f mycontainer:/tmp/a.txt /tmp/b.txt'. If the source is 
+			  a directory then the -f flag is ignored and directory will be copied.
 
 ## create
 

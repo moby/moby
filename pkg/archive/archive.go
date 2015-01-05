@@ -35,6 +35,7 @@ type (
 		Compression Compression
 		NoLchown    bool
 		Name        string
+		SingleFile  bool
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -493,6 +494,21 @@ loop:
 			}
 		}
 
+		//see if tarball return only one file?
+		destFile := ""
+		if options.SingleFile {
+			//split only if src and dest are not dirs, if src is a dir we ignore -f and copy the entire directory
+			//if dest is a dir then the contents of src are copied into dest dir
+			if fi, err := os.Lstat(dest); !((err == nil && fi.IsDir()) || (hdr.Typeflag == tar.TypeDir)) {
+				arr := strings.Split(dest, "/")
+				dest = filepath.Join(arr[:len(arr)-1]...)
+				if arr[0] == "" {
+					dest = "/" + dest
+				}
+				destFile = arr[len(arr)-1]
+			}
+		}
+
 		if !strings.HasSuffix(hdr.Name, "/") {
 			// Not the root directory, ensure that the parent directory exists
 			parent := filepath.Dir(hdr.Name)
@@ -512,6 +528,10 @@ loop:
 		}
 		if strings.HasPrefix(rel, "..") {
 			return breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
+		}
+
+		if len(destFile) > 0 {
+			path = filepath.Join(dest, destFile)
 		}
 
 		// If path exits we almost always just want to remove and replace it
