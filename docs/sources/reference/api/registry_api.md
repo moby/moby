@@ -505,6 +505,15 @@ Status Codes:
 
 If you need to search the index, this is the endpoint you would use.
 
+> **Note:**
+> If the request user agent string includes `arch` and `os` set to valid Go
+> architecture and operating system values, the results of the search will
+> be limited to images matching the same architecture and OS value from the
+> repository. This allows API users such as the Docker client to only return
+> repository entries which match the architecture and operating system of the
+> Docker host. If a user agent string is not provided or does not contain these
+> values, the default combination of `amd64/linux` is used for the search.
+
 `GET /v1/search`
 
 Search the Index given a search term. It accepts
@@ -517,6 +526,7 @@ Search the Index given a search term. It accepts
         GET /v1/search?q=search_term HTTP/1.1
         Host: index.docker.io
         Accept: application/json
+        User-agent: (optionally provided) arch/amd64 os/linux
 
 **Example response**:
 
@@ -527,9 +537,9 @@ Search the Index given a search term. It accepts
         {"query":"search_term",
           "num_results": 3,
           "results" : [
-             {"name": "ubuntu", "description": "An ubuntu image..."},
-             {"name": "centos", "description": "A centos image..."},
-             {"name": "fedora", "description": "A fedora image..."}
+             {"name": "ubuntu", "description": "ubuntu image...", "arch": "amd64", "os": "linux"},
+             {"name": "centos", "description": "centos image...", "arch": "amd64", "os": "linux"},
+             {"name": "fedora", "description": "fedora image...", "arch": "amd64", "os": "linux"}
            ]
          }
 
