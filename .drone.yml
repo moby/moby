@@ -11,4 +11,4 @@ script:
   - rm integration-cli/docker_cli_exec_test.go 
 # Validate and test.
   - hack/make.sh validate-dco validate-gofmt
-  - hack/make.sh binary cross test-unit test-integration-cli test-integration
+  - hack/make.sh binary cross test-unit test-integration-cli test-integration test-docker-py
