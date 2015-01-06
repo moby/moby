@@ -21,6 +21,7 @@ docker-create - Create a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
@@ -86,6 +87,9 @@ IMAGE [COMMAND] [ARG...]
 
 **-h**, **--hostname**=""
    Container host name
+
+**--help**
+  Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.

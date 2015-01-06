@@ -362,10 +362,10 @@ func TestExecParseError(t *testing.T) {
 
 	// Test normal (non-detached) case first
 	cmd := exec.Command(dockerBinary, "exec", "top")
-	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Usage:") {
-		t.Fatalf("Should have thrown error & given usage: %s", out)
+	if _, stderr, code, err := runCommandWithStdoutStderr(cmd); err == nil || !strings.Contains(stderr, "See '"+dockerBinary+" exec --help'") || code == 0 {
+		t.Fatalf("Should have thrown error & point to help: %s", stderr)
 	}
-	logDone("exec - error on parseExec should return usage")
+	logDone("exec - error on parseExec should point to help")
 }
 
 func TestExecStopNotHanging(t *testing.T) {

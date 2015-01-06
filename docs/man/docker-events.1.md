@@ -6,6 +6,7 @@ docker-events - Get real time events from the server
 
 # SYNOPSIS
 **docker events**
+[**--help**]
 [**--since**[=*SINCE*]]
 [**--until**[=*UNTIL*]]
 
@@ -23,6 +24,9 @@ and Docker images will report:
     untag, delete
 
 # OPTIONS
+**--help**
+  Print usage statement
+
 **--since**=""
    Show all events created since timestamp
 

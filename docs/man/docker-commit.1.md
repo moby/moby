@@ -7,6 +7,7 @@ docker-commit - Create a new image from a container's changes
 # SYNOPSIS
 **docker commit**
 [**-a**|**--author**[=*AUTHOR*]]
+[**--help**]
 [**-m**|**--message**[=*MESSAGE*]]
 [**-p**|**--pause**[=*true*]]
 CONTAINER [REPOSITORY[:TAG]]
@@ -17,6 +18,9 @@ Using an existing container's name or ID you can create a new image.
 # OPTIONS
 **-a**, **--author**=""
    Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+
+**--help**
+  Print usage statement
 
 **-m**, **--message**=""
    Commit message

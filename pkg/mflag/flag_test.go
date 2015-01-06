@@ -151,17 +151,6 @@ func TestGet(t *testing.T) {
 	VisitAll(visitor)
 }
 
-func TestUsage(t *testing.T) {
-	called := false
-	ResetForTesting(func() { called = true })
-	if CommandLine.Parse([]string{"-x"}) == nil {
-		t.Error("parse did not fail for unknown flag")
-	}
-	if !called {
-		t.Error("did not call Usage for unknown flag")
-	}
-}
-
 func testParse(f *FlagSet, t *testing.T) {
 	if f.Parsed() {
 		t.Error("f.Parse() = true before Parse")
