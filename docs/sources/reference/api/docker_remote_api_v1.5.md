@@ -473,7 +473,7 @@ Block until container `id` stops, then returns the exit code
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"StatusCode":0}
+        {"StatusCode": 0}
 
 Status Codes:
 
@@ -1032,7 +1032,7 @@ Create a new image from a container's changes
         HTTP/1.1 201 OK
             Content-Type: application/vnd.docker.raw-stream
 
-        {"Id":"596069db4bf5"}
+        {"Id": "596069db4bf5"}
 
 Query Parameters:
 
