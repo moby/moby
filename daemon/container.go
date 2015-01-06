@@ -370,10 +370,7 @@ func (container *Container) Run() error {
 }
 
 func (container *Container) Output() (output []byte, err error) {
-	pipe, err := container.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
+	pipe := container.StdoutPipe()
 	defer pipe.Close()
 	if err := container.Start(); err != nil {
 		return nil, err
@@ -391,20 +388,20 @@ func (container *Container) Output() (output []byte, err error) {
 // copied and delivered to all StdoutPipe and StderrPipe consumers, using
 // a kind of "broadcaster".
 
-func (streamConfig *StreamConfig) StdinPipe() (io.WriteCloser, error) {
-	return streamConfig.stdinPipe, nil
+func (streamConfig *StreamConfig) StdinPipe() io.WriteCloser {
+	return streamConfig.stdinPipe
 }
 
-func (streamConfig *StreamConfig) StdoutPipe() (io.ReadCloser, error) {
+func (streamConfig *StreamConfig) StdoutPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
 	streamConfig.stdout.AddWriter(writer, "")
-	return ioutils.NewBufReader(reader), nil
+	return ioutils.NewBufReader(reader)
 }
 
-func (streamConfig *StreamConfig) StderrPipe() (io.ReadCloser, error) {
+func (streamConfig *StreamConfig) StderrPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
 	streamConfig.stderr.AddWriter(writer, "")
-	return ioutils.NewBufReader(reader), nil
+	return ioutils.NewBufReader(reader)
 }
 
 func (streamConfig *StreamConfig) StdoutLogPipe() io.ReadCloser {

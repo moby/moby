@@ -85,14 +85,8 @@ func containerFileExists(eng *engine.Engine, id, dir string, t Fataler) bool {
 
 func containerAttach(eng *engine.Engine, id string, t Fataler) (io.WriteCloser, io.ReadCloser) {
 	c := getContainer(eng, id, t)
-	i, err := c.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	o, err := c.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	i := c.StdinPipe()
+	o := c.StdoutPipe()
 	return i, o
 }
 
@@ -292,10 +286,7 @@ func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testin
 		return "", err
 	}
 	defer r.Destroy(container)
-	stdout, err := container.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
+	stdout := container.StdoutPipe()
 	defer stdout.Close()
 
 	job := eng.Job("start", container.ID)

@@ -26,14 +26,8 @@ func TestRestartStdin(t *testing.T) {
 	}
 	defer daemon.Destroy(container)
 
-	stdin, err := container.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout, err := container.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	stdin := container.StdinPipe()
+	stdout := container.StdoutPipe()
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -56,14 +50,8 @@ func TestRestartStdin(t *testing.T) {
 	}
 
 	// Restart and try again
-	stdin, err = container.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout, err = container.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	stdin = container.StdinPipe()
+	stdout = container.StdoutPipe()
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -103,14 +91,8 @@ func TestStdin(t *testing.T) {
 	}
 	defer daemon.Destroy(container)
 
-	stdin, err := container.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout, err := container.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	stdin := container.StdinPipe()
+	stdout := container.StdoutPipe()
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -149,14 +131,8 @@ func TestTty(t *testing.T) {
 	}
 	defer daemon.Destroy(container)
 
-	stdin, err := container.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout, err := container.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	stdin := container.StdinPipe()
+	stdout := container.StdoutPipe()
 	if err := container.Start(); err != nil {
 		t.Fatal(err)
 	}
