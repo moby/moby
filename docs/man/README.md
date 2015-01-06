@@ -7,40 +7,47 @@ Markdown (*.md) files.
 
 # File List
 
-    docker.md
-    docker-attach.md
-    docker-build.md
-    docker-commit.md
-    docker-cp.md
-    docker-diff.md
-    docker-events.md
-    docker-export.md
-    docker-history.md
-    docker-images.md
-    docker-import.md
-    docker-info.md
-    docker-inspect.md
-    docker-kill.md
-    docker-load.md
-    docker-login.md
-    docker-logs.md
-    docker-port.md
-    docker-ps.md
-    docker-pull.md
-    docker-push.md
-    docker-restart.md
-    docker-rmi.md
-    docker-rm.md
-    docker-run.md
-    docker-save.md
-    docker-search.md
-    docker-start.md
-    docker-stop.md
-    docker-tag.md
-    docker-top.md
-    docker-wait.md
+    docker-attach.1.md
+    docker-build.1.md
+    docker-commit.1.md
+    docker-cp.1.md
+    docker-diff.1.md
+    docker-events.1.md
+    docker-exec.1.md
+    docker-export.1.md
+    docker-history.1.md
+    docker-images.1.md
+    docker-import.1.md
+    docker-info.1.md
+    docker-inspect.1.md
+    docker-kill.1.md
+    docker-load.1.md
+    docker-login.1.md
+    docker-logout.1.md
+    docker-logs.1.md
+    docker-pause.1.md
+    docker-port.1.md
+    docker-ps.1.md
+    docker-pull.1.md
+    docker-push.1.md
+    docker-restart.1.md
+    docker-rm.1.md
+    docker-rmi.1.md
+    docker-run.1.md
+    docker-save.1.md
+    docker-search.1.md
+    docker-start.1.md
+    docker-stop.1.md
+    docker-tag.1.md
+    docker-top.1.md
+    docker-unpause.1.md
+    docker-version.1.md
+    docker-wait.1.md
+    docker.1.md
     Dockerfile
+    Dockerfile.5.md
     md2man-all.sh
+    README.md
 
 # Generating man pages from the Markdown files
 

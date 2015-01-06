@@ -702,12 +702,49 @@ If this behavior is undesired, set the 'p' option to false.
 
 ## cp
 
-Copy files/folders from a container's filesystem to the host
-path.  Paths are relative to the root of the filesystem.
+    Usage: docker cp [SRC_CONTAINER:]SRC_PATH [DST_CONTAINER:]DST_PATH
 
-    Usage: docker cp CONTAINER:PATH HOSTPATH
+    copy files between containers or a local path
 
-    Copy files/folders from the PATH to the HOSTPATH
+Copy files between a container and your local host or between any two
+containers. If not absolute, a container path is considered relative to the
+container's working directory. Files can be copied to and from a running or
+stopped container.
+
+The behavior is similar to the common Unix utility `cp -a` in that directories
+are copied recursively and file mode, permission, and ownership are preserved
+if possible.
+
+Assuming a path separator of `/`, the behavior is as follows:
+
+- `SRC_PATH` specifies a file
+    - `DST_PATH` does not exist
+        - the file is saved to a file created at `DST_PATH`
+    - `DST_PATH` does not exist and ends with `/`
+        - Error condition: the destination directory must exist.
+    - `DST_PATH` exists and is a file
+        - the destination is overwritten with the contents of the source file
+    - `DST_PATH` exists and is a directory
+        - the file is copied into this directory using the basename from
+          `SRC_PATH`
+- `SRC_PATH` specifies a directory
+    - `DST_PATH` does not exist
+        - `DST_PATH` is created as a directory and the *contents* of the source
+           directory are copied into this directory
+    - `DST_PATH` exists and is a file
+        - Error condition: cannot copy a directory to a file
+    - `DST_PATH` exists and is a directory
+        - `SRC_PATH` does not end with `/.`
+            - the source directory is copied into this directory
+        - `SRC_PAPTH` does end with `/.`
+            - the *content* of the source directory is copied into this
+              directory
+
+The command will always fail if the `SRC_PATH` resource does not exist or if
+the parent directory of `DST_PATH` does not exist.
+
+> It is not possible to copy certain system files such as resources under
+> `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
 
 ## create
 

@@ -831,18 +831,54 @@ Status Codes:
 
 ### Copy files or folders from a container
 
-`POST /containers/(id)/copy`
+`GET /containers/(id)/copy`
 
-Copy files or folders of container `id`
+Get an Tar archive of a resource in the filesystem of container `id`.
+
+Query Parameters:
+
+- **path** - resource in the container's filesystem to copy. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If path is inside the mount point of a volume, the volume's data
+    is archived. If the path specifies a directory and a volume is mounted
+    lower in that directory hierarchy, the volume's contents are not included
+    in the archive.
+
+    The resource specified by **path** must exist. To assert that the resource
+    is expected to be a directory, **path** should end in `/` or  `/.` (asuming
+    a path separator of `/`). If **path** ends in `/.` then this indicates that
+    only the contents of the **path** directory should be copied.
+
+    > It is not possible to copy certain system files such as resources under
+    > `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
+
+The returned archive will have entries formatted in a particular way to
+indicate the type of resource that is being copied:
+
+- a single file
+
+    The archive will contain a single entry with the `Name` header field being
+    equal to the basename of **path** and a `Type` header field which indicates
+    the item *is not* a directory.
+
+- a directory and its contents
+
+    The archive's first entry will have a `Type` header field which indicates
+    that the item *is* a directory and the `Name` header field of each entry in
+    the archive will have its first path component equal to the basename of
+    **path**. The first entry of the archive will be the directory itself.
+
+- *only* the contents of a directory
+
+    Just like the directory case above, the first entry will have a `Type`
+    header field indicating it is a directory, however the first path component
+    of each entry in the archive will begin with `./` (assuming `/` as the path
+    separator).
 
 **Example request**:
 
-        POST /containers/4fa6e0f0c678/copy HTTP/1.1
-        Content-Type: application/json
-
-        {
-             "Resource": "test.txt"
-        }
+        GET /containers/8cce319429b2/copy?path=/foo/ HTTP/1.1
 
 **Example response**:
 
@@ -853,9 +889,202 @@ Copy files or folders of container `id`
 
 Status Codes:
 
--   **200** – no error
--   **404** – no such container
--   **500** – server error
+- **200** - success, returns archive of copied resource
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify path parameter (**path** cannot be empty)
+    - not a directory (**path** was asserted to be a directory but exists as a
+      file)
+- **404** - client error, resource not found, one of:
+    – no such container (container `id` does not exist)
+    - no such file or directory (**path** does not exist)
+- **500** - server error
+
+### Copy files or folders to a container
+
+`POST /containers/(id)/copy`
+
+Upload a Tar archive of a resource to be extracted to a path in the filesystem
+of container `id`.
+
+The payload archive should have properly formatted entries to indicate the
+type of content which was copied from the source:
+
+- a single file
+
+    The archive should contain a single entry with the `Name` header field
+    being equal to the basename of the source file and a `Type` header field
+    which indicates that the item *is not* a directory.
+
+- a directory and its contents
+
+    The archive's first entry should have a `Type` header field which indicates
+    that the item *is* a directory and the `Name` header field of each entry in
+    the archive should have its first path component equal to the basename of
+    the source directory. The first entry of the archive should be the
+    directory itself.
+
+- *only* the contents of a directory
+
+    Just like the directory case above, the first entry should have a `Type`
+    header field indicating it is a directory, however the first path component
+    of each entry in the archive should begin with `./` (assuming `/` as the
+    path separator).
+
+Query Parameters:
+
+- **dstPath** - resource in the container to copy the archive's contents to.
+    Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If **dstPath** is in a volume mount point then the archive's
+    contents copied into the volume. If **dstPath** specifies a directory and a
+    volume is mounted lower in that directory hierarchy then the contents will
+    not be copied into that volume. 
+    
+    The parent directory of **dstPath** must exist. To assert that the resource
+    is expected to be a directory, **dstPath** should end in `/` or  `/.`
+    (asuming a path separator of `/`). The validity of this parameter is also
+    dependent upon the content of the source archive:
+
+    - **dstPath** exists as a directory
+
+        The contents of the source archive are simply copied into this
+        directory.
+
+    - **dstPath** exists as a file
+
+        It is an error if **dstPath** is asserted to be a directory. It is also
+        an error if the content of the archive is not a single file. Otherwise,
+        the file at **dstPath** is overwritten with the contents of the source
+        file.
+
+    - **dstPath** does not exist
+
+        If the source archive specifies a single file, then **dstPath** is
+        created as a file with the source file's content. In this case, it is
+        an error if **dstPath** is asserted to be a directory.
+
+        If the source archive specifies a directory or only the contents of a
+        directory, **dstPath** is created as a directory and the *contents* of
+        the source directory are copied into it.
+
+**Example request**:
+
+        POST /containers/8cce319429b2/copy?dstPath=/vol1 HTTP/1.1
+        Content-Type: application/x-tar
+
+        {{ TAR STREAM }}
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+- **200** – the content was copied successfully
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify dstPath parameter (**dstPath** cannot be empty)
+    - not a directory (**dstPath** was asserted to be a directory but exists as
+      a file)
+    - cannot copy directory (content is from a directory but **dstPath** exists
+      and is a file)
+- **404** - client error, resource not found, one of:
+    – no such container (container `id` does not exist)
+    - no such directory (archive content was a single file and **dstPath** was
+      asserted to be a directory but does not exist)
+    - no such file or directory (**dstPath** parents do not exist)
+- **500** – server error
+
+### Copy files or folders from one container to another.
+
+`POST /containers/(id)/copy-accross`
+
+Copy resources to a path in container `id` from a path in another container.
+
+Query Parameters:
+
+- **srcContainer** - The container from which contents should be copied. May
+  be the same container. Required.
+
+- **srcPath** - resource in **srcContainer**'s filesystem to copy. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If path is inside the mount point of a volume, the volume's data
+    is copied. If the path specifies a directory and a volume is mounted
+    lower in that directory hierarchy, the volume's contents are not included
+    in the copied content.
+
+    The resource specified by **srcPath** must exist. To assert that the
+    resource is expected to be a directory, **srcPath** should end in `/` or
+    `/.` (asuming a path separator of `/`). If **srcPath** ends in `/.` then
+    this indicates that only the contents of the **srcPath** directory should
+    be copied.
+
+    > It is not possible to copy certain system files such as resources under
+    > `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
+
+- **dstPath** - resource in the destination container's filesystem to copy the
+  source contents to. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If **dstPath** is in a volume mount point then the content is
+    copied into the volume. If **dstPath** specifies a directory and a
+    volume is mounted lower in that directory hierarchy then the contents will
+    not be copied into that volume. 
+    
+    The parent directory of **dstPath** must exist. To assert that the resource
+    is expected to be a directory, **dstPath** should end in `/` or  `/.`
+    (asuming a path separator of `/`). The validity of this parameter is also
+    dependent upon the source content:
+
+    - **dstPath** exists as a directory
+
+        The source contents are simply copied into this directory.
+
+    - **dstPath** exists as a file
+
+        It is an error if **dstPath** is asserted to be a directory. It is also
+        an error if the source content is not a single file. Otherwise, the
+        file at **dstPath** is overwritten with the file.
+
+    - **dstPath** does not exist
+
+        If the source is a single file, then **dstPath** is created as a file
+        with the source file's content. In this case, it is an error if
+        **dstPath** is asserted to be a directory.
+
+        If the source content is a directory or the contents of a directory,
+        **dstPath** is created as a directory and the *contents* of the source
+        directory are copied into it.
+
+**Example request**:
+
+        POST /containers/8cce319429b2/copy-accross?srcContainer=4fa6e0f0c678&srcPath=hello.txt&dstPath=/vol1 HTTP/1.1
+
+        {{ EMPTY BODY }}
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+- **200** – the resource was successfully copied
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify srcContainer parameter (**srcContainer** cannot be empty)
+    - must specify srcPath parameter (**srcPath** cannot be empty)
+    - must specify dstPath parameter (**dstPath** cannot be empty)
+    - not a directory (**srcPath** or **dstPath** was asserted to be a
+      directory but exists as a file)
+    - cannot copy directory (**srcPath** is a directory but **dstPath** exists
+      and is a file)
+- **404** - client error, resource not found, one of:
+    – no such container (container `id`, or **srcContainer** does not exist)
+    - no such directory (**srcPath** was a single file but **dstPath** was
+      asserted to be a directory and does not exist)
+    - no such file or directory (**srcPath** does not exist or **dstPath**
+      parents do not exist)
+- **500** – server error
 
 ## 2.2 Images
 

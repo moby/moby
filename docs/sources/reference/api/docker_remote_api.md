@@ -46,6 +46,20 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /containers/(id)/copy`
+
+`POST /containers/(id)/copy-across`
+
+**New!**
+Get an archive of file system content from a container
+or copy files or directories from one container to another.
+
+`POST /containers/(id)/copy`
+
+**New!**
+This copy endpoint has been changed in the latest API version to be used to
+upload files or directories into a container.
+
 `POST /containers/(id)/attach` and `POST /exec/(id)/start`
 
 **New!**
