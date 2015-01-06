@@ -9,12 +9,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 const defaultTimeIncrement = 100
 
 // containerMonitor monitors the execution of a container's main process.
-// If a restart policy is specified for the cotnainer the monitor will ensure that the
+// If a restart policy is specified for the container the monitor will ensure that the
 // process is restarted based on the rules of the policy.  When the container is finally stopped
 // the monitor will reset and cleanup any of the container resources such as networking allocations
 // and the rootfs
@@ -230,7 +231,8 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 	case "on-failure":
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
 		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount >= max {
-			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached", max)
+			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",
+				utils.TruncateID(m.container.ID), max)
 			return false
 		}
 
