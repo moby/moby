@@ -53,6 +53,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
 		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
+		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory usage (memory + swap), set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
@@ -136,6 +137,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			return nil, nil, cmd, err
 		}
 		flMemory = parsedMemory
+	}
+
+	var MemorySwap int64
+	if *flMemorySwap != "" {
+		parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		MemorySwap = parsedMemorySwap
 	}
 
 	var binds []string
@@ -261,6 +271,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
+		MemorySwap:      MemorySwap,
 		CpuShares:       *flCpuShares,
 		Cpuset:          *flCpuset,
 		AttachStdin:     attachStdin,
