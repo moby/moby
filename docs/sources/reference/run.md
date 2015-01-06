@@ -254,7 +254,7 @@ the container exits**, you can add the `--rm` flag:
     --security-opt="label:type:TYPE"   : Set the label type for the container
     --security-opt="label:level:LEVEL" : Set the label level for the container
     --security-opt="label:disable"     : Turn off label confinement for the container
-    --secutity-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
+    --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
                                          to the container
 
 You can override the default labeling scheme for each container by specifying
