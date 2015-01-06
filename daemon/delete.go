@@ -62,6 +62,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
 		container.LogEvent("destroy")
+		os.RemoveAll(getJournalPath(container.ID))
 		if removeVolume {
 			daemon.DeleteVolumes(container.VolumePaths())
 		}

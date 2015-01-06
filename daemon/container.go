@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -67,6 +68,7 @@ type Container struct {
 
 	NetworkSettings *NetworkSettings
 
+	JournalPath    string
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
@@ -327,6 +329,9 @@ func (container *Container) Start() (err error) {
 		}
 	}()
 
+	if err := container.setupContainerJournal(); err != nil {
+		return err
+	}
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
@@ -358,7 +363,11 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	return container.waitForStart()
+	if err := container.waitForStart(); err != nil {
+		return err
+	}
+
+	return container.registerMachine()
 }
 
 func (container *Container) Run() error {
@@ -940,6 +949,27 @@ func (container *Container) DisableLink(name string) {
 	}
 }
 
+func (container *Container) setupContainerJournal() error {
+	var (
+		err         error
+		journalPath = getJournalPath(container.ID)
+	)
+
+	if journalPath == "" {
+		return nil
+	}
+	container.JournalPath, err = container.getRootResourcePath(fmt.Sprintf("%.32s", container.ID))
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(container.JournalPath, 0755); err != nil {
+		return err
+	}
+
+	return os.Symlink(container.JournalPath, journalPath)
+}
+
 func (container *Container) setupContainerDns() error {
 	if container.ResolvConfPath != "" {
 		return nil
@@ -1157,6 +1187,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
+	env = append(env, fmt.Sprintf("container_uuid=%s", convertUUID(container.ID)))
 	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
 
 	return env
@@ -1297,4 +1328,8 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	default:
 		return nil, fmt.Errorf("network mode not set to container")
 	}
+}
+
+func (container *Container) registerMachine() error {
+	return systemd.RegisterMachine(container.Name[1:], container.ID, container.Pid, container.root)
 }
