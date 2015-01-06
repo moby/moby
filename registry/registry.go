@@ -23,7 +23,7 @@ var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	ErrDoesNotExist          = errors.New("Image does not exist")
 	errLoginRequired         = errors.New("Authentication is required.")
-	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
+	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_]*)$`)
 	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 )
 
@@ -178,8 +178,17 @@ func validateRepositoryName(repositoryName string) error {
 		namespace = nameParts[0]
 		name = nameParts[1]
 	}
-	if !validNamespace.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
+	if !validNamespaceChars.MatchString(namespace) {
+		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
+	}
+	if len(namespace) < 4 || len(namespace) > 30 {
+		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 4 or more than 30 characters.", namespace)
+	}
+	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
+		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)
+	}
+	if strings.Contains(namespace, "--") {
+		return fmt.Errorf("Invalid namespace name (%s). Cannot contain consecutive hyphens.", namespace)
 	}
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)

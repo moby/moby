@@ -233,24 +233,53 @@ func TestSearchRepositories(t *testing.T) {
 }
 
 func TestValidRepositoryName(t *testing.T) {
-	if err := validateRepositoryName("docker/docker"); err != nil {
-		t.Fatal(err)
+	validRepositoryNames := []string{
+		// Sanity check.
+		"docker/docker",
+
+		// Allow 64-character non-hexadecimal names (hexadecimal names are forbidden).
+		"thisisthesongthatneverendsitgoesonandonandonthisisthesongthatnev",
+
+		// Allow embedded hyphens.
+		"docker-rules/docker",
+
+		// Allow underscores everywhere (as opposed to hyphens).
+		"____/____",
 	}
-	// Support 64-byte non-hexadecimal names (hexadecimal names are forbidden)
-	if err := validateRepositoryName("thisisthesongthatneverendsitgoesonandonandonthisisthesongthatnev"); err != nil {
-		t.Fatal(err)
+	for _, repositoryName := range validRepositoryNames {
+		if err := validateRepositoryName(repositoryName); err != nil {
+			t.Errorf("Repository name should be valid: %v. Error: %v", repositoryName, err)
+		}
 	}
-	if err := validateRepositoryName("docker/Docker"); err == nil {
-		t.Log("Repository name should be invalid")
-		t.Fail()
+
+	invalidRepositoryNames := []string{
+		// Disallow capital letters.
+		"docker/Docker",
+
+		// Only allow one slash.
+		"docker///docker",
+
+		// Disallow 64-character hexadecimal.
+		"1a3f5e7d9c1b3a5f7e9d1c3b5a7f9e1d3c5b7a9f1e3d5d7c9b1a3f5e7d9c1b3a",
+
+		// Disallow leading and trailing hyphens in namespace.
+		"-docker/docker",
+		"docker-/docker",
+		"-docker-/docker",
+
+		// Disallow consecutive hyphens.
+		"dock--er/docker",
+
+		// Namespace too short.
+		"doc/docker",
+
+		// No repository.
+		"docker/",
 	}
-	if err := validateRepositoryName("docker///docker"); err == nil {
-		t.Log("Repository name should be invalid")
-		t.Fail()
-	}
-	if err := validateRepositoryName("1a3f5e7d9c1b3a5f7e9d1c3b5a7f9e1d3c5b7a9f1e3d5d7c9b1a3f5e7d9c1b3a"); err == nil {
-		t.Log("Repository name should be invalid, 64-byte hexadecimal names forbidden")
-		t.Fail()
+	for _, repositoryName := range invalidRepositoryNames {
+		if err := validateRepositoryName(repositoryName); err == nil {
+			t.Errorf("Repository name should be invalid: %v", repositoryName)
+		}
 	}
 }
 
