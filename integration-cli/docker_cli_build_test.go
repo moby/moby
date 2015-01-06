@@ -1440,6 +1440,102 @@ func TestBuildAddBadLinksVolume(t *testing.T) {
 	logDone("build - ADD should add files in volume")
 }
 
+// #7537: Test that COPY will change the owner to the runconfig user.
+func TestCopyChownCopiedFiles(t *testing.T) {
+	const name = "testcopychownhuge"
+
+	// Huge Dockerfile which tests several forms of the runconfig user.
+	dockerfile := `
+	FROM busybox
+
+	RUN mkdir /t
+	RUN chmod 777 /t
+	RUN chown 8888:8888 /t
+
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER default
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER 1000
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER default:default
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER 1000:1000
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER root:default
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER root:1000
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER 1000:root
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER 0:1000
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER 65534
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+
+	USER 65534:65534
+	COPY file /t/file
+	COPY dir /t/dir
+	RUN [ -O /t/file ] && [ -G /t/file ] && [ -O /t/dir ] && [ -G /t/dir ] && [ -O /t/dir/file ] && [ -G /t/dir/file ]
+	RUN rm -rf -- /t/dir /t/file
+	`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"file":     "Hello, world!",
+		"dir/file": "Zdravo, svet!",
+	})
+
+	out, exitCode, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", name, ".")
+	if err != nil {
+		t.Fatalf("build failed to complete: %v %v", out, err)
+	}
+	defer deleteImages(name)
+
+	if exitCode != 0 {
+		t.Fatalf("copy did not chown to correct runconfig user")
+	}
+
+	logDone("build - copy chowns copied files and directories to current runconfig user")
+}
+
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
@@ -3847,7 +3943,7 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-		
+
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]

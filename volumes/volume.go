@@ -29,7 +29,7 @@ func (v *Volume) Export(resource, name string) (io.ReadCloser, error) {
 		name = ""
 	}
 
-	basePath, err := v.getResourcePath(resource)
+	basePath, err := v.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
 	}
@@ -166,14 +166,14 @@ func (v *Volume) FromDisk() error {
 }
 
 func (v *Volume) jsonPath() (string, error) {
-	return v.getRootResourcePath("config.json")
+	return v.GetRootResourcePath("config.json")
 }
-func (v *Volume) getRootResourcePath(path string) (string, error) {
+func (v *Volume) GetRootResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
 	return symlink.FollowSymlinkInScope(filepath.Join(v.configPath, cleanPath), v.configPath)
 }
 
-func (v *Volume) getResourcePath(path string) (string, error) {
+func (v *Volume) GetResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
 	return symlink.FollowSymlinkInScope(filepath.Join(v.Path, cleanPath), v.Path)
 }
