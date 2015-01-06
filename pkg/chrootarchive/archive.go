@@ -50,8 +50,8 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 	if options == nil {
 		options = &archive.TarOptions{}
 	}
-	if options.Excludes == nil {
-		options.Excludes = []string{}
+	if options.ExcludePatterns == nil {
+		options.ExcludePatterns = []string{}
 	}
 
 	var (

@@ -888,8 +888,8 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	}
 
 	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		Includes:    filter,
+		Compression:  archive.Uncompressed,
+		IncludeFiles: filter,
 	})
 	if err != nil {
 		container.Unmount()

@@ -57,7 +57,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 		excludes[i] = k
 		i++
 	}
-	if err := chrootarchive.Untar(repoFile, repoDir, &archive.TarOptions{Excludes: excludes}); err != nil {
+	if err := chrootarchive.Untar(repoFile, repoDir, &archive.TarOptions{ExcludePatterns: excludes}); err != nil {
 		return job.Error(err)
 	}
 

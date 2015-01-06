@@ -3131,26 +3131,104 @@ func TestBuildDockerignoringDockerfile(t *testing.T) {
 	name := "testbuilddockerignoredockerfile"
 	defer deleteImages(name)
 	dockerfile := `
-        FROM scratch`
+        FROM busybox
+		ADD . /tmp/
+		RUN ! ls /tmp/Dockerfile
+		RUN ls /tmp/.dockerignore`
 	ctx, err := fakeContext(dockerfile, map[string]string{
-		"Dockerfile":    "FROM scratch",
+		"Dockerfile":    dockerfile,
 		".dockerignore": "Dockerfile\n",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ctx.Close()
-	if _, err = buildImageFromContext(name, ctx, true); err == nil {
-		t.Fatalf("Didn't get expected error from ignoring Dockerfile")
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore Dockerfile correctly:%s", err)
 	}
 
 	// now try it with ./Dockerfile
 	ctx.Add(".dockerignore", "./Dockerfile\n")
-	if _, err = buildImageFromContext(name, ctx, true); err == nil {
-		t.Fatalf("Didn't get expected error from ignoring ./Dockerfile")
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore ./Dockerfile correctly:%s", err)
 	}
 
 	logDone("build - test .dockerignore of Dockerfile")
+}
+
+func TestBuildDockerignoringDockerignore(t *testing.T) {
+	name := "testbuilddockerignoredockerignore"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+		ADD . /tmp/
+		RUN ! ls /tmp/.dockerignore
+		RUN ls /tmp/Dockerfile`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    dockerfile,
+		".dockerignore": ".dockerignore\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore .dockerignore correctly:%s", err)
+	}
+	logDone("build - test .dockerignore of .dockerignore")
+}
+
+func TestBuildDockerignoreTouchDockerfile(t *testing.T) {
+	var id1 string
+	var id2 string
+
+	name := "testbuilddockerignoretouchdockerfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+		ADD . /tmp/`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    dockerfile,
+		".dockerignore": "Dockerfile\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+	if id1 != id2 {
+		t.Fatalf("Didn't use the cache - 1")
+	}
+
+	// Now make sure touching Dockerfile doesn't invalidate the cache
+	if err = ctx.Add("Dockerfile", dockerfile+"\n# hi"); err != nil {
+		t.Fatalf("Didn't add Dockerfile: %s", err)
+	}
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+	if id1 != id2 {
+		t.Fatalf("Didn't use the cache - 2")
+	}
+
+	// One more time but just 'touch' it instead of changing the content
+	if err = ctx.Add("Dockerfile", dockerfile+"\n# hi"); err != nil {
+		t.Fatalf("Didn't add Dockerfile: %s", err)
+	}
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+	if id1 != id2 {
+		t.Fatalf("Didn't use the cache - 3")
+	}
+
+	logDone("build - test .dockerignore touch dockerfile")
 }
 
 func TestBuildDockerignoringWholeDir(t *testing.T) {

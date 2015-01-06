@@ -47,9 +47,9 @@ func (v *Volume) Export(resource, name string) (io.ReadCloser, error) {
 		basePath = path.Dir(basePath)
 	}
 	return archive.TarWithOptions(basePath, &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		Name:        name,
-		Includes:    filter,
+		Compression:  archive.Uncompressed,
+		Name:         name,
+		IncludeFiles: filter,
 	})
 }
 
