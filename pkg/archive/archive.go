@@ -17,6 +17,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/vendor/src/github.com/docker/libcontainer/xattr"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
@@ -59,6 +60,7 @@ const (
 	Bzip2
 	Gzip
 	Xz
+	UserXattr = "user." // user xattr namespace
 )
 
 func IsArchive(header []byte) bool {
@@ -69,6 +71,15 @@ func IsArchive(header []byte) bool {
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
 	return err == nil
+}
+
+func filterXattrs(str []string, AttrNS string) (result []string) {
+	for _, value := range str {
+		if strings.HasPrefix(value, AttrNS) {
+			result = append(result, value)
+		}
+	}
+	return
 }
 
 func DetectCompression(source []byte) Compression {
@@ -216,10 +227,31 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		}
 	}
 
-	capability, _ := system.Lgetxattr(path, "security.capability")
-	if capability != nil {
+	capability, _ := xattr.Getxattr(path, "security.capability")
+	if capability != "" {
 		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability)
+		hdr.Xattrs["security.capability"] = capability
+	}
+
+	// List all available xattrs and pack them into archive
+	// with their corresponding values
+	xattrs, err := xattr.Listxattr(path)
+	if err != nil {
+		return err
+	}
+
+	// filter "user." xattrs ignore rest
+	user_xattrs := filterXattrs(xattrs, UserXattr)
+	for _, xattr_name := range user_xattrs {
+		xattr_value, _ := xattr.Getxattr(path, xattr_name)
+		if xattr_value != "" {
+			if hdr.Xattrs != nil {
+				hdr.Xattrs[name] = xattr_value
+			} else {
+				hdr.Xattrs = make(map[string]string)
+				hdr.Xattrs[name] = xattr_value
+			}
+		}
 	}
 
 	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
@@ -328,7 +360,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	}
 
 	for key, value := range hdr.Xattrs {
-		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
+		if err := xattr.Setxattr(path, key, value); err != nil {
 			return err
 		}
 	}
