@@ -1524,6 +1524,7 @@ removed before the image is removed.
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      --stdenv=true              Publish container/image information into container's environment
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
@@ -1660,6 +1661,25 @@ An example of a file passed with `--env-file`
 
 This will create and run a new container with the container name being
 `console`.
+
+Several evironment variables are set by default, and cannot be overridden
+through the use of `-e`, `--env`, or `--env-file`.  These variables provide
+identifying information about the running container.
+
+     $ sudo docker run -e CONTAINER_HOST=myhost busybox env | grep CONTAINER
+     CONTAINER_ID=5d3dec76d735d96fef790414a6f8cc62288cf64a0e5fff146b3ee94cd09fd40f
+     CONTAINER_IMAGE=e72ac664f4f0c6a061ac4ef332557a70d69b0c624b6add35f1c181ff7fff2287
+     CONTAINER_HOST=docker-01.some.domain.com
+
+Note how the variable specified by the command line was overridden by the 
+standard variables.  If you want to disable these for some reason, you can
+pass `--stdenv=false`.
+
+     $ sudo docker run --stdenv=false -e CONTAINER_HOST=hello busybox env | grep CONTAINER
+     CONTAINER_HOST=hello
+
+This will prevent docker from setting or overriding the value of CONTAINER_
+environment variables.
 
     $ sudo docker run --link /redis:redis --name console ubuntu bash
 
