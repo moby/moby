@@ -302,5 +302,6 @@ blue button to delete your branch.
 Congratulations! You're done.
 
 Go forth and announce the glad tidings of the new release in `#docker`,
-`#docker-dev`, on the [mailing list](https://groups.google.com/forum/#!forum/docker-dev),
+`#docker-dev`, on the [dev mailing list](https://groups.google.com/forum/#!forum/docker-dev),
+the [announce mailing list](https://groups.google.com/forum/#!forum/docker-announce),
 and on Twitter!
