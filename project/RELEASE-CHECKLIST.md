@@ -267,14 +267,17 @@ git checkout -b docs release || git checkout docs
 git fetch
 git reset --hard origin/release
 git push -f origin docs
-make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes DISTRIBUTION_ID=C2K6......FL2F docs-release
 ```
 
 The docs will appear on http://docs.docker.com/ (though there may be cached
 versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
 For more information about documentation releases, see `docs/README.md`.
 
-Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrome applet.
+Note that the new docs will not appear live on the site until the cache (a complex,
+distributed CDN system) is flushed. The `make docs-release` command will do this
+_if_ the `DISTRIBUTION_ID` is set correctly - this will take at least 15 minutes to run
+and you can check its progress with the CDN Cloudfront Chrome addin.
 
 ### 12. Create a new pull request to merge release back into master
 
