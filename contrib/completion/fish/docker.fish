@@ -122,7 +122,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l lxc-conf -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s m -l memory -d 'Memory limit (format: <number><optional unit>, where unit = b, k, m or g)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l net -d 'Set the Network mode for the container'
-complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s P -l publish-all -d 'Publish all exposed ports to the host interfaces'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s P -l publish-all -d 'Publish all exposed ports to random ports on the host interfaces'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s p -l publish -d "Publish a container's port to the host"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l privileged -d 'Give extended privileges to this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l restart -d 'Restart policy to apply when a container exits (no, on-failure[:max-retry], always)'
@@ -278,7 +278,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l lxc-conf -d '(l
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number><optional unit>, where unit = b, k, m or g)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l net -d 'Set the Network mode for the container'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s P -l publish-all -d 'Publish all exposed ports to the host interfaces'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s P -l publish-all -d 'Publish all exposed ports to random ports on the host interfaces'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s p -l publish -d "Publish a container's port to the host"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l privileged -d 'Give extended privileges to this container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l restart -d 'Restart policy to apply when a container exits (no, on-failure[:max-retry], always)'
