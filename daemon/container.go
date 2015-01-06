@@ -867,7 +867,9 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	// Check if this is actually in a volume
 	for _, mnt := range container.VolumeMounts() {
-		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
+		// Check the relative path of the resource to the volume.
+		// If the relative path of the resource starts with "../", that means the resource is not within the volume since it's in a parent dir
+		if relPath, err := filepath.Rel(mnt.MountToPath, filepath.Join("/", resource)); err == nil && !strings.HasPrefix(relPath, "../") {
 			return mnt.Export(resource)
 		}
 	}
