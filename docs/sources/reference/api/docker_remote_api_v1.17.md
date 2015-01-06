@@ -169,6 +169,7 @@ Create a container
 
 Json Parameters:
 
+-   **ID** - A string value containing the ID to use for the container.
 -   **Hostname** - A string value containing the desired hostname to use for the
       container.
 -   **Domainname** - A string value containing the desired domain name to use

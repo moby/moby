@@ -9,6 +9,7 @@ import (
 // Here, "portable" means "independent from the host we are running on".
 // Non-portable information *should* appear in HostConfig.
 type Config struct {
+	ID              string // Force a specific ID for the container (optional)
 	Hostname        string
 	Domainname      string
 	User            string
@@ -37,6 +38,7 @@ type Config struct {
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
 	config := &Config{
+		ID:              job.Getenv("ID"),
 		Hostname:        job.Getenv("Hostname"),
 		Domainname:      job.Getenv("Domainname"),
 		User:            job.Getenv("User"),
