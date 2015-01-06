@@ -22,6 +22,16 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s IMAGE [IMAGE...]\n", job.Name)
 	}
+	exclude := make(map[string]bool)
+	if job.EnvExists("exclude") {
+		for _, h := range job.GetenvList("exclude") {
+			image, err := s.LookupImage(h)
+			if err == nil {
+				exclude[image.ID] = true
+			}
+		}
+	}
+
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
@@ -45,7 +55,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 			// this is a base repo name, like 'busybox'
 			for tag, id := range rootRepo {
 				addKey(name, tag, id)
-				if err := s.exportImage(job.Eng, id, tempdir); err != nil {
+				if err := s.exportImage(job.Eng, id, tempdir, exclude); err != nil {
 					return job.Error(err)
 				}
 			}
@@ -64,13 +74,13 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 				if len(repoTag) > 0 {
 					addKey(repoName, repoTag, img.ID)
 				}
-				if err := s.exportImage(job.Eng, img.ID, tempdir); err != nil {
+				if err := s.exportImage(job.Eng, img.ID, tempdir, exclude); err != nil {
 					return job.Error(err)
 				}
 
 			} else {
 				// this must be an ID that didn't get looked up just right?
-				if err := s.exportImage(job.Eng, name, tempdir); err != nil {
+				if err := s.exportImage(job.Eng, name, tempdir, exclude); err != nil {
 					return job.Error(err)
 				}
 			}
@@ -101,8 +111,13 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 }
 
 // FIXME: this should be a top-level function, not a class method
-func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
+func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string, exclude map[string]bool) error {
 	for n := name; n != ""; {
+		// break if the client already has this layer
+		if exclude[n] {
+			break
+		}
+
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, n)
 		if err := os.Mkdir(tmpImageDir, os.FileMode(0755)); err != nil {

@@ -1835,6 +1835,7 @@ You can add other hosts into a container's `/etc/hosts` file by using one or mor
 
     Save an image(s) to a tar archive (streamed to STDOUT by default)
 
+      -e, --exclude=[]   Images not to be included in the archive
       -o, --output=""    Write to a file, instead of STDOUT
 
 Produces a tarred repository to the standard output stream.
@@ -1855,6 +1856,10 @@ It is used to create a backup that can then be used with `docker load`
 It is even useful to cherry-pick particular tags of an image repository
 
    $ sudo docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
+
+The purpose of the `--exclude` option is to reduce the size of the archive by
+excluding specific layers (and their parents). This is useful for transferring
+an image to another host where parent layers are already present.
 
 ## search
 
