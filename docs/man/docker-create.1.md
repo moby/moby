@@ -122,7 +122,7 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **-P**, **--publish-all**=*true*|*false*
-   Publish all exposed ports to the host interfaces. The default is *false*.
+   Publish all exposed ports to random ports on the host interfaces. The default is *false*.
 
 **-p**, **--publish**=[]
    Publish a container's port, or a range of ports, to the host

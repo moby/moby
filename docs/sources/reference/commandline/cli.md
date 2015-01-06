@@ -698,7 +698,7 @@ Creates a new container.
                                    'none': no networking for this container
                                    'container:<name|id>': reuses another container network stack
                                    'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
-      -P, --publish-all=false    Publish all exposed ports to the host interfaces
+      -P, --publish-all=false    Publish all exposed ports to random ports on the host interfaces
       -p, --publish=[]           Publish a container's port, or a range of ports (e.g., `-p 3300-3310`), to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                                    Both hostPort and containerPort can be specified as a range of ports. 
@@ -1526,7 +1526,7 @@ removed before the image is removed.
                                    'none': no networking for this container
                                    'container:<name|id>': reuses another container network stack
                                    'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
-      -P, --publish-all=false    Publish all exposed ports to the host interfaces
+      -P, --publish-all=false    Publish all exposed ports to random ports on the host interfaces
       -p, --publish=[]           Publish a container's port to the host
                                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                                    Both hostPort and containerPort can be specified as a range of ports. 
