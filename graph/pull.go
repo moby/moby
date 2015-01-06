@@ -352,71 +352,75 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 		}
 		defer s.poolRemove("pull", "layer:"+id)
 
-		if !s.graph.Exists(id) {
-			out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
-			var (
-				imgJSON []byte
-				imgSize int
-				err     error
-				img     *image.Image
-			)
-			retries := 5
-			for j := 1; j <= retries; j++ {
-				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
-				if err != nil && j == retries {
-					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-					return layers_downloaded, err
-				} else if err != nil {
-					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
-					continue
-				}
-				img, err = image.NewImgJSON(imgJSON)
-				layers_downloaded = true
-				if err != nil && j == retries {
-					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-					return layers_downloaded, fmt.Errorf("Failed to parse json: %s", err)
-				} else if err != nil {
-					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
-					continue
-				} else {
-					break
-				}
+		if s.graph.Exists(id) {
+			out.Write(sf.FormatProgress(utils.TruncateID(id), "Download complete", nil))
+			continue
+		}
+
+		out.Write(sf.FormatProgress(utils.TruncateID(id), "Pulling metadata", nil))
+		var (
+			imgJSON []byte
+			imgSize int
+			err     error
+			img     *image.Image
+		)
+		retries := 5
+		for j := 1; j <= retries; j++ {
+			imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
+			if err != nil && j == retries {
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+				return layers_downloaded, err
+			} else if err != nil {
+				time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+				continue
 			}
-
-			for j := 1; j <= retries; j++ {
-				// Get the layer
-				status := "Pulling fs layer"
-				if j > 1 {
-					status = fmt.Sprintf("Pulling fs layer [retries: %d]", j)
-				}
-				out.Write(sf.FormatProgress(utils.TruncateID(id), status, nil))
-				layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token, int64(imgSize))
-				if uerr, ok := err.(*url.Error); ok {
-					err = uerr.Err
-				}
-				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
-					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
-					continue
-				} else if err != nil {
-					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
-					return layers_downloaded, err
-				}
-				layers_downloaded = true
-				defer layer.Close()
-
-				err = s.graph.Register(img,
-					utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"))
-				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
-					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
-					continue
-				} else if err != nil {
-					out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
-					return layers_downloaded, err
-				} else {
-					break
-				}
+			img, err = image.NewImgJSON(imgJSON)
+			layers_downloaded = true
+			if err != nil && j == retries {
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+				return layers_downloaded, fmt.Errorf("Failed to parse json: %s", err)
+			} else if err != nil {
+				time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+				continue
+			} else {
+				break
 			}
 		}
+
+		for j := 1; j <= retries; j++ {
+			// Get the layer
+			status := "Pulling fs layer"
+			if j > 1 {
+				status = fmt.Sprintf("Pulling fs layer [retries: %d]", j)
+			}
+			out.Write(sf.FormatProgress(utils.TruncateID(id), status, nil))
+			layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token, int64(imgSize))
+			if uerr, ok := err.(*url.Error); ok {
+				err = uerr.Err
+			}
+			if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
+				time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+				continue
+			} else if err != nil {
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error pulling dependent layers", nil))
+				return layers_downloaded, err
+			}
+			layers_downloaded = true
+			defer layer.Close()
+
+			err = s.graph.Register(img,
+				utils.ProgressReader(layer, imgSize, out, sf, false, utils.TruncateID(id), "Downloading"))
+			if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
+				time.Sleep(time.Duration(j) * 500 * time.Millisecond)
+				continue
+			} else if err != nil {
+				out.Write(sf.FormatProgress(utils.TruncateID(id), "Error downloading dependent layers", nil))
+				return layers_downloaded, err
+			} else {
+				break
+			}
+		}
+
 		out.Write(sf.FormatProgress(utils.TruncateID(id), "Download complete", nil))
 	}
 	return layers_downloaded, nil
