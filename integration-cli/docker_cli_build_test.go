@@ -3841,6 +3841,102 @@ func TestBuildRunShEntrypoint(t *testing.T) {
 	logDone("build - entrypoint with /bin/echo running successfully")
 }
 
+func TestBuildWithSubBuild(t *testing.T) {
+	name := "testbuildwithsubbuild"
+	defer deleteImages(name + " " + name + "-build")
+	dockerfile := `
+FROM busybox
+ADD test /test
+BUILD /test/hello
+FROM busybox
+ADD docker /docker
+RUN ["/bin/touch", "/docker/hello"]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"/test/hello/docker/world": "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--rm", name, "ls", "-1", "/docker")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "hello\nworld"
+	out = strings.TrimSpace(out)
+	if out != expected {
+		t.Fatalf("Subbuild ls %s, expected %s", out, expected)
+	}
+
+	// Try second build to test cache
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 != id2 {
+		t.Fatal("The cache should have been used but hasn't.")
+	}
+
+	logDone("build - subbuild support")
+}
+
+func TestBuildBuildWithGeneratedDockerfile(t *testing.T) {
+	name := "testbuildbuildwithgenerateddockerfile"
+	defer deleteImages(name + " " + name + "-build")
+
+	dockerfile := `
+FROM busybox
+ADD test /test
+WORKDIR /test
+RUN ["/bin/sh", "/test/build.sh"]
+BUILD /test`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"test/build.sh": `#!/bin/sh
+BUILD_TIME=$(date)
+cat <<EOT > Dockerfile
+FROM busybox
+ENV BUILD_TIME $BUILD_TIME
+ADD check.sh .
+EOT
+
+cat <<EOT > check.sh
+#!/bin/sh
+if [ "$BUILD_TIME" == "\$BUILD_TIME" ]; then
+	echo "ok"
+fi
+EOT
+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--rm", name, "/bin/sh", "/check.sh")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "ok"
+	out = strings.TrimSpace(out)
+	if out != expected {
+		t.Fatalf("Check returned %s, expected %s", out, expected)
+	}
+
+	logDone("build - subbuild with generated Dockerfile")
+}
+
 func TestBuildExoticShellInterpolation(t *testing.T) {
 	name := "testbuildexoticshellinterpolation"
 	defer deleteImages(name)

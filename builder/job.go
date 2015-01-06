@@ -39,14 +39,12 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		pull           = job.GetenvBool("pull")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
-		tag            string
 		context        io.ReadCloser
 	)
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
 
-	repoName, tag = parsers.ParseRepositoryTag(repoName)
-	if repoName != "" {
+	if repoName, tag := parsers.ParseRepositoryTag(repoName); repoName != "" {
 		if _, _, err := registry.ResolveRepositoryName(repoName); err != nil {
 			return job.Error(err)
 		}
@@ -118,15 +116,13 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
+		RepoName:        repoName,
 	}
 
-	id, err := builder.Run(context)
+	_, err := builder.Run(context)
 	if err != nil {
 		return job.Error(err)
 	}
 
-	if repoName != "" {
-		b.Daemon.Repositories().Set(repoName, tag, id, true)
-	}
 	return engine.StatusOK
 }

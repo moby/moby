@@ -10,6 +10,7 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -17,7 +18,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -385,6 +388,98 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
 		return err
 	}
+	return nil
+}
+
+// BUILD path
+//
+// Run new build process using the specified path as a new build context.
+//
+func build(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("Build configuration empty")
+	}
+
+	contextPath := args[0]
+	dockerfile := ""
+
+	if len(args) > 1 {
+		dockerfile = args[1]
+	}
+
+	// Set command for debugging/init. This is not commited.
+	b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) build in %s", contextPath)}
+
+	c, err := b.create()
+	if err != nil {
+		return err
+	}
+
+	c.Mount()
+	defer c.Unmount()
+
+	contextPath = filepath.Join(c.RootfsPath(), contextPath)
+	contextPath, err = symlink.FollowSymlinkInScope(contextPath, c.RootfsPath())
+	if err != nil {
+		return err
+	}
+
+	dirInfo, err := os.Stat(contextPath)
+	if err != nil {
+		return err
+	}
+	if !dirInfo.IsDir() {
+		return fmt.Errorf("%s is not a directory", contextPath)
+	}
+
+	if len(dockerfile) > 1 {
+		dockerfilePath := filepath.Join(contextPath, "Dockerfile")
+		dockerfilePath, err := symlink.FollowSymlinkInScope(dockerfilePath, contextPath)
+		if err != nil {
+			return err
+		}
+		f, err := os.Create(dockerfilePath)
+		if err != nil {
+			return err
+		}
+		_, err = f.WriteString(dockerfile)
+		f.Close()
+		if err != nil {
+			return err
+		}
+
+		// Reset the modified times so the Dockerfile can't invalidate cache.
+		err = os.Chtimes(dockerfilePath, dirInfo.ModTime(), dirInfo.ModTime())
+		if err != nil {
+			return err
+		}
+		err = os.Chtimes(contextPath, dirInfo.ModTime(), dirInfo.ModTime())
+		if err != nil {
+			return err
+		}
+
+	}
+
+	archive, err := archive.Tar(contextPath, archive.Uncompressed)
+	if err != nil {
+		return err
+	}
+	defer archive.Close()
+
+	// Copy so the old image is not overwritten.
+	// builder.Config is reset by Run().
+	copy := *b
+	newBuilder := &copy
+
+	_, err = newBuilder.Run(archive)
+	if err != nil {
+		return err
+	}
+
+	if b.RepoName != "" {
+		b.RepoName = newBuilder.RepoName + "-builder"
+	}
+
 	return nil
 }
 
