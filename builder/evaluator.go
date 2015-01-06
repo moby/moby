@@ -112,6 +112,7 @@ type Builder struct {
 	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)
 	noBaseImage bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
+	imageCache  *imageCache   // speed up probeCache
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
