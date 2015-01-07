@@ -53,7 +53,7 @@ First generate CA private and public keys:
      Email Address []:Sven@home.org.au
 
 Now that we have a CA, you can create a server key and certificate
-signing request (CSR). Make sure that "Common Name" (i.e. server FQDN or YOUR
+signing request (CSR). Make sure that "Common Name" (i.e., server FQDN or YOUR
 name) matches the hostname you will use to connect to Docker:
 
     $ openssl genrsa -out server-key.pem 2048
