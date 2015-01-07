@@ -1237,6 +1237,7 @@ Display system-wide information
              "Containers":11,
              "Images":16,
              "Driver":"btrfs",
+             "DriverStatus": [[""]],
              "ExecutionDriver":"native-0.1",
              "KernelVersion":"3.12.0-1-amd64"
              "NCPU":1,
@@ -1248,11 +1249,14 @@ Display system-wide information
              "NGoroutines":21,
              "NEventsListener":0,
              "InitPath":"/usr/bin/docker",
+             "InitSha1":"",
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
              "IPv4Forwarding":true,
-             "Labels":["storage=ssd"]
+             "Labels":["storage=ssd"],
+             "DockerRootDir": "/var/lib/docker",
+             "OperatingSystem": "Boot2Docker",
         }
 
 Status Codes:
