@@ -11,13 +11,17 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
-var acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
+var acceptedImageFilterTags = map[string]struct{}{
+	"dangling": {},
+	"label":    {},
+}
 
 func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	var (
 		allImages   map[string]*image.Image
 		err         error
 		filt_tagged = true
+		filt_label  = false
 	)
 
 	imageFilters, err := filters.FromParam(job.Getenv("filters"))
@@ -37,6 +41,8 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			}
 		}
 	}
+
+	_, filt_label = imageFilters["label"]
 
 	if job.GetenvBool("all") && filt_tagged {
 		allImages, err = s.graph.Map()
@@ -68,6 +74,9 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			} else {
 				// get the boolean list for if only the untagged images are requested
 				delete(allImages, id)
+				if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
+					continue
+				}
 				if filt_tagged {
 					out := &engine.Env{}
 					out.SetJson("ParentId", image.Parent)
@@ -76,6 +85,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 					out.SetInt64("Created", image.Created.Unix())
 					out.SetInt64("Size", image.Size)
 					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+					out.SetJson("Labels", image.ContainerConfig.Labels)
 					lookup[id] = out
 				}
 			}
@@ -90,8 +100,11 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	}
 
 	// Display images which aren't part of a repository/tag
-	if job.Getenv("filter") == "" {
+	if job.Getenv("filter") == "" || filt_label {
 		for _, image := range allImages {
+			if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
+				continue
+			}
 			out := &engine.Env{}
 			out.SetJson("ParentId", image.Parent)
 			out.SetList("RepoTags", []string{"<none>:<none>"})
@@ -99,6 +112,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)
 			out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+			out.SetJson("Labels", image.ContainerConfig.Labels)
 			outs.Add(out)
 		}
 	}

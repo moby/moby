@@ -724,6 +724,15 @@ COPY . /static`); err != nil {
 		ctx:       ctx}, nil
 }
 
+func inspectFieldAndMarshall(name, field string, output interface{}) error {
+	str, err := inspectFieldJSON(name, field)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(str), output)
+}
+
 func inspectFilter(name, filter string) (string, error) {
 	format := fmt.Sprintf("{{%s}}", filter)
 	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)

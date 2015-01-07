@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"reflect"
 	"testing"
 	"time"
 
@@ -248,4 +249,58 @@ func TestCreateVolumesCreated(t *testing.T) {
 	}
 
 	logDone("create - volumes are created")
+}
+
+func TestCreateLabels(t *testing.T) {
+	name := "test_create_labels"
+	expected := map[string]string{"k1": "v1", "k2": "v2"}
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")); err != nil {
+		t.Fatal(out, err)
+	}
+
+	actual := make(map[string]string)
+	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %s got %s", expected, actual)
+	}
+
+	deleteAllContainers()
+
+	logDone("create - labels")
+}
+
+func TestCreateLabelFromImage(t *testing.T) {
+	imageName := "testcreatebuildlabel"
+	defer deleteImages(imageName)
+	_, err := buildImage(imageName,
+		`FROM busybox
+		LABEL k1=v1 k2=v2`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	name := "test_create_labels_from_image"
+	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)); err != nil {
+		t.Fatal(out, err)
+	}
+
+	actual := make(map[string]string)
+	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Expected %s got %s", expected, actual)
+	}
+
+	deleteAllContainers()
+
+	logDone("create - labels from image")
 }

@@ -31,6 +31,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flVolumes = opts.NewListOpts(opts.ValidatePath)
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flLabels  = opts.NewListOpts(opts.ValidateEnv)
 		flDevices = opts.NewListOpts(opts.ValidatePath)
 
 		ulimits   = make(map[string]*ulimit.Ulimit)
@@ -47,6 +48,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
 		flSecurityOpt = opts.NewListOpts(nil)
+		flLabelsFile  = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -74,6 +76,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
+	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container, for example com.example.key=value")
+	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
 	cmd.Var(&flPublish, []string{"p", "-publish"}, "Publish a container's port(s) to the host")
@@ -243,16 +247,16 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	// collect all the environment variables for the container
-	envVariables := []string{}
-	for _, ef := range flEnvFile.GetAll() {
-		parsedVars, err := opts.ParseEnvFile(ef)
-		if err != nil {
-			return nil, nil, cmd, err
-		}
-		envVariables = append(envVariables, parsedVars...)
+	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
+	if err != nil {
+		return nil, nil, cmd, err
 	}
-	// parse the '-e' and '--env' after, to allow override
-	envVariables = append(envVariables, flEnv.GetAll()...)
+
+	// collect all the labels for the container
+	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	if err != nil {
+		return nil, nil, cmd, err
+	}
 
 	ipcMode := IpcMode(*flIpcMode)
 	if !ipcMode.Valid() {
@@ -297,6 +301,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MacAddress:      *flMacAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
+		Labels:          convertKVStringsToMap(labels),
 	}
 
 	hostConfig := &HostConfig{
@@ -328,6 +333,37 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
+}
+
+// reads a file of line terminated key=value pairs and override that with override parameter
+func readKVStrings(files []string, override []string) ([]string, error) {
+	envVariables := []string{}
+	for _, ef := range files {
+		parsedVars, err := opts.ParseEnvFile(ef)
+		if err != nil {
+			return nil, err
+		}
+		envVariables = append(envVariables, parsedVars...)
+	}
+	// parse the '-e' and '--env' after, to allow override
+	envVariables = append(envVariables, override...)
+
+	return envVariables, nil
+}
+
+// converts ["key=value"] to {"key":"value"}
+func convertKVStringsToMap(values []string) map[string]string {
+	result := make(map[string]string, len(values))
+	for _, value := range values {
+		kv := strings.SplitN(value, "=", 2)
+		if len(kv) == 1 {
+			result[kv[0]] = ""
+		} else {
+			result[kv[0]] = kv[1]
+		}
+	}
+
+	return result
 }
 
 // parseRestartPolicy returns the parsed policy or an error indicating what is incorrect
