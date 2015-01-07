@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 
+	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/devices"
 )
 
@@ -61,6 +63,7 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
+	Stats(id string) (*ResourceStats, error)      // Get resource stats for a running container
 }
 
 // Network settings of the container
@@ -99,6 +102,12 @@ type Resources struct {
 	MemorySwap int64  `json:"memory_swap"`
 	CpuShares  int64  `json:"cpu_shares"`
 	Cpuset     string `json:"cpuset"`
+}
+
+type ResourceStats struct {
+	*libcontainer.ContainerStats
+	Read       time.Time `json:"read"`
+	ClockTicks int       `json:"clock_ticks"`
 }
 
 type Mount struct {

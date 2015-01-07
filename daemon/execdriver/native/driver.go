@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -277,6 +278,23 @@ func (d *driver) createContainerRoot(id string) error {
 
 func (d *driver) Clean(id string) error {
 	return os.RemoveAll(filepath.Join(d.root, id))
+}
+
+func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	state, err := libcontainer.GetState(filepath.Join(d.root, id))
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	stats, err := libcontainer.GetStats(nil, state)
+	if err != nil {
+		return nil, err
+	}
+	return &execdriver.ResourceStats{
+		ContainerStats: stats,
+		ClockTicks:     system.GetClockTicks(),
+		Read:           now,
+	}, nil
 }
 
 func getEnv(key string, env []string) string {

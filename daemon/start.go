@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -76,4 +77,18 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	container.toDisk()
 
 	return nil
+}
+
+func (daemon *Daemon) ContainerStats(job *engine.Job) engine.Status {
+	stats, err := daemon.SubscribeToContainerStats(job.Args[0])
+	if err != nil {
+		return job.Error(err)
+	}
+	enc := json.NewEncoder(job.Stdout)
+	for update := range stats {
+		if err := enc.Encode(update); err != nil {
+			return job.Error(err)
+		}
+	}
+	return engine.StatusOK
 }
