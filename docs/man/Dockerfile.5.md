@@ -120,7 +120,8 @@ or
 **ENV**
  --**ENV <key> <value>**
  The ENV instruction sets the environment variable <key> to
- the value <value>. This value is passed to all future RUN instructions. This is
+ the value <value>. This value is passed to all future 
+ RUN, ENTRYPOINT, and CMD instructions. This is
  functionally equivalent to prefixing the command with **<key>=<value>**.  The
  environment variables that are set with ENV persist when a container is run
  from the resulting image. Use docker inspect to inspect these values, and
