@@ -134,7 +134,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		return err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
-	req.Header.Set("Content-Type", "plain/text")
+	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 	req.Host = cli.addr
