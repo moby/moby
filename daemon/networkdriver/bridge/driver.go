@@ -169,6 +169,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		if err := ipallocator.RegisterSubnet(bridgeNetwork, subnet); err != nil {
 			return job.Error(err)
 		}
+
 	}
 
 	// https://github.com/docker/docker/issues/2768
@@ -370,13 +371,30 @@ func Allocate(job *engine.Job) engine.Status {
 		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
 	)
 
+	// Fix the issue https://github.com/docker/docker/issues/9938.
+	// Make sure that the container'ip will not be bridge's ip.
+	// If the requested ip is same with bridge's ip, it will return err.
+	// If the allocated ip is same with bridge's ip, it will re-allocated.
 	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
+		if bridgeNetwork.IP.Equal(requestedIP) {
+			return job.Errorf("requested ip can not be same with Bridge IP")
+		} else {
+			ip, err = ipallocator.RequestIP(bridgeNetwork, requestedIP)
+			if err != nil {
+				return job.Error(err)
+			}
+		}
 	} else {
 		ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
-	}
-	if err != nil {
-		return job.Error(err)
+		if err != nil {
+			return job.Error(err)
+		}
+		if bridgeNetwork.IP.Equal(ip) {
+			ip, err = ipallocator.RequestIP(bridgeNetwork, nil)
+			if err != nil {
+				return job.Error(err)
+			}
+		}
 	}
 
 	// If no explicit mac address was given, generate a random one.
