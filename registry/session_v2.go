@@ -277,6 +277,11 @@ func (r *Session) PutV2ImageManifest(imageName, tagName string, manifestRdr io.R
 	return nil
 }
 
+type remoteTags struct {
+	name string
+	tags []string
+}
+
 // Given a repository name, returns a json array of string tags
 func (r *Session) GetV2RemoteTags(imageName string, auth *RequestAuthorization) ([]string, error) {
 	routeURL, err := getV2Builder(r.indexEndpoint).BuildTagsURL(imageName)
@@ -309,10 +314,10 @@ func (r *Session) GetV2RemoteTags(imageName string, auth *RequestAuthorization) 
 	}
 
 	decoder := json.NewDecoder(res.Body)
-	var tags []string
-	err = decoder.Decode(&tags)
+	var remote remoteTags
+	err = decoder.Decode(&remote)
 	if err != nil {
 		return nil, fmt.Errorf("Error while decoding the http response: %s", err)
 	}
-	return tags, nil
+	return remote.tags, nil
 }
