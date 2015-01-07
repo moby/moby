@@ -17,13 +17,6 @@ import (
 const (
 	// Where we store the config file
 	CONFIGFILE = ".dockercfg"
-
-	// Only used for user auth + account creation
-	INDEXSERVER    = "https://index.docker.io/v1/"
-	REGISTRYSERVER = "https://registry-1.docker.io/v1/"
-	INDEXNAME      = "docker.io"
-
-	// INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
 )
 
 var (
@@ -41,14 +34,6 @@ type AuthConfig struct {
 type ConfigFile struct {
 	Configs  map[string]AuthConfig `json:"configs,omitempty"`
 	rootPath string
-}
-
-func IndexServerAddress() string {
-	return INDEXSERVER
-}
-
-func IndexServerName() string {
-	return INDEXNAME
 }
 
 // create a base64 encoded auth string to store in config

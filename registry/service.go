@@ -130,7 +130,7 @@ func (s *Service) ResolveRepository(job *engine.Job) engine.Status {
 		reposName = job.Args[0]
 	)
 
-	repoInfo, err := NewRepositoryInfo(s.Config, reposName)
+	repoInfo, err := s.Config.NewRepositoryInfo(reposName)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -168,7 +168,7 @@ func (s *Service) ResolveIndex(job *engine.Job) engine.Status {
 		indexName = job.Args[0]
 	)
 
-	index, err := NewIndexInfo(s.Config, indexName)
+	index, err := s.Config.NewIndexInfo(indexName)
 	if err != nil {
 		return job.Error(err)
 	}

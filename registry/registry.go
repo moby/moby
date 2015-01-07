@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,13 +18,9 @@ import (
 )
 
 var (
-	ErrAlreadyExists         = errors.New("Image already exists")
-	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-	ErrDoesNotExist          = errors.New("Image does not exist")
-	errLoginRequired         = errors.New("Authentication is required.")
-	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_]*)$`)
-	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
-	emptyServiceConfig       = NewServiceConfig(nil)
+	ErrAlreadyExists = errors.New("Image already exists")
+	ErrDoesNotExist  = errors.New("Image does not exist")
+	errLoginRequired = errors.New("Authentication is required.")
 )
 
 type TimeoutType uint32
@@ -159,185 +154,6 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 	client := newClient(jar, pool, certs, timeout, secure)
 	res, err := client.Do(req)
 	return res, client, err
-}
-
-func validateRemoteName(remoteName string) error {
-	var (
-		namespace string
-		name      string
-	)
-	nameParts := strings.SplitN(remoteName, "/", 2)
-	if len(nameParts) < 2 {
-		namespace = "library"
-		name = nameParts[0]
-
-		// the repository name must not be a valid image ID
-		if err := utils.ValidateID(name); err == nil {
-			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
-		}
-	} else {
-		namespace = nameParts[0]
-		name = nameParts[1]
-	}
-	if !validNamespaceChars.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
-	}
-	if len(namespace) < 4 || len(namespace) > 30 {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 4 or more than 30 characters.", namespace)
-	}
-	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)
-	}
-	if strings.Contains(namespace, "--") {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot contain consecutive hyphens.", namespace)
-	}
-	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
-	}
-	return nil
-}
-
-// NewIndexInfo returns IndexInfo configuration from indexName
-func NewIndexInfo(config *ServiceConfig, indexName string) (*IndexInfo, error) {
-	var err error
-	indexName, err = ValidateIndexName(indexName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return any configured index info, first.
-	if index, ok := config.IndexConfigs[indexName]; ok {
-		return index, nil
-	}
-
-	// Construct a non-configured index info.
-	index := &IndexInfo{
-		Name:     indexName,
-		Mirrors:  make([]string, 0),
-		Official: false,
-	}
-	index.Secure = config.isSecureIndex(indexName)
-	return index, nil
-}
-
-func validateNoSchema(reposName string) error {
-	if strings.Contains(reposName, "://") {
-		// It cannot contain a scheme!
-		return ErrInvalidRepositoryName
-	}
-	return nil
-}
-
-// splitReposName breaks a reposName into an index name and remote name
-func splitReposName(reposName string) (string, string) {
-	nameParts := strings.SplitN(reposName, "/", 2)
-	var indexName, remoteName string
-	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
-		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
-		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		// 'docker.io'
-		indexName = IndexServerName()
-		remoteName = reposName
-	} else {
-		indexName = nameParts[0]
-		remoteName = nameParts[1]
-	}
-	return indexName, remoteName
-}
-
-// NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func NewRepositoryInfo(config *ServiceConfig, reposName string) (*RepositoryInfo, error) {
-	if err := validateNoSchema(reposName); err != nil {
-		return nil, err
-	}
-
-	indexName, remoteName := splitReposName(reposName)
-	if err := validateRemoteName(remoteName); err != nil {
-		return nil, err
-	}
-
-	repoInfo := &RepositoryInfo{
-		RemoteName: remoteName,
-	}
-
-	var err error
-	repoInfo.Index, err = NewIndexInfo(config, indexName)
-	if err != nil {
-		return nil, err
-	}
-
-	if repoInfo.Index.Official {
-		normalizedName := repoInfo.RemoteName
-		if strings.HasPrefix(normalizedName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
-		}
-
-		repoInfo.LocalName = normalizedName
-		repoInfo.RemoteName = normalizedName
-		// If the normalized name does not contain a '/' (e.g. "foo")
-		// then it is an official repo.
-		if strings.IndexRune(normalizedName, '/') == -1 {
-			repoInfo.Official = true
-			// Fix up remote name for official repos.
-			repoInfo.RemoteName = "library/" + normalizedName
-		}
-
-		// *TODO: Prefix this with 'docker.io/'.
-		repoInfo.CanonicalName = repoInfo.LocalName
-	} else {
-		// *TODO: Decouple index name from hostname (via registry configuration?)
-		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
-		repoInfo.CanonicalName = repoInfo.LocalName
-	}
-	return repoInfo, nil
-}
-
-// ValidateRepositoryName validates a repository name
-func ValidateRepositoryName(reposName string) error {
-	var err error
-	if err = validateNoSchema(reposName); err != nil {
-		return err
-	}
-	indexName, remoteName := splitReposName(reposName)
-	if _, err = ValidateIndexName(indexName); err != nil {
-		return err
-	}
-	return validateRemoteName(remoteName)
-}
-
-// ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but
-// lacks registry configuration.
-func ParseRepositoryInfo(reposName string) (*RepositoryInfo, error) {
-	return NewRepositoryInfo(emptyServiceConfig, reposName)
-}
-
-// NormalizeLocalName transforms a repository name into a normalize LocalName
-// Passes through the name without transformation on error (image id, etc)
-func NormalizeLocalName(name string) string {
-	repoInfo, err := ParseRepositoryInfo(name)
-	if err != nil {
-		return name
-	}
-	return repoInfo.LocalName
-}
-
-// GetAuthConfigKey special-cases using the full index address of the official
-// index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
-func (index *IndexInfo) GetAuthConfigKey() string {
-	if index.Official {
-		return IndexServerAddress()
-	}
-	return index.Name
-}
-
-// GetSearchTerm special-cases using local name for official index, and
-// remote name for private indexes.
-func (repoInfo *RepositoryInfo) GetSearchTerm() string {
-	if repoInfo.Index.Official {
-		return repoInfo.LocalName
-	}
-	return repoInfo.RemoteName
 }
 
 func trustedLocation(req *http.Request) bool {

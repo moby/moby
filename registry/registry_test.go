@@ -561,7 +561,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 func TestNewIndexInfo(t *testing.T) {
 	testIndexInfo := func(config *ServiceConfig, expectedIndexInfos map[string]*IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
-			index, err := NewIndexInfo(config, indexName)
+			index, err := config.NewIndexInfo(indexName)
 			if err != nil {
 				t.Fatal(err)
 			} else {
