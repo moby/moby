@@ -747,12 +747,12 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, false))
 		if err != nil {
-			if !*attach || !*openStdin {
+			if !*attach && !*openStdin {
 				fmt.Fprintf(cli.err, "%s\n", err)
 			}
 			encounteredError = fmt.Errorf("Error: failed to start one or more containers")
 		} else {
-			if !*attach || !*openStdin {
+			if !*attach && !*openStdin {
 				fmt.Fprintf(cli.out, "%s\n", name)
 			}
 		}

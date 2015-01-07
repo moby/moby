@@ -53,8 +53,8 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 
 	// make sure the container has exited before trying the "start -a"
 	waitCmd := exec.Command(dockerBinary, "wait", out)
-	if out, _, err = runCommandWithOutput(waitCmd); err != nil {
-		t.Fatal(out, err)
+	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("Failed to wait on container: %v", err)
 	}
 
 	startCmd := exec.Command(dockerBinary, "start", "-a", out)
@@ -67,6 +67,34 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 	}
 
 	logDone("start - correct exit code returned with -a")
+}
+
+func TestStartSilentAttach(t *testing.T) {
+	defer deleteAllContainers()
+
+	name := "teststartattachcorrectexitcode"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "echo", "test")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	// make sure the container has exited before trying the "start -a"
+	waitCmd := exec.Command(dockerBinary, "wait", name)
+	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("wait command failed with error: %v", err)
+	}
+
+	startCmd := exec.Command(dockerBinary, "start", "-a", name)
+	startOut, _, err := runCommandWithOutput(startCmd)
+	if err != nil {
+		t.Fatalf("start command failed unexpectedly with error: %v, output: %q", err, startOut)
+	}
+	if expected := "test\n"; startOut != expected {
+		t.Fatalf("start -a produced unexpected output: expected %q, got %q", expected, startOut)
+	}
+
+	logDone("start - don't echo container ID when attaching")
 }
 
 func TestStartRecordError(t *testing.T) {
