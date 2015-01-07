@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -30,6 +31,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s\n", job.Name)
 	}
 	var (
+		dockerfileName = job.Getenv("dockerfile")
 		remoteURL      = job.Getenv("remote")
 		repoName       = job.Getenv("t")
 		suppressOutput = job.GetenvBool("q")
@@ -42,6 +44,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		tag            string
 		context        io.ReadCloser
 	)
+
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("configFile", configFile)
 
@@ -55,6 +58,10 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 		}
+	}
+
+	if dockerfileName == "" {
+		dockerfileName = api.DefaultDockerfileName
 	}
 
 	if remoteURL == "" {
@@ -88,7 +95,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		c, err := archive.Generate("Dockerfile", string(dockerFile))
+		c, err := archive.Generate(dockerfileName, string(dockerFile))
 		if err != nil {
 			return job.Error(err)
 		}
@@ -118,6 +125,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
+		dockerfileName:  dockerfileName,
 	}
 
 	id, err := builder.Run(context)

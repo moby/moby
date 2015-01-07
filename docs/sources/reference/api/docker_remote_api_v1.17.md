@@ -1157,16 +1157,21 @@ Build an image from Dockerfile via stdin
         {"stream": "..."}
         {"error": "Error...", "errorDetail": {"code": 123, "message": "Error..."}}
 
-    The stream must be a tar archive compressed with one of the
-    following algorithms: identity (no compression), gzip, bzip2, xz.
+The input stream must be a tar archive compressed with one of the
+following algorithms: identity (no compression), gzip, bzip2, xz.
 
-    The archive must include a file called `Dockerfile`
-    at its root. It may include any number of other files,
-    which will be accessible in the build context (See the [*ADD build
-    command*](/reference/builder/#dockerbuilder)).
+The archive must include a build instructions file, typically called
+`Dockerfile` at the root of the archive. The `f` parameter may be used
+to specify a different build instructions file by having its value be
+the path to the alternate build instructions file to use.
+
+The archive may include any number of other files,
+which will be accessible in the build context (See the [*ADD build
+command*](/reference/builder/#dockerbuilder)).
 
 Query Parameters:
 
+-   **dockerfile** - path within the build context to the Dockerfile
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
 -   **q** – suppress verbose build output

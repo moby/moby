@@ -105,13 +105,14 @@ type Builder struct {
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
 
-	dockerfile  *parser.Node  // the syntax tree of the dockerfile
-	image       string        // image name for commit processing
-	maintainer  string        // maintainer name. could probably be removed.
-	cmdSet      bool          // indicates is CMD was set in current Dockerfile
-	context     tarsum.TarSum // the context is a tarball that is uploaded by the client
-	contextPath string        // the path of the temporary directory the local context is unpacked to (server side)
-	noBaseImage bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
+	dockerfileName string        // name of Dockerfile
+	dockerfile     *parser.Node  // the syntax tree of the dockerfile
+	image          string        // image name for commit processing
+	maintainer     string        // maintainer name. could probably be removed.
+	cmdSet         bool          // indicates is CMD was set in current Dockerfile
+	context        tarsum.TarSum // the context is a tarball that is uploaded by the client
+	contextPath    string        // the path of the temporary directory the local context is unpacked to (server side)
+	noBaseImage    bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -137,7 +138,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		}
 	}()
 
-	if err := b.readDockerfile("Dockerfile"); err != nil {
+	if err := b.readDockerfile(b.dockerfileName); err != nil {
 		return "", err
 	}
 
@@ -205,9 +206,9 @@ func (b *Builder) readDockerfile(filename string) error {
 		os.Remove(path.Join(b.contextPath, ".dockerignore"))
 		b.context.(tarsum.BuilderContext).Remove(".dockerignore")
 	}
-	if rm, _ := fileutils.Matches("Dockerfile", excludes); rm == true {
-		os.Remove(path.Join(b.contextPath, "Dockerfile"))
-		b.context.(tarsum.BuilderContext).Remove("Dockerfile")
+	if rm, _ := fileutils.Matches(b.dockerfileName, excludes); rm == true {
+		os.Remove(path.Join(b.contextPath, b.dockerfileName))
+		b.context.(tarsum.BuilderContext).Remove(b.dockerfileName)
 	}
 
 	return nil

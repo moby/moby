@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -84,6 +85,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers, even after unsuccessful builds")
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
+	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile(Default is 'Dockerfile' at context root)")
+
 	cmd.Require(flag.Exact, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -109,7 +112,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			if err != nil {
 				return fmt.Errorf("failed to read Dockerfile from STDIN: %v", err)
 			}
-			context, err = archive.Generate("Dockerfile", string(dockerfile))
+			if *dockerfileName == "" {
+				*dockerfileName = api.DefaultDockerfileName
+			}
+			context, err = archive.Generate(*dockerfileName, string(dockerfile))
 		} else {
 			context = ioutil.NopCloser(buf)
 		}
@@ -136,9 +142,40 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if _, err := os.Stat(root); err != nil {
 			return err
 		}
-		filename := path.Join(root, "Dockerfile")
+
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			return err
+		}
+
+		var filename string       // path to Dockerfile
+		var origDockerfile string // used for error msg
+
+		if *dockerfileName == "" {
+			// No -f/--file was specified so use the default
+			origDockerfile = api.DefaultDockerfileName
+			*dockerfileName = origDockerfile
+			filename = path.Join(absRoot, *dockerfileName)
+		} else {
+			origDockerfile = *dockerfileName
+			if filename, err = filepath.Abs(*dockerfileName); err != nil {
+				return err
+			}
+
+			// Verify that 'filename' is within the build context
+			if !strings.HasSuffix(absRoot, string(os.PathSeparator)) {
+				absRoot += string(os.PathSeparator)
+			}
+			if !strings.HasPrefix(filename, absRoot) {
+				return fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", *dockerfileName, root)
+			}
+
+			// Now reset the dockerfileName to be relative to the build context
+			*dockerfileName = filename[len(absRoot):]
+		}
+
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
-			return fmt.Errorf("no Dockerfile found in %s", cmd.Arg(0))
+			return fmt.Errorf("Can not locate Dockerfile: %s", origDockerfile)
 		}
 		var includes []string = []string{"."}
 
@@ -147,16 +184,16 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 
-		// If .dockerignore mentions .dockerignore or Dockerfile
+		// If .dockerignore mentions .dockerignore or the Dockerfile
 		// then make sure we send both files over to the daemon
 		// because Dockerfile is, obviously, needed no matter what, and
 		// .dockerignore is needed to know if either one needs to be
 		// removed.  The deamon will remove them for us, if needed, after it
 		// parses the Dockerfile.
 		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
-		keepThem2, _ := fileutils.Matches("Dockerfile", excludes)
+		keepThem2, _ := fileutils.Matches(*dockerfileName, excludes)
 		if keepThem1 || keepThem2 {
-			includes = append(includes, ".dockerignore", "Dockerfile")
+			includes = append(includes, ".dockerignore", *dockerfileName)
 		}
 
 		if err = utils.ValidateContextDirectory(root, excludes); err != nil {
@@ -219,6 +256,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *pull {
 		v.Set("pull", "1")
 	}
+
+	v.Set("dockerfile", *dockerfileName)
+
 	cli.LoadConfigFile()
 
 	headers := http.Header(make(map[string][]string))

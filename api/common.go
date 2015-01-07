@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	APIVERSION        version.Version = "1.16"
-	DEFAULTHTTPHOST                   = "127.0.0.1"
-	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
+	APIVERSION            version.Version = "1.16"
+	DEFAULTHTTPHOST                       = "127.0.0.1"
+	DEFAULTUNIXSOCKET                     = "/var/run/docker.sock"
+	DefaultDockerfileName string          = "Dockerfile"
 )
 
 func ValidateHost(val string) (string, error) {
