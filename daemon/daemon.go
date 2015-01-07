@@ -515,11 +515,14 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 	return name, nil
 }
 
-func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
+func (daemon *Daemon) generateHostname(name string, config *runconfig.Config) {
 	// Generate default hostname
 	// FIXME: the lxc template no longer needs to set a default hostname
+	if name[0] == '/' {
+		name = name[1:]
+	}
 	if config.Hostname == "" {
-		config.Hostname = id[:12]
+		config.Hostname = name
 	}
 }
 
@@ -573,7 +576,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 		return nil, err
 	}
 
-	daemon.generateHostname(id, config)
+	daemon.generateHostname(name, config)
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	container := &Container{
