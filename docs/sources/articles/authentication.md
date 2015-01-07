@@ -5,24 +5,22 @@ page_keywords: docker, docs, article, example, https, daemon, tls, ca, certifica
 # Running Docker with https
 
 By default, Docker runs via a non-networked Unix socket. It can also
-optionally communicate using a HTTP socket.  Enabling communication
-through HTTP will by default use TLS and require daemon configuration
-to allow client connections.
+optionally communicate using a HTTP socket.
 
 
 There are two different ways of authenticating connections between Docker
 client and daemon, both of which use secure TLS connections.
 
- - **Identity-based authentication** uses an authorized keys list on the daemon
+ 1. **Identity-based authentication** uses an authorized keys list on the daemon
 to whitelist client connections.  The client must also accept the daemon's key
 and remember it for future connections.
- - **Certificate-based authentication** uses a Certificate Authority to
+ 2. **Certificate-based authentication** uses a Certificate Authority to
 authorize connections.  Using this method requires additional setup to enable
 client authentication.
 
 The authentication method is selected using the `--auth` flag with values
  `identity`, `cert`, or `none` . The `none` method is currently the default but
-`identity` will become the default in a future version.
+configuring for `identity` or `cert` is recommended when using HTTP.
 
 > **Note**:
 > The `--tls` and `--tlsverify` options in Docker 1.3 and earlier have
@@ -32,10 +30,10 @@ The authentication method is selected using the `--auth` flag with values
 ## Identity-based authentication
 
 Identity-based authentication is similar to how SSH does authentication. When
-connecting to a daemon for the first time, a client will ask whether a user
-trusts a fingerprint of the daemon’s public key. If they do, the public key will
-be stored so it does not prompt on subsequent connections. For the daemon
-to authenticate the client, each client automatically generates its own
+connecting to a Docker daemon for the first time, a client will ask whether a
+user trusts a fingerprint of the daemon’s public key. If they do, the public
+key will be stored so it does not prompt on subsequent connections. For the
+daemon to authenticate the client, each client automatically generates its own
 key (`~/.docker/key.json`) which is presented to the daemon and checked
 against a list of keys authorized to connect (`~/.docker/authorized-keys.d/`).
 Every public key file in the authorized key directory represents a client which
@@ -45,15 +43,19 @@ To enable identity-based authentication, add the flag `--auth=identity`.
 The default identity and authorization files may be overridden through the
 flags:
 
- - `--identity` specifies the key file to use.  This file contains the client's
+ - `--identity` specifies the key file to use. This file contains the client's
 private key and its fingerprint is used by the daemon to identify the client.
-This file should be secured.
+This file should be secured. Defaults are `~/.docker/key.json` for clients and
+`/etc/docker/key.json` for daemons.
  - `--auth-authorized-keys` - specifies the directory containing the client
 public key files to whitelist. This is a daemon configuration and the directory
-should have its write permissions restricted.
+should have its write permissions restricted. Defaults are
+`~/.docker/authorized-keys.d/` for clients and `/etc/docker/authorized-keys.d/`
+for daemons.
  - `--auth-known-hosts` - specifies the list of daemon public key fingerprints
 which have been approved by the user and the host name associated with
-each fingerprint.
+each fingerprint. Defaults are `~/.docker/known-hosts.json` for clients and
+`/etc/docker/known-hosts.json` for daemons.
 
 To setup a new client connection, copy the `~/.docker/public-key.json`
 file on the client machine to the `~/.docker/authorized-keys.d/` directory on
@@ -65,10 +67,10 @@ meaningfully identities the client to the user.
 
 Certificate-based authentication uses TLS certificates provided by a
 Certificate Authority (CA). This is for advanced usage where you may want to
-integrate Docker with other TLS-compatible tools or you may already use PKI
-within your organisation. You can just get the client to verify the server’s
-certificate against a CA, or do full two-way authentication by getting the
-server to also verify the client’s certificate.
+integrate Docker with other TLS-compatible tools or you may already use
+public key infrastructure (PKI) within your organisation. You can get the
+client to just verify the server’s certificate against a CA, or do full two-way
+authentication by getting the server to also verify the client’s certificate.
 
 To enable certificate-based authentication, add the flag `--auth=cert` and
 point the `--auth-ca` flag to a trusted CA certificate.
