@@ -3,6 +3,7 @@ package parser
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -32,7 +33,7 @@ type Node struct {
 var (
 	dispatch                map[string]func(string) (*Node, map[string]bool, error)
 	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
-	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\\s*$`)
+	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\[ \t]*$`)
 	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
 )
 
@@ -75,6 +76,10 @@ func parseLine(line string) (string, *Node, error) {
 	cmd, args, err := splitCommand(line)
 	if err != nil {
 		return "", nil, err
+	}
+
+	if len(args) == 0 {
+		return "", nil, fmt.Errorf("Instruction %q is empty; cannot continue", cmd)
 	}
 
 	node := &Node{}
