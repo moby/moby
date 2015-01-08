@@ -284,6 +284,9 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	c := d.activeContainers[id]
 	state, err := libcontainer.GetState(filepath.Join(d.root, id))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, execdriver.ErrNotRunning
+		}
 		return nil, err
 	}
 	now := time.Now()
@@ -292,13 +295,15 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 		return nil, err
 	}
 	memoryLimit := c.container.Cgroups.Memory
+	// if the container does not have any memory limit specified set the
+	// limit to the machines memory
 	if memoryLimit == 0 {
 		memoryLimit = d.machineMemory
 	}
 	return &execdriver.ResourceStats{
+		Read:           now,
 		ContainerStats: stats,
 		ClockTicks:     system.GetClockTicks(),
-		Read:           now,
 		MemoryLimit:    memoryLimit,
 	}, nil
 }

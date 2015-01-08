@@ -1,14 +1,12 @@
 package daemon
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/stats"
 )
 
 func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
@@ -78,27 +76,4 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	container.toDisk()
 
 	return nil
-}
-
-func (daemon *Daemon) ContainerStats(job *engine.Job) engine.Status {
-	s, err := daemon.SubscribeToContainerStats(job.Args[0])
-	if err != nil {
-		return job.Error(err)
-	}
-	enc := json.NewEncoder(job.Stdout)
-	for update := range s {
-		ss := stats.ToStats(update.ContainerStats)
-		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
-		ss.Read = update.Read
-		ss.ClockTicks = update.ClockTicks
-		ss.CpuStats.SystemUsage = update.SystemUsage
-		if err := enc.Encode(ss); err != nil {
-			return job.Error(err)
-		}
-	}
-	return engine.StatusOK
-}
-
-func mapToAPIStats() {
-
 }

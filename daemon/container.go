@@ -1416,8 +1416,5 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 }
 
 func (container *Container) Stats() (*execdriver.ResourceStats, error) {
-	if !container.IsRunning() {
-		return nil, fmt.Errorf("cannot collect stats on a non running container")
-	}
 	return container.daemon.Stats(container)
 }

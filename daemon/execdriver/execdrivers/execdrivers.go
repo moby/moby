@@ -24,7 +24,7 @@ func NewDriver(name, root, initPath string, sysInfo *sysinfo.SysInfo) (execdrive
 		// to be backwards compatible
 		return lxc.NewDriver(root, initPath, sysInfo.AppArmor)
 	case "native":
-		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath, meminfo.MemTotal/1000)
+		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath, meminfo.MemTotal)
 	}
 	return nil, fmt.Errorf("unknown exec driver %s", name)
 }

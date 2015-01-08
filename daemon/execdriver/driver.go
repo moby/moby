@@ -16,7 +16,7 @@ import (
 type Context map[string]string
 
 var (
-	ErrNotRunning              = errors.New("Process could not be started")
+	ErrNotRunning              = errors.New("Container is not running")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
 	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")

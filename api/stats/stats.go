@@ -16,7 +16,7 @@ type ThrottlingData struct {
 	ThrottledTime uint64 `json:"throttled_time,omitempty"`
 }
 
-// All CPU stats are aggregate since container inception.
+// All CPU stats are aggregated since container inception.
 type CpuUsage struct {
 	// Total CPU time consumed.
 	// Units: nanoseconds.
@@ -91,6 +91,8 @@ type Stats struct {
 	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
 }
 
+// ToStats converts the libcontainer.ContainerStats to the api specific
+// structs.  This is done to preserve API compatibility and versioning.
 func ToStats(ls *libcontainer.ContainerStats) *Stats {
 	s := &Stats{}
 	if ls.NetworkStats != nil {

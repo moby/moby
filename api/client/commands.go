@@ -16,15 +16,16 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"text/template"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/stats"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -43,7 +44,6 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/stats"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
@@ -2625,25 +2625,10 @@ type containerStats struct {
 	Name             string
 	CpuPercentage    float64
 	Memory           float64
+	MemoryLimit      float64
 	MemoryPercentage float64
-	NetworkRx        int
-	NetworkTx        int
-}
-
-type statSorter struct {
-	stats []containerStats
-}
-
-func (s *statSorter) Len() int {
-	return len(s.stats)
-}
-
-func (s *statSorter) Swap(i, j int) {
-	s.stats[i], s.stats[j] = s.stats[j], s.stats[i]
-}
-
-func (s *statSorter) Less(i, j int) bool {
-	return s.stats[i].Name < s.stats[j].Name
+	NetworkRx        float64
+	NetworkTx        float64
 }
 
 func (cli *DockerCli) CmdStats(args ...string) error {
@@ -2651,40 +2636,49 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, true)
 
+	m := &sync.Mutex{}
 	cStats := map[string]containerStats{}
 	for _, name := range cmd.Args() {
-		go cli.streamStats(name, cStats)
+		go cli.streamStats(name, cStats, m)
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	for _ = range time.Tick(1000 * time.Millisecond) {
+	for _ = range time.Tick(500 * time.Millisecond) {
 		fmt.Fprint(cli.out, "\033[2J")
 		fmt.Fprint(cli.out, "\033[H")
-		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM\tMEM %\tNET I/O")
-		sStats := []containerStats{}
-		for _, s := range cStats {
-			sStats = append(sStats, s)
-		}
-		sorter := &statSorter{sStats}
-		sort.Sort(sorter)
-		for _, s := range sStats {
-			fmt.Fprintf(w, "%s\t%f%%\t%s\t%f%%\t%d/%d\n",
+		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
+		m.Lock()
+		ss := sortStatsByName(cStats)
+		m.Unlock()
+		for _, s := range ss {
+			fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
 				s.Name,
 				s.CpuPercentage,
-				units.HumanSize(s.Memory),
+				units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
 				s.MemoryPercentage,
-				s.NetworkRx, s.NetworkTx)
+				units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
 		}
 		w.Flush()
 	}
 	return nil
 }
 
-func (cli *DockerCli) streamStats(name string, data map[string]containerStats) error {
+func (cli *DockerCli) streamStats(name string, data map[string]containerStats, m *sync.Mutex) error {
+	m.Lock()
+	data[name] = containerStats{
+		Name: name,
+	}
+	m.Unlock()
+
 	stream, _, err := cli.call("GET", "/containers/"+name+"/stats", nil, false)
 	if err != nil {
 		return err
 	}
-
+	defer func() {
+		stream.Close()
+		m.Lock()
+		delete(data, name)
+		m.Unlock()
+	}()
 	var (
 		previousCpu    uint64
 		previousSystem uint64
@@ -2696,30 +2690,37 @@ func (cli *DockerCli) streamStats(name string, data map[string]containerStats) e
 		if err := dec.Decode(&v); err != nil {
 			return err
 		}
-		memPercent := float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
-		cpuPercent := 0.0
-
+		var (
+			memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
+			cpuPercent = 0.0
+		)
 		if !start {
-			cpuDelta := float64(v.CpuStats.CpuUsage.TotalUsage) - float64(previousCpu)
-			systemDelta := float64(int(v.CpuStats.SystemUsage)/v.ClockTicks) - float64(int(previousSystem)/v.ClockTicks)
-
-			if systemDelta > 0.0 {
-				cpuPercent = (cpuDelta / systemDelta) * float64(v.ClockTicks*len(v.CpuStats.CpuUsage.PercpuUsage))
-			}
+			cpuPercent = calcuateCpuPercent(previousCpu, previousSystem, v)
 		}
 		start = false
+		m.Lock()
 		d := data[name]
-		d.Name = name
 		d.CpuPercentage = cpuPercent
 		d.Memory = float64(v.MemoryStats.Usage)
+		d.MemoryLimit = float64(v.MemoryStats.Limit)
 		d.MemoryPercentage = memPercent
-		d.NetworkRx = int(v.Network.RxBytes)
-		d.NetworkTx = int(v.Network.TxBytes)
+		d.NetworkRx = float64(v.Network.RxBytes)
+		d.NetworkTx = float64(v.Network.TxBytes)
 		data[name] = d
+		m.Unlock()
 
 		previousCpu = v.CpuStats.CpuUsage.TotalUsage
 		previousSystem = v.CpuStats.SystemUsage
 	}
 	return nil
+}
 
+func calcuateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) float64 {
+	cpuPercent := 0.0
+	cpuDelta := float64(v.CpuStats.CpuUsage.TotalUsage) - float64(previousCpu)
+	systemDelta := float64(int(v.CpuStats.SystemUsage)/v.ClockTicks) - float64(int(previousSystem)/v.ClockTicks)
+	if systemDelta > 0.0 {
+		cpuPercent = (cpuDelta / systemDelta) * float64(v.ClockTicks*len(v.CpuStats.CpuUsage.PercpuUsage))
+	}
+	return cpuPercent
 }
