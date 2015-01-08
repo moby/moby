@@ -27,6 +27,13 @@ simply run the following command.
 
     $ sudo yum install docker
 
+## Kernel support
+
+Currently the CentOS project will only support Docker via the EPEL package when
+running on kernels shipped by the distribution. There are things like namespace
+changes which will cause issues if one decides to step outside that box and run
+non-distro kernel packages.
+
 ### Manual installation of latest version
 
 While using a package is the recommended way of installing Docker,
