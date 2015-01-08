@@ -366,11 +366,13 @@ func generateMacAddr(ip net.IP) net.HardwareAddr {
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
-		ip          net.IP
-		mac         net.HardwareAddr
-		err         error
-		id          = job.Args[0]
-		requestedIP = net.ParseIP(job.Getenv("RequestedIP"))
+		ip               net.IP
+		gateway          net.IP
+		mac              net.HardwareAddr
+		err              error
+		id               = job.Args[0]
+		requestedIP      = net.ParseIP(job.Getenv("RequestedIP"))
+		requestedGateway = net.ParseIP(job.Getenv("RequestedGateway"))
 	)
 
 	if requestedIP != nil {
@@ -382,6 +384,13 @@ func Allocate(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
+	// If no explicit gateway was given, use default.
+	if requestedGateway != nil {
+		gateway = requestedGateway
+	} else {
+		gateway = bridgeNetwork.IP
+	}
+
 	// If no explicit mac address was given, generate a random one.
 	if mac, err = net.ParseMAC(job.Getenv("RequestedMac")); err != nil {
 		mac = generateMacAddr(ip)
@@ -390,7 +399,7 @@ func Allocate(job *engine.Job) engine.Status {
 	out := engine.Env{}
 	out.Set("IP", ip.String())
 	out.Set("Mask", bridgeNetwork.Mask.String())
-	out.Set("Gateway", bridgeNetwork.IP.String())
+	out.Set("Gateway", gateway.String())
 	out.Set("MacAddress", mac.String())
 	out.Set("Bridge", bridgeIface)
 

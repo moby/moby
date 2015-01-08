@@ -480,6 +480,8 @@ func (container *Container) AllocateNetwork() error {
 
 	job := eng.Job("allocate_interface", container.ID)
 	job.Setenv("RequestedMac", container.Config.MacAddress)
+	job.Setenv("RequestedIP", container.Config.IpAddress)
+	job.Setenv("RequestedGateway", container.Config.Gateway)
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
@@ -574,6 +576,7 @@ func (container *Container) RestoreNetwork() error {
 	// Re-allocate the interface with the same IP and MAC address.
 	job := eng.Job("allocate_interface", container.ID)
 	job.Setenv("RequestedIP", container.NetworkSettings.IPAddress)
+	job.Setenv("RequestedGateway", container.NetworkSettings.Gateway)
 	job.Setenv("RequestedMac", container.NetworkSettings.MacAddress)
 	if err := job.Run(); err != nil {
 		return err
