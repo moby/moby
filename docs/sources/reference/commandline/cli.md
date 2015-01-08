@@ -377,6 +377,22 @@ flag to the Docker daemon as described above.
 Local registries, whose IP address falls in the 127.0.0.0/8 range, are automatically marked as insecure
 as of Docker 1.3.2. It is not recommended to rely on this, as it may change in the future.
 
+### Running a Docker daemon behind a HTTPS_PROXY
+
+When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub certificates
+will be replaced by the proxy's certificates. These certificates need to be added
+to your Docker host's configuration:
+
+1. Install the `ca-certificates` package for your distribution
+2. Ask your network admin for the proxy's CA certificate and append them to
+   `/etc/pki/tls/certs/ca-bundle.crt`
+3. Then start your Docker daemon with `HTTPS_PROXY=http://username:password@proxy:port/ docker -d`.
+   The `username:` and `password@` are optional - and are only needed if your proxy
+   is set up to require authentication.
+
+This will only add the proxy and authentication to the Docker daemon's requests -
+your `docker build`s and running containers will need extra configuration to use
+the proxy
 
 ### Miscellaneous options
 
