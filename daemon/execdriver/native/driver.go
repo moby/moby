@@ -42,23 +42,23 @@ type driver struct {
 	root             string
 	initPath         string
 	activeContainers map[string]*activeContainer
+	machineMemory    int64
 	sync.Mutex
 }
 
-func NewDriver(root, initPath string) (*driver, error) {
+func NewDriver(root, initPath string, machineMemory int64) (*driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
-
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
 	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
-
 	return &driver{
 		root:             root,
 		initPath:         initPath,
 		activeContainers: make(map[string]*activeContainer),
+		machineMemory:    machineMemory,
 	}, nil
 }
 
@@ -281,6 +281,7 @@ func (d *driver) Clean(id string) error {
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	c := d.activeContainers[id]
 	state, err := libcontainer.GetState(filepath.Join(d.root, id))
 	if err != nil {
 		return nil, err
@@ -290,10 +291,15 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	if err != nil {
 		return nil, err
 	}
+	memoryLimit := c.container.Cgroups.Memory
+	if memoryLimit == 0 {
+		memoryLimit = d.machineMemory
+	}
 	return &execdriver.ResourceStats{
 		ContainerStats: stats,
 		ClockTicks:     system.GetClockTicks(),
 		Read:           now,
+		MemoryLimit:    memoryLimit,
 	}, nil
 }
 

@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -42,6 +43,7 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/stats"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
@@ -2617,4 +2619,107 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 
 	return nil
+}
+
+type containerStats struct {
+	Name             string
+	CpuPercentage    float64
+	Memory           float64
+	MemoryPercentage float64
+	NetworkRx        int
+	NetworkTx        int
+}
+
+type statSorter struct {
+	stats []containerStats
+}
+
+func (s *statSorter) Len() int {
+	return len(s.stats)
+}
+
+func (s *statSorter) Swap(i, j int) {
+	s.stats[i], s.stats[j] = s.stats[j], s.stats[i]
+}
+
+func (s *statSorter) Less(i, j int) bool {
+	return s.stats[i].Name < s.stats[j].Name
+}
+
+func (cli *DockerCli) CmdStats(args ...string) error {
+	cmd := cli.Subcmd("stats", "CONTAINER", "Stream the stats of a container", true)
+	cmd.Require(flag.Min, 1)
+	utils.ParseFlags(cmd, args, true)
+
+	cStats := map[string]containerStats{}
+	for _, name := range cmd.Args() {
+		go cli.streamStats(name, cStats)
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	for _ = range time.Tick(1000 * time.Millisecond) {
+		fmt.Fprint(cli.out, "\033[2J")
+		fmt.Fprint(cli.out, "\033[H")
+		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM\tMEM %\tNET I/O")
+		sStats := []containerStats{}
+		for _, s := range cStats {
+			sStats = append(sStats, s)
+		}
+		sorter := &statSorter{sStats}
+		sort.Sort(sorter)
+		for _, s := range sStats {
+			fmt.Fprintf(w, "%s\t%f%%\t%s\t%f%%\t%d/%d\n",
+				s.Name,
+				s.CpuPercentage,
+				units.HumanSize(s.Memory),
+				s.MemoryPercentage,
+				s.NetworkRx, s.NetworkTx)
+		}
+		w.Flush()
+	}
+	return nil
+}
+
+func (cli *DockerCli) streamStats(name string, data map[string]containerStats) error {
+	stream, _, err := cli.call("GET", "/containers/"+name+"/stats", nil, false)
+	if err != nil {
+		return err
+	}
+
+	var (
+		previousCpu    uint64
+		previousSystem uint64
+		start          = true
+		dec            = json.NewDecoder(stream)
+	)
+	for {
+		var v *stats.Stats
+		if err := dec.Decode(&v); err != nil {
+			return err
+		}
+		memPercent := float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
+		cpuPercent := 0.0
+
+		if !start {
+			cpuDelta := float64(v.CpuStats.CpuUsage.TotalUsage) - float64(previousCpu)
+			systemDelta := float64(int(v.CpuStats.SystemUsage)/v.ClockTicks) - float64(int(previousSystem)/v.ClockTicks)
+
+			if systemDelta > 0.0 {
+				cpuPercent = (cpuDelta / systemDelta) * float64(v.ClockTicks*len(v.CpuStats.CpuUsage.PercpuUsage))
+			}
+		}
+		start = false
+		d := data[name]
+		d.Name = name
+		d.CpuPercentage = cpuPercent
+		d.Memory = float64(v.MemoryStats.Usage)
+		d.MemoryPercentage = memPercent
+		d.NetworkRx = int(v.Network.RxBytes)
+		d.NetworkTx = int(v.Network.TxBytes)
+		data[name] = d
+
+		previousCpu = v.CpuStats.CpuUsage.TotalUsage
+		previousSystem = v.CpuStats.SystemUsage
+	}
+	return nil
+
 }

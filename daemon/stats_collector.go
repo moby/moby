@@ -1,6 +1,11 @@
 package daemon
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,12 +60,18 @@ func (s *statsCollector) start() {
 			log.Debugf("starting collection of container stats")
 			s.m.Lock()
 			for id, d := range s.containers {
+				systemUsage, err := getSystemCpuUsage()
+				if err != nil {
+					log.Errorf("collecting system cpu usage for %s: %v", id, err)
+					continue
+				}
 				stats, err := d.c.Stats()
 				if err != nil {
 					// TODO: @crosbymichael evict container depending on error
 					log.Errorf("collecting stats for %s: %v", id, err)
 					continue
 				}
+				stats.SystemUsage = systemUsage
 				for _, sub := range s.containers[id].subs {
 					sub <- stats
 				}
@@ -68,4 +79,37 @@ func (s *statsCollector) start() {
 			s.m.Unlock()
 		}
 	}()
+}
+
+// returns value in nanoseconds
+func getSystemCpuUsage() (uint64, error) {
+	f, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		parts := strings.Fields(sc.Text())
+		switch parts[0] {
+		case "cpu":
+			if len(parts) < 8 {
+				return 0, fmt.Errorf("invalid number of cpu fields")
+			}
+
+			var total uint64
+			for _, i := range parts[1:8] {
+				v, err := strconv.ParseUint(i, 10, 64)
+				if err != nil {
+					return 0.0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
+				}
+				total += v
+			}
+			return total * 1000000000, nil
+		default:
+			continue
+		}
+	}
+	return 0, fmt.Errorf("invalid stat format")
 }

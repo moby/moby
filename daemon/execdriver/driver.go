@@ -106,8 +106,10 @@ type Resources struct {
 
 type ResourceStats struct {
 	*libcontainer.ContainerStats
-	Read       time.Time `json:"read"`
-	ClockTicks int       `json:"clock_ticks"`
+	Read        time.Time `json:"read"`
+	ClockTicks  int       `json:"clock_ticks"`
+	MemoryLimit int64     `json:"memory_limit"`
+	SystemUsage uint64    `json:"system_usage"`
 }
 
 type Mount struct {
