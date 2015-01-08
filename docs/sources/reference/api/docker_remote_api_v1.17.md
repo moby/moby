@@ -848,6 +848,60 @@ Query Parameters:
 -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   dangling=true
 
+### Build image from a Dockerfile
+
+`POST /build`
+
+Build an image from a Dockerfile
+
+**Example request**:
+
+        POST /build HTTP/1.1
+
+        {{ TAR STREAM }}
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"stream": "Step 1..."}
+        {"stream": "..."}
+        {"error": "Error...", "errorDetail": {"code": 123, "message": "Error..."}}
+
+The input stream must be a tar archive compressed with one of the
+following algorithms: identity (no compression), gzip, bzip2, xz.
+
+The archive must include a build instructions file, typically called
+`Dockerfile` at the root of the archive. The `dockerfile` parameter may be
+used to specify a different build instructions file by having its value be
+the path to the alternate build instructions file to use.
+
+The archive may include any number of other files,
+which will be accessible in the build context (See the [*ADD build
+command*](/reference/builder/#dockerbuilder)).
+
+Query Parameters:
+
+-   **dockerfile** - path within the build context to the Dockerfile
+-   **t** – repository name (and optionally a tag) to be applied to
+        the resulting image in case of success
+-   **q** – suppress verbose build output
+-   **nocache** – do not use the cache when building the image
+-   **pull** - attempt to pull the image even if an older image exists locally
+-   **rm** - remove intermediate containers after a successful build (default behavior)
+-   **forcerm** - always remove intermediate containers (includes rm)
+
+    Request Headers:
+
+-   **Content-type** – should be set to `"application/tar"`.
+-   **X-Registry-Config** – base64-encoded ConfigFile objec
+
+Status Codes:
+
+-   **200** – no error
+-   **500** – server error
+
 ### Create an image
 
 `POST /images/create`
@@ -1135,60 +1189,6 @@ Status Codes:
 -   **500** – server error
 
 ## 2.3 Misc
-
-### Build an image from Dockerfile via stdin
-
-`POST /build`
-
-Build an image from Dockerfile via stdin
-
-**Example request**:
-
-        POST /build HTTP/1.1
-
-        {{ TAR STREAM }}
-
-**Example response**:
-
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {"stream": "Step 1..."}
-        {"stream": "..."}
-        {"error": "Error...", "errorDetail": {"code": 123, "message": "Error..."}}
-
-The input stream must be a tar archive compressed with one of the
-following algorithms: identity (no compression), gzip, bzip2, xz.
-
-The archive must include a build instructions file, typically called
-`Dockerfile` at the root of the archive. The `f` parameter may be used
-to specify a different build instructions file by having its value be
-the path to the alternate build instructions file to use.
-
-The archive may include any number of other files,
-which will be accessible in the build context (See the [*ADD build
-command*](/reference/builder/#dockerbuilder)).
-
-Query Parameters:
-
--   **dockerfile** - path within the build context to the Dockerfile
--   **t** – repository name (and optionally a tag) to be applied to
-        the resulting image in case of success
--   **q** – suppress verbose build output
--   **nocache** – do not use the cache when building the image
--   **pull** - attempt to pull the image even if an older image exists locally
--   **rm** - remove intermediate containers after a successful build (default behavior)
--   **forcerm** - always remove intermediate containers (includes rm)
-
-    Request Headers:
-
--   **Content-type** – should be set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile objec
-
-Status Codes:
-
--   **200** – no error
--   **500** – server error
 
 ### Check auth configuration
 
