@@ -2,6 +2,7 @@ package main
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -23,4 +24,34 @@ func TestPullNonExistingImage(t *testing.T) {
 		t.Fatalf("expected non-zero exit status when pulling non-existing image: %s", out)
 	}
 	logDone("pull - pull fooblahblah1234 (non-existing image)")
+}
+
+// pulling an image from the central registry using official names should work
+// ensure all pulls result in the same image
+func TestPullImageOfficialNames(t *testing.T) {
+	names := []string{
+		"docker.io/hello-world",
+		"index.docker.io/hello-world",
+		"library/hello-world",
+		"docker.io/library/hello-world",
+		"index.docker.io/library/hello-world",
+	}
+	for _, name := range names {
+		pullCmd := exec.Command(dockerBinary, "pull", name)
+		out, exitCode, err := runCommandWithOutput(pullCmd)
+		if err != nil || exitCode != 0 {
+			t.Errorf("pulling the '%s' image from the registry has failed: %s", name, err)
+			continue
+		}
+
+		// ensure we don't have multiple image names.
+		imagesCmd := exec.Command(dockerBinary, "images")
+		out, _, err = runCommandWithOutput(imagesCmd)
+		if err != nil {
+			t.Errorf("listing images failed with errors: %v", err)
+		} else if strings.Contains(out, name) {
+			t.Errorf("images should not have listed '%s'", name)
+		}
+	}
+	logDone("pull - pull official names")
 }

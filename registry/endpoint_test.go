@@ -12,7 +12,7 @@ func TestEndpointParse(t *testing.T) {
 		{"0.0.0.0:5000", "https://0.0.0.0:5000/v1/"},
 	}
 	for _, td := range testData {
-		e, err := newEndpoint(td.str, insecureRegistries)
+		e, err := newEndpoint(td.str, false)
 		if err != nil {
 			t.Errorf("%q: %s", td.str, err)
 		}

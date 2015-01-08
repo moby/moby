@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
 
@@ -23,11 +24,9 @@ var (
 )
 
 type TagStore struct {
-	path               string
-	graph              *Graph
-	mirrors            []string
-	insecureRegistries []string
-	Repositories       map[string]Repository
+	path         string
+	graph        *Graph
+	Repositories map[string]Repository
 	sync.Mutex
 	// FIXME: move push/pull-related fields
 	// to a helper type
@@ -55,20 +54,18 @@ func (r Repository) Contains(u Repository) bool {
 	return true
 }
 
-func NewTagStore(path string, graph *Graph, mirrors []string, insecureRegistries []string) (*TagStore, error) {
+func NewTagStore(path string, graph *Graph) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
 
 	store := &TagStore{
-		path:               abspath,
-		graph:              graph,
-		mirrors:            mirrors,
-		insecureRegistries: insecureRegistries,
-		Repositories:       make(map[string]Repository),
-		pullingPool:        make(map[string]chan struct{}),
-		pushingPool:        make(map[string]chan struct{}),
+		path:         abspath,
+		graph:        graph,
+		Repositories: make(map[string]Repository),
+		pullingPool:  make(map[string]chan struct{}),
+		pushingPool:  make(map[string]chan struct{}),
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
@@ -178,6 +175,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 	if err := store.reload(); err != nil {
 		return false, err
 	}
+	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		if tag != "" {
 			if _, exists2 := r[tag]; exists2 {
@@ -219,6 +217,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		return err
 	}
 	var repo Repository
+	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
 		if old, exists := store.Repositories[repoName][tag]; exists && !force {
@@ -238,6 +237,7 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	if err := store.reload(); err != nil {
 		return nil, err
 	}
+	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		return r, nil
 	}
@@ -277,20 +277,6 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 	}
 	store.Unlock()
 	return reporefs
-}
-
-// isOfficialName returns whether a repo name is considered an official
-// repository.  Official repositories are repos with names within
-// the library namespace or which default to the library namespace
-// by not providing one.
-func isOfficialName(name string) bool {
-	if strings.HasPrefix(name, "library/") {
-		return true
-	}
-	if strings.IndexRune(name, '/') == -1 {
-		return true
-	}
-	return false
 }
 
 // Validate the name of a repository

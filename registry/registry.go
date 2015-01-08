@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,12 +18,9 @@ import (
 )
 
 var (
-	ErrAlreadyExists         = errors.New("Image already exists")
-	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-	ErrDoesNotExist          = errors.New("Image does not exist")
-	errLoginRequired         = errors.New("Authentication is required.")
-	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_]*)$`)
-	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
+	ErrAlreadyExists = errors.New("Image already exists")
+	ErrDoesNotExist  = errors.New("Image does not exist")
+	errLoginRequired = errors.New("Authentication is required.")
 )
 
 type TimeoutType uint32
@@ -158,67 +154,6 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 	client := newClient(jar, pool, certs, timeout, secure)
 	res, err := client.Do(req)
 	return res, client, err
-}
-
-func validateRepositoryName(repositoryName string) error {
-	var (
-		namespace string
-		name      string
-	)
-	nameParts := strings.SplitN(repositoryName, "/", 2)
-	if len(nameParts) < 2 {
-		namespace = "library"
-		name = nameParts[0]
-
-		// the repository name must not be a valid image ID
-		if err := utils.ValidateID(name); err == nil {
-			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
-		}
-	} else {
-		namespace = nameParts[0]
-		name = nameParts[1]
-	}
-	if !validNamespaceChars.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
-	}
-	if len(namespace) < 4 || len(namespace) > 30 {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 4 or more than 30 characters.", namespace)
-	}
-	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)
-	}
-	if strings.Contains(namespace, "--") {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot contain consecutive hyphens.", namespace)
-	}
-	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
-	}
-	return nil
-}
-
-// Resolves a repository name to a hostname + name
-func ResolveRepositoryName(reposName string) (string, string, error) {
-	if strings.Contains(reposName, "://") {
-		// It cannot contain a scheme!
-		return "", "", ErrInvalidRepositoryName
-	}
-	nameParts := strings.SplitN(reposName, "/", 2)
-	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
-		nameParts[0] != "localhost") {
-		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		err := validateRepositoryName(reposName)
-		return IndexServerAddress(), reposName, err
-	}
-	hostname := nameParts[0]
-	reposName = nameParts[1]
-	if strings.Contains(hostname, "index.docker.io") {
-		return "", "", fmt.Errorf("Invalid repository name, try \"%s\" instead", reposName)
-	}
-	if err := validateRepositoryName(reposName); err != nil {
-		return "", "", err
-	}
-
-	return hostname, reposName, nil
 }
 
 func trustedLocation(req *http.Request) bool {

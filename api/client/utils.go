@@ -66,7 +66,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	if passAuthInfo {
 		cli.LoadConfigFile()
 		// Resolve the Auth config relevant for this server
-		authConfig := cli.configFile.ResolveAuthConfig(registry.IndexServerAddress())
+		authConfig := cli.configFile.Configs[registry.IndexServerAddress()]
 		getHeaders := func(authConfig registry.AuthConfig) (map[string][]string, error) {
 			buf, err := json.Marshal(authConfig)
 			if err != nil {
@@ -260,7 +260,10 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 	sigchan := make(chan os.Signal, 1)
 	gosignal.Notify(sigchan, signal.SIGWINCH)
 	go func() {
-		for _ = range sigchan {
+		// This tmp := range..., _ = tmp workaround is needed to
+		// suppress gofmt warnings while still preserve go1.3 compatibility
+		for tmp := range sigchan {
+			_ = tmp
 			cli.resizeTty(id, isExec)
 		}
 	}()

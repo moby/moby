@@ -222,7 +222,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	//Check if the given image name can be resolved
 	if *tag != "" {
 		repository, tag := parsers.ParseRepositoryTag(*tag)
-		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		if err := registry.ValidateRepositoryName(repository); err != nil {
 			return err
 		}
 		if len(tag) > 0 {
@@ -1148,7 +1148,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	if repository != "" {
 		//Check if the given image name can be resolved
 		repo, _ := parsers.ParseRepositoryTag(repository)
-		if _, _, err := registry.ResolveRepositoryName(repo); err != nil {
+		if err := registry.ValidateRepositoryName(repo); err != nil {
 			return err
 		}
 	}
@@ -1174,23 +1174,23 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	remote, tag := parsers.ParseRepositoryTag(name)
 
-	// Resolve the Repository name from fqn to hostname + name
-	hostname, _, err := registry.ResolveRepositoryName(remote)
+	// Resolve the Repository name from fqn to RepositoryInfo
+	repoInfo, err := registry.ParseRepositoryInfo(remote)
 	if err != nil {
 		return err
 	}
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(hostname)
+	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
 	// If we're not using a custom registry, we know the restrictions
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
 	// allow pushing by image ID.
-	if len(strings.SplitN(name, "/", 2)) == 1 {
-		username := cli.configFile.Configs[registry.IndexServerAddress()].Username
+	if repoInfo.Official {
+		username := authConfig.Username
 		if username == "" {
 			username = "<user>"
 		}
-		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository in <user>/<repo> (ex: %s/%s)", username, name)
+		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository to <user>/<repo> (ex: %s/%s)", username, repoInfo.LocalName)
 	}
 
 	v := url.Values{}
@@ -1212,10 +1212,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	if err := push(authConfig); err != nil {
 		if strings.Contains(err.Error(), "Status 401") {
 			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
-			if err := cli.CmdLogin(hostname); err != nil {
+			if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
 				return err
 			}
-			authConfig := cli.configFile.ResolveAuthConfig(hostname)
+			authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
 			return push(authConfig)
 		}
 		return err
@@ -1245,8 +1245,8 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	v.Set("fromImage", newRemote)
 
-	// Resolve the Repository name from fqn to hostname + name
-	hostname, _, err := registry.ResolveRepositoryName(taglessRemote)
+	// Resolve the Repository name from fqn to RepositoryInfo
+	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
 	if err != nil {
 		return err
 	}
@@ -1254,7 +1254,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	cli.LoadConfigFile()
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(hostname)
+	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
 
 	pull := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
@@ -1273,10 +1273,10 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	if err := pull(authConfig); err != nil {
 		if strings.Contains(err.Error(), "Status 401") {
 			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
-			if err := cli.CmdLogin(hostname); err != nil {
+			if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
 				return err
 			}
-			authConfig := cli.configFile.ResolveAuthConfig(hostname)
+			authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
 			return pull(authConfig)
 		}
 		return err
@@ -1691,7 +1691,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 
 	//Check if the given image name can be resolved
 	if repository != "" {
-		if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+		if err := registry.ValidateRepositoryName(repository); err != nil {
 			return err
 		}
 	}
@@ -2002,7 +2002,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	)
 
 	//Check if the given image name can be resolved
-	if _, _, err := registry.ResolveRepositoryName(repository); err != nil {
+	if err := registry.ValidateRepositoryName(repository); err != nil {
 		return err
 	}
 	v.Set("repo", repository)
@@ -2032,8 +2032,8 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	v.Set("fromImage", repos)
 	v.Set("tag", tag)
 
-	// Resolve the Repository name from fqn to hostname + name
-	hostname, _, err := registry.ResolveRepositoryName(repos)
+	// Resolve the Repository name from fqn to RepositoryInfo
+	repoInfo, err := registry.ParseRepositoryInfo(repos)
 	if err != nil {
 		return err
 	}
@@ -2042,7 +2042,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	cli.LoadConfigFile()
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(hostname)
+	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return err

@@ -50,7 +50,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	repoName, tag = parsers.ParseRepositoryTag(repoName)
 	if repoName != "" {
-		if _, _, err := registry.ResolveRepositoryName(repoName); err != nil {
+		if err := registry.ValidateRepositoryName(repoName); err != nil {
 			return job.Error(err)
 		}
 		if len(tag) > 0 {
