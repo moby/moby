@@ -23,6 +23,7 @@ type Config struct {
 	AutoRestart                 bool
 	Dns                         []string
 	DnsSearch                   []string
+	EnableIPv6                  bool
 	EnableIptables              bool
 	EnableIpForward             bool
 	EnableIpMasq                bool
@@ -30,6 +31,7 @@ type Config struct {
 	BridgeIface                 string
 	BridgeIP                    string
 	FixedCIDR                   string
+	FixedCIDRv6                 string
 	InterContainerCommunication bool
 	GraphDriver                 string
 	GraphOptions                []string
@@ -51,11 +53,13 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.Root, []string{"g", "-graph"}, "/var/lib/docker", "Path to use as the root of the Docker runtime")
 	flag.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	flag.BoolVar(&config.EnableIptables, []string{"#iptables", "-iptables"}, true, "Enable Docker's addition of iptables rules")
-	flag.BoolVar(&config.EnableIpForward, []string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward")
+	flag.BoolVar(&config.EnableIpForward, []string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward and IPv6 forwarding if --fixed-cidr-v6 is defined. IPv6 forwarding may interfere with your existing IPv6 configuration when using Router Advertisement.")
 	flag.BoolVar(&config.EnableIpMasq, []string{"-ip-masq"}, true, "Enable IP masquerading for bridge's IP range")
+	flag.BoolVar(&config.EnableIPv6, []string{"-ipv6"}, false, "Enable IPv6 networking")
 	flag.StringVar(&config.BridgeIP, []string{"#bip", "-bip"}, "", "Use this CIDR notation address for the network bridge's IP, not compatible with -b")
 	flag.StringVar(&config.BridgeIface, []string{"b", "-bridge"}, "", "Attach containers to a pre-existing network bridge\nuse 'none' to disable container networking")
-	flag.StringVar(&config.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs (ex: 10.20.0.0/16)\nthis subnet must be nested in the bridge subnet (which is defined by -b or --bip)")
+	flag.StringVar(&config.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs (e.g. 10.20.0.0/16)\nthis subnet must be nested in the bridge subnet (which is defined by -b or --bip)")
+	flag.StringVar(&config.FixedCIDRv6, []string{"-fixed-cidr-v6"}, "", "IPv6 subnet for fixed IPs (e.g.: 2001:a02b/48)")
 	flag.BoolVar(&config.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Allow unrestricted inter-container and Docker daemon host communication")
 	flag.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", "Force the Docker runtime to use a specific storage driver")
 	flag.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, "native", "Force the Docker runtime to use a specific exec driver")

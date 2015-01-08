@@ -76,8 +76,9 @@ expect an integer, and they can only be specified once.
       --dns=[]                                   Force Docker to use specific DNS servers
       --dns-search=[]                            Force Docker to use specific DNS search domains
       -e, --exec-driver="native"                 Force the Docker runtime to use a specific exec driver
-      --fixed-cidr=""                            IPv4 subnet for fixed IPs (ex: 10.20.0.0/16)
+      --fixed-cidr=""                            IPv4 subnet for fixed IPs (e.g.: 10.20.0.0/16)
                                                    this subnet must be nested in the bridge subnet (which is defined by -b or --bip)
+      --fixed-cidr-v6=""                         IPv6 subnet for global IPs (e.g.: 2a00:1450::/64)
       -G, --group="docker"                       Group to assign the unix socket specified by -H when running in daemon mode
                                                    use '' (the empty string) to disable setting of a group
       -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
@@ -85,9 +86,10 @@ expect an integer, and they can only be specified once.
       --icc=true                                 Allow unrestricted inter-container and Docker daemon host communication
       --insecure-registry=[]                     Enable insecure communication with specified registries (disables certificate verification for HTTPS and enables HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)
       --ip=0.0.0.0                               Default IP address to use when binding container ports
-      --ip-forward=true                          Enable net.ipv4.ip_forward
+      --ip-forward=true                          Enable net.ipv4.ip_forward and IPv6 forwarding if --fixed-cidr-v6 is defined. IPv6 forwarding may interfere with your existing IPv6 configuration when using Router Advertisement.
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
       --iptables=true                            Enable Docker's addition of iptables rules
+      --ipv6=false                               Enable Docker IPv6 support
        -l, --log-level="info"                    Set the logging level
       --label=[]                                 Set key=value labels to the daemon (displayed in `docker info`)
       --mtu=0                                    Set the containers network MTU
