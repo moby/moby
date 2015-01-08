@@ -291,14 +291,6 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 	}
 }
 
-var localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
-
-// RemoveLocalDns looks into the /etc/resolv.conf,
-// and removes any local nameserver entries.
-func RemoveLocalDns(resolvConf []byte) []byte {
-	return localHostRx.ReplaceAll(resolvConf, []byte{})
-}
-
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
 	Status     string
