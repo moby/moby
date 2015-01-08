@@ -256,12 +256,28 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	msgList := make([]string, n)
 
 	var i int
-	for ast.Next != nil {
+	for j := 0; ast.Next != nil; j++ {
 		ast = ast.Next
 		var str string
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			str = b.replaceEnv(ast.Value)
+		}
+		if cmd == "env" && j%2 == 1 {
+			key := strList[i+l-1]
+			newVar := key + "=" + str + ""
+			gotOne := false
+			for i, envVar := range b.Config.Env {
+				envParts := strings.SplitN(envVar, "=", 2)
+				if envParts[0] == key {
+					b.Config.Env[i] = newVar
+					gotOne = true
+					break
+				}
+			}
+			if !gotOne {
+				b.Config.Env = append(b.Config.Env, newVar)
+			}
 		}
 		strList[i+l] = str
 		msgList[i] = ast.Value
