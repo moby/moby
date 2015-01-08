@@ -107,11 +107,11 @@ two certificate signing requests:
 
     $ rm -v client.csr server.csr
 
-With a default `umask` of 022 your secret keys will be *world-readable* and
+With a default `umask` of 022, your secret keys will be *world-readable* and
 writable for you and your group.
 
-To remove write permissions for your keys in order to protect them from accidental
-damage and make them only readable to you issue the following file mode changes:
+In order to protect your keys from accidental damage, you will want to remove their
+write permissions. To make them read-only, change file modes as follows:
 
     $ chmod -v 0400 ca-key.pem key.pem server-key.pem
 
