@@ -260,7 +260,10 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 	sigchan := make(chan os.Signal, 1)
 	gosignal.Notify(sigchan, signal.SIGWINCH)
 	go func() {
-		for _ = range sigchan {
+		// This tmp := range..., _ = tmp workaround is needed to
+		// suppress gofmt warnings while still preserve go1.3 compatibility
+		for tmp := range sigchan {
+			_ = tmp
 			cli.resizeTty(id, isExec)
 		}
 	}()
