@@ -111,7 +111,7 @@ With a default `umask` of 022, your secret keys will be *world-readable* and
 writable for you and your group.
 
 In order to protect your keys from accidental damage, you will want to remove their
-write permissions. To make them read-only, change file modes as follows:
+write permissions. To make them only readable by you, change file modes as follows:
 
     $ chmod -v 0400 ca-key.pem key.pem server-key.pem
 
