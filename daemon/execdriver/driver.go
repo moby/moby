@@ -78,11 +78,15 @@ type Ipc struct {
 }
 
 type NetworkInterface struct {
-	Gateway     string `json:"gateway"`
-	IPAddress   string `json:"ip"`
-	IPPrefixLen int    `json:"ip_prefix_len"`
-	MacAddress  string `json:"mac_address"`
-	Bridge      string `json:"bridge"`
+	Gateway              string `json:"gateway"`
+	IPAddress            string `json:"ip"`
+	IPPrefixLen          int    `json:"ip_prefix_len"`
+	MacAddress           string `json:"mac"`
+	Bridge               string `json:"bridge"`
+	GlobalIPv6Address    string `json:"global_ipv6"`
+	LinkLocalIPv6Address string `json:"link_local_ipv6"`
+	GlobalIPv6PrefixLen  int    `json:"global_ipv6_prefix_len"`
+	IPv6Gateway          string `json:"ipv6_gateway"`
 }
 
 type Resources struct {

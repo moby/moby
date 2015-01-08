@@ -52,9 +52,11 @@ unix://[/path/to/socket] to use.
 **-g**=""
   Path to use as the root of the Docker runtime. Default is `/var/lib/docker`.
 
-
 **--fixed-cidr**=""
-  IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
+  IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
+
+**--fixed-cidr-v6**=""
+  IPv6 subnet for global IPv6 addresses (e.g., 2a00:1450::/64)
 
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
@@ -62,11 +64,17 @@ unix://[/path/to/socket] to use.
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
 
+**--ip-forward**=*true*|*false*
+  Docker will enable IP forwarding. Default is true. If `--fixed-cidr-v6` is set. IPv6 forwarding will be activated, too. This may reject Router Advertisements and interfere with the host's existing IPv6 configuration. For more information please consult the documentation about "Advanced Networking - IPv6".
+
 **--ip-masq**=*true*|*false*
   Enable IP masquerading for bridge's IP range. Default is true.
 
 **--iptables**=*true*|*false*
   Disable Docker's addition of iptables rules. Default is true.
+
+**--ipv6**=*true*|*false*
+  Enable IPv6 support. Default is false. Docker will create an IPv6-enabled bridge with address fe80::1 which will allow you to create IPv6-enabled containers. Use together with `--fixed-cidr-v6` to provide globally routable IPv6 addresses. IPv6 forwarding will be enabled if not used with `--ip-forward=false`. This may collide with your host's current IPv6 settings. For more information please consult the documentation about "Advanced Networking - IPv6".
 
 **-l**, **--log-level**="*debug*|*info*|*error*|*fatal*""
   Set the logging level. Default is `info`.

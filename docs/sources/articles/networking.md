@@ -57,6 +57,9 @@ server when it starts up, and cannot be changed once it is running:
  *  `--fixed-cidr` — see
     [Customizing docker0](#docker0)
 
+ *  `--fixed-cidr-v6` — see
+    [IPv6](#ipv6)
+
  *  `-H SOCKET...` or `--host=SOCKET...` —
     This might sound like it would affect container networking,
     but it actually faces in the other direction:
@@ -70,8 +73,11 @@ server when it starts up, and cannot be changed once it is running:
  *  `--ip=IP_ADDRESS` — see
     [Binding container ports](#binding-ports)
 
+ *  `--ipv6=true|false` — see
+    [IPv6](#ipv6)
+
  *  `--ip-forward=true|false` — see
-    [Communication between containers](#between-containers)
+    [Communication between containers and the wider world](#the-world)
 
  *  `--iptables=true|false` — see
     [Communication between containers](#between-containers)
@@ -204,7 +210,7 @@ Whether a container can talk to the world is governed by two factors.
     containers if this parameter is `1`.  Usually you will simply leave
     the Docker server at its default setting `--ip-forward=true` and
     Docker will go set `ip_forward` to `1` for you when the server
-    starts up.  To check the setting or turn it on manually:
+    starts up. To check the setting or turn it on manually:
 
     ```
     $ cat /proc/sys/net/ipv4/ip_forward
@@ -396,6 +402,182 @@ editing this setting.
 Again, this topic is covered without all of these low-level networking
 details in the [Docker User Guide](/userguide/dockerlinks/) document if you
 would like to use that as your port redirection reference instead.
+
+## IPv6
+
+<a name="ipv6"></a>
+
+As we are [running out of IPv4 addresses](http://en.wikipedia.org/wiki/IPv4_address_exhaustion)
+the IETF has standardized an IPv4 successor, [Internet Protocol Version 6](http://en.wikipedia.org/wiki/IPv6)
+, in [RFC 2460](https://www.ietf.org/rfc/rfc2460.txt). Both protocols, IPv4 and
+IPv6, reside on layer 3 of the [OSI model](http://en.wikipedia.org/wiki/OSI_model).
+
+
+### IPv6 with Docker
+By default, the Docker server configures the container network for IPv4 only.
+You can enable IPv4/IPv6 dualstack support by running the Docker daemon with the
+`--ipv6` flag. Docker will set up the bridge `docker0` with the IPv6
+[link-local address](http://en.wikipedia.org/wiki/Link-local_address) `fe80::1`.
+
+By default, containers that are created will only get a link-local IPv6 address.
+To assign globally routable IPv6 addresses to your containers you have to
+specify an IPv6 subnet to pick the addresses from. Set the IPv6 subnet via the
+`--fixed-cidr-v6` parameter when starting Docker daemon:
+
+    docker -d --ipv6 --fixed-cidr-v6="2001:db8:0:2:/64"
+
+The subnet for Docker containers should at least have a size of `/80`. This way
+an IPv6 address can end with the container's MAC address and you prevent NDP
+neighbor cache invalidation issues in the Docker layer.
+
+With the `--fixed-cidr-v6` parameter set Docker will add a new route to the
+routing table. Further IPv6 routing will be enabled (you may prevent this by
+starting Docker daemon with `--ip-forward=false`):
+
+    $ route -A inet6 add 2001:db8:0:2/64 dev docker0
+    $ echo 1 > /proc/sys/net/ipv6/conf/default/forwarding
+    $ echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+
+All traffic to the subnet `2001:db8:0:2/64` will now be routed
+via the `docker0` interface.
+
+Be aware that IPv6 forwarding may interfere with your existing IPv6
+configuration: If you are using Router Advertisements to get IPv6 settings for
+your host's interfaces you should set `accept_ra` to `2`. Otherwise IPv6
+enabled forwarding will result in rejecting Router Advertisements. E.g., if you
+want to configure `eth0` via Router Advertisements you should set:
+
+    ```
+    $ echo 2 > /proc/sys/net/ipv6/conf/eth0/accept_ra
+    ```
+
+![](/article-img/ipv6_basic_host_config.svg)
+
+Every new container will get an IPv6 address from the defined subnet. Further
+a default route will be added via the gateway `fe80::1` on `eth0`:
+
+    docker run -it ubuntu bash -c "ifconfig eth0; route -A inet6"
+
+    eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:02
+              inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
+              inet6 addr: 2001:db8:0:2::1/64 Scope:Global
+              inet6 addr: fe80::42:acff:fe11:2/64 Scope:Link
+              UP BROADCAST  MTU:1500  Metric:1
+              RX packets:1 errors:0 dropped:0 overruns:0 frame:0
+              TX packets:1 errors:0 dropped:0 overruns:0 carrier:0
+              collisions:0 txqueuelen:0
+              RX bytes:110 (110.0 B)  TX bytes:110 (110.0 B)
+
+    Kernel IPv6 routing table
+    Destination                    Next Hop                   Flag Met Ref Use If
+    2001:db8:0:2::/64              ::                         U    256 0     0 eth0
+    fe80::/64                      ::                         U    256 0     0 eth0
+    ::/0                           fe80::1                    UG   1024 0     0 eth0
+    ::/0                           ::                         !n   -1  1     1 lo
+    ::1/128                        ::                         Un   0   1     0 lo
+    ff00::/8                       ::                         U    256 1     0 eth0
+    ::/0                           ::                         !n   -1  1     1 lo
+
+In this example the Docker container is assigned a link-local address with the
+network suffix `/64` (here: `fe80::42:acff:fe11:2/64`) and a globally routable
+IPv6 address (here: `2001:db8:0:2::1/64`). The container will create connections
+to addresses outside of the `2001:db8:0:2::/64` network via the link-local
+gateway at `fe80::1` on `eth0`.
+
+Often servers or virtual machines get a `/64` IPv6 subnet assigned. In this case
+you can split it up further and provide Docker a `/80` subnet while using a
+separate `/80` subnet for other applications on the host:
+
+![](/article-img/ipv6_slash64_subnet_config.svg)
+
+In this setup the subnet `2001:db8::/80` with a range from `2001:db8::0:0:0:0`
+to `2001:db8::0:ffff:ffff:ffff` is attached to `eth0`, with the host listening
+at `2001:db8::1`. The subnet `2001:db8:0:0:0:1::/80` with an address range from
+`2001:db8::1:0:0:0` to `2001:db8::1:ffff:ffff:ffff` is attached to `docker0` and
+will be used by containers.
+
+### Docker IPv6 Cluster
+
+#### Switched Network Environment
+Using routable IPv6 addresses allows you to realize communication between
+containers on different hosts. Let's have a look at a simple Docker IPv6 cluster
+example:
+
+![](/article-img/ipv6_switched_network_example.svg)
+
+The Docker hosts are in the `2000::/64` subnet. Host1 is configured
+to provide addresses from the `2001::/64` subnet to its containers. It has three
+routes configured:
+
+- Route all traffic to `2000::/64` via `eth0`
+- Route all traffic to `2001::/64` via `docker0`
+- Route all traffic to `2002::/64` via Host2 with IP `2000::2`
+
+Host1 also acts as a router on OSI layer 3. When one of the network clients
+tries to contact a target that is specified in Host1's routing table Host1 will
+forward the traffic accordingly. It acts as a router for all networks it knows:
+`2000:/64`, `2001:/64` and `2002::/64`.
+
+On Host2 we have nearly the same configuration. Host2's containers will get IPv6
+addresses from `2002::/64`. Host2 has three routes configured:
+
+- Route all traffic to `2000::/64` via `eth0`
+- Route all traffic to `2002::/64` via `docker0`
+- Route all traffic to `2001::/64` via Host1 with IP `2000::1`
+
+The difference to Host1 is that the network `2002::/64` is directly attached to
+the host via its `docker0` interface whereas it reaches `2001::/64` via Host1's
+IPv6 address `2000::1`.
+
+This way every container is able to contact every other container. The
+containers `Container1-*` share the same subnet and contact each other directly.
+The traffic between `Container1-*` and `Container2-*` will be routed via Host1
+and Host2 because those containers do not share the same subnet.
+
+In a switched environment every host has to know all routes to every subnet. You
+always have to update the hosts' routing tables once you add or remove a host
+to the cluster.
+
+Every configuration in the diagram that is shown below the dashed line is
+handled by Docker: The `docker0` bridge IP address configuration, the route to
+the Docker subnet on the host, the container IP addresses and the routes on the
+containers. The configuration above the line is up to the user and can be
+adapted to the individual environment.
+
+#### Routed Network Environment
+
+In a routed network environment you replace the level 2 switch with a level 3
+router. Now the hosts just have to know their default gateway (the router) and
+the route to their own containers (managed by Docker). The router holds all
+routing information about the Docker subnets. When you add or remove a host to
+this environment you just have to update the routing table in the router - not
+on every host.
+
+![](/article-img/ipv6_routed_network_example.svg)
+
+In this scenario containers of the same host can communicate directly with each
+other. The traffic between containers on different hosts will be routed via
+their hosts and the router. For example packet from `Container1-1` to 
+`Container2-1` will be routed through `Host1`, `Router` and `Host2` until it
+arrives at `Container2-1`.
+
+To keep the IPv6 addresses short in this example a `/48` network is assigned to
+every host. The hosts use a `/64` subnet of this for its own services and one
+for Docker. When adding a third host you would add a route for the subnet
+`2001:db8:3::/48` in the router and configure Docker on Host3 with
+`--fixed-cidr-v6=2001:db8:3:1::/64`.
+
+Remember the subnet for Docker containers should at least have a size of `/80`.
+This way an IPv6 address can end with the container's MAC address and you
+prevent ARP cache invalidation issues in the Docker layer. So if you have a
+`/64` for your whole environment use `/68` subnets for the hosts and `/80` for
+the containers. This way you can use 4096 hosts with 16 `/80` subnets each.
+
+Every configuration in the diagram that is visualized below the dashed line is
+handled by Docker: The `docker0` bridge IP address configuration, the route to
+the Docker subnet on the host, the container IP addresses and the routes on the
+containers. The configuration above the line is up to the user and can be
+adapted to the individual environment.
 
 ## Customizing docker0
 
