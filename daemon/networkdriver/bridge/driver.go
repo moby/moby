@@ -171,6 +171,9 @@ func InitDriver(job *engine.Job) engine.Status {
 		}
 	}
 
+	// Block BridgeIP in IP allocator
+	ipallocator.RequestIP(bridgeNetwork, bridgeNetwork.IP)
+
 	// https://github.com/docker/docker/issues/2768
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeNetwork.IP)
 
