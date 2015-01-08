@@ -45,6 +45,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 	}
 
+	if i, ok := psFilters["status"]; ok {
+		for _, value := range i {
+			if value == "exited" {
+				all = true
+			}
+		}
+	}
+
 	names := map[string][]string{}
 	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
