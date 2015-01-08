@@ -53,7 +53,7 @@ func expectBlkioStatsEquals(t *testing.T, expected, actual cgroups.BlkioStats) {
 	}
 
 	if err := blkioStatEntryEquals(expected.IoMergedRecursive, actual.IoMergedRecursive); err != nil {
-		log.Printf("blkio IoMergedRecursive do not match - %s vs %s\n", expected.IoMergedRecursive, actual.IoMergedRecursive)
+		log.Printf("blkio IoMergedRecursive do not match - %v vs %v\n", expected.IoMergedRecursive, actual.IoMergedRecursive)
 		t.Fail()
 	}
 
