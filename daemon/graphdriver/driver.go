@@ -40,7 +40,7 @@ type ProtoDriver interface {
 	Get(id, mountLabel string) (dir string, err error)
 	// Put releases the system resources for the specified id,
 	// e.g, unmounting layered filesystem.
-	Put(id string)
+	Put(id string) error
 	// Exists returns whether a filesystem layer with the specified
 	// ID exists on this driver.
 	Exists(id string) bool
