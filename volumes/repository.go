@@ -10,7 +10,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/utils"
 )
 
@@ -55,13 +54,6 @@ func (r *Repository) newVolume(path, name string, writable bool) (*Volume, error
 	id, err = r.generateNewId()
 	if err != nil {
 		return nil, err
-	}
-
-	if name == "" {
-		name, err = r.generateNewName()
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if v := r.findByName(name); v != nil {
@@ -129,17 +121,12 @@ func (r *Repository) restore() error {
 			log.Debugf("Could not find volume for %s: %v", id, err)
 			continue
 		}
-		name, err := r.generateNewName()
-		if err != nil {
-			log.Debugf("Error restoring volume %s: %s", id, err)
-			continue
-		}
+
 		vol := &Volume{
 			ID:         id,
 			configPath: r.configPath + "/" + id,
 			containers: make(map[string]struct{}),
 			Path:       path,
-			Name:       name,
 		}
 		if err := vol.FromDisk(); err != nil {
 			if !os.IsNotExist(err) {
@@ -281,6 +268,9 @@ func (r *Repository) List() []*Volume {
 }
 
 func (r *Repository) findByName(name string) *Volume {
+	if name == "" {
+		return nil
+	}
 	return r.nameIndex[name]
 }
 
@@ -304,19 +294,6 @@ func (r *Repository) Find(name string) *Volume {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	return r.find(name)
-}
-
-func (r *Repository) generateNewName() (string, error) {
-	for i := 0; i < 6; i++ {
-		name := namesgenerator.GetRandomName(i)
-		if v := r.findByName(name); v != nil {
-			continue
-		}
-
-		return name, nil
-	}
-
-	return "", fmt.Errorf("Could not generate unique name")
 }
 
 func (r *Repository) generateNewId() (string, error) {
