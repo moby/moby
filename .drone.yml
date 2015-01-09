@@ -5,10 +5,10 @@ env:
   - DOCKER_EXECDRIVER=native
 script:
 # Setup the DockerInDocker environment.
-  - hack/dind
+  - project/dind
 # Tests relying on StartWithBusybox make Drone time out.
   - rm integration-cli/docker_cli_daemon_test.go
   - rm integration-cli/docker_cli_exec_test.go 
 # Validate and test.
-  - hack/make.sh validate-dco validate-gofmt
-  - hack/make.sh binary cross test-unit test-integration-cli test-integration test-docker-py
+  - project/make.sh validate-dco validate-gofmt
+  - project/make.sh binary cross test-unit test-integration-cli test-integration test-docker-py

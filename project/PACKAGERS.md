@@ -74,7 +74,7 @@ To use the vendored dependencies, simply make sure the path to "./vendor" is
 included in `GOPATH` (or use `AUTO_GOPATH`, as explained below).
 
 If you would rather (or must, due to distro policy) package these dependencies
-yourself, take a look at "./hack/vendor.sh" for an easy-to-parse list of the
+yourself, take a look at "./project/vendor.sh" for an easy-to-parse list of the
 exact version for each.
 
 NOTE: if you're not able to package the exact version (to the exact commit) of a
@@ -124,7 +124,7 @@ from the upstream Golang perspective.
 
 ## Building Docker
 
-Please use our build script ("./hack/make.sh") for all your compilation of
+Please use our build script ("./project/make.sh") for all your compilation of
 Docker. If there's something you need that it isn't doing, or something it could
 be doing to make your life as a packager easier, please get in touch with Tianon
 and help us rectify the situation. Chances are good that other packagers have
@@ -206,7 +206,7 @@ linking - see the "Build Dependencies" section above, and the relevant lines
 within Docker's own Dockerfile that set up our official build environment):
 
 ```bash
-./hack/make.sh binary
+./project/make.sh binary
 ```
 
 This will create a static binary under
@@ -228,7 +228,7 @@ interested in creating a client binary for Docker, use something similar to the
 following:
 
 ```bash
-./hack/make.sh dynbinary
+./project/make.sh dynbinary
 ```
 
 This will create "./bundles/$VERSION/dynbinary/docker-$VERSION", which for

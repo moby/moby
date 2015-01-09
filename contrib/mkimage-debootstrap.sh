@@ -179,7 +179,7 @@ if [ -z "$strictDebootstrap" ]; then
 	#  rm /etc/apt/apt.conf.d/no-languages
 	
 	if [ -z "$skipDetection" ]; then
-		# see also rudimentary platform detection in hack/install.sh
+		# see also rudimentary platform detection in ./project/install.sh
 		lsbDist=''
 		if [ -r etc/lsb-release ]; then
 			lsbDist="$(. etc/lsb-release && echo "$DISTRIB_ID")"

@@ -85,4 +85,4 @@ if [ $# -gt 0 ]; then
 fi
 
 echo >&2 'ERROR: No command specified.'
-echo >&2 'You probably want to run hack/make.sh, or maybe a shell?'
+echo >&2 'You probably want to run project/make.sh, or maybe a shell?'

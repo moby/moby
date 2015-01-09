@@ -38,13 +38,13 @@ GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
 default: binary
 
 all: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh
+	$(DOCKER_RUN_DOCKER) project/make.sh
 
 binary: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary
+	$(DOCKER_RUN_DOCKER) project/make.sh binary
 
 cross: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
+	$(DOCKER_RUN_DOCKER) project/make.sh binary cross
 
 docs: docs-build
 	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" mkdocs serve
@@ -59,22 +59,22 @@ docs-test: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./test.sh
 
 test: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration test-integration-cli test-docker-py
+	$(DOCKER_RUN_DOCKER) project/make.sh binary cross test-unit test-integration test-integration-cli test-docker-py
 
 test-unit: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
+	$(DOCKER_RUN_DOCKER) project/make.sh test-unit
 
 test-integration: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh test-integration
+	$(DOCKER_RUN_DOCKER) project/make.sh test-integration
 
 test-integration-cli: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-cli
+	$(DOCKER_RUN_DOCKER) project/make.sh binary test-integration-cli
 
 test-docker-py: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-docker-py
+	$(DOCKER_RUN_DOCKER) project/make.sh binary test-docker-py
 
 validate: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-gofmt validate-dco
+	$(DOCKER_RUN_DOCKER) project/make.sh validate-gofmt validate-dco
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash

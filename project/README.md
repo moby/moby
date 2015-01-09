@@ -1,6 +1,6 @@
 # Hacking on Docker
 
-The hack/ directory holds information and tools for everyone involved in the process of creating and
+The ./project/ directory holds information and tools for everyone involved in the process of creating and
 distributing Docker, specifically:
 
 ## Guides
