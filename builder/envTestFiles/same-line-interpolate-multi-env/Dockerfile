@@ -1,0 +1,1 @@
+ENV FOO=42 BAR=$FOO:43
