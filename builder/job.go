@@ -1,12 +1,16 @@
 package builder
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -14,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -24,6 +29,7 @@ type BuilderJob struct {
 
 func (b *BuilderJob) Install() {
 	b.Engine.Register("build", b.CmdBuild)
+	b.Engine.Register("build_config", b.CmdBuildConfig)
 }
 
 func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
@@ -135,6 +141,61 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	if repoName != "" {
 		b.Daemon.Repositories().Set(repoName, tag, id, true)
+	}
+	return engine.StatusOK
+}
+
+func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
+	if len(job.Args) != 0 {
+		return job.Errorf("Usage: %s\n", job.Name)
+	}
+	var (
+		validCmd = map[string]struct{}{
+			"entrypoint": {},
+			"cmd":        {},
+			"user":       {},
+			"workdir":    {},
+			"env":        {},
+			"volume":     {},
+			"expose":     {},
+			"onbuild":    {},
+		}
+
+		changes   = job.Getenv("changes")
+		newConfig runconfig.Config
+	)
+
+	if err := job.GetenvJson("config", &newConfig); err != nil {
+		return job.Error(err)
+	}
+
+	ast, err := parser.Parse(bytes.NewBufferString(changes))
+	if err != nil {
+		return job.Error(err)
+	}
+
+	builder := &Builder{
+		Daemon:        b.Daemon,
+		Engine:        b.Engine,
+		Config:        &newConfig,
+		OutStream:     ioutil.Discard,
+		ErrStream:     ioutil.Discard,
+		disableCommit: true,
+	}
+
+	for i, n := range ast.Children {
+		cmd := n.Value
+		if _, ok := validCmd[cmd]; ok {
+			if err := builder.dispatch(i, n); err != nil {
+				return job.Error(err)
+			}
+		} else {
+			fmt.Fprintf(builder.ErrStream, "# Skipping serialization of instruction %s\n", strings.ToUpper(cmd))
+		}
+	}
+
+	if err := json.NewEncoder(job.Stdout).Encode(builder.Config); err != nil {
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }
