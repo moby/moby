@@ -584,7 +584,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
 	result := new(SearchResults)
 	err = json.NewDecoder(res.Body).Decode(result)
