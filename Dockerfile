@@ -39,7 +39,6 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
-	lxc=1.0* \
 	mercurial \
 	parallel \
 	python-mock \
@@ -61,6 +60,15 @@ RUN cd /usr/local/lvm2 \
 	&& make device-mapper \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+
+# Install lxc
+RUN mkdir -p /usr/src/lxc \
+	&& curl -sSL https://linuxcontainers.org/downloads/lxc/lxc-1.0.7.tar.gz | tar -v -C /usr/src/lxc/ -xz --strip-components=1
+RUN cd /usr/src/lxc \
+	&& ./configure \
+	&& make \
+	&& make install \
+	&& ldconfig
 
 # Install Go
 RUN curl -sSL https://golang.org/dl/go1.4.src.tar.gz | tar -v -C /usr/local -xz
