@@ -2164,7 +2164,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
-		return &utils.StatusError{StatusCode: 1}
+		utils.ReportError(cmd, err.Error(), true)
 	}
 	if config.Image == "" {
 		cmd.Usage()
@@ -2201,7 +2201,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	// just in case the Parse does not exit
 	if err != nil {
-		return &utils.StatusError{StatusCode: 1}
+		utils.ReportError(cmd, err.Error(), true)
 	}
 	if config.Image == "" {
 		cmd.Usage()
