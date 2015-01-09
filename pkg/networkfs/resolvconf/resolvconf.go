@@ -12,9 +12,21 @@ import (
 )
 
 var (
-	defaultDns      = []string{"8.8.8.8", "8.8.4.4"}
-	localHostRegexp = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
-	nsRegexp        = regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
+	// Note: the default IPv4 & IPv6 resolvers are set to Google's Public DNS
+	defaultIPv4Dns = []string{"nameserver 8.8.8.8", "nameserver 8.8.4.4"}
+	defaultIPv6Dns = []string{"nameserver 2001:4860:4860::8888", "nameserver 2001:4860:4860::8844"}
+	ipv4NumBlock   = `(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)`
+	ipv4Address    = `(` + ipv4NumBlock + `\.){3}` + ipv4NumBlock
+	// This is not an IPv6 address verifier as it will accept a super-set of IPv6, and also
+	// will *not match* IPv4-Embedded IPv6 Addresses (RFC6052), but that and other variants
+	// -- e.g. other link-local types -- either won't work in containers or are unnecessary.
+	// For readability and sufficiency for Docker purposes this seemed more reasonable than a
+	// 1000+ character regexp with exact and complete IPv6 validation
+	ipv6Address = `([0-9A-Fa-f]{0,4}:){2,7}([0-9A-Fa-f]{0,4})`
+
+	localhostRegexp = regexp.MustCompile(`(?m)^nameserver\s+((127\.([0-9]{1,3}.){2}[0-9]{1,3})|(::1))\s*\n*`)
+	nsIPv6Regexp    = regexp.MustCompile(`(?m)^nameserver\s+` + ipv6Address + `\s*\n*`)
+	nsRegexp        = regexp.MustCompile(`^\s*nameserver\s*((` + ipv4Address + `)|(` + ipv6Address + `))\s*$`)
 	searchRegexp    = regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
 )
 
@@ -65,17 +77,31 @@ func GetLastModified() ([]byte, string) {
 	return lastModified.contents, lastModified.sha256
 }
 
-// RemoveReplaceLocalDns looks for localhost (127.*) entries in the provided
-// resolv.conf, removing local nameserver entries, and, if the resulting
-// cleaned config has no defined nameservers left, adds default DNS entries
+// FilterResolvDns has two main jobs:
+// 1. It looks for localhost (127.*|::1) entries in the provided
+//    resolv.conf, removing local nameserver entries, and, if the resulting
+//    cleaned config has no defined nameservers left, adds default DNS entries
+// 2. Given the caller provides the enable/disable state of IPv6, the filter
+//    code will remove all IPv6 nameservers if it is not enabled for containers
+//
 // It also returns a boolean to notify the caller if changes were made at all
-func RemoveReplaceLocalDns(resolvConf []byte) ([]byte, bool) {
+func FilterResolvDns(resolvConf []byte, ipv6Enabled bool) ([]byte, bool) {
 	changed := false
-	cleanedResolvConf := localHostRegexp.ReplaceAll(resolvConf, []byte{})
-	// if the resulting resolvConf is empty, use defaultDns
-	if !bytes.Contains(cleanedResolvConf, []byte("nameserver")) {
-		log.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers : %v", defaultDns)
-		cleanedResolvConf = append(cleanedResolvConf, []byte("\nnameserver "+strings.Join(defaultDns, "\nnameserver "))...)
+	cleanedResolvConf := localhostRegexp.ReplaceAll(resolvConf, []byte{})
+	// if IPv6 is not enabled, also clean out any IPv6 address nameserver
+	if !ipv6Enabled {
+		cleanedResolvConf = nsIPv6Regexp.ReplaceAll(cleanedResolvConf, []byte{})
+	}
+	// if the resulting resolvConf has no more nameservers defined, add appropriate
+	// default DNS servers for IPv4 and (optionally) IPv6
+	if len(GetNameservers(cleanedResolvConf)) == 0 {
+		log.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers : %v", defaultIPv4Dns)
+		dns := defaultIPv4Dns
+		if ipv6Enabled {
+			log.Infof("IPv6 enabled; Adding default IPv6 external servers : %v", defaultIPv6Dns)
+			dns = append(dns, defaultIPv6Dns...)
+		}
+		cleanedResolvConf = append(cleanedResolvConf, []byte("\n"+strings.Join(dns, "\n"))...)
 	}
 	if !bytes.Equal(resolvConf, cleanedResolvConf) {
 		changed = true

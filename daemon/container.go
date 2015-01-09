@@ -958,8 +958,8 @@ func (container *Container) setupContainerDns() error {
 			log.Debugf("Check container (%s) for update to resolv.conf - UpdateDns flag was set", container.ID)
 			latestResolvConf, latestHash := resolvconf.GetLastModified()
 
-			// because the new host resolv.conf might have localhost nameservers..
-			updatedResolvConf, modified := resolvconf.RemoveReplaceLocalDns(latestResolvConf)
+			// clean container resolv.conf re: localhost nameservers and IPv6 NS (if IPv6 disabled)
+			updatedResolvConf, modified := resolvconf.FilterResolvDns(latestResolvConf, container.daemon.config.EnableIPv6)
 			if modified {
 				// changes have occurred during resolv.conf localhost cleanup: generate an updated hash
 				newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
@@ -1012,8 +1012,8 @@ func (container *Container) setupContainerDns() error {
 			return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
 		}
 
-		// replace any localhost/127.* nameservers
-		resolvConf, _ = resolvconf.RemoveReplaceLocalDns(resolvConf)
+		// replace any localhost/127.*, and remove IPv6 nameservers if IPv6 disabled in daemon
+		resolvConf, _ = resolvconf.FilterResolvDns(resolvConf, daemon.config.EnableIPv6)
 	}
 	//get a sha256 hash of the resolv conf at this point so we can check
 	//for changes when the host resolv.conf changes (e.g. network update)
