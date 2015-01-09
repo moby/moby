@@ -57,12 +57,18 @@ func (d *Driver) Status() [][2]string {
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
 		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
-		{"Data file", s.DataLoopback},
-		{"Metadata file", s.MetadataLoopback},
+		{"Data file", s.DataFile},
+		{"Metadata file", s.MetadataFile},
 		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
 		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Total)))},
 		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Used)))},
 		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Total)))},
+	}
+	if len(s.DataLoopback) > 0 {
+		status = append(status, [2]string{"Data loop file", s.DataLoopback})
+	}
+	if len(s.MetadataLoopback) > 0 {
+		status = append(status, [2]string{"Metadata loop file", s.MetadataLoopback})
 	}
 	if vStr, err := devicemapper.GetLibraryVersion(); err == nil {
 		status = append(status, [2]string{"Library Version", vStr})
