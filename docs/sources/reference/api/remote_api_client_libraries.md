@@ -30,6 +30,12 @@ will add the libraries here.
       <td><a class="reference external" href="https://github.com/ahmetalpbalkan/Docker.DotNet">https://github.com/ahmetalpbalkan/Docker.DotNet</a></td>
       <td>Active</td>
     </tr>
+    <tr class="row-even">
+      <td>C++</td>
+      <td>lasote/docker_client</td>
+      <td><a class="reference external" href="http://www.biicode.com/lasote/docker_client">http://www.biicode.com/lasote/docker_client (Biicode C++ dependency manager)</a></td>
+      <td>Active</td>
+    </tr>
     <tr class="row-odd">
       <td>Erlang</td>
       <td>erldocker</td>
