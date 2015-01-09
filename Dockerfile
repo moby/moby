@@ -63,7 +63,7 @@ RUN cd /usr/local/lvm2 \
 
 # Install lxc
 RUN mkdir -p /usr/src/lxc \
-	&& curl -sSL https://linuxcontainers.org/downloads/lxc/lxc-1.0.7.tar.gz | tar -v -C /usr/src/lxc/ -xz --strip-components=1
+	&& curl -sSL https://linuxcontainers.org/downloads/lxc/lxc-1.0.7.tar.gz | tar -C /usr/src/lxc/ -xz --strip-components=1
 RUN cd /usr/src/lxc \
 	&& ./configure \
 	&& make \
@@ -71,7 +71,7 @@ RUN cd /usr/src/lxc \
 	&& ldconfig
 
 # Install Go
-RUN curl -sSL https://golang.org/dl/go1.4.src.tar.gz | tar -v -C /usr/local -xz
+RUN curl -sSL https://golang.org/dl/go1.4.src.tar.gz | tar -C /usr/local -xz
 ENV PATH /usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 ENV PATH /go/bin:$PATH
