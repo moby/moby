@@ -532,9 +532,13 @@ func (b *Builder) create() (*daemon.Container, error) {
 	b.TmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.OutStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
 
-	// override the entry point that may have been picked up from the base image
-	c.Path = config.Cmd[0]
-	c.Args = config.Cmd[1:]
+	if config.Cmd != nil {
+		// override the entry point that may have been picked up from the base image
+		c.Path = config.Cmd[0]
+		c.Args = config.Cmd[1:]
+	} else {
+		config.Cmd = []string{}
+	}
 
 	return c, nil
 }

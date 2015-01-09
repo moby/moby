@@ -22,6 +22,25 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildJSONEmptyRun(t *testing.T) {
+	name := "testbuildjsonemptyrun"
+	defer deleteImages(name)
+
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    RUN []
+    `,
+		true)
+
+	if err != nil {
+		t.Fatal("error when dealing with a RUN statement with empty JSON array")
+	}
+
+	logDone("build - RUN with an empty array should not panic")
+}
+
 func TestBuildEmptyWhitespace(t *testing.T) {
 	name := "testbuildemptywhitespace"
 	defer deleteImages(name)
