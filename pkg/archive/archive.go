@@ -30,11 +30,13 @@ type (
 	ArchiveReader io.Reader
 	Compression   int
 	TarOptions    struct {
-		IncludeFiles    []string
-		ExcludePatterns []string
-		Compression     Compression
-		NoLchown        bool
-		Name            string
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		Name             string
+		Replace          [2]string
+		IncludeSourceDir bool
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -416,10 +418,14 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				relFilePath, err := filepath.Rel(srcPath, filePath)
-				if err != nil || (relFilePath == "." && f.IsDir()) {
+				if err != nil || (!options.IncludeSourceDir && relFilePath == "." && f.IsDir()) {
 					// Error getting relative path OR we are looking
-					// at the root path. Skip in both situations.
+					// at the source directory path. Skip in both situations.
 					return nil
+				}
+
+				if options.IncludeSourceDir && include == "." && relFilePath != "." {
+					relFilePath = fmt.Sprintf("./%s", relFilePath)
 				}
 
 				skip := false
@@ -456,6 +462,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				// Set this to make sure the items underneath also get renamed
 				if options.Name != "" {
 					relFilePath = strings.Replace(relFilePath, renamedRelFilePath, options.Name, 1)
+				} else if options.Replace[0] != "" {
+					relFilePath = strings.Replace(relFilePath, options.Replace[0], options.Replace[1], 1)
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
@@ -497,6 +505,23 @@ loop:
 		}
 		if err != nil {
 			return err
+		}
+
+		for _, include := range options.IncludeFiles {
+			cleanedName := filepath.Clean(hdr.Name)
+			// Preserve a trailing dot or separator. If `hdr.Name` is `foo/`,
+			// then the cleaned path would be just `foo` and would no longer
+			// match an include that was `foo/`.
+			cleanedName = PreserveTrailingDotOrSeparator(cleanedName, hdr.Name)
+			// Don't bother with "./" because that would be cleaned away and
+			// would mean that we want everything in the archive anyway.
+			if !(include == "./" || strings.HasPrefix(cleanedName, include)) {
+				continue loop
+			}
+		}
+
+		if options.Replace[0] != "" {
+			hdr.Name = strings.Replace(hdr.Name, options.Replace[0], options.Replace[1], 1)
 		}
 
 		// Normalize name, for safety and for a simple is-root check

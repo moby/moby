@@ -109,3 +109,8 @@ func CopyFileWithTar(src, dst string) (err error) {
 func UntarPath(src, dst string) error {
 	return chrootArchiver.UntarPath(src, dst)
 }
+
+// CopyTo calls CopyTo on this package's default archiver.
+func CopyTo(content archive.ArchiveReader, dstPath string) (err error) {
+	return chrootArchiver.CopyTo(content, dstPath)
+}

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -164,4 +165,56 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 		}
 		return nil
 	})
+}
+
+func createSampleDir(t *testing.T, root string) {
+	files := []FileData{
+		{Regular, "file1", "file1\n", 0600},
+		{Regular, "file2", "file2\n", 0666},
+		{Regular, "file3", "file3\n", 0404},
+		{Regular, "file4", "file4\n", 0600},
+		{Regular, "file5", "file5\n", 0600},
+		{Regular, "file6", "file6\n", 0600},
+		{Regular, "file7", "file7\n", 0600},
+		{Dir, "dir1", "", 0740},
+		{Regular, "dir1/file1-1", "file1-1\n", 01444},
+		{Regular, "dir1/file1-2", "file1-2\n", 0666},
+		{Dir, "dir2", "", 0700},
+		{Regular, "dir2/file2-1", "file2-1\n", 0666},
+		{Regular, "dir2/file2-2", "file2-2\n", 0666},
+		{Dir, "dir3", "", 0700},
+		{Regular, "dir3/file3-1", "file3-1\n", 0666},
+		{Regular, "dir3/file3-2", "file3-2\n", 0666},
+		{Dir, "dir4", "", 0700},
+		{Regular, "dir4/file3-1", "file4-1\n", 0666},
+		{Regular, "dir4/file3-2", "file4-2\n", 0666},
+		{Dir, "dir5", "", 0755},
+		{Symlink, "symlink1", "target1", 0666},
+		{Symlink, "symlink2", "target2", 0666},
+	}
+
+	now := time.Now()
+	for _, info := range files {
+		p := filepath.Join(root, info.path)
+		if info.filetype == Dir {
+			if err := os.MkdirAll(p, info.permissions); err != nil {
+				t.Fatal(err)
+			}
+		} else if info.filetype == Regular {
+			if err := ioutil.WriteFile(p, []byte(info.contents), info.permissions); err != nil {
+				t.Fatal(err)
+			}
+		} else if info.filetype == Symlink {
+			if err := os.Symlink(info.contents, p); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		if info.filetype != Symlink {
+			// Set a consistent ctime, atime for all files and dirs
+			if err := os.Chtimes(p, now, now); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 }
