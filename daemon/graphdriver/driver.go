@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
-type FsMagic uint64
+type FsMagic uint32
 
 const (
 	FsMagicBtrfs = FsMagic(0x9123683E)
