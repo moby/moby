@@ -544,7 +544,6 @@ func (container *Container) AllocateNetwork() error {
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
 	container.NetworkSettings.MacAddress = env.Get("MacAddress")
 	container.NetworkSettings.Gateway = env.Get("Gateway")
-	container.NetworkSettings.MacAddress = env.Get("MacAddress")
 	container.NetworkSettings.LinkLocalIPv6Address = env.Get("LinkLocalIPv6")
 	container.NetworkSettings.LinkLocalIPv6PrefixLen = 64
 	container.NetworkSettings.GlobalIPv6Address = env.Get("GlobalIPv6")
