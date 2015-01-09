@@ -248,7 +248,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 }
 
 func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	exitStatus, err := d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
+	exitStatus, err := d.execDriver.Exec(execConfig.ID, c.command, &execConfig.ProcessConfig, pipes, startCallback)
 
 	// On err, make sure we don't leave ExitCode at zero
 	if err != nil && exitStatus == 0 {
