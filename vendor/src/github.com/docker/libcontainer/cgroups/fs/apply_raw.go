@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/docker/libcontainer/cgroups"
 )
@@ -88,6 +90,68 @@ func Apply(c *cgroups.Cgroup, pid int) (map[string]string, error) {
 	return paths, nil
 }
 
+// Stop stops all processes in the current cgroup
+func Stop(c *cgroups.Cgroup) error {
+	// first we send SIGTERM to all tasks inside the cgroup
+	if err := Kill(c, syscall.SIGTERM); err != nil {
+		return err
+	}
+
+	// if failed to stop with only SIGTERM after 5.11s, we send SIGKILL
+	if err := waitStop(c, 10*time.Millisecond, 9); err != nil {
+		if err := Kill(c, syscall.SIGKILL); err != nil {
+			return err
+		}
+		// if failed to stop after 10s, timedout error is returned
+		return waitStop(c, 10*time.Millisecond, 10)
+	}
+	return nil
+}
+
+// Kill sends the signal to all processes in the current cgroup.
+// This assumes that the freezer cgroup is setup. It first freeze the cgroup,
+// send the signal to all processes inside the cgroup and then unfreeze it to
+// make sure that signal is sent to the processes before it has a chance to
+// do something else
+func Kill(c *cgroups.Cgroup, signal syscall.Signal) error {
+	Freeze(c, cgroups.Frozen)
+	defer Freeze(c, cgroups.Thawed)
+
+	pids, err := GetPids(c)
+	if err != nil {
+		return err
+	}
+
+	for _, pid := range pids {
+		if err := syscall.Kill(pid, signal); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// waitStop waits for all tasks in the given cgroup tasks to stop. It will check
+// a given number of times with increasing delay between tries. If the tasks
+// failed to stop then approriate error will be returned
+func waitStop(c *cgroups.Cgroup, initialWait time.Duration, tries int) error {
+	for i := 0; i < tries; i++ {
+		if i != 0 {
+			time.Sleep(initialWait)
+			initialWait *= 2
+		}
+		pids, err := GetPids(c)
+		if err != nil {
+			return err
+		}
+		// all tasks in the current cgroup have been removed
+		if len(pids) == 0 {
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to stop %q: timed out", c.Name)
+}
+
 // Symmetrical public function to update device based cgroups.  Also available
 // in the systemd implementation.
 func ApplyDevices(c *cgroups.Cgroup, pid int) error {
@@ -124,11 +188,17 @@ func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
 		return err
 	}
 
+	prevState := c.Freezer
 	c.Freezer = state
 
 	freezer := subsystems["freezer"]
+	err = freezer.Set(d)
+	if err != nil {
+		c.Freezer = prevState
+		return err
+	}
 
-	return freezer.Set(d)
+	return nil
 }
 
 func GetPids(c *cgroups.Cgroup) ([]int, error) {
