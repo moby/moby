@@ -22,6 +22,27 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+func TestBuildEmptyWhitespace(t *testing.T) {
+	name := "testbuildemptywhitespace"
+	defer deleteImages(name)
+
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    RUN 
+      quux \
+      bar
+    `,
+		true)
+
+	if err == nil {
+		t.Fatal("no error when dealing with a RUN statement with no content on the same line")
+	}
+
+	logDone("build - statements with whitespace and no content should generate a parse error")
+}
+
 func TestBuildShCmdJSONEntrypoint(t *testing.T) {
 	name := "testbuildshcmdjsonentrypoint"
 	defer deleteImages(name)
