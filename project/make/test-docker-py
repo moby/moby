@@ -4,7 +4,6 @@ set -e
 DEST=$1
 
 # subshell so that we can export PATH without breaking other things
-exec > >(tee -a $DEST/test.log) 2>&1
 (
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
 
@@ -19,4 +18,4 @@ exec > >(tee -a $DEST/test.log) 2>&1
 	python tests/integration_test.py
 
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
-)
+) 2>&1 | tee -a $DEST/test.log

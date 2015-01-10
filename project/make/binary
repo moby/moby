@@ -3,10 +3,7 @@ set -e
 
 DEST=$1
 BINARY_NAME="docker-$VERSION"
-BINARY_EXTENSION=
-if [ "$(go env GOOS)" = 'windows' ]; then
-	BINARY_EXTENSION='.exe'
-fi
+BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 # Cygdrive paths don't play well with go build -o.
