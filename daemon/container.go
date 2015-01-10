@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -915,6 +916,97 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			return err
 		}),
 		nil
+}
+
+// AbsPath cleans and returns the given path if it is an absolute path,
+// otherwise it is joined with this container's working directory to yield an
+// absolute path. If the given path ends with a trailing path separator, or
+// ends with a current directory specifier, it is preserved.
+func (container *Container) AbsPath(resourcePath string) (absPath string) {
+	absPath = filepath.Clean(resourcePath)
+
+	if !filepath.IsAbs(absPath) {
+		// Make an absolute path with the container's working directory.
+		absPath = filepath.Join(string(filepath.Separator), container.Config.WorkingDir, absPath)
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(absPath, resourcePath)
+}
+
+// resolvePath returns the system's absolute path to the given path in this
+// container, preserving a trailing path separator.
+func (container *Container) resolvePath(containerPath string) (resolvedPath string, err error) {
+	if resolvedPath, err = container.getResourcePath(containerPath); err != nil {
+		return
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(resolvedPath, containerPath), nil
+}
+
+func (container *Container) unmountOnError(errp *error) {
+	if *errp != nil {
+		container.Unmount()
+	}
+}
+
+// CopyFrom copies the resource at the given sourcePath into a Tar archive.
+func (container *Container) CopyFrom(sourcePath string) (copyData archive.Archive, err error) {
+	if err = container.Mount(); err != nil {
+		return
+	}
+	defer container.unmountOnError(&err)
+
+	absPath := container.AbsPath(sourcePath)
+
+	// Check if this is actually in a volume
+	for _, mnt := range container.VolumeMounts() {
+		if mnt.hasResource(absPath) {
+			return mnt.CopyFrom(absPath)
+		}
+	}
+
+	var resolvedPath string
+	if resolvedPath, err = container.resolvePath(absPath); err != nil {
+		return
+	}
+
+	var contentArchive archive.Archive
+	if contentArchive, err = archive.CopyFrom(resolvedPath); err != nil {
+		return
+	}
+
+	copyData = ioutils.NewReadCloserWrapper(contentArchive, func() error {
+		closeErr := contentArchive.Close()
+		container.Unmount()
+		return closeErr
+	})
+
+	return
+}
+
+// CopyTo copies a file or directory from the given content
+// archive to a destination path in this container.
+func (container *Container) CopyTo(content archive.ArchiveReader, dstPath string) (err error) {
+	if err = container.Mount(); err != nil {
+		return
+	}
+	defer container.Unmount()
+
+	absPath := container.AbsPath(dstPath)
+
+	// Check if this is actually in a volume.
+	for _, mnt := range container.VolumeMounts() {
+		if mnt.hasResource(absPath) {
+			return mnt.CopyTo(content, absPath)
+		}
+	}
+
+	var resolvedPath string
+	if resolvedPath, err = container.resolvePath(absPath); err != nil {
+		return
+	}
+
+	return chrootarchive.CopyTo(content, resolvedPath)
 }
 
 // Returns true if the container exposes a certain port
