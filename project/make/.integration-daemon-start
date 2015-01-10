@@ -20,8 +20,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		docker --daemon --debug \
 		--storage-driver "$DOCKER_GRAPHDRIVER" \
 		--exec-driver "$DOCKER_EXECDRIVER" \
-		--pidfile "$DEST/docker.pid" \
-			&> "$DEST/docker.log"
+		--pidfile "$DEST/docker.pid" 
 	) &
 else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"
