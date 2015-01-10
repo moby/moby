@@ -28,6 +28,7 @@ MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
+	apparmor \
 	aufs-tools \
 	automake \
 	btrfs-tools \
