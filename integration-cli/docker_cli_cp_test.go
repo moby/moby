@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,20 @@ const (
 	cpContainerContents = "holla, i am the container"
 	cpHostContents      = "hello, i am the host"
 )
+
+// Ensure that an all-local path case returns an error.
+func TestCpLocalOnly(t *testing.T) {
+	err := runDockerCp(t, "foo", "bar")
+	if err == nil {
+		t.Fatal("expected failure, got success")
+	}
+
+	if !strings.Contains(err.Error(), "Wrong path format. Must specify a source and/or destination container") {
+		t.Fatalf("unexpected output: %s", err.Error())
+	}
+
+	logDone("cp - using only local paths for SRC and DST")
+}
 
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
@@ -365,9 +380,9 @@ func TestCpUnprivilegedUser(t *testing.T) {
 
 	path := cpTestName
 
-	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+cleanedContainerID+":"+path+" "+tmpdir))
+	out, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+cleanedContainerID+":"+path+" "+tmpdir))
 	if err != nil {
-		t.Fatalf("couldn't copy with unprivileged user: %s:%s %s", cleanedContainerID, path, err)
+		t.Fatalf("couldn't copy with unprivileged user: %s:%s %s: %s", cleanedContainerID, path, err, out)
 	}
 
 	logDone("cp - unprivileged user")
