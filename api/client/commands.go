@@ -2403,41 +2403,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH", true)
-	cmd.Require(flag.Exact, 2)
-
-	utils.ParseFlags(cmd, args, true)
-
-	var copyData engine.Env
-	info := strings.Split(cmd.Arg(0), ":")
-
-	if len(info) != 2 {
-		return fmt.Errorf("Error: Path not specified")
-	}
-
-	copyData.Set("Resource", info[1])
-	copyData.Set("HostPath", cmd.Arg(1))
-
-	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, false)
-	if stream != nil {
-		defer stream.Close()
-	}
-	if statusCode == 404 {
-		return fmt.Errorf("No such container: %v", info[0])
-	}
-	if err != nil {
-		return err
-	}
-
-	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (cli *DockerCli) CmdSave(args ...string) error {
 	cmd := cli.Subcmd("save", "IMAGE [IMAGE...]", "Save an image(s) to a tar archive (streamed to STDOUT by default)", true)
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")

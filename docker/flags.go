@@ -69,7 +69,7 @@ func init() {
 			{"attach", "Attach to a running container"},
 			{"build", "Build an image from a Dockerfile"},
 			{"commit", "Create a new image from a container's changes"},
-			{"cp", "Copy files/folders from a container's filesystem to the host path"},
+			{"cp", "Copy files between containers or a local path"},
 			{"create", "Create a new container"},
 			{"diff", "Inspect changes on a container's filesystem"},
 			{"events", "Get real time events from the server"},
