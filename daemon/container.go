@@ -1057,7 +1057,15 @@ func (container *Container) updateResolvConf(updatedResolvConf []byte, newResolv
 	//read the hash from the last time we wrote resolv.conf in the container
 	hashBytes, err := ioutil.ReadFile(resolvHashFile)
 	if err != nil {
-		return err
+		if !os.IsNotExist(err) {
+			return err
+		}
+		// backwards compat: if no hash file exists, this container pre-existed from
+		// a Docker daemon that didn't contain this update feature. Given we can't know
+		// if the user has modified the resolv.conf since container start time, safer
+		// to just never update the container's resolv.conf during it's lifetime which
+		// we can control by setting hashBytes to an empty string
+		hashBytes = []byte("")
 	}
 
 	//if the user has not modified the resolv.conf of the container since we wrote it last
