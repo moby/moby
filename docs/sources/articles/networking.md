@@ -201,6 +201,13 @@ If the options (`--dns` or `--dns-search`) have been used to modify the
 default host configuration, then the replacement with an updated host's
 `/etc/resolv.conf` will not happen as well.
 
+> **Note**:
+> For containers which were created prior to the implementation of
+> the `/etc/resolv.conf` update feature in Docker 1.5.0: those
+> containers will **not** receive updates when the host `resolv.conf`
+> file changes. Only containers created with Docker 1.5.0 and above
+> will utilize this auto-update feature.
+
 ## Communication between containers and the wider world
 
 <a name="the-world"></a>
