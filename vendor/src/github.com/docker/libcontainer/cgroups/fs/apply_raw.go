@@ -105,7 +105,7 @@ func GetStats(systemPaths map[string]string) (*cgroups.Stats, error) {
 	stats := cgroups.NewStats()
 	for name, path := range systemPaths {
 		sys, ok := subsystems[name]
-		if !ok {
+		if !ok || !cgroups.PathExists(path) {
 			continue
 		}
 		if err := sys.GetStats(path, stats); err != nil {

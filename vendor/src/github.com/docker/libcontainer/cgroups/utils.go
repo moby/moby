@@ -174,7 +174,7 @@ func ParseCgroupFile(subsystem string, r io.Reader) (string, error) {
 	return "", NewNotFoundError(subsystem)
 }
 
-func pathExists(path string) bool {
+func PathExists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		return false
 	}
@@ -183,7 +183,7 @@ func pathExists(path string) bool {
 
 func EnterPid(cgroupPaths map[string]string, pid int) error {
 	for _, path := range cgroupPaths {
-		if pathExists(path) {
+		if PathExists(path) {
 			if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"),
 				[]byte(strconv.Itoa(pid)), 0700); err != nil {
 				return err
