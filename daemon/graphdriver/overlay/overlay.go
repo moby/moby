@@ -299,7 +299,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	return mount.path, nil
 }
 
-func (d *Driver) Put(id string) {
+func (d *Driver) Put(id string) error {
 	// Protect the d.active from concurrent access
 	d.Lock()
 	defer d.Unlock()
@@ -307,21 +307,23 @@ func (d *Driver) Put(id string) {
 	mount := d.active[id]
 	if mount == nil {
 		log.Debugf("Put on a non-mounted device %s", id)
-		return
+		return nil
 	}
 
 	mount.count--
 	if mount.count > 0 {
-		return
+		return nil
 	}
 
+	defer delete(d.active, id)
 	if mount.mounted {
-		if err := syscall.Unmount(mount.path, 0); err != nil {
+		err := syscall.Unmount(mount.path, 0)
+		if err != nil {
 			log.Debugf("Failed to unmount %s overlay: %v", id, err)
 		}
+		return err
 	}
-
-	delete(d.active, id)
+	return nil
 }
 
 func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader) (size int64, err error) {

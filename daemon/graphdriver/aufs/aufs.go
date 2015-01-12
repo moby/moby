@@ -278,7 +278,7 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 	return out, nil
 }
 
-func (a *Driver) Put(id string) {
+func (a *Driver) Put(id string) error {
 	// Protect the a.active from concurrent access
 	a.Lock()
 	defer a.Unlock()
@@ -293,6 +293,7 @@ func (a *Driver) Put(id string) {
 		}
 		delete(a.active, id)
 	}
+	return nil
 }
 
 // Diff produces an archive of the changes between the specified

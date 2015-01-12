@@ -220,9 +220,10 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return dir, nil
 }
 
-func (d *Driver) Put(id string) {
+func (d *Driver) Put(id string) error {
 	// Get() creates no runtime resources (like e.g. mounts)
 	// so this doesn't need to do anything.
+	return nil
 }
 
 func (d *Driver) Exists(id string) bool {
