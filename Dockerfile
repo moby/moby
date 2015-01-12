@@ -148,6 +148,17 @@ RUN set -x \
 	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday \
 	&& go install -v github.com/cpuguy83/go-md2man
 
+# Install registry
+COPY pkg/tarsum /go/src/github.com/docker/docker/pkg/tarsum
+# REGISTRY_COMMIT gives us the repeatability guarantees we need
+# (so that we're all testing the same version of the registry)
+ENV REGISTRY_COMMIT 21a69f53b5c7986b831f33849d551cd59ec8cbd1
+RUN set -x \
+	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
+	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
+	&& go get -d github.com/docker/distribution/cmd/registry \
+	&& go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry
+
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
