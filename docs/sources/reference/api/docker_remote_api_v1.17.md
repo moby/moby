@@ -266,73 +266,104 @@ Return low-level information on the container `id`
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {
-                     "Id": "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2",
-                     "Created": "2013-05-07T14:51:42.041847+02:00",
-                     "Path": "date",
-                     "Args": [],
-                     "Config": {
-                             "Hostname": "4fa6e0f0c678",
-                             "User": "",
-                             "Memory": 0,
-                             "MemorySwap": 0,
-                             "AttachStdin": false,
-                             "AttachStdout": true,
-                             "AttachStderr": true,
-                             "PortSpecs": null,
-                             "Tty": false,
-                             "OpenStdin": false,
-                             "StdinOnce": false,
-                             "Env": null,
-                             "Cmd": [
-                                     "date"
-                             ],
-                             "Dns": null,
-                             "Image": "base",
-                             "Volumes": {},
-                             "VolumesFrom": "",
-                             "WorkingDir": ""
-                     },
-                     "State": {
-                             "Running": false,
-                             "Pid": 0,
-                             "ExitCode": 0,
-                             "StartedAt": "2013-05-07T14:51:42.087658+02:01360",
-                             "Ghost": false
-                     },
-                     "Image": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-                     "NetworkSettings": {
-                             "IpAddress": "",
-                             "IpPrefixLen": 0,
-                             "Gateway": "",
-                             "Bridge": "",
-                             "PortMapping": null
-                     },
-                     "SysInitPath": "/home/kitty/go/src/github.com/docker/docker/bin/docker",
-                     "ResolvConfPath": "/etc/resolv.conf",
-                     "Volumes": {},
-                     "ExecIDs": [
-                         "15f211491dced6a353a2e0f37fe3f3692ee2370a4782418e9bf7052865c10fde"
-                     ],
-                     "HostConfig": {
-                         "Binds": null,
-                         "ContainerIDFile": "",
-                         "LxcConf": [],
-                         "Privileged": false,
-                         "PortBindings": {
-                            "80/tcp": [
-                                {
-                                    "HostIp": "0.0.0.0",
-                                    "HostPort": "49153"
-                                }
-                            ]
-                         },
-                         "Links": ["/name:alias"],
-                         "PublishAllPorts": false,
-                         "CapAdd": ["NET_ADMIN"],
-                         "CapDrop": ["MKNOD"]
-                     }
-        }
+	{
+		"AppArmorProfile": "",
+		"Args": [
+			"-c",
+			"exit 9"
+		],
+		"Config": {
+			"AttachStderr": true,
+			"AttachStdin": false,
+			"AttachStdout": true,
+			"Cmd": [
+				"/bin/sh",
+				"-c",
+				"exit 9"
+			],
+			"CpuShares": 0,
+			"Cpuset": "",
+			"Domainname": "",
+			"Entrypoint": null,
+			"Env": [
+				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+			],
+			"ExposedPorts": null,
+			"Hostname": "ba033ac44011",
+			"Image": "ubuntu",
+			"MacAddress": "",
+			"Memory": 0,
+			"MemorySwap": 0,
+			"NetworkDisabled": false,
+			"OnBuild": null,
+			"OpenStdin": false,
+			"PortSpecs": null,
+			"StdinOnce": false,
+			"Tty": false,
+			"User": "",
+			"Volumes": null,
+			"WorkingDir": ""
+		},
+		"Created": "2015-01-06T15:47:31.485331387Z",
+		"Driver": "devicemapper",
+		"ExecDriver": "native-0.2",
+		"ExecIDs": null,
+		"HostConfig": {
+			"Binds": null,
+			"CapAdd": null,
+			"CapDrop": null,
+			"ContainerIDFile": "",
+			"Devices": [],
+			"Dns": null,
+			"DnsSearch": null,
+			"ExtraHosts": null,
+			"IpcMode": "",
+			"Links": null,
+			"LxcConf": [],
+			"NetworkMode": "bridge",
+			"PortBindings": {},
+			"Privileged": false,
+			"PublishAllPorts": false,
+			"RestartPolicy": {
+				"MaximumRetryCount": 2,
+				"Name": "on-failure"
+			},
+			"SecurityOpt": null,
+			"VolumesFrom": null
+		},
+		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
+		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",
+		"Id": "ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39",
+		"Image": "04c5d3b7b0656168630d3ba35d8889bd0e9caafcaeb3004d2bfbc47e7c5d35d2",
+		"MountLabel": "",
+		"Name": "/boring_euclid",
+		"NetworkSettings": {
+			"Bridge": "",
+			"Gateway": "",
+			"IPAddress": "",
+			"IPPrefixLen": 0,
+			"MacAddress": "",
+			"PortMapping": null,
+			"Ports": null
+		},
+		"Path": "/bin/sh",
+		"ProcessLabel": "",
+		"ResolvConfPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/resolv.conf",
+		"RestartCount": 1,
+		"State": {
+			"Error": "",
+			"ExitCode": 9,
+			"FinishedAt": "2015-01-06T15:47:32.080254511Z",
+			"OOMKilled": false,
+			"Paused": false,
+			"Pid": 0,
+			"Restarting": false,
+			"Running": false,
+			"StartedAt": "2015-01-06T15:47:32.072697474Z"
+		},
+		"Volumes": {},
+		"VolumesRW": {}
+	}
 
 Status Codes:
 
