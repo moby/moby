@@ -760,6 +760,7 @@ Creates a new container.
       --net="bridge"             Set the Network mode for the container
       -P, --publish-all=false    Publish all exposed ports to random ports
       -p, --publish=[]           Publish a container's port(s) to the host
+      --persist-ports=false      Persist published dynamically allocated host ports
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
       --restart=""               Restart policy to apply when a container exits
@@ -1630,6 +1631,7 @@ removed before the image is removed.
                                    Both hostPort and containerPort can be specified as a range of ports. 
                                    When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                    (use 'docker port' to see the actual mapping)
+      --persist-ports=false      Persist published host ports that were dynamically allocated so that they remain the same even after restarting the container.
       --pid=host		 'host': use the host PID namespace inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
       --privileged=false         Give extended privileges to this container
       --read-only=false           Mount the container's root filesystem as read only

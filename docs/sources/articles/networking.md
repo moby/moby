@@ -121,6 +121,9 @@ Finally, several networking options can only be provided when calling
  *  `-P` or `--publish-all=true|false` — see
     [Binding container ports](#binding-ports)
 
+ *  `--persist-ports=true|false` — see
+    [Binding container ports](#binding-ports)
+
 The following sections tackle all of the above topics in an order that
 moves roughly from simplest to most complex.
 
@@ -374,6 +377,11 @@ More convenient is the `-p SPEC` or `--publish=SPEC` option which lets
 you be explicit about exactly which external port on the Docker server —
 which can be any port at all, not just those in the 49153-65535 block —
 you want mapped to which port in the container.
+
+You can also provide the `--persist-ports=true|false` option. This will
+cause dynamically allocated ports in the 49153-65535 range to be
+preserved across container restarts. If this flag is not provided, each
+time the container starts a new port will be allocated.
 
 Either way, you should be able to peek at what Docker has accomplished
 in your network stack by examining your NAT tables.
