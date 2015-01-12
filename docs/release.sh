@@ -78,6 +78,11 @@ upload_current_documentation() {
 	src=site/
 	dst=s3://$BUCKET$1
 
+	cache=max-age=3600
+	if [ "$NOCACHE" ]; then
+		cache=no-cache
+	fi
+
 	echo
 	echo "Uploading $src"
 	echo "  to $dst"
@@ -90,7 +95,7 @@ upload_current_documentation() {
 	#  versions.html_fragment
 		include="--recursive --include \"*.$i\" "
 		echo "uploading *.$i"
-		run="aws s3 cp $src $dst $OPTIONS --profile $BUCKET --cache-control \"max-age=3600\" --acl public-read $include"
+		run="aws s3 cp $src $dst $OPTIONS --profile $BUCKET --cache-control $cache --acl public-read $include"
 		echo "======================="
 		echo "$run"
 		echo "======================="
@@ -114,7 +119,7 @@ invalidate_cache() {
 
 	len=${#files[@]}
 
-	echo "aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id $DISTRIBUTION_ID --invalidation-batch '" > batchfile
+	echo "aws cloudfront  create-invalidation --profile $AWS_S3_BUCKET --distribution-id $DISTRIBUTION_ID --invalidation-batch '" > batchfile
 	echo "{\"Paths\":{\"Quantity\":$len," >> batchfile
 	echo "\"Items\": [" >> batchfile
 
@@ -150,7 +155,7 @@ if [ "$BUILD_ROOT" == "yes" ]; then
 	echo "Building root documentation"
 	build_current_documentation
 	upload_current_documentation
-	invalidate_cache
+	[ "$NOCACHE" ] || invalidate_cache
 fi
 
 #build again with /v1.0/ prefix
@@ -158,4 +163,4 @@ sed -i "s/^site_url:.*/site_url: \/$MAJOR_MINOR\//" mkdocs.yml
 echo "Building the /$MAJOR_MINOR/ documentation"
 build_current_documentation
 upload_current_documentation "/$MAJOR_MINOR/"
-invalidate_cache "/$MAJOR_MINOR"
+[ "$NOCACHE" ] || invalidate_cache "/$MAJOR_MINOR"
