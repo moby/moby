@@ -110,7 +110,42 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 			return -1, err
 		}
 	}
+	if !container.Namespaces.Contains(libcontainer.NEWPID) {
+		killAllPids(container)
+	}
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+}
+
+// killAllPids itterates over all of the container's processes
+// sending a SIGKILL to each process.
+func killAllPids(container *libcontainer.Config) error {
+	var (
+		procs   []*os.Process
+		freeze  = fs.Freeze
+		getPids = fs.GetPids
+	)
+	if systemd.UseSystemd() {
+		freeze = systemd.Freeze
+		getPids = systemd.GetPids
+	}
+	freeze(container.Cgroups, cgroups.Frozen)
+	pids, err := getPids(container.Cgroups)
+	if err != nil {
+		return err
+	}
+	for _, pid := range pids {
+		// TODO: log err without aborting if we are unable to find
+		// a single PID
+		if p, err := os.FindProcess(pid); err == nil {
+			procs = append(procs, p)
+			p.Kill()
+		}
+	}
+	freeze(container.Cgroups, cgroups.Thawed)
+	for _, p := range procs {
+		p.Wait()
+	}
+	return err
 }
 
 // DefaultCreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces

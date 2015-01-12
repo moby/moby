@@ -120,6 +120,10 @@ type Config struct {
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
+
+	// AdditionalGroups specifies the gids that should be added to supplementary groups
+	// in addition to those that the user belongs to.
+	AdditionalGroups []int `json:"additional_groups,omitempty"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started

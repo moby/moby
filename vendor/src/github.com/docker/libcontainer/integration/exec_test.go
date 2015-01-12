@@ -67,7 +67,7 @@ func TestIPCPrivate(t *testing.T) {
 	}
 
 	if actual := strings.Trim(buffers.Stdout.String(), "\n"); actual == l {
-		t.Fatalf("ipc link should be private to the conatiner but equals host %q %q", actual, l)
+		t.Fatalf("ipc link should be private to the container but equals host %q %q", actual, l)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestIPCBadPath(t *testing.T) {
 
 	_, _, err = runContainer(config, "", "true")
 	if err == nil {
-		t.Fatal("container succeded with bad ipc path")
+		t.Fatal("container succeeded with bad ipc path")
 	}
 }
 
@@ -174,5 +174,36 @@ func TestRlimit(t *testing.T) {
 	}
 	if limit := strings.TrimSpace(out.Stdout.String()); limit != "1024" {
 		t.Fatalf("expected rlimit to be 1024, got %s", limit)
+	}
+}
+
+func TestPIDNSPrivate(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootFs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	l, err := os.Readlink("/proc/1/ns/pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := newTemplateConfig(rootfs)
+	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exitCode != 0 {
+		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
+	}
+
+	if actual := strings.Trim(buffers.Stdout.String(), "\n"); actual == l {
+		t.Fatalf("pid link should be private to the container but equals host %q %q", actual, l)
 	}
 }

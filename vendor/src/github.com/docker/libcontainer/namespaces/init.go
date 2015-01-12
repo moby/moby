@@ -170,7 +170,7 @@ func RestoreParentDeathSignal(old int) error {
 }
 
 // SetupUser changes the groups, gid, and uid for the user inside the container
-func SetupUser(u string) error {
+func SetupUser(container *libcontainer.Config) error {
 	// Set up defaults.
 	defaultExecUser := user.ExecUser{
 		Uid:  syscall.Getuid(),
@@ -188,12 +188,14 @@ func SetupUser(u string) error {
 		return err
 	}
 
-	execUser, err := user.GetExecUserPath(u, &defaultExecUser, passwdPath, groupPath)
+	execUser, err := user.GetExecUserPath(container.User, &defaultExecUser, passwdPath, groupPath)
 	if err != nil {
 		return fmt.Errorf("get supplementary groups %s", err)
 	}
 
-	if err := syscall.Setgroups(execUser.Sgids); err != nil {
+	suppGroups := append(execUser.Sgids, container.AdditionalGroups...)
+
+	if err := syscall.Setgroups(suppGroups); err != nil {
 		return fmt.Errorf("setgroups %s", err)
 	}
 
@@ -273,7 +275,7 @@ func FinalizeNamespace(container *libcontainer.Config) error {
 		return fmt.Errorf("set keep caps %s", err)
 	}
 
-	if err := SetupUser(container.User); err != nil {
+	if err := SetupUser(container); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
 
