@@ -250,15 +250,15 @@ func validMountMode(mode string) bool {
 
 func (container *Container) setupMounts() error {
 	mounts := []execdriver.Mount{
-		{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true},
+		{Type: "bind", Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true},
 	}
 
 	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
+		mounts = append(mounts, execdriver.Mount{Type: "bind", Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
 	}
 
 	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
+		mounts = append(mounts, execdriver.Mount{Type: "bind", Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
 	}
 
 	for _, m := range mounts {
@@ -274,12 +274,18 @@ func (container *Container) setupMounts() error {
 	// These mounts must be ordered based on the length of the path that it is being mounted to (lexicographic)
 	for _, path := range container.sortedVolumeMounts() {
 		mounts = append(mounts, execdriver.Mount{
+			Type:        "bind",
 			Source:      container.Volumes[path],
 			Destination: path,
 			Writable:    container.VolumesRW[path],
 		})
 	}
-
+	for _, path := range container.hostConfig.TmpfsMounts {
+		mounts = append(mounts, execdriver.Mount{
+			Type:        "tmpfs",
+			Destination: path,
+		})
+	}
 	container.command.Mounts = mounts
 	return nil
 }

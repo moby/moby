@@ -39,6 +39,7 @@ docker-run - Run a command in a new container
 [**--security-opt**[=*[]*]]
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]
+[**--tmpfs**[=*[]*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]

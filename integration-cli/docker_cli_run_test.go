@@ -2912,3 +2912,19 @@ func TestRunAllowPortRangeThroughPublish(t *testing.T) {
 	}
 	logDone("run - allow port range through --expose flag")
 }
+
+func TestRunWithTmpfsMount(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--tmpfs", "/tmp", "busybox", "mount")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "tmpfs on /tmp type tmpfs") {
+		t.Fatal("container does not contain a tmpfs mount at /tmp")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - mount with tmpfs")
+}

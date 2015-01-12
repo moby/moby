@@ -756,6 +756,7 @@ Creates a new container.
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --security-opt=[]          Security Options
       -t, --tty=false            Allocate a pseudo-TTY
+      --tmpfs=[]                 Add tmpfs mounts to the container
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
@@ -1586,6 +1587,7 @@ removed before the image is removed.
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
       -t, --tty=false            Allocate a pseudo-TTY
+      --tmpfs=[]                 Add tmpfs mounts to the container
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
       --volumes-from=[]          Mount volumes from the specified container(s)
@@ -1827,6 +1829,17 @@ application change:
    volume from the `web` container, setting the workdir to `/var/log/httpd`. The
    `--rm` option means that when the container exits, the container's layer is
    removed.
+
+The --tmpfs flag will mount the specified directories in a temporary 
+file system created for the container using tmpfs.  This is useful if
+you require a directory to store ephemeral data that only exists for
+the current execution of a container without the worry of the
+directory contents being commited.
+
+In order to mount the /tmp directory of your container using tmpfs 
+you can specify:
+
+    $ sudo docker run -d --tmpfs /tmp redis
 
 #### Restart Policies
 
