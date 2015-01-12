@@ -1,4 +1,4 @@
-// Copyright 2014 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,12 +7,12 @@ package mflag_test
 import (
 	"bytes"
 	"fmt"
-	. "github.com/docker/docker/pkg/mflag"
 	"os"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+	. "github.com/docker/docker/pkg/mflag"
 )
 
 // ResetForTesting clears all flag state and sets the usage function as directed.

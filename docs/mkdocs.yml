@@ -18,7 +18,7 @@ use_absolute_urls: true
 theme_dir: ./theme/mkdocs/
 theme_center_lead: false
 
-copyright: Copyright &copy; 2014, Docker, Inc.
+copyright: Copyright &copy; 2014-2015, Docker, Inc.
 google_analytics: ['UA-6096819-11', 'docker.io']
 
 pages:
