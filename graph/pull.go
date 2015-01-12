@@ -79,22 +79,23 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
-			return job.Errorf("error updating trust base graph: %s", err)
+			log.Errorf("error updating trust base graph: %s", err)
 		}
 
 		auth, err := r.GetV2Authorization(repoInfo.RemoteName, true)
 		if err != nil {
-			return job.Errorf("error getting authorization: %s", err)
-		}
+			log.Errorf("error getting authorization: %s", err)
+		} else {
 
-		log.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
-		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel"), auth); err == nil {
-			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
-				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
+			log.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
+			if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel"), auth); err == nil {
+				if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
+					log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
+				}
+				return engine.StatusOK
+			} else if err != registry.ErrDoesNotExist {
+				log.Errorf("Error from V2 registry: %s", err)
 			}
-			return engine.StatusOK
-		} else if err != registry.ErrDoesNotExist {
-			log.Errorf("Error from V2 registry: %s", err)
 		}
 
 		log.Debug("image does not exist on v2 registry, falling back to v1")
