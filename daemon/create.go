@@ -31,7 +31,7 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 		config.MemorySwap = -1
 	}
 	if config.Memory > 0 && config.MemorySwap > 0 && config.MemorySwap < config.Memory {
-		return job.Errorf("Minimum memoryswap limit should larger than memory limit, see usage.\n")
+		return job.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
 	}
 
 	var hostConfig *runconfig.HostConfig
