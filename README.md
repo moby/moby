@@ -191,6 +191,10 @@ Want to run Docker from a master build? You can download
 master builds at [master.dockerproject.com](https://master.dockerproject.com). 
 They are updated with each commit merged into the master branch.
 
+Don't know how to use that super cool new feature in the master build? Check
+out the master docs at
+[docs.master.dockerproject.com](http://docs.master.dockerproject.com).
+
 ### Legal
 
 *Brought to you courtesy of our legal counsel. For more context,
