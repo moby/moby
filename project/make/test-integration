@@ -10,6 +10,6 @@ bundle_test_integration() {
 
 # this "grep" hides some really irritating warnings that "go test -coverpkg"
 # spews when it is given packages that aren't used
-exec > >(tee -a $DEST/test.log) 2>&1
 bundle_test_integration 2>&1 \
-	| grep --line-buffered -v '^warning: no packages being tested depend on '
+	| grep --line-buffered -v '^warning: no packages being tested depend on ' \
+	| tee -a $DEST/test.log

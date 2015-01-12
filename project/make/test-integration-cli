@@ -8,7 +8,6 @@ bundle_test_integration_cli() {
 }
 
 # subshell so that we can export PATH without breaking other things
-exec > >(tee -a $DEST/test.log) 2>&1
 (
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
 
@@ -20,4 +19,4 @@ exec > >(tee -a $DEST/test.log) 2>&1
 	bundle_test_integration_cli
 
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
-)
+) 2>&1 | tee -a $DEST/test.log
