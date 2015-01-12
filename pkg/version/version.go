@@ -61,3 +61,8 @@ func (v Version) GreaterThanOrEqualTo(other Version) bool {
 func (v Version) Equal(other Version) bool {
 	return v.compareTo(other) == 0
 }
+
+// NotEqual checks if a version is not equal to another
+func (v Version) NotEqual(other Version) bool {
+	return v.compareTo(other) != 0
+}
