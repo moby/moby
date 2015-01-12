@@ -9,7 +9,7 @@
 # docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run --privileged docker hack/make.sh test
+# docker run --privileged docker project/make.sh test
 #
 # # Publish a release:
 # docker run --privileged \
@@ -17,7 +17,7 @@
 #  -e AWS_ACCESS_KEY=foo \
 #  -e AWS_SECRET_KEY=bar \
 #  -e GPG_PASSPHRASE=gloubiboulga \
-#  docker hack/release.sh
+#  docker project/release.sh
 #
 # Note: Apparmor used to mess with privileged mode, but this is no longer
 # the case. Therefore, you don't have to disable it anymore.
@@ -146,7 +146,7 @@ RUN set -x \
 	&& go install -v github.com/cpuguy83/go-md2man
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
-ENTRYPOINT ["hack/dind"]
+ENTRYPOINT ["project/dind"]
 
 # Upload docker source
 COPY . /go/src/github.com/docker/docker

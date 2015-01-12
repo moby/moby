@@ -32,7 +32,7 @@ docker run -e AWS_S3_BUCKET=test.docker.com \
            -e AWS_SECRET_KEY=... \
            -e GPG_PASSPHRASE=... \
            -i -t --privileged \
-           docker ./hack/release.sh
+           docker ./project/release.sh
 EOF
 	exit 1
 }
@@ -43,7 +43,7 @@ EOF
 [ "$GPG_PASSPHRASE" ] || usage
 [ -d /go/src/github.com/docker/docker ] || usage
 cd /go/src/github.com/docker/docker
-[ -x hack/make.sh ] || usage
+[ -x project/make.sh ] || usage
 
 RELEASE_BUNDLES=(
 	binary
@@ -102,7 +102,7 @@ s3_url() {
 }
 
 build_all() {
-	if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
+	if ! ./project/make.sh "${RELEASE_BUNDLES[@]}"; then
 		echo >&2
 		echo >&2 'The build or tests appear to have failed.'
 		echo >&2
@@ -143,7 +143,7 @@ upload_release_build() {
 		s3cmd --acl-public cp "$dst" "$latest"
 	fi
 
-	# get hash files too (see hash_files() in hack/make.sh)
+	# get hash files too (see hash_files() in project/make.sh)
 	for hashAlgo in md5 sha256; do
 		if [ -e "$src.$hashAlgo" ]; then
 			echo
@@ -240,7 +240,7 @@ release_build() {
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
 release_ubuntu() {
 	[ -e bundles/$VERSION/ubuntu ] || {
-		echo >&2 './hack/make.sh must be run before release_ubuntu'
+		echo >&2 './project/make.sh must be run before release_ubuntu'
 		exit 1
 	}
 
@@ -313,7 +313,7 @@ EOF
 # Upload binaries and tgz files to S3
 release_binaries() {
 	[ -e bundles/$VERSION/cross/linux/amd64/docker-$VERSION ] || {
-		echo >&2 './hack/make.sh must be run before release_binaries'
+		echo >&2 './project/make.sh must be run before release_binaries'
 		exit 1
 	}
 
@@ -344,7 +344,7 @@ EOF
 
 # Upload the index script
 release_index() {
-	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
+	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," project/install.sh | write_to_s3 s3://$BUCKET/index
 }
 
 release_test() {

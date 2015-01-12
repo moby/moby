@@ -9,9 +9,9 @@ set -e
 #
 # Docker Maintainers:
 #   To update this script on https://get.docker.com,
-#   use hack/release.sh during a normal release,
+#   use project/release.sh during a normal release,
 #   or the following one-liner for script hotfixes:
-#     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
+#     s3cmd put --acl-public -P project/install.sh s3://get.docker.com/index
 #
 
 url='https://get.docker.com/'
@@ -215,7 +215,7 @@ esac
 cat >&2 <<'EOF'
 
   Either your platform is not easily detectable, is not supported by this
-  installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
+  installer script (yet - PRs welcome! [project/install.sh]), or does not yet have
   a package for Docker.  Please visit the following URL for more detailed
   installation instructions:
 

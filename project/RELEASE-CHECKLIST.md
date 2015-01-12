@@ -179,7 +179,7 @@ docker run \
        -e GPG_PASSPHRASE="..." \
        -i -t --privileged \
        docker \
-       hack/release.sh
+       ./project/release.sh
 ```
 
 It will run the test suite, build the binaries and packages,
@@ -213,7 +213,7 @@ docker run \
        -e GPG_PASSPHRASE="..." \
        -i -t --privileged \
        docker \
-       hack/release.sh
+       ./project/release.sh
 ```
 
 ### 8. Breakathon

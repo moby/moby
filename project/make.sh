@@ -18,7 +18,7 @@ set -e
 # - The right way to call this script is to invoke "make" from
 #   your checkout of the Docker repository.
 #   the Makefile will do a "docker build -t docker ." and then
-#   "docker run hack/make.sh" in the resulting image.
+#   "docker run project/make.sh" in the resulting image.
 #
 
 set -o pipefail
@@ -119,7 +119,7 @@ BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 : ${TIMEOUT:=30m}
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
-# A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
+# A few more flags that are specific just to building a completely-static binary (see ./project/make/binary)
 # PLEASE do not use these anywhere else.
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
@@ -157,7 +157,7 @@ fi
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
-#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
+#   TESTFLAGS='-run ^TestBuild$' ./project/make.sh test
 #
 go_test_dir() {
 	dir=$1

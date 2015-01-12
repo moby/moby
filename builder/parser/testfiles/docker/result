@@ -20,5 +20,5 @@
 (volume "/var/lib/docker")
 (workdir "/go/src/github.com/docker/docker")
 (env "DOCKER_BUILDTAGS" "apparmor selinux")
-(entrypoint "hack/dind")
+(entrypoint "project/dind")
 (copy "." "/go/src/github.com/docker/docker")
