@@ -1424,7 +1424,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	defer devices.Unlock()
 
 	if info.mountCount == 0 {
-		return fmt.Errorf("UnmountDevice: device not-mounted id %s\n", hash)
+		return fmt.Errorf("UnmountDevice: device not-mounted id %s", hash)
 	}
 
 	info.mountCount--
