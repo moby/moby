@@ -1222,7 +1222,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 			writeCorsHeaders(w, r)
 		}
 
-		if version.GreaterThan(api.APIVERSION) {
+		if version.NotEqual(api.APIVERSION) {
 			http.Error(w, fmt.Errorf("client and server don't have same version (client : %s, server: %s)", version, api.APIVERSION).Error(), http.StatusNotFound)
 			return
 		}
