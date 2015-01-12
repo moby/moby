@@ -1616,12 +1616,12 @@ This API is valid only if `tty` was specified as part of creating and starting t
 **Example request**:
 
         POST /exec/e90e34656806/resize HTTP/1.1
-        Content-Type: plain/text
+        Content-Type: text/plain
 
 **Example response**:
 
         HTTP/1.1 201 OK
-        Content-Type: plain/text
+        Content-Type: text/plain
 
 Query Parameters:
 

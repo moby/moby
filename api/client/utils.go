@@ -89,7 +89,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo b
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
 	} else if method == "POST" {
-		req.Header.Set("Content-Type", "plain/text")
+		req.Header.Set("Content-Type", "text/plain")
 	}
 	resp, err := cli.HTTPClient().Do(req)
 	if err != nil {
@@ -135,7 +135,7 @@ func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in 
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
 	if method == "POST" {
-		req.Header.Set("Content-Type", "plain/text")
+		req.Header.Set("Content-Type", "text/plain")
 	}
 
 	if headers != nil {
