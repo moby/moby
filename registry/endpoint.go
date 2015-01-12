@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -261,4 +262,21 @@ HeaderLoop:
 	}
 
 	return RegistryInfo{}, fmt.Errorf("v2 registry endpoint returned status %d: %q", resp.StatusCode, http.StatusText(resp.StatusCode))
+}
+
+func (e *Endpoint) HTTPClient() *http.Client {
+	tlsConfig := tls.Config{
+		MinVersion: tls.VersionTLS10,
+	}
+	if !e.IsSecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			Proxy:             http.ProxyFromEnvironment,
+			TLSClientConfig:   &tlsConfig,
+		},
+		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+	}
 }
