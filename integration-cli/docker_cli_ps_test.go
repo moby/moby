@@ -312,7 +312,7 @@ func TestPsListContainersFilterStatus(t *testing.T) {
 	secondID := stripTrailingCharacters(out)
 
 	// filter containers by exited
-	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--filter=status=exited")
+	runCmd = exec.Command(dockerBinary, "ps", "-q", "--filter=status=exited")
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal(out, err)
