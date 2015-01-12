@@ -1,11 +1,8 @@
 package client
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/docker/docker/graph"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -47,34 +44,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	cli.LoadConfigFile()
 
-	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
-
-	pull := func(authConfig registry.AuthConfig) error {
-		buf, err := json.Marshal(authConfig)
-		if err != nil {
-			return err
-		}
-		registryAuthHeader := []string{
-			base64.URLEncoding.EncodeToString(buf),
-		}
-
-		return cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{
-			"X-Registry-Auth": registryAuthHeader,
-		})
-	}
-
-	if err := pull(authConfig); err != nil {
-		if strings.Contains(err.Error(), "Status 401") {
-			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
-			if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
-				return err
-			}
-			authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
-			return pull(authConfig)
-		}
-		return err
-	}
-
-	return nil
+	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/create?"+v.Encode(), nil, cli.out, repoInfo.Index, "pull")
+	return err
 }

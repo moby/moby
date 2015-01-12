@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -71,21 +70,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 		return auth.tokenCache, nil
 	}
 
-	tlsConfig := tls.Config{
-		MinVersion: tls.VersionTLS10,
-	}
-	if !auth.registryEndpoint.IsSecure {
-		tlsConfig.InsecureSkipVerify = true
-	}
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment,
-			TLSClientConfig:   &tlsConfig,
-		},
-		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-	}
+	client := auth.registryEndpoint.HTTPClient()
 	factory := HTTPRequestFactory(nil)
 
 	for _, challenge := range auth.registryEndpoint.AuthChallenges {
@@ -252,16 +237,10 @@ func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HT
 // loginV1 tries to register/login to the v1 registry server.
 func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
 	var (
-		status  string
-		reqBody []byte
-		err     error
-		client  = &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives: true,
-				Proxy:             http.ProxyFromEnvironment,
-			},
-			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-		}
+		status        string
+		reqBody       []byte
+		err           error
+		client        = registryEndpoint.HTTPClient()
 		reqStatusCode = 0
 		serverAddress = authConfig.ServerAddress
 	)
@@ -285,7 +264,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	req1, err := client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
@@ -371,26 +350,10 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 // is to be determined.
 func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
 	log.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
-
-	tlsConfig := tls.Config{
-		MinVersion: tls.VersionTLS10,
-	}
-	if !registryEndpoint.IsSecure {
-		tlsConfig.InsecureSkipVerify = true
-	}
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment,
-			TLSClientConfig:   &tlsConfig,
-		},
-		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-	}
-
 	var (
 		err       error
 		allErrors []error
+		client    = registryEndpoint.HTTPClient()
 	)
 
 	for _, challenge := range registryEndpoint.AuthChallenges {

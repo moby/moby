@@ -32,7 +32,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			if sig == "" {
 				log.Errorf("Unsupported signal: %v. Discarding.", s)
 			}
-			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
+			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, nil)); err != nil {
 				log.Debugf("Error sending signal: %s", err)
 			}
 		}
@@ -61,7 +61,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
+		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, false))
+		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, nil))
 		if err != nil {
 			if !*attach && !*openStdin {
 				// attach and openStdin is false means it could be starting multiple containers

@@ -129,7 +129,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			v.Set("filters", filterJSON)
 		}
 
-		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
+		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, nil))
 		if err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			v.Set("all", "1")
 		}
 
-		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
+		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, nil))
 
 		if err != nil {
 			return err

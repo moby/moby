@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 	utils.ParseFlags(cmd, args, true)
 
-	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, false))
+	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil))
 
 	if err != nil {
 		return err
