@@ -252,6 +252,7 @@ func TestCommitChange(t *testing.T) {
 	cmd = exec.Command(dockerBinary, "commit",
 		"--change", "EXPOSE 8080",
 		"--change", "ENV DEBUG true",
+		"--change", "ENV test 1",
 		"test", "test-commit")
 	imageId, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -262,7 +263,7 @@ func TestCommitChange(t *testing.T) {
 
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:map[]]",
-		"Config.Env":          "[DEBUG=true PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin]",
+		"Config.Env":          "[DEBUG=true test=1]",
 	}
 
 	for conf, value := range expected {
