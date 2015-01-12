@@ -119,6 +119,7 @@ type HostConfig struct {
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
 	ReadonlyRootfs  bool
+	PersistPorts    bool
 }
 
 // This is used by the create command when you want to set both the
@@ -146,6 +147,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
+		PersistPorts:    job.GetenvBool("PersistPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 		IpcMode:         IpcMode(job.Getenv("IpcMode")),
 		PidMode:         PidMode(job.Getenv("PidMode")),

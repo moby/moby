@@ -3038,3 +3038,93 @@ func TestRunVolumesFromRestartAfterRemoved(t *testing.T) {
 
 	logDone("run - can restart a volumes-from container after producer is removed")
 }
+
+func TestRunPortPersistDynamicPublish(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--persist-ports", "-p", ":80", "busybox", "top")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	defer deleteAllContainers()
+
+	id := strings.TrimSpace(out)
+	inspectCmd := exec.Command(dockerBinary, "inspect", id)
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("out should've been a container id: %s, %v", out, err)
+	}
+
+	type containerList []struct {
+		ID         string
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIp   string
+				HostPort string
+			}
+		}
+		NetworkSettings struct {
+			Ports map[string][]struct {
+				HostIp   string
+				HostPort string
+			}
+		}
+	}
+
+	containers := containerList{}
+	if err = unmarshalJSON([]byte(out), &containers); err != nil {
+		t.Fatalf("Error inspecting the container: %s", err)
+	}
+	if len(containers) != 1 {
+		t.Fatalf("Unexpected container count. Expected 1, received: %d", len(containers))
+	}
+
+	hostConfBinding := containers[0].HostConfig.PortBindings["80/tcp"]
+	if len(hostConfBinding) != 1 {
+		t.Fatalf("Unexpected port hostConfBinding count. Expected 1, received: %d", len(hostConfBinding))
+	}
+	if hostConfBinding[0].HostPort == "" {
+		t.Fatalf("Unexpected HostPort empty. Expected not to be empty")
+	}
+
+	networkSettingsBinding := containers[0].NetworkSettings.Ports["80/tcp"]
+	if len(networkSettingsBinding) != 1 {
+		t.Fatalf("Unexpected port networkSettingsBinding count. Expected 1, received: %d", len(networkSettingsBinding))
+	}
+	if networkSettingsBinding[0].HostPort == "" {
+		t.Fatalf("Unexpected HostPort empty. Expected not to be empty")
+	}
+
+	if hostConfBinding[0].HostPort != networkSettingsBinding[0].HostPort {
+		t.Fatalf("Inconsistent HostPort values. Expected HostConfig port (%s) to equal NetworkSettings port (%s)",
+			hostConfBinding[0].HostPort, networkSettingsBinding[0].HostPort)
+	}
+
+	previousPort := networkSettingsBinding[0].HostPort
+
+	restartCmd := exec.Command(dockerBinary, "restart", id)
+	if out, _, err = runCommandWithOutput(restartCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	inspectCmd = exec.Command(dockerBinary, "inspect", id)
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err != nil {
+		t.Fatalf("out should've been a container id: %s, %v", out, err)
+	}
+
+	containers = containerList{}
+	if err = unmarshalJSON([]byte(out), &containers); err != nil {
+		t.Fatalf("Error inspecting the container: %s", err)
+	}
+	if len(containers) != 1 {
+		t.Fatalf("Unexpected container count. Expected 1, received: %d", len(containers))
+	}
+
+	networkSettingsBinding = containers[0].NetworkSettings.Ports["80/tcp"]
+	if previousPort != networkSettingsBinding[0].HostPort {
+		t.Fatalf("Unexpected NetworkSettings allocated port. Expected to equal previous (%s), received: %s",
+			previousPort, networkSettingsBinding[0].HostPort)
+	}
+
+	logDone("run - save ports across restarts with --persist-ports")
+}

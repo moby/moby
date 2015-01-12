@@ -542,6 +542,9 @@ func (container *Container) AllocateNetwork() error {
 			return err
 		}
 	}
+	if container.hostConfig.PersistPorts {
+		container.hostConfig.PortBindings = bindings
+	}
 	container.WriteHostConfig()
 
 	container.NetworkSettings.Ports = bindings
