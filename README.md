@@ -100,13 +100,13 @@ This is usually difficult for several reasons:
     typically don't work well with each other, requiring awkward
     custom integrations.
 
-  * Conflicting dependencies. Different applications may depend on
+  * *Conflicting dependencies*. Different applications may depend on
     different versions of the same dependency. Packaging tools handle
     these situations with various degrees of ease - but they all
     handle them in different and incompatible ways, which again forces
     the developer to do extra work.
   
-  * Custom dependencies. A developer may need to prepare a custom
+  * *Custom dependencies*. A developer may need to prepare a custom
     version of their application's dependency. Some packaging systems
     can handle custom versions of a dependency, others can't - and all
     of them handle it differently.
