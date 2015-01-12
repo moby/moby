@@ -398,11 +398,15 @@ func TestPsListContainersFilterName(t *testing.T) {
 }
 
 func TestPsListContainersFilterExited(t *testing.T) {
-	deleteAllContainers()
 	defer deleteAllContainers()
-	runCmd := exec.Command(dockerBinary, "run", "--name", "zero1", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--name", "zero1", "busybox", "true")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}
 	firstZero, err := getIDByName("zero1")
@@ -411,8 +415,7 @@ func TestPsListContainersFilterExited(t *testing.T) {
 	}
 
 	runCmd = exec.Command(dockerBinary, "run", "--name", "zero2", "busybox", "true")
-	out, _, err = runCommandWithOutput(runCmd)
-	if err != nil {
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}
 	secondZero, err := getIDByName("zero2")
@@ -421,8 +424,7 @@ func TestPsListContainersFilterExited(t *testing.T) {
 	}
 
 	runCmd = exec.Command(dockerBinary, "run", "--name", "nonzero1", "busybox", "false")
-	out, _, err = runCommandWithOutput(runCmd)
-	if err == nil {
+	if out, _, err := runCommandWithOutput(runCmd); err == nil {
 		t.Fatal("Should fail.", out, err)
 	}
 	firstNonZero, err := getIDByName("nonzero1")
@@ -431,8 +433,7 @@ func TestPsListContainersFilterExited(t *testing.T) {
 	}
 
 	runCmd = exec.Command(dockerBinary, "run", "--name", "nonzero2", "busybox", "false")
-	out, _, err = runCommandWithOutput(runCmd)
-	if err == nil {
+	if out, _, err := runCommandWithOutput(runCmd); err == nil {
 		t.Fatal("Should fail.", out, err)
 	}
 	secondNonZero, err := getIDByName("nonzero2")
@@ -442,7 +443,7 @@ func TestPsListContainersFilterExited(t *testing.T) {
 
 	// filter containers by exited=0
 	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
-	out, _, err = runCommandWithOutput(runCmd)
+	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal(out, err)
 	}
@@ -472,5 +473,6 @@ func TestPsListContainersFilterExited(t *testing.T) {
 	if ids[1] != firstNonZero {
 		t.Fatalf("Second in list should be %q, got %q", firstNonZero, ids[1])
 	}
+
 	logDone("ps - test ps filter exited")
 }

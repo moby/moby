@@ -81,7 +81,6 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if !container.Running && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
-
 		if !psFilters.Match("name", container.Name) {
 			return nil
 		}
@@ -104,10 +103,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 && !container.Running {
+		if len(filt_exited) > 0 {
 			should_skip := true
 			for _, code := range filt_exited {
-				if code == container.ExitCode {
+				if code == container.ExitCode && !container.Running {
 					should_skip = false
 					break
 				}
