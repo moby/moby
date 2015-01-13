@@ -179,9 +179,8 @@ func (daemon *Daemon) attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		}
 		defer func() {
 			// Make sure stdin gets closed
-			if stdinOnce && cStdin != nil {
+			if stdin != nil {
 				stdin.Close()
-				cStdin.Close()
 			}
 			streamPipe.Close()
 			wg.Done()
