@@ -19,7 +19,7 @@ Dockerfile knowledge with the [Dockerfile tutorial](/userguide/level1).
 
 ## Usage
 
-To [*build*](../commandline/cli/#cli-build) an image from a source repository,
+To [*build*](/reference/commandline/cli/#build) an image from a source repository,
 create a description file called `Dockerfile` at the root of your repository.
 This file will describe the steps to assemble the image.
 
@@ -79,7 +79,7 @@ guide](/articles/dockerfile_best-practices/#build-cache) for more information):
     Successfully built 1a5ffc17324d
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*]( /userguide/dockerrepos/#image-push).
+repository to its registry*]( /userguide/dockerrepos/#contributing-to-docker-hub).
 
 ## Format
 
@@ -93,7 +93,7 @@ be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker runs the instructions in a `Dockerfile` in order. **The
 first instruction must be \`FROM\`** in order to specify the [*Base
-Image*](/terms/image/#base-image-def) from which you are building.
+Image*](/terms/image/#base-image) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
 comment. A `#` marker anywhere else in the line will
@@ -154,6 +154,12 @@ Exclusion patterns match files or directories relative to the source repository
 that will be excluded from the context. Globbing is done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
 
+> **Note**:
+> The `.dockerignore` file can even be used to ignore the `Dockerfile` and
+> `.dockerignore` files. This might be useful if you are copying files from
+> the root of the build context into your new containter but do not want to 
+> include the `Dockerfile` or `.dockerignore` files (e.g. `ADD . /someDir/`).
+
 The following example shows the use of the `.dockerignore` file to exclude the
 `.git` directory from the context. Its effect can be seen in the changed size of
 the uploaded context.
@@ -186,11 +192,11 @@ Or
 
     FROM <image>:<tag>
 
-The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
+The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
-/userguide/dockerrepos/#using-public-repositories).
+/userguide/dockerrepos).
 
 `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -329,18 +335,47 @@ default specified in `CMD`.
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see the [Docker User
-Guide](/userguide/dockerlinks)). Note that `EXPOSE` only works for
-inter-container links. It doesn't make ports accessible from the host. To
-expose ports to the host, at runtime, 
-[use the `-p` flag](/userguide/dockerlinks).
+Guide](/userguide/dockerlinks)) and to determine which ports to expose to the
+host when [using the -P flag](/reference/run/#expose-incoming-ports).
+**Note:**
+`EXPOSE` doesn't define which ports can be exposed to the host or make ports
+accessible from the host by default. To expose ports to the host, at runtime, 
+[use the `-p` flag](/userguide/dockerlinks) or
+[the -P flag](/reference/run/#expose-incoming-ports).
 
 ## ENV
 
     ENV <key> <value>
+    ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be passed to all future `RUN` instructions. This is
+`<value>`. This value will be passed to all future 
+`RUN`, `ENTRYPOINT`, and `CMD` instructions. This is
 functionally equivalent to prefixing the command with `<key>=<value>`
+
+The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
+will set a single variable to a value. The entire string after the first
+space will be treated as the `<value>` - including characters such as 
+spaces and quotes.
+
+The second form, `ENV <key>=<value> ...`, allows for multiple variables to 
+be set at one time. Notice that the second form uses the equals sign (=) 
+in the syntax, while the first form does not. Like command line parsing, 
+quotes and backslashes can be used to include spaces within values.
+
+For example:
+
+    ENV myName="John Doe" myDog=Rex\ The\ Dog \
+        myCat=fluffy
+
+and
+
+    ENV myName John Doe
+    ENV myDog Rex The Dog
+    ENV myCat fluffy
+
+will yield the same net results in the final container, but the first form 
+does it all in one layer.
 
 The environment variables set using `ENV` will persist when a container is run
 from the resulting image. You can view the values using `docker inspect`, and
@@ -369,8 +404,10 @@ For most command line uses this should act as expected, for example:
     ADD hom* /mydir/        # adds all files starting with "hom"
     ADD hom?.txt /mydir/    # ? is replaced with any single character
 
-The `<dest>` is the absolute path to which the source will be copied inside the
-destination container.
+The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
+the source will be copied inside the destination container.
+
+    ADD test aDir/          # adds "test" to `WORKDIR`/aDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -466,8 +503,10 @@ For most command line uses this should act as expected, for example:
     COPY hom* /mydir/        # adds all files starting with "hom"
     COPY hom?.txt /mydir/    # ? is replaced with any single character
 
-The `<dest>` is the absolute path to which the source will be copied inside the
-destination container.
+The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
+the source will be copied inside the destination container.
+
+    COPY test aDir/          # adds "test" to `WORKDIR`/aDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -565,6 +604,17 @@ To examine the result further, you can use `docker exec`:
     root         7  0.0  0.1  15572  2164 ?        R+   08:25   0:00 ps aux
 
 And you can gracefully request `top` to shut down using `docker stop test`.
+
+The following `Dockerfile` shows using the `ENTRYPOINT` to run Apache in the
+foreground (i.e., as `PID 1`):
+
+```
+FROM debian:stable
+RUN apt-get update && apt-get install -y --force-yes apache2
+EXPOSE 80 443
+VOLUME ["/var/www", "/var/log/apache2", "/etc/apache2"]
+ENTRYPOINT ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
+```
 
 If you need to write a starter script for a single executable, you can ensure that
 the final executable receives the Unix signals by using `exec` and `gosu`
@@ -724,11 +774,11 @@ and mark it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`.  For more information/examples and mounting instructions via the
-Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def)
+Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
 documentation.
 
 > **Note**:
-> The list is parsed a JSON array, which means that
+> The list is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
 ## USER

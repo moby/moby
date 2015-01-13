@@ -63,10 +63,11 @@ var (
 	ErrGetLibraryVersion      = errors.New("dm_get_library_version failed")
 	ErrCreateRemoveTask       = errors.New("Can't create task of type DeviceRemove")
 	ErrRunRemoveDevice        = errors.New("running RemoveDevice failed")
-	ErrInvalidAddNode         = errors.New("Invalide AddNoce type")
+	ErrInvalidAddNode         = errors.New("Invalid AddNode type")
 	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 	ErrBusy                   = errors.New("Device is Busy")
+	ErrDeviceIdExists         = errors.New("Device Id Exists")
 
 	dmSawBusy  bool
 	dmSawExist bool
@@ -97,6 +98,16 @@ type (
 	AddNodeType int
 )
 
+// Returns whether error conveys the information about device Id already
+// exist or not. This will be true if device creation or snap creation
+// operation fails if device or snap device already exists in pool.
+// Current implementation is little crude as it scans the error string
+// for exact pattern match. Replacing it with more robust implementation
+// is desirable.
+func DeviceIdExists(err error) bool {
+	return fmt.Sprint(err) == fmt.Sprint(ErrDeviceIdExists)
+}
+
 func (t *Task) destroy() {
 	if t != nil {
 		DmTaskDestroy(t.unmanaged)
@@ -104,6 +115,20 @@ func (t *Task) destroy() {
 	}
 }
 
+// TaskCreateNamed is a convenience function for TaskCreate when a name
+// will be set on the task as well
+func TaskCreateNamed(t TaskType, name string) (*Task, error) {
+	task := TaskCreate(t)
+	if task == nil {
+		return nil, fmt.Errorf("Can't create task of type %d", int(t))
+	}
+	if err := task.SetName(name); err != nil {
+		return nil, fmt.Errorf("Can't set task name %s", name)
+	}
+	return task, nil
+}
+
+// TaskCreate initializes a devicemapper task of tasktype
 func TaskCreate(tasktype TaskType) *Task {
 	Ctask := DmTaskCreate(int(tasktype))
 	if Ctask == nil {
@@ -298,7 +323,7 @@ func GetLibraryVersion() (string, error) {
 func RemoveDevice(name string) error {
 	log.Debugf("[devmapper] RemoveDevice START")
 	defer log.Debugf("[devmapper] RemoveDevice END")
-	task, err := createTask(DeviceRemove, name)
+	task, err := TaskCreateNamed(DeviceRemove, name)
 	if task == nil {
 		return err
 	}
@@ -354,7 +379,7 @@ func BlockDeviceDiscard(path string) error {
 
 // This is the programmatic example of "dmsetup create"
 func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
-	task, err := createTask(DeviceCreate, poolName)
+	task, err := TaskCreateNamed(DeviceCreate, poolName)
 	if task == nil {
 		return err
 	}
@@ -370,21 +395,21 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	}
 
 	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var flags uint16 = DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
+	defer UdevWait(cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (CreatePool) %s", err)
 	}
 
-	UdevWait(cookie)
-
 	return nil
 }
 
 func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize uint32) error {
-	task, err := createTask(DeviceReload, poolName)
+	task, err := TaskCreateNamed(DeviceReload, poolName)
 	if task == nil {
 		return err
 	}
@@ -406,19 +431,8 @@ func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	return nil
 }
 
-func createTask(t TaskType, name string) (*Task, error) {
-	task := TaskCreate(t)
-	if task == nil {
-		return nil, fmt.Errorf("Can't create task of type %d", int(t))
-	}
-	if err := task.SetName(name); err != nil {
-		return nil, fmt.Errorf("Can't set task name %s", name)
-	}
-	return task, nil
-}
-
 func GetDeps(name string) (*Deps, error) {
-	task, err := createTask(DeviceDeps, name)
+	task, err := TaskCreateNamed(DeviceDeps, name)
 	if task == nil {
 		return nil, err
 	}
@@ -429,7 +443,7 @@ func GetDeps(name string) (*Deps, error) {
 }
 
 func GetInfo(name string) (*Info, error) {
-	task, err := createTask(DeviceInfo, name)
+	task, err := TaskCreateNamed(DeviceInfo, name)
 	if task == nil {
 		return nil, err
 	}
@@ -451,9 +465,9 @@ func GetDriverVersion() (string, error) {
 }
 
 func GetStatus(name string) (uint64, uint64, string, string, error) {
-	task, err := createTask(DeviceStatus, name)
+	task, err := TaskCreateNamed(DeviceStatus, name)
 	if task == nil {
-		log.Debugf("GetStatus: Error createTask: %s", err)
+		log.Debugf("GetStatus: Error TaskCreateNamed: %s", err)
 		return 0, 0, "", "", err
 	}
 	if err := task.Run(); err != nil {
@@ -476,7 +490,7 @@ func GetStatus(name string) (uint64, uint64, string, string, error) {
 }
 
 func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
-	task, err := createTask(DeviceTargetMsg, poolName)
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
 	}
@@ -496,7 +510,7 @@ func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
 }
 
 func SuspendDevice(name string) error {
-	task, err := createTask(DeviceSuspend, name)
+	task, err := TaskCreateNamed(DeviceSuspend, name)
 	if task == nil {
 		return err
 	}
@@ -507,7 +521,7 @@ func SuspendDevice(name string) error {
 }
 
 func ResumeDevice(name string) error {
-	task, err := createTask(DeviceResume, name)
+	task, err := TaskCreateNamed(DeviceResume, name)
 	if task == nil {
 		return err
 	}
@@ -516,49 +530,44 @@ func ResumeDevice(name string) error {
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
+	defer UdevWait(cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceResume %s", err)
 	}
 
-	UdevWait(cookie)
-
 	return nil
 }
 
-func CreateDevice(poolName string, deviceId *int) error {
-	log.Debugf("[devmapper] CreateDevice(poolName=%v, deviceId=%v)", poolName, *deviceId)
+func CreateDevice(poolName string, deviceId int) error {
+	log.Debugf("[devmapper] CreateDevice(poolName=%v, deviceId=%v)", poolName, deviceId)
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
+	if task == nil {
+		return err
+	}
 
-	for {
-		task, err := createTask(DeviceTargetMsg, poolName)
-		if task == nil {
-			return err
-		}
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector %s", err)
+	}
 
-		if err := task.SetSector(0); err != nil {
-			return fmt.Errorf("Can't set sector %s", err)
-		}
+	if err := task.SetMessage(fmt.Sprintf("create_thin %d", deviceId)); err != nil {
+		return fmt.Errorf("Can't set message %s", err)
+	}
 
-		if err := task.SetMessage(fmt.Sprintf("create_thin %d", *deviceId)); err != nil {
-			return fmt.Errorf("Can't set message %s", err)
-		}
-
-		dmSawExist = false // reset before the task is run
-		if err := task.Run(); err != nil {
-			if dmSawExist {
-				// Already exists, try next id
-				*deviceId++
-				continue
-			}
+	dmSawExist = false // reset before the task is run
+	if err := task.Run(); err != nil {
+		// Caller wants to know about ErrDeviceIdExists so that it can try with a different device id.
+		if dmSawExist {
+			return ErrDeviceIdExists
+		} else {
 			return fmt.Errorf("Error running CreateDevice %s", err)
 		}
-		break
 	}
 	return nil
 }
 
 func DeleteDevice(poolName string, deviceId int) error {
-	task, err := createTask(DeviceTargetMsg, poolName)
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 	if task == nil {
 		return err
 	}
@@ -578,7 +587,7 @@ func DeleteDevice(poolName string, deviceId int) error {
 }
 
 func ActivateDevice(poolName string, name string, deviceId int, size uint64) error {
-	task, err := createTask(DeviceCreate, name)
+	task, err := TaskCreateNamed(DeviceCreate, name)
 	if task == nil {
 		return err
 	}
@@ -596,16 +605,16 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 
+	defer UdevWait(cookie)
+
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (ActivateDevice) %s", err)
 	}
 
-	UdevWait(cookie)
-
 	return nil
 }
 
-func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDeviceId int) error {
+func CreateSnapDevice(poolName string, deviceId int, baseName string, baseDeviceId int) error {
 	devinfo, _ := GetInfo(baseName)
 	doSuspend := devinfo != nil && devinfo.Exists != 0
 
@@ -615,44 +624,39 @@ func CreateSnapDevice(poolName string, deviceId *int, baseName string, baseDevic
 		}
 	}
 
-	for {
-		task, err := createTask(DeviceTargetMsg, poolName)
-		if task == nil {
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
-			return err
+	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
+	if task == nil {
+		if doSuspend {
+			ResumeDevice(baseName)
 		}
+		return err
+	}
 
-		if err := task.SetSector(0); err != nil {
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
-			return fmt.Errorf("Can't set sector %s", err)
+	if err := task.SetSector(0); err != nil {
+		if doSuspend {
+			ResumeDevice(baseName)
 		}
+		return fmt.Errorf("Can't set sector %s", err)
+	}
 
-		if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", *deviceId, baseDeviceId)); err != nil {
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
-			return fmt.Errorf("Can't set message %s", err)
+	if err := task.SetMessage(fmt.Sprintf("create_snap %d %d", deviceId, baseDeviceId)); err != nil {
+		if doSuspend {
+			ResumeDevice(baseName)
 		}
+		return fmt.Errorf("Can't set message %s", err)
+	}
 
-		dmSawExist = false // reset before the task is run
-		if err := task.Run(); err != nil {
-			if dmSawExist {
-				// Already exists, try next id
-				*deviceId++
-				continue
-			}
-
-			if doSuspend {
-				ResumeDevice(baseName)
-			}
+	dmSawExist = false // reset before the task is run
+	if err := task.Run(); err != nil {
+		if doSuspend {
+			ResumeDevice(baseName)
+		}
+		// Caller wants to know about ErrDeviceIdExists so that it can try with a different device id.
+		if dmSawExist {
+			return ErrDeviceIdExists
+		} else {
 			return fmt.Errorf("Error running DeviceCreate (createSnapDevice) %s", err)
 		}
-
-		break
 	}
 
 	if doSuspend {

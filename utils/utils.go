@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"crypto/sha1"
@@ -30,6 +31,10 @@ type KeyValuePair struct {
 	Key   string
 	Value string
 }
+
+var (
+	validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
+)
 
 // Request a given URL and return an io.Reader
 func Download(url string) (resp *http.Response, err error) {
@@ -190,11 +195,9 @@ func GenerateRandomID() string {
 }
 
 func ValidateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("Id can't be empty")
-	}
-	if strings.Contains(id, ":") {
-		return fmt.Errorf("Invalid character in id: ':'")
+	if ok := validHex.MatchString(id); !ok {
+		err := fmt.Errorf("image ID '%s' is invalid", id)
+		return err
 	}
 	return nil
 }
@@ -286,28 +289,6 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 		Message: msg,
 		Code:    res.StatusCode,
 	}
-}
-
-func IsURL(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
-}
-
-func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
-}
-
-func ValidGitTransport(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "git@") || IsURL(str)
-}
-
-var (
-	localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
-)
-
-// RemoveLocalDns looks into the /etc/resolv.conf,
-// and removes any local nameserver entries.
-func RemoveLocalDns(resolvConf []byte) []byte {
-	return localHostRx.ReplaceAll(resolvConf, []byte{})
 }
 
 // An StatusError reports an unsuccessful exit by a command.
@@ -503,4 +484,35 @@ func StringsContainsNoCase(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// Reads a .dockerignore file and returns the list of file patterns
+// to ignore. Note this will trim whitespace from each line as well
+// as use GO's "clean" func to get the shortest/cleanest path for each.
+func ReadDockerIgnore(path string) ([]string, error) {
+	// Note that a missing .dockerignore file isn't treated as an error
+	reader, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+		}
+		return nil, nil
+	}
+	defer reader.Close()
+
+	scanner := bufio.NewScanner(reader)
+	var excludes []string
+
+	for scanner.Scan() {
+		pattern := strings.TrimSpace(scanner.Text())
+		if pattern == "" {
+			continue
+		}
+		pattern = filepath.Clean(pattern)
+		excludes = append(excludes, pattern)
+	}
+	if err = scanner.Err(); err != nil {
+		return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+	}
+	return excludes, nil
 }

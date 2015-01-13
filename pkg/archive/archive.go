@@ -30,11 +30,11 @@ type (
 	ArchiveReader io.Reader
 	Compression   int
 	TarOptions    struct {
-		Includes    []string
-		Excludes    []string
-		Compression Compression
-		NoLchown    bool
-		Name        string
+		IncludeFiles    []string
+		ExcludePatterns []string
+		Compression     Compression
+		NoLchown        bool
+		Name            string
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -42,6 +42,11 @@ type (
 	Archiver struct {
 		Untar func(io.Reader, string, *TarOptions) error
 	}
+
+	// breakoutError is used to differentiate errors related to breaking out
+	// When testing archive breakout in the unit tests, this error is expected
+	// in order for the test to pass.
+	breakoutError error
 )
 
 var (
@@ -287,11 +292,25 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeLink:
-		if err := os.Link(filepath.Join(extractDir, hdr.Linkname), path); err != nil {
+		targetPath := filepath.Join(extractDir, hdr.Linkname)
+		// check for hardlink breakout
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid hardlink %q -> %q", targetPath, hdr.Linkname))
+		}
+		if err := os.Link(targetPath, path); err != nil {
 			return err
 		}
 
 	case tar.TypeSymlink:
+		// 	path 				-> hdr.Linkname = targetPath
+		// e.g. /extractDir/path/to/symlink 	-> ../2/file	= /extractDir/path/2/file
+		targetPath := filepath.Join(filepath.Dir(path), hdr.Linkname)
+
+		// the reason we don't need to check symlinks in the path (with FollowSymlinkInScope) is because
+		// that symlink would first have to be created, which would be caught earlier, at this very check:
+		if !strings.HasPrefix(targetPath, extractDir) {
+			return breakoutError(fmt.Errorf("invalid symlink %q -> %q", path, hdr.Linkname))
+		}
 		if err := os.Symlink(hdr.Linkname, path); err != nil {
 			return err
 		}
@@ -359,7 +378,7 @@ func escapeName(name string) string {
 }
 
 // TarWithOptions creates an archive from the directory at `path`, only including files whose relative
-// paths are included in `options.Includes` (if non-nil) or not in `options.Excludes`.
+// paths are included in `options.IncludeFiles` (if non-nil) or not in `options.ExcludePatterns`.
 func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 	pipeReader, pipeWriter := io.Pipe()
 
@@ -382,12 +401,14 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		// mutating the filesystem and we can see transient errors
 		// from this
 
-		if options.Includes == nil {
-			options.Includes = []string{"."}
+		if options.IncludeFiles == nil {
+			options.IncludeFiles = []string{"."}
 		}
 
+		seen := make(map[string]bool)
+
 		var renamedRelFilePath string // For when tar.Options.Name is set
-		for _, include := range options.Includes {
+		for _, include := range options.IncludeFiles {
 			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
 					log.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
@@ -401,10 +422,19 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					return nil
 				}
 
-				skip, err := fileutils.Matches(relFilePath, options.Excludes)
-				if err != nil {
-					log.Debugf("Error matching %s", relFilePath, err)
-					return err
+				skip := false
+
+				// If "include" is an exact match for the current file
+				// then even if there's an "excludePatterns" pattern that
+				// matches it, don't skip it. IOW, assume an explicit 'include'
+				// is asking for that file no matter what - which is true
+				// for some files, like .dockerignore and Dockerfile (sometimes)
+				if include != relFilePath {
+					skip, err = fileutils.Matches(relFilePath, options.ExcludePatterns)
+					if err != nil {
+						log.Debugf("Error matching %s", relFilePath, err)
+						return err
+					}
 				}
 
 				if skip {
@@ -413,6 +443,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					}
 					return nil
 				}
+
+				if seen[relFilePath] {
+					return nil
+				}
+				seen[relFilePath] = true
 
 				// Rename the base resource
 				if options.Name != "" && filePath == srcPath+"/"+filepath.Base(relFilePath) {
@@ -445,30 +480,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	return pipeReader, nil
 }
 
-// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
-// and unpacks it into the directory at `dest`.
-// The archive may be compressed with one of the following algorithms:
-//  identity (uncompressed), gzip, bzip2, xz.
-// FIXME: specify behavior when target path exists vs. doesn't exist.
-func Untar(archive io.Reader, dest string, options *TarOptions) error {
-	if options == nil {
-		options = &TarOptions{}
-	}
-
-	if archive == nil {
-		return fmt.Errorf("Empty archive")
-	}
-
-	if options.Excludes == nil {
-		options.Excludes = []string{}
-	}
-
-	decompressedArchive, err := DecompressStream(archive)
-	if err != nil {
-		return err
-	}
-	defer decompressedArchive.Close()
-
+func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) error {
 	tr := tar.NewReader(decompressedArchive)
 	trBuf := pools.BufioReader32KPool.Get(nil)
 	defer pools.BufioReader32KPool.Put(trBuf)
@@ -488,9 +500,10 @@ loop:
 		}
 
 		// Normalize name, for safety and for a simple is-root check
+		// This keeps "../" as-is, but normalizes "/../" to "/"
 		hdr.Name = filepath.Clean(hdr.Name)
 
-		for _, exclude := range options.Excludes {
+		for _, exclude := range options.ExcludePatterns {
 			if strings.HasPrefix(hdr.Name, exclude) {
 				continue loop
 			}
@@ -509,6 +522,13 @@ loop:
 		}
 
 		path := filepath.Join(dest, hdr.Name)
+		rel, err := filepath.Rel(dest, path)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(rel, "..") {
+			return breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
+		}
 
 		// If path exits we almost always just want to remove and replace it
 		// The only exception is when it is a directory *and* the file from
@@ -543,8 +563,31 @@ loop:
 			return err
 		}
 	}
-
 	return nil
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive may be compressed with one of the following algorithms:
+//  identity (uncompressed), gzip, bzip2, xz.
+// FIXME: specify behavior when target path exists vs. doesn't exist.
+func Untar(archive io.Reader, dest string, options *TarOptions) error {
+	if archive == nil {
+		return fmt.Errorf("Empty archive")
+	}
+	dest = filepath.Clean(dest)
+	if options == nil {
+		options = &TarOptions{}
+	}
+	if options.ExcludePatterns == nil {
+		options.ExcludePatterns = []string{}
+	}
+	decompressedArchive, err := DecompressStream(archive)
+	if err != nil {
+		return err
+	}
+	defer decompressedArchive.Close()
+	return Unpack(decompressedArchive, dest, options)
 }
 
 func (archiver *Archiver) TarUntar(src, dst string) error {
@@ -742,17 +785,33 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	size := st.Size()
-	return &TempArchive{f, size}, nil
+	return &TempArchive{File: f, Size: size}, nil
 }
 
 type TempArchive struct {
 	*os.File
-	Size int64 // Pre-computed from Stat().Size() as a convenience
+	Size   int64 // Pre-computed from Stat().Size() as a convenience
+	read   int64
+	closed bool
+}
+
+// Close closes the underlying file if it's still open, or does a no-op
+// to allow callers to try to close the TempArchive multiple times safely.
+func (archive *TempArchive) Close() error {
+	if archive.closed {
+		return nil
+	}
+
+	archive.closed = true
+
+	return archive.File.Close()
 }
 
 func (archive *TempArchive) Read(data []byte) (int, error) {
 	n, err := archive.File.Read(data)
-	if err != nil {
+	archive.read += int64(n)
+	if err != nil || archive.read == archive.Size {
+		archive.Close()
 		os.Remove(archive.File.Name())
 	}
 	return n, err

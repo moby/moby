@@ -20,8 +20,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
    (select a zone close to you and the desired instance size)
 
         $ gcloud compute instances create docker-playground \
-          --image container-vm-v20140925 \
-          --image-project google-containers \
+          --image container-vm \
           --zone us-central1-a \
           --machine-type f1-micro
 

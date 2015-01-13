@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+DEST=$1
+
+# subshell so that we can export PATH without breaking other things
+(
+	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
+
+	dockerPy='/docker-py'
+	[ -d "$dockerPy" ] || {
+		dockerPy="$DEST/docker-py"
+		git clone https://github.com/docker/docker-py.git "$dockerPy"
+	}
+
+	cd "$dockerPy"
+	export PYTHONPATH=. # import "docker" from "."
+	python tests/integration_test.py
+
+	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
+) 2>&1 | tee -a $DEST/test.log

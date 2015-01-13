@@ -1,11 +1,13 @@
 package system
 
 import (
+	"os"
 	"testing"
 )
 
 func TestLstat(t *testing.T) {
-	file, invalid, _ := prepareFiles(t)
+	file, invalid, _, dir := prepareFiles(t)
+	defer os.RemoveAll(dir)
 
 	statFile, err := Lstat(file)
 	if err != nil {

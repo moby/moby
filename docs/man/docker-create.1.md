@@ -21,22 +21,26 @@ docker-create - Create a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
+[**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
+[**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--restart**[=*RESTART*]]
+[**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
- IMAGE [COMMAND] [ARG...]
+IMAGE [COMMAND] [ARG...]
 
 # OPTIONS
 **-a**, **--attach**=[]
@@ -84,8 +88,16 @@ docker-create - Create a new container
 **-h**, **--hostname**=""
    Container host name
 
+**--help**
+  Print usage statement
+
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
+
+**--ipc**=""
+   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
+                               'container:<name|id>': reuses another container shared memory, semaphores and message queues
+                               'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
    Add link to another container in the form of name:alias
@@ -95,6 +107,9 @@ docker-create - Create a new container
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+
+**--mac-address**=""
+   Container MAC address (e.g. 92:d0:c6:0a:29:33)
 
 **--name**=""
    Assign a name to the container
@@ -107,11 +122,13 @@ docker-create - Create a new container
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **-P**, **--publish-all**=*true*|*false*
-   Publish all exposed ports to the host interfaces. The default is *false*.
+   Publish all exposed ports to random ports on the host interfaces. The default is *false*.
 
 **-p**, **--publish**=[]
-   Publish a container's port to the host
+   Publish a container's port, or a range of ports, to the host
                                format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                               Both hostPort and containerPort can be specified as a range of ports. 
+                               When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
 
 **--privileged**=*true*|*false*
@@ -119,6 +136,9 @@ docker-create - Create a new container
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
+
+**--security-opt**=[]
+   Security Options
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
@@ -138,3 +158,4 @@ docker-create - Create a new container
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 September 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

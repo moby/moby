@@ -20,9 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
-	"github.com/kr/pty"
 )
 
 // "test123" should be printed by docker run
@@ -44,7 +42,7 @@ func TestRunEchoStdout(t *testing.T) {
 
 // "test" should be printed
 func TestRunEchoStdoutWithMemoryLimit(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-m", "4m", "busybox", "echo", "test")
+	runCmd := exec.Command(dockerBinary, "run", "-m", "16m", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
@@ -81,7 +79,7 @@ func TestRunEchoStdoutWitCPULimit(t *testing.T) {
 
 // "test" should be printed
 func TestRunEchoStdoutWithCPUAndMemoryLimit(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "-m", "4m", "busybox", "echo", "test")
+	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
@@ -798,7 +796,7 @@ func TestRunLoopbackWhenNetworkDisabled(t *testing.T) {
 }
 
 func TestRunNetHostNotAllowedWithLinks(t *testing.T) {
-	_, _, err := cmd(t, "run", "--name", "linked", "busybox", "true")
+	_, _, err := dockerCmd(t, "run", "--name", "linked", "busybox", "true")
 
 	cmd := exec.Command(dockerBinary, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
 	_, _, err = runCommandWithOutput(cmd)
@@ -1204,7 +1202,7 @@ func TestRunModeHostname(t *testing.T) {
 }
 
 func TestRunRootWorkdir(t *testing.T) {
-	s, _, err := cmd(t, "run", "--workdir", "/", "busybox", "pwd")
+	s, _, err := dockerCmd(t, "run", "--workdir", "/", "busybox", "pwd")
 	if err != nil {
 		t.Fatal(s, err)
 	}
@@ -1218,7 +1216,7 @@ func TestRunRootWorkdir(t *testing.T) {
 }
 
 func TestRunAllowBindMountingRoot(t *testing.T) {
-	s, _, err := cmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	s, _, err := dockerCmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
 	if err != nil {
 		t.Fatal(s, err)
 	}
@@ -1238,44 +1236,6 @@ func TestRunDisallowBindMountingRootToRoot(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - bind mount /:/ as volume should fail")
-}
-
-// Test recursive bind mount works by default
-func TestRunWithVolumesIsRecursive(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmpDir)
-
-	// Create a temporary tmpfs mount.
-	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
-	if err := os.MkdirAll(tmpfsDir, 0777); err != nil {
-		t.Fatalf("failed to mkdir at %s - %s", tmpfsDir, err)
-	}
-	if err := mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""); err != nil {
-		t.Fatalf("failed to create a tmpfs mount at %s - %s", tmpfsDir, err)
-	}
-
-	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox:latest", "ls", "/tmp/tmpfs")
-	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil && exitCode != 0 {
-		t.Fatal(out, stderr, err)
-	}
-	if !strings.Contains(out, filepath.Base(f.Name())) {
-		t.Fatal("Recursive bind mount test failed. Expected file not found")
-	}
-
-	deleteAllContainers()
-
-	logDone("run - volumes are bind mounted recursively")
 }
 
 func TestRunDnsDefaultOptions(t *testing.T) {
@@ -1441,6 +1401,157 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - dns options based on host resolv.conf")
+}
+
+// Test the file watch notifier on docker host's /etc/resolv.conf
+// A go-routine is responsible for auto-updating containers which are
+// stopped and have an unmodified copy of resolv.conf, as well as
+// marking running containers as requiring an update on next restart
+func TestRunResolvconfUpdater(t *testing.T) {
+
+	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78")
+	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
+
+	//take a copy of resolv.conf for restoring after test completes
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//cleanup
+	defer func() {
+		deleteAllContainers()
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	//1. test that a non-running container gets an updated resolv.conf
+	cmd := exec.Command(dockerBinary, "run", "--name='first'", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+	containerID1, err := getIDByName("first")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// replace resolv.conf with our temporary copy
+	bytesResolvConf := []byte(tmpResolvConf)
+	if err := ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+	// check for update in container
+	containerResolv, err := readContainerFile(containerID1, "resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(containerResolv, bytesResolvConf) {
+		t.Fatalf("Stopped container does not have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
+	}
+
+	//2. test that a non-running container does not receive resolv.conf updates
+	//   if it modified the container copy of the starting point resolv.conf
+	cmd = exec.Command(dockerBinary, "run", "--name='second'", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
+	if _, err = runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+	containerID2, err := getIDByName("second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	containerResolvHashBefore, err := readContainerFile(containerID2, "resolv.conf.hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
+	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+	containerResolvHashAfter, err := readContainerFile(containerID2, "resolv.conf.hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(containerResolvHashBefore, containerResolvHashAfter) {
+		t.Fatalf("Stopped container with modified resolv.conf should not have been updated; expected hash: %v, new hash: %v", containerResolvHashBefore, containerResolvHashAfter)
+	}
+
+	//3. test that a running container's resolv.conf is not modified while running
+	cmd = exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runningContainerID := strings.TrimSpace(out)
+
+	containerResolvHashBefore, err = readContainerFile(runningContainerID, "resolv.conf.hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// replace resolv.conf
+	if err := ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// make sure the updater has time to run to validate we really aren't
+	// getting updated
+	time.Sleep(time.Second / 2)
+	containerResolvHashAfter, err = readContainerFile(runningContainerID, "resolv.conf.hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(containerResolvHashBefore, containerResolvHashAfter) {
+		t.Fatalf("Running container's resolv.conf should not be updated; expected hash: %v, new hash: %v", containerResolvHashBefore, containerResolvHashAfter)
+	}
+
+	//4. test that a running container's resolv.conf is updated upon restart
+	//   (the above container is still running..)
+	cmd = exec.Command(dockerBinary, "restart", runningContainerID)
+	if _, err = runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	// check for update in container
+	containerResolv, err = readContainerFile(runningContainerID, "resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(containerResolv, bytesResolvConf) {
+		t.Fatalf("Restarted container should have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
+	}
+
+	//5. test that additions of a localhost resolver are cleaned from
+	//   host resolv.conf before updating container's resolv.conf copies
+
+	// replace resolv.conf with a localhost-only nameserver copy
+	bytesResolvConf = []byte(tmpLocalhostResolvConf)
+	if err = ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+	// our first exited container ID should have been updated, but with default DNS
+	// after the cleanup of resolv.conf found only a localhost nameserver:
+	containerResolv, err = readContainerFile(containerID1, "resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	if !bytes.Equal(containerResolv, []byte(expected)) {
+		t.Fatalf("Container does not have cleaned/replaced DNS in resolv.conf; expected %q, got %q", expected, string(containerResolv))
+	}
+
+	//cleanup, restore original resolv.conf happens in defer func()
+	logDone("run - resolv.conf updater")
 }
 
 func TestRunAddHost(t *testing.T) {
@@ -1896,37 +2007,25 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		deleteAllContainers()
 
-		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s; while true; do sleep 1; done", fn)))
-		if err != nil {
-			t.Fatal(err, out)
-		}
-
-		time.Sleep(1 * time.Second)
-
-		contID := strings.TrimSpace(out)
-
-		f, err := os.Open(filepath.Join("/var/lib/docker/containers", contID, fn))
+		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s; while true; do sleep 1; done", fn)))
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		content, err := ioutil.ReadAll(f)
-		f.Close()
 
 		if strings.TrimSpace(string(content)) != "success" {
 			t.Fatal("Content was not what was modified in the container", string(content))
 		}
 
-		out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "sh", "-c", fmt.Sprintf("while true; do cat /etc/%s; sleep 1; done", fn)))
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "sh", "-c", fmt.Sprintf("while true; do cat /etc/%s; sleep 1; done", fn)))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		contID = strings.TrimSpace(out)
+		contID := strings.TrimSpace(out)
 
-		resolvConfPath := filepath.Join("/var/lib/docker/containers", contID, fn)
+		resolvConfPath := containerStorageFile(contID, fn)
 
-		f, err = os.OpenFile(resolvConfPath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		f, err := os.OpenFile(resolvConfPath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1960,6 +2059,7 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 			t.Fatalf("Did not find the correct output in /etc/%s: %s %#v", fn, out, lines)
 		}
 	}
+	logDone("run - mutable network files")
 }
 
 // Ensure that CIDFile gets deleted if it's empty
@@ -2080,7 +2180,7 @@ func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iptCmd := exec.Command("iptables", "-D", "FORWARD", "-d", fmt.Sprintf("%s/32", ip),
+	iptCmd := exec.Command("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
 	out, _, err = runCommandWithOutput(iptCmd)
 	if err != nil {
@@ -2291,44 +2391,6 @@ func TestRunExecDir(t *testing.T) {
 	}
 
 	logDone("run - check execdriver dir behavior")
-}
-
-// #6509
-func TestRunRedirectStdout(t *testing.T) {
-
-	defer deleteAllContainers()
-
-	checkRedirect := func(command string) {
-		_, tty, err := pty.Open()
-		if err != nil {
-			t.Fatalf("Could not open pty: %v", err)
-		}
-		cmd := exec.Command("sh", "-c", command)
-		cmd.Stdin = tty
-		cmd.Stdout = tty
-		cmd.Stderr = tty
-		ch := make(chan struct{})
-		if err := cmd.Start(); err != nil {
-			t.Fatalf("start err: %v", err)
-		}
-		go func() {
-			if err := cmd.Wait(); err != nil {
-				t.Fatalf("wait err=%v", err)
-			}
-			close(ch)
-		}()
-
-		select {
-		case <-time.After(10 * time.Second):
-			t.Fatal("command timeout")
-		case <-ch:
-		}
-	}
-
-	checkRedirect(dockerBinary + " run -i busybox cat /etc/passwd | grep -q root")
-	checkRedirect(dockerBinary + " run busybox cat /etc/passwd | grep -q root")
-
-	logDone("run - redirect stdout")
 }
 
 // Regression test for https://github.com/docker/docker/issues/8259
@@ -2609,11 +2671,11 @@ func TestRunModeIpcHost(t *testing.T) {
 
 	out2 = strings.Trim(out2, "\n")
 	if hostIpc == out2 {
-		t.Fatalf("IPC should be different without --ipc=host %s != %s\n", hostIpc, out2)
+		t.Fatalf("IPC should be different without --ipc=host %s == %s\n", hostIpc, out2)
 	}
 	deleteAllContainers()
 
-	logDone("run - hostname and several network modes")
+	logDone("run - ipc host mode")
 }
 
 func TestRunModeIpcContainer(t *testing.T) {
@@ -2651,7 +2713,7 @@ func TestRunModeIpcContainer(t *testing.T) {
 	}
 	deleteAllContainers()
 
-	logDone("run - hostname and several network modes")
+	logDone("run - ipc container mode")
 }
 
 func TestContainerNetworkMode(t *testing.T) {
@@ -2686,4 +2748,190 @@ func TestContainerNetworkMode(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - container shared network namespace")
+}
+
+func TestRunTLSverify(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "ps")
+	out, ec, err := runCommandWithOutput(cmd)
+	if err != nil || ec != 0 {
+		t.Fatalf("Should have worked: %v:\n%v", err, out)
+	}
+
+	// Regardless of whether we specify true or false we need to
+	// test to make sure tls is turned on if --tlsverify is specified at all
+
+	cmd = exec.Command(dockerBinary, "--tlsverify=false", "ps")
+	out, ec, err = runCommandWithOutput(cmd)
+	if err == nil || ec == 0 || !strings.Contains(out, "trying to connect") {
+		t.Fatalf("Should have failed: \nec:%v\nout:%v\nerr:%v", ec, out, err)
+	}
+
+	cmd = exec.Command(dockerBinary, "--tlsverify=true", "ps")
+	out, ec, err = runCommandWithOutput(cmd)
+	if err == nil || ec == 0 || !strings.Contains(out, "cert") {
+		t.Fatalf("Should have failed: \nec:%v\nout:%v\nerr:%v", ec, out, err)
+	}
+
+	logDone("run - verify tls is set for --tlsverify")
+}
+
+func TestRunPortFromDockerRangeInUse(t *testing.T) {
+	defer deleteAllContainers()
+	// first find allocator current position
+	cmd := exec.Command(dockerBinary, "run", "-d", "-p", ":80", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+	cmd = exec.Command(dockerBinary, "port", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.TrimSpace(out)
+	out = strings.Split(out, ":")[1]
+	lastPort, err := strconv.Atoi(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := lastPort + 1
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	cmd = exec.Command(dockerBinary, "run", "-d", "-p", ":80", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf(out, err)
+	}
+	id = strings.TrimSpace(out)
+	cmd = exec.Command(dockerBinary, "port", id)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	logDone("run - find another port if port from autorange already bound")
+}
+
+func TestRunTtyWithPipe(t *testing.T) {
+	defer deleteAllContainers()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		cmd := exec.Command(dockerBinary, "run", "-ti", "busybox", "true")
+		if _, err := cmd.StdinPipe(); err != nil {
+			t.Fatal(err)
+		}
+
+		expected := "cannot enable tty mode"
+		if out, _, err := runCommandWithOutput(cmd); err == nil {
+			t.Fatal("run should have failed")
+		} else if !strings.Contains(out, expected) {
+			t.Fatalf("run failed with error %q: expected %q", out, expected)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("container is running but should have failed")
+	}
+
+	logDone("run - forbid piped stdin with tty")
+}
+
+func TestRunNonLocalMacAddress(t *testing.T) {
+	defer deleteAllContainers()
+	addr := "00:16:3E:08:00:50"
+
+	cmd := exec.Command(dockerBinary, "run", "--mac-address", addr, "busybox", "ifconfig")
+	if out, _, err := runCommandWithOutput(cmd); err != nil || !strings.Contains(out, addr) {
+		t.Fatalf("Output should have contained %q: %s, %v", addr, out, err)
+	}
+
+	logDone("run - use non-local mac-address")
+}
+
+func TestRunNetHost(t *testing.T) {
+	defer deleteAllContainers()
+	hostNet, err := os.Readlink("/proc/1/ns/net")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "readlink", "/proc/self/ns/net")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostNet != out2 {
+		t.Fatalf("Net namespace different with --net=host %s != %s\n", hostNet, out2)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "readlink", "/proc/self/ns/net")
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostNet == out2 {
+		t.Fatalf("Net namespace should be different without --net=host %s == %s\n", hostNet, out2)
+	}
+
+	logDone("run - net host mode")
+}
+
+func TestRunAllowPortRangeThroughPublish(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--expose", "3000-3003", "-p", "3000-3003", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	defer deleteAllContainers()
+
+	id := strings.TrimSpace(out)
+	portstr, err := inspectFieldJSON(id, "NetworkSettings.Ports")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ports nat.PortMap
+	err = unmarshalJSON([]byte(portstr), &ports)
+	for port, binding := range ports {
+		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
+		if portnum < 3000 || portnum > 3003 {
+			t.Fatalf("Port is out of range ", portnum, binding, out)
+		}
+		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
+			t.Fatal("Port is not mapped for the port "+port, out)
+		}
+	}
+	logDone("run - allow port range through --expose flag")
+}
+
+func TestRunOOMExitCode(t *testing.T) {
+	defer deleteAllContainers()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		runCmd := exec.Command(dockerBinary, "run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x; done")
+		out, exitCode, _ := runCommandWithOutput(runCmd)
+		if expected := 137; exitCode != expected {
+			t.Fatalf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Timeout waiting for container to die on OOM")
+	}
+
+	logDone("run - exit code on oom")
 }

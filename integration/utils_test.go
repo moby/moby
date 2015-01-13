@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -84,14 +86,8 @@ func containerFileExists(eng *engine.Engine, id, dir string, t Fataler) bool {
 
 func containerAttach(eng *engine.Engine, id string, t Fataler) (io.WriteCloser, io.ReadCloser) {
 	c := getContainer(eng, id, t)
-	i, err := c.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	o, err := c.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	i := c.StdinPipe()
+	o := c.StdoutPipe()
 	return i, o
 }
 
@@ -178,7 +174,14 @@ func newTestEngine(t Fataler, autorestart bool, root string) *engine.Engine {
 	eng := engine.New()
 	eng.Logging = false
 	// Load default plugins
-	builtins.Register(eng)
+	if err := builtins.Register(eng); err != nil {
+		t.Fatal(err)
+	}
+	// load registry service
+	if err := registry.NewService(nil).Install(eng); err != nil {
+		t.Fatal(err)
+	}
+
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
 	cfg := &daemon.Config{
 		Root:        root,
@@ -187,6 +190,7 @@ func newTestEngine(t Fataler, autorestart bool, root string) *engine.Engine {
 		// Either InterContainerCommunication or EnableIptables must be set,
 		// otherwise NewDaemon will fail because of conflicting settings.
 		InterContainerCommunication: true,
+		TrustKeyPath:                filepath.Join(root, "key.json"),
 	}
 	d, err := daemon.NewDaemon(cfg, eng)
 	if err != nil {
@@ -290,10 +294,7 @@ func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testin
 		return "", err
 	}
 	defer r.Destroy(container)
-	stdout, err := container.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
+	stdout := container.StdoutPipe()
 	defer stdout.Close()
 
 	job := eng.Job("start", container.ID)

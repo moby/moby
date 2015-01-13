@@ -6,11 +6,12 @@ docker-images - List images
 
 # SYNOPSIS
 **docker images**
+[**--help**]
 [**-a**|**--all**[=*false*]]
 [**-f**|**--filter**[=*[]*]]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
- [NAME]
+[REPOSITORY]
 
 # DESCRIPTION
 This command lists the images stored in the local Docker repository.
@@ -35,6 +36,9 @@ versions.
 **-f**, **--filter**=[]
    Provide filter values (i.e. 'dangling=true')
 
+**--help**
+  Print usage statement
+
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.
 
@@ -57,25 +61,6 @@ To get a verbose list of images which contains all the intermediate images
 used in builds use **-a**:
 
     docker images -a
-
-## List images dependency tree hierarchy
-
-To list the images in the local repository (not the registry) in a dependency
-tree format, use the **-t** option.
-
-    docker images -t
-
-This displays a staggered hierarchy tree where the less indented image is
-the oldest with dependent image layers branching inward (to the right) on
-subsequent lines. The newest or top level image layer is listed last in
-any tree branch.
-
-## List images in GraphViz format
-
-To display the list in a format consumable by a GraphViz tools run with
-**-v**. For example to produce a .png graph file of the hierarchy use:
-
-    docker images --viz | dot -Tpng -o docker.png
 
 ## Listing only the shortened image IDs
 

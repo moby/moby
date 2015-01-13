@@ -2,12 +2,13 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-save - Save an image to a tar archive (streamed to STDOUT by default)
+docker-save - Save an image(s) to a tar archive (streamed to STDOUT by default)
 
 # SYNOPSIS
 **docker save**
+[**--help**]
 [**-o**|**--output**[=*OUTPUT*]]
-IMAGE
+IMAGE [IMAGE...]
 
 # DESCRIPTION
 Produces a tarred repository to the standard output stream. Contains all
@@ -16,6 +17,9 @@ parent layers, and all tags + versions, or specified repo:tag.
 Stream to a file instead of STDOUT by using **-o**.
 
 # OPTIONS
+**--help**
+  Print usage statement
+
 **-o**, **--output**=""
    Write to a file, instead of STDOUT
 
@@ -35,3 +39,4 @@ fedora image to a fedora-latest.tar:
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

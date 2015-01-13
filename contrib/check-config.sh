@@ -76,7 +76,7 @@ check_flags() {
 	for flag in "$@"; do
 		echo "- $(check_flag "$flag")"
 	done
-} 
+}
 
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config..."
@@ -138,6 +138,9 @@ flags=(
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
 	NF_NAT NF_NAT_NEEDED
+
+	# required for bind-mounting /dev/mqueue into containers
+	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
 echo
@@ -165,8 +168,8 @@ echo '- Storage Drivers:'
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
 	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 
-	echo '- "'$(wrap_color 'overlayfs' blue)'":'
-	check_flags OVERLAYFS_FS | sed 's/^/  /'
+	echo '- "'$(wrap_color 'overlay' blue)'":'
+	check_flags OVERLAY_FS | sed 's/^/  /'
 } | sed 's/^/  /'
 echo
 

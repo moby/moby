@@ -137,16 +137,14 @@ func Apply(c *cgroups.Cgroup, pid int) (map[string]string, error) {
 
 	}
 
-	// we need to manually join the freezer cgroup in systemd because it does not currently support it
-	// via the dbus api
+	// we need to manually join the freezer and cpuset cgroup in systemd
+	// because it does not currently support it via the dbus api.
 	if err := joinFreezer(c, pid); err != nil {
 		return nil, err
 	}
 
-	if c.CpusetCpus != "" {
-		if err := joinCpuset(c, pid); err != nil {
-			return nil, err
-		}
+	if err := joinCpuset(c, pid); err != nil {
+		return nil, err
 	}
 
 	paths := make(map[string]string)
@@ -315,5 +313,5 @@ func joinCpuset(c *cgroups.Cgroup, pid int) error {
 
 	s := &fs.CpusetGroup{}
 
-	return s.SetDir(path, c.CpusetCpus, pid)
+	return s.SetDir(path, c.CpusetCpus, c.CpusetMems, pid)
 }

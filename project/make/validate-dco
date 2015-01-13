@@ -4,7 +4,7 @@ source "$(dirname "$BASH_SOURCE")/.validate"
 
 adds=$(validate_diff --numstat | awk '{ s += $1 } END { print s }')
 dels=$(validate_diff --numstat | awk '{ s += $2 } END { print s }')
-notDocs="$(validate_diff --numstat | awk '$3 !~ /^docs\// { print $3 }')"
+#notDocs="$(validate_diff --numstat | awk '$3 !~ /^docs\// { print $3 }')"
 
 : ${adds:=0}
 : ${dels:=0}
@@ -22,8 +22,6 @@ check_dco() {
 
 if [ $adds -eq 0 -a $dels -eq 0 ]; then
 	echo '0 adds, 0 deletions; nothing to validate! :)'
-elif [ -z "$notDocs" -a $adds -le 1 -a $dels -le 1 ]; then
-	echo 'Congratulations!  DCO small-patch-exception material!'
 else
 	commits=( $(validate_log --format='format:%H%n') )
 	badCommits=()

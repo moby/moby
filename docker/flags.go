@@ -34,6 +34,10 @@ var (
 	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
 	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by tls-verify flags")
 	flTlsVerify = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
+	flDaemon      = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group to assign the unix socket specified by -H when running in daemon mode\nuse '' (the empty string) to disable setting of a group")
+	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
+	flHelp        = flag.Bool([]string{"h", "-help"}, false, "Print usage")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	flTrustKey *string
@@ -54,8 +58,9 @@ func init() {
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
+		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
 
+		flag.CommandLine.SetOutput(os.Stdout)
 		flag.PrintDefaults()
 
 		help := "\nCommands:\n"
@@ -86,6 +91,7 @@ func init() {
 			{"ps", "List containers"},
 			{"pull", "Pull an image or a repository from a Docker registry server"},
 			{"push", "Push an image or a repository to a Docker registry server"},
+			{"rename", "Rename an existing container"},
 			{"restart", "Restart a running container"},
 			{"rm", "Remove one or more containers"},
 			{"rmi", "Remove one or more images"},
@@ -103,6 +109,6 @@ func init() {
 			help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 		}
 		help += "\nRun 'docker COMMAND --help' for more information on a command."
-		fmt.Fprintf(os.Stderr, "%s\n", help)
+		fmt.Fprintf(os.Stdout, "%s\n", help)
 	}
 }

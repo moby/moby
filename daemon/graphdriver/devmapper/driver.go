@@ -56,13 +56,13 @@ func (d *Driver) Status() [][2]string {
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
-		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(int64(s.SectorSize)))},
+		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
 		{"Data file", s.DataLoopback},
 		{"Metadata file", s.MetadataLoopback},
-		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Used)))},
-		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Total)))},
-		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Used)))},
-		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Total)))},
+		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
+		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Total)))},
+		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Used)))},
+		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Total)))},
 	}
 	if vStr, err := devicemapper.GetLibraryVersion(); err == nil {
 		status = append(status, [2]string{"Library Version", vStr})
@@ -141,10 +141,12 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return rootFs, nil
 }
 
-func (d *Driver) Put(id string) {
-	if err := d.DeviceSet.UnmountDevice(id); err != nil {
+func (d *Driver) Put(id string) error {
+	err := d.DeviceSet.UnmountDevice(id)
+	if err != nil {
 		log.Errorf("Warning: error unmounting device %s: %s", id, err)
 	}
+	return err
 }
 
 func (d *Driver) Exists(id string) bool {

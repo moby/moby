@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
+	"github.com/kr/pty"
 )
 
 func closeWrap(args ...io.Closer) error {
@@ -113,121 +114,20 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 	return nil
 }
 
-// Expected behaviour: the process dies when the client disconnects
-func TestRunDisconnect(t *testing.T) {
-
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c1 := make(chan struct{})
-	go func() {
-		// We're simulating a disconnect so the return value doesn't matter. What matters is the
-		// fact that CmdRun returns.
-		cli.CmdRun("-i", unitTestImageID, "/bin/cat")
-		close(c1)
-	}()
-
-	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	// Close pipes (simulate disconnect)
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-		t.Fatal(err)
-	}
-
-	// as the pipes are close, we expect the process to die,
-	// therefore CmdRun to unblock. Wait for CmdRun
-	setTimeout(t, "Waiting for CmdRun timed out", 2*time.Second, func() {
-		<-c1
-	})
-
-	// Client disconnect after run -i should cause stdin to be closed, which should
-	// cause /bin/cat to exit.
-	setTimeout(t, "Waiting for /bin/cat to exit timed out", 2*time.Second, func() {
-		container := globalDaemon.List()[0]
-		container.WaitStop(-1 * time.Second)
-		if container.IsRunning() {
-			t.Fatalf("/bin/cat is still running after closing stdin")
-		}
-	})
-}
-
-// Expected behaviour: the process stay alive when the client disconnects
-// but the client detaches.
-func TestRunDisconnectTty(t *testing.T) {
-
-	stdin, stdinPipe := io.Pipe()
-	stdout, stdoutPipe := io.Pipe()
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c1 := make(chan struct{})
-	go func() {
-		defer close(c1)
-		// We're simulating a disconnect so the return value doesn't matter. What matters is the
-		// fact that CmdRun returns.
-		if err := cli.CmdRun("-i", "-t", unitTestImageID, "/bin/cat"); err != nil {
-			log.Debugf("Error CmdRun: %s", err)
-		}
-	}()
-
-	container := waitContainerStart(t, 10*time.Second)
-
-	state := setRaw(t, container)
-	defer unsetRaw(t, container, state)
-
-	// Client disconnect after run -i should keep stdin out in TTY mode
-	setTimeout(t, "Read/Write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	// Close pipes (simulate disconnect)
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
-		t.Fatal(err)
-	}
-
-	// wait for CmdRun to return
-	setTimeout(t, "Waiting for CmdRun timed out", 5*time.Second, func() {
-		<-c1
-	})
-
-	// In tty mode, we expect the process to stay alive even after client's stdin closes.
-
-	// Give some time to monitor to do his thing
-	container.WaitStop(500 * time.Millisecond)
-	if !container.IsRunning() {
-		t.Fatalf("/bin/cat should  still be running after closing stdin (tty mode)")
-	}
-}
-
 // TestRunDetach checks attaching and detaching with the escape sequence.
 func TestRunDetach(t *testing.T) {
-
-	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	key, err := libtrust.GenerateECP256PrivateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -242,22 +142,22 @@ func TestRunDetach(t *testing.T) {
 	defer unsetRaw(t, container, state)
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, cpty, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16})
+		cpty.Write([]byte{16})
 		time.Sleep(100 * time.Millisecond)
-		stdinPipe.Write([]byte{17})
+		cpty.Write([]byte{17})
 	})
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdRun timed out", 15*time.Second, func() {
 		<-ch
 	})
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+	closeWrap(cpty, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.IsRunning() {
@@ -271,14 +171,18 @@ func TestRunDetach(t *testing.T) {
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
 func TestAttachDetach(t *testing.T) {
-	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	key, err := libtrust.GenerateECP256PrivateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -309,9 +213,13 @@ func TestAttachDetach(t *testing.T) {
 	state := setRaw(t, container)
 	defer unsetRaw(t, container, state)
 
-	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
-	cli = client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cpty, tty, err = pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cli = client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 
 	ch = make(chan struct{})
 	go func() {
@@ -324,7 +232,7 @@ func TestAttachDetach(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, cpty, 150); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -332,9 +240,9 @@ func TestAttachDetach(t *testing.T) {
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16})
+		cpty.Write([]byte{16})
 		time.Sleep(100 * time.Millisecond)
-		stdinPipe.Write([]byte{17})
+		cpty.Write([]byte{17})
 	})
 
 	// wait for CmdRun to return
@@ -342,7 +250,7 @@ func TestAttachDetach(t *testing.T) {
 		<-ch
 	})
 
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+	closeWrap(cpty, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.IsRunning() {
@@ -356,14 +264,18 @@ func TestAttachDetach(t *testing.T) {
 
 // TestAttachDetachTruncatedID checks that attach in tty mode can be detached
 func TestAttachDetachTruncatedID(t *testing.T) {
-	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	key, err := libtrust.GenerateECP256PrivateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	// Discard the CmdRun output
@@ -379,9 +291,13 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	state := setRaw(t, container)
 	defer unsetRaw(t, container, state)
 
-	stdin, stdinPipe = io.Pipe()
 	stdout, stdoutPipe = io.Pipe()
-	cli = client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cpty, tty, err = pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cli = client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 
 	ch := make(chan struct{})
 	go func() {
@@ -394,7 +310,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, cpty, 150); err != nil {
 			if err != io.ErrClosedPipe {
 				t.Fatal(err)
 			}
@@ -402,16 +318,16 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 	})
 
 	setTimeout(t, "Escape sequence timeout", 5*time.Second, func() {
-		stdinPipe.Write([]byte{16})
+		cpty.Write([]byte{16})
 		time.Sleep(100 * time.Millisecond)
-		stdinPipe.Write([]byte{17})
+		cpty.Write([]byte{17})
 	})
 
 	// wait for CmdRun to return
 	setTimeout(t, "Waiting for CmdAttach timed out", 15*time.Second, func() {
 		<-ch
 	})
-	closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
+	closeWrap(cpty, stdout, stdoutPipe)
 
 	time.Sleep(500 * time.Millisecond)
 	if !container.IsRunning() {
@@ -425,14 +341,18 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 
 // Expected behaviour, the process stays alive when the client disconnects
 func TestAttachDisconnect(t *testing.T) {
-	stdin, stdinPipe := io.Pipe()
 	stdout, stdoutPipe := io.Pipe()
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	key, err := libtrust.GenerateECP256PrivateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cli := client.NewDockerCli(stdin, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	go func() {
@@ -470,12 +390,12 @@ func TestAttachDisconnect(t *testing.T) {
 	}()
 
 	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, stdinPipe, 150); err != nil {
+		if err := assertPipe("hello\n", "hello", stdout, cpty, 150); err != nil {
 			t.Fatal(err)
 		}
 	})
 	// Close pipes (client disconnects)
-	if err := closeWrap(stdin, stdinPipe, stdout, stdoutPipe); err != nil {
+	if err := closeWrap(cpty, stdout, stdoutPipe); err != nil {
 		t.Fatal(err)
 	}
 
@@ -492,7 +412,7 @@ func TestAttachDisconnect(t *testing.T) {
 	}
 
 	// Try to avoid the timeout in destroy. Best effort, don't check error
-	cStdin, _ := container.StdinPipe()
+	cStdin := container.StdinPipe()
 	cStdin.Close()
 	container.WaitStop(-1 * time.Second)
 }
@@ -537,28 +457,4 @@ func TestRunAutoRemove(t *testing.T) {
 	if len(globalDaemon.List()) > 0 {
 		t.Fatalf("failed to remove container automatically: container %s still exists", temporaryContainerID)
 	}
-}
-
-// Expected behaviour: error out when attempting to bind mount non-existing source paths
-func TestRunErrorBindNonExistingSource(t *testing.T) {
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(nil, nil, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		// This check is made at runtime, can't be "unit tested"
-		if err := cli.CmdRun("-v", "/i/dont/exist:/tmp", unitTestImageID, "echo 'should fail'"); err == nil {
-			t.Fatal("should have failed to run when using /i/dont/exist as a source for the bind mount")
-		}
-	}()
-
-	setTimeout(t, "CmdRun timed out", 5*time.Second, func() {
-		<-c
-	})
 }

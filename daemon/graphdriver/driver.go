@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 )
 
-type FsMagic uint64
+type FsMagic uint32
 
 const (
 	FsMagicBtrfs = FsMagic(0x9123683E)
@@ -38,7 +40,7 @@ type ProtoDriver interface {
 	Get(id, mountLabel string) (dir string, err error)
 	// Put releases the system resources for the specified id,
 	// e.g, unmounting layered filesystem.
-	Put(id string)
+	Put(id string) error
 	// Exists returns whether a filesystem layer with the specified
 	// ID exists on this driver.
 	Exists(id string) bool
@@ -63,11 +65,11 @@ type Driver interface {
 	// ApplyDiff extracts the changeset from the given diff into the
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
-	ApplyDiff(id, parent string, diff archive.ArchiveReader) (bytes int64, err error)
+	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.
-	DiffSize(id, parent string) (bytes int64, err error)
+	DiffSize(id, parent string) (size int64, err error)
 }
 
 var (
@@ -81,7 +83,7 @@ var (
 		"devicemapper",
 		"vfs",
 		// experimental, has to be enabled manually for now
-		"overlayfs",
+		"overlay",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")
@@ -125,18 +127,34 @@ func New(root string, options []string) (driver Driver, err error) {
 			}
 			return nil, err
 		}
+		checkPriorDriver(name, root)
 		return driver, nil
 	}
 
 	// Check all registered drivers if no priority driver is found
-	for _, initFunc := range drivers {
+	for name, initFunc := range drivers {
 		if driver, err = initFunc(root, options); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
 			}
 			return nil, err
 		}
+		checkPriorDriver(name, root)
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
+}
+
+func checkPriorDriver(name, root string) {
+	priorDrivers := []string{}
+	for prior := range drivers {
+		if prior != name {
+			if _, err := os.Stat(path.Join(root, prior)); err == nil {
+				priorDrivers = append(priorDrivers, prior)
+			}
+		}
+	}
+	if len(priorDrivers) > 0 {
+		log.Warnf("graphdriver %s selected. Warning: your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
+	}
 }

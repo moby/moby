@@ -62,9 +62,9 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 				delete(allImages, id)
 				if filt_tagged {
 					out := &engine.Env{}
-					out.Set("ParentId", image.Parent)
+					out.SetJson("ParentId", image.Parent)
 					out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
-					out.Set("Id", image.ID)
+					out.SetJson("Id", image.ID)
 					out.SetInt64("Created", image.Created.Unix())
 					out.SetInt64("Size", image.Size)
 					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
@@ -85,9 +85,9 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	if job.Getenv("filter") == "" {
 		for _, image := range allImages {
 			out := &engine.Env{}
-			out.Set("ParentId", image.Parent)
+			out.SetJson("ParentId", image.Parent)
 			out.SetList("RepoTags", []string{"<none>:<none>"})
-			out.Set("Id", image.ID)
+			out.SetJson("Id", image.ID)
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)
 			out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)

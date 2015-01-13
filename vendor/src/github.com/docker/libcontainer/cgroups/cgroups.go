@@ -50,6 +50,7 @@ type Cgroup struct {
 	CpuQuota          int64             `json:"cpu_quota,omitempty"`          // CPU hardcap limit (in usecs). Allowed cpu time in a given period.
 	CpuPeriod         int64             `json:"cpu_period,omitempty"`         // CPU period to be used for hardcapping (in usecs). 0 to use system default.
 	CpusetCpus        string            `json:"cpuset_cpus,omitempty"`        // CPU to use
+	CpusetMems        string            `json:"cpuset_mems,omitempty"`        // MEM to use
 	Freezer           FreezerState      `json:"freezer,omitempty"`            // set the freeze value for the process
 	Slice             string            `json:"slice,omitempty"`              // Parent slice to use for systemd
 }

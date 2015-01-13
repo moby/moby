@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -74,24 +75,31 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			fmt.Println("Error: Command not found:", args[0])
-			return cli.CmdHelp()
+			fmt.Fprintf(cli.err, "docker: '%s' is not a docker command. See 'docker --help'.\n", args[0])
+			os.Exit(1)
 		}
 		return method(args[1:]...)
 	}
 	return cli.CmdHelp()
 }
 
-func (cli *DockerCli) Subcmd(name, signature, description string) *flag.FlagSet {
-	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bool) *flag.FlagSet {
+	var errorHandling flag.ErrorHandling
+	if exitOnError {
+		errorHandling = flag.ExitOnError
+	} else {
+		errorHandling = flag.ContinueOnError
+	}
+	flags := flag.NewFlagSet(name, errorHandling)
 	flags.Usage = func() {
 		options := ""
 		if flags.FlagCountUndeprecated() > 0 {
 			options = "[OPTIONS] "
 		}
-		fmt.Fprintf(cli.err, "\nUsage: docker %s %s%s\n\n%s\n\n", name, options, signature, description)
+		fmt.Fprintf(cli.out, "\nUsage: docker %s %s%s\n\n%s\n\n", name, options, signature, description)
+		flags.SetOutput(cli.out)
 		flags.PrintDefaults()
-		os.Exit(2)
+		os.Exit(0)
 	}
 	return flags
 }
@@ -102,6 +110,16 @@ func (cli *DockerCli) LoadConfigFile() (err error) {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
 	return err
+}
+
+func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
+	// In order to attach to a container tty, input stream for the client must
+	// be a tty itself: redirecting or piping the client standard input is
+	// incompatible with `docker run -t`, `docker exec -t` or `docker attach`.
+	if ttyMode && attachStdin && !cli.isTerminalIn {
+		return errors.New("cannot enable tty mode on non tty input")
+	}
+	return nil
 }
 
 func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey, proto, addr string, tlsConfig *tls.Config) *DockerCli {
@@ -137,6 +155,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 
 	// The transport is created here for reuse during the client session
 	tr := &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: tlsConfig,
 	}
 

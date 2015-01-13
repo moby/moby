@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/libcontainer/label"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
@@ -31,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
+	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -39,10 +42,11 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
+
+	"github.com/go-fsnotify/fsnotify"
 )
 
 var (
-	DefaultDns                = []string{"8.8.8.8", "8.8.4.4"}
 	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
 	Tls                       bool
@@ -89,6 +93,7 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
+	ID             string
 	repository     string
 	sysInitPath    string
 	containers     *contStore
@@ -114,6 +119,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"commit":            daemon.ContainerCommit,
 		"container_changes": daemon.ContainerChanges,
 		"container_copy":    daemon.ContainerCopy,
+		"container_rename":  daemon.ContainerRename,
 		"container_inspect": daemon.ContainerInspect,
 		"containers":        daemon.Containers,
 		"create":            daemon.ContainerCreate,
@@ -134,6 +140,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
 		"execResize":        daemon.ContainerExecResize,
+		"execInspect":       daemon.ContainerExecInspect,
 	} {
 		if err := eng.Register(name, method); err != nil {
 			return err
@@ -154,11 +161,17 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 // Get looks for a container by the specified ID or name, and returns it.
 // If the container is not found, or if an error occurs, nil is returned.
 func (daemon *Daemon) Get(name string) *Container {
-	if id, err := daemon.idIndex.Get(name); err == nil {
+	id, err := daemon.idIndex.Get(name)
+	if err == nil {
 		return daemon.containers.Get(id)
 	}
+
 	if c, _ := daemon.GetByName(name); c != nil {
 		return c
+	}
+
+	if err == truncindex.ErrDuplicateID {
+		log.Errorf("Short ID %s is ambiguous: please retry with more characters or use the full ID.\n", name)
 	}
 	return nil
 }
@@ -237,7 +250,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		log.Debugf("killing old running container %s", container.ID)
 
 		existingPid := container.Pid
-		container.SetStopped(&execdriver.ExitStatus{0, false})
+		container.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 
 		// We only have to handle this for lxc because the other drivers will ensure that
 		// no processes are left when docker dies
@@ -269,7 +282,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 			log.Debugf("Marking as stopped")
 
-			container.SetStopped(&execdriver.ExitStatus{-127, false})
+			container.SetStopped(&execdriver.ExitStatus{ExitCode: -127})
 			if err := container.ToDisk(); err != nil {
 				return err
 			}
@@ -405,6 +418,60 @@ func (daemon *Daemon) restore() error {
 	return nil
 }
 
+// set up the watch on the host's /etc/resolv.conf so that we can update container's
+// live resolv.conf when the network changes on the host
+func (daemon *Daemon) setupResolvconfWatcher() error {
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+
+	//this goroutine listens for the events on the watch we add
+	//on the resolv.conf file on the host
+	go func() {
+		for {
+			select {
+			case event := <-watcher.Events:
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					// verify a real change happened before we go further--a file write may have happened
+					// without an actual change to the file
+					updatedResolvConf, newResolvConfHash, err := resolvconf.GetIfChanged()
+					if err != nil {
+						log.Debugf("Error retrieving updated host resolv.conf: %v", err)
+					} else if updatedResolvConf != nil {
+						// because the new host resolv.conf might have localhost nameservers..
+						updatedResolvConf, modified := resolvconf.RemoveReplaceLocalDns(updatedResolvConf)
+						if modified {
+							// changes have occurred during localhost cleanup: generate an updated hash
+							newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
+							if err != nil {
+								log.Debugf("Error generating hash of new resolv.conf: %v", err)
+							} else {
+								newResolvConfHash = newHash
+							}
+						}
+						log.Debugf("host network resolv.conf changed--walking container list for updates")
+						contList := daemon.containers.List()
+						for _, container := range contList {
+							if err := container.updateResolvConf(updatedResolvConf, newResolvConfHash); err != nil {
+								log.Debugf("Error on resolv.conf update check for container ID: %s: %v", container.ID, err)
+							}
+						}
+					}
+				}
+			case err := <-watcher.Errors:
+				log.Debugf("host resolv.conf notify error: %v", err)
+			}
+		}
+	}()
+
+	if err := watcher.Add("/etc/resolv.conf"); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (daemon *Daemon) checkDeprecatedExpose(config *runconfig.Config) bool {
 	if config != nil {
 		if config.PortSpecs != nil {
@@ -420,10 +487,10 @@ func (daemon *Daemon) checkDeprecatedExpose(config *runconfig.Config) bool {
 
 func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) ([]string, error) {
 	warnings := []string{}
-	if daemon.checkDeprecatedExpose(img.Config) || daemon.checkDeprecatedExpose(config) {
+	if (img != nil && daemon.checkDeprecatedExpose(img.Config)) || daemon.checkDeprecatedExpose(config) {
 		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
 	}
-	if img.Config != nil {
+	if img != nil && img.Config != nil {
 		if err := runconfig.Merge(config, img.Config); err != nil {
 			return nil, err
 		}
@@ -481,8 +548,8 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 		} else {
 			nameAsKnownByUser := strings.TrimPrefix(name, "/")
 			return "", fmt.Errorf(
-				"Conflict, The name %s is already assigned to %s. You have to delete (or rename) that container to be able to assign %s to a container again.", nameAsKnownByUser,
-				utils.TruncateID(conflictingContainer.ID), nameAsKnownByUser)
+				"Conflict. The name %q is already in use by container %s. You have to delete that container to be able to reuse that name.", nameAsKnownByUser,
+				utils.TruncateID(conflictingContainer.ID))
 		}
 	}
 	return name, nil
@@ -535,10 +602,10 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string)
 	return entrypoint, args
 }
 
-func parseSecurityOpt(container *Container, config *runconfig.Config) error {
+func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
 	var (
-		label_opts []string
-		err        error
+		labelOpts []string
+		err       error
 	)
 
 	for _, opt := range config.SecurityOpt {
@@ -548,7 +615,7 @@ func parseSecurityOpt(container *Container, config *runconfig.Config) error {
 		}
 		switch con[0] {
 		case "label":
-			label_opts = append(label_opts, con[1])
+			labelOpts = append(labelOpts, con[1])
 		case "apparmor":
 			container.AppArmorProfile = con[1]
 		default:
@@ -556,11 +623,11 @@ func parseSecurityOpt(container *Container, config *runconfig.Config) error {
 		}
 	}
 
-	container.ProcessLabel, container.MountLabel, err = label.InitLabels(label_opts)
+	container.ProcessLabel, container.MountLabel, err = label.InitLabels(labelOpts)
 	return err
 }
 
-func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *image.Image) (*Container, error) {
+func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
 	var (
 		id  string
 		err error
@@ -581,7 +648,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		Args:            args, //FIXME: de-duplicate from config
 		Config:          config,
 		hostConfig:      &runconfig.HostConfig{},
-		Image:           img.ID, // Always use the resolved image id
+		ImageID:         imgID,
 		NetworkSettings: &NetworkSettings{},
 		Name:            name,
 		Driver:          daemon.driver.String(),
@@ -590,18 +657,17 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, img *i
 		execCommands:    newExecStore(),
 	}
 	container.root = daemon.containerRoot(container.ID)
-	err = parseSecurityOpt(container, config)
 	return container, err
 }
 
-func (daemon *Daemon) createRootfs(container *Container, img *image.Image) error {
+func (daemon *Daemon) createRootfs(container *Container) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Create(initID, img.ID); err != nil {
+	if err := daemon.driver.Create(initID, container.ImageID); err != nil {
 		return err
 	}
 	initPath, err := daemon.driver.Get(initID, "")
@@ -699,6 +765,9 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			}
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
+			}
+			if child.hostConfig.NetworkMode.IsHost() {
+				return runconfig.ErrConflictHostNetworkAndLinks
 			}
 			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
 				return err
@@ -836,7 +905,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	log.Debugf("Creating repository list")
-	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, config.Mirrors, config.InsecureRegistries)
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -857,9 +926,11 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
 		job.SetenvBool("EnableIpForward", config.EnableIpForward)
 		job.SetenvBool("EnableIpMasq", config.EnableIpMasq)
+		job.SetenvBool("EnableIPv6", config.EnableIPv6)
 		job.Setenv("BridgeIface", config.BridgeIface)
 		job.Setenv("BridgeIP", config.BridgeIP)
 		job.Setenv("FixedCIDR", config.FixedCIDR)
+		job.Setenv("FixedCIDRv6", config.FixedCIDRv6)
 		job.Setenv("DefaultBindingIP", config.DefaultIp.String())
 
 		if err := job.Run(); err != nil {
@@ -899,7 +970,13 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
+	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
 	daemon := &Daemon{
+		ID:             trustKey.PublicKey().KeyID(),
 		repository:     daemonRepo,
 		containers:     &contStore{s: make(map[string]*Container)},
 		execCommands:   newExecStore(),
@@ -919,12 +996,17 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if err := daemon.restore(); err != nil {
 		return nil, err
 	}
+
+	// set up filesystem watch on resolv.conf for network changes
+	if err := daemon.setupResolvconfWatcher(); err != nil {
+		return nil, err
+	}
+
 	// Setup shutdown handlers
 	// FIXME: can these shutdown handlers be registered closer to their source?
 	eng.OnShutdown(func() {
 		// FIXME: if these cleanup steps can be called concurrently, register
 		// them as separate handlers to speed up total shutdown time
-		// FIXME: use engine logging instead of log.Errorf
 		if err := daemon.shutdown(); err != nil {
 			log.Errorf("daemon.shutdown(): %s", err)
 		}
@@ -1095,9 +1177,9 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 	// Loop on the children of the given image and check the config
 	var match *image.Image
 	for elem := range imageMap[imgID] {
-		img, err := daemon.Graph().Get(elem)
-		if err != nil {
-			return nil, err
+		img, ok := images[elem]
+		if !ok {
+			return nil, fmt.Errorf("unable to find image %q", elem)
 		}
 		if runconfig.Compare(&img.ContainerConfig, config) {
 			if match == nil || match.Created.Before(img.Created) {

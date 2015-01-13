@@ -30,13 +30,31 @@ page_keywords: API, Docker, rcli, REST, documentation
    Client applications need to take this into account to ensure
    they will not break when talking to newer Docker daemons.
 
-The current version of the API is v1.16
+The current version of the API is v1.17
 
 Calling `/info` is the same as calling
-`/v1.16/info`.
+`/v1.17/info`.
 
 You can still call an old version of the API using
-`/v1.15/info`.
+`/v1.16/info`.
+
+## v1.17
+
+### Full Documentation
+
+[*Docker Remote API v1.17*](/reference/api/docker_remote_api_v1.17/)
+
+### What's new
+
+`POST /containers/(id)/attach` and `POST /exec/(id)/start`
+
+**New!**
+Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
+
+`GET /containers/(id)/json`
+
+**New!**
+This endpoint now returns the list current execs associated with the container (`ExecIDs`).
 
 ## v1.16
 
@@ -49,19 +67,17 @@ You can still call an old version of the API using
 `GET /info`
 
 **New!**
-`info` now returns the number of CPUs available on the machine (`NCPU`) and
-total memory available (`MemTotal`).
+`info` now returns the number of CPUs available on the machine (`NCPU`),
+total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
+a list of daemon labels (`Labels`).
 
 `POST /containers/create`
 
 **New!**
 You can set the new container's MAC address explicitly.
 
-`POST /containers/(id)/start`
-
 **New!**
-Passing the container's `HostConfig` on start is now deprecated.  You should
-set this when creating the container.
+Volumes are now initialized when the container is created.
 
 `POST /containers/(id)/copy`
 
@@ -368,7 +384,7 @@ output is now generated in the client, using the
 You can now split stderr from stdout. This is done by
 prefixing a header to each transmission. See
 [`POST /containers/(id)/attach`](
-/reference/api/docker_remote_api_v1.9/#post--containers-(id)-attach "POST /containers/(id)/attach").
+/reference/api/docker_remote_api_v1.9/#attach-to-a-container "POST /containers/(id)/attach").
 The WebSocket attach is unchanged. Note that attach calls on the
 previous API version didn't change. Stdout and stderr are merged.
 

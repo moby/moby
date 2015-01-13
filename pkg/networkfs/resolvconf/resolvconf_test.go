@@ -156,3 +156,34 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 		t.Fatalf("Expected to not find '%s' got '%s'", notExpected, content)
 	}
 }
+
+func TestRemoveReplaceLocalDns(t *testing.T) {
+	ns0 := "nameserver 10.16.60.14\nnameserver 10.16.60.21\n"
+
+	if result, _ := RemoveReplaceLocalDns([]byte(ns0)); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed No Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 := "nameserver 10.16.60.14\nnameserver 10.16.60.21\nnameserver 127.0.0.1\n"
+	if result, _ := RemoveReplaceLocalDns([]byte(ns1)); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 = "nameserver 10.16.60.14\nnameserver 127.0.0.1\nnameserver 10.16.60.21\n"
+	if result, _ := RemoveReplaceLocalDns([]byte(ns1)); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 = "nameserver 127.0.1.1\nnameserver 10.16.60.14\nnameserver 10.16.60.21\n"
+	if result, _ := RemoveReplaceLocalDns([]byte(ns1)); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+}

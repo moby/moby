@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
@@ -63,6 +64,18 @@ func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	// Flush the options to make sure the client sets the raw mode
 	conn.Write([]byte{})
 	return conn, conn, nil
+}
+
+func closeStreams(streams ...interface{}) {
+	for _, stream := range streams {
+		if tcpc, ok := stream.(interface {
+			CloseWrite() error
+		}); ok {
+			tcpc.CloseWrite()
+		} else if closer, ok := stream.(io.Closer); ok {
+			closer.Close()
+		}
+	}
 }
 
 // Check to make sure request's Content-Type is application/json
@@ -315,6 +328,7 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	streamJSON(job, w, true)
 	job.Setenv("since", r.Form.Get("since"))
 	job.Setenv("until", r.Form.Get("until"))
+	job.Setenv("filters", r.Form.Get("filters"))
 	return job.Run()
 }
 
@@ -725,6 +739,24 @@ func postContainersRestart(eng *engine.Engine, version version.Version, w http.R
 	return nil
 }
 
+func postContainerRename(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	newName := r.URL.Query().Get("name")
+	job := eng.Job("container_rename", vars["name"], newName)
+	job.Setenv("t", r.Form.Get("t"))
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func deleteContainers(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -870,24 +902,15 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if tcpc, ok := inStream.(*net.TCPConn); ok {
-			tcpc.CloseWrite()
-		} else {
-			inStream.Close()
-		}
-	}()
-	defer func() {
-		if tcpc, ok := outStream.(*net.TCPConn); ok {
-			tcpc.CloseWrite()
-		} else if closer, ok := outStream.(io.Closer); ok {
-			closer.Close()
-		}
-	}()
+	defer closeStreams(inStream, outStream)
 
 	var errStream io.Writer
 
-	fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+	if _, ok := r.Header["Upgrade"]; ok {
+		fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+	} else {
+		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+	}
 
 	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
@@ -956,6 +979,15 @@ func getContainersByName(eng *engine.Engine, version version.Version, w http.Res
 	return job.Run()
 }
 
+func getExecByID(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter 'id'")
+	}
+	var job = eng.Job("execInspect", vars["id"])
+	streamJSON(job, w, false)
+	return job.Run()
+}
+
 func getImagesByName(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1016,8 +1048,12 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	} else {
 		job.Setenv("rm", r.FormValue("rm"))
 	}
+	if r.FormValue("pull") == "1" && version.GreaterThanOrEqualTo("1.16") {
+		job.Setenv("pull", "1")
+	}
 	job.Stdin.Add(r.Body)
 	job.Setenv("remote", r.FormValue("remote"))
+	job.Setenv("dockerfile", r.FormValue("dockerfile"))
 	job.Setenv("t", r.FormValue("t"))
 	job.Setenv("q", r.FormValue("q"))
 	job.Setenv("nocache", r.FormValue("nocache"))
@@ -1121,25 +1157,16 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 		if err != nil {
 			return err
 		}
-
-		defer func() {
-			if tcpc, ok := inStream.(*net.TCPConn); ok {
-				tcpc.CloseWrite()
-			} else {
-				inStream.Close()
-			}
-		}()
-		defer func() {
-			if tcpc, ok := outStream.(*net.TCPConn); ok {
-				tcpc.CloseWrite()
-			} else if closer, ok := outStream.(io.Closer); ok {
-				closer.Close()
-			}
-		}()
+		defer closeStreams(inStream, outStream)
 
 		var errStream io.Writer
 
-		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+		if _, ok := r.Header["Upgrade"]; ok {
+			fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+		} else {
+			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+		}
+
 		if !job.GetenvBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
 			errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 			outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
@@ -1246,6 +1273,7 @@ func AttachProfiler(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	router.HandleFunc("/debug/pprof/block", pprof.Handler("block").ServeHTTP)
 	router.HandleFunc("/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
 	router.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
 	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
@@ -1277,6 +1305,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/top":       getContainersTop,
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
+			"/exec/{id:.*}/json":              getExecByID,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -1300,6 +1329,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/exec":    postContainerExecCreate,
 			"/exec/{name:.*}/start":         postContainerExecStart,
 			"/exec/{name:.*}/resize":        postContainerExecResize,
+			"/containers/{name:.*}/rename":  postContainerRename,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
@@ -1389,7 +1419,7 @@ func serveFd(addr string, job *engine.Job) error {
 }
 
 func lookupGidByName(nameOrGid string) (int, error) {
-	groupFile, err := user.GetGroupFile()
+	groupFile, err := user.GetGroupPath()
 	if err != nil {
 		return -1, err
 	}
@@ -1493,6 +1523,32 @@ func setupUnixHttp(addr string, job *engine.Job) (*HttpServer, error) {
 	return &HttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
 }
 
+func allocateDaemonPort(addr string) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		return err
+	}
+
+	var hostIPs []net.IP
+	if parsedIP := net.ParseIP(host); parsedIP != nil {
+		hostIPs = append(hostIPs, parsedIP)
+	} else if hostIPs, err = net.LookupIP(host); err != nil {
+		return fmt.Errorf("failed to lookup %s address in host specification", host)
+	}
+
+	for _, hostIP := range hostIPs {
+		if _, err := portallocator.RequestPort(hostIP, "tcp", intPort); err != nil {
+			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
+		}
+	}
+	return nil
+}
+
 func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 	if !strings.HasPrefix(addr, "127.0.0.1") && !job.GetenvBool("TlsVerify") {
 		log.Infof("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
@@ -1505,6 +1561,10 @@ func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 
 	l, err := newListener("tcp", addr, job.GetenvBool("BufferRequests"))
 	if err != nil {
+		return nil, err
+	}
+
+	if err := allocateDaemonPort(addr); err != nil {
 		return nil, err
 	}
 

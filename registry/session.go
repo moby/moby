@@ -102,22 +102,21 @@ func (r *Session) GetRemoteHistory(imgID, registry string, token []string) ([]st
 }
 
 // Check if an image exists in the Registry
-// TODO: This method should return the errors instead of masking them and returning false
-func (r *Session) LookupRemoteImage(imgID, registry string, token []string) bool {
-
+func (r *Session) LookupRemoteImage(imgID, registry string, token []string) error {
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
-		log.Errorf("Error in LookupRemoteImage %s", err)
-		return false
+		return err
 	}
 	setTokenAuth(req, token)
 	res, _, err := r.doRequest(req)
 	if err != nil {
-		log.Errorf("Error in LookupRemoteImage %s", err)
-		return false
+		return err
 	}
 	res.Body.Close()
-	return res.StatusCode == 200
+	if res.StatusCode != 200 {
+		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
+	}
+	return nil
 }
 
 // Retrieve an image from the Registry.
@@ -462,7 +461,6 @@ func (r *Session) PushRegistryTag(remote, revision, tag, registry string, token 
 
 func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
 	cleanImgList := []*ImgData{}
-
 	if validate {
 		for _, elem := range imgList {
 			if elem.Checksum != "" {
@@ -484,43 +482,28 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote, suffix)
 	log.Debugf("[registry] PUT %s", u)
 	log.Debugf("Image list pushed to index:\n%s", imgListJSON)
-	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(imgListJSON))
-	if err != nil {
-		return nil, err
+	headers := map[string][]string{
+		"Content-type":   {"application/json"},
+		"X-Docker-Token": {"true"},
 	}
-	req.Header.Add("Content-type", "application/json")
-	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
-	req.ContentLength = int64(len(imgListJSON))
-	req.Header.Set("X-Docker-Token", "true")
 	if validate {
-		req.Header["X-Docker-Endpoints"] = regs
+		headers["X-Docker-Endpoints"] = regs
 	}
-
-	res, _, err := r.doRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
 
 	// Redirect if necessary
-	for res.StatusCode >= 300 && res.StatusCode < 400 {
-		log.Debugf("Redirected to %s", res.Header.Get("Location"))
-		req, err = r.reqFactory.NewRequest("PUT", res.Header.Get("Location"), bytes.NewReader(imgListJSON))
-		if err != nil {
+	var res *http.Response
+	for {
+		if res, err = r.putImageRequest(u, headers, imgListJSON); err != nil {
 			return nil, err
 		}
-		req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
-		req.ContentLength = int64(len(imgListJSON))
-		req.Header.Set("X-Docker-Token", "true")
-		if validate {
-			req.Header["X-Docker-Endpoints"] = regs
+		if !shouldRedirect(res) {
+			break
 		}
-		res, _, err := r.doRequest(req)
-		if err != nil {
-			return nil, err
-		}
-		defer res.Body.Close()
+		res.Body.Close()
+		u = res.Header.Get("Location")
+		log.Debugf("Redirected to %s", u)
 	}
+	defer res.Body.Close()
 
 	var tokens, endpoints []string
 	if !validate {
@@ -563,6 +546,27 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	}, nil
 }
 
+func (r *Session) putImageRequest(u string, headers map[string][]string, body []byte) (*http.Response, error) {
+	req, err := r.reqFactory.NewRequest("PUT", u, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
+	req.ContentLength = int64(len(body))
+	for k, v := range headers {
+		req.Header[k] = v
+	}
+	response, _, err := r.doRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func shouldRedirect(response *http.Response) bool {
+	return response.StatusCode >= 300 && response.StatusCode < 400
+}
+
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	log.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
@@ -580,7 +584,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
 	result := new(SearchResults)
 	err = json.NewDecoder(res.Body).Decode(result)

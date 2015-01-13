@@ -248,6 +248,30 @@ func TestNetworkLinkAddMacVlan(t *testing.T) {
 	readLink(t, tl.name)
 }
 
+func TestNetworkLinkAddMacVtap(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	tl := struct {
+		name string
+		mode string
+	}{
+		name: "tstVtap",
+		mode: "private",
+	}
+	masterLink := testLink{"tstEth", "dummy"}
+
+	addLink(t, masterLink.name, masterLink.linkType)
+	defer deleteLink(t, masterLink.name)
+
+	if err := NetworkLinkAddMacVtap(masterLink.name, tl.name, tl.mode); err != nil {
+		t.Fatalf("Unable to create %#v MAC VTAP interface: %s", tl, err)
+	}
+
+	readLink(t, tl.name)
+}
+
 func TestAddDelNetworkIp(t *testing.T) {
 	if testing.Short() {
 		return

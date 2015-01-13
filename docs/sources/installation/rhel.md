@@ -40,6 +40,13 @@ You will need [RHEL
 a RHEL 6 kernel version 2.6.32-431 or higher as this has specific kernel
 fixes to allow Docker to work.
 
+## Kernel support
+
+RHEL will only support Docker via the *extras* channel or EPEL package when
+running on kernels shipped by the distribution. There are things like namespace
+changes which will cause issues if one decides to step outside that box and run
+non-distro kernel packages.
+
 ## Installation
 
 Firstly, you need to install the EPEL repository. Please follow the
@@ -82,6 +89,13 @@ Now let's verify that Docker is working.
 **Done!**
 
 Continue with the [User Guide](/userguide/).
+
+## Custom daemon options
+
+If you need to add an HTTP Proxy, set a different directory or partition for the
+Docker runtime files, or make other customizations, read our systemd article to
+learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+
 
 ## Issues?
 

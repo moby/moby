@@ -7,7 +7,8 @@ docker-tag - Tag an image into a repository
 # SYNOPSIS
 **docker tag**
 [**-f**|**--force**[=*false*]]
- IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
+[**--help**]
+IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
 # DESCRIPTION
 This will give a new alias to an image in the repository. This refers to the

@@ -14,9 +14,9 @@ page_keywords: API, Docker, index, registry, REST, documentation
    service using tokens
  - It supports different storage backends (S3, cloud files, local FS)
  - It doesn't have a local database
- - It will be open-sourced at some point
+ - The registry is open source: [Docker Registry](https://github.com/docker/docker-registry)
 
-We expect that there will be multiple registries out there. To help to
+ We expect that there will be multiple registries out there. To help to
 grasp the context, here are some examples of registries:
 
  - **sponsor registry**: such a registry is provided by a third-party

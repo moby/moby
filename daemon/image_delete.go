@@ -113,7 +113,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 				return err
 			}
 			out := &engine.Env{}
-			out.Set("Deleted", img.ID)
+			out.SetJson("Deleted", img.ID)
 			imgs.Add(out)
 			eng.Job("log", "delete", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
@@ -131,7 +131,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 	for _, container := range daemon.List() {
-		parent, err := daemon.Repositories().LookupImage(container.Image)
+		parent, err := daemon.Repositories().LookupImage(container.ImageID)
 		if err != nil {
 			if daemon.Graph().IsNotExist(err) {
 				return nil

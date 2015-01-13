@@ -44,6 +44,11 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+	container.Lock()
+	defer container.Unlock()
+	if err := parseSecurityOpt(container, hostConfig); err != nil {
+		return err
+	}
 	// Validate the HostConfig binds. Make sure that:
 	// the source exists
 	for _, bind := range hostConfig.Binds {
@@ -63,8 +68,8 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
 		return err
 	}
-	container.SetHostConfig(hostConfig)
-	container.ToDisk()
+	container.hostConfig = hostConfig
+	container.toDisk()
 
 	return nil
 }

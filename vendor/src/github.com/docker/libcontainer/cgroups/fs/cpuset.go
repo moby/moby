@@ -14,17 +14,11 @@ type CpusetGroup struct {
 }
 
 func (s *CpusetGroup) Set(d *data) error {
-	// we don't want to join this cgroup unless it is specified
-	if d.c.CpusetCpus != "" {
-		dir, err := d.path("cpuset")
-		if err != nil {
-			return err
-		}
-
-		return s.SetDir(dir, d.c.CpusetCpus, d.pid)
+	dir, err := d.path("cpuset")
+	if err != nil {
+		return err
 	}
-
-	return nil
+	return s.SetDir(dir, d.c.CpusetCpus, d.c.CpusetMems, d.pid)
 }
 
 func (s *CpusetGroup) Remove(d *data) error {
@@ -35,7 +29,7 @@ func (s *CpusetGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }
 
-func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
+func (s *CpusetGroup) SetDir(dir, cpus string, mems string, pid int) error {
 	if err := s.ensureParent(dir); err != nil {
 		return err
 	}
@@ -46,8 +40,17 @@ func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
 		return err
 	}
 
-	if err := writeFile(dir, "cpuset.cpus", value); err != nil {
-		return err
+	// If we don't use --cpuset-xxx, the default value inherit from parent cgroup
+	// is set in s.ensureParent, otherwise, use the value we set
+	if cpus != "" {
+		if err := writeFile(dir, "cpuset.cpus", cpus); err != nil {
+			return err
+		}
+	}
+	if mems != "" {
+		if err := writeFile(dir, "cpuset.mems", mems); err != nil {
+			return err
+		}
 	}
 
 	return nil

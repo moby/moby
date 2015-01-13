@@ -77,7 +77,7 @@ need to add `sudo` to all the client commands.
 > **Warning**: 
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
 > see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) details.
+> /articles/security/#docker-daemon-attack-surface) details.
 
 ## Upgrades
 

@@ -25,6 +25,10 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
+func SetFileCreateLabel(fileLabel string) error {
+	return nil
+}
+
 func Relabel(path string, fileLabel string, relabel string) error {
 	return nil
 }

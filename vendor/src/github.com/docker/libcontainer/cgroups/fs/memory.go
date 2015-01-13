@@ -38,9 +38,14 @@ func (s *MemoryGroup) Set(d *data) error {
 			}
 		}
 		// By default, MemorySwap is set to twice the size of RAM.
-		// If you want to omit MemorySwap, set it to `-1'.
-		if d.c.MemorySwap != -1 {
+		// If you want to omit MemorySwap, set it to '-1'.
+		if d.c.MemorySwap == 0 {
 			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(d.c.Memory*2, 10)); err != nil {
+				return err
+			}
+		}
+		if d.c.MemorySwap > 0 {
+			if err := writeFile(dir, "memory.memsw.limit_in_bytes", strconv.FormatInt(d.c.MemorySwap, 10)); err != nil {
 				return err
 			}
 		}

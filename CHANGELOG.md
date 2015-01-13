@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.4.1 (2014-12-15)
+
+#### Runtime
+- Fix issue with volumes-from and bind mounts not being honored after create
+
+## 1.4.0 (2014-12-11)
+
+#### Notable Features since 1.3.0
++ Set key=value labels to the daemon (displayed in `docker info`), applied with
+  new `-label` daemon flag
++ Add support for `ENV` in Dockerfile of the form: 
+  `ENV name=value name2=value2...`
++ New Overlayfs Storage Driver
++ `docker info` now returns an `ID` and `Name` field
++ Filter events by event name, container, or image
++ `docker cp` now supports copying from container volumes
+- Fixed `docker tag`, so it honors `--force` when overriding a tag for existing
+  image.
+
+## 1.3.3 (2014-12-11)
+
+#### Security
+- Fix path traversal vulnerability in processing of absolute symbolic links (CVE-2014-9356)
+- Fix decompression of xz image archives, preventing privilege escalation (CVE-2014-9357)
+- Validate image IDs (CVE-2014-9358)
+
+#### Runtime
+- Fix an issue when image archives are being read slowly
+
+#### Client
+- Fix a regression related to stdin redirection
+- Fix a regression with `docker cp` when destination is the current directory
+
+## 1.3.2 (2014-11-20)
+
+#### Security
+- Fix tar breakout vulnerability
+* Extractions are now sandboxed chroot
+- Security options are no longer committed to images
+
+#### Runtime
+- Fix deadlock in `docker ps -f exited=1`
+- Fix a bug when `--volumes-from` references a container that failed to start
+
+#### Registry
++ `--insecure-registry` now accepts CIDR notation such as 10.1.0.0/16
+* Private registries whose IPs fall in the 127.0.0.0/8 range do no need the `--insecure-registry` flag
+- Skip the experimental registry v2 API when mirroring is enabled
+
 ## 1.3.1 (2014-10-28)
 
 #### Security

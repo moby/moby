@@ -1,13 +1,12 @@
-// Copyright 2014 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mflag_test
+package mflag
 
 import (
 	"bytes"
 	"fmt"
-	. "github.com/docker/docker/pkg/mflag"
 	"os"
 	"sort"
 	"strings"
@@ -151,28 +150,20 @@ func TestGet(t *testing.T) {
 	VisitAll(visitor)
 }
 
-func TestUsage(t *testing.T) {
-	called := false
-	ResetForTesting(func() { called = true })
-	if CommandLine.Parse([]string{"-x"}) == nil {
-		t.Error("parse did not fail for unknown flag")
-	}
-	if !called {
-		t.Error("did not call Usage for unknown flag")
-	}
-}
-
 func testParse(f *FlagSet, t *testing.T) {
 	if f.Parsed() {
 		t.Error("f.Parse() = true before Parse")
 	}
 	boolFlag := f.Bool([]string{"bool"}, false, "bool value")
 	bool2Flag := f.Bool([]string{"bool2"}, false, "bool2 value")
+	f.Bool([]string{"bool3"}, false, "bool3 value")
+	bool4Flag := f.Bool([]string{"bool4"}, false, "bool4 value")
 	intFlag := f.Int([]string{"-int"}, 0, "int value")
 	int64Flag := f.Int64([]string{"-int64"}, 0, "int64 value")
 	uintFlag := f.Uint([]string{"uint"}, 0, "uint value")
 	uint64Flag := f.Uint64([]string{"-uint64"}, 0, "uint64 value")
 	stringFlag := f.String([]string{"string"}, "0", "string value")
+	f.String([]string{"string2"}, "0", "string2 value")
 	singleQuoteFlag := f.String([]string{"squote"}, "", "single quoted value")
 	doubleQuoteFlag := f.String([]string{"dquote"}, "", "double quoted value")
 	mixedQuoteFlag := f.String([]string{"mquote"}, "", "mixed quoted value")
@@ -185,6 +176,7 @@ func testParse(f *FlagSet, t *testing.T) {
 	args := []string{
 		"-bool",
 		"-bool2=true",
+		"-bool4=false",
 		"--int", "22",
 		"--int64", "0x23",
 		"-uint", "24",
@@ -212,6 +204,18 @@ func testParse(f *FlagSet, t *testing.T) {
 	if *bool2Flag != true {
 		t.Error("bool2 flag should be true, is ", *bool2Flag)
 	}
+	if !f.IsSet("bool2") {
+		t.Error("bool2 should be marked as set")
+	}
+	if f.IsSet("bool3") {
+		t.Error("bool3 should not be marked as set")
+	}
+	if !f.IsSet("bool4") {
+		t.Error("bool4 should be marked as set")
+	}
+	if *bool4Flag != false {
+		t.Error("bool4 flag should be false, is ", *bool4Flag)
+	}
 	if *intFlag != 22 {
 		t.Error("int flag should be 22, is ", *intFlag)
 	}
@@ -226,6 +230,12 @@ func testParse(f *FlagSet, t *testing.T) {
 	}
 	if *stringFlag != "hello" {
 		t.Error("string flag should be `hello`, is ", *stringFlag)
+	}
+	if !f.IsSet("string") {
+		t.Error("string flag should be marked as set")
+	}
+	if f.IsSet("string2") {
+		t.Error("string2 flag should not be marked as set")
 	}
 	if *singleQuoteFlag != "single" {
 		t.Error("single quote string flag should be `single`, is ", *singleQuoteFlag)

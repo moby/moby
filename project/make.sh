@@ -50,6 +50,7 @@ DEFAULT_BUNDLES=(
 	test-unit
 	test-integration
 	test-integration-cli
+	test-docker-py
 
 	dynbinary
 	dyntest-unit
@@ -96,11 +97,19 @@ fi
 
 # Use these flags when compiling the tests and final binary
 LDFLAGS='
-	-w
 	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
 	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
 '
+
+if [ -z "$DEBUG" ]; then
+	LDFLAGS="-w $LDFLAGS"
+fi
+
 LDFLAGS_STATIC='-linkmode external'
+# Cgo -H windows is incompatible with -linkmode external.
+if [ "$(go env GOOS)" == 'windows' ]; then
+	LDFLAGS_STATIC=''
+fi
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
@@ -169,21 +178,28 @@ go_test_dir() {
 	)
 }
 
+# a helper to provide ".exe" when it's appropriate
+binary_extension() {
+	if [ "$(go env GOOS)" = 'windows' ]; then
+		echo -n '.exe'
+	fi
+}
+
 # This helper function walks the current directory looking for directories
 # holding certain files ($1 parameter), and prints their paths on standard
 # output, one per line.
 find_dirs() {
 	find . -not \( \
 		\( \
-			-wholename './vendor' \
-			-o -wholename './integration' \
-			-o -wholename './integration-cli' \
-			-o -wholename './contrib' \
-			-o -wholename './pkg/mflag/example' \
-			-o -wholename './.git' \
-			-o -wholename './bundles' \
-			-o -wholename './docs' \
-			-o -wholename './pkg/libcontainer/nsinit' \
+			-path './vendor/*' \
+			-o -path './integration/*' \
+			-o -path './integration-cli/*' \
+			-o -path './contrib/*' \
+			-o -path './pkg/mflag/example/*' \
+			-o -path './.git/*' \
+			-o -path './bundles/*' \
+			-o -path './docs/*' \
+			-o -path './pkg/libcontainer/nsinit/*' \
 		\) \
 		-prune \
 	\) -name "$1" -print0 | xargs -0n1 dirname | sort -u
@@ -215,7 +231,7 @@ bundle() {
 	bundle=$(basename $bundlescript)
 	echo "---> Making bundle: $bundle (in bundles/$VERSION/$bundle)"
 	mkdir -p bundles/$VERSION/$bundle
-	source $bundlescript $(pwd)/bundles/$VERSION/$bundle
+	source "$bundlescript" "$(pwd)/bundles/$VERSION/$bundle"
 }
 
 main() {

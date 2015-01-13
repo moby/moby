@@ -88,6 +88,18 @@ func SetInterfaceIp(name string, rawIp string) error {
 	return netlink.NetworkLinkAddIp(iface, ip, ipNet)
 }
 
+func DeleteInterfaceIp(name string, rawIp string) error {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+	ip, ipNet, err := net.ParseCIDR(rawIp)
+	if err != nil {
+		return err
+	}
+	return netlink.NetworkLinkDelIp(iface, ip, ipNet)
+}
+
 func SetMtu(name string, mtu int) error {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {

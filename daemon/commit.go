@@ -59,17 +59,17 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 
 	// Create a new image from the container's base layers + a new layer from container changes
 	var (
-		containerID, containerImage string
-		containerConfig             *runconfig.Config
+		containerID, parentImageID string
+		containerConfig            *runconfig.Config
 	)
 
 	if container != nil {
 		containerID = container.ID
-		containerImage = container.Image
+		parentImageID = container.ImageID
 		containerConfig = container.Config
 	}
 
-	img, err := daemon.graph.Create(rwTar, containerID, containerImage, comment, author, containerConfig, config)
+	img, err := daemon.graph.Create(rwTar, containerID, parentImageID, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}

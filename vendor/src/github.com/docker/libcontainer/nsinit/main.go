@@ -53,11 +53,12 @@ func main() {
 	app.Before = preload
 
 	app.Commands = []cli.Command{
+		configCommand,
 		execCommand,
 		initCommand,
-		statsCommand,
-		configCommand,
+		oomCommand,
 		pauseCommand,
+		statsCommand,
 		unpauseCommand,
 	}
 

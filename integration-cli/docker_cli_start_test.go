@@ -12,8 +12,8 @@ import (
 func TestStartAttachReturnsOnError(t *testing.T) {
 	defer deleteAllContainers()
 
-	cmd(t, "run", "-d", "--name", "test", "busybox")
-	cmd(t, "stop", "test")
+	dockerCmd(t, "run", "-d", "--name", "test", "busybox")
+	dockerCmd(t, "wait", "test")
 
 	// Expect this to fail because the above container is stopped, this is what we want
 	if _, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "test2", "--link", "test:test", "busybox")); err == nil {
@@ -53,8 +53,8 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 
 	// make sure the container has exited before trying the "start -a"
 	waitCmd := exec.Command(dockerBinary, "wait", out)
-	if out, _, err = runCommandWithOutput(waitCmd); err != nil {
-		t.Fatal(out, err)
+	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("Failed to wait on container: %v", err)
 	}
 
 	startCmd := exec.Command(dockerBinary, "start", "-a", out)
@@ -69,11 +69,39 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 	logDone("start - correct exit code returned with -a")
 }
 
+func TestStartSilentAttach(t *testing.T) {
+	defer deleteAllContainers()
+
+	name := "teststartattachcorrectexitcode"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "echo", "test")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	// make sure the container has exited before trying the "start -a"
+	waitCmd := exec.Command(dockerBinary, "wait", name)
+	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
+		t.Fatalf("wait command failed with error: %v", err)
+	}
+
+	startCmd := exec.Command(dockerBinary, "start", "-a", name)
+	startOut, _, err := runCommandWithOutput(startCmd)
+	if err != nil {
+		t.Fatalf("start command failed unexpectedly with error: %v, output: %q", err, startOut)
+	}
+	if expected := "test\n"; startOut != expected {
+		t.Fatalf("start -a produced unexpected output: expected %q, got %q", expected, startOut)
+	}
+
+	logDone("start - don't echo container ID when attaching")
+}
+
 func TestStartRecordError(t *testing.T) {
 	defer deleteAllContainers()
 
 	// when container runs successfully, we should not have state.Error
-	cmd(t, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
+	dockerCmd(t, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr, err := inspectField("test", "State.Error")
 	if err != nil {
 		t.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)
@@ -97,8 +125,8 @@ func TestStartRecordError(t *testing.T) {
 	}
 
 	// Expect the conflict to be resolved when we stop the initial container
-	cmd(t, "stop", "test")
-	cmd(t, "start", "test2")
+	dockerCmd(t, "stop", "test")
+	dockerCmd(t, "start", "test2")
 	stateErr, err = inspectField("test2", "State.Error")
 	if err != nil {
 		t.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)
@@ -115,7 +143,7 @@ func TestStartVolumesFromFailsCleanly(t *testing.T) {
 	defer deleteAllContainers()
 
 	// Create the first data volume
-	cmd(t, "run", "-d", "--name", "data_before", "-v", "/foo", "busybox")
+	dockerCmd(t, "run", "-d", "--name", "data_before", "-v", "/foo", "busybox")
 
 	// Expect this to fail because the data test after contaienr doesn't exist yet
 	if _, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "consumer", "--volumes-from", "data_before", "--volumes-from", "data_after", "busybox")); err == nil {
@@ -123,13 +151,13 @@ func TestStartVolumesFromFailsCleanly(t *testing.T) {
 	}
 
 	// Create the second data volume
-	cmd(t, "run", "-d", "--name", "data_after", "-v", "/bar", "busybox")
+	dockerCmd(t, "run", "-d", "--name", "data_after", "-v", "/bar", "busybox")
 
 	// Now, all the volumes should be there
-	cmd(t, "start", "consumer")
+	dockerCmd(t, "start", "consumer")
 
 	// Check that we have the volumes we want
-	out, _, _ := cmd(t, "inspect", "--format='{{ len .Volumes }}'", "consumer")
+	out, _, _ := dockerCmd(t, "inspect", "--format='{{ len .Volumes }}'", "consumer")
 	n_volumes := strings.Trim(out, " \r\n'")
 	if n_volumes != "2" {
 		t.Fatalf("Missing volumes: expected 2, got %s", n_volumes)

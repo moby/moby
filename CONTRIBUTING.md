@@ -64,6 +64,45 @@ Please also include the steps required to reproduce the problem if
 possible and applicable.  This information will help us review and fix
 your issue faster.
 
+### Template
+
+```
+Description of problem:
+
+
+`docker version`:
+
+
+`docker info`:
+
+
+`uname -a`:
+
+
+Environment details (AWS, VirtualBox, physical, etc.):
+
+
+How reproducible:
+
+
+Steps to Reproduce:
+1.
+2.
+3.
+
+
+Actual Results:
+
+
+Expected Results:
+
+
+Additional info:
+
+
+
+```
+
 ## Build Environment
 
 For instructions on setting up your development environment, please
@@ -172,7 +211,7 @@ component affected. For example, if a change affects `docs/` and `registry/`, it
 needs an absolute majority from the maintainers of `docs/` AND, separately, an
 absolute majority of the maintainers of `registry/`.
 
-For more details see [MAINTAINERS.md](hack/MAINTAINERS.md)
+For more details see [MAINTAINERS.md](project/MAINTAINERS.md)
 
 ### Sign your work
 
@@ -232,18 +271,6 @@ commit automatically with `git commit -s`.
 Note that the old-style `Docker-DCO-1.1-Signed-off-by: ...` format is still
 accepted, so there is no need to update outstanding pull requests to the new
 format right away, but please do adjust your processes for future contributions.
-
-#### Small patch exception
-
-There are several exceptions to the signing requirement. Currently these are:
-
-* Your patch fixes spelling or grammar errors.
-* Your patch is a single line change to documentation contained in the
-  `docs` directory.
-* Your patch fixes Markdown formatting or syntax errors in the
-  documentation contained in the `docs` directory.
-
-If you have any questions, please refer to the FAQ in the [docs](http://docs.docker.com)
 
 ### How can I become a maintainer?
 

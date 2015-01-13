@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -163,8 +165,8 @@ func TestTarUntar(t *testing.T) {
 		Gzip,
 	} {
 		changes, err := tarUntar(t, origin, &TarOptions{
-			Compression: c,
-			Excludes:    []string{"3"},
+			Compression:     c,
+			ExcludePatterns: []string{"3"},
 		})
 
 		if err != nil {
@@ -194,8 +196,8 @@ func TestTarWithOptions(t *testing.T) {
 		opts       *TarOptions
 		numChanges int
 	}{
-		{&TarOptions{Includes: []string{"1"}}, 1},
-		{&TarOptions{Excludes: []string{"2"}}, 1},
+		{&TarOptions{IncludeFiles: []string{"1"}}, 1},
+		{&TarOptions{ExcludePatterns: []string{"2"}}, 1},
 	}
 	for _, testCase := range cases {
 		changes, err := tarUntar(t, origin, testCase.opts)
@@ -214,7 +216,12 @@ func TestTarWithOptions(t *testing.T) {
 // Failing prevents the archives from being uncompressed during ADD
 func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
 	hdr := tar.Header{Typeflag: tar.TypeXGlobalHeader}
-	err := createTarFile("pax_global_header", "some_dir", &hdr, nil, true)
+	tmpDir, err := ioutil.TempDir("", "docker-test-archive-pax-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,5 +408,218 @@ func BenchmarkTarUntarWithLinks(b *testing.B) {
 			b.Fatal(err)
 		}
 		os.RemoveAll(target)
+	}
+}
+
+func TestUntarInvalidFilenames(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{
+			{
+				Name:     "../victim/dotdot",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{
+			{
+				// Note the leading slash
+				Name:     "/../victim/slash-dotdot",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarInvalidFilenames", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestUntarInvalidHardlink(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{ // try reading victim/hello (../)
+			{
+				Name:     "dotdot",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (/../)
+			{
+				Name:     "slash-dotdot",
+				Typeflag: tar.TypeLink,
+				// Note the leading slash
+				Linkname: "/../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try writing victim/file
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim/file",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (hardlink, symlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "symlink",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // Try reading victim/hello (hardlink, hardlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "hardlink",
+				Typeflag: tar.TypeLink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // Try removing victim directory (hardlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeLink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarInvalidHardlink", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestUntarInvalidSymlink(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{ // try reading victim/hello (../)
+			{
+				Name:     "dotdot",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (/../)
+			{
+				Name:     "slash-dotdot",
+				Typeflag: tar.TypeSymlink,
+				// Note the leading slash
+				Linkname: "/../victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try writing victim/file
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim/file",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (symlink, symlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "symlink",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try reading victim/hello (symlink, hardlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "hardlink",
+				Typeflag: tar.TypeLink,
+				Linkname: "loophole-victim/hello",
+				Mode:     0644,
+			},
+		},
+		{ // try removing victim directory (symlink)
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "loophole-victim",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+		{ // try writing to victim/newdir/newfile with a symlink in the path
+			{
+				// this header needs to be before the next one, or else there is an error
+				Name:     "dir/loophole",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "../../victim",
+				Mode:     0755,
+			},
+			{
+				Name:     "dir/loophole/newdir/newfile",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarInvalidSymlink", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
+func TestTempArchiveCloseMultipleTimes(t *testing.T) {
+	reader := ioutil.NopCloser(strings.NewReader("hello"))
+	tempArchive, err := NewTempArchive(reader, "")
+	buf := make([]byte, 10)
+	n, err := tempArchive.Read(buf)
+	if n != 5 {
+		t.Fatalf("Expected to read 5 bytes. Read %d instead", n)
+	}
+	for i := 0; i < 3; i++ {
+		if err = tempArchive.Close(); err != nil {
+			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
+		}
 	}
 }

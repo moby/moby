@@ -1,7 +1,10 @@
+// +build daemon
+
 package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -66,7 +69,7 @@ func TestDaemonRestartWithVolumesRefs(t *testing.T) {
 	if err := d.Restart(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox"); err != nil {
+	if _, err := d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
 		t.Fatal(err)
 	}
 	if out, err := d.Cmd("rm", "-fv", "volrestarttest2"); err != nil {
@@ -283,4 +286,34 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 
 	logDone("daemon - Logging Level")
+}
+
+func TestDaemonAllocatesListeningPort(t *testing.T) {
+	listeningPorts := [][]string{
+		{"0.0.0.0", "0.0.0.0", "5678"},
+		{"127.0.0.1", "127.0.0.1", "1234"},
+		{"localhost", "127.0.0.1", "1235"},
+	}
+
+	cmdArgs := []string{}
+	for _, hostDirective := range listeningPorts {
+		cmdArgs = append(cmdArgs, "--host", fmt.Sprintf("tcp://%s:%s", hostDirective[0], hostDirective[2]))
+	}
+
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(cmdArgs...); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	for _, hostDirective := range listeningPorts {
+		output, err := d.Cmd("run", "-p", fmt.Sprintf("%s:%s:80", hostDirective[1], hostDirective[2]), "busybox", "true")
+		if err == nil {
+			t.Fatalf("Container should not start, expected port already allocated error: %q", output)
+		} else if !strings.Contains(output, "port is already allocated") {
+			t.Fatalf("Expected port is already allocated error: %q", output)
+		}
+	}
+
+	logDone("daemon - daemon listening port is allocated")
 }

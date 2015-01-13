@@ -46,13 +46,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
-		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to the host interfaces")
+		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports on the host interfaces")
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
 		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit (format: <number><optional unit>, where unit = b, k, m or g)")
+		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory usage (memory + swap), set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
@@ -83,7 +84,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 1)
+
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, nil, cmd, err
 	}
 
@@ -136,6 +139,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flMemory = parsedMemory
 	}
 
+	var MemorySwap int64
+	if *flMemorySwap != "" {
+		parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		MemorySwap = parsedMemorySwap
+	}
+
 	var binds []string
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes.GetMap() {
@@ -156,11 +168,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		parsedArgs = cmd.Args()
 		runCmd     []string
 		entrypoint []string
-		image      string
+		image      = cmd.Arg(0)
 	)
-	if len(parsedArgs) >= 1 {
-		image = cmd.Arg(0)
-	}
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}
@@ -197,11 +206,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		if strings.Contains(e, "-") {
 			proto, port := nat.SplitProtoPort(e)
 			//parse the start and end port and create a sequence of ports to expose
-			parts := strings.Split(port, "-")
-			start, _ := strconv.Atoi(parts[0])
-			end, _ := strconv.Atoi(parts[1])
+			start, end, err := parsers.ParsePortRange(port)
+			if err != nil {
+				return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+			}
 			for i := start; i <= end; i++ {
-				p := nat.NewPort(proto, strconv.Itoa(i))
+				p := nat.NewPort(proto, strconv.FormatUint(i, 10))
 				if _, exists := ports[p]; !exists {
 					ports[p] = struct{}{}
 				}
@@ -261,6 +271,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
 		Memory:          flMemory,
+		MemorySwap:      MemorySwap,
 		CpuShares:       *flCpuShares,
 		Cpuset:          *flCpuset,
 		AttachStdin:     attachStdin,
@@ -273,7 +284,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MacAddress:      *flMacAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	hostConfig := &HostConfig{
@@ -294,6 +304,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),
 		RestartPolicy:   restartPolicy,
+		SecurityOpt:     flSecurityOpt.GetAll(),
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

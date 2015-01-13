@@ -1,8 +1,11 @@
 package runconfig
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/utils"
 )
 
 type ExecConfig struct {
@@ -17,21 +20,25 @@ type ExecConfig struct {
 	Cmd          []string
 }
 
-func ExecConfigFromJob(job *engine.Job) *ExecConfig {
+func ExecConfigFromJob(job *engine.Job) (*ExecConfig, error) {
 	execConfig := &ExecConfig{
-		User:         job.Getenv("User"),
-		Privileged:   job.GetenvBool("Privileged"),
+		// TODO(vishh): Expose 'User' once it is supported.
+		//User:         job.Getenv("User"),
+		// TODO(vishh): Expose 'Privileged' once it is supported.
+		//Privileged:   job.GetenvBool("Privileged"),
 		Tty:          job.GetenvBool("Tty"),
-		Container:    job.Getenv("Container"),
 		AttachStdin:  job.GetenvBool("AttachStdin"),
 		AttachStderr: job.GetenvBool("AttachStderr"),
 		AttachStdout: job.GetenvBool("AttachStdout"),
 	}
-	if cmd := job.GetenvList("Cmd"); cmd != nil {
-		execConfig.Cmd = cmd
+	cmd := job.GetenvList("Cmd")
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("No exec command specified")
 	}
 
-	return execConfig
+	execConfig.Cmd = cmd
+
+	return execConfig, nil
 }
 
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
@@ -42,14 +49,13 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		execCmd   []string
 		container string
 	)
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 2)
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, err
 	}
+	container = cmd.Arg(0)
 	parsedArgs := cmd.Args()
-	if len(parsedArgs) > 1 {
-		container = cmd.Arg(0)
-		execCmd = parsedArgs[1:]
-	}
+	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
 		// TODO(vishh): Expose '-u' flag once it is supported.

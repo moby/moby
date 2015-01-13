@@ -138,7 +138,7 @@ func testTrustedHostKeysFile(t *testing.T, trustedHostKeysFilename string) {
 	}
 
 	for addr, hostKey := range trustedHostKeysMapping {
-		t.Logf("Host Address: %s\n", addr)
+		t.Logf("Host Address: %d\n", addr)
 		t.Logf("Host Key: %s\n\n", hostKey)
 	}
 
@@ -160,7 +160,7 @@ func testTrustedHostKeysFile(t *testing.T, trustedHostKeysFilename string) {
 	}
 
 	for addr, hostKey := range trustedHostKeysMapping {
-		t.Logf("Host Address: %s\n", addr)
+		t.Logf("Host Address: %d\n", addr)
 		t.Logf("Host Key: %s\n\n", hostKey)
 	}
 

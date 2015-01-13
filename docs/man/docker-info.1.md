@@ -6,6 +6,7 @@ docker-info - Display system-wide information
 
 # SYNOPSIS
 **docker info**
+[**--help**]
 
 
 # DESCRIPTION
@@ -20,7 +21,8 @@ allocates a certain amount of data space and meta data space from the space
 available on the volume where `/var/lib/docker` is mounted.
 
 # OPTIONS
-There are no available options.
+**--help**
+  Print usage statement
 
 # EXAMPLES
 
