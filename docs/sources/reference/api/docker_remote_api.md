@@ -56,6 +56,11 @@ Docker client now hints potential proxies about connection hijacking using HTTP 
 **New!**
 This endpoint now returns the list current execs associated with the container (`ExecIDs`).
 
+`POST /containers/(id)/rename`
+
+**New!**
+New endpoint to rename a container `id` to a new name.
+
 ## v1.16
 
 ### Full Documentation
