@@ -2912,3 +2912,26 @@ func TestRunAllowPortRangeThroughPublish(t *testing.T) {
 	}
 	logDone("run - allow port range through --expose flag")
 }
+
+func TestRunOOMExitCode(t *testing.T) {
+	defer deleteAllContainers()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		runCmd := exec.Command(dockerBinary, "run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x; done")
+		out, exitCode, _ := runCommandWithOutput(runCmd)
+		if expected := 137; exitCode != expected {
+			t.Fatalf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Timeout waiting for container to die on OOM")
+	}
+
+	logDone("run - exit code on oom")
+}
