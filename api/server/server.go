@@ -1279,7 +1279,7 @@ func AttachProfiler(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 }
 
-func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion string) (*mux.Router, error) {
+func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion string) *mux.Router {
 	r := mux.NewRouter()
 	if os.Getenv("DEBUG") != "" {
 		AttachProfiler(r)
@@ -1361,30 +1361,23 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 		}
 	}
 
-	return r, nil
+	return r
 }
 
 // ServeRequest processes a single http request to the docker remote api.
 // FIXME: refactor this to be part of Server and not require re-creating a new
 // router each time. This requires first moving ListenAndServe into Server.
-func ServeRequest(eng *engine.Engine, apiversion version.Version, w http.ResponseWriter, req *http.Request) error {
-	router, err := createRouter(eng, false, true, "")
-	if err != nil {
-		return err
-	}
+func ServeRequest(eng *engine.Engine, apiversion version.Version, w http.ResponseWriter, req *http.Request) {
+	router := createRouter(eng, false, true, "")
 	// Insert APIVERSION into the request as a convenience
 	req.URL.Path = fmt.Sprintf("/v%s%s", apiversion, req.URL.Path)
 	router.ServeHTTP(w, req)
-	return nil
 }
 
 // serveFd creates an http.Server and sets it up to serve given a socket activated
 // argument.
 func serveFd(addr string, job *engine.Job) error {
-	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
-	if err != nil {
-		return err
-	}
+	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 
 	ls, e := systemd.ListenFD(addr)
 	if e != nil {
@@ -1496,10 +1489,7 @@ func setSocketGroup(addr, group string) error {
 }
 
 func setupUnixHttp(addr string, job *engine.Job) (*HttpServer, error) {
-	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
-	if err != nil {
-		return nil, err
-	}
+	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 
 	if err := syscall.Unlink(addr); err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -1554,10 +1544,7 @@ func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 		log.Infof("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
 
-	r, err := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
-	if err != nil {
-		return nil, err
-	}
+	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
 
 	l, err := newListener("tcp", addr, job.GetenvBool("BufferRequests"))
 	if err != nil {

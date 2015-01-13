@@ -31,9 +31,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
@@ -45,9 +43,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
@@ -58,9 +54,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("%d NotFound expected, received %d\n", http.StatusNotFound, r.Code)
 	}
@@ -71,9 +65,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
@@ -84,9 +76,7 @@ func TestSaveImageAndThenLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
@@ -138,9 +128,7 @@ func TestGetContainersTop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	var procs engine.Env
 	if err := procs.Decode(r.Body); err != nil {
@@ -189,9 +177,7 @@ func TestPostCommit(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusCreated {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
@@ -227,9 +213,7 @@ func TestPostContainersCreate(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusCreated {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
@@ -269,14 +253,12 @@ func TestPostJsonVerify(t *testing.T) {
 
 	r := httptest.NewRecorder()
 
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 
 	// Don't add Content-Type header
 	// req.Header.Set("Content-Type", "application/json")
 
-	err = server.ServeRequest(eng, api.APIVERSION, r, req)
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
 		t.Fatal("Create should have failed due to no Content-Type header - got:", r)
 	}
@@ -284,9 +266,7 @@ func TestPostJsonVerify(t *testing.T) {
 	// Now add header but with wrong type and retest
 	req.Header.Set("Content-Type", "application/xml")
 
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
 		t.Fatal("Create should have failed due to wrong Content-Type header - got:", r)
 	}
@@ -331,9 +311,7 @@ func TestPostCreateNull(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusCreated {
 		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
@@ -380,9 +358,7 @@ func TestPostContainersKill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
@@ -419,9 +395,7 @@ func TestPostContainersRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
@@ -461,9 +435,7 @@ func TestPostContainersStart(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
@@ -479,9 +451,7 @@ func TestPostContainersStart(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	r = httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 
 	// Starting an already started container should return a 304
 	assertHttpNotError(r, t)
@@ -520,9 +490,7 @@ func TestPostContainersStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("%d NO CONTENT expected, received %d\n", http.StatusNoContent, r.Code)
@@ -537,9 +505,7 @@ func TestPostContainersStop(t *testing.T) {
 	}
 
 	r = httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 
 	// Stopping an already stopper container should return a 304
 	assertHttpNotError(r, t)
@@ -568,9 +534,7 @@ func TestPostContainersWait(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-			t.Fatal(err)
-		}
+		server.ServeRequest(eng, api.APIVERSION, r, req)
 		assertHttpNotError(r, t)
 		var apiWait engine.Env
 		if err := apiWait.Decode(r.Body); err != nil {
@@ -626,9 +590,7 @@ func TestPostContainersAttach(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-			t.Fatal(err)
-		}
+		server.ServeRequest(eng, api.APIVERSION, r, req)
 		assertHttpNotError(r.ResponseRecorder, t)
 	}()
 
@@ -704,9 +666,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-			t.Fatal(err)
-		}
+		server.ServeRequest(eng, api.APIVERSION, r, req)
 		assertHttpNotError(r.ResponseRecorder, t)
 	}()
 
@@ -751,9 +711,7 @@ func TestOptionsRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusOK {
 		t.Errorf("Expected response for OPTIONS request to be \"200\", %v found.", r.Code)
@@ -770,9 +728,7 @@ func TestGetEnabledCors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 	if r.Code != http.StatusOK {
 		t.Errorf("Expected response for OPTIONS request to be \"200\", %v found.", r.Code)
@@ -817,9 +773,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusConflict {
 		t.Fatalf("Expected http status 409-conflict, got %v", r.Code)
 	}
@@ -830,9 +784,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 
 	r2 := httptest.NewRecorder()
-	if err := server.ServeRequest(eng, api.APIVERSION, r2, req2); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r2, req2)
 	assertHttpNotError(r2, t)
 	if r2.Code != http.StatusOK {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
@@ -882,9 +834,7 @@ func TestPostContainersCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 
 	if r.Code != http.StatusOK {
@@ -930,9 +880,7 @@ func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("404 expected for id_not_found Container, received %v", r.Code)
 	}
@@ -960,9 +908,7 @@ func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 
 	var testData2 engine.Env
@@ -982,9 +928,7 @@ func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
 	// Otherwise (just setting the Content-Encoding to chunked) net/http will overwrite
 	// http://golang.org/src/pkg/net/http/request.go?s=11980:12172
 	req.ContentLength = -1
-	if err := server.ServeRequest(eng, api.APIVERSION, r, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)
 
 	type config struct {
@@ -1000,9 +944,7 @@ func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
 
 	r2 := httptest.NewRecorder()
 	req.Header.Add("Content-Type", "application/json")
-	if err := server.ServeRequest(eng, api.APIVERSION, r2, req); err != nil {
-		t.Fatal(err)
-	}
+	server.ServeRequest(eng, api.APIVERSION, r2, req)
 	assertHttpNotError(r, t)
 
 	c := config{}
