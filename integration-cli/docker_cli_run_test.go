@@ -2987,3 +2987,25 @@ func TestRunRestartMaxRetries(t *testing.T) {
 	}
 	logDone("run - test max-retries for --restart")
 }
+
+func TestRunContainerWithWritableRootfs(t *testing.T) {
+	defer deleteAllContainers()
+	out, err := exec.Command(dockerBinary, "run", "--rm", "busybox", "touch", "/file").CombinedOutput()
+	if err != nil {
+		t.Fatal(string(out), err)
+	}
+	logDone("run - writable rootfs")
+}
+
+func TestRunContainerWithReadonlyRootfs(t *testing.T) {
+	defer deleteAllContainers()
+	out, err := exec.Command(dockerBinary, "run", "--read-only", "--rm", "busybox", "touch", "/file").CombinedOutput()
+	if err == nil {
+		t.Fatal("expected container to error on run with read only error")
+	}
+	expected := "Read-only file system"
+	if !strings.Contains(string(out), expected) {
+		t.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	}
+	logDone("run - read only rootfs")
+}

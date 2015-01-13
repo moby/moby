@@ -34,6 +34,7 @@ docker-create - Create a new container
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
@@ -139,6 +140,9 @@ IMAGE [COMMAND] [ARG...]
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
+
+**--read-only**=*true*|*false*
+    Mount the container's root filesystem as read only.
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

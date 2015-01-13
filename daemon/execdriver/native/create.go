@@ -31,6 +31,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 	container.Cgroups.AllowedDevices = c.AllowedDevices
 	container.MountConfig.DeviceNodes = c.AutoCreatedDevices
 	container.RootFs = c.Rootfs
+	container.MountConfig.ReadonlyFs = c.ReadonlyRootfs
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.MountConfig.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""

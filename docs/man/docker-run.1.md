@@ -35,6 +35,7 @@ docker-run - Run a command in a new container
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
@@ -252,6 +253,13 @@ access any devices. A “privileged” container is given access to all devices.
 to all devices on the host as well as set some configuration in AppArmor to
 allow the container nearly all the same access to the host as processes running
 outside of a container on the host.
+
+**--read-only**=*true*|*false*
+    Mount the container's root filesystem as read only.
+
+    By default a container will have its root filesystem writable allowing processes
+to write files anywhere.  By specifying the `--read-only` flag the container will have
+its root filesystem mounted as read only prohibiting any writes.
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

@@ -294,6 +294,7 @@ func populateCommand(c *Container, env []string) error {
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
 		Rootfs:             c.RootfsPath(),
+		ReadonlyRootfs:     c.hostConfig.ReadonlyRootfs,
 		InitPath:           "/.dockerinit",
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,

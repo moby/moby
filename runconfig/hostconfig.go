@@ -118,6 +118,7 @@ type HostConfig struct {
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
+	ReadonlyRootfs  bool
 }
 
 // This is used by the create command when you want to set both the
@@ -148,6 +149,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 		IpcMode:         IpcMode(job.Getenv("IpcMode")),
 		PidMode:         PidMode(job.Getenv("PidMode")),
+		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
