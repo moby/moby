@@ -37,6 +37,9 @@ unix://[/path/to/socket] to use.
 **--api-enable-cors**=*true*|*false*
   Enable CORS headers in the remote API. Default is false.
 
+**--auth**=identity|cert|none
+  Set authentication method for tcp socket. Default is 'none'.
+
 **-b**=""
   Attach containers to a pre\-existing network bridge; use 'none' to disable container networking
 

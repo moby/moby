@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -55,8 +55,7 @@ func MatchesContentType(contentType, expectedType string) bool {
 // LoadOrCreateTrustKey attempts to load the libtrust key at the given path,
 // otherwise generates a new one
 func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
-	err := os.MkdirAll(path.Dir(trustKeyPath), 0700)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(trustKeyPath), 0700); err != nil {
 		return nil, err
 	}
 	trustKey, err := libtrust.LoadKeyFile(trustKeyPath)
@@ -67,6 +66,11 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 		}
 		if err := libtrust.SaveKey(trustKeyPath, trustKey); err != nil {
 			return nil, fmt.Errorf("Error saving key file: %s", err)
+		}
+		dir, file := filepath.Split(trustKeyPath)
+		// Save public key
+		if err := libtrust.SavePublicKey(filepath.Join(dir, "public-"+file), trustKey.PublicKey()); err != nil {
+			return nil, fmt.Errorf("Error saving public key file: %s", err)
 		}
 	} else if err != nil {
 		return nil, fmt.Errorf("Error loading key file: %s", err)

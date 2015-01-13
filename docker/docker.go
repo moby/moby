@@ -2,9 +2,7 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -15,13 +13,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/utils"
-)
-
-const (
-	defaultTrustKeyFile = "key.json"
-	defaultCaFile       = "ca.pem"
-	defaultKeyFile      = "key.pem"
-	defaultCertFile     = "cert.pem"
 )
 
 func main() {
@@ -54,6 +45,29 @@ func main() {
 		initLogging(log.DebugLevel)
 	}
 
+	// Backwards compatibility for deprecated --tls and --tlsverify options
+	if *flTls || flag.IsSet("-tlsverify") {
+		*flAuth = "cert"
+
+		// Backwards compatibility for --tlscacert
+		if *flCa != "" {
+			*flAuthCa = *flCa
+		}
+		// Backwards compatibility for --tlscert
+		if *flCert != "" {
+			*flAuthCert = *flCert
+		}
+		// Backwards compatibility for --tlskey
+		if *flKey != "" {
+			*flAuthKey = *flKey
+		}
+
+		// Only verify against a CA if --tlsverify is set
+		if !*flTlsVerify {
+			*flAuthCa = ""
+		}
+	}
+
 	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
 		if defaultHost == "" || *flDaemon {
@@ -67,6 +81,10 @@ func main() {
 		flHosts = append(flHosts, defaultHost)
 	}
 
+	setDefaultConfFlag(flTrustHosts, defaultHostKeysFile)
+	setDefaultConfFlag(flTrustDir, defaultClientKeysDir)
+	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
+
 	if *flDaemon {
 		mainDaemon()
 		return
@@ -76,52 +94,33 @@ func main() {
 		log.Fatal("Please specify only one -H")
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
+	proto, addr := protoAddrParts[0], protoAddrParts[1]
 
-	var (
-		cli       *client.DockerCli
-		tlsConfig tls.Config
-	)
-	tlsConfig.InsecureSkipVerify = true
-
-	// Regardless of whether the user sets it to true or false, if they
-	// specify --tlsverify at all then we need to turn on tls
-	if flag.IsSet("-tlsverify") {
-		*flTls = true
+	trustKey, err := api.LoadOrCreateTrustKey(*flTrustKey)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// If we should verify the server, we need to load a trusted ca
-	if *flTlsVerify {
-		certPool := x509.NewCertPool()
-		file, err := ioutil.ReadFile(*flCa)
-		if err != nil {
-			log.Fatalf("Couldn't read ca cert %s: %s", *flCa, err)
-		}
-		certPool.AppendCertsFromPEM(file)
-		tlsConfig.RootCAs = certPool
-		tlsConfig.InsecureSkipVerify = false
-	}
+	var tlsConfig *tls.Config
 
-	// If tls is enabled, try to load and send client certificates
-	if *flTls || *flTlsVerify {
-		_, errCert := os.Stat(*flCert)
-		_, errKey := os.Stat(*flKey)
-		if errCert == nil && errKey == nil {
-			*flTls = true
-			cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
-			if err != nil {
-				log.Fatalf("Couldn't load X509 key pair: %s. Key encrypted?", err)
+	if proto != "unix" {
+		switch *flAuth {
+		case "identity":
+			if tlsConfig, err = client.NewIdentityAuthTLSConfig(trustKey, *flTrustHosts, proto, addr); err != nil {
+				log.Fatal(err)
 			}
-			tlsConfig.Certificates = []tls.Certificate{cert}
+		case "cert":
+			if tlsConfig, err = client.NewCertAuthTLSConfig(*flAuthCa, *flAuthCert, *flAuthKey); err != nil {
+				log.Fatal(err)
+			}
+		case "none":
+			tlsConfig = nil
+		default:
+			log.Fatalf("Unknown auth method: %s", *flAuth)
 		}
-		// Avoid fallback to SSL protocols < TLS1.0
-		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
-	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
-	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], nil)
-	}
+	cli := client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, proto, addr, tlsConfig)
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
