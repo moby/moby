@@ -14,7 +14,7 @@ for d in "$CROSS/"*/*; do
 	GOARCH="$(basename "$d")"
 	GOOS="$(basename "$(dirname "$d")")"
 	BINARY_NAME="docker-$VERSION"
-	BINARY_EXTENSION="$(binary_extension)"
+	BINARY_EXTENSION="$(export GOOS && binary_extension)"
 	BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 	mkdir -p "$DEST/$GOOS/$GOARCH"
 	TGZ="$DEST/$GOOS/$GOARCH/$BINARY_NAME.tgz"
