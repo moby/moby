@@ -752,10 +752,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if err != nil {
 				return err
 			}
-			child, err := daemon.GetByName(parts["name"])
-			if err != nil {
-				return err
-			}
+			child := daemon.Get(parts["name"])
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
