@@ -24,11 +24,15 @@
 	For such flags, the default value is just the initial value of the variable.
 
 	You can also add "deprecated" flags, they are still usable, but are not shown
-	in the usage and will display a warning when you try to use them:
-		var ip = flag.Int([]string{"#f", "#flagname", "-flagname2"}, 1234, "help message for flagname")
-	this will display: `Warning: '--flagname' is deprecated, it will be replaced by '--flagname2' soon. See usage.` and
+	in the usage and will display a warning when you try to use them. `#` before
+	an option means this option is deprecated, if there is an following option
+	without `#` ahead, then that's the replacement, if not, it will just be removed:
+		var ip = flag.Int([]string{"#f", "#flagname", "-flagname"}, 1234, "help message for flagname")
+	this will display: `Warning: '-f' is deprecated, it will be replaced by '--flagname' soon. See usage.` or
+	this will display: `Warning: '-flagname' is deprecated, it will be replaced by '--flagname' soon. See usage.`
 		var ip = flag.Int([]string{"f", "#flagname"}, 1234, "help message for flagname")
-	will display: `Warning: '-f' is deprecated, it will be removed soon. See usage.`
+	will display: `Warning: '-flagname' is deprecated, it will be removed soon. See usage.`
+	so you can only use `-f`.
 
 	You can also group one letter flags, bif you declare
 		var v = flag.Bool([]string{"v", "-verbose"}, false, "help message for verbose")
