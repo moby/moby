@@ -90,6 +90,7 @@ func init() {
 			{"ps", "List containers"},
 			{"pull", "Pull an image or a repository from a Docker registry server"},
 			{"push", "Push an image or a repository to a Docker registry server"},
+			{"rename", "Rename an existing container"},
 			{"restart", "Restart a running container"},
 			{"rm", "Remove one or more containers"},
 			{"rmi", "Remove one or more images"},

@@ -113,6 +113,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"commit":            daemon.ContainerCommit,
 		"container_changes": daemon.ContainerChanges,
 		"container_copy":    daemon.ContainerCopy,
+		"container_rename":  daemon.ContainerRename,
 		"container_inspect": daemon.ContainerInspect,
 		"containers":        daemon.Containers,
 		"create":            daemon.ContainerCreate,
