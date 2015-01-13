@@ -18,7 +18,32 @@ ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/rootfs-archlinux-XXXXXXXXXX)
 chmod 755 $ROOTFS
 
 # packages to ignore for space savings
-PKGIGNORE=linux,jfsutils,lvm2,cryptsetup,groff,man-db,man-pages,mdadm,pciutils,pcmciautils,reiserfsprogs,s-nail,xfsprogs
+PKGIGNORE=(
+    cryptsetup
+    device-mapper
+    dhcpcd
+    iproute2
+    jfsutils
+    linux
+    lvm2
+    man-db
+    man-pages
+    mdadm
+    nano
+    netctl
+    openresolv
+    pciutils
+    pcmciautils
+    reiserfsprogs
+    s-nail
+    systemd-sysvcompat
+    usbutils
+    vi
+    xfsprogs
+)
+IFS=','
+PKGIGNORE="${PKGIGNORE[*]}"
+unset IFS
 
 expect <<EOF
 	set send_slow {1 .1}
@@ -36,6 +61,7 @@ expect <<EOF
 	}
 EOF
 
+arch-chroot $ROOTFS /bin/sh -c 'rm -r /usr/share/man/*'
 arch-chroot $ROOTFS /bin/sh -c "haveged -w 1024; pacman-key --init; pkill haveged; pacman -Rs --noconfirm haveged; pacman-key --populate archlinux; pkill gpg-agent"
 arch-chroot $ROOTFS /bin/sh -c "ln -s /usr/share/zoneinfo/UTC /etc/localtime"
 echo 'en_US.UTF-8 UTF-8' > $ROOTFS/etc/locale.gen
