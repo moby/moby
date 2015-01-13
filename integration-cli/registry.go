@@ -12,7 +12,6 @@ import (
 const v2binary = "registry-v2"
 
 type testRegistryV2 struct {
-	URL string
 	cmd *exec.Cmd
 	dir string
 }
@@ -24,7 +23,7 @@ storage:
     filesystem:
         rootdirectory: %s
 http:
-    addr: :%s`
+    addr: %s`
 	tmp, err := ioutil.TempDir("", "registry-test-")
 	if err != nil {
 		return nil, err
@@ -34,7 +33,7 @@ http:
 	if err != nil {
 		return nil, err
 	}
-	if _, err := fmt.Fprintf(config, template, tmp, "5000"); err != nil {
+	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
@@ -50,7 +49,6 @@ http:
 	return &testRegistryV2{
 		cmd: cmd,
 		dir: tmp,
-		URL: "localhost:5000",
 	}, nil
 }
 
