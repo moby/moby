@@ -49,25 +49,10 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 
 	commitStr := "ENV"
 
-	for j := 0; j < len(args); j++ {
+	for j := 0; j < len(args); j += 2 {
 		// name  ==> args[j]
 		// value ==> args[j+1]
-		newVar := args[j] + "=" + args[j+1] + ""
-		commitStr += " " + newVar
-
-		gotOne := false
-		for i, envVar := range b.Config.Env {
-			envParts := strings.SplitN(envVar, "=", 2)
-			if envParts[0] == args[j] {
-				b.Config.Env[i] = newVar
-				gotOne = true
-				break
-			}
-		}
-		if !gotOne {
-			b.Config.Env = append(b.Config.Env, newVar)
-		}
-		j++
+		commitStr += " " + args[j] + "=" + args[j+1] + ""
 	}
 
 	return b.commit("", b.Config.Cmd, commitStr)
