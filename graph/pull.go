@@ -82,20 +82,14 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			log.Errorf("error updating trust base graph: %s", err)
 		}
 
-		auth, err := r.GetV2Authorization(repoInfo.RemoteName, true)
-		if err != nil {
-			log.Errorf("error getting authorization: %s", err)
-		} else {
-
-			log.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
-			if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel"), auth); err == nil {
-				if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
-					log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
-				}
-				return engine.StatusOK
-			} else if err != registry.ErrDoesNotExist {
-				log.Errorf("Error from V2 registry: %s", err)
+		log.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
+		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err == nil {
+			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
+				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
 			}
+			return engine.StatusOK
+		} else if err != registry.ErrDoesNotExist {
+			log.Errorf("Error from V2 registry: %s", err)
 		}
 
 		log.Debug("image does not exist on v2 registry, falling back to v1")
@@ -384,7 +378,11 @@ type downloadInfo struct {
 	err        chan error
 }
 
-func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) error {
+func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
+	auth, err := r.GetV2Authorization(repoInfo.RemoteName, true)
+	if err != nil {
+		return fmt.Errorf("error getting authorization: %s", err)
+	}
 	var layersDownloaded bool
 	if tag == "" {
 		log.Debugf("Pulling tag list from V2 registry for %s", repoInfo.CanonicalName)
