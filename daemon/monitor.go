@@ -230,7 +230,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 		return true
 	case "on-failure":
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
-		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount >= max {
+		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount > max {
 			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",
 				utils.TruncateID(m.container.ID), max)
 			return false
