@@ -168,7 +168,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 
 	var (
 		cStdin           io.ReadCloser
-		cStdout, cStderr io.Writer
+		cStdout, cStderr io.WriteCloser
 		execName         = job.Args[0]
 	)
 

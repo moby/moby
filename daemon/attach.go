@@ -82,7 +82,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 	if stream {
 		var (
 			cStdin           io.ReadCloser
-			cStdout, cStderr io.Writer
+			cStdout, cStderr io.WriteCloser
 		)
 
 		if stdin {
@@ -111,7 +111,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (daemon *Daemon) attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
+func (daemon *Daemon) attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser
@@ -173,7 +173,7 @@ func (daemon *Daemon) attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 		}
 	}()
 
-	attachStream := func(name string, stream io.Writer, streamPipe io.ReadCloser) {
+	attachStream := func(name string, stream io.WriteCloser, streamPipe io.ReadCloser) {
 		if stream == nil {
 			return
 		}
@@ -183,6 +183,10 @@ func (daemon *Daemon) attach(streamConfig *StreamConfig, openStdin, stdinOnce, t
 				stdin.Close()
 				cStdin.Close()
 			}
+
+			// Need to close stream that is referencing the http server hijacked outstream so the client
+			// can return to it's original state gracefully
+			stream.Close()
 			streamPipe.Close()
 			wg.Done()
 			log.Debugf("attach: %s: end", name)
