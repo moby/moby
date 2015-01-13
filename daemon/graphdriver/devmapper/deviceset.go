@@ -89,8 +89,10 @@ type DeviceSet struct {
 	filesystem           string
 	mountOptions         string
 	mkfsArgs             []string
-	dataDevice           string
-	metadataDevice       string
+	dataDevice           string // block or loop dev
+	dataLoopFile         string // loopback file, if used
+	metadataDevice       string // block or loop dev
+	metadataLoopFile     string // loopback file, if used
 	doBlkDiscard         bool
 	thinpBlockSize       uint32
 	thinPoolDevice       string
@@ -104,8 +106,10 @@ type DiskUsage struct {
 
 type Status struct {
 	PoolName         string
-	DataLoopback     string
-	MetadataLoopback string
+	DataFile         string // actual block device for data
+	DataLoopback     string // loopback file, if used
+	MetadataFile     string // actual block device for metadata
+	MetadataLoopback string // loopback file, if used
 	Data             DiskUsage
 	Metadata         DiskUsage
 	SectorSize       uint64
@@ -1013,6 +1017,8 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 			if err != nil {
 				return err
 			}
+			devices.dataLoopFile = data
+			devices.dataDevice = dataFile.Name()
 		} else {
 			dataFile, err = os.OpenFile(devices.dataDevice, os.O_RDWR, 0600)
 			if err != nil {
@@ -1044,6 +1050,8 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 			if err != nil {
 				return err
 			}
+			devices.metadataLoopFile = metadata
+			devices.metadataDevice = metadataFile.Name()
 		} else {
 			metadataFile, err = os.OpenFile(devices.metadataDevice, os.O_RDWR, 0600)
 			if err != nil {
@@ -1540,6 +1548,19 @@ func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionId, dataU
 	return
 }
 
+// MetadataDevicePath returns the path to the metadata storage for this deviceset,
+// regardless of loopback or block device
+func (devices DeviceSet) DataDevicePath() string {
+	return devices.dataDevice
+}
+
+// MetadataDevicePath returns the path to the metadata storage for this deviceset,
+// regardless of loopback or block device
+func (devices DeviceSet) MetadataDevicePath() string {
+	return devices.metadataDevice
+}
+
+// Status returns the current status of this deviceset
 func (devices *DeviceSet) Status() *Status {
 	devices.Lock()
 	defer devices.Unlock()
@@ -1547,16 +1568,10 @@ func (devices *DeviceSet) Status() *Status {
 	status := &Status{}
 
 	status.PoolName = devices.getPoolName()
-	if len(devices.dataDevice) > 0 {
-		status.DataLoopback = devices.dataDevice
-	} else {
-		status.DataLoopback = path.Join(devices.loopbackDir(), "data")
-	}
-	if len(devices.metadataDevice) > 0 {
-		status.MetadataLoopback = devices.metadataDevice
-	} else {
-		status.MetadataLoopback = path.Join(devices.loopbackDir(), "metadata")
-	}
+	status.DataFile = devices.DataDevicePath()
+	status.DataLoopback = devices.dataLoopFile
+	status.MetadataFile = devices.MetadataDevicePath()
+	status.MetadataLoopback = devices.metadataLoopFile
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
