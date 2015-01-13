@@ -54,6 +54,43 @@ func TestNewDriver(t *testing.T) {
 	if d == nil {
 		t.Fatalf("Driver should not be nil")
 	}
+	aufsDriver := d.(*Driver)
+	if aufsDriver.mountOptions != "" {
+		t.Fatalf("mount options (%s), expect empty", aufsDriver.mountOptions)
+	}
+}
+
+func TestNewDriverWithMountOpts(t *testing.T) {
+	if err := os.MkdirAll(tmp, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	d, err := Init(tmp, []string{"aufs.mountopt=dirperm1"})
+	if err != nil {
+		if err == graphdriver.ErrNotSupported {
+			t.Skip(err)
+		} else {
+			t.Fatal(err)
+		}
+	}
+	aufsDriver := d.(*Driver)
+	if aufsDriver.mountOptions != "dirperm1" {
+		t.Fatalf("mount options (%s), expected %s", aufsDriver.mountOptions, "dirperm1")
+	}
+}
+
+func TestNewDriverWithInvalidOptions(t *testing.T) {
+	if err := os.MkdirAll(tmp, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	// should return error with unknown option
+	_, err := Init(tmp, []string{"aufs.invalid=option"})
+	if err == nil {
+		t.Fatal(err)
+	}
 }
 
 func TestAufsString(t *testing.T) {
