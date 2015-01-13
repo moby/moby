@@ -167,7 +167,7 @@ Create a container
              "Warnings":[]
         }
 
-Json Parameters:
+JSON Parameters:
 
 -   **Hostname** - A string value containing the desired hostname to use for the
       container.
@@ -510,7 +510,7 @@ Start the container `id`
 
         HTTP/1.1 204 No Content
 
-Json Parameters:
+JSON Parameters:
 
 Status Codes:
 
@@ -1346,7 +1346,7 @@ Create a new image from a container's changes
 
         {"Id": "596069db4bf5"}
 
-Json Parameters:
+JSON Parameters:
 
 -  **config** - the container's configuration
 
@@ -1540,7 +1540,7 @@ Sets up an exec instance in a running container `id`
              "Id": "f90e34656806"
         }
 
-Json Parameters:
+JSON Parameters:
 
 -   **AttachStdin** - Boolean value, attaches to stdin of the exec command.
 -   **AttachStdout** - Boolean value, attaches to stdout of the exec command.
@@ -1579,7 +1579,7 @@ interactive session with the `exec` command.
 
         {{ STREAM }}
 
-Json Parameters:
+JSON Parameters:
 
 -   **Detach** - Detach from the exec command
 -   **Tty** - Boolean value to allocate a pseudo-TTY
@@ -1726,6 +1726,138 @@ Status Codes:
 -   **200** – no error
 -   **404** – no such exec instance
 -   **500** - server error
+
+### Create a volume
+
+`POST /volumes`
+
+Create a new volume
+
+**Example request**:
+
+        POST /volumes HTTP/1.1
+        Content-Type: application/json
+
+        {
+         "path":"",
+         "name":"",
+         "mode":"rw",
+        }
+
+**Example response**:
+
+        HTTP/1.1 201 Created
+        Content-Type: application/json
+
+        {
+             "Name":"morose_torvalds"
+        }
+
+JSON Parameters:
+
+-   **path** Specify the host path of the volume, as a string. Leave empty to
+      have Docker automatically create this path.
+-   **name** Specify a name for the new volume, as a string.  Leave empty to
+      have Docker automatically generate a name.
+-   **mode** Set the write mode of the volume, supports "ro", and "rw".
+
+Status Codes:
+
+-   **201** – Created
+
+###  Delete a volume
+
+`DELETE /volumes/(id)`
+
+Delete a volume
+
+**Example request**:
+
+        DELETE /volumes/(id) HTTP/1.1
+        Content-Type: application/json
+
+**Example response**:
+
+        HTTP/1.1 204 NO CONTENT
+        Content-Type: application/json
+
+
+JSON Parameters:
+
+Status Codes:
+
+-   **204** – no content
+
+### List volumes
+
+`GET /volumes`
+
+List Volumes
+
+**Example request**:
+
+        GET /volumes HTTP/1.1
+        Content-Type: application/json
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+          {
+            "Name": "morose_torvalds",
+            "Path": "/var/lib/docker/vfs/dir/124670d406cb783e37ad10d339e7f980db75460bcf4fedf1baa00566ebbcad63",
+            "Count": 2
+          }
+        ]
+
+JSON Parameters:
+
+-   **size** Boolean flag to include volume size (on disk) in output
+-   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
+-   **quiet** - Boolean flag to list only list volume names
+
+Status Codes:
+
+-   **200** – OK
+
+### Inspect a volume
+
+`GET /volumes/(id)`
+
+Inspect a volume
+
+**Example request**:
+
+        GET /volume/(id) HTTP/1.1
+        Content-Type: application/json
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+                "ID": "124670d406cb783e37ad10d339e7f980db75460bcf4fedf1baa00566ebbcad63",
+                "Name": "jolly_torvalds",
+                "Created": "2014-10-01T16:17:01.417634973Z",
+                "Path": "/var/lib/docker/vfs/dir/124670d406cb783e37ad10d339e7f980db75460bcf4fedf1baa00566ebbcad63",
+                "IsBindMount": false,
+                "Writable": true,
+                "Aliases": [
+                     "determined_brown:/foo",
+                     "angry_bell:/bar"
+                ]
+        }
+
+JSON Parameters:
+
+-   **size** Boolean flag to include volume size (on disk) in output
+
+Status Codes:
+
+-   **200** – OK
 
 # 3. Going further
 

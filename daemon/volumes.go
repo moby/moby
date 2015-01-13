@@ -143,8 +143,19 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 		if err != nil {
 			return nil, err
 		}
+
+		// Maybe this is a volume name
+		if !filepath.IsAbs(path) {
+			v := container.daemon.volumes.Find(path)
+			if v == nil {
+				return nil, fmt.Errorf("Invalid bind-mount specification, cannot use relative path: %s", spec)
+			}
+			path = v.Path
+			writable = writable && v.Writable
+		}
+
 		// Check if a volume already exists for this and use it
-		vol, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
+		vol, err := container.daemon.volumes.FindOrCreateVolume(path, "", writable)
 		if err != nil {
 			return nil, err
 		}
@@ -153,6 +164,7 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			volume:      vol,
 			MountToPath: mountToPath,
 			Writable:    writable,
+			copyData:    !vol.IsBindMount,
 		}
 	}
 
@@ -169,7 +181,7 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			continue
 		}
 
-		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
+		vol, err := container.daemon.volumes.FindOrCreateVolume("", "", true)
 		if err != nil {
 			return nil, err
 		}
@@ -203,10 +215,6 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 		writable = validMountMode(arr[2]) && arr[2] == "rw"
 	default:
 		return "", "", false, fmt.Errorf("Invalid volume specification: %s", spec)
-	}
-
-	if !filepath.IsAbs(path) {
-		return "", "", false, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", path)
 	}
 
 	path = filepath.Clean(path)
@@ -312,6 +320,10 @@ func parseVolumesFromSpec(daemon *Daemon, spec string) (map[string]*Mount, error
 	}
 
 	return mounts, nil
+}
+
+func determineMountWritable(modeSpec string, parentWritable bool) bool {
+	return parentWritable && (modeSpec == "rw")
 }
 
 func (container *Container) VolumeMounts() map[string]*Mount {

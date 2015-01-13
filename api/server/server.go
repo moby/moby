@@ -1184,6 +1184,79 @@ func postContainerExecResize(eng *engine.Engine, version version.Version, w http
 	return nil
 }
 
+func getVolumesList(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	job := eng.Job("volumesList")
+	job.Setenv("quiet", r.Form.Get("quiet"))
+	job.Setenv("filters", r.Form.Get("filters"))
+	job.Setenv("size", r.Form.Get("size"))
+
+	streamJSON(job, w, false)
+
+	return job.Run()
+}
+
+func getVolumesByName(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var job = eng.Job("volumeInspect", vars["name"])
+	job.Setenv("Size", r.Form.Get("size"))
+
+	streamJSON(job, w, false)
+	return job.Run()
+}
+
+func deleteVolumes(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	job := eng.Job("volumeDelete", vars["name"])
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func postVolumesCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	var (
+		out          engine.Env
+		stdoutBuffer = bytes.NewBuffer(nil)
+		job          = eng.Job("volumeCreate", r.Form.Get("name"))
+	)
+
+	if err := checkForJson(r); err != nil {
+		return err
+	}
+
+	job.Stdout.Add(stdoutBuffer)
+
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	out.Set("Name", engine.Tail(stdoutBuffer, 1))
+
+	return writeJSON(w, http.StatusCreated, out)
+}
+
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -1288,6 +1361,8 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/logs":      getContainersLogs,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
 			"/exec/{id:.*}/json":              getExecByID,
+			"/volumes":                        getVolumesList,
+			"/volumes/{name:.*}":              getVolumesByName,
 		},
 		"POST": {
 			"/auth":                         postAuth,
@@ -1311,10 +1386,12 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/exec":    postContainerExecCreate,
 			"/exec/{name:.*}/start":         postContainerExecStart,
 			"/exec/{name:.*}/resize":        postContainerExecResize,
+			"/volumes":                      postVolumesCreate,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
 			"/images/{name:.*}":     deleteImages,
+			"/volumes/{name:.*}":    deleteVolumes,
 		},
 		"OPTIONS": {
 			"": optionsHandler,

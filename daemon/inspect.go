@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
 )
@@ -84,5 +85,49 @@ func (daemon *Daemon) ContainerExecInspect(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	job.Stdout.Write(b)
+	return engine.StatusOK
+}
+
+func (daemon *Daemon) VolumeInspect(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("usage: %s NAME", job.Name)
+	}
+	name := job.Args[0]
+	volume := daemon.volumes.Find(name)
+	if volume == nil {
+		return job.Errorf("No such volume: %s", name)
+	}
+
+	var aliases []string
+	for _, id := range volume.Containers() {
+		c := daemon.Get(id)
+		if c == nil {
+			log.Debugf("Volume %s references container %s, but container is not found")
+			continue
+		}
+
+		for mountPath, path := range c.Volumes {
+			if path == volume.Path {
+				aliases = append(aliases, fmt.Sprintf("%s:%s", c.Name[1:], mountPath))
+			}
+		}
+	}
+
+	out := &engine.Env{}
+	out.Set("Id", volume.ID)
+	out.Set("Name", volume.Name)
+	out.SetAuto("Created", volume.Created)
+	out.SetJson("Path", volume.Path)
+	out.SetJson("IsBindMount", volume.IsBindMount)
+	out.SetJson("Writable", volume.Writable)
+	out.SetJson("Aliases", aliases)
+	if job.GetenvBool("Size") {
+		out.SetInt64("Size", volume.Size())
+	}
+
+	if _, err := out.WriteTo(job.Stdout); err != nil {
+		return job.Error(err)
+	}
+
 	return engine.StatusOK
 }

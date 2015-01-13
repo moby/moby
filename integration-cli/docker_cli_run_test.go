@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -402,7 +403,7 @@ func TestRunVolumesFromInReadWriteMode(t *testing.T) {
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:bar", "busybox", "touch", "/test/file")
-	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Invalid mode for volumes-from: bar") {
+	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "Invalid mode for volumes-from") {
 		t.Fatalf("running --volumes-from foo:bar should have failed with invalid mount mode: %q", out)
 	}
 
@@ -443,7 +444,7 @@ func TestVolumesFromGetsProperMode(t *testing.T) {
 }
 
 // Test for #1351
-func TestRunApplyVolumesFromBeforeVolumes(t *testing.T) {
+func TestRunVolumesFromApplyBeforeVolumes(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "touch", "/test/foo")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -2911,4 +2912,35 @@ func TestRunAllowPortRangeThroughPublish(t *testing.T) {
 		}
 	}
 	logDone("run - allow port range through --expose flag")
+}
+
+func TestRunVolumeReferenceByName(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "volume", "create", "--name", "foo")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--name", "baz", "-v", "foo:/bar", "busybox", "ls", "/bar")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(err, out)
+	}
+
+	volPath, err := inspectVolumeField("foo", "Path")
+	if err != nil {
+		t.Fatal(err, volPath)
+	}
+
+	out, err := inspectFieldJSON("baz", "Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vols map[string]string
+	json.Unmarshal([]byte(out), &vols)
+	if vols["/bar"] != volPath {
+		t.Fatalf("Expected container volume and manually created volume paths to match: %v != %v", vols["/bar"], volPath)
+	}
+
+	logDone("run - reference volume by name")
 }
