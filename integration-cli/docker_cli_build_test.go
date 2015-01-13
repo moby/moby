@@ -2302,6 +2302,46 @@ func TestBuildWithoutCache(t *testing.T) {
 	logDone("build - without cache")
 }
 
+func TestBuildConditionalCache(t *testing.T) {
+	name := "testbuildconditionalcache"
+	name2 := "testbuildconditionalcache2"
+	defer deleteImages(name, name2)
+
+	dockerfile := `
+		FROM busybox
+        ADD foo /tmp/`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatalf("Error building #1: %s", err)
+	}
+
+	if err := ctx.Add("foo", "bye"); err != nil {
+		t.Fatalf("Error modifying foo: %s", err)
+	}
+
+	id2, err := buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatalf("Error building #2: %s", err)
+	}
+	if id2 == id1 {
+		t.Fatal("Should not have used the cache")
+	}
+
+	id3, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatalf("Error building #3: %s", err)
+	}
+	if id3 != id2 {
+		t.Fatal("Should have used the cache")
+	}
+
+	logDone("build - conditional cache")
+}
+
 func TestBuildADDLocalFileWithCache(t *testing.T) {
 	name := "testbuildaddlocalfilewithcache"
 	name2 := "testbuildaddlocalfilewithcache2"

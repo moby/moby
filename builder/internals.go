@@ -308,22 +308,20 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			ci.destPath = ci.destPath + filename
 		}
 
-		// Calc the checksum, only if we're using the cache
-		if b.UtilizeCache {
-			r, err := archive.Tar(tmpFileName, archive.Uncompressed)
-			if err != nil {
-				return err
-			}
-			tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
-				return err
-			}
-			ci.hash = tarSum.Sum(nil)
-			r.Close()
+		// Calc the checksum, even if we're using the cache
+		r, err := archive.Tar(tmpFileName, archive.Uncompressed)
+		if err != nil {
+			return err
 		}
+		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
+			return err
+		}
+		ci.hash = tarSum.Sum(nil)
+		r.Close()
 
 		return nil
 	}
@@ -357,12 +355,6 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	ci.destPath = destPath
 	ci.decompress = allowDecompression
 	*cInfos = append(*cInfos, &ci)
-
-	// If not using cache don't need to do anything else.
-	// If we are using a cache then calc the hash for the src file/dir
-	if !b.UtilizeCache {
-		return nil
-	}
 
 	// Deal with the single file case
 	if !fi.IsDir() {
