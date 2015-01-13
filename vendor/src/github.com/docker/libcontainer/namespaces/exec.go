@@ -17,6 +17,10 @@ import (
 	"github.com/docker/libcontainer/system"
 )
 
+const (
+	EXIT_SIGNAL_OFFSET = 128
+)
+
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
@@ -113,7 +117,12 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	if !container.Namespaces.Contains(libcontainer.NEWPID) {
 		killAllPids(container)
 	}
-	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+
+	waitStatus := command.ProcessState.Sys().(syscall.WaitStatus)
+	if waitStatus.Signaled() {
+		return EXIT_SIGNAL_OFFSET + int(waitStatus.Signal()), nil
+	}
+	return waitStatus.ExitStatus(), nil
 }
 
 // killAllPids itterates over all of the container's processes
