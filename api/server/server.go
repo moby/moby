@@ -6,6 +6,7 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"expvar"
 	"fmt"
 	"io"
@@ -1061,13 +1062,17 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
 
+	sf := utils.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
+
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
 			return err
 		}
-		sf := utils.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
 		w.Write(sf.FormatError(err))
+	} else if job.Getenv("panic") != "" {
+		w.Write(sf.FormatError(errors.New(job.Getenv("panic"))))
 	}
+
 	return nil
 }
 

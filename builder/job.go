@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,9 +28,16 @@ func (b *BuilderJob) Install() {
 }
 
 func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
+	defer func() {
+		if r := recover(); r != nil {
+			job.Setenv("panic", fmt.Sprintf("Panic recieved: please report an issue with your Dockerfile attached at https://github.com/docker/docker/issues\n%s\n", r))
+		}
+	}()
+
 	if len(job.Args) != 0 {
 		return job.Errorf("Usage: %s\n", job.Name)
 	}
+
 	var (
 		dockerfileName = job.Getenv("dockerfile")
 		remoteURL      = job.Getenv("remote")
