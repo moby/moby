@@ -25,13 +25,13 @@ func New() *libcontainer.Config {
 			"KILL",
 			"AUDIT_WRITE",
 		},
-		Namespaces: libcontainer.Namespaces{
+		Namespaces: libcontainer.Namespaces([]libcontainer.Namespace{
 			{Type: "NEWNS"},
 			{Type: "NEWUTS"},
 			{Type: "NEWIPC"},
 			{Type: "NEWPID"},
 			{Type: "NEWNET"},
-		},
+		}),
 		Cgroups: &cgroups.Cgroup{
 			Parent:          "docker",
 			AllowAllDevices: false,

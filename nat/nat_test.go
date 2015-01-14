@@ -281,7 +281,7 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 	for portspec, bindings := range bindingMap {
 		_, port := SplitProtoPort(string(portspec))
 		if len(bindings) != 1 || bindings[0].HostIp != "0.0.0.0" || bindings[0].HostPort != port {
-			t.Fatalf("Expect single binding to port %d but found %s", port, bindings)
+			t.Fatalf("Expect single binding to port %s but found %s", port, bindings)
 		}
 	}
 

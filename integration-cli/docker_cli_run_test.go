@@ -319,18 +319,18 @@ func TestRunLinksContainerWithContainerName(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-t", "-d", "--name", "parent", "busybox")
 	out, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, out)
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", "parent")
 	ip, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
-		t.Fatal("failed to inspect container: %v, output: %q", err, ip)
+		t.Fatalf("failed to inspect container: %v, output: %q", err, ip)
 	}
 	ip = strings.TrimSpace(ip)
 	cmd = exec.Command(dockerBinary, "run", "--link", "parent:test", "busybox", "/bin/cat", "/etc/hosts")
 	out, _, err = runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, out)
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	if !strings.Contains(out, ip+"	test") {
 		t.Fatalf("use a container name to link target failed")
@@ -345,19 +345,19 @@ func TestRunLinksContainerWithContainerId(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-t", "-d", "busybox")
 	cID, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, cID)
+		t.Fatalf("failed to run container: %v, output: %q", err, cID)
 	}
 	cID = strings.TrimSpace(cID)
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", cID)
 	ip, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
-		t.Fatal("faild to inspect container: %v, output: %q", err, ip)
+		t.Fatalf("faild to inspect container: %v, output: %q", err, ip)
 	}
 	ip = strings.TrimSpace(ip)
 	cmd = exec.Command(dockerBinary, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, out)
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	if !strings.Contains(out, ip+"	test") {
 		t.Fatalf("use a container id to link target failed")

@@ -1550,13 +1550,13 @@ func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionId, dataU
 
 // MetadataDevicePath returns the path to the metadata storage for this deviceset,
 // regardless of loopback or block device
-func (devices DeviceSet) DataDevicePath() string {
+func (devices *DeviceSet) DataDevicePath() string {
 	return devices.dataDevice
 }
 
 // MetadataDevicePath returns the path to the metadata storage for this deviceset,
 // regardless of loopback or block device
-func (devices DeviceSet) MetadataDevicePath() string {
+func (devices *DeviceSet) MetadataDevicePath() string {
 	return devices.metadataDevice
 }
 

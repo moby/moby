@@ -67,7 +67,7 @@ func TestRmRunningContainerCheckError409(t *testing.T) {
 		t.Fatalf("Expected error, can't rm a running container")
 	}
 	if !strings.Contains(err.Error(), "409 Conflict") {
-		t.Fatalf("Expected error to contain '409 Conflict' but found", err)
+		t.Fatalf("Expected error to contain '409 Conflict' but found %s", err)
 	}
 
 	deleteAllContainers()
