@@ -314,6 +314,60 @@ func TestRunWithoutNetworking(t *testing.T) {
 	logDone("run - disable networking with -n=false")
 }
 
+//test --link use container name to link target
+func TestRunLinksContainerWithContainerName(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-d", "--name", "parent", "busybox")
+	out, _, _, err := runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatal("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", "parent")
+	ip, _, _, err := runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatal("failed to inspect container: %v, output: %q", err, ip)
+	}
+	ip = strings.TrimSpace(ip)
+	cmd = exec.Command(dockerBinary, "run", "--link", "parent:test", "busybox", "/bin/cat", "/etc/hosts")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal("failed to run container: %v, output: %q", err, out)
+	}
+	if !strings.Contains(out, ip+"	test") {
+		t.Fatalf("use a container name to link target failed")
+	}
+	deleteAllContainers()
+
+	logDone("run - use a container name to link target work")
+}
+
+//test --link use container id to link target
+func TestRunLinksContainerWithContainerId(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-t", "-d", "busybox")
+	cID, _, _, err := runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatal("failed to run container: %v, output: %q", err, cID)
+	}
+	cID = strings.TrimSpace(cID)
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", cID)
+	ip, _, _, err := runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatal("faild to inspect container: %v, output: %q", err, ip)
+	}
+	ip = strings.TrimSpace(ip)
+	cmd = exec.Command(dockerBinary, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal("failed to run container: %v, output: %q", err, out)
+	}
+	if !strings.Contains(out, ip+"	test") {
+		t.Fatalf("use a container id to link target failed")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - use a container id to link target work")
+}
+
 // Regression test for #4741
 func TestRunWithVolumesAsFiles(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/etc/hosts:/target-file", "busybox", "true")
