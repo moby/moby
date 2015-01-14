@@ -26,6 +26,8 @@ Windows*](../installation/windows/#windows) installation guides. The small
 Linux distribution boot2docker can be run inside virtual machines on these
 two operating systems.
 
+{{ include "no-remote-sudo.md" }}
+
 ### How do containers compare to virtual machines?
 
 They are complementary. VMs are best used to allocate chunks of
