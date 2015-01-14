@@ -8,23 +8,27 @@ func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
 	if len(job.Args) != 2 {
 		return job.Errorf("usage: %s OLD_NAME NEW_NAME", job.Name)
 	}
-	old_name := job.Args[0]
-	new_name := job.Args[1]
+	oldName := job.Args[0]
+	newName := job.Args[1]
 
-	container := daemon.Get(old_name)
+	container := daemon.Get(oldName)
 	if container == nil {
-		return job.Errorf("No such container: %s", old_name)
+		return job.Errorf("No such container: %s", oldName)
 	}
+
+	oldName = container.Name
 
 	container.Lock()
 	defer container.Unlock()
-	if err := daemon.containerGraph.Delete(container.Name); err != nil {
-		return job.Errorf("Failed to delete container %q: %v", old_name, err)
-	}
-	if _, err := daemon.reserveName(container.ID, new_name); err != nil {
+	if _, err := daemon.reserveName(container.ID, newName); err != nil {
 		return job.Errorf("Error when allocating new name: %s", err)
 	}
-	container.Name = new_name
+
+	container.Name = newName
+
+	if err := daemon.containerGraph.Delete(oldName); err != nil {
+		return job.Errorf("Failed to delete container %q: %v", oldName, err)
+	}
 
 	return engine.StatusOK
 }
