@@ -15,6 +15,7 @@ type State struct {
 	Paused     bool
 	Restarting bool
 	OOMKilled  bool
+	Deleted    bool
 	Pid        int
 	ExitCode   int
 	Error      string // contains last known error when starting the container
@@ -46,6 +47,10 @@ func (s *State) String() string {
 		return ""
 	}
 
+	if s.Deleted {
+		return fmt.Sprintf("Delete attempted (Error: %q)", s.Error)
+	}
+
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
@@ -59,6 +64,9 @@ func (s *State) StateString() string {
 			return "restarting"
 		}
 		return "running"
+	}
+	if s.Deleted {
+		return "deleted"
 	}
 	return "exited"
 }
@@ -216,4 +224,10 @@ func (s *State) IsPaused() bool {
 	res := s.Paused
 	s.Unlock()
 	return res
+}
+
+func (s *State) SetDeleted() {
+	s.Lock()
+	s.Deleted = true
+	s.Unlock()
 }
