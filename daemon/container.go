@@ -1312,7 +1312,7 @@ func (container *Container) setupLogWriter() (ioutils.WriterTruncator, error) {
 	return ioutils.NewFileWriter(pth)
 }
 
-func (container *Container) truncateLogs() ([]byte, error) {
+func (container *Container) truncateLogs(w io.Writer) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -1321,7 +1321,7 @@ func (container *Container) truncateLogs() ([]byte, error) {
 		closeWriter = true
 		logWriter, err := container.setupLogWriter()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		container.logWriter = logWriter
 	}
@@ -1330,7 +1330,7 @@ func (container *Container) truncateLogs() ([]byte, error) {
 		container.logWriter.Close()
 	}
 
-	return container.logWriter.Truncate()
+	return container.logWriter.Truncate(w)
 }
 
 func (container *Container) startLoggingToDisk() error {

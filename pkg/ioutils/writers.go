@@ -1,6 +1,9 @@
 package ioutils
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
 
 type NopWriter struct{}
 
@@ -36,4 +39,30 @@ func NewWriteCloserWrapper(r io.Writer, closer func() error) io.WriteCloser {
 		Writer: r,
 		closer: closer,
 	}
+}
+
+type writeTransformWrapper struct {
+	w           io.Writer
+	transformer func(b []byte) ([]byte, error)
+}
+
+func (w *writeTransformWrapper) Write(b []byte) (int, error) {
+	tb, err := w.transformer(b)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := w.w.Write(tb)
+	if err != nil {
+		return 0, err
+	}
+	if n != len(tb) {
+		return 0, fmt.Errorf("short write")
+	}
+
+	return len(b), nil
+}
+
+func NewWriteTransformWrapper(w io.Writer, t func(b []byte) ([]byte, error)) *writeTransformWrapper {
+	return &writeTransformWrapper{w: w, transformer: t}
 }

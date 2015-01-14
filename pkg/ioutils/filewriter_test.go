@@ -53,7 +53,13 @@ func TestFileWriterTruncate(t *testing.T) {
 
 	w.Close()
 
-	b, err := w.Truncate()
+	buf := bytes.NewBuffer(make([]byte, 0, len(testBytes)))
+
+	if err := w.Truncate(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := ioutil.ReadAll(buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,8 +98,8 @@ func TestFileWriterTruncateSafe(t *testing.T) {
 		lock.Unlock()
 	}
 
+	testBytes := []byte("testing\n")
 	go func() {
-		testBytes := []byte("testing\n")
 		for {
 			select {
 			case <-sigChan:
@@ -115,8 +121,8 @@ func TestFileWriterTruncateSafe(t *testing.T) {
 		time.Sleep(1 * time.Millisecond)
 	}
 
-	b, err := w.Truncate()
-	if err != nil {
+	buf := bytes.NewBuffer(make([]byte, 0, len(testBytes)))
+	if err := w.Truncate(buf); err != nil {
 		t.Fatal(err)
 	}
 	// Stop writing
@@ -125,6 +131,10 @@ func TestFileWriterTruncateSafe(t *testing.T) {
 	// Close the writer so whatever was buffered during/after the truncate is written and we can compare
 	w.Close()
 
+	b, err := ioutil.ReadAll(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b2, err := ioutil.ReadFile(pth)
 	if err != nil {
 		t.Fatal(err)

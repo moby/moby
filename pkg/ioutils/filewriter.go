@@ -2,7 +2,6 @@ package ioutils
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"sync"
 )
@@ -10,7 +9,7 @@ import (
 type WriterTruncator interface {
 	io.Closer
 	io.Writer
-	Truncate() ([]byte, error)
+	Truncate(w io.Writer) error
 }
 
 type fileWriter struct {
@@ -37,24 +36,25 @@ func (w *fileWriter) Write(b []byte) (int, error) {
 	return i, err
 }
 
-func (w *fileWriter) Truncate() ([]byte, error) {
+// Safely truncates the file
+// Reads from the file, writes to the passed in writer
+func (w *fileWriter) Truncate(out io.Writer) error {
 	// Lock here so any write requests don't hit the file while truncating
 	w.lock.Lock()
-	defer w.lock.Unlock()
+	defer func() {
+		w.lock.Unlock()
+	}()
 
-	// Get the current data, which will be used in the return
-	// fd might be closed, so read the file
-	b, err := ioutil.ReadFile(w.f.Name())
+	f, err := os.Open(w.f.Name())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// fd might be closed, so use os.Truncate instead of file.Truncate
-	if err := os.Truncate(w.f.Name(), 0); err != nil {
-		return nil, err
+	if _, err := io.Copy(out, f); err != nil {
+		return err
 	}
 
-	return b, nil
+	return os.Truncate(w.f.Name(), 0)
 }
 
 func (w *fileWriter) Close() error {

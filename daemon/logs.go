@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/pkg/timeutils"
@@ -167,28 +168,22 @@ func (daemon *Daemon) ContainerTruncateLogs(job *engine.Job) engine.Status {
 		return job.Errorf("No such container: %s", name)
 	}
 
-	b, err := container.truncateLogs()
-	if err != nil {
-		return job.Errorf("error truncating logs: %v", err)
-	}
-	dec := json.NewDecoder(bytes.NewReader(b))
 	l := &jsonlog.JSONLog{}
-
-	for {
-		if err := dec.Decode(l); err == io.EOF {
-			break
-		} else if err != nil {
-			log.Errorf("Error streaming logs: %s", err)
-			break
+	logWriter := ioutils.NewWriteTransformWrapper(job.Stdout, func(b []byte) ([]byte, error) {
+		log.Debugf("TRUNCATE - Writng log line")
+		if err := json.Unmarshal(b, l); err != nil {
+			return nil, err
 		}
-
 		logLine := l.Log
 		if times {
 			logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
 		}
-		io.WriteString(job.Stdout, logLine)
 		l.Reset()
-	}
+		log.Debugf("TRUNCATE - LINE %s", logLine)
+		return []byte(logLine), nil
+	})
+
+	container.truncateLogs(logWriter)
 
 	container.LogEvent("truncate_logs")
 	return engine.StatusOK
