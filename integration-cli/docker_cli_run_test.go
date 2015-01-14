@@ -2750,6 +2750,38 @@ func TestContainerNetworkMode(t *testing.T) {
 	logDone("run - container shared network namespace")
 }
 
+func TestRunModePidHost(t *testing.T) {
+	hostPid, err := os.Readlink("/proc/1/ns/pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--pid=host", "busybox", "readlink", "/proc/self/ns/pid")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostPid != out2 {
+		t.Fatalf("PID different with --pid=host %s != %s\n", hostPid, out2)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "readlink", "/proc/self/ns/pid")
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostPid == out2 {
+		t.Fatalf("PID should be different without --pid=host %s == %s\n", hostPid, out2)
+	}
+	deleteAllContainers()
+
+	logDone("run - pid host mode")
+}
+
 func TestRunTLSverify(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "ps")
 	out, ec, err := runCommandWithOutput(cmd)
