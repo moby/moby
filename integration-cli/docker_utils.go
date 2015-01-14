@@ -226,7 +226,7 @@ out2:
 		case <-tick:
 			i++
 			if i > 4 {
-				d.t.Log("tried to interrupt daemon for %d times, now try to kill it", i)
+				d.t.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
 			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)

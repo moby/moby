@@ -151,7 +151,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	for configKey, registries := range validRegistries {
 		configured, ok := expectedAuths[configKey]
 		if !ok || configured.Email == "" {
-			t.Fatal()
+			t.Fail()
 		}
 		index := &IndexInfo{
 			Name: configKey,
