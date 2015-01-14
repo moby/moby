@@ -97,3 +97,23 @@ func TestRenameCheckNames(t *testing.T) {
 
 	logDone("rename - running container")
 }
+
+func TestRenameInvalidName(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "--name", "myname", "-d", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatalf(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "rename", "myname", "new:invalid")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !strings.Contains(out, "Invalid container name") {
+		t.Fatalf("Renaming container to invalid name should have failed: %s\n%v", out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "ps", "-a")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil || !strings.Contains(out, "myname") {
+		t.Fatalf("Output of docker ps should have included 'myname': %s\n%v", out, err)
+	}
+
+	logDone("rename - invalid container name")
+}
