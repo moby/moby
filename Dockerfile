@@ -97,6 +97,9 @@ RUN cd /usr/local/go/src \
 			./make.bash --no-clean 2>&1; \
 	done
 
+# Reinstall standard library with netgo
+RUN go clean -i net && go install -tags netgo std
+
 # We still support compiling with older Go, so need to grab older "gofmt"
 ENV GOFMT_VERSION 1.3.3
 RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
