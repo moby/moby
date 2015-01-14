@@ -2007,7 +2007,7 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		deleteAllContainers()
 
-		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s; while true; do sleep 1; done", fn)))
+		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2016,16 +2016,16 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 			t.Fatal("Content was not what was modified in the container", string(content))
 		}
 
-		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "sh", "-c", fmt.Sprintf("while true; do cat /etc/%s; sleep 1; done", fn)))
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "top"))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		contID := strings.TrimSpace(out)
 
-		resolvConfPath := containerStorageFile(contID, fn)
+		netFilePath := containerStorageFile(contID, fn)
 
-		f, err := os.OpenFile(resolvConfPath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		f, err := os.OpenFile(netFilePath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2044,19 +2044,14 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 			f.Close()
 			t.Fatal(err)
 		}
-
 		f.Close()
 
-		time.Sleep(2 * time.Second) // don't race sleep
-
-		out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "logs", "c2"))
+		res, err := exec.Command(dockerBinary, "exec", contID, "cat", "/etc/"+fn).CombinedOutput()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Output: %s, error: %s", res, err)
 		}
-
-		lines := strings.Split(out, "\n")
-		if strings.TrimSpace(lines[len(lines)-2]) != "success2" {
-			t.Fatalf("Did not find the correct output in /etc/%s: %s %#v", fn, out, lines)
+		if string(res) != "success2\n" {
+			t.Fatalf("Expected content of %s: %q, got: %q", fn, "success2\n", res)
 		}
 	}
 	logDone("run - mutable network files")
