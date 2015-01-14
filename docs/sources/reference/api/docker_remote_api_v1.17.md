@@ -146,6 +146,7 @@ Create a container
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
+               "ReadonlyRootfs": false,
                "Dns": ["8.8.8.8"],
                "DnsSearch": [""],
                "VolumesFrom": ["parent", "other:ro"],
@@ -218,6 +219,8 @@ Json Parameters:
         exposed ports. Specified as a boolean value.
   -   **Privileged** - Gives the container full access to the host.  Specified as
         a boolean value.
+  -   **ReadonlyRootfs** - Mount the container's root filesystem as read only.
+        Specified as a boolean value.
   -   **Dns** - A list of dns servers for the container to use.
   -   **DnsSearch** - A list of DNS search domains
   -   **VolumesFrom** - A list of volumes to inherit from another container.
@@ -323,6 +326,7 @@ Return low-level information on the container `id`
 			"NetworkMode": "bridge",
 			"PortBindings": {},
 			"Privileged": false,
+			"ReadonlyRootfs": false,
 			"PublishAllPorts": false,
 			"RestartPolicy": {
 				"MaximumRetryCount": 2,

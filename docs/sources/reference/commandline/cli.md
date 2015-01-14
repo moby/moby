@@ -755,6 +755,7 @@ Creates a new container.
                                    When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                    (use 'docker port' to see the actual mapping)
       --privileged=false         Give extended privileges to this container
+      --read-only=false           Mount the container's root filesystem as read only
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --security-opt=[]          Security Options
       -t, --tty=false            Allocate a pseudo-TTY
@@ -1608,6 +1609,7 @@ removed before the image is removed.
                                    (use 'docker port' to see the actual mapping)
       --pid=host		 'host': use the host PID namespace inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
       --privileged=false         Give extended privileges to this container
+      --read-only=false           Mount the container's root filesystem as read only
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --security-opt=[]          Security Options
@@ -1682,6 +1684,13 @@ When the host directory of a bind-mounted volume doesn't exist, Docker
 will automatically create this directory on the host for you. In the
 example above, Docker will create the `/doesnt/exist`
 folder before starting your container.
+
+    $ sudo docker run --read-only -v /icanwrite busybox touch /icanwrite here
+
+Volumes can be used in combination with `--read-only` to control where 
+a container writes files.  The `--read only` flag mounts the container's root
+filesystem as read only prohibiting writes to locations other than the
+specified volumes for the container.
 
     $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
