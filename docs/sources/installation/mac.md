@@ -72,6 +72,8 @@ complete. You can test it by following the directions below.
 
 ## Running Docker
 
+{{ include "no-remote-sudo.md" }}
+
 From your terminal, you can test that Docker is running with our small `hello-world`
 example image:
 Start the vm (`boot2docker start`) and then run:
