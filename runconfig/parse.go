@@ -46,6 +46,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
+		flPidMode         = cmd.String([]string{"-pid"}, "", "Default is to create a private PID namespace for the container\n'host': use the host PID namespace inside the container.  Note: the host mode gives the container full access to processes on the system and is therefore considered insecure.")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports on the host interfaces")
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
@@ -248,7 +249,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	ipcMode := IpcMode(*flIpcMode)
 	if !ipcMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode: %v", err)
+		return nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
+	}
+
+	pidMode := PidMode(*flPidMode)
+	if !pidMode.Valid() {
+		return nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
 	}
 
 	netMode, err := parseNetMode(*flNetMode)
@@ -300,6 +306,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
 		IpcMode:         ipcMode,
+		PidMode:         pidMode,
 		Devices:         deviceMappings,
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),

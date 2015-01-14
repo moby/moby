@@ -40,6 +40,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		return nil, err
 	}
 
+	if err := d.createPid(container, c); err != nil {
+		return nil, err
+	}
+
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
 	}
@@ -146,6 +150,15 @@ func (d *driver) createIpc(container *libcontainer.Config, c *execdriver.Command
 		cmd := active.cmd
 
 		container.Namespaces.Add(libcontainer.NEWIPC, filepath.Join("/proc", fmt.Sprint(cmd.Process.Pid), "ns", "ipc"))
+	}
+
+	return nil
+}
+
+func (d *driver) createPid(container *libcontainer.Config, c *execdriver.Command) error {
+	if c.Pid.HostPid {
+		container.Namespaces.Remove(libcontainer.NEWPID)
+		return nil
 	}
 
 	return nil
