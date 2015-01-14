@@ -135,28 +135,32 @@ func waitForContainer(contID string, args ...string) error {
 }
 
 func waitRun(contID string) error {
-	after := time.After(5 * time.Second)
+	return waitInspect(contID, "{{.State.Running}}", "true", 5)
+}
+
+func waitInspect(name, expr, expected string, timeout int) error {
+	after := time.After(time.Duration(timeout) * time.Second)
 
 	for {
-		cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", contID)
+		cmd := exec.Command(dockerBinary, "inspect", "-f", expr, name)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
 			return fmt.Errorf("error executing docker inspect: %v", err)
 		}
 
-		if strings.Contains(out, "true") {
+		out = strings.TrimSpace(out)
+		if out == expected {
 			break
 		}
 
 		select {
 		case <-after:
-			return fmt.Errorf("container did not come up in time")
+			return fmt.Errorf("condition \"%q == %q\" not true in time", out, expected)
 		default:
 		}
 
 		time.Sleep(100 * time.Millisecond)
 	}
-
 	return nil
 }
 

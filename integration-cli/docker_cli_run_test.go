@@ -2967,3 +2967,23 @@ func TestRunOOMExitCode(t *testing.T) {
 
 	logDone("run - exit code on oom")
 }
+
+func TestRunRestartMaxRetries(t *testing.T) {
+	defer deleteAllContainers()
+	out, err := exec.Command(dockerBinary, "run", "-d", "--restart=on-failure:3", "busybox", "false").CombinedOutput()
+	if err != nil {
+		t.Fatal(string(out), err)
+	}
+	id := strings.TrimSpace(string(out))
+	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {
+		t.Fatal(err)
+	}
+	count, err := inspectField(id, "RestartCount")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != "3" {
+		t.Fatalf("Container was restarted %s times, expected %d", count, 3)
+	}
+	logDone("run - test max-retries for --restart")
+}
