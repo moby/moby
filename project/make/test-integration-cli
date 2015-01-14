@@ -11,12 +11,22 @@ bundle_test_integration_cli() {
 (
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
 
-	# pull the busybox image before running the tests
-	sleep 2
+	# we need to wrap up everything in between integration-daemon-start and
+	# integration-daemon-stop to make sure we kill the daemon and don't hang,
+	# even and especially on test failures
+	didFail=
+	if ! {
+		# pull the busybox image before running the tests
+		sleep 2
 
-	source "$(dirname "$BASH_SOURCE")/.ensure-busybox"
+		source "$(dirname "$BASH_SOURCE")/.ensure-busybox"
 
-	bundle_test_integration_cli
+		bundle_test_integration_cli
+	}; then
+		didFail=1
+	fi
 
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
+
+	[ -z "$didFail" ] # "set -e" ftw
 ) 2>&1 | tee -a $DEST/test.log
