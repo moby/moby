@@ -272,7 +272,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 		b.Config.Cmd = append([]string{"/bin/sh", "-c"}, b.Config.Cmd...)
 	}
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", b.Config.Cmd)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %q", b.Config.Cmd)); err != nil {
 		return err
 	}
 
@@ -312,7 +312,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		b.Config.Cmd = nil
 	}
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %v", b.Config.Entrypoint)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %q", b.Config.Entrypoint)); err != nil {
 		return err
 	}
 
