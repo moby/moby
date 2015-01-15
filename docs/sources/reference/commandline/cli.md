@@ -1433,12 +1433,12 @@ The `docker rename` command allows the container to be renamed to a different na
       -s, --size=false      Display total file sizes
       --since=""            Show created since Id or Name, include non-running.
 
-Running `docker ps` showing 2 linked containers.
+Running `docker ps --no-trunc` showing 2 linked containers.
 
     $ sudo docker ps
-    CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
-    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
-    d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
+    CONTAINER ID                                                            IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
+    f7ee772232194fcc088c6bdec6ea09f7b3f6c54d53934658164b8602d7cd4744        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
+    d0963715a061c7c7b7cc80b2646da913a959fbf13e80a971d4a60f6997a2f595        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
 
 `docker ps` will show only running containers by default. To see all containers:
 `docker ps -a`
