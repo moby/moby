@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -538,4 +539,30 @@ func TestPsRightTagName(t *testing.T) {
 		}
 	}
 	logDone("ps - right tags for containers")
+}
+
+func TestPsLinkedWithNoTrunc(t *testing.T) {
+	defer deleteAllContainers()
+	if out, err := exec.Command(dockerBinary, "run", "--name=first", "-d", "busybox", "top").CombinedOutput(); err != nil {
+		t.Fatalf("Output: %s, err: %s", out, err)
+	}
+	if out, err := exec.Command(dockerBinary, "run", "--name=second", "--link=first:first", "-d", "busybox", "top").CombinedOutput(); err != nil {
+		t.Fatalf("Output: %s, err: %s", out, err)
+	}
+	out, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
+	if err != nil {
+		t.Fatalf("Output: %s, err: %s", out, err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	// strip header
+	lines = lines[1:]
+	expected := []string{"second", "first,second/first"}
+	var names []string
+	for _, l := range lines {
+		fields := strings.Fields(l)
+		names = append(names, fields[len(fields)-1])
+	}
+	if !reflect.DeepEqual(expected, names) {
+		t.Fatalf("Expected array: %v, got: %v", expected, names)
+	}
 }
