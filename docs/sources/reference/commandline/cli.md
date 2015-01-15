@@ -999,6 +999,15 @@ For example:
 
     $ sudo docker export red_panda > latest.tar
 
+> **Note:**
+> `docker export` does not export the contents of volumes associated with the
+> container. If a volume is mounted on top of an existing directory in the 
+> container, `docker export` will export the contents of the *underlying* 
+> directory, not the contents of the volume.
+>
+> Refer to [Backup, restore, or migrate data volumes](/userguide/dockervolumes/#backup-restore-or-migrate-data-volumes)
+> in the user guide for examples on exporting data in a volume.
+
 ## history
 
     Usage: docker history [OPTIONS] IMAGE
