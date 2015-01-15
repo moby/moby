@@ -379,26 +379,30 @@ type downloadInfo struct {
 }
 
 func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
-	auth, err := r.GetV2Authorization(repoInfo.RemoteName, true)
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	if err != nil {
+		return fmt.Errorf("error getting registry endpoint: %s", err)
+	}
+	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, true)
 	if err != nil {
 		return fmt.Errorf("error getting authorization: %s", err)
 	}
 	var layersDownloaded bool
 	if tag == "" {
 		log.Debugf("Pulling tag list from V2 registry for %s", repoInfo.CanonicalName)
-		tags, err := r.GetV2RemoteTags(repoInfo.RemoteName, auth)
+		tags, err := r.GetV2RemoteTags(endpoint, repoInfo.RemoteName, auth)
 		if err != nil {
 			return err
 		}
 		for _, t := range tags {
-			if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, t, sf, parallel, auth); err != nil {
+			if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, t, sf, parallel, auth); err != nil {
 				return err
 			} else if downloaded {
 				layersDownloaded = true
 			}
 		}
 	} else {
-		if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, tag, sf, parallel, auth); err != nil {
+		if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, tag, sf, parallel, auth); err != nil {
 			return err
 		} else if downloaded {
 			layersDownloaded = true
@@ -413,9 +417,9 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 	return nil
 }
 
-func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
+func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
-	manifestBytes, err := r.GetV2ImageManifest(repoInfo.RemoteName, tag, auth)
+	manifestBytes, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
@@ -479,7 +483,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return err
 				}
 
-				r, l, err := r.GetV2ImageBlobReader(repoInfo.RemoteName, sumType, checksum, auth)
+				r, l, err := r.GetV2ImageBlobReader(endpoint, repoInfo.RemoteName, sumType, checksum, auth)
 				if err != nil {
 					return err
 				}

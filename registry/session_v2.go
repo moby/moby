@@ -19,33 +19,41 @@ func getV2Builder(e *Endpoint) *v2.URLBuilder {
 	return e.URLBuilder
 }
 
+func (r *Session) V2RegistryEndpoint(index *IndexInfo) (ep *Endpoint, err error) {
+	// TODO check if should use Mirror
+	if index.Official {
+		ep, err = newEndpoint(REGISTRYSERVER, true)
+		if err != nil {
+			return
+		}
+		err = validateEndpoint(ep)
+		if err != nil {
+			return
+		}
+	} else if r.indexEndpoint.String() == index.GetAuthConfigKey() {
+		ep = r.indexEndpoint
+	} else {
+		ep, err = NewEndpoint(index)
+		if err != nil {
+			return
+		}
+	}
+
+	ep.URLBuilder = v2.NewURLBuilder(ep.URL)
+	return
+}
+
 // GetV2Authorization gets the authorization needed to the given image
 // If readonly access is requested, then only the authorization may
 // only be used for Get operations.
-func (r *Session) GetV2Authorization(imageName string, readOnly bool) (auth *RequestAuthorization, err error) {
+func (r *Session) GetV2Authorization(ep *Endpoint, imageName string, readOnly bool) (auth *RequestAuthorization, err error) {
 	scopes := []string{"pull"}
 	if !readOnly {
 		scopes = append(scopes, "push")
 	}
 
-	var registry *Endpoint
-	if r.indexEndpoint.String() == IndexServerAddress() {
-		registry, err = newEndpoint(REGISTRYSERVER, true)
-		if err != nil {
-			return
-		}
-		err = validateEndpoint(registry)
-		if err != nil {
-			return
-		}
-	} else {
-		registry = r.indexEndpoint
-	}
-	registry.URLBuilder = v2.NewURLBuilder(registry.URL)
-	r.indexEndpoint = registry
-
 	log.Debugf("Getting authorization for %s %s", imageName, scopes)
-	return NewRequestAuthorization(r.GetAuthConfig(true), registry, "repository", imageName, scopes), nil
+	return NewRequestAuthorization(r.GetAuthConfig(true), ep, "repository", imageName, scopes), nil
 }
 
 //
@@ -55,8 +63,8 @@ func (r *Session) GetV2Authorization(imageName string, readOnly bool) (auth *Req
 //  1.c) if anything else, err
 // 2) PUT the created/signed manifest
 //
-func (r *Session) GetV2ImageManifest(imageName, tagName string, auth *RequestAuthorization) ([]byte, error) {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildManifestURL(imageName, tagName)
+func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, auth *RequestAuthorization) ([]byte, error) {
+	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
 		return nil, err
 	}
@@ -92,11 +100,11 @@ func (r *Session) GetV2ImageManifest(imageName, tagName string, auth *RequestAut
 	return buf, nil
 }
 
-// - Succeeded to mount for this image scope
-// - Failed with no error (So continue to Push the Blob)
+// - Succeeded to head image blob (already exists)
+// - Failed with no error (continue to Push the Blob)
 // - Failed with error
-func (r *Session) PostV2ImageMountBlob(imageName, sumType, sum string, auth *RequestAuthorization) (bool, error) {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildBlobURL(imageName, sumType+":"+sum)
+func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, auth *RequestAuthorization) (bool, error) {
+	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, sumType+":"+sum)
 	if err != nil {
 		return false, err
 	}
@@ -127,8 +135,8 @@ func (r *Session) PostV2ImageMountBlob(imageName, sumType, sum string, auth *Req
 	return false, fmt.Errorf("Failed to mount %q - %s:%s : %d", imageName, sumType, sum, res.StatusCode)
 }
 
-func (r *Session) GetV2ImageBlob(imageName, sumType, sum string, blobWrtr io.Writer, auth *RequestAuthorization) error {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildBlobURL(imageName, sumType+":"+sum)
+func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, blobWrtr io.Writer, auth *RequestAuthorization) error {
+	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, sumType+":"+sum)
 	if err != nil {
 		return err
 	}
@@ -158,8 +166,8 @@ func (r *Session) GetV2ImageBlob(imageName, sumType, sum string, blobWrtr io.Wri
 	return err
 }
 
-func (r *Session) GetV2ImageBlobReader(imageName, sumType, sum string, auth *RequestAuthorization) (io.ReadCloser, int64, error) {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildBlobURL(imageName, sumType+":"+sum)
+func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum string, auth *RequestAuthorization) (io.ReadCloser, int64, error) {
+	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, sumType+":"+sum)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -195,8 +203,8 @@ func (r *Session) GetV2ImageBlobReader(imageName, sumType, sum string, auth *Req
 // Push the image to the server for storage.
 // 'layer' is an uncompressed reader of the blob to be pushed.
 // The server will generate it's own checksum calculation.
-func (r *Session) PutV2ImageBlob(imageName, sumType, sumStr string, blobRdr io.Reader, auth *RequestAuthorization) error {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildBlobUploadURL(imageName)
+func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string, blobRdr io.Reader, auth *RequestAuthorization) error {
+	routeURL, err := getV2Builder(ep).BuildBlobUploadURL(imageName)
 	if err != nil {
 		return err
 	}
@@ -245,8 +253,8 @@ func (r *Session) PutV2ImageBlob(imageName, sumType, sumStr string, blobRdr io.R
 }
 
 // Finally Push the (signed) manifest of the blobs we've just pushed
-func (r *Session) PutV2ImageManifest(imageName, tagName string, manifestRdr io.Reader, auth *RequestAuthorization) error {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildManifestURL(imageName, tagName)
+func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, manifestRdr io.Reader, auth *RequestAuthorization) error {
+	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
 		return err
 	}
@@ -283,8 +291,8 @@ type remoteTags struct {
 }
 
 // Given a repository name, returns a json array of string tags
-func (r *Session) GetV2RemoteTags(imageName string, auth *RequestAuthorization) ([]string, error) {
-	routeURL, err := getV2Builder(r.indexEndpoint).BuildTagsURL(imageName)
+func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestAuthorization) ([]string, error) {
+	routeURL, err := getV2Builder(ep).BuildTagsURL(imageName)
 	if err != nil {
 		return nil, err
 	}

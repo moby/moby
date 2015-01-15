@@ -260,7 +260,11 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 		}
 	}
 
-	auth, err := r.GetV2Authorization(repoInfo.RemoteName, false)
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	if err != nil {
+		return fmt.Errorf("error getting registry endpoint: %s", err)
+	}
+	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, false)
 	if err != nil {
 		return fmt.Errorf("error getting authorization: %s", err)
 	}
@@ -330,13 +334,13 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 		}
 
 		// Call mount blob
-		exists, err := r.PostV2ImageMountBlob(repoInfo.RemoteName, sumParts[0], manifestSum, auth)
+		exists, err := r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, auth)
 		if err != nil {
 			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 			return err
 		}
 		if !exists {
-			err = r.PutV2ImageBlob(repoInfo.RemoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth)
+			err = r.PutV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth)
 			if err != nil {
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 				return err
@@ -348,7 +352,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 	}
 
 	// push the manifest
-	return r.PutV2ImageManifest(repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth)
+	return r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth)
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
