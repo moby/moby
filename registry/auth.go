@@ -10,6 +10,8 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
@@ -43,6 +45,10 @@ type RequestAuthorization struct {
 	resource         string
 	scope            string
 	actions          []string
+
+	tokenLock       sync.Mutex
+	tokenCache      string
+	tokenExpiration time.Time
 }
 
 func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) *RequestAuthorization {
@@ -56,7 +62,14 @@ func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint,
 }
 
 func (auth *RequestAuthorization) getToken() (string, error) {
-	// TODO check if already has token and before expiration
+	auth.tokenLock.Lock()
+	defer auth.tokenLock.Unlock()
+	now := time.Now()
+	if now.Before(auth.tokenExpiration) {
+		log.Debugf("Using cached token for %s", auth.authConfig.Username)
+		return auth.tokenCache, nil
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
@@ -80,14 +93,18 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 			if err != nil {
 				return "", err
 			}
-			// TODO cache token and set expiration to one minute from now
+			auth.tokenCache = token
+			auth.tokenExpiration = now.Add(time.Minute)
 
 			return token, nil
 		default:
 			log.Infof("Unsupported auth scheme: %q", challenge.Scheme)
 		}
 	}
-	// TODO no expiration, do not reattempt to get a token
+
+	// Do not expire cache since there are no challenges which use a token
+	auth.tokenExpiration = time.Now().Add(time.Hour * 24)
+
 	return "", nil
 }
 
