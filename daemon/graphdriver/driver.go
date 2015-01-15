@@ -148,7 +148,7 @@ func New(root string, options []string) (driver Driver, err error) {
 func checkPriorDriver(name, root string) {
 	priorDrivers := []string{}
 	for prior := range drivers {
-		if prior != name {
+		if prior != name && prior != "vfs" {
 			if _, err := os.Stat(path.Join(root, prior)); err == nil {
 				priorDrivers = append(priorDrivers, prior)
 			}
