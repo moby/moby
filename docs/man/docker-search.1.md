@@ -18,6 +18,8 @@ of images returned displays the name, description (truncated by default),
 number of stars awarded, whether the image is official, and whether it
 is automated.
 
+*Note* - Search queries will only return up to 25 results
+
 # OPTIONS
 **--automated**=*true*|*false*
    Only show automated builds. The default is *false*.
