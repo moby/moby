@@ -13,9 +13,9 @@ import (
 
 var (
 	defaultDns      = []string{"8.8.8.8", "8.8.4.4"}
-	localHostRegexp = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
-	nsRegexp        = regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
-	searchRegexp    = regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
+	localHostRegexp = regexp.MustCompile(`(?m)nameserver\s+(127\.\d+\.\d+\.\d+|::1).*\n*`)
+	nsRegexp        = regexp.MustCompile(`^\s*nameserver\s+(([0-9]+\.){3}([0-9]+))\s*$`)
+	searchRegexp    = regexp.MustCompile(`^\s*search\s+(([^\s]+\s*)*)$`)
 )
 
 var lastModified struct {
@@ -65,8 +65,8 @@ func GetLastModified() ([]byte, string) {
 	return lastModified.contents, lastModified.sha256
 }
 
-// RemoveReplaceLocalDns looks for localhost (127.*) entries in the provided
-// resolv.conf, removing local nameserver entries, and, if the resulting
+// RemoveReplaceLocalDns looks for localhost (127/8 and ::1/128) entries in the
+// provided resolv.conf, removing local nameserver entries, and, if the resulting
 // cleaned config has no defined nameservers left, adds default DNS entries
 // It also returns a boolean to notify the caller if changes were made at all
 func RemoveReplaceLocalDns(resolvConf []byte) ([]byte, bool) {
