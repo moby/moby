@@ -158,7 +158,7 @@ func TestLookupImage(t *testing.T) {
 }
 
 func TestValidTagName(t *testing.T) {
-	validTags := []string{"9", "foo", "foo-test", "bar.baz.boo"}
+	validTags := []string{"9", "foo", "foo-test", "bar.baz.boo", "foo-test-1.2+ad4455", "my_app-1.0+00f023"}
 	for _, tag := range validTags {
 		if err := ValidateTagName(tag); err != nil {
 			t.Errorf("'%s' should've been a valid tag", tag)
