@@ -90,22 +90,28 @@ type Driver struct {
 	active     map[string]*ActiveMount
 }
 
+var backingFs = "<unknown>"
+
 func init() {
 	graphdriver.Register("overlay", Init)
 }
 
 func Init(home string, options []string) (graphdriver.Driver, error) {
+
 	if err := supportsOverlay(); err != nil {
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	// check if they are running over btrfs
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(path.Dir(home), &buf); err != nil {
+	fsMagic, err := graphdriver.GetFSMagic(home)
+	if err != nil {
 		return nil, err
 	}
+	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
+		backingFs = fsName
+	}
 
-	switch graphdriver.FsMagic(buf.Type) {
+	// check if they are running over btrfs or aufs
+	switch fsMagic {
 	case graphdriver.FsMagicBtrfs:
 		log.Error("'overlay' is not supported over btrfs.")
 		return nil, graphdriver.ErrIncompatibleFS
@@ -153,7 +159,9 @@ func (d *Driver) String() string {
 }
 
 func (d *Driver) Status() [][2]string {
-	return nil
+	return [][2]string{
+		{"Backing Filesystem", backingFs},
+	}
 }
 
 func (d *Driver) Cleanup() error {
