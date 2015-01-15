@@ -72,10 +72,6 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName += ":" + tag
 	}
 
-	// Calling the v2 code path might change the session
-	// endpoint value, so save the original one!
-	originalSession := *r
-
 	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
@@ -94,8 +90,6 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 
 		log.Debug("image does not exist on v2 registry, falling back to v1")
 	}
-
-	r = &originalSession
 
 	log.Debugf("pulling v1 repository with local name %q", repoInfo.LocalName)
 	if err = s.pullRepository(r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err != nil {
