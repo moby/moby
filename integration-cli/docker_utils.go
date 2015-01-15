@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -264,12 +265,32 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
+func daemonHost() string {
+	daemonUrlStr := "unix:///var/run/docker.sock"
+	if daemonHostVar := os.Getenv("DOCKER_TEST_HOST"); daemonHostVar != "" {
+		daemonUrlStr = daemonHostVar
+	}
+	return daemonUrlStr
+}
+
 func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
-	// FIX: the path to sock should not be hardcoded
-	sock := filepath.Join("/", "var", "run", "docker.sock")
-	c, err := net.DialTimeout("unix", sock, time.Duration(10*time.Second))
+	daemon := daemonHost()
+	daemonUrl, err := url.Parse(daemon)
 	if err != nil {
-		return nil, fmt.Errorf("could not dial docker sock at %s: %v", sock, err)
+		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
+	}
+
+	var c net.Conn
+	switch daemonUrl.Scheme {
+	case "unix":
+		c, err = net.DialTimeout(daemonUrl.Scheme, daemonUrl.Path, time.Duration(10*time.Second))
+	case "tcp":
+		c, err = net.DialTimeout(daemonUrl.Scheme, daemonUrl.Host, time.Duration(10*time.Second))
+	default:
+		err = fmt.Errorf("unknown scheme %v", daemonUrl.Scheme)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not dial docker daemon at %s: %v", daemon, err)
 	}
 
 	client := httputil.NewClientConn(c, nil)
