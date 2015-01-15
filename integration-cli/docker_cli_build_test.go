@@ -4694,3 +4694,93 @@ func TestBuildDockerfileOutsideContext(t *testing.T) {
 
 	logDone("build - Dockerfile outside context")
 }
+
+func TestBuildSpaces(t *testing.T) {
+	// Test to make sure that leading/trailing spaces on a command
+	// doesn't change the error msg we get
+	var (
+		err1 error
+		err2 error
+	)
+
+	name := "testspaces"
+	defer deleteImages(name)
+	ctx, err := fakeContext("FROM busybox\nRUN\n",
+		map[string]string{
+			"Dockerfile": "FROM busybox\nRUN\n",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err1 = buildImageFromContext(name, ctx, false); err1 == nil {
+		t.Fatal("Build 1 was supposed to fail, but didn't")
+	}
+
+	ctx.Add("Dockerfile", "FROM busybox\nRUN    ")
+	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
+		t.Fatal("Build 2 was supposed to fail, but didn't")
+	}
+
+	// Skip over the times
+	e1 := err1.Error()[strings.Index(err1.Error(), `level="`):]
+	e2 := err2.Error()[strings.Index(err1.Error(), `level="`):]
+
+	// Ignore whitespace since that's what were verifying doesn't change stuff
+	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
+		t.Fatalf("Build 2's error wasn't the same as build 1's\n1:%s\n2:%s", err1, err2)
+	}
+
+	ctx.Add("Dockerfile", "FROM busybox\n   RUN")
+	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
+		t.Fatal("Build 3 was supposed to fail, but didn't")
+	}
+
+	// Skip over the times
+	e1 = err1.Error()[strings.Index(err1.Error(), `level="`):]
+	e2 = err2.Error()[strings.Index(err1.Error(), `level="`):]
+
+	// Ignore whitespace since that's what were verifying doesn't change stuff
+	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
+		t.Fatalf("Build 3's error wasn't the same as build 1's\n1:%s\n3:%s", err1, err2)
+	}
+
+	ctx.Add("Dockerfile", "FROM busybox\n   RUN    ")
+	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
+		t.Fatal("Build 4 was supposed to fail, but didn't")
+	}
+
+	// Skip over the times
+	e1 = err1.Error()[strings.Index(err1.Error(), `level="`):]
+	e2 = err2.Error()[strings.Index(err1.Error(), `level="`):]
+
+	// Ignore whitespace since that's what were verifying doesn't change stuff
+	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
+		t.Fatalf("Build 4's error wasn't the same as build 1's\n1:%s\n4:%s", err1, err2)
+	}
+
+	logDone("build - test spaces")
+}
+
+func TestBuildSpacesWithQuotes(t *testing.T) {
+	// Test to make sure that spaces in quotes aren't lost
+	name := "testspacesquotes"
+	defer deleteImages(name)
+
+	dockerfile := `FROM busybox
+RUN echo "  \
+  foo  "`
+
+	_, out, err := buildImageWithOut(name, dockerfile, false)
+	if err != nil {
+		t.Fatal("Build failed:", err)
+	}
+
+	expecting := "\n    foo  \n"
+	if !strings.Contains(out, expecting) {
+		t.Fatalf("Bad output: %q expecting to contian %q", out, expecting)
+	}
+
+	logDone("build - test spaces with quotes")
+}
