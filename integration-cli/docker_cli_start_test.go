@@ -165,3 +165,25 @@ func TestStartVolumesFromFailsCleanly(t *testing.T) {
 
 	logDone("start - missing containers in --volumes-from did not affect subsequent runs")
 }
+
+func TestStartPausedContainer(t *testing.T) {
+	defer deleteAllContainers()
+	defer unpauseAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "pause", "testing")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "start", "testing")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !strings.Contains(out, "Cannot start a paused container, try unpause instead.") {
+		t.Fatalf("an error should have been shown that you cannot start paused container: %s\n%v", out, err)
+	}
+
+	logDone("start - error should show if trying to start paused container")
+}
