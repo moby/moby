@@ -2,9 +2,13 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -391,4 +395,61 @@ func TestExecStopNotHanging(t *testing.T) {
 	case <-wait:
 	}
 	logDone("exec - container with exec not hanging on stop")
+}
+
+func TestExecCgroup(t *testing.T) {
+	defer deleteAllContainers()
+	var cmd *exec.Cmd
+
+	cmd = exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
+	_, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/1/cgroup")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	containerCgroups := sort.StringSlice(strings.Split(string(out), "\n"))
+
+	var wg sync.WaitGroup
+	var s sync.Mutex
+	execCgroups := []sort.StringSlice{}
+	// exec a few times concurrently to get consistent failure
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			cmd = exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
+			out, _, err := runCommandWithOutput(cmd)
+			if err != nil {
+				t.Fatal(out, err)
+			}
+			cg := sort.StringSlice(strings.Split(string(out), "\n"))
+
+			s.Lock()
+			execCgroups = append(execCgroups, cg)
+			s.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	for _, cg := range execCgroups {
+		if !reflect.DeepEqual(cg, containerCgroups) {
+			fmt.Println("exec cgroups:")
+			for _, name := range cg {
+				fmt.Printf(" %s\n", name)
+			}
+
+			fmt.Println("container cgroups:")
+			for _, name := range containerCgroups {
+				fmt.Printf(" %s\n", name)
+			}
+			t.Fatal("cgroups mismatched")
+		}
+	}
+
+	logDone("exec - exec has the container cgroups")
 }
