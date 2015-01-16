@@ -67,16 +67,6 @@ func TestImagesOrderedByCreationDate(t *testing.T) {
 	logDone("images - ordering by creation date")
 }
 
-func TestImagesErrorWithInvalidFilterNameTest(t *testing.T) {
-	imagesCmd := exec.Command(dockerBinary, "images", "-f", "FOO=123")
-	out, _, err := runCommandWithOutput(imagesCmd)
-	if !strings.Contains(out, "Invalid filter") {
-		t.Fatalf("error should occur when listing images with invalid filter name FOO, %s, %v", out, err)
-	}
-
-	logDone("images - invalid filter name check working")
-}
-
 func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 	imageName := "images_filter_test"
 	defer deleteAllContainers()

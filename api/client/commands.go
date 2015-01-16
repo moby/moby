@@ -49,10 +49,6 @@ const (
 	tarHeaderSize = 512
 )
 
-var (
-	acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
-)
-
 func (cli *DockerCli) CmdHelp(args ...string) error {
 	if len(args) > 1 {
 		method, exists := cli.getMethod(args[:2]...)
@@ -1328,12 +1324,6 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
 		if err != nil {
 			return err
-		}
-	}
-
-	for name := range imageFilterArgs {
-		if _, ok := acceptedImageFilterTags[name]; !ok {
-			return fmt.Errorf("Invalid filter '%s'", name)
 		}
 	}
 
