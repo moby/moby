@@ -43,13 +43,13 @@ when overriding a tag for existing image. For more information, see
 the [command line reference](http://docs.docker.com/reference/commandline/cli/#tag).
 
 * Container volumes are now initialized during `docker create`. For more information, see 
-the [command line reference](http://docs.docker.com/reference/commandline/cli/#create). 
+the [command line reference](http://docs.docker.com/reference/commandline/cli/#create).
 
 *Security Fixes*
 
 Patches and changes were made to address the following vulnerabilities:
 
-* CVE-2014-9356: Path traversal during processing of absolute symlinks. 
+* CVE-2014-9356: Path traversal during processing of absolute symlinks.
 Absolute symlinks were not adequately checked for  traversal which created a
 vulnerability via image extraction and/or volume mounts.
 * CVE-2014-9357: Escalation of privileges during decompression of LZMA (.xz)
@@ -79,3 +79,14 @@ destination.
 > Development history prior to version 1.0 can be found by
 > searching in the [Docker GitHub repo](https://github.com/docker/docker).
 
+## Known Issues
+
+This section lists significant known issues present in Docker as of release
+date. It is not exhaustive; it lists only issues with potentially significant
+impact on users. This list will be updated as issues are resolved.
+
+* **Unexpected File Permissions in Containers**
+An idiosyncrasy in AUFS prevents permissions from propagating predictably
+between upper and lower layers. This can cause issues with accessing private
+keys, database instances, etc. For complete information and workarounds see
+[Github Issue 783](https://github.com/docker/docker/issues/783).
