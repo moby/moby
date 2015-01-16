@@ -709,7 +709,12 @@ illustrate the technique.
         inet 192.168.5.1/24 scope global bridge0
            valid_lft forever preferred_lft forever
 
-    # Confirming outgoing NAT masquerade is setup
+    # Tell Docker about it and restart (on Ubuntu)
+
+    $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker
+    $ sudo service docker start
+
+    # Confirming new outgoing NAT masquerade is setup
 
     $ sudo iptables -t nat -L -n
     ...
@@ -717,10 +722,6 @@ illustrate the technique.
     target     prot opt source               destination
     MASQUERADE  all  --  192.168.5.0/24      0.0.0.0/0
 
-    # Tell Docker about it and restart (on Ubuntu)
-
-    $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker
-    $ sudo service docker start
 
 The result should be that the Docker server starts successfully and is
 now prepared to bind containers to the new bridge.  After pausing to
