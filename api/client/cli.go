@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/api"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
@@ -153,6 +154,11 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 		err = out
 	}
 
+	no_proxy := os.Getenv("no_proxy")
+	if !strings.Contains(no_proxy, api.DEFAULTUNIXSOCKET) {
+		no_proxy = no_proxy + "," + api.DEFAULTUNIXSOCKET
+		os.Setenv("no_proxy", no_proxy)
+	}
 	// The transport is created here for reuse during the client session
 	tr := &http.Transport{
 		Proxy:           http.ProxyFromEnvironment,
