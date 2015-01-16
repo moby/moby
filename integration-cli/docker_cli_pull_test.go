@@ -40,6 +40,7 @@ func TestPullImageWithAliases(t *testing.T) {
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
 		t.Fatalf("Failed to pull %v: error %v, output %q", repoName, err, out)
 	}
+	defer deleteImages(repos[0])
 	if err := exec.Command(dockerBinary, "inspect", repos[0]).Run(); err != nil {
 		t.Fatalf("Image %v was not pulled down", repos[0])
 	}
