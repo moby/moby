@@ -1,8 +1,8 @@
-page_title: Running Docker with HTTPS
+page_title: Protecting the Docker daemon Socket with HTTPS
 page_description: How to setup and run Docker with HTTPS
 page_keywords: docker, docs, article, example, https, daemon, tls, ca, certificate
 
-# Running Docker with https
+# Protecting the Docker daemon Socket with HTTPS
 
 By default, Docker runs via a non-networked Unix socket. It can also
 optionally communicate using a HTTP socket.
@@ -25,6 +25,9 @@ it will only connect to servers with a certificate signed by that CA.
 > certificates that Docker requires.
 
 ## Create a CA, server and client keys with OpenSSL
+
+> **Note:** replace all instances of `$HOST` in the following example with the
+> DNS name of your Docker daemon's host.
 
 First generate CA private and public keys:
 
@@ -49,19 +52,22 @@ First generate CA private and public keys:
      Locality Name (eg, city) []:Brisbane
      Organization Name (eg, company) [Internet Widgits Pty Ltd]:Docker Inc
      Organizational Unit Name (eg, section) []:Boot2Docker
-     Common Name (e.g. server FQDN or YOUR name) []:your.host.com
+     Common Name (e.g. server FQDN or YOUR name) []:$HOST
      Email Address []:Sven@home.org.au
 
 Now that we have a CA, you can create a server key and certificate
 signing request (CSR). Make sure that "Common Name" (i.e. server FQDN or YOUR
 name) matches the hostname you will use to connect to Docker:
 
+> **Note:** replace all instances of `$HOST` in the following example with the
+> DNS name of your Docker daemon's host.
+
     $ openssl genrsa -out server-key.pem 2048
     Generating RSA private key, 2048 bit long modulus
     ......................................................+++
     ............................................+++
     e is 65537 (0x10001)
-    $ openssl req -subj '/CN=<Your Hostname Here>' -new -key server-key.pem -out server.csr
+    $ openssl req -subj "/CN=$HOST" -new -key server-key.pem -out server.csr
 
 Next, we're going to sign the key with our CA:
 
@@ -105,8 +111,11 @@ providing a certificate trusted by our CA:
 To be able to connect to Docker and validate its certificate, you now
 need to provide your client keys, certificates and trusted CA:
 
+> **Note:** replace all instances of `$HOST` in the following example with the
+> DNS name of your Docker daemon's host.
+
     $ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
-      -H=dns-name-of-docker-host:2376 version
+      -H=$HOST:2376 version
 
 > **Note**:
 > Docker over TLS should run on TCP port 2376.
@@ -125,6 +134,7 @@ the files to the `.docker` directory in your home directory - and set the
 `DOCKER_HOST` and `DOCKER_TLS_VERIFY` variables as well (instead of passing
 `-H=tcp://:2376` and `--tlsverify` on every call).
 
+    $ mkdir -p ~/.docker
     $ cp ca.pem ~/.docker/ca.pem
     $ cp cert.pem ~/.docker/cert.pem
     $ cp key.pem ~/.docker/key.pem
@@ -167,7 +177,7 @@ location using the environment variable `DOCKER_CERT_PATH`.
 To use `curl` to make test API requests, you need to use three extra command line
 flags:
 
-    $ curl https://boot2docker:2376/images/json \
+    $ curl https://$HOST:2376/images/json \
       --cert ~/.docker/cert.pem \
       --key ~/.docker/key.pem \
       --cacert ~/.docker/ca.pem
