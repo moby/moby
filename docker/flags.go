@@ -4,29 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 )
-
-var (
-	dockerCertPath  = os.Getenv("DOCKER_CERT_PATH")
-	dockerTlsVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""
-)
-
-func init() {
-	if dockerCertPath == "" {
-		dockerCertPath = filepath.Join(getHomeDir(), ".docker")
-	}
-}
-
-func getHomeDir() string {
-	if runtime.GOOS == "windows" {
-		return os.Getenv("USERPROFILE")
-	}
-	return os.Getenv("HOME")
-}
 
 var (
 	flVersion     = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
@@ -37,21 +18,30 @@ var (
 	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify flag")
 	flHelp        = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 
-	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
-	flTrustKey *string
-	flCa       *string
-	flCert     *string
-	flKey      *string
-	flHosts    []string
+	// these are initialized in init() below since their default values depend on
+	// dockerCertPath, dockerTlsVerfify, etc. which aren't fully initialized until init() runs
+	flTlsVerify *bool
+	flTrustKey  *string
+	flCa        *string
+	flCert      *string
+	flKey       *string
+	flHosts     []string
 )
 
 func init() {
+	defaultStorageDir = filepath.Join(getHomeDir(), ".docker")
+	dockerConfigPath = getConfigPath()
+	defaultGetter.readConfigFile(dockerConfigPath)
+	dockerCertPath = defaultGetter.GetCertPath()
+	dockerTlsVerify = defaultGetter.GetTlsVerify()
+	configFileHost = defaultGetter.GetHost()
+
 	// placeholder for trust key flag
 	trustKeyDefault := filepath.Join(dockerCertPath, defaultTrustKeyFile)
 	flTrustKey = &trustKeyDefault
 
+	flTlsVerify = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote (daemon: verify client, client: verify daemon)")
 	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerCertPath, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
 	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
 	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
