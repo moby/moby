@@ -87,16 +87,10 @@ func (r *Repository) restore() error {
 
 	for _, v := range dir {
 		id := v.Name()
-		path, err := r.driver.Get(id, "")
-		if err != nil {
-			log.Debugf("Could not find volume for %s: %v", id, err)
-			continue
-		}
 		vol := &Volume{
 			ID:         id,
 			configPath: r.configPath + "/" + id,
 			containers: make(map[string]struct{}),
-			Path:       path,
 		}
 		if err := vol.FromDisk(); err != nil {
 			if !os.IsNotExist(err) {

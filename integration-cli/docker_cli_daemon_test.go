@@ -317,3 +317,36 @@ func TestDaemonAllocatesListeningPort(t *testing.T) {
 
 	logDone("daemon - daemon listening port is allocated")
 }
+
+// #9629
+func TestDaemonVolumesBindsRefs(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+
+	tmp, err := ioutil.TempDir(os.TempDir(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	if err := ioutil.WriteFile(tmp+"/test", []byte("testing"), 0655); err != nil {
+		t.Fatal(err)
+	}
+
+	if out, err := d.Cmd("create", "-v", tmp+":/foo", "--name=voltest", "busybox"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if err := d.Restart(); err != nil {
+		t.Fatal(err)
+	}
+
+	if out, err := d.Cmd("run", "--volumes-from=voltest", "--name=consumer", "busybox", "/bin/sh", "-c", "[ -f /foo/test ]"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("daemon - bind refs in data-containers survive daemon restart")
+}
