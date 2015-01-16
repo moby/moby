@@ -45,6 +45,7 @@ var (
 		graphdriver.FsMagicBtrfs,
 		graphdriver.FsMagicAufs,
 	}
+	backingFs = "<unknown>"
 )
 
 func init() {
@@ -60,20 +61,22 @@ type Driver struct {
 // New returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
 func Init(root string, options []string) (graphdriver.Driver, error) {
+
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	rootdir := path.Dir(root)
-
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(rootdir, &buf); err != nil {
-		return nil, fmt.Errorf("Couldn't stat the root directory: %s", err)
+	fsMagic, err := graphdriver.GetFSMagic(root)
+	if err != nil {
+		return nil, err
+	}
+	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
+		backingFs = fsName
 	}
 
 	for _, magic := range incompatibleFsMagic {
-		if graphdriver.FsMagic(buf.Type) == magic {
+		if fsMagic == magic {
 			return nil, graphdriver.ErrIncompatibleFS
 		}
 	}
@@ -146,6 +149,7 @@ func (a *Driver) Status() [][2]string {
 	ids, _ := loadIds(path.Join(a.rootPath(), "layers"))
 	return [][2]string{
 		{"Root Dir", a.rootPath()},
+		{"Backing Filesystem", backingFs},
 		{"Dirs", fmt.Sprintf("%d", len(ids))},
 	}
 }

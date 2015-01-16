@@ -29,7 +29,17 @@ type Driver struct {
 	home string
 }
 
+var backingFs = "<unknown>"
+
 func Init(home string, options []string) (graphdriver.Driver, error) {
+	fsMagic, err := graphdriver.GetFSMagic(home)
+	if err != nil {
+		return nil, err
+	}
+	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
+		backingFs = fsName
+	}
+
 	deviceSet, err := NewDeviceSet(home, true, options)
 	if err != nil {
 		return nil, err
@@ -57,6 +67,7 @@ func (d *Driver) Status() [][2]string {
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
 		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
+		{"Backing Filesystem", backingFs},
 		{"Data file", s.DataFile},
 		{"Metadata file", s.MetadataFile},
 		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
