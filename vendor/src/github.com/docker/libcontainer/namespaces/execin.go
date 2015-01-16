@@ -73,6 +73,11 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 		return terminate(err)
 	}
 
+	// finish cgroups' setup, unblock the child process.
+	if _, err := parent.WriteString("1"); err != nil {
+		return terminate(err)
+	}
+
 	if err := json.NewEncoder(parent).Encode(container); err != nil {
 		return terminate(err)
 	}
