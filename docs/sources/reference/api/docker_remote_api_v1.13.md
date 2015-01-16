@@ -36,7 +36,7 @@ List containers
         [
              {
                      "Id": "8dfafdbc3a40",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 1",
                      "Created": 1367854155,
                      "Status": "Exit 0",
@@ -46,7 +46,7 @@ List containers
              },
              {
                      "Id": "9cd87474be90",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 222222",
                      "Created": 1367854155,
                      "Status": "Exit 0",
@@ -56,7 +56,7 @@ List containers
              },
              {
                      "Id": "3176a2479c92",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 3333333333333333",
                      "Created": 1367854154,
                      "Status": "Exit 0",
@@ -66,7 +66,7 @@ List containers
              },
              {
                      "Id": "4cb07b47f9fb",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 444444444444444444444444444444444",
                      "Created": 1367854152,
                      "Status": "Exit 0",
@@ -121,7 +121,7 @@ Create a container
              "Cmd":[
                      "date"
              ],
-             "Image":"base",
+             "Image":"ubuntu",
              "Volumes":{
                      "/tmp": {}
              },
@@ -198,7 +198,7 @@ Return low-level information on the container `id`
                                      "date"
                              ],
                              "Dns": null,
-                             "Image": "base",
+                             "Image": "ubuntu",
                              "Volumes": {},
                              "VolumesFrom": "",
                              "WorkingDir": ""
@@ -784,7 +784,7 @@ Create an image, either by pulling it from the registry or by importing it
 
 **Example request**:
 
-        POST /images/create?fromImage=base HTTP/1.1
+        POST /images/create?fromImage=ubuntu HTTP/1.1
 
 **Example response**:
 
@@ -827,7 +827,7 @@ Return low-level information on the image `name`
 
 **Example request**:
 
-        GET /images/base/json HTTP/1.1
+        GET /images/ubuntu/json HTTP/1.1
 
 **Example response**:
 
@@ -853,7 +853,7 @@ Return low-level information on the image `name`
                              "Env": null,
                              "Cmd": ["/bin/bash"],
                              "Dns": null,
-                             "Image": "base",
+                             "Image": "ubuntu",
                              "Volumes": null,
                              "VolumesFrom": "",
                              "WorkingDir": ""
@@ -877,7 +877,7 @@ Return the history of the image `name`
 
 **Example request**:
 
-        GET /images/base/history HTTP/1.1
+        GET /images/ubuntu/history HTTP/1.1
 
 **Example response**:
 
@@ -1314,10 +1314,10 @@ and Docker images will report:
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"status": "create", "id": "dfdf82bd3881","from": "base:latest", "time":1374067924}
-        {"status": "start", "id": "dfdf82bd3881","from": "base:latest", "time":1374067924}
-        {"status": "stop", "id": "dfdf82bd3881","from": "base:latest", "time":1374067966}
-        {"status": "destroy", "id": "dfdf82bd3881","from": "base:latest", "time":1374067970}
+        {"status": "create", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
+        {"status": "start", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
+        {"status": "stop", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067966}
+        {"status": "destroy", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067970}
 
 Query Parameters:
 
