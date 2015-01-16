@@ -1161,7 +1161,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	v.Set("repo", repository)
 
 	if cmd.NArg() == 3 {
-		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' as been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' has been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
 		v.Set("tag", cmd.Arg(2))
 	}
 
