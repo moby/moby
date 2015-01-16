@@ -103,6 +103,7 @@ type HostConfig struct {
 	ContainerIDFile string
 	LxcConf         []utils.KeyValuePair
 	CpusetCpus      string // CpusetCpus 0-2, 0,1
+	CpusetMems      string // CpusetMems 0-2, 0,1
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
@@ -152,6 +153,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
 		CpusetCpus:      job.Getenv("CpusetCpus"),
+		CpusetMems:      job.Getenv("CpusetMems"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
