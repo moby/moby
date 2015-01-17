@@ -133,7 +133,7 @@ func SaveConfig(configFile *ConfigFile) error {
 		configs[k] = authCopy
 	}
 
-	b, err := json.Marshal(configs)
+	b, err := json.MarshalIndent(configs, "", "\t")
 	if err != nil {
 		return err
 	}
