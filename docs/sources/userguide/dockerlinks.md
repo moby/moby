@@ -282,6 +282,8 @@ will be automatically updated with the source container's new IP address,
 allowing linked communication to continue.
 
     $ sudo docker restart db
+    db
+    $ sudo docker run -t -i --rm --link db:db training/webapp /bin/bash
     root@aed84ee21bde:/opt/webapp# cat /etc/hosts
     172.17.0.7  aed84ee21bde
     . . .
