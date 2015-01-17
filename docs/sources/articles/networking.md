@@ -714,7 +714,7 @@ illustrate the technique.
     $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker
     $ sudo service docker start
 
-    # Confirming new outgoing NAT masquerade is setup
+    # Confirming new outgoing NAT masquerade is set up
 
     $ sudo iptables -t nat -L -n
     ...
