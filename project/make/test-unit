@@ -23,7 +23,7 @@ bundle_test_unit() {
 			TESTDIRS=$(find_dirs '*_test.go')
 		fi
 		(
-			export LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER"
+			export LDFLAGS
 			export TESTFLAGS
 			export HAVE_GO_TEST_COVER
 			export DEST
