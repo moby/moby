@@ -94,7 +94,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	if target == "" {
 		return false
 	}
-	if dockerversion.IAMSTATIC {
+	if dockerversion.IAMSTATIC == "true" {
 		if selfPath == "" {
 			return false
 		}
