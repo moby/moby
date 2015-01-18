@@ -59,3 +59,28 @@ EXPOSE 8000
 RUN cd sources && rgrep --files-with-matches '{{ include ".*" }}' | xargs sed -i~ 's/{{ include "\(.*\)" }}/cat include\/\1/ge'
 
 CMD ["mkdocs", "serve"]
+
+# Initial Dockerfile driven documenation aggregation
+# Sven plans to move each Dockerfile into the respective repository
+
+# Docker Swarm
+ADD https://raw.githubusercontent.com/docker/swarm/master/logo.png /docs/sources/swarm/logo.png
+ADD https://raw.githubusercontent.com/docker/swarm/master/README.md /docs/sources/swarm/README.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/discovery/README.md /docs/sources/swarm/discovery.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/api/README.md /docs/sources/swarm/API.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/scheduler/filter/README.md /docs/sources/swarm/filters.md
+
+# Docker Machine
+ADD https://raw.githubusercontent.com/docker/machine/master/docs/dockermachine.md /docs/sources/machine/userguide.md
+
+# Docker Compose
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/index.md /docs/sources/compose/userguide.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/install.md /docs/sources/compose/install.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/cli.md /docs/sources/compose/cli.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/yml.md /docs/sources/compose/yml.md
+
+# add the project docs from the `mkdocs-<project>.yml` files
+RUN cd /docs && ./build.sh
+
+# remove `^---*` lines from md's
+RUN cd /docs/sources && find . -name "*.md" | xargs sed -i~ -n '/^---*/!p'

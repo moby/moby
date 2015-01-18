@@ -25,7 +25,7 @@ In the root of the `docker` source directory:
 
     $ make docs
     .... (lots of output) ....
-    $ docker run --rm -it  -e AWS_S3_BUCKET -p 8000:8000 "docker-docs:master" mkdocs serve
+    docker run --rm -it  -e AWS_S3_BUCKET -p 8000:8000 "docker-docs:master" mkdocs serve
     Running at: http://0.0.0.0:8000/
     Live reload enabled.
     Hold ctrl+c to quit.
