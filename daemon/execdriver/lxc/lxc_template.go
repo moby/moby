@@ -61,13 +61,24 @@ lxc.cgroup.devices.allow = {{$allowedDevice.GetCgroupAllowString}}
 lxc.pivotdir = lxc_putold
 
 # NOTICE: These mounts must be applied within the namespace
-
+{{if .ProcessConfig.Privileged}}
 # WARNING: mounting procfs and/or sysfs read-write is a known attack vector.
 # See e.g. http://blog.zx2c4.com/749 and http://bit.ly/T9CkqJ
 # We mount them read-write here, but later, dockerinit will call the Restrict() function to remount them read-only.
 # We cannot mount them directly read-only, because that would prevent loading AppArmor profiles.
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
+	{{if .AppArmor}}
+lxc.aa_profile = unconfined
+	{{end}}
+{{else}}
+# In non-privileged mode, lxc will automatically mount /proc and /sys in readonly mode
+# for security. See: http://man7.org/linux/man-pages/man5/lxc.container.conf.5.html
+lxc.mount.auto = proc sys
+	{{if .AppArmor}}
+lxc.aa_profile = .AppArmorProfile
+	{{end}}
+{{end}}
 
 {{if .ProcessConfig.Tty}}
 lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
@@ -82,14 +93,6 @@ lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountL
 lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,rw,create={{$createVal}} 0 0
 {{else}}
 lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,ro,create={{$createVal}} 0 0
-{{end}}
-{{end}}
-
-{{if .ProcessConfig.Privileged}}
-{{if .AppArmor}}
-lxc.aa_profile = unconfined
-{{else}}
-# Let AppArmor normal confinement take place (i.e., not unconfined)
 {{end}}
 {{end}}
 
