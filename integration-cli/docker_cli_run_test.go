@@ -316,7 +316,7 @@ func TestRunWithoutNetworking(t *testing.T) {
 
 //test --link use container name to link target
 func TestRunLinksContainerWithContainerName(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-t", "-d", "--name", "parent", "busybox")
+	cmd := exec.Command(dockerBinary, "run", "-i", "-t", "-d", "--name", "parent", "busybox")
 	out, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
@@ -342,7 +342,7 @@ func TestRunLinksContainerWithContainerName(t *testing.T) {
 
 //test --link use container id to link target
 func TestRunLinksContainerWithContainerId(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-t", "-d", "busybox")
+	cmd := exec.Command(dockerBinary, "run", "-i", "-t", "-d", "busybox")
 	cID, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
 		t.Fatalf("failed to run container: %v, output: %q", err, cID)
