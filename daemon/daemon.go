@@ -1099,7 +1099,7 @@ func (daemon *Daemon) Stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
-func (daemon *Daemon) SubscribeToContainerStats(name string) (chan *execdriver.ResourceStats, error) {
+func (daemon *Daemon) SubscribeToContainerStats(name string) (chan interface{}, error) {
 	c := daemon.Get(name)
 	if c == nil {
 		return nil, fmt.Errorf("no such container")
@@ -1108,7 +1108,7 @@ func (daemon *Daemon) SubscribeToContainerStats(name string) (chan *execdriver.R
 	return ch, nil
 }
 
-func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan *execdriver.ResourceStats) error {
+func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface{}) error {
 	c := daemon.Get(name)
 	if c == nil {
 		return fmt.Errorf("no such container")

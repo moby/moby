@@ -1,11 +1,8 @@
+// This package is used for API stability in the types and response to the
+// consumers of the API stats endpoint.
 package stats
 
-import (
-	"time"
-
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/cgroups"
-)
+import "time"
 
 type ThrottlingData struct {
 	// Number of periods with throttling active
@@ -87,70 +84,4 @@ type Stats struct {
 	CpuStats    CpuStats    `json:"cpu_stats,omitempty"`
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
 	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
-}
-
-// ToStats converts the libcontainer.ContainerStats to the api specific
-// structs.  This is done to preserve API compatibility and versioning.
-func ToStats(ls *libcontainer.ContainerStats) *Stats {
-	s := &Stats{}
-	if ls.NetworkStats != nil {
-		s.Network = Network{
-			RxBytes:   ls.NetworkStats.RxBytes,
-			RxPackets: ls.NetworkStats.RxPackets,
-			RxErrors:  ls.NetworkStats.RxErrors,
-			RxDropped: ls.NetworkStats.RxDropped,
-			TxBytes:   ls.NetworkStats.TxBytes,
-			TxPackets: ls.NetworkStats.TxPackets,
-			TxErrors:  ls.NetworkStats.TxErrors,
-			TxDropped: ls.NetworkStats.TxDropped,
-		}
-	}
-	cs := ls.CgroupStats
-	if cs != nil {
-		s.BlkioStats = BlkioStats{
-			IoServiceBytesRecursive: copyBlkioEntry(cs.BlkioStats.IoServiceBytesRecursive),
-			IoServicedRecursive:     copyBlkioEntry(cs.BlkioStats.IoServicedRecursive),
-			IoQueuedRecursive:       copyBlkioEntry(cs.BlkioStats.IoQueuedRecursive),
-			IoServiceTimeRecursive:  copyBlkioEntry(cs.BlkioStats.IoServiceTimeRecursive),
-			IoWaitTimeRecursive:     copyBlkioEntry(cs.BlkioStats.IoWaitTimeRecursive),
-			IoMergedRecursive:       copyBlkioEntry(cs.BlkioStats.IoMergedRecursive),
-			IoTimeRecursive:         copyBlkioEntry(cs.BlkioStats.IoTimeRecursive),
-			SectorsRecursive:        copyBlkioEntry(cs.BlkioStats.SectorsRecursive),
-		}
-		cpu := cs.CpuStats
-		s.CpuStats = CpuStats{
-			CpuUsage: CpuUsage{
-				TotalUsage:        cpu.CpuUsage.TotalUsage,
-				PercpuUsage:       cpu.CpuUsage.PercpuUsage,
-				UsageInKernelmode: cpu.CpuUsage.UsageInKernelmode,
-				UsageInUsermode:   cpu.CpuUsage.UsageInUsermode,
-			},
-			ThrottlingData: ThrottlingData{
-				Periods:          cpu.ThrottlingData.Periods,
-				ThrottledPeriods: cpu.ThrottlingData.ThrottledPeriods,
-				ThrottledTime:    cpu.ThrottlingData.ThrottledTime,
-			},
-		}
-		mem := cs.MemoryStats
-		s.MemoryStats = MemoryStats{
-			Usage:    mem.Usage,
-			MaxUsage: mem.MaxUsage,
-			Stats:    mem.Stats,
-			Failcnt:  mem.Failcnt,
-		}
-	}
-	return s
-}
-
-func copyBlkioEntry(entries []cgroups.BlkioStatEntry) []BlkioStatEntry {
-	out := make([]BlkioStatEntry, len(entries))
-	for i, re := range entries {
-		out[i] = BlkioStatEntry{
-			Major: re.Major,
-			Minor: re.Minor,
-			Op:    re.Op,
-			Value: re.Value,
-		}
-	}
-	return out
 }

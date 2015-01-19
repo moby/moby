@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/libcontainer/system"
 )
 
@@ -21,17 +22,11 @@ import (
 func newStatsCollector(interval time.Duration) *statsCollector {
 	s := &statsCollector{
 		interval:   interval,
-		containers: make(map[string]*statsData),
+		publishers: make(map[*Container]*pubsub.Publisher),
 		clockTicks: uint64(system.GetClockTicks()),
 	}
-	s.start()
+	go s.run()
 	return s
-}
-
-type statsData struct {
-	c         *Container
-	lastStats *execdriver.ResourceStats
-	subs      []chan *execdriver.ResourceStats
 }
 
 // statsCollector manages and provides container resource stats
@@ -39,96 +34,63 @@ type statsCollector struct {
 	m          sync.Mutex
 	interval   time.Duration
 	clockTicks uint64
-	containers map[string]*statsData
+	publishers map[*Container]*pubsub.Publisher
 }
 
 // collect registers the container with the collector and adds it to
 // the event loop for collection on the specified interval returning
 // a channel for the subscriber to receive on.
-func (s *statsCollector) collect(c *Container) chan *execdriver.ResourceStats {
+func (s *statsCollector) collect(c *Container) chan interface{} {
 	s.m.Lock()
 	defer s.m.Unlock()
-	ch := make(chan *execdriver.ResourceStats, 1024)
-	if _, exists := s.containers[c.ID]; exists {
-		s.containers[c.ID].subs = append(s.containers[c.ID].subs, ch)
-		return ch
+	publisher, exists := s.publishers[c]
+	if !exists {
+		publisher = pubsub.NewPublisher(100*time.Millisecond, 1024)
+		s.publishers[c] = publisher
 	}
-	s.containers[c.ID] = &statsData{
-		c: c,
-		subs: []chan *execdriver.ResourceStats{
-			ch,
-		},
-	}
-	return ch
+	return publisher.Subscribe()
 }
 
 // stopCollection closes the channels for all subscribers and removes
 // the container from metrics collection.
 func (s *statsCollector) stopCollection(c *Container) {
 	s.m.Lock()
-	defer s.m.Unlock()
-	d := s.containers[c.ID]
-	if d == nil {
-		return
-	}
-	for _, sub := range d.subs {
-		close(sub)
-	}
-	delete(s.containers, c.ID)
-}
-
-// unsubscribe removes a specific subscriber from receiving updates for a
-// container's stats.
-func (s *statsCollector) unsubscribe(c *Container, ch chan *execdriver.ResourceStats) {
-	s.m.Lock()
-	cd := s.containers[c.ID]
-	for i, sub := range cd.subs {
-		if ch == sub {
-			cd.subs = append(cd.subs[:i], cd.subs[i+1:]...)
-			close(ch)
-		}
-	}
-	// if there are no more subscribers then remove the entire container
-	// from collection.
-	if len(cd.subs) == 0 {
-		delete(s.containers, c.ID)
+	if publisher, exists := s.publishers[c]; exists {
+		publisher.Close()
+		delete(s.publishers, c)
 	}
 	s.m.Unlock()
 }
 
-func (s *statsCollector) start() {
-	go func() {
-		for _ = range time.Tick(s.interval) {
-			s.m.Lock()
-			for id, d := range s.containers {
-				systemUsage, err := s.getSystemCpuUsage()
-				if err != nil {
-					log.Errorf("collecting system cpu usage for %s: %v", id, err)
-					continue
-				}
-				stats, err := d.c.Stats()
-				if err != nil {
-					if err == execdriver.ErrNotRunning {
-						continue
-					}
-					// if the error is not because the container is currently running then
-					// evict the container from the collector and close the channel for
-					// any subscribers currently waiting on changes.
-					log.Errorf("collecting stats for %s: %v", id, err)
-					for _, sub := range s.containers[id].subs {
-						close(sub)
-					}
-					delete(s.containers, id)
-					continue
-				}
-				stats.SystemUsage = systemUsage
-				for _, sub := range s.containers[id].subs {
-					sub <- stats
-				}
+// unsubscribe removes a specific subscriber from receiving updates for a container's stats.
+func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
+	s.m.Lock()
+	publisher := s.publishers[c]
+	if publisher != nil {
+		publisher.Evict(ch)
+	}
+	s.m.Unlock()
+}
+
+func (s *statsCollector) run() {
+	for _ = range time.Tick(s.interval) {
+		for container, publisher := range s.publishers {
+			systemUsage, err := s.getSystemCpuUsage()
+			if err != nil {
+				log.Errorf("collecting system cpu usage for %s: %v", container.ID, err)
+				continue
 			}
-			s.m.Unlock()
+			stats, err := container.Stats()
+			if err != nil {
+				if err != execdriver.ErrNotRunning {
+					log.Errorf("collecting stats for %s: %v", container.ID, err)
+				}
+				continue
+			}
+			stats.SystemUsage = systemUsage
+			publisher.Publish(stats)
 		}
-	}()
+	}
 }
 
 const nanoSeconds = 1e9
