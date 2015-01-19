@@ -339,6 +339,13 @@ func UdevSetSyncSupport(enable bool) bool {
 	return UdevSyncSupported()
 }
 
+// CookieSupported returns whether the version of device-mapper supports the
+// use of cookie's in the tasks.
+// This is largely a lower level call that other functions use.
+func CookieSupported() bool {
+	return DmCookieSupported() != 0
+}
+
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
 	log.Debugf("[devmapper] RemoveDevice START")
