@@ -947,6 +947,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		return graphdriver.ErrNotSupported
 	}
 
+	// https://github.com/docker/docker/issues/4036
+	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
+		log.Warnf("WARNING: Udev sync is not supported. This will lead to unexpected behavior, data loss and errors")
+	}
+	log.Debugf("devicemapper: udev sync support: %v", devicemapper.UdevSyncSupported())
+
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
