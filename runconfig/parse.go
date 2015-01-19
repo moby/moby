@@ -336,18 +336,15 @@ func parseRestartPolicy(policy string) (RestartPolicy, error) {
 		name  = parts[0]
 	)
 
+	p.Name = name
 	switch name {
 	case "always":
-		p.Name = name
-
 		if len(parts) == 2 {
 			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"always\"")
 		}
 	case "no":
 		// do nothing
 	case "on-failure":
-		p.Name = name
-
 		if len(parts) == 2 {
 			count, err := strconv.Atoi(parts[1])
 			if err != nil {
