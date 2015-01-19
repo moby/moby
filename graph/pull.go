@@ -72,7 +72,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName += ":" + tag
 	}
 
-	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
+	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
 			log.Errorf("error updating trust base graph: %s", err)
@@ -373,7 +373,7 @@ type downloadInfo struct {
 }
 
 func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
-	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index, true)
 	if err != nil {
 		return fmt.Errorf("error getting registry endpoint: %s", err)
 	}

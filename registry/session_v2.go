@@ -2,6 +2,7 @@ package registry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,10 +20,31 @@ func getV2Builder(e *Endpoint) *v2.URLBuilder {
 	return e.URLBuilder
 }
 
-func (r *Session) V2RegistryEndpoint(index *IndexInfo) (ep *Endpoint, err error) {
-	// TODO check if should use Mirror
-	if index.Official {
-		ep, err = newEndpoint(REGISTRYSERVER, true)
+func (r *Session) V2RegistryEndpoint(index *IndexInfo, useMirror bool) (ep *Endpoint, err error) {
+	if useMirror && len(index.Mirrors) > 1 {
+		for i := 0; i < len(index.Mirrors); i++ {
+			ep, err = newEndpoint(index.Mirrors[i], index.Secure)
+			if err != nil {
+				return
+			}
+			err = validateEndpoint(ep)
+			if err != nil {
+				return
+			}
+			if ep.Version == APIVersion2 {
+				// V2 endpoint found
+				break
+			} else {
+				// Unsupported endpoint, try next
+				ep = nil
+			}
+		}
+		if ep == nil {
+			err = errors.New("no V2 supported mirrors")
+			return
+		}
+	} else if index.Official {
+		ep, err = newEndpoint(REGISTRYSERVER, index.Secure)
 		if err != nil {
 			return
 		}
