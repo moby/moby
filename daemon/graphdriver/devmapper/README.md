@@ -32,7 +32,7 @@ eventually containers.
 
 The devicemapper backend supports some options that you can specify
 when starting the docker daemon using the `--storage-opt` flags.
-This uses the `dm` prefix and would be used something like `docker -d --storage-opt dm.foo=bar`.
+This uses the `dm` prefix and would be used something like `docker daemon --storage-opt dm.foo=bar`.
 
 Here is the list of supported options:
 
@@ -47,11 +47,11 @@ Here is the list of supported options:
     system-wide "base" empty filesystem that may already be
     initialized and inherited by pulled images.  Typically, a change
     to this value will require additional steps to take effect: 1)
-    stop `docker -d`, 2) `rm -rf /var/lib/docker`, 3) start `docker -d`.
+    stop `docker daemon`, 2) `rm -rf /var/lib/docker`, 3) start `docker daemon`.
 
     Example use:
 
-    ``docker -d --storage-opt dm.basesize=20G``
+    ``docker daemon --storage-opt dm.basesize=20G``
 
  *  `dm.loopdatasize`
 
@@ -62,7 +62,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.loopdatasize=200G``
+    ``docker daemon --storage-opt dm.loopdatasize=200G``
 
  *  `dm.loopmetadatasize`
 
@@ -73,7 +73,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.loopmetadatasize=4G``
+    ``docker daemon --storage-opt dm.loopmetadatasize=4G``
 
  *  `dm.fs`
 
@@ -82,7 +82,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.fs=xfs``
+    ``docker daemon --storage-opt dm.fs=xfs``
 
  *  `dm.mkfsarg`
 
@@ -90,7 +90,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"``
+    ``docker daemon --storage-opt "dm.mkfsarg=-O ^has_journal"``
 
  *  `dm.mountopt`
 
@@ -98,7 +98,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.mountopt=nodiscard``
+    ``docker daemon --storage-opt dm.mountopt=nodiscard``
 
  *  `dm.thinpooldev`
 
@@ -129,7 +129,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
+    ``docker daemon --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
 
  *  `dm.metadatadev`
 
@@ -147,7 +147,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
+    ``docker daemon --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
 
  *  `dm.blocksize`
 
@@ -156,7 +156,7 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.blocksize=512K``
+    ``docker daemon --storage-opt dm.blocksize=512K``
 
  *  `dm.blkdiscard`
 
@@ -172,4 +172,4 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.blkdiscard=false``
+    ``docker daemon --storage-opt dm.blkdiscard=false``

@@ -11,6 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
@@ -25,6 +26,13 @@ const (
 )
 
 func main() {
+	for j := 1; j < len(os.Args); j++ {
+		if os.Args[j] == "-d" || os.Args[j] == "--daemon" {
+			log.Println("-d is deprecated. Please use daemon command")
+			os.Args[j] = "daemon"
+		}
+	}
+
 	if reexec.Init() {
 		return
 	}
@@ -56,7 +64,7 @@ func main() {
 
 	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
-		if defaultHost == "" || *flDaemon {
+		if defaultHost == "" {
 			// If we do not have a host, default to unix socket
 			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
 		}
@@ -65,11 +73,6 @@ func main() {
 			log.Fatal(err)
 		}
 		flHosts = append(flHosts, defaultHost)
-	}
-
-	if *flDaemon {
-		mainDaemon()
-		return
 	}
 
 	if len(flHosts) > 1 {
@@ -127,6 +130,12 @@ func main() {
 	} else {
 		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
+
+	daemon.Tls = *flTls
+	daemon.TlsVerify = *flTlsVerify
+	daemon.Ca = *flCa
+	daemon.Key = *flKey
+	daemon.Hosts = flHosts
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
