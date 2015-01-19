@@ -2717,11 +2717,16 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 }
 
 func calcuateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) float64 {
-	cpuPercent := 0.0
-	cpuDelta := float64(v.CpuStats.CpuUsage.TotalUsage) - float64(previousCpu)
-	systemDelta := float64(int(v.CpuStats.SystemUsage)/v.ClockTicks) - float64(int(previousSystem)/v.ClockTicks)
-	if systemDelta > 0.0 {
-		cpuPercent = (cpuDelta / systemDelta) * float64(v.ClockTicks*len(v.CpuStats.CpuUsage.PercpuUsage))
+	var (
+		cpuPercent = 0.0
+		// calculate the change for the cpu usage of the container in between readings
+		cpuDelta = float64(v.CpuStats.CpuUsage.TotalUsage - previousCpu)
+		// calculate the change for the entire system between readings
+		systemDelta = float64(v.CpuStats.SystemUsage - previousSystem)
+	)
+
+	if systemDelta > 0.0 && cpuDelta > 0.0 {
+		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CpuStats.CpuUsage.PercpuUsage)) * 100.0
 	}
 	return cpuPercent
 }

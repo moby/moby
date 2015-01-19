@@ -17,6 +17,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
@@ -46,7 +47,12 @@ type driver struct {
 	sync.Mutex
 }
 
-func NewDriver(root, initPath string, machineMemory int64) (*driver, error) {
+func NewDriver(root, initPath string) (*driver, error) {
+	meminfo, err := sysinfo.ReadMemInfo()
+	if err != nil {
+		return nil, err
+	}
+
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
@@ -58,7 +64,7 @@ func NewDriver(root, initPath string, machineMemory int64) (*driver, error) {
 		root:             root,
 		initPath:         initPath,
 		activeContainers: make(map[string]*activeContainer),
-		machineMemory:    machineMemory,
+		machineMemory:    meminfo.MemTotal,
 	}, nil
 }
 
@@ -303,7 +309,6 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	return &execdriver.ResourceStats{
 		Read:           now,
 		ContainerStats: stats,
-		ClockTicks:     system.GetClockTicks(),
 		MemoryLimit:    memoryLimit,
 	}, nil
 }

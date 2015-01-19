@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/libcontainer/system"
 )
 
 // newStatsCollector returns a new statsCollector that collections
@@ -21,6 +22,7 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 	s := &statsCollector{
 		interval:   interval,
 		containers: make(map[string]*statsData),
+		clockTicks: uint64(system.GetClockTicks()),
 	}
 	s.start()
 	return s
@@ -36,6 +38,7 @@ type statsData struct {
 type statsCollector struct {
 	m          sync.Mutex
 	interval   time.Duration
+	clockTicks uint64
 	containers map[string]*statsData
 }
 
@@ -128,8 +131,10 @@ func (s *statsCollector) start() {
 	}()
 }
 
-// getSystemdCpuUSage returns the host system's cpu usage
-// in nanoseconds.
+const nanoSeconds = 1e9
+
+// getSystemdCpuUSage returns the host system's cpu usage in nanoseconds
+// for the system to match the cgroup readings are returned in the same format.
 func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -144,17 +149,15 @@ func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
 			if len(parts) < 8 {
 				return 0, fmt.Errorf("invalid number of cpu fields")
 			}
-			var total uint64
+			var sum uint64
 			for _, i := range parts[1:8] {
 				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
-					return 0.0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
+					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
 				}
-				total += v
+				sum += v
 			}
-			return total * 1000000000, nil
-		default:
-			continue
+			return (sum * nanoSeconds) / s.clockTicks, nil
 		}
 	}
 	return 0, fmt.Errorf("invalid stat format")

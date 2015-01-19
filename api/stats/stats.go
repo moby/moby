@@ -83,8 +83,6 @@ type Network struct {
 
 type Stats struct {
 	Read        time.Time   `json:"read"`
-	ClockTicks  int         `json:"clock_ticks"`
-	Interval    int         `json:"interval"` // in ms
 	Network     Network     `json:"network,omitempty"`
 	CpuStats    CpuStats    `json:"cpu_stats,omitempty"`
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`

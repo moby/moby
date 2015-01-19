@@ -17,7 +17,6 @@ func (daemon *Daemon) ContainerStats(job *engine.Job) engine.Status {
 		ss := stats.ToStats(update.ContainerStats)
 		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
 		ss.Read = update.Read
-		ss.ClockTicks = update.ClockTicks
 		ss.CpuStats.SystemUsage = update.SystemUsage
 		if err := enc.Encode(ss); err != nil {
 			// TODO: handle the specific broken pipe
