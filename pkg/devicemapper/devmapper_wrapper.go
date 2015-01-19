@@ -107,6 +107,8 @@ var (
 	DmTaskSetRo            = dmTaskSetRoFct
 	DmTaskSetSector        = dmTaskSetSectorFct
 	DmUdevWait             = dmUdevWaitFct
+	DmUdevSetSyncSupport   = dmUdevSetSyncSupportFct
+	DmUdevGetSyncSupport   = dmUdevGetSyncSupportFct
 	LogWithErrnoInit       = logWithErrnoInitFct
 )
 
@@ -229,6 +231,14 @@ func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, targ
 
 	nextp := C.dm_get_next_target((*C.struct_dm_task)(task), unsafe.Pointer(next), &Cstart, &Clength, &CtargetType, &Cparams)
 	return uintptr(nextp)
+}
+
+func dmUdevSetSyncSupportFct(syncWithUdev int) {
+	(C.dm_udev_set_sync_support(C.int(syncWithUdev)))
+}
+
+func dmUdevGetSyncSupportFct() int {
+	return int(C.dm_udev_get_sync_support())
 }
 
 func dmUdevWaitFct(cookie uint) int {

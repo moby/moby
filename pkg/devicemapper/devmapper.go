@@ -319,6 +319,26 @@ func GetLibraryVersion() (string, error) {
 	return version, nil
 }
 
+// UdevSyncSupported returns whether device-mapper is able to sync with udev
+//
+// This is essential otherwise race conditions can arise where both udev and
+// device-mapper attempt to create and destroy devices.
+func UdevSyncSupported() bool {
+	return DmUdevGetSyncSupport() != 0
+}
+
+// UdevSetSyncSupport allows setting whether the udev sync should be enabled.
+// The return bool indicates the state of whether the sync is enabled.
+func UdevSetSyncSupport(enable bool) bool {
+	if enable {
+		DmUdevSetSyncSupport(1)
+	} else {
+		DmUdevSetSyncSupport(0)
+	}
+
+	return UdevSyncSupported()
+}
+
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
 	log.Debugf("[devmapper] RemoveDevice START")
