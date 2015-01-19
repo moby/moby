@@ -28,6 +28,45 @@ containers. All base images are snapshots of this device and those
 images are then in turn used as snapshots for other images and
 eventually containers.
 
+### Information on `docker info`
+
+As of docker-1.4.1, `docker info` when using the `devicemapper` storage driver
+will display something like:
+
+	$ sudo docker info
+	[...]
+	Storage Driver: devicemapper
+	 Pool Name: docker-253:1-17538953-pool
+	 Pool Blocksize: 65.54 kB
+	 Data file: /dev/loop4
+	 Metadata file: /dev/loop4
+	 Data Space Used: 2.536 GB
+	 Data Space Total: 107.4 GB
+	 Metadata Space Used: 7.93 MB
+	 Metadata Space Total: 2.147 GB
+	 Udev Sync Supported: true
+	 Data loop file: /home/docker/devicemapper/devicemapper/data
+	 Metadata loop file: /home/docker/devicemapper/devicemapper/metadata
+	 Library Version: 1.02.82-git (2013-10-04)
+	[...]
+
+#### status items
+
+Each item in the indented section under `Storage Driver: devicemapper` are
+status information about the driver.
+ *  `Pool Name` name of the devicemapper pool for this driver.
+ *  `Pool Blocksize` tells the blocksize the thin pool was initialized with. This only changes on creation.
+ *  `Data file` blockdevice file used for the devicemapper data
+ *  `Metadata file` blockdevice file used for the devicemapper metadata
+ *  `Data Space Used` tells how much of `Data file` is currently used
+ *  `Data Space Total` tells max size the `Data file`
+ *  `Metadata Space Used` tells how much of `Metadata file` is currently used
+ *  `Metadata Space Total` tells max size the `Metadata file`
+ *  `Udev Sync Supported` tells whether devicemapper is able to sync with Udev. Should be `true`.
+ *  `Data loop file` file attached to `Data file`, if loopback device is used
+ *  `Metadata loop file` file attached to `Metadata file`, if loopback device is used
+ *  `Library Version` from the libdevmapper used
+
 ### options
 
 The devicemapper backend supports some options that you can specify
