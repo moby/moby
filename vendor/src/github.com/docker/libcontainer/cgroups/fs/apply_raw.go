@@ -124,11 +124,15 @@ func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
 		return err
 	}
 
+	freezer := subsystems["freezer"]
+	err = freezer.Set(d)
+	if err != nil {
+		return err
+	}
+
 	c.Freezer = state
 
-	freezer := subsystems["freezer"]
-
-	return freezer.Set(d)
+	return nil
 }
 
 func GetPids(c *cgroups.Cgroup) ([]int, error) {
