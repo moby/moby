@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -2629,56 +2630,12 @@ type containerStats struct {
 	MemoryPercentage float64
 	NetworkRx        float64
 	NetworkTx        float64
+	mu               sync.RWMutex
+	err              error
 }
 
-func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := cli.Subcmd("stats", "CONTAINER", "Stream the stats of a container", true)
-	cmd.Require(flag.Min, 1)
-	utils.ParseFlags(cmd, args, true)
-
-	m := &sync.Mutex{}
-	cStats := map[string]containerStats{}
-	for _, name := range cmd.Args() {
-		go cli.streamStats(name, cStats, m)
-	}
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	for _ = range time.Tick(500 * time.Millisecond) {
-		fmt.Fprint(cli.out, "\033[2J")
-		fmt.Fprint(cli.out, "\033[H")
-		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
-		m.Lock()
-		ss := sortStatsByName(cStats)
-		m.Unlock()
-		for _, s := range ss {
-			fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
-				s.Name,
-				s.CpuPercentage,
-				units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
-				s.MemoryPercentage,
-				units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
-		}
-		w.Flush()
-	}
-	return nil
-}
-
-func (cli *DockerCli) streamStats(name string, data map[string]containerStats, m *sync.Mutex) error {
-	m.Lock()
-	data[name] = containerStats{
-		Name: name,
-	}
-	m.Unlock()
-
-	stream, _, err := cli.call("GET", "/containers/"+name+"/stats", nil, false)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stream.Close()
-		m.Lock()
-		delete(data, name)
-		m.Unlock()
-	}()
+func (s *containerStats) Collect(stream io.ReadCloser) {
+	defer stream.Close()
 	var (
 		previousCpu    uint64
 		previousSystem uint64
@@ -2688,7 +2645,10 @@ func (cli *DockerCli) streamStats(name string, data map[string]containerStats, m
 	for {
 		var v *stats.Stats
 		if err := dec.Decode(&v); err != nil {
-			return err
+			s.mu.Lock()
+			s.err = err
+			s.mu.Unlock()
+			return
 		}
 		var (
 			memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
@@ -2698,19 +2658,60 @@ func (cli *DockerCli) streamStats(name string, data map[string]containerStats, m
 			cpuPercent = calcuateCpuPercent(previousCpu, previousSystem, v)
 		}
 		start = false
-		m.Lock()
-		d := data[name]
-		d.CpuPercentage = cpuPercent
-		d.Memory = float64(v.MemoryStats.Usage)
-		d.MemoryLimit = float64(v.MemoryStats.Limit)
-		d.MemoryPercentage = memPercent
-		d.NetworkRx = float64(v.Network.RxBytes)
-		d.NetworkTx = float64(v.Network.TxBytes)
-		data[name] = d
-		m.Unlock()
+		s.mu.Lock()
+		s.CpuPercentage = cpuPercent
+		s.Memory = float64(v.MemoryStats.Usage)
+		s.MemoryLimit = float64(v.MemoryStats.Limit)
+		s.MemoryPercentage = memPercent
+		s.NetworkRx = float64(v.Network.RxBytes)
+		s.NetworkTx = float64(v.Network.TxBytes)
+		s.mu.Unlock()
 
 		previousCpu = v.CpuStats.CpuUsage.TotalUsage
 		previousSystem = v.CpuStats.SystemUsage
+	}
+}
+
+func (s *containerStats) Display(w io.Writer) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.err != nil {
+		return
+	}
+	fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
+		s.Name,
+		s.CpuPercentage,
+		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
+		s.MemoryPercentage,
+		units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
+}
+
+func (cli *DockerCli) CmdStats(args ...string) error {
+	cmd := cli.Subcmd("stats", "CONTAINER", "Stream the stats of a container", true)
+	cmd.Require(flag.Min, 1)
+	utils.ParseFlags(cmd, args, true)
+
+	names := cmd.Args()
+	sort.Strings(names)
+	var cStats []*containerStats
+	for _, n := range names {
+		s := &containerStats{Name: n}
+		cStats = append(cStats, s)
+		stream, _, err := cli.call("GET", "/containers/"+n+"/stats", nil, false)
+		if err != nil {
+			return err
+		}
+		go s.Collect(stream)
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	for _ = range time.Tick(500 * time.Millisecond) {
+		fmt.Fprint(cli.out, "\033[2J")
+		fmt.Fprint(cli.out, "\033[H")
+		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
+		for _, s := range cStats {
+			s.Display(w)
+		}
+		w.Flush()
 	}
 	return nil
 }
