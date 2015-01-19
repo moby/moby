@@ -461,7 +461,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		return false, err
 	}
 
-	manifest, verified, err := s.verifyManifest(eng, manifestBytes)
+	manifest, _, err := s.verifyManifest(eng, manifestBytes)
 	if err != nil {
 		return false, fmt.Errorf("error verifying manifest: %s", err)
 	}
@@ -470,11 +470,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		return false, fmt.Errorf("length of history not equal to number of layers")
 	}
 
-	if verified {
-		out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified"))
-	} else {
-		out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
-	}
+	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
 	if len(manifest.FSLayers) == 0 {
 		return false, fmt.Errorf("no blobSums in manifest")
