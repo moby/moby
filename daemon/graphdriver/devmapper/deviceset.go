@@ -105,14 +105,15 @@ type DiskUsage struct {
 }
 
 type Status struct {
-	PoolName         string
-	DataFile         string // actual block device for data
-	DataLoopback     string // loopback file, if used
-	MetadataFile     string // actual block device for metadata
-	MetadataLoopback string // loopback file, if used
-	Data             DiskUsage
-	Metadata         DiskUsage
-	SectorSize       uint64
+	PoolName          string
+	DataFile          string // actual block device for data
+	DataLoopback      string // loopback file, if used
+	MetadataFile      string // actual block device for metadata
+	MetadataLoopback  string // loopback file, if used
+	Data              DiskUsage
+	Metadata          DiskUsage
+	SectorSize        uint64
+	UdevSyncSupported bool
 }
 
 type DevStatus struct {
@@ -947,6 +948,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		return graphdriver.ErrNotSupported
 	}
 
+	// https://github.com/docker/docker/issues/4036
+	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
+		log.Warnf("WARNING: Udev sync is not supported. This will lead to unexpected behavior, data loss and errors")
+	}
+	log.Debugf("devicemapper: udev sync support: %v", devicemapper.UdevSyncSupported())
+
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -1572,6 +1579,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.DataLoopback = devices.dataLoopFile
 	status.MetadataFile = devices.MetadataDevicePath()
 	status.MetadataLoopback = devices.metadataLoopFile
+	status.UdevSyncSupported = devicemapper.UdevSyncSupported()
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
