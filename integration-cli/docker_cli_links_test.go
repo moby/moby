@@ -92,38 +92,6 @@ func TestLinksPingLinkedContainersAfterRename(t *testing.T) {
 	logDone("links - ping linked container after rename")
 }
 
-func TestLinksPingLinkedContainersOnRename(t *testing.T) {
-	var out string
-	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
-	idA := stripTrailingCharacters(out)
-	if idA == "" {
-		t.Fatal(out, "id should not be nil")
-	}
-	out, _, _ = dockerCmd(t, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "sleep", "10")
-	idB := stripTrailingCharacters(out)
-	if idB == "" {
-		t.Fatal(out, "id should not be nil")
-	}
-
-	execCmd := exec.Command(dockerBinary, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
-	out, _, err := runCommandWithOutput(execCmd)
-	if err != nil {
-		t.Fatal(out, err)
-	}
-
-	dockerCmd(t, "rename", "container1", "container_new")
-
-	execCmd = exec.Command(dockerBinary, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
-	out, _, err = runCommandWithOutput(execCmd)
-	if err != nil {
-		t.Fatal(out, err)
-	}
-
-	deleteAllContainers()
-
-	logDone("links - ping linked container upon rename")
-}
-
 func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	dockerCmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
 	dockerCmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")

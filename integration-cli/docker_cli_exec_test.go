@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -489,4 +490,136 @@ func TestInspectExecID(t *testing.T) {
 	}
 
 	logDone("inspect - inspect a container with ExecIDs")
+}
+
+func TestLinksPingLinkedContainersOnRename(t *testing.T) {
+	var out string
+	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
+	idA := stripTrailingCharacters(out)
+	if idA == "" {
+		t.Fatal(out, "id should not be nil")
+	}
+	out, _, _ = dockerCmd(t, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "sleep", "10")
+	idB := stripTrailingCharacters(out)
+	if idB == "" {
+		t.Fatal(out, "id should not be nil")
+	}
+
+	execCmd := exec.Command(dockerBinary, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
+	out, _, err := runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	dockerCmd(t, "rename", "container1", "container_new")
+
+	execCmd = exec.Command(dockerBinary, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
+	out, _, err = runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	deleteAllContainers()
+
+	logDone("links - ping linked container upon rename")
+}
+
+func TestRunExecDir(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	execDir := filepath.Join(execDriverPath, id)
+	stateFile := filepath.Join(execDir, "state.json")
+	contFile := filepath.Join(execDir, "container.json")
+
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fi, err = os.Stat(contFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stopCmd := exec.Command(dockerBinary, "stop", id)
+	out, _, err = runCommandWithOutput(stopCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err == nil {
+			t.Fatalf("Statefile %q is exists for stopped container!", stateFile)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+		fi, err = os.Stat(contFile)
+		if err == nil {
+			t.Fatalf("Container file %q is exists for stopped container!", contFile)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+	}
+	startCmd := exec.Command(dockerBinary, "start", id)
+	out, _, err = runCommandWithOutput(startCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fi, err = os.Stat(contFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rmCmd := exec.Command(dockerBinary, "rm", "-f", id)
+	out, _, err = runCommandWithOutput(rmCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		_, err := os.Stat(execDir)
+		if err == nil {
+			t.Fatal(err)
+		}
+		if err == nil {
+			t.Fatalf("Exec directory %q is exists for removed container!", execDir)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+	}
+
+	logDone("run - check execdriver dir behavior")
 }
