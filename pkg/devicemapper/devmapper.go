@@ -341,8 +341,8 @@ func UdevSetSyncSupport(enable bool) bool {
 
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
-	log.Debugf("[devmapper] RemoveDevice START")
-	defer log.Debugf("[devmapper] RemoveDevice END")
+	log.Debugf("[devmapper] RemoveDevice START(%s)", name)
+	defer log.Debugf("[devmapper] RemoveDevice END(%s)", name)
 	task, err := TaskCreateNamed(DeviceRemove, name)
 	if task == nil {
 		return err
