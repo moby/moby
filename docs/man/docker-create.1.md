@@ -102,7 +102,7 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
-   Add link to another container in the form of name:alias
+   Add link to another container in the form of <name or id>:alias
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"

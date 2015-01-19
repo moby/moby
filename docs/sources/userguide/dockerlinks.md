@@ -146,7 +146,7 @@ Now, create a new `web` container and link it with your `db` container.
 This will link the new `web` container with the `db` container you created
 earlier. The `--link` flag takes the form:
 
-    --link name:alias
+    --link <name or id>:alias
 
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.

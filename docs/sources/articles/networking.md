@@ -105,7 +105,7 @@ Finally, several networking options can only be provided when calling
     [Configuring DNS](#dns) and
     [How Docker networks a container](#container-networking)
 
- *  `--link=CONTAINER_NAME:ALIAS` — see
+ *  `--link=CONTAINER_NAME_or_ID:ALIAS` — see
     [Configuring DNS](#dns) and
     [Communication between containers](#between-containers)
 
@@ -158,10 +158,10 @@ Four different options affect container domain name services.
     outside the container.  It will not appear in `docker ps` nor in the
     `/etc/hosts` file of any other container.
 
- *  `--link=CONTAINER_NAME:ALIAS` — using this option as you `run` a
+ *  `--link=CONTAINER_NAME_or_ID:ALIAS` — using this option as you `run` a
     container gives the new container's `/etc/hosts` an extra entry
-    named `ALIAS` that points to the IP address of the container named
-    `CONTAINER_NAME`.  This lets processes inside the new container
+    named `ALIAS` that points to the IP address of the container identified by
+    `CONTAINER_NAME_or_ID`.  This lets processes inside the new container
     connect to the hostname `ALIAS` without having to know its IP.  The
     `--link=` option is discussed in more detail below, in the section
     [Communication between containers](#between-containers). Because
@@ -284,7 +284,7 @@ If you choose the most secure setting of `--icc=false`, then how can
 containers communicate in those cases where you *want* them to provide
 each other services?
 
-The answer is the `--link=CONTAINER_NAME:ALIAS` option, which was
+The answer is the `--link=CONTAINER_NAME_or_ID:ALIAS` option, which was
 mentioned in the previous section because of its effect upon name
 services.  If the Docker daemon is running with both `--icc=false` and
 `--iptables=true` then, when it sees `docker run` invoked with the
