@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/pkg/timeutils"
@@ -144,5 +145,46 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 		}
 
 	}
+	return engine.StatusOK
+}
+
+func (daemon *Daemon) ContainerTruncateLogs(job *engine.Job) engine.Status {
+	if len(job.Args) != 1 {
+		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	}
+
+	var (
+		name   = job.Args[0]
+		times  = job.GetenvBool("timestamps")
+		format string
+	)
+
+	if times {
+		format = timeutils.RFC3339NanoFixed
+	}
+
+	container := daemon.Get(name)
+	if container == nil {
+		return job.Errorf("No such container: %s", name)
+	}
+
+	l := &jsonlog.JSONLog{}
+	logWriter := ioutils.NewWriteTransformWrapper(job.Stdout, func(b []byte) ([]byte, error) {
+		log.Debugf("TRUNCATE - Writng log line")
+		if err := json.Unmarshal(b, l); err != nil {
+			return nil, err
+		}
+		logLine := l.Log
+		if times {
+			logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
+		}
+		l.Reset()
+		log.Debugf("TRUNCATE - LINE %s", logLine)
+		return []byte(logLine), nil
+	})
+
+	container.truncateLogs(logWriter)
+
+	container.LogEvent("truncate_logs")
 	return engine.StatusOK
 }

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -457,6 +458,22 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
 	}
 	return nil
+}
+
+func deleteContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	job := eng.Job("truncate_logs", vars["name"])
+	job.Setenv("timestamps", r.Form.Get("timestamps"))
+	w.Header().Set("Content-Type", "text/plain")
+	job.Stdout.Add(w)
+
+	return job.Run()
 }
 
 func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1351,8 +1368,9 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/rename":  postContainerRename,
 		},
 		"DELETE": {
-			"/containers/{name:.*}": deleteContainers,
-			"/images/{name:.*}":     deleteImages,
+			"/containers/{name:.*}/logs": deleteContainersLogs,
+			"/containers/{name:.*}":      deleteContainers,
+			"/images/{name:.*}":          deleteImages,
 		},
 		"OPTIONS": {
 			"": optionsHandler,
@@ -1360,10 +1378,24 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 	}
 
 	for method, routes := range m {
-		for route, fct := range routes {
-			log.Debugf("Registering %s, %s", method, route)
+		// sort route paths in reverse-lexicographic order
+		// this makes longer paths get added to the router first
+		// EXAMPLE: `DELETE /containers/{name:.*}` and `DELETE /containers/{name:.*}/logs`
+		// if a route is nested within another route, if the shorter route is added first, the longer one won't be picked up by the parser
+		// this is likely due to the use of "{name:.*}" in the routes
+		var paths sort.StringSlice
+		for path := range routes {
+			paths = append(paths, path)
+		}
+
+		sort.Strings(paths)
+		sort.Sort(sort.Reverse(paths))
+
+		for _, path := range paths {
+			fct := routes[path]
+			log.Debugf("Registering %s, %s", method, path)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
-			localRoute := route
+			localRoute := path
 			localFct := fct
 			localMethod := method
 

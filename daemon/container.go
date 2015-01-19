@@ -95,6 +95,7 @@ type Container struct {
 	activeLinks  map[string]*links.Link
 	monitor      *containerMonitor
 	execCommands *execStore
+	logWriter    ioutils.WriterTruncator
 }
 
 func (container *Container) FromDisk() error {
@@ -1303,20 +1304,47 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) startLoggingToDisk() error {
-	// Setup logging of stdout and stderr to disk
+func (container *Container) setupLogWriter() (ioutils.WriterTruncator, error) {
 	pth, err := container.logPath("json")
+	if err != nil {
+		return nil, err
+	}
+	return ioutils.NewFileWriter(pth)
+}
+
+func (container *Container) truncateLogs(w io.Writer) error {
+	container.Lock()
+	defer container.Unlock()
+
+	var closeWriter bool
+	if container.logWriter == nil {
+		closeWriter = true
+		logWriter, err := container.setupLogWriter()
+		if err != nil {
+			return err
+		}
+		container.logWriter = logWriter
+	}
+
+	if closeWriter {
+		container.logWriter.Close()
+	}
+
+	return container.logWriter.Truncate(w)
+}
+
+func (container *Container) startLoggingToDisk() error {
+	var err error
+	if container.logWriter != nil {
+		container.logWriter.Close()
+	}
+	container.logWriter, err = container.setupLogWriter()
 	if err != nil {
 		return err
 	}
-
-	if err := container.daemon.LogToDisk(container.stdout, pth, "stdout"); err != nil {
-		return err
-	}
-
-	if err := container.daemon.LogToDisk(container.stderr, pth, "stderr"); err != nil {
-		return err
-	}
+	// Setup logging of stdout and stderr to disk
+	container.stdout.AddWriter(container.logWriter, "stdout")
+	container.stderr.AddWriter(container.logWriter, "stderr")
 
 	return nil
 }

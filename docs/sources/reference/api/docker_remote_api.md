@@ -68,6 +68,11 @@ New endpoint to rename a container `id` to a new name.
 (`ReadonlyRootfs`) can be passed in the host config to mount the container's
 root filesystem as read only.
 
+`DELETE /containers/(id)/logs`
+
+**New!**
+You can now fetch and truncate the logs for a container.
+
 ## v1.16
 
 ### Full Documentation
