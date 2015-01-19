@@ -153,23 +153,6 @@ time using multiple `-H` options:
     # listen using the default unix socket, and on 2 specific IP addresses on this host.
     docker -d -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
 
-The Docker client will honor the `DOCKER_HOST` environment variable to set
-the `-H` flag for the client.
-
-    $ sudo docker -H tcp://0.0.0.0:2375 ps
-    # or
-    $ export DOCKER_HOST="tcp://0.0.0.0:2375"
-    $ sudo docker ps
-    # both are equal
-
-Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than the empty
-string is equivalent to setting the `--tlsverify` flag. The following are equivalent:
-
-    $ sudo docker --tlsverify ps
-    # or
-    $ export DOCKER_TLS_VERIFY=1
-    $ sudo docker ps
-
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage drivers: `aufs`,
@@ -412,6 +395,106 @@ Docker supports softlinks for the Docker data directory
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
+## client
+
+There are several values you can use to configure _how_ the Docker client makes
+requests to the Docker API endpoint and _which_ Docker API endpoint the client
+connects to.
+
+They are, in order of highest to lowest precedence:
+
+- Command line flags
+- Environment variables
+- A JSON configuration file (`defaults.json`) located in the Docker client 
+  storage directory
+
+Setting a command line flag will override a setting in an environment variable, 
+which will in turn override a setting in `defaults.json`.
+
+These values can be used to configure:
+
+- The default Docker host that `docker` commands will make requests to
+- Whether or not API requests will use TLS
+- The directory where the TLS certificate files for the requests are located
+
+### Command line flags
+
+The Docker client will accept the `-H` flag as a way of prescribing which host
+to run the command against.  This value defaults to the location of the Docker
+Unix socket, usually located at `/var/run/docker.sock`.  Therefore, where you
+execute a command such as: 
+
+    $ sudo docker version
+
+By default, it is usually equivalent to:
+
+    $ sudo docker -H unix:///var/run/docker.sock version
+
+Supported protocols are `unix://` and `tcp://`, so you can use this option to
+communicate with remote Docker hosts.  For instance:
+
+    $ sudo docker -H tcp://54.69.96.17:2375 ps
+
+The `--tls` flag is used to indicate that requests should be sent using
+[TLS authentication](/articles/https).  The `--tlsverify` implies the `--tls`
+flag and performs remote verification in addition to making requests using
+TLS.
+
+The `--tlscacert`, `--tlscert`, and `--tlskey` flags are used to denote
+where Docker should look for the certificate, certificate authority, and
+the key respectively.
+
+### Environment variables
+
+The Docker client will honor the `DOCKER_HOST` environment variable to set
+the `-H` flag for the client.
+
+    $ sudo docker -H tcp://0.0.0.0:2375 ps
+    $ export DOCKER_HOST="tcp://0.0.0.0:2375"
+    $ sudo docker ps
+    # both are equal
+
+Docker will honor the `DOCKER_TLS_VERIFY` environment variable to set the
+`--tlsverify` flag for the client.  Values supplied to `DOCKER_TLS_VERIFY` are
+converted to booleans using Go's 
+[`str.ParseBool`](http://golang.org/pkg/strconv/#ParseBool) method,
+so "1", "true", etc. will indicate a value of "true" and an empty string, "0", 
+"false", etc. will indicate a value of "false".
+
+    $ sudo docker --tlsverify ps
+    $ export DOCKER_TLS_VERIFY=1
+    $ sudo docker ps
+    # both are equal
+
+Docker will honor the `DOCKER_CERT_PATH` environment variable to allow the user
+to specify a directory in which the Docker TLS certificate, certificate authority,
+and key files are contained.  In this directory, Docker expects these files to
+be called `cert.pem`, `ca.pem`, and `key.pem` respectively.
+
+### defaults.json
+
+Docker also provides a way of configuring these settings through a JSON 
+configuration file, called `defaults.json`, located in the Docker client storage
+path (usually, `$HOME/.docker`).  This file is mostly intended to be edited 
+programatically, but a description is included here for completion's sake and 
+for users who are prepared to assume the risk of editing it manually.
+
+A sample `defaults.json` is as follows:
+
+```
+{
+    "Host": "tcp://192.168.99.101:2376"
+    "TlsVerify": true,
+    "CertPath": "/home/vagrant/.docker/tlsdev"
+}
+```
+
+These JSON key value pairs map directly to the environment variables outlined
+in the previous section:
+
+- `Host` maps to `DOCKER_HOST`
+- `TlsVerify` maps to `DOCKER_TLS_VERIFY`
+- `CertPath` maps to `DOCKER_CERT_PATH`
 
 ## attach
 
