@@ -4,7 +4,7 @@ page_keywords: documentation, docs, the docker guide, docker guide, docker, dock
 
 # Working with Docker Images
 
-In the [introduction](/introduction/) we've discovered that Docker
+In the [introduction](/introduction/understanding-docker/) we've discovered that Docker
 images are the basis of containers. In the
 [previous](/userguide/dockerizing/) [sections](/userguide/usingdocker/)
 we've used Docker images that already exist, for example the `ubuntu`
