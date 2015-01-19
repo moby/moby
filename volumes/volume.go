@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
 )
 
@@ -51,6 +52,37 @@ func (v *Volume) Export(resource, name string) (io.ReadCloser, error) {
 		Name:         name,
 		IncludeFiles: filter,
 	})
+}
+
+// resolvePath returns the system's absolute path to the given volPath in this
+// volume, preserving any trailing path separator in volPath.
+func (v *Volume) resolvePath(volPath string) (resolvedPath string, err error) {
+	if resolvedPath, err = v.getResourcePath(volPath); err != nil {
+		return
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(resolvedPath, volPath), nil
+}
+
+// CopyFrom copies the resource at the given sourcePath into a Tar archive.
+func (v *Volume) CopyFrom(sourcePath, baseName string) (data io.ReadCloser, err error) {
+	var resolvedPath string
+	if resolvedPath, err = v.resolvePath(sourcePath); err != nil {
+		return
+	}
+
+	return archive.CopyFromReplaceBase(resolvedPath, baseName)
+}
+
+// CopyTo copies a file or directory from the given content
+// archive to a destination path in this volume.
+func (v *Volume) CopyTo(content archive.ArchiveReader, dstPath string) (err error) {
+	var resolvedPath string
+	if resolvedPath, err = v.resolvePath(dstPath); err != nil {
+		return
+	}
+
+	return chrootarchive.CopyTo(content, resolvedPath)
 }
 
 func (v *Volume) IsDir() (bool, error) {

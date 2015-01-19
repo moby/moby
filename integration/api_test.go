@@ -804,7 +804,7 @@ func TestDeleteImages(t *testing.T) {
 	}
 }
 
-func TestPostContainersCopy(t *testing.T) {
+func TestPostContainersCopyLegacy(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
@@ -834,7 +834,7 @@ func TestPostContainersCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	server.ServeRequest(eng, api.APIVERSION, r, req)
+	server.ServeRequest(eng, "1.16", r, req)
 	assertHttpNotError(r, t)
 
 	if r.Code != http.StatusOK {
@@ -860,7 +860,7 @@ func TestPostContainersCopy(t *testing.T) {
 	}
 }
 
-func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
+func TestPostContainersCopyLegacyWhenContainerNotFound(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
@@ -880,7 +880,7 @@ func TestPostContainersCopyWhenContainerNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	server.ServeRequest(eng, api.APIVERSION, r, req)
+	server.ServeRequest(eng, "1.16", r, req)
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("404 expected for id_not_found Container, received %v", r.Code)
 	}

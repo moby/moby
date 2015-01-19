@@ -323,7 +323,7 @@ func getNlink(path string) (uint64, error) {
 	if !ok {
 		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
 	}
-	return statT.Nlink, nil
+	return uint64(statT.Nlink), nil
 }
 
 func getInode(path string) (uint64, error) {

@@ -12,6 +12,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volumes"
@@ -37,6 +38,50 @@ func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return mnt.volume.Export(path, name)
+}
+
+// hasResource checks whether the given absolute path for a container is in
+// this mount point. If the relative path starts with `../` then the resource
+// is outside of this mount point, but we can't simply check for this prefix
+// because it misses `..` which is also outside of the mount, so check both.
+func (mnt *Mount) hasResource(absolutePath string) bool {
+	relPath, err := filepath.Rel(mnt.MountToPath, absolutePath)
+
+	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
+}
+
+// relativePath returns the given container path relative to this mount's mount
+// point, preserving a trailing path separator.
+func (mnt *Mount) relativePath(containerPath string) (volPath string, err error) {
+	if volPath, err = filepath.Rel(mnt.MountToPath, containerPath); err != nil {
+		return
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(volPath, containerPath), nil
+}
+
+func (mnt *Mount) CopyFrom(sourcePath string) (archive.Archive, error) {
+	var baseName string
+
+	if sourcePath == mnt.MountToPath {
+		baseName = filepath.Base(sourcePath)
+	}
+
+	volPath, err := mnt.relativePath(sourcePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return mnt.volume.CopyFrom(volPath, baseName)
+}
+
+func (mnt *Mount) CopyTo(content archive.ArchiveReader, dstPath string) error {
+	volPath, err := mnt.relativePath(dstPath)
+	if err != nil {
+		return err
+	}
+
+	return mnt.volume.CopyTo(content, volPath)
 }
 
 func (container *Container) prepareVolumes() error {

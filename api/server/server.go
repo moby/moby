@@ -6,6 +6,7 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"expvar"
 	"fmt"
 	"io"
@@ -1089,7 +1090,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	return nil
 }
 
-func postContainersCopy(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func postContainersCopyLegacy(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -1126,6 +1127,125 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		}
 	}
 	return nil
+}
+
+// handleCopyError is a convenience function for the following Copy
+// handlers which makes a JSON error message but leaves writing the
+// header and response to the package's common error handler.
+func handleCopyError(w http.ResponseWriter, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var errType, errMsg string
+
+	detail := strings.ToLower(err.Error())
+
+	switch {
+	case strings.Contains(detail, "no such container"):
+		fallthrough
+	case strings.Contains(detail, "no such file or directory"):
+		fallthrough
+	case strings.Contains(detail, "no such directory"):
+		errType = "resource not found"
+		errMsg = err.Error()
+	case strings.Contains(detail, "must specify"):
+		fallthrough
+	case strings.Contains(detail, "not a directory"):
+		fallthrough
+	case strings.Contains(detail, "cannot copy directory"):
+		errType = "bad parameter"
+		errMsg = err.Error()
+	default:
+		errType = "internal error"
+		// Don't expose the real error to the client.
+		log.Error(err)
+		errMsg = "see daemon logs for details"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	errInfo := map[string]string{
+		"error":  errType,
+		"detail": errMsg,
+	}
+
+	var jsonBuf bytes.Buffer
+	encoder := json.NewEncoder(&jsonBuf)
+	encoder.Encode(errInfo)
+
+	// The final error should be the JSON.
+	return errors.New(jsonBuf.String())
+}
+
+// getContainersCopy copies a file or directory from a container to the client.
+func getContainersCopy(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var sourcePath string
+
+	if sourcePath = r.FormValue("path"); sourcePath == "" {
+		return handleCopyError(w, fmt.Errorf("must specify path parameter"))
+	}
+
+	job := eng.Job("container_copy_from", vars["name"], sourcePath)
+	job.Stdout.Add(w)
+
+	// Set the content type for the response. Should be a Tarball on success.
+	w.Header().Set("Content-Type", "application/x-tar")
+
+	return handleCopyError(w, job.Run())
+}
+
+// postContainersCopy copies a file or directory from the client to a container.
+func postContainersCopy(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version.LessThan("1.17") {
+		// This endpoint handles copying data to a container as of v1.17.
+		// Previously it was used for getting resources from a container.
+		return postContainersCopyLegacy(eng, version, w, r, vars)
+	}
+
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var dstPath string
+
+	if dstPath = r.FormValue("dstPath"); dstPath == "" {
+		return handleCopyError(w, fmt.Errorf("must specify dstPath parameter"))
+	}
+
+	job := eng.Job("container_copy_to", vars["name"], dstPath)
+	job.Stdin.Add(r.Body)
+
+	return handleCopyError(w, job.Run())
+}
+
+// postContainersCopyAcross copies a file or directory from one container to another.
+func postContainersCopyAcross(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var srcContainer, srcPath, dstPath string
+
+	if srcContainer = r.FormValue("srcContainer"); srcContainer == "" {
+		return handleCopyError(w, fmt.Errorf("must specify srcContainer parameter"))
+	}
+
+	if srcPath = r.FormValue("srcPath"); srcPath == "" {
+		return handleCopyError(w, fmt.Errorf("must specify srcPath parameter"))
+	}
+
+	if dstPath = r.FormValue("dstPath"); dstPath == "" {
+		return handleCopyError(w, fmt.Errorf("must specify dstPath parameter"))
+	}
+
+	job := eng.Job("container_copy_across", srcContainer, srcPath, vars["name"], dstPath)
+
+	return handleCopyError(w, job.Run())
 }
 
 func postContainerExecCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1318,6 +1438,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/images/{name:.*}/json":          getImagesByName,
 			"/containers/ps":                  getContainersJSON,
 			"/containers/json":                getContainersJSON,
+			"/containers/{name:.*}/copy":      getContainersCopy,
 			"/containers/{name:.*}/export":    getContainersExport,
 			"/containers/{name:.*}/changes":   getContainersChanges,
 			"/containers/{name:.*}/json":      getContainersByName,
@@ -1327,28 +1448,29 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/exec/{id:.*}/json":              getExecByID,
 		},
 		"POST": {
-			"/auth":                         postAuth,
-			"/commit":                       postCommit,
-			"/build":                        postBuild,
-			"/images/create":                postImagesCreate,
-			"/images/load":                  postImagesLoad,
-			"/images/{name:.*}/push":        postImagesPush,
-			"/images/{name:.*}/tag":         postImagesTag,
-			"/containers/create":            postContainersCreate,
-			"/containers/{name:.*}/kill":    postContainersKill,
-			"/containers/{name:.*}/pause":   postContainersPause,
-			"/containers/{name:.*}/unpause": postContainersUnpause,
-			"/containers/{name:.*}/restart": postContainersRestart,
-			"/containers/{name:.*}/start":   postContainersStart,
-			"/containers/{name:.*}/stop":    postContainersStop,
-			"/containers/{name:.*}/wait":    postContainersWait,
-			"/containers/{name:.*}/resize":  postContainersResize,
-			"/containers/{name:.*}/attach":  postContainersAttach,
-			"/containers/{name:.*}/copy":    postContainersCopy,
-			"/containers/{name:.*}/exec":    postContainerExecCreate,
-			"/exec/{name:.*}/start":         postContainerExecStart,
-			"/exec/{name:.*}/resize":        postContainerExecResize,
-			"/containers/{name:.*}/rename":  postContainerRename,
+			"/auth":                             postAuth,
+			"/commit":                           postCommit,
+			"/build":                            postBuild,
+			"/images/create":                    postImagesCreate,
+			"/images/load":                      postImagesLoad,
+			"/images/{name:.*}/push":            postImagesPush,
+			"/images/{name:.*}/tag":             postImagesTag,
+			"/containers/create":                postContainersCreate,
+			"/containers/{name:.*}/kill":        postContainersKill,
+			"/containers/{name:.*}/pause":       postContainersPause,
+			"/containers/{name:.*}/unpause":     postContainersUnpause,
+			"/containers/{name:.*}/restart":     postContainersRestart,
+			"/containers/{name:.*}/start":       postContainersStart,
+			"/containers/{name:.*}/stop":        postContainersStop,
+			"/containers/{name:.*}/wait":        postContainersWait,
+			"/containers/{name:.*}/resize":      postContainersResize,
+			"/containers/{name:.*}/attach":      postContainersAttach,
+			"/containers/{name:.*}/copy":        postContainersCopy,
+			"/containers/{name:.*}/copy-across": postContainersCopyAcross,
+			"/containers/{name:.*}/exec":        postContainerExecCreate,
+			"/exec/{name:.*}/start":             postContainerExecStart,
+			"/exec/{name:.*}/resize":            postContainerExecResize,
+			"/containers/{name:.*}/rename":      postContainerRename,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,
