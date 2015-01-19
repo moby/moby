@@ -802,7 +802,7 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
-	logDone("build - mulitple file copy/add tests")
+	logDone("build - multiple file copy/add tests")
 }
 
 func TestBuildAddMultipleFilesToFile(t *testing.T) {
@@ -810,7 +810,7 @@ func TestBuildAddMultipleFilesToFile(t *testing.T) {
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
 	ADD file1.txt file2.txt test
-        `,
+	`,
 		map[string]string{
 			"file1.txt": "test1",
 			"file2.txt": "test1",
@@ -822,10 +822,33 @@ func TestBuildAddMultipleFilesToFile(t *testing.T) {
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
 	}
 
 	logDone("build - multiple add files to file")
+}
+
+func TestBuildJSONAddMultipleFilesToFile(t *testing.T) {
+	name := "testjsonaddmultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	ADD ["file1.txt", "file2.txt", "test"]
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file json syntax")
 }
 
 func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
@@ -833,7 +856,7 @@ func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
 	ADD file*.txt test
-        `,
+	`,
 		map[string]string{
 			"file1.txt": "test1",
 			"file2.txt": "test1",
@@ -845,10 +868,33 @@ func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
 	}
 
 	logDone("build - multiple add files to file wild")
+}
+
+func TestBuildJSONAddMultipleFilesToFileWild(t *testing.T) {
+	name := "testjsonaddmultiplefilestofilewild"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	ADD ["file*.txt", "test"]
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file wild json syntax")
 }
 
 func TestBuildCopyMultipleFilesToFile(t *testing.T) {
@@ -856,7 +902,7 @@ func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
 	COPY file1.txt file2.txt test
-        `,
+	`,
 		map[string]string{
 			"file1.txt": "test1",
 			"file2.txt": "test1",
@@ -868,10 +914,153 @@ func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 
 	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
 	}
 
 	logDone("build - multiple copy files to file")
+}
+
+func TestBuildJSONCopyMultipleFilesToFile(t *testing.T) {
+	name := "testjsoncopymultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	COPY ["file1.txt", "file2.txt", "test"]
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple copy files to file json syntax")
+}
+
+func TestBuildAddFileWithWhitespace(t *testing.T) {
+	name := "testaddfilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN mkdir "/test dir"
+RUN mkdir "/test_dir"
+ADD [ "test file1", "/test_file1" ]
+ADD [ "test_file2", "/test file2" ]
+ADD [ "test file3", "/test file3" ]
+ADD [ "test dir/test_file4", "/test_dir/test_file4" ]
+ADD [ "test_dir/test_file5", "/test dir/test_file5" ]
+ADD [ "test dir/test_file6", "/test dir/test_file6" ]
+RUN [ $(cat "/test_file1") = 'test1' ]
+RUN [ $(cat "/test file2") = 'test2' ]
+RUN [ $(cat "/test file3") = 'test3' ]
+RUN [ $(cat "/test_dir/test_file4") = 'test4' ]
+RUN [ $(cat "/test dir/test_file5") = 'test5' ]
+RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
+		map[string]string{
+			"test file1":          "test1",
+			"test_file2":          "test2",
+			"test file3":          "test3",
+			"test dir/test_file4": "test4",
+			"test_dir/test_file5": "test5",
+			"test dir/test_file6": "test6",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add file with whitespace")
+}
+
+func TestBuildCopyFileWithWhitespace(t *testing.T) {
+	name := "testcopyfilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN mkdir "/test dir"
+RUN mkdir "/test_dir"
+COPY [ "test file1", "/test_file1" ]
+COPY [ "test_file2", "/test file2" ]
+COPY [ "test file3", "/test file3" ]
+COPY [ "test dir/test_file4", "/test_dir/test_file4" ]
+COPY [ "test_dir/test_file5", "/test dir/test_file5" ]
+COPY [ "test dir/test_file6", "/test dir/test_file6" ]
+RUN [ $(cat "/test_file1") = 'test1' ]
+RUN [ $(cat "/test file2") = 'test2' ]
+RUN [ $(cat "/test file3") = 'test3' ]
+RUN [ $(cat "/test_dir/test_file4") = 'test4' ]
+RUN [ $(cat "/test dir/test_file5") = 'test5' ]
+RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
+		map[string]string{
+			"test file1":          "test1",
+			"test_file2":          "test2",
+			"test file3":          "test3",
+			"test dir/test_file4": "test4",
+			"test_dir/test_file5": "test5",
+			"test dir/test_file6": "test6",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - copy file with whitespace")
+}
+
+func TestBuildAddMultipleFilesToFileWithWhitespace(t *testing.T) {
+	name := "testaddmultiplefilestofilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+	ADD [ "test file1", "test file2", "test" ]
+    `,
+		map[string]string{
+			"test file1": "test1",
+			"test file2": "test2",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file with whitespace")
+}
+
+func TestBuildCopyMultipleFilesToFileWithWhitespace(t *testing.T) {
+	name := "testcopymultiplefilestofilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+	COPY [ "test file1", "test file2", "test" ]
+        `,
+		map[string]string{
+			"test file1": "test1",
+			"test file2": "test2",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple copy files to file with whitespace")
 }
 
 func TestBuildCopyWildcard(t *testing.T) {

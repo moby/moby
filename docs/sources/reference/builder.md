@@ -388,7 +388,11 @@ change them using `docker run --env <key>=<value>`.
 
 ## ADD
 
-    ADD <src>... <dest>
+ADD has two forms:
+
+- `ADD <src>... <dest>`
+- `ADD ["<src>"... "<dest>"]` (this form is required for paths containing
+whitespace)
 
 The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
 and adds them to the filesystem of the container at the path `<dest>`.  
@@ -488,7 +492,11 @@ The copy obeys the following rules:
 
 ## COPY
 
-    COPY <src>... <dest>
+COPY has two forms:
+
+- `COPY <src>... <dest>`
+- `COPY ["<src>"... "<dest>"]` (this form is required for paths containing
+whitespace)
 
 The `COPY` instruction copies new files or directories from `<src>`
 and adds them to the filesystem of the container at the path `<dest>`.

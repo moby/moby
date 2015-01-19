@@ -132,7 +132,11 @@ or
  interactively, as with the following command: **docker run -t -i image bash**
 
 **ADD**
- --**ADD <src>... <dest>** The ADD instruction copies new files, directories
+ --ADD has two forms:
+ **ADD <src>... <dest>**
+ **ADD ["<src>"... "<dest>"]** This form is required for paths containing
+ whitespace.
+ The ADD instruction copies new files, directories
  or remote file URLs to the filesystem of the container at path <dest>.
  Mutliple <src> resources may be specified but if they are files or directories
  then they must be relative to the source directory that is being built
@@ -142,7 +146,11 @@ or
  and gid of 0.
 
 **COPY**
- --**COPY <src> <dest>** The COPY instruction copies new files from <src> and
+ --COPY has two forms:
+ **COPY <src>... <dest>**
+ **COPY ["<src>"... "<dest>"]** This form is required for paths containing
+ whitespace.
+ The COPY instruction copies new files from <src> and
  adds them to the filesystem of the container at path <dest>. The <src> must be
  the path to a file or directory relative to the source directory that is
  being built (the context of the build) or a remote file URL. The `<dest>` is an
