@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
 )
 
@@ -51,6 +52,63 @@ func (v *Volume) Export(resource, name string) (io.ReadCloser, error) {
 		Name:         name,
 		IncludeFiles: filter,
 	})
+}
+
+// resolvePath returns the system's absolute path to the given volPath in this
+// volume, preserving any trailing path separator in volPath. If the given
+// path is empty, this volume's Path is returned.
+func (v *Volume) resolvePath(volPath string) (resolvedPath string, err error) {
+	if volPath == "" {
+		return v.Path, nil
+	}
+
+	if resolvedPath, err = v.getResourcePath(volPath); err != nil {
+		return
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(resolvedPath, volPath), nil
+}
+
+// StatPath performs a low-level Lstat operation on a file or
+// directory in this mount and returns the resulting FileInfo.
+func (v *Volume) StatPath(volPath string) (os.FileInfo, error) {
+	resolvedPath, err := v.resolvePath(volPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Lstat(resolvedPath)
+}
+
+// ArchivePath archives the resource at
+// the given volPath into a Tar archive.
+func (v *Volume) ArchivePath(volPath, baseName string) (data io.ReadCloser, err error) {
+	var resolvedPath string
+	if resolvedPath, err = v.resolvePath(volPath); err != nil {
+		return
+	}
+
+	return archive.TarResourceReplaceBase(resolvedPath, baseName)
+}
+
+// ExtractToDir extracts the given content archive
+// to a destination direcotry in this volume.
+func (v *Volume) ExtractToDir(content archive.ArchiveReader, volPath string) (err error) {
+	var resolvedPath string
+	if resolvedPath, err = v.resolvePath(volPath); err != nil {
+		return
+	}
+
+	// Ensure that the resolved path exists and is a directory.
+	var stat os.FileInfo
+	if stat, err = os.Lstat(resolvedPath); err != nil {
+		return
+	}
+	if !stat.IsDir() {
+		return archive.ErrNotDirectory
+	}
+
+	return chrootarchive.Untar(content, resolvedPath, &archive.TarOptions{NoLchown: true})
 }
 
 func (v *Volume) IsDir() (bool, error) {
