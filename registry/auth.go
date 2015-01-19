@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -145,7 +146,7 @@ func SaveConfig(configFile *ConfigFile) error {
 }
 
 // try to register/login to the registry server
-func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, error) {
+func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, secure bool) (string, error) {
 	var (
 		status  string
 		reqBody []byte
@@ -154,6 +155,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 			Transport: &http.Transport{
 				DisableKeepAlives: true,
 				Proxy:             http.ProxyFromEnvironment,
+				TLSClientConfig:   &tls.Config{InsecureSkipVerify: !secure},
 			},
 			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
 		}
@@ -178,7 +180,7 @@ func Login(authConfig *AuthConfig, factory *utils.HTTPRequestFactory) (string, e
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := http.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	req1, err := client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
