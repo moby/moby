@@ -5,6 +5,11 @@ package lxc
 import (
 	"bufio"
 	"fmt"
+	"github.com/docker/docker/daemon/execdriver"
+	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/libcontainer/devices"
+	"github.com/docker/libcontainer/security/capabilities"
+	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -12,10 +17,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/docker/docker/daemon/execdriver"
-	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
-	"github.com/docker/libcontainer/devices"
 )
 
 func TestLXCConfig(t *testing.T) {
@@ -292,13 +293,15 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
 	container := nativeTemplate.New()
 	for _, cap := range container.Capabilities {
-		cap = strings.ToLower(cap)
-		if cap != "mknod" && cap != "kill" {
-			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", cap))
+		realCap := capabilities.GetCapability(cap)
+		numCap := fmt.Sprintf("%d", realCap.Value)
+		if cap != "MKNOD" && cap != "KILL" {
+			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", numCap))
 		}
 	}
-	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = kill"), true)
-	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = mknod"), true)
+
+	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = %d", capability.CAP_KILL), true)
+	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = %d", capability.CAP_MKNOD), true)
 }
 
 func TestCustomLxcConfigMiscOverride(t *testing.T) {
@@ -333,8 +336,8 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 			},
 		},
 		ProcessConfig: processConfig,
-		CapAdd:        []string{"net_admin", "syslog"},
-		CapDrop:       []string{"kill", "mknod"},
+		CapAdd:        []string{"NET_ADMIN", "SYSLOG"},
+		CapDrop:       []string{"KILL", "MKNOD"},
 	}
 
 	p, err := driver.generateLXCConfig(command)
@@ -354,11 +357,12 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
 	container := nativeTemplate.New()
 	for _, cap := range container.Capabilities {
-		cap = strings.ToLower(cap)
-		if cap != "mknod" && cap != "kill" {
-			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", cap))
+		realCap := capabilities.GetCapability(cap)
+		numCap := fmt.Sprintf("%d", realCap.Value)
+		if cap != "MKNOD" && cap != "KILL" {
+			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", numCap))
 		}
 	}
-	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = kill"), true)
-	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = mknod"), true)
+	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = %d", capability.CAP_KILL), true)
+	grepFileWithReverse(t, p, fmt.Sprintf("lxc.cap.keep = %d", capability.CAP_MKNOD), true)
 }

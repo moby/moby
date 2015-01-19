@@ -986,7 +986,7 @@ func TestRunCapDropCannotMknodLowerCase(t *testing.T) {
 }
 
 func TestRunCapDropALLCannotMknod(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=SETGID", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
 		t.Fatal(err, out)
@@ -1000,8 +1000,8 @@ func TestRunCapDropALLCannotMknod(t *testing.T) {
 	logDone("run - test --cap-drop=ALL cannot mknod")
 }
 
-func TestRunCapDropALLAddMknodCannotMknod(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+func TestRunCapDropALLAddMknodCanMknod(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=MKNOD", "--cap-add=SETGID", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)

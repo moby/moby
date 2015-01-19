@@ -1,12 +1,17 @@
 package lxc
 
 import (
-	"github.com/docker/docker/daemon/execdriver"
-	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
-	"github.com/docker/libcontainer/label"
+	"fmt"
 	"os"
 	"strings"
 	"text/template"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/execdriver"
+	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/security/capabilities"
 )
 
 const LxcTemplate = `
@@ -126,9 +131,17 @@ lxc.utsname = {{getHostname .ProcessConfig.Env}}
 {{if .ProcessConfig.Privileged}}
 # No cap values are needed, as lxc is starting in privileged mode
 {{else}}
-{{range $value := keepCapabilities .CapAdd .CapDrop}}
-lxc.cap.keep = {{$value}}
-{{end}}
+	{{ with keepCapabilities .CapAdd .CapDrop }}
+		{{range .}}
+lxc.cap.keep = {{.}}
+		{{end}}
+	{{else}}
+		{{ with dropList .CapDrop }}
+		{{range .}}
+lxc.cap.drop = {{.}}
+		{{end}}
+		{{end}}
+	{{end}}
 {{end}}
 {{end}}
 `
@@ -141,17 +154,39 @@ func escapeFstabSpaces(field string) string {
 	return strings.Replace(field, " ", "\\040", -1)
 }
 
-func keepCapabilities(adds []string, drops []string) []string {
+func keepCapabilities(adds []string, drops []string) ([]string, error) {
 	container := nativeTemplate.New()
+	log.Debugf("adds %s drops %s\n", adds, drops)
 	caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
+	if err != nil {
+		return nil, err
+	}
 	var newCaps []string
 	for _, cap := range caps {
-		newCaps = append(newCaps, strings.ToLower(cap))
+		log.Debugf("cap %s\n", cap)
+		realCap := capabilities.GetCapability(cap)
+		numCap := fmt.Sprintf("%d", realCap.Value)
+		newCaps = append(newCaps, numCap)
 	}
-	if err != nil {
-		return []string{}
+
+	return newCaps, nil
+}
+
+func dropList(drops []string) ([]string, error) {
+	if utils.StringsContainsNoCase(drops, "all") {
+		var newCaps []string
+		for _, cap := range capabilities.GetAllCapabilities() {
+			log.Debugf("drop cap %s\n", cap)
+			realCap := capabilities.GetCapability(cap)
+			if realCap == nil {
+				return nil, fmt.Errorf("Invalid capability '%s'", cap)
+			}
+			numCap := fmt.Sprintf("%d", realCap.Value)
+			newCaps = append(newCaps, numCap)
+		}
+		return newCaps, nil
 	}
-	return newCaps
+	return []string{}, nil
 }
 
 func isDirectory(source string) string {
@@ -206,6 +241,7 @@ func init() {
 		"formatMountLabel":  label.FormatMountLabel,
 		"isDirectory":       isDirectory,
 		"keepCapabilities":  keepCapabilities,
+		"dropList":          dropList,
 		"getHostname":       getHostname,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
