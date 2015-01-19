@@ -1699,7 +1699,7 @@ folder before starting your container.
     $ sudo docker run --read-only -v /icanwrite busybox touch /icanwrite here
 
 Volumes can be used in combination with `--read-only` to control where 
-a container writes files.  The `--read only` flag mounts the container's root
+a container writes files.  The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
