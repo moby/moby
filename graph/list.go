@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
+var acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
+
 func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	var (
 		allImages   map[string]*image.Image
@@ -22,6 +24,12 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
+	for name := range imageFilters {
+		if _, ok := acceptedImageFilterTags[name]; !ok {
+			return job.Errorf("Invalid filter '%s'", name)
+		}
+	}
+
 	if i, ok := imageFilters["dangling"]; ok {
 		for _, value := range i {
 			if strings.ToLower(value) == "true" {
