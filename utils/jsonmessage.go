@@ -50,6 +50,9 @@ func (p *JSONProgress) String() string {
 	}
 	total := units.HumanSize(float64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
+	if percentage > 50 {
+		percentage = 50
+	}
 	if width > 110 {
 		// this number can't be negetive gh#7136
 		numSpaces := 0

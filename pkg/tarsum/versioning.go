@@ -31,11 +31,18 @@ func GetVersions() []Version {
 	return v
 }
 
-var tarSumVersions = map[Version]string{
-	Version0:   "tarsum",
-	Version1:   "tarsum.v1",
-	VersionDev: "tarsum.dev",
-}
+var (
+	tarSumVersions = map[Version]string{
+		Version0:   "tarsum",
+		Version1:   "tarsum.v1",
+		VersionDev: "tarsum.dev",
+	}
+	tarSumVersionsByName = map[string]Version{
+		"tarsum":     Version0,
+		"tarsum.v1":  Version1,
+		"tarsum.dev": VersionDev,
+	}
+)
 
 func (tsv Version) String() string {
 	return tarSumVersions[tsv]

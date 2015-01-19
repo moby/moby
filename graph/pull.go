@@ -1,8 +1,6 @@
 package graph
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,64 +13,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 )
-
-func (s *TagStore) verifyManifest(eng *engine.Engine, manifestBytes []byte) (*registry.ManifestData, bool, error) {
-	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
-	if err != nil {
-		return nil, false, fmt.Errorf("error parsing payload: %s", err)
-	}
-	keys, err := sig.Verify()
-	if err != nil {
-		return nil, false, fmt.Errorf("error verifying payload: %s", err)
-	}
-
-	payload, err := sig.Payload()
-	if err != nil {
-		return nil, false, fmt.Errorf("error retrieving payload: %s", err)
-	}
-
-	var manifest registry.ManifestData
-	if err := json.Unmarshal(payload, &manifest); err != nil {
-		return nil, false, fmt.Errorf("error unmarshalling manifest: %s", err)
-	}
-	if manifest.SchemaVersion != 1 {
-		return nil, false, fmt.Errorf("unsupported schema version: %d", manifest.SchemaVersion)
-	}
-
-	var verified bool
-	for _, key := range keys {
-		job := eng.Job("trust_key_check")
-		b, err := key.MarshalJSON()
-		if err != nil {
-			return nil, false, fmt.Errorf("error marshalling public key: %s", err)
-		}
-		namespace := manifest.Name
-		if namespace[0] != '/' {
-			namespace = "/" + namespace
-		}
-		stdoutBuffer := bytes.NewBuffer(nil)
-
-		job.Args = append(job.Args, namespace)
-		job.Setenv("PublicKey", string(b))
-		// Check key has read/write permission (0x03)
-		job.SetenvInt("Permission", 0x03)
-		job.Stdout.Add(stdoutBuffer)
-		if err = job.Run(); err != nil {
-			return nil, false, fmt.Errorf("error running key check: %s", err)
-		}
-		result := engine.Tail(stdoutBuffer, 1)
-		log.Debugf("Key check result: %q", result)
-		if result == "verified" {
-			verified = true
-		}
-	}
-
-	return &manifest, verified, nil
-}
 
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
@@ -112,6 +56,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	}
 	defer s.poolRemove("pull", repoInfo.LocalName+":"+tag)
 
+	log.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {
 		return job.Error(err)
@@ -127,12 +72,13 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName += ":" + tag
 	}
 
-	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Official || endpoint.Version == registry.APIVersion2) {
+	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		j := job.Eng.Job("trust_update_base")
 		if err = j.Run(); err != nil {
-			return job.Errorf("error updating trust base graph: %s", err)
+			log.Errorf("error updating trust base graph: %s", err)
 		}
 
+		log.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
 		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err == nil {
 			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
 				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
@@ -141,8 +87,11 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		} else if err != registry.ErrDoesNotExist {
 			log.Errorf("Error from V2 registry: %s", err)
 		}
+
+		log.Debug("image does not exist on v2 registry, falling back to v1")
 	}
 
+	log.Debugf("pulling v1 repository with local name %q", repoInfo.LocalName)
 	if err = s.pullRepository(r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err != nil {
 		return job.Error(err)
 	}
@@ -169,7 +118,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	log.Debugf("Retrieving the tag list")
 	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName, repoData.Tokens)
 	if err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("unable to get remote tags: %s", err)
 		return err
 	}
 
@@ -424,22 +373,30 @@ type downloadInfo struct {
 }
 
 func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	if err != nil {
+		return fmt.Errorf("error getting registry endpoint: %s", err)
+	}
+	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, true)
+	if err != nil {
+		return fmt.Errorf("error getting authorization: %s", err)
+	}
 	var layersDownloaded bool
 	if tag == "" {
 		log.Debugf("Pulling tag list from V2 registry for %s", repoInfo.CanonicalName)
-		tags, err := r.GetV2RemoteTags(repoInfo.RemoteName, nil)
+		tags, err := r.GetV2RemoteTags(endpoint, repoInfo.RemoteName, auth)
 		if err != nil {
 			return err
 		}
 		for _, t := range tags {
-			if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, t, sf, parallel); err != nil {
+			if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, t, sf, parallel, auth); err != nil {
 				return err
 			} else if downloaded {
 				layersDownloaded = true
 			}
 		}
 	} else {
-		if downloaded, err := s.pullV2Tag(eng, r, out, repoInfo, tag, sf, parallel); err != nil {
+		if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, tag, sf, parallel, auth); err != nil {
 			return err
 		} else if downloaded {
 			layersDownloaded = true
@@ -454,9 +411,9 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 	return nil
 }
 
-func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) (bool, error) {
+func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
-	manifestBytes, err := r.GetV2ImageManifest(repoInfo.RemoteName, tag, nil)
+	manifestBytes, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
@@ -466,8 +423,8 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		return false, fmt.Errorf("error verifying manifest: %s", err)
 	}
 
-	if len(manifest.FSLayers) != len(manifest.History) {
-		return false, fmt.Errorf("length of history not equal to number of layers")
+	if err := checkValidManifest(manifest); err != nil {
+		return false, err
 	}
 
 	if verified {
@@ -475,11 +432,6 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	} else {
 		out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 	}
-
-	if len(manifest.FSLayers) == 0 {
-		return false, fmt.Errorf("no blobSums in manifest")
-	}
-
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
@@ -525,12 +477,25 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return err
 				}
 
-				r, l, err := r.GetV2ImageBlobReader(repoInfo.RemoteName, sumType, checksum, nil)
+				r, l, err := r.GetV2ImageBlobReader(endpoint, repoInfo.RemoteName, sumType, checksum, auth)
 				if err != nil {
 					return err
 				}
 				defer r.Close()
-				io.Copy(tmpFile, utils.ProgressReader(r, int(l), out, sf, false, utils.TruncateID(img.ID), "Downloading"))
+
+				// Wrap the reader with the appropriate TarSum reader.
+				tarSumReader, err := tarsum.NewTarSumForLabel(r, true, sumType)
+				if err != nil {
+					return fmt.Errorf("unable to wrap image blob reader with TarSum: %s", err)
+				}
+
+				io.Copy(tmpFile, utils.ProgressReader(ioutil.NopCloser(tarSumReader), int(l), out, sf, false, utils.TruncateID(img.ID), "Downloading"))
+
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Verifying Checksum", nil))
+
+				if finalChecksum := tarSumReader.Sum(nil); !strings.EqualFold(finalChecksum, sumStr) {
+					return fmt.Errorf("image verification failed: checksum mismatch - expected %q but got %q", sumStr, finalChecksum)
+				}
 
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
 

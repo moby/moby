@@ -1,18 +1,22 @@
 package graph
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libtrust"
 )
 
 // Retrieve the all the images to be uploaded in the correct order
@@ -248,6 +252,109 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	return imgData.Checksum, nil
 }
 
+func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out io.Writer, repoInfo *registry.RepositoryInfo, manifestBytes, tag string, sf *utils.StreamFormatter) error {
+	if repoInfo.Official {
+		j := eng.Job("trust_update_base")
+		if err := j.Run(); err != nil {
+			log.Errorf("error updating trust base graph: %s", err)
+		}
+	}
+
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	if err != nil {
+		return fmt.Errorf("error getting registry endpoint: %s", err)
+	}
+	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, false)
+	if err != nil {
+		return fmt.Errorf("error getting authorization: %s", err)
+	}
+
+	// if no manifest is given, generate and sign with the key associated with the local tag store
+	if len(manifestBytes) == 0 {
+		mBytes, err := s.newManifest(repoInfo.LocalName, repoInfo.RemoteName, tag)
+		if err != nil {
+			return err
+		}
+		js, err := libtrust.NewJSONSignature(mBytes)
+		if err != nil {
+			return err
+		}
+
+		if err = js.Sign(s.trustKey); err != nil {
+			return err
+		}
+
+		signedBody, err := js.PrettySignature("signatures")
+		if err != nil {
+			return err
+		}
+		log.Infof("Signed manifest using daemon's key: %s", s.trustKey.KeyID())
+
+		manifestBytes = string(signedBody)
+	}
+
+	manifest, verified, err := s.verifyManifest(eng, []byte(manifestBytes))
+	if err != nil {
+		return fmt.Errorf("error verifying manifest: %s", err)
+	}
+
+	if err := checkValidManifest(manifest); err != nil {
+		return fmt.Errorf("invalid manifest: %s", err)
+	}
+
+	if !verified {
+		log.Debugf("Pushing unverified image")
+	}
+
+	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
+		var (
+			sumStr  = manifest.FSLayers[i].BlobSum
+			imgJSON = []byte(manifest.History[i].V1Compatibility)
+		)
+
+		sumParts := strings.SplitN(sumStr, ":", 2)
+		if len(sumParts) < 2 {
+			return fmt.Errorf("Invalid checksum: %s", sumStr)
+		}
+		manifestSum := sumParts[1]
+
+		img, err := image.NewImgJSON(imgJSON)
+		if err != nil {
+			return fmt.Errorf("Failed to parse json: %s", err)
+		}
+
+		img, err = s.graph.Get(img.ID)
+		if err != nil {
+			return err
+		}
+
+		arch, err := img.TarLayer()
+		if err != nil {
+			return fmt.Errorf("Could not get tar layer: %s", err)
+		}
+
+		// Call mount blob
+		exists, err := r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, auth)
+		if err != nil {
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+			return err
+		}
+		if !exists {
+			err = r.PutV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth)
+			if err != nil {
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+				return err
+			}
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
+		} else {
+			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image already exists", nil))
+		}
+	}
+
+	// push the manifest
+	return r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth)
+}
+
 // FIXME: Allow to interrupt current push when new push of same image is done.
 func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
@@ -267,6 +374,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	}
 
 	tag := job.Getenv("tag")
+	manifestBytes := job.Getenv("manifest")
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
 
@@ -284,6 +392,20 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	r, err2 := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
 	if err2 != nil {
 		return job.Error(err2)
+	}
+
+	if len(tag) == 0 {
+		tag = DEFAULTTAG
+	}
+
+	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
+		err := s.pushV2Repository(r, job.Eng, job.Stdout, repoInfo, manifestBytes, tag, sf)
+		if err == nil {
+			return engine.StatusOK
+		}
+
+		// error out, no fallback to V1
+		return job.Error(err)
 	}
 
 	if err != nil {
