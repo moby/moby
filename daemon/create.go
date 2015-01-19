@@ -91,7 +91,10 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
-	if hostConfig != nil && hostConfig.SecurityOpt == nil {
+	if hostConfig == nil {
+		hostConfig = &runconfig.HostConfig{}
+	}
+	if hostConfig.SecurityOpt == nil {
 		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
 		if err != nil {
 			return nil, nil, err
