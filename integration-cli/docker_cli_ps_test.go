@@ -288,7 +288,7 @@ func TestPsListContainersSize(t *testing.T) {
 func TestPsListContainersFilterStatus(t *testing.T) {
 	// FIXME: this should test paused, but it makes things hang and its wonky
 	// this is because paused containers can't be controlled by signals
-
+	deleteAllContainers()
 	// start exited container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -304,7 +304,7 @@ func TestPsListContainersFilterStatus(t *testing.T) {
 	}
 
 	// start running container
-	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "sleep 360")
+	runCmd = exec.Command(dockerBinary, "run", "-itd", "busybox")
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal(out, err)

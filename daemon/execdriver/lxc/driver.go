@@ -92,6 +92,17 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			"--share-net", c.Network.ContainerID,
 		)
 	}
+	if c.Ipc != nil {
+		if c.Ipc.ContainerID != "" {
+			params = append(params,
+				"--share-ipc", c.Ipc.ContainerID,
+			)
+		} else if c.Ipc.HostIpc {
+			params = append(params,
+				"--share-ipc", "1",
+			)
+		}
+	}
 
 	params = append(params,
 		"--",
@@ -141,7 +152,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
 		}
 	}
-
+	log.Debugf("lxc params %s", params)
 	var (
 		name = params[0]
 		arg  = params[1:]
