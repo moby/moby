@@ -23,6 +23,7 @@
 . /etc/rc.d/init.d/functions
 
 prog="docker"
+unshare=/usr/bin/unshare
 exec="/usr/bin/$prog"
 pidfile="/var/run/$prog.pid"
 lockfile="/var/lock/subsys/$prog"
@@ -46,7 +47,7 @@ start() {
         prestart
         printf "Starting $prog:\t"
         echo "\n$(date)\n" >> $logfile
-        $exec -d $other_args &>> $logfile &
+        "$unshare" -m -- $exec -d $other_args &>> $logfile &
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see
