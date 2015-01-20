@@ -746,7 +746,7 @@ Creates a new container.
       --ipc=""                   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                    'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                    'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
-      --link=[]                  Add link to another container in the form of name:alias
+      --link=[]                  Add link to another container in the form of <name or id>:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)

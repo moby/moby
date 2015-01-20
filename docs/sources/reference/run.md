@@ -512,7 +512,7 @@ or override the Dockerfile's exposed defaults:
                    Both hostPort and containerPort can be specified as a range of ports. 
                    When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                    (use 'docker port' to see the actual mapping)
-    --link=""  : Add link to another container (name:alias)
+    --link=""  : Add link to another container (<name or id>:alias)
 
 As mentioned previously, `EXPOSE` (and `--expose`) makes ports available
 **in** a container for incoming connections. The port number on the
@@ -595,7 +595,7 @@ above, or already defined by the developer with a Dockerfile `ENV`:
 
 Similarly the operator can set the **hostname** with `-h`.
 
-`--link name:alias` also sets environment variables, using the *alias* string to
+`--link <name or id>:alias` also sets environment variables, using the *alias* string to
 define environment variables within the container that give the IP and PORT
 information for connecting to the service container. Let's imagine we have a
 container running Redis:

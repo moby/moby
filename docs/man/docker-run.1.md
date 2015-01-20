@@ -170,7 +170,7 @@ ENTRYPOINT.
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
-   Add link to another container in the form of name:alias
+   Add link to another container in the form of <name or id>:alias
 
    If the operator
 uses **--link** when starting the new client container, then the client
