@@ -119,8 +119,23 @@ func (container *Container) VolumePaths() map[string]struct{} {
 }
 
 func (container *Container) registerVolumes() {
-	for _, mnt := range container.VolumeMounts() {
-		mnt.volume.AddContainer(container.ID)
+	for path := range container.VolumePaths() {
+		if v := container.daemon.volumes.Get(path); v != nil {
+			v.AddContainer(container.ID)
+			continue
+		}
+
+		// if container was created with an old daemon, this volume may not be registered so we need to make sure it gets registered
+		writable := true
+		if rw, exists := container.VolumesRW[path]; exists {
+			writable = rw
+		}
+		v, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
+		if err != nil {
+			log.Debugf("error registering volume %s: %v", path, err)
+			continue
+		}
+		v.AddContainer(container.ID)
 	}
 }
 
