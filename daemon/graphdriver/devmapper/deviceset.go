@@ -1099,7 +1099,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	log.Debugf("[deviceset] AddDevice() hash=%s basehash=%s", hash, baseHash)
-	defer log.Debugf("[deviceset] AddDevice END")
+	defer log.Debugf("[deviceset] AddDevice(hash=%s basehash=%s) END", hash, baseHash)
 
 	baseInfo, err := devices.lookupDevice(baseHash)
 	if err != nil {
@@ -1203,7 +1203,7 @@ func (devices *DeviceSet) deactivatePool() error {
 
 func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	log.Debugf("[devmapper] deactivateDevice(%s)", info.Hash)
-	defer log.Debugf("[devmapper] deactivateDevice END")
+	defer log.Debugf("[devmapper] deactivateDevice END(%s)", info.Hash)
 
 	// Wait for the unmount to be effective,
 	// by watching the value of Info.OpenCount for the device
@@ -1425,7 +1425,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 func (devices *DeviceSet) UnmountDevice(hash string) error {
 	log.Debugf("[devmapper] UnmountDevice(hash=%s)", hash)
-	defer log.Debugf("[devmapper] UnmountDevice END")
+	defer log.Debugf("[devmapper] UnmountDevice(hash=%s) END", hash)
 
 	info, err := devices.lookupDevice(hash)
 	if err != nil {

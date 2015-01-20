@@ -291,6 +291,14 @@ func UdevWait(cookie uint) error {
 	return nil
 }
 
+func basicTaskFlags() uint16 {
+	var flags uint16
+	if UdevSyncSupported() {
+		flags |= DmUdevDisableLibraryFallback
+	}
+	return flags
+}
+
 func LogInitVerbose(level int) {
 	DmLogInitVerbose(level)
 }
@@ -341,15 +349,18 @@ func UdevSetSyncSupport(enable bool) bool {
 
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
-	log.Debugf("[devmapper] RemoveDevice START")
-	defer log.Debugf("[devmapper] RemoveDevice END")
+	log.Debugf("[devmapper] RemoveDevice START(%s)", name)
+	defer log.Debugf("[devmapper] RemoveDevice END(%s)", name)
 	task, err := TaskCreateNamed(DeviceRemove, name)
 	if task == nil {
 		return err
 	}
 
-	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var (
+		cookie uint = 0
+		flags       = basicTaskFlags()
+	)
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can not set cookie: %s", err)
 	}
 	defer UdevWait(cookie)
@@ -414,8 +425,10 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 		return fmt.Errorf("Can't add target %s", err)
 	}
 
-	var cookie uint = 0
-	var flags uint16 = DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
+	var (
+		cookie uint = 0
+		flags       = basicTaskFlags() | DmUdevDisableSubsystemRulesFlag | DmUdevDisableDiskRulesFlag | DmUdevDisableOtherRulesFlag
+	)
 	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
@@ -546,8 +559,11 @@ func ResumeDevice(name string) error {
 		return err
 	}
 
-	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var (
+		cookie uint = 0
+		flags       = basicTaskFlags()
+	)
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 	defer UdevWait(cookie)
@@ -620,8 +636,11 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't add node %s", err)
 	}
 
-	var cookie uint = 0
-	if err := task.SetCookie(&cookie, 0); err != nil {
+	var (
+		cookie uint = 0
+		flags       = basicTaskFlags()
+	)
+	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 
