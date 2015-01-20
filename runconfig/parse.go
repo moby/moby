@@ -45,6 +45,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flSecurityOpt = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
+		flRequestedIP     = cmd.String([]string{"-requested-ip"}, "", "Set the IP address for container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPidMode         = cmd.String([]string{"-pid"}, "", "Default is to create a private PID namespace for the container\n'host': use the host PID namespace inside the container.  Note: the host mode gives the container full access to processes on the system and is therefore considered insecure.")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports on the host interfaces")
@@ -306,6 +307,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		ExtraHosts:      flExtraHosts.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,
+		RequestedIP:     *flRequestedIP,
 		IpcMode:         ipcMode,
 		PidMode:         pidMode,
 		Devices:         deviceMappings,

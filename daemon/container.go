@@ -490,6 +490,10 @@ func (container *Container) AllocateNetwork() error {
 
 	job := eng.Job("allocate_interface", container.ID)
 	job.Setenv("RequestedMac", container.Config.MacAddress)
+	// For specify an IP address from outside.
+	if container.hostConfig.RequestedIP != "" {
+		job.Setenv("RequestedIP", container.hostConfig.RequestedIP)
+	}
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
