@@ -12,15 +12,29 @@ import (
 
 func TestNsenterAlivePid(t *testing.T) {
 	args := []string{"nsenter-exec", "--nspid", fmt.Sprintf("%d", os.Getpid())}
-
-	cmd := &exec.Cmd{
-		Path: os.Args[0],
-		Args: args,
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe %v", err)
 	}
 
-	err := cmd.Run()
-	if err != nil {
-		t.Fatal("nsenter exits with a non-zero exit status")
+	cmd := &exec.Cmd{
+		Path:       os.Args[0],
+		Args:       args,
+		ExtraFiles: []*os.File{r},
+	}
+
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("nsenter failed to start %v", err)
+	}
+	r.Close()
+
+	// unblock the child process
+	if _, err := w.WriteString("1"); err != nil {
+		t.Fatalf("parent failed to write synchronization data %v", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("nsenter exits with a non-zero exit status")
 	}
 }
 

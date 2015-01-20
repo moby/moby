@@ -28,7 +28,6 @@ void get_args(int *argc, char ***argv)
 		pr_perror("Unable to open /proc/self/cmdline");
 		exit(1);
 	}
-
 	// Read the whole commandline.
 	ssize_t contents_size = 0;
 	ssize_t contents_offset = 0;
@@ -98,13 +97,12 @@ void nsenter()
 	if (strncmp(argv[0], kNsEnter, strlen(kNsEnter)) != 0) {
 		return;
 	}
-
-	#ifdef PR_SET_CHILD_SUBREAPER
+#ifdef PR_SET_CHILD_SUBREAPER
 	if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) == -1) {
 		pr_perror("Failed to set child subreaper");
 		exit(1);
 	}
-	#endif
+#endif
 
 	static const struct option longopts[] = {
 		{"nspid", required_argument, NULL, 'n'},
@@ -134,7 +132,7 @@ void nsenter()
 	init_pid = strtol(init_pid_str, NULL, 10);
 	if ((init_pid == 0 && errno == EINVAL) || errno == ERANGE) {
 		pr_perror("Failed to parse PID from \"%s\" with output \"%d\"",
-			init_pid_str, init_pid);
+			  init_pid_str, init_pid);
 		print_usage();
 		exit(1);
 	}
@@ -155,6 +153,12 @@ void nsenter()
 			exit(1);
 		}
 	}
+	// blocking until the parent placed the process inside correct cgroups.
+	unsigned char s;
+	if (read(3, &s, 1) != 1 || s != '1') {
+		pr_perror("failed to receive synchronization data from parent");
+		exit(1);
+	}
 	// Setns on all supported namespaces.
 	char ns_dir[PATH_MAX];
 	memset(ns_dir, 0, PATH_MAX);
@@ -173,18 +177,19 @@ void nsenter()
 	for (i = 0; i < num; i++) {
 		// A zombie process has links on namespaces, but they can't be opened
 		struct stat st;
-		if (fstatat(ns_dir_fd, namespaces[i], &st, AT_SYMLINK_NOFOLLOW) == -1) {
+		if (fstatat(ns_dir_fd, namespaces[i], &st, AT_SYMLINK_NOFOLLOW)
+		    == -1) {
 			if (errno == ENOENT)
 				continue;
 			pr_perror("Failed to stat ns file %s for ns %s",
-				ns_dir, namespaces[i]);
+				  ns_dir, namespaces[i]);
 			exit(1);
 		}
 
 		int fd = openat(ns_dir_fd, namespaces[i], O_RDONLY);
 		if (fd == -1) {
 			pr_perror("Failed to open ns file %s for ns %s",
-				ns_dir, namespaces[i]);
+				  ns_dir, namespaces[i]);
 			exit(1);
 		}
 		// Set the namespace.
