@@ -92,7 +92,7 @@ expect an integer, and they can only be specified once.
       --ip-masq=true                             Enable IP masquerading for bridge's IP range
       --iptables=true                            Enable Docker's addition of iptables rules
       --ipv6=false                               Enable Docker IPv6 support
-       -l, --log-level="info"                    Set the logging level
+       -l, --log-level="info"                    Set the logging level (debug, info, warn, error, fatal)
       --label=[]                                 Set key=value labels to the daemon (displayed in `docker info`)
       --mtu=0                                    Set the containers network MTU
                                                    if no value is provided: default to the default route MTU or 1500 if no default route is available
