@@ -647,6 +647,12 @@ mechanism to communicate with a linked container by its alias:
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
 
+> **Note**:
+> Unlike host entries in the `/ets/hosts` file, IP addresses stored in the
+> environment variables are not automatically updated if the source container is
+> restarted. We recommend using the host entries in `/etc/hosts` to resolve the
+> IP address of linked containers.
+
 ## VOLUME (shared filesystems)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].

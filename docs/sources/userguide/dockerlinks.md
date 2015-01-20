@@ -232,6 +232,12 @@ command to list the specified container's environment variables.
 > container. Similarly, some daemons (such as `sshd`)
 > will scrub them when spawning shells for connection.
 
+> **Note**:
+> Unlike host entries in the [`/ets/hosts` file](#updating-the-etchosts-file),
+> IP addresses stored in the environment variables are not automatically updated
+> if the source container is restarted. We recommend using the host entries in
+> `/etc/hosts` to resolve the IP address of linked containers.
+
 You can see that Docker has created a series of environment variables with
 useful information about the source `db` container. Each variable is prefixed with
 `DB_`, which is populated from the `alias` you specified above. If the `alias`
