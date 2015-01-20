@@ -112,6 +112,7 @@ type HostConfig struct {
 	VolumesFrom     []string
 	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
+	RequestedIP     string
 	IpcMode         IpcMode
 	PidMode         PidMode
 	CapAdd          []string
@@ -147,6 +148,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
+		RequestedIP:     job.Getenv("RequestedIP"),
 		IpcMode:         IpcMode(job.Getenv("IpcMode")),
 		PidMode:         PidMode(job.Getenv("PidMode")),
 		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
