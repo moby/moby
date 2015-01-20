@@ -521,6 +521,6 @@ func (t *TtyConsole) Close() error {
 	return t.MasterPty.Close()
 }
 
-func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+func (d *driver) Exec(id string, c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	return -1, ErrExec
 }

@@ -126,6 +126,24 @@ type Config struct {
 	AdditionalGroups []int `json:"additional_groups,omitempty"`
 }
 
+// ExecConfig defines configuration options for executing a process inside a
+// running container
+//
+// TODO:
+// - add User to customize the uid/gid of the executing process
+type ExecConfig struct {
+	// configurations of the container
+	Container *Config `json:"container"`
+
+	// current state of the container
+	State *State `json:"state"`
+
+	// Cgroups specify specific settings for the subsystems that the exec'ed
+	// process is placed into. The process's cgroups will always be nested
+	// inside the container's cgroups
+	Cgroups *cgroups.Cgroup `json:"cgroups,omitempty"`
+}
+
 // Routes can be specified to create entries in the route table as the container is started
 //
 // All of destination, source, and gateway should be either IPv4 or IPv6.

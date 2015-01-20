@@ -120,7 +120,11 @@ func startInExistingContainer(config *libcontainer.Config, state *libcontainer.S
 		}()
 	}
 
-	return namespaces.ExecIn(config, state, context.Args(), os.Args[0], action, stdin, stdout, stderr, console, startCallback)
+	execConfig := &libcontainer.ExecConfig{
+		Container: config,
+		State:     state,
+	}
+	return namespaces.ExecIn(execConfig, context.Args(), os.Args[0], action, stdin, stdout, stderr, console, startCallback)
 }
 
 // startContainer starts the container. Returns the exit status or -1 and an
