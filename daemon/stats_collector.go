@@ -68,6 +68,9 @@ func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
 	publisher := s.publishers[c]
 	if publisher != nil {
 		publisher.Evict(ch)
+		if publisher.Len() == 0 {
+			delete(s.publishers, c)
+		}
 	}
 	s.m.Unlock()
 }

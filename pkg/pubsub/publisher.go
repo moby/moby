@@ -26,6 +26,14 @@ type Publisher struct {
 	subscribers map[subscriber]struct{}
 }
 
+// Len returns the number of subscribers for the publisher
+func (p *Publisher) Len() int {
+	p.m.RLock()
+	i := len(p.subscribers)
+	p.m.RUnlock()
+	return i
+}
+
 // Subscribe adds a new subscriber to the publisher returning the channel.
 func (p *Publisher) Subscribe() chan interface{} {
 	ch := make(chan interface{}, p.buffer)

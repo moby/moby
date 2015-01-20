@@ -274,10 +274,10 @@ func TestGetContainerStats(t *testing.T) {
 		t.Fatalf("GET containers/stats sockRequest failed: %v", err)
 	}
 
+	dec := json.NewDecoder(bytes.NewBuffer(body))
 	var s *stats.Stats
-	if err := json.Unmarshal(body, &s); err != nil {
+	if err := dec.Decode(&s); err != nil {
 		t.Fatal(err)
 	}
-
 	logDone("container REST API - check GET containers/stats")
 }
