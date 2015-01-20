@@ -1,0 +1,483 @@
+#compdef docker
+#
+# zsh completion for docker (http://docker.com)
+#
+# version:  0.3.0
+# github:   https://github.com/felixr/docker-zsh-completion
+#
+# contributors:
+#   - Felix Riedel
+#   - Vincent Bernat
+#
+# license:
+#
+# Copyright (c) 2013, Felix Riedel
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the <organization> nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+__docker_get_containers() {
+    local kind expl
+    declare -a running stopped lines args
+
+    kind=$1
+    shift
+    [[ $kind = (stopped|all) ]] && args=($args -a)
+
+    lines=(${(f)"$(_call_program commands docker ps ${args})"})
+
+    # Parse header line to find columns
+    local i=1 j=1 k header=${lines[1]}
+    declare -A begin end
+    while (( $j < ${#header} - 1 )) {
+        i=$(( $j + ${${header[$j,-1]}[(i)[^ ]]} - 1))
+        j=$(( $i + ${${header[$i,-1]}[(i)  ]} - 1))
+        k=$(( $j + ${${header[$j,-1]}[(i)[^ ]]} - 2))
+        begin[${header[$i,$(($j-1))]}]=$i
+        end[${header[$i,$(($j-1))]}]=$k
+    }
+    lines=(${lines[2,-1]})
+
+    # Container ID
+    local line
+    local s
+    for line in $lines; do
+        s="${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}"
+        s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+        s="$s, ${${${line[$begin[IMAGE],$end[IMAGE]]}/:/\\:}%% ##}"
+        if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+            stopped=($stopped $s)
+        else
+            running=($running $s)
+        fi
+    done
+
+    # Names
+    local name
+    local -a names
+    for line in $lines; do
+        names=(${(ps:,:)${${line[${begin[NAMES]},-1]}%% *}})
+        for name in $names; do
+            s="${name}:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+            s="$s, ${${${line[$begin[IMAGE],$end[IMAGE]]}/:/\\:}%% ##}"
+            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+                stopped=($stopped $s)
+            else
+                running=($running $s)
+            fi
+        done
+    done
+
+    [[ $kind = (running|all) ]] && _describe -t containers-running "running containers" running
+    [[ $kind = (stopped|all) ]] && _describe -t containers-stopped "stopped containers" stopped
+}
+
+__docker_stoppedcontainers() {
+    __docker_get_containers stopped "$@"
+}
+
+__docker_runningcontainers() {
+    __docker_get_containers running "$@"
+}
+
+__docker_containers () {
+    __docker_get_containers all "$@"
+}
+
+__docker_images () {
+    local expl
+    declare -a images
+    images=(${${${${(f)"$(_call_program commands docker images)"}[2,-1]}/ ##/\\:}%% *})
+    images=(${${images%\\:<none>}#<none>} ${${${(f)"$(_call_program commands docker images)"}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
+    _describe -t docker-images "images" images
+}
+
+__docker_tags() {
+    local expl
+    declare -a tags
+    tags=(${${${${${(f)"$(_call_program commands docker images)"}#* }## #}%% *}[2,-1]})
+    _describe -t docker-tags "tags" tags
+}
+
+__docker_repositories_with_tags() {
+    if compset -P '*:'; then
+        __docker_tags
+    else
+        __docker_repositories -qS ":"
+    fi
+}
+
+__docker_search() {
+    # declare -a dockersearch
+    local cache_policy
+    zstyle -s ":completion:${curcontext}:" cache-policy cache_policy
+    if [[ -z "$cache_policy" ]]; then
+        zstyle ":completion:${curcontext}:" cache-policy __docker_caching_policy
+    fi
+
+    local searchterm cachename
+    searchterm="${words[$CURRENT]%/}"
+    cachename=_docker-search-$searchterm
+
+    local expl
+    local -a result
+    if ( [[ ${(P)+cachename} -eq 0 ]] || _cache_invalid ${cachename#_} ) \
+        && ! _retrieve_cache ${cachename#_}; then
+        _message "Searching for ${searchterm}..."
+        result=(${${${(f)"$(_call_program commands docker search ${searchterm})"}%% *}[2,-1]})
+        _store_cache ${cachename#_} result
+    fi
+    _wanted dockersearch expl 'available images' compadd -a result
+}
+
+__docker_caching_policy()
+{
+  oldp=( "$1"(Nmh+1) )     # 1 hour
+  (( $#oldp ))
+}
+
+
+__docker_repositories () {
+    local expl
+    declare -a repos
+    repos=(${${${(f)"$(_call_program commands docker images)"}%% *}[2,-1]})
+    _describe -t docker-repos "repositories" repos "$@"
+}
+
+__docker_commands () {
+    # local -a  _docker_subcommands
+    local cache_policy
+
+    zstyle -s ":completion:${curcontext}:" cache-policy cache_policy
+    if [[ -z "$cache_policy" ]]; then
+        zstyle ":completion:${curcontext}:" cache-policy __docker_caching_policy
+    fi
+
+    if ( [[ ${+_docker_subcommands} -eq 0 ]] || _cache_invalid docker_subcommands) \
+        && ! _retrieve_cache docker_subcommands;
+    then
+        local -a lines
+        lines=(${(f)"$(_call_program commands docker 2>&1)"})
+        _docker_subcommands=(${${${lines[$((${lines[(i)Commands:]} + 1)),${lines[(I)    *]}]}## #}/ ##/:})
+        _docker_subcommands=($_docker_subcommands 'help:Show help for a command')
+        _store_cache docker_subcommands _docker_subcommands
+    fi
+    _describe -t docker-commands "docker command" _docker_subcommands
+}
+
+__docker_subcommand () {
+    local -a _command_args
+    case "$words[1]" in
+        (attach)
+            _arguments \
+                '--no-stdin[Do not attach stdin]' \
+                '--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]' \
+                ':containers:__docker_runningcontainers'
+            ;;
+        (build)
+            _arguments \
+                '--force-rm[Always remove intermediate containers]' \
+                '--no-cache[Do not use cache when building the image]' \
+                {-q,--quiet}'[Suppress verbose build output]' \
+                '--rm[Remove intermediate containers after a successful build]' \
+                {-t,--tag=-}'[Repository, name and tag to be applied]:repository:__docker_repositories_with_tags' \
+                ':path or URL:_directories'
+            ;;
+        (commit)
+            _arguments \
+                {-a,--author=-}'[Author]:author: ' \
+                {-m,--message=-}'[Commit message]:message: ' \
+                {-p,--pause}'[Pause container during commit]' \
+                '--run=-[Configuration automatically applied when the image is run]:configuration: ' \
+                ':container:__docker_containers' \
+                ':repository:__docker_repositories_with_tags'
+            ;;
+        (cp)
+            _arguments \
+                ':container:->container' \
+                ':hostpath:_files'
+            case $state in
+                (container)
+                    if compset -P '*:'; then
+                        _files
+                    else
+                        __docker_containers -qS ":"
+                    fi
+                    ;;
+            esac
+            ;;
+        (diff|export)
+            _arguments '*:containers:__docker_containers'
+            ;;
+        (events)
+            _arguments \
+                '--since=-[Events created since this timestamp]:timestamp: ' \
+                '--until=-[Events created until this timestamp]:timestamp: '
+            ;;
+        (exec)
+            _arguments \
+                {-d,--detach}'[Detached mode: leave the container running in the background]' \
+                {-i,--interactive}'[Keep stdin open even if not attached]' \
+                {-t,--tty}'[Allocate a pseudo-tty]' \
+                ':containers:__docker_runningcontainers'
+            ;;
+        (history)
+            _arguments \
+                '--no-trunc[Do not truncate output]' \
+                {-q,--quiet}'[Only show numeric IDs]' \
+                '*:images:__docker_images'
+            ;;
+        (images)
+            _arguments \
+                {-a,--all}'[Show all images]' \
+                '*'{-f,--filter=-}'[Filter values]:filter: ' \
+                '--no-trunc[Do not truncate output]' \
+                {-q,--quiet}'[Only show numeric IDs]' \
+                '--tree[Output graph in tree format]' \
+                '--viz[Output graph in graphviz format]' \
+                ':repository:__docker_repositories'
+            ;;
+        (inspect)
+            _arguments \
+                {-f,--format=-}'[Format the output using the given go template]:template: ' \
+                '*:containers:__docker_containers'
+            ;;
+        (import)
+            _arguments \
+                ':URL:(- http:// file://)' \
+                ':repository:__docker_repositories_with_tags'
+            ;;
+        (info)
+            ;;
+        (import)
+            _arguments \
+                ':URL:(- http:// file://)' \
+                ':repository:__docker_repositories_with_tags'
+            ;;
+        (insert)
+            _arguments '1:containers:__docker_containers' \
+                       '2:URL:(http:// file://)' \
+                       '3:file:_files'
+            ;;
+        (kill)
+            _arguments \
+                {-s,--signal=-}'[Signal to send]:signal:_signals' \
+                '*:containers:__docker_runningcontainers'
+            ;;
+        (load)
+            _arguments \
+                {-i,--input=-}'[Read from tar archive file]:tar:_files'
+            ;;
+        (login)
+            _arguments \
+                {-e,--email=-}'[Email]:email: ' \
+                {-p,--password=-}'[Password]:password: ' \
+                {-u,--user=-}'[Username]:username: ' \
+                ':server: '
+            ;;
+        (logout)
+            _arguments \
+                ':server: '
+            ;;
+        (logs)
+            _arguments \
+                {-f,--follow}'[Follow log output]' \
+                {-t,--timestamps}'[Show timestamps]' \
+                '*:containers:__docker_containers'
+            ;;
+        (port)
+            _arguments \
+                '1:containers:__docker_runningcontainers' \
+                '2:port:_ports'
+            ;;
+        (pause|unpause)
+            _arguments \
+                '1:containers:__docker_runningcontainers'
+            ;;
+        (start)
+            _arguments \
+                {-a,--attach}'[Attach container'"'"'s stdout/stderr and forward all signals]' \
+                {-i,--interactive}'[Attach container'"'"'s stding]' \
+                '*:containers:__docker_stoppedcontainers'
+            ;;
+        (rm)
+            _arguments \
+                {-f,--force}'[Force removal]' \
+                {-l,--link}'[Remove the specified link and not the underlying container]' \
+                {-v,--volumes}'[Remove the volumes associated to the container]' \
+                '*:containers:__docker_stoppedcontainers'
+            ;;
+        (rmi)
+            _arguments \
+                {-f,--force}'[Force removal]' \
+                '--no-prune[Do not delete untagged parents]' \
+                '*:images:__docker_images'
+            ;;
+        (restart|stop)
+            _arguments \
+                {-t,--time=-}'[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)' \
+                '*:containers:__docker_runningcontainers'
+            ;;
+        (top)
+            _arguments \
+                '1:containers:__docker_runningcontainers' \
+                '(-)*:: :->ps-arguments'
+            case $state in
+                (ps-arguments)
+                    _ps
+                    ;;
+            esac
+
+            ;;
+        (ps)
+            _arguments \
+                {-a,--all}'[Show all containers]' \
+                '--before=-[Show only container created before...]:containers:__docker_containers' \
+                '*'{-f,--filter=-}'[Filter values]:filter: ' \
+                {-l,--latest}'[Show only the latest created container]' \
+                '-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)' \
+                '--no-trunc[Do not truncate output]' \
+                {-q,--quiet}'[Only show numeric IDs]' \
+                {-s,--size}'[Display total file sizes]' \
+                '--since=-[Show only containers created since...]:containers:__docker_containers'
+            ;;
+        (tag)
+            _arguments \
+                {-f,--force}'[force]'\
+                ':image:__docker_images'\
+                ':repository:__docker_repositories_with_tags'
+            ;;
+        (create|run)
+            _arguments \
+                {-a,--attach}'[Attach to stdin, stdout or stderr]' \
+                '*--add-host=-[Add a custom host-to-IP mapping]:host\:ip mapping: ' \
+                {-c,--cpu-shares=-}'[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)' \
+                '*--cap-add=-[Add Linux capabilities]:capability: ' \
+                '*--cap-drop=-[Drop Linux capabilities]:capability: ' \
+                '--cidfile=-[Write the container ID to the file]:CID file:_files' \
+                '--cpuset=-[CPUs in which to allow execution]:CPU set: ' \
+                {-d,--detach}'[Detached mode: leave the container running in the background]' \
+                '*--device=-[Add a host device to the container]:device:_files' \
+                '*--dns=-[Set custom dns servers]:dns server: ' \
+                '*--dns-search=-[Set custom DNS search domains]:dns domains: ' \
+                '*'{-e,--environment=-}'[Set environment variables]:environment variable: ' \
+                '--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: ' \
+                '*--env-file=-[Read environment variables from a file]:environment file:_files' \
+                '*--expose=-[Expose a port from the container without publishing it]: ' \
+                {-h,--hostname=-}'[Container host name]:hostname:_hosts' \
+                {-i,--interactive}'[Keep stdin open even if not attached]' \
+                '*--link=-[Add link to another container]:link:->link' \
+                '*--lxc-conf=-[Add custom lxc options]:lxc options: ' \
+                '-m[Memory limit (in bytes)]:limit: ' \
+                '--name=-[Container name]:name: ' \
+                '--net=-[Network mode]:network mode:(bridge none container: host)' \
+                {-P,--publish-all}'[Publish all exposed ports]' \
+                '*'{-p,--publish=-}'[Expose a container'"'"'s port to the host]:port:_ports' \
+                '--privileged[Give extended privileges to this container]' \
+                '--restart=-[Restart policy]:restart policy:(no on-failure always)' \
+                '--rm[Remove intermediate containers when it exits]' \
+                '*--security-opt=-[Security options]:security option: ' \
+                '--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]' \
+                {-t,--tty}'[Allocate a pseudo-tty]' \
+                {-u,--user=-}'[Username or UID]:user:_users' \
+                '*-v[Bind mount a volume]:volume: '\
+                '*--volumes-from=-[Mount volumes from the specified container]:volume: ' \
+                {-w,--workdir=-}'[Working directory inside the container]:directory:_directories' \
+                '(-):images:__docker_images' \
+                '(-):command: _command_names -e' \
+                '*::arguments: _normal'
+
+            case $state in
+                (link)
+                    if compset -P '*:'; then
+                        _wanted alias expl 'Alias' compadd -E ""
+                    else
+                        __docker_runningcontainers -qS ":"
+                    fi
+                    ;;
+            esac
+
+            ;;
+        (pull|search)
+            _arguments ':name:__docker_search'
+            ;;
+        (push)
+            _arguments ':images:__docker_images'
+            ;;
+        (save)
+            _arguments \
+                {-o,--output=-}'[Write to file]:file:_files' \
+                ':images:__docker_images'
+            ;;
+        (wait)
+            _arguments ':containers:__docker_runningcontainers'
+            ;;
+        (help)
+            _arguments ':subcommand:__docker_commands'
+            ;;
+        (*)
+            _message 'Unknown sub command'
+    esac
+
+}
+
+_docker () {
+    # Support for subservices, which allows for `compdef _docker docker-shell=_docker_containers`.
+    # Based on /usr/share/zsh/functions/Completion/Unix/_git without support for `ret`.
+    if [[ $service != docker ]]; then
+        _call_function - _$service
+        return
+    fi
+
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+      '-H[tcp://host:port to bind/connect to]:socket: ' \
+         '(-): :->command' \
+         '(-)*:: :->option-or-argument'
+
+    if (( CURRENT == 1 )); then
+
+    fi
+    case $state in
+        (command)
+            __docker_commands
+            ;;
+        (option-or-argument)
+            curcontext=${curcontext%:*:*}:docker-$words[1]:
+            __docker_subcommand
+            ;;
+    esac
+}
+
+_docker "$@"
+
+# Local Variables:
+# mode: Shell-Script
+# sh-indentation: 4
+# indent-tabs-mode: nil
+# sh-basic-offset: 4
+# End:
+# vim: ft=zsh sw=4 ts=4 et

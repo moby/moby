@@ -1,153 +1,50 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"index/suffixarray"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
-// Go is a basic promise implementation: it wraps calls a function in a goroutine,
-// and returns a channel which will later return the function's return value.
-func Go(f func() error) chan error {
-	ch := make(chan error)
-	go func() {
-		ch <- f()
-	}()
-	return ch
+type KeyValuePair struct {
+	Key   string
+	Value string
 }
 
+var (
+	validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
+)
+
 // Request a given URL and return an io.Reader
-func Download(url string, stderr io.Writer) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, errors.New("Got HTTP status code >= 400: " + resp.Status)
+		return nil, fmt.Errorf("Got HTTP status code >= 400: %s", resp.Status)
 	}
 	return resp, nil
-}
-
-// Debug function, if the debug flag is set, then display. Do nothing otherwise
-// If Docker is in damon mode, also send the debug info on the socket
-func Debugf(format string, a ...interface{}) {
-	if os.Getenv("DEBUG") != "" {
-
-		// Retrieve the stack infos
-		_, file, line, ok := runtime.Caller(1)
-		if !ok {
-			file = "<unknown>"
-			line = -1
-		} else {
-			file = file[strings.LastIndex(file, "/")+1:]
-		}
-
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("[debug] %s:%d %s\n", file, line, format), a...)
-	}
-}
-
-// Reader with progress bar
-type progressReader struct {
-	reader       io.ReadCloser // Stream to read from
-	output       io.Writer     // Where to send progress bar to
-	readTotal    int           // Expected stream length (bytes)
-	readProgress int           // How much has been read so far (bytes)
-	lastUpdate   int           // How many bytes read at least update
-	template     string        // Template to print. Default "%v/%v (%v)"
-	sf           *StreamFormatter
-}
-
-func (r *progressReader) Read(p []byte) (n int, err error) {
-	read, err := io.ReadCloser(r.reader).Read(p)
-	r.readProgress += read
-
-	updateEvery := 1024 * 512 //512kB
-	if r.readTotal > 0 {
-		// Update progress for every 1% read if 1% < 512kB
-		if increment := int(0.01 * float64(r.readTotal)); increment < updateEvery {
-			updateEvery = increment
-		}
-	}
-	if r.readProgress-r.lastUpdate > updateEvery || err != nil {
-		if r.readTotal > 0 {
-			fmt.Fprintf(r.output, r.template, HumanSize(int64(r.readProgress)), HumanSize(int64(r.readTotal)), fmt.Sprintf("%2.0f%%", float64(r.readProgress)/float64(r.readTotal)*100))
-		} else {
-			fmt.Fprintf(r.output, r.template, r.readProgress, "?", "n/a")
-		}
-		r.lastUpdate = r.readProgress
-	}
-	// Send newline when complete
-	if err != nil {
-		r.output.Write(r.sf.FormatStatus(""))
-	}
-
-	return read, err
-}
-func (r *progressReader) Close() error {
-	return io.ReadCloser(r.reader).Close()
-}
-func ProgressReader(r io.ReadCloser, size int, output io.Writer, template []byte, sf *StreamFormatter) *progressReader {
-	tpl := string(template)
-	if tpl == "" {
-		tpl = string(sf.FormatProgress("", "%v/%v (%v)"))
-	}
-	return &progressReader{r, NewWriteFlusher(output), size, 0, 0, tpl, sf}
-}
-
-// HumanDuration returns a human-readable approximation of a duration
-// (eg. "About a minute", "4 hours ago", etc.)
-func HumanDuration(d time.Duration) string {
-	if seconds := int(d.Seconds()); seconds < 1 {
-		return "Less than a second"
-	} else if seconds < 60 {
-		return fmt.Sprintf("%d seconds", seconds)
-	} else if minutes := int(d.Minutes()); minutes == 1 {
-		return "About a minute"
-	} else if minutes < 60 {
-		return fmt.Sprintf("%d minutes", minutes)
-	} else if hours := int(d.Hours()); hours == 1 {
-		return "About an hour"
-	} else if hours < 48 {
-		return fmt.Sprintf("%d hours", hours)
-	} else if hours < 24*7*2 {
-		return fmt.Sprintf("%d days", hours/24)
-	} else if hours < 24*30*3 {
-		return fmt.Sprintf("%d weeks", hours/24/7)
-	} else if hours < 24*365*2 {
-		return fmt.Sprintf("%d months", hours/24/30)
-	}
-	return fmt.Sprintf("%f years", d.Hours()/24/365)
-}
-
-// HumanSize returns a human-readable approximation of a size
-// using SI standard (eg. "44kB", "17MB")
-func HumanSize(size int64) string {
-	i := 0
-	var sizef float64
-	sizef = float64(size)
-	units := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
-	for sizef >= 1000.0 {
-		sizef = sizef / 1000.0
-		i++
-	}
-	return fmt.Sprintf("%5.4g %s", sizef, units[i])
 }
 
 func Trunc(s string, maxlen int) string {
@@ -157,209 +54,114 @@ func Trunc(s string, maxlen int) string {
 	return s[:maxlen]
 }
 
-// Figure out the absolute path of our own binary
+// Figure out the absolute path of our own binary (if it's still around).
 func SelfPath() string {
 	path, err := exec.LookPath(os.Args[0])
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
+		if execErr, ok := err.(*exec.Error); ok && os.IsNotExist(execErr.Err) {
+			return ""
+		}
 		panic(err)
 	}
 	path, err = filepath.Abs(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
 		panic(err)
 	}
 	return path
 }
 
-type NopWriter struct{}
-
-func (*NopWriter) Write(buf []byte) (int, error) {
-	return len(buf), nil
-}
-
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (w *nopWriteCloser) Close() error { return nil }
-
-func NopWriteCloser(w io.Writer) io.WriteCloser {
-	return &nopWriteCloser{w}
-}
-
-type bufReader struct {
-	sync.Mutex
-	buf    *bytes.Buffer
-	reader io.Reader
-	err    error
-	wait   sync.Cond
-}
-
-func NewBufReader(r io.Reader) *bufReader {
-	reader := &bufReader{
-		buf:    &bytes.Buffer{},
-		reader: r,
+func dockerInitSha1(target string) string {
+	f, err := os.Open(target)
+	if err != nil {
+		return ""
 	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
+	defer f.Close()
+	h := sha1.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return ""
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
-func (r *bufReader) drain() {
-	buf := make([]byte, 1024)
-	for {
-		n, err := r.reader.Read(buf)
-		r.Lock()
+func isValidDockerInitPath(target string, selfPath string) bool { // target and selfPath should be absolute (InitPath and SelfPath already do this)
+	if target == "" {
+		return false
+	}
+	if dockerversion.IAMSTATIC == "true" {
+		if selfPath == "" {
+			return false
+		}
+		if target == selfPath {
+			return true
+		}
+		targetFileInfo, err := os.Lstat(target)
 		if err != nil {
-			r.err = err
-		} else {
-			r.buf.Write(buf[0:n])
+			return false
 		}
-		r.wait.Signal()
-		r.Unlock()
+		selfPathFileInfo, err := os.Lstat(selfPath)
 		if err != nil {
-			break
+			return false
+		}
+		return os.SameFile(targetFileInfo, selfPathFileInfo)
+	}
+	return dockerversion.INITSHA1 != "" && dockerInitSha1(target) == dockerversion.INITSHA1
+}
+
+// Figure out the path of our dockerinit (which may be SelfPath())
+func DockerInitPath(localCopy string) string {
+	selfPath := SelfPath()
+	if isValidDockerInitPath(selfPath, selfPath) {
+		// if we're valid, don't bother checking anything else
+		return selfPath
+	}
+	var possibleInits = []string{
+		localCopy,
+		dockerversion.INITPATH,
+		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
+
+		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		// http://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec
+		"/usr/libexec/docker/dockerinit",
+		"/usr/local/libexec/docker/dockerinit",
+
+		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
+		// http://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
+		"/usr/lib/docker/dockerinit",
+		"/usr/local/lib/docker/dockerinit",
+	}
+	for _, dockerInit := range possibleInits {
+		if dockerInit == "" {
+			continue
+		}
+		path, err := exec.LookPath(dockerInit)
+		if err == nil {
+			path, err = filepath.Abs(path)
+			if err != nil {
+				// LookPath already validated that this file exists and is executable (following symlinks), so how could Abs fail?
+				panic(err)
+			}
+			if isValidDockerInitPath(path, selfPath) {
+				return path
+			}
 		}
 	}
-}
-
-func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.Lock()
-	defer r.Unlock()
-	for {
-		n, err = r.buf.Read(p)
-		if n > 0 {
-			return n, err
-		}
-		if r.err != nil {
-			return 0, r.err
-		}
-		r.wait.Wait()
-	}
-}
-
-func (r *bufReader) Close() error {
-	closer, ok := r.reader.(io.ReadCloser)
-	if !ok {
-		return nil
-	}
-	return closer.Close()
-}
-
-type WriteBroadcaster struct {
-	sync.Mutex
-	writers map[io.WriteCloser]struct{}
-}
-
-func (w *WriteBroadcaster) AddWriter(writer io.WriteCloser) {
-	w.Lock()
-	w.writers[writer] = struct{}{}
-	w.Unlock()
-}
-
-// FIXME: Is that function used?
-// FIXME: This relies on the concrete writer type used having equality operator
-func (w *WriteBroadcaster) RemoveWriter(writer io.WriteCloser) {
-	w.Lock()
-	delete(w.writers, writer)
-	w.Unlock()
-}
-
-func (w *WriteBroadcaster) Write(p []byte) (n int, err error) {
-	w.Lock()
-	defer w.Unlock()
-	for writer := range w.writers {
-		if n, err := writer.Write(p); err != nil || n != len(p) {
-			// On error, evict the writer
-			delete(w.writers, writer)
-		}
-	}
-	return len(p), nil
-}
-
-func (w *WriteBroadcaster) CloseWriters() error {
-	w.Lock()
-	defer w.Unlock()
-	for writer := range w.writers {
-		writer.Close()
-	}
-	w.writers = make(map[io.WriteCloser]struct{})
-	return nil
-}
-
-func NewWriteBroadcaster() *WriteBroadcaster {
-	return &WriteBroadcaster{writers: make(map[io.WriteCloser]struct{})}
+	return ""
 }
 
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		Debugf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
+		log.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
 	} else {
 		return len(fds)
 	}
 	return -1
-}
-
-// TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
-// This is used to retrieve image and container IDs by more convenient shorthand prefixes.
-type TruncIndex struct {
-	index *suffixarray.Index
-	ids   map[string]bool
-	bytes []byte
-}
-
-func NewTruncIndex() *TruncIndex {
-	return &TruncIndex{
-		index: suffixarray.New([]byte{' '}),
-		ids:   make(map[string]bool),
-		bytes: []byte{' '},
-	}
-}
-
-func (idx *TruncIndex) Add(id string) error {
-	if strings.Contains(id, " ") {
-		return fmt.Errorf("Illegal character: ' '")
-	}
-	if _, exists := idx.ids[id]; exists {
-		return fmt.Errorf("Id already exists: %s", id)
-	}
-	idx.ids[id] = true
-	idx.bytes = append(idx.bytes, []byte(id+" ")...)
-	idx.index = suffixarray.New(idx.bytes)
-	return nil
-}
-
-func (idx *TruncIndex) Delete(id string) error {
-	if _, exists := idx.ids[id]; !exists {
-		return fmt.Errorf("No such id: %s", id)
-	}
-	before, after, err := idx.lookup(id)
-	if err != nil {
-		return err
-	}
-	delete(idx.ids, id)
-	idx.bytes = append(idx.bytes[:before], idx.bytes[after:]...)
-	idx.index = suffixarray.New(idx.bytes)
-	return nil
-}
-
-func (idx *TruncIndex) lookup(s string) (int, int, error) {
-	offsets := idx.index.Lookup([]byte(" "+s), -1)
-	//log.Printf("lookup(%s): %v (index bytes: '%s')\n", s, offsets, idx.index.Bytes())
-	if offsets == nil || len(offsets) == 0 || len(offsets) > 1 {
-		return -1, -1, fmt.Errorf("No such id: %s", s)
-	}
-	offsetBefore := offsets[0] + 1
-	offsetAfter := offsetBefore + strings.Index(string(idx.bytes[offsetBefore:]), " ")
-	return offsetBefore, offsetAfter, nil
-}
-
-func (idx *TruncIndex) Get(s string) (string, error) {
-	before, after, err := idx.lookup(s)
-	//log.Printf("Get(%s) bytes=|%s| before=|%d| after=|%d|\n", s, idx.bytes, before, after)
-	if err != nil {
-		return "", err
-	}
-	return string(idx.bytes[before:after]), err
 }
 
 // TruncateID returns a shorthand version of a string identifier for convenience.
@@ -372,6 +174,32 @@ func TruncateID(id string) string {
 		shortLen = len(id)
 	}
 	return id[:shortLen]
+}
+
+// GenerateRandomID returns an unique id
+func GenerateRandomID() string {
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.ParseInt(TruncateID(value), 10, 64); err == nil {
+			continue
+		}
+		return value
+	}
+}
+
+func ValidateID(id string) error {
+	if ok := validHex.MatchString(id); !ok {
+		err := fmt.Errorf("image ID '%s' is invalid", id)
+		return err
+	}
+	return nil
 }
 
 // Code c/c from io.Copy() modified to handle escape sequence
@@ -389,7 +217,7 @@ func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 					if err := src.Close(); err != nil {
 						return 0, err
 					}
-					return 0, io.EOF
+					return 0, nil
 				}
 			}
 			// ---- End of docker
@@ -425,151 +253,25 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-type KernelVersionInfo struct {
-	Kernel int
-	Major  int
-	Minor  int
-	Flavor string
-}
-
-func (k *KernelVersionInfo) String() string {
-	flavor := ""
-	if len(k.Flavor) > 0 {
-		flavor = fmt.Sprintf("-%s", k.Flavor)
-	}
-	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, flavor)
-}
-
-// Compare two KernelVersionInfo struct.
-// Returns -1 if a < b, = if a == b, 1 it a > b
-func CompareKernelVersion(a, b *KernelVersionInfo) int {
-	if a.Kernel < b.Kernel {
-		return -1
-	} else if a.Kernel > b.Kernel {
-		return 1
-	}
-
-	if a.Major < b.Major {
-		return -1
-	} else if a.Major > b.Major {
-		return 1
-	}
-
-	if a.Minor < b.Minor {
-		return -1
-	} else if a.Minor > b.Minor {
-		return 1
-	}
-
-	return 0
-}
-
-func FindCgroupMountpoint(cgroupType string) (string, error) {
-	output, err := ioutil.ReadFile("/proc/mounts")
-	if err != nil {
-		return "", err
-	}
-
-	// /proc/mounts has 6 fields per line, one mount per line, e.g.
-	// cgroup /sys/fs/cgroup/devices cgroup rw,relatime,devices 0 0
-	for _, line := range strings.Split(string(output), "\n") {
-		parts := strings.Split(line, " ")
-		if len(parts) == 6 && parts[2] == "cgroup" {
-			for _, opt := range strings.Split(parts[3], ",") {
-				if opt == cgroupType {
-					return parts[1], nil
-				}
-			}
-		}
-	}
-
-	return "", fmt.Errorf("cgroup mountpoint not found for %s", cgroupType)
-}
-
-func GetKernelVersion() (*KernelVersionInfo, error) {
-	var (
-		flavor               string
-		kernel, major, minor int
-		err                  error
-	)
-
-	uts, err := uname()
-	if err != nil {
-		return nil, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
-
-	tmp := strings.SplitN(string(release), "-", 2)
-	tmp2 := strings.SplitN(tmp[0], ".", 3)
-
-	if len(tmp2) > 0 {
-		kernel, err = strconv.Atoi(tmp2[0])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 1 {
-		major, err = strconv.Atoi(tmp2[1])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp2) > 2 {
-		// Removes "+" because git kernels might set it
-		minorUnparsed := strings.Trim(tmp2[2], "+")
-		minor, err = strconv.Atoi(minorUnparsed)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(tmp) == 2 {
-		flavor = tmp[1]
-	} else {
-		flavor = ""
-	}
-
-	return &KernelVersionInfo{
-		Kernel: kernel,
-		Major:  major,
-		Minor:  minor,
-		Flavor: flavor,
-	}, nil
-}
-
-// FIXME: this is deprecated by CopyWithTar in archive.go
-func CopyDirectory(source, dest string) error {
-	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
-		return fmt.Errorf("Error copy: %s (%s)", err, output)
-	}
-	return nil
-}
-
-type NopFlusher struct{}
-
-func (f *NopFlusher) Flush() {}
-
 type WriteFlusher struct {
+	sync.Mutex
 	w       io.Writer
 	flusher http.Flusher
 }
 
 func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
+	wf.Lock()
+	defer wf.Unlock()
 	n, err = wf.w.Write(b)
 	wf.flusher.Flush()
 	return n, err
+}
+
+// Flush the stream immediately.
+func (wf *WriteFlusher) Flush() {
+	wf.Lock()
+	defer wf.Unlock()
+	wf.flusher.Flush()
 }
 
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
@@ -577,112 +279,240 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	if f, ok := w.(http.Flusher); ok {
 		flusher = f
 	} else {
-		flusher = &NopFlusher{}
+		flusher = &ioutils.NopFlusher{}
 	}
 	return &WriteFlusher{w: w, flusher: flusher}
 }
 
-type JSONMessage struct {
-	Status   string `json:"status,omitempty"`
-	Progress string `json:"progress,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
-type StreamFormatter struct {
-	json bool
-	used bool
-}
-
-func NewStreamFormatter(json bool) *StreamFormatter {
-	return &StreamFormatter{json, false}
-}
-
-func (sf *StreamFormatter) FormatStatus(format string, a ...interface{}) []byte {
-	sf.used = true
-	str := fmt.Sprintf(format, a...)
-	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: str})
-		if err != nil {
-			return sf.FormatError(err)
-		}
-		return b
+func NewHTTPRequestError(msg string, res *http.Response) error {
+	return &JSONError{
+		Message: msg,
+		Code:    res.StatusCode,
 	}
-	return []byte(str + "\r\n")
 }
 
-func (sf *StreamFormatter) FormatError(err error) []byte {
-	sf.used = true
-	if sf.json {
-		if b, err := json.Marshal(&JSONMessage{Error: err.Error()}); err == nil {
-			return b
-		}
-		return []byte("{\"error\":\"format error\"}")
+// An StatusError reports an unsuccessful exit by a command.
+type StatusError struct {
+	Status     string
+	StatusCode int
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
+}
+
+func quote(word string, buf *bytes.Buffer) {
+	// Bail out early for "simple" strings
+	if word != "" && !strings.ContainsAny(word, "\\'\"`${[|&;<>()~*?! \t\n") {
+		buf.WriteString(word)
+		return
 	}
-	return []byte("Error: " + err.Error() + "\r\n")
+
+	buf.WriteString("'")
+
+	for i := 0; i < len(word); i++ {
+		b := word[i]
+		if b == '\'' {
+			// Replace literal ' with a close ', a \', and a open '
+			buf.WriteString("'\\''")
+		} else {
+			buf.WriteByte(b)
+		}
+	}
+
+	buf.WriteString("'")
 }
 
-func (sf *StreamFormatter) FormatProgress(action, str string) []byte {
-	sf.used = true
-	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Status: action, Progress: str})
-		if err != nil {
+// Take a list of strings and escape them so they will be handled right
+// when passed as arguments to an program via a shell
+func ShellQuoteArguments(args []string) string {
+	var buf bytes.Buffer
+	for i, arg := range args {
+		if i != 0 {
+			buf.WriteByte(' ')
+		}
+		quote(arg, &buf)
+	}
+	return buf.String()
+}
+
+var globalTestID string
+
+// TestDirectory creates a new temporary directory and returns its path.
+// The contents of directory at path `templateDir` is copied into the
+// new directory.
+func TestDirectory(templateDir string) (dir string, err error) {
+	if globalTestID == "" {
+		globalTestID = RandomString()[:4]
+	}
+	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, GetCallerName(2))
+	if prefix == "" {
+		prefix = "docker-test-"
+	}
+	dir, err = ioutil.TempDir("", prefix)
+	if err = os.Remove(dir); err != nil {
+		return
+	}
+	if templateDir != "" {
+		if err = archive.CopyWithTar(templateDir, dir); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// GetCallerName introspects the call stack and returns the name of the
+// function `depth` levels down in the stack.
+func GetCallerName(depth int) string {
+	// Use the caller function name as a prefix.
+	// This helps trace temp directories back to their test.
+	pc, _, _, _ := runtime.Caller(depth + 1)
+	callerLongName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(callerLongName, ".")
+	callerShortName := parts[len(parts)-1]
+	return callerShortName
+}
+
+func CopyFile(src, dst string) (int64, error) {
+	if src == dst {
+		return 0, nil
+	}
+	sf, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer sf.Close()
+	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+		return 0, err
+	}
+	df, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer df.Close()
+	return io.Copy(df, sf)
+}
+
+// ReplaceOrAppendValues returns the defaults with the overrides either
+// replaced by env key or appended to the list
+func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
+	cache := make(map[string]int, len(defaults))
+	for i, e := range defaults {
+		parts := strings.SplitN(e, "=", 2)
+		cache[parts[0]] = i
+	}
+	for _, value := range overrides {
+		parts := strings.SplitN(value, "=", 2)
+		if i, exists := cache[parts[0]]; exists {
+			defaults[i] = value
+		} else {
+			defaults = append(defaults, value)
+		}
+	}
+	return defaults
+}
+
+// ReadSymlinkedDirectory returns the target directory of a symlink.
+// The target of the symbolic link may not be a file.
+func ReadSymlinkedDirectory(path string) (string, error) {
+	var realPath string
+	var err error
+	if realPath, err = filepath.Abs(path); err != nil {
+		return "", fmt.Errorf("unable to get absolute path for %s: %s", path, err)
+	}
+	if realPath, err = filepath.EvalSymlinks(realPath); err != nil {
+		return "", fmt.Errorf("failed to canonicalise path for %s: %s", path, err)
+	}
+	realPathInfo, err := os.Stat(realPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat target '%s' of '%s': %s", realPath, path, err)
+	}
+	if !realPathInfo.Mode().IsDir() {
+		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
+	}
+	return realPath, nil
+}
+
+// ValidateContextDirectory checks if all the contents of the directory
+// can be read and returns an error if some files can't be read
+// symlinks which point to non-existing files don't trigger an error
+func ValidateContextDirectory(srcPath string, excludes []string) error {
+	return filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
+		// skip this directory/file if it's not in the path, it won't get added to the context
+		if relFilePath, err := filepath.Rel(srcPath, filePath); err != nil {
+			return err
+		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
+			return err
+		} else if skip {
+			if f.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
-		return b
-	}
-	return []byte(action + " " + str + "\r")
+
+		if err != nil {
+			if os.IsPermission(err) {
+				return fmt.Errorf("can't stat '%s'", filePath)
+			}
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+
+		// skip checking if symlinks point to non-existing files, such symlinks can be useful
+		// also skip named pipes, because they hanging on open
+		if f.Mode()&(os.ModeSymlink|os.ModeNamedPipe) != 0 {
+			return nil
+		}
+
+		if !f.IsDir() {
+			currentFile, err := os.Open(filePath)
+			if err != nil && os.IsPermission(err) {
+				return fmt.Errorf("no permission to read from '%s'", filePath)
+			}
+			currentFile.Close()
+		}
+		return nil
+	})
 }
 
-func (sf *StreamFormatter) Used() bool {
-	return sf.used
-}
-
-func IsURL(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
-}
-
-func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
-}
-
-func CheckLocalDns() bool {
-	resolv, err := ioutil.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		Debugf("Error openning resolv.conf: %s", err)
-		return false
-	}
-	for _, ip := range []string{
-		"127.0.0.1",
-		"127.0.1.1",
-	} {
-		if strings.Contains(string(resolv), ip) {
+func StringsContainsNoCase(slice []string, s string) bool {
+	for _, ss := range slice {
+		if strings.ToLower(s) == strings.ToLower(ss) {
 			return true
 		}
 	}
 	return false
 }
 
-func ParseHost(host string, port int, addr string) string {
-	if strings.HasPrefix(addr, "unix://") {
-		return addr
-	}
-	if strings.HasPrefix(addr, "tcp://") {
-		addr = strings.TrimPrefix(addr, "tcp://")
-	}
-	if strings.Contains(addr, ":") {
-		hostParts := strings.Split(addr, ":")
-		if len(hostParts) != 2 {
-			log.Fatal("Invalid bind address format.")
-			os.Exit(-1)
+// Reads a .dockerignore file and returns the list of file patterns
+// to ignore. Note this will trim whitespace from each line as well
+// as use GO's "clean" func to get the shortest/cleanest path for each.
+func ReadDockerIgnore(path string) ([]string, error) {
+	// Note that a missing .dockerignore file isn't treated as an error
+	reader, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Error reading '%s': %v", path, err)
 		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		}
-		if p, err := strconv.Atoi(hostParts[1]); err == nil {
-			port = p
-		}
-	} else {
-		host = addr
+		return nil, nil
 	}
-	return fmt.Sprintf("tcp://%s:%d", host, port)
+	defer reader.Close()
+
+	scanner := bufio.NewScanner(reader)
+	var excludes []string
+
+	for scanner.Scan() {
+		pattern := strings.TrimSpace(scanner.Text())
+		if pattern == "" {
+			continue
+		}
+		pattern = filepath.Clean(pattern)
+		excludes = append(excludes, pattern)
+	}
+	if err = scanner.Err(); err != nil {
+		return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+	}
+	return excludes, nil
 }

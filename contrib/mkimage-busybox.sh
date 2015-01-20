@@ -1,6 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Generate a very minimal filesystem based on busybox-static,
 # and load it into the local docker under the name "busybox".
+
+echo >&2
+echo >&2 'warning: this script is deprecated - see mkimage.sh and mkimage/busybox-static'
+echo >&2
 
 BUSYBOX=$(which busybox)
 [ "$BUSYBOX" ] || {
@@ -10,7 +14,7 @@ BUSYBOX=$(which busybox)
 }
 
 set -e
-ROOTFS=/tmp/rootfs-busybox-$$-$RANDOM
+ROOTFS=${TMPDIR:-/var/tmp}/rootfs-busybox-$$-$RANDOM
 mkdir $ROOTFS
 cd $ROOTFS
 
@@ -35,5 +39,5 @@ do
     cp -a /dev/$X dev
 done
 
-tar -cf- . | docker import - busybox
+tar --numeric-owner -cf- . | docker import - busybox
 docker run -i -u root busybox /bin/echo Success.

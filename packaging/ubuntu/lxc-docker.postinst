@@ -1,4 +1,0 @@
-#!/bin/sh
-
-# Start docker
-/sbin/start docker

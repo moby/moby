@@ -1,150 +1,144 @@
 package main
 
 import (
-	"flag"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
-	"github.com/dotcloud/docker"
-	"github.com/dotcloud/docker/utils"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/signal"
-	"strconv"
 	"strings"
-	"syscall"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/dockerversion"
+	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/utils"
 )
 
-var (
-	GITCOMMIT string
+const (
+	defaultTrustKeyFile = "key.json"
+	defaultCaFile       = "ca.pem"
+	defaultKeyFile      = "key.pem"
+	defaultCertFile     = "cert.pem"
 )
 
 func main() {
-	if utils.SelfPath() == "/sbin/init" {
-		// Running in init mode
-		docker.SysInit()
+	if reexec.Init() {
 		return
 	}
-	// FIXME: Switch d and D ? (to be more sshd like)
-	flDaemon := flag.Bool("d", false, "Daemon mode")
-	flDebug := flag.Bool("D", false, "Debug mode")
-	flAutoRestart := flag.Bool("r", false, "Restart previously running containers")
-	bridgeName := flag.String("b", "", "Attach containers to a pre-existing network bridge")
-	pidfile := flag.String("p", "/var/run/docker.pid", "File containing process PID")
-	flGraphPath := flag.String("g", "/var/lib/docker", "Path to graph storage base dir.")
-	flEnableCors := flag.Bool("api-enable-cors", false, "Enable CORS requests in the remote api.")
-	flDns := flag.String("dns", "", "Set custom dns servers")
-	flHosts := docker.ListOpts{fmt.Sprintf("tcp://%s:%d", docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT)}
-	flag.Var(&flHosts, "H", "tcp://host:port to bind/connect to or unix://path/to/socket to use")
+
 	flag.Parse()
-	if len(flHosts) > 1 {
-		flHosts = flHosts[1:] //trick to display a nice defaul value in the usage
-	}
-	for i, flHost := range flHosts {
-		flHosts[i] = utils.ParseHost(docker.DEFAULTHTTPHOST, docker.DEFAULTHTTPPORT, flHost)
+	// FIXME: validate daemon flags here
+
+	if *flVersion {
+		showVersion()
+		return
 	}
 
-	if *bridgeName != "" {
-		docker.NetworkBridgeIface = *bridgeName
+	if *flLogLevel != "" {
+		lvl, err := log.ParseLevel(*flLogLevel)
+		if err != nil {
+			log.Fatalf("Unable to parse logging level: %s", *flLogLevel)
+		}
+		initLogging(lvl)
 	} else {
-		docker.NetworkBridgeIface = docker.DefaultNetworkBridge
+		initLogging(log.InfoLevel)
 	}
+
+	// -D, --debug, -l/--log-level=debug processing
+	// When/if -D is removed this block can be deleted
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
+		initLogging(log.DebugLevel)
 	}
-	docker.GITCOMMIT = GITCOMMIT
+
+	if len(flHosts) == 0 {
+		defaultHost := os.Getenv("DOCKER_HOST")
+		if defaultHost == "" || *flDaemon {
+			// If we do not have a host, default to unix socket
+			defaultHost = fmt.Sprintf("unix://%s", api.DEFAULTUNIXSOCKET)
+		}
+		defaultHost, err := api.ValidateHost(defaultHost)
+		if err != nil {
+			log.Fatal(err)
+		}
+		flHosts = append(flHosts, defaultHost)
+	}
+
 	if *flDaemon {
-		if flag.NArg() != 0 {
-			flag.Usage()
-			return
-		}
-		if err := daemon(*pidfile, *flGraphPath, flHosts, *flAutoRestart, *flEnableCors, *flDns); err != nil {
-			log.Fatal(err)
-			os.Exit(-1)
-		}
-	} else {
-		if len(flHosts) > 1 {
-			log.Fatal("Please specify only one -H")
-			return
-		}
-		protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
-		if err := docker.ParseCommands(protoAddrParts[0], protoAddrParts[1], flag.Args()...); err != nil {
-			log.Fatal(err)
-			os.Exit(-1)
-		}
-	}
-}
-
-func createPidFile(pidfile string) error {
-	if pidString, err := ioutil.ReadFile(pidfile); err == nil {
-		pid, err := strconv.Atoi(string(pidString))
-		if err == nil {
-			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
-				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", pidfile)
-			}
-		}
+		mainDaemon()
+		return
 	}
 
-	file, err := os.Create(pidfile)
+	if len(flHosts) > 1 {
+		log.Fatal("Please specify only one -H")
+	}
+	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
+
+	trustKey, err := api.LoadOrCreateTrustKey(*flTrustKey)
 	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	_, err = fmt.Fprintf(file, "%d", os.Getpid())
-	return err
-}
-
-func removePidFile(pidfile string) {
-	if err := os.Remove(pidfile); err != nil {
-		log.Printf("Error removing %s: %s", pidfile, err)
-	}
-}
-
-func daemon(pidfile string, flGraphPath string, protoAddrs []string, autoRestart, enableCors bool, flDns string) error {
-	if err := createPidFile(pidfile); err != nil {
 		log.Fatal(err)
 	}
-	defer removePidFile(pidfile)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, os.Signal(syscall.SIGTERM))
-	go func() {
-		sig := <-c
-		log.Printf("Received signal '%v', exiting\n", sig)
-		removePidFile(pidfile)
-		os.Exit(0)
-	}()
-	var dns []string
-	if flDns != "" {
-		dns = []string{flDns}
+	var (
+		cli       *client.DockerCli
+		tlsConfig tls.Config
+	)
+	tlsConfig.InsecureSkipVerify = true
+
+	// Regardless of whether the user sets it to true or false, if they
+	// specify --tlsverify at all then we need to turn on tls
+	if flag.IsSet("-tlsverify") {
+		*flTls = true
 	}
-	server, err := docker.NewServer(flGraphPath, autoRestart, enableCors, dns)
-	if err != nil {
-		return err
-	}
-	chErrors := make(chan error, len(protoAddrs))
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if protoAddrParts[0] == "unix" {
-			syscall.Unlink(protoAddrParts[1])
-		} else if protoAddrParts[0] == "tcp" {
-			if !strings.HasPrefix(protoAddrParts[1], "127.0.0.1") {
-				log.Println("/!\\ DON'T BIND ON ANOTHER IP ADDRESS THAN 127.0.0.1 IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-			}
-		} else {
-			log.Fatal("Invalid protocol format.")
-			os.Exit(-1)
-		}
-		go func() {
-			chErrors <- docker.ListenAndServe(protoAddrParts[0], protoAddrParts[1], server, true)
-		}()
-	}
-	for i := 0; i < len(protoAddrs); i += 1 {
-		err := <-chErrors
+
+	// If we should verify the server, we need to load a trusted ca
+	if *flTlsVerify {
+		certPool := x509.NewCertPool()
+		file, err := ioutil.ReadFile(*flCa)
 		if err != nil {
-			return err
+			log.Fatalf("Couldn't read ca cert %s: %s", *flCa, err)
 		}
+		certPool.AppendCertsFromPEM(file)
+		tlsConfig.RootCAs = certPool
+		tlsConfig.InsecureSkipVerify = false
 	}
-	return nil
+
+	// If tls is enabled, try to load and send client certificates
+	if *flTls || *flTlsVerify {
+		_, errCert := os.Stat(*flCert)
+		_, errKey := os.Stat(*flKey)
+		if errCert == nil && errKey == nil {
+			*flTls = true
+			cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
+			if err != nil {
+				log.Fatalf("Couldn't load X509 key pair: %s. Key encrypted?", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+		// Avoid fallback to SSL protocols < TLS1.0
+		tlsConfig.MinVersion = tls.VersionTLS10
+	}
+
+	if *flTls || *flTlsVerify {
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+	} else {
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], nil)
+	}
+
+	if err := cli.Cmd(flag.Args()...); err != nil {
+		if sterr, ok := err.(*utils.StatusError); ok {
+			if sterr.Status != "" {
+				log.Println(sterr.Status)
+			}
+			os.Exit(sterr.StatusCode)
+		}
+		log.Fatal(err)
+	}
+}
+
+func showVersion() {
+	fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
 }
