@@ -178,7 +178,9 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 	if err := store.reload(); err != nil {
 		return false, err
 	}
-	repoName = registry.NormalizeLocalName(repoName)
+	if _, exists := store.Repositories[repoName]; !exists {
+		repoName = registry.NormalizeLocalName(repoName)
+	}
 	if r, exists := store.Repositories[repoName]; exists {
 		if tag != "" {
 			if _, exists2 := r[tag]; exists2 {
@@ -220,6 +222,11 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		return err
 	}
 	var repo Repository
+	// Do not default to the first additional registry if we deal with an image
+	// from the official one which will be missing a hostname.
+	if !registry.RepositoryNameHasIndex(repoName) && registry.IndexServerName() != registry.INDEXSERVER {
+		repoName = fmt.Sprintf("%s/%s", registry.INDEXNAME, repoName)
+	}
 	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
@@ -240,8 +247,10 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	if err := store.reload(); err != nil {
 		return nil, err
 	}
-	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
+		return r, nil
+	}
+	if r, exists := store.Repositories[registry.NormalizeLocalName(repoName)]; exists {
 		return r, nil
 	}
 	return nil, nil

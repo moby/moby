@@ -182,9 +182,9 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 			return &configFile, fmt.Errorf("Invalid Auth config file")
 		}
 		authConfig.Email = origEmail[1]
-		authConfig.ServerAddress = IndexServerAddress()
+		authConfig.ServerAddress = IndexServerAddress("")
 		// *TODO: Switch to using IndexServerName() instead?
-		configFile.Configs[IndexServerAddress()] = authConfig
+		configFile.Configs[IndexServerAddress("")] = authConfig
 	} else {
 		for k, authConfig := range configFile.Configs {
 			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
@@ -262,7 +262,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 		return "", fmt.Errorf("Server Error: Server Address not set.")
 	}
 
-	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
+	loginAgainstOfficialIndex := serverAddress == INDEXSERVER
 
 	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig

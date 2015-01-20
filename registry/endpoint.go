@@ -89,7 +89,11 @@ func newEndpoint(address string, secure bool) (*Endpoint, error) {
 	)
 
 	if !strings.HasPrefix(address, "http") {
-		address = "https://" + address
+		if secure {
+			address = "https://" + address
+		} else {
+			address = "http://" + address
+		}
 	}
 
 	trimmedAddress, endpoint.Version = scanForAPIVersion(address)
@@ -162,7 +166,7 @@ func (e *Endpoint) Ping() (RegistryInfo, error) {
 func (e *Endpoint) pingV1() (RegistryInfo, error) {
 	log.Debugf("attempting v1 ping for registry endpoint %s", e)
 
-	if e.String() == IndexServerAddress() {
+	if e.String() == INDEXSERVER {
 		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
 		return RegistryInfo{Standalone: false}, nil

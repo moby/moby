@@ -80,7 +80,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.SetInt("NEventsListener", env.GetInt("count"))
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("OperatingSystem", operatingSystem)
-	v.Set("IndexServerAddress", registry.IndexServerAddress())
+	v.Set("IndexServerAddress", registry.IndexServerAddress(""))
 	v.SetJson("RegistryConfig", registryConfig)
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)

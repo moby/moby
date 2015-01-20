@@ -40,7 +40,9 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 		}
 	}
 	for _, name := range job.Args {
-		name = registry.NormalizeLocalName(name)
+		if _, exists := s.Repositories[name]; !exists {
+			name = registry.NormalizeLocalName(name)
+		}
 		log.Debugf("Serializing %s", name)
 		rootRepo := s.Repositories[name]
 		if rootRepo != nil {

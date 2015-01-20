@@ -32,6 +32,20 @@ type Session struct {
 }
 
 func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpoint *Endpoint, timeout bool) (r *Session, err error) {
+	if authConfig.ServerAddress != "" {
+		parsed, err := url.Parse(authConfig.ServerAddress)
+		// Docker client sometimes sends configuration file with stored
+		// credentials with a request (for example build command) to Docker
+		// daemon. Daemon then takes the first authentication information and
+		// tries to use it against any registry it contacts. This results
+		// in authentication errors.
+		// TODO: Fix the client/daemon so that credentials are available to daemon when
+		// they are needed and pick the right ones for particular endpoint.
+		if err == nil && parsed.Host != endpoint.URL.Host {
+			log.Infof("authConfig does not conform to given endpoint (%s != %s)", parsed.Host, endpoint.URL.Host)
+			*authConfig = AuthConfig{}
+		}
+	}
 	r = &Session{
 		authConfig:    authConfig,
 		indexEndpoint: endpoint,
@@ -48,7 +62,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside our requests.
-	if r.indexEndpoint.VersionString(1) != IndexServerAddress() && r.indexEndpoint.URL.Scheme == "https" {
+	if r.indexEndpoint.VersionString(1) != INDEXSERVER && r.indexEndpoint.URL.Scheme == "https" {
 		info, err := r.indexEndpoint.Ping()
 		if err != nil {
 			return nil, err
@@ -200,6 +214,15 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	return res.Body, nil
 }
 
+func isEndpointBlocked(endpoint string) bool {
+	if parsedURL, err := url.Parse(endpoint); err == nil {
+		if _, ok := BlockedRegistries[parsedURL.Host]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Session) GetRemoteTags(registries []string, repository string, token []string) (map[string]string, error) {
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the Registry supports auto-resolution on
@@ -207,6 +230,10 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 		repository = "library/" + repository
 	}
 	for _, host := range registries {
+		if isEndpointBlocked(host) {
+			log.Errorf("Cannot query blocked registry at %s for remote tags.", host)
+			continue
+		}
 		endpoint := fmt.Sprintf("%srepositories/%s/tags", host, repository)
 		req, err := r.reqFactory.NewRequest("GET", endpoint, nil)
 

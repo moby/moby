@@ -939,7 +939,9 @@ _docker() {
 	)
 
 	local main_options_with_args="
+		--add-registry
 		--bip
+		--block-registry
 		--bridge -b
 		--dns
 		--dns-search

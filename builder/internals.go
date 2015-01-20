@@ -435,6 +435,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	job.SetenvBool("json", b.StreamFormatter.Json())
 	job.SetenvBool("parallel", true)
 	job.SetenvJson("authConfig", pullRegistryAuth)
+	job.SetenvBool("protectOfficialRegistry", true)
 	job.Stdout.Add(ioutils.NopWriteCloser(b.OutOld))
 	if err := job.Run(); err != nil {
 		return nil, err

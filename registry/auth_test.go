@@ -36,7 +36,7 @@ func setupTempConfigFile() (*ConfigFile, error) {
 		Configs:  make(map[string]AuthConfig),
 	}
 
-	for _, registry := range []string{"testIndex", IndexServerAddress()} {
+	for _, registry := range []string{"testIndex", IndexServerAddress("")} {
 		configFile.Configs[registry] = AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
@@ -81,7 +81,7 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	}
 	defer os.RemoveAll(configFile.rootPath)
 
-	indexConfig := configFile.Configs[IndexServerAddress()]
+	indexConfig := configFile.Configs[IndexServerAddress("")]
 
 	officialIndex := &IndexInfo{
 		Official: true,
@@ -119,7 +119,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		Password: "baz-pass",
 		Email:    "baz@example.com",
 	}
-	configFile.Configs[IndexServerAddress()] = officialAuth
+	configFile.Configs[IndexServerAddress("")] = officialAuth
 
 	expectedAuths := map[string]AuthConfig{
 		"registry.example.com": registryAuth,

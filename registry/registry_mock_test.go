@@ -164,7 +164,7 @@ func makeHttpsIndex(req string) *IndexInfo {
 
 func makePublicIndex() *IndexInfo {
 	index := &IndexInfo{
-		Name:     IndexServerAddress(),
+		Name:     IndexServerAddress(""),
 		Secure:   true,
 		Official: true,
 	}
