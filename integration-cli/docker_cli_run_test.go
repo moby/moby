@@ -1289,40 +1289,42 @@ func TestRunDisallowBindMountingRootToRoot(t *testing.T) {
 	logDone("run - bind mount /:/ as volume should fail")
 }
 
+// Verify that a container gets default DNS when only localhost resolvers exist
 func TestRunDnsDefaultOptions(t *testing.T) {
-	// ci server has default resolv.conf
-	// so rewrite it for the test
+
+	// preserve original resolv.conf for restoring after test
 	origResolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
 	if os.IsNotExist(err) {
 		t.Fatalf("/etc/resolv.conf does not exist")
 	}
-
-	// test with file
-	tmpResolvConf := []byte("nameserver 127.0.0.1")
-	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
-		t.Fatal(err)
-	}
-	// put the old resolvconf back
+	// defer restored original conf
 	defer func() {
 		if err := ioutil.WriteFile("/etc/resolv.conf", origResolvConf, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
+	// test 3 cases: standard IPv4 localhost, commented out localhost, and IPv6 localhost
+	// 2 are removed from the file at container start, and the 3rd (commented out) one is ignored by
+	// GetNameservers(), leading to a replacement of nameservers with the default set
+	tmpResolvConf := []byte("nameserver 127.0.0.1\n#nameserver 127.0.2.1\nnameserver ::1")
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	cmd := exec.Command(dockerBinary, "run", "busybox", "cat", "/etc/resolv.conf")
 
 	actual, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Error(err, actual)
-		return
+		t.Fatal(err, actual)
 	}
 
-	// check that the actual defaults are there
-	// if we ever change the defaults from google dns, this will break
-	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	// check that the actual defaults are appended to the commented out
+	// localhost resolver (which should be preserved)
+	// NOTE: if we ever change the defaults from google dns, this will break
+	expected := "#nameserver 127.0.2.1\n\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
 	if actual != expected {
-		t.Errorf("expected resolv.conf be: %q, but was: %q", expected, actual)
-		return
+		t.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
 	}
 
 	deleteAllContainers()

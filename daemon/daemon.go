@@ -435,7 +435,7 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 						log.Debugf("Error retrieving updated host resolv.conf: %v", err)
 					} else if updatedResolvConf != nil {
 						// because the new host resolv.conf might have localhost nameservers..
-						updatedResolvConf, modified := resolvconf.RemoveReplaceLocalDns(updatedResolvConf)
+						updatedResolvConf, modified := resolvconf.FilterResolvDns(updatedResolvConf, daemon.config.EnableIPv6)
 						if modified {
 							// changes have occurred during localhost cleanup: generate an updated hash
 							newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
