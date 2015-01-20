@@ -102,6 +102,7 @@ type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         []utils.KeyValuePair
+	CpusetCpus      string // CpusetCpus 0-2, 0,1
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
@@ -139,17 +140,31 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if job.EnvExists("HostConfig") {
 		hostConfig := HostConfig{}
 		job.GetenvJson("HostConfig", &hostConfig)
+
+		// FIXME: This is for backward compatibility, if people use `Cpuset`
+		// and `HostConfig`, we should still make `Cpuset` workable.
+		if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
+			hostConfig.CpusetCpus = job.Getenv("Cpuset")
+		}
 		return &hostConfig
 	}
 
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
+		CpusetCpus:      job.Getenv("CpusetCpus"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 		IpcMode:         IpcMode(job.Getenv("IpcMode")),
 		PidMode:         PidMode(job.Getenv("PidMode")),
 		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
+	}
+
+	// FIXME: This is for backward compatibility, if people use `Cpuset`
+	// in json, make it workable, we will only pass hostConfig.CpusetCpus
+	// to execDriver.
+	if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
+		hostConfig.CpusetCpus = job.Getenv("Cpuset")
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)

@@ -15,7 +15,7 @@ type Config struct {
 	Memory          int64  // Memory limit (in bytes)
 	MemorySwap      int64  // Total memory usage (memory + swap); set `-1' to disable swap
 	CpuShares       int64  // CPU shares (relative weight vs. other containers)
-	Cpuset          string // Cpuset 0-2, 0,1
+	Cpuset          string // Cpuset 0-2, 0,1 FIXME: this is for backward compatibility, all new cgroups related fields should be added to hostConfig
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
@@ -43,7 +43,7 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 		Memory:          job.GetenvInt64("Memory"),
 		MemorySwap:      job.GetenvInt64("MemorySwap"),
 		CpuShares:       job.GetenvInt64("CpuShares"),
-		Cpuset:          job.Getenv("Cpuset"),
+		Cpuset:          job.Getenv("Cpuset"), // FIXME: we keep it for backword compatibility, should use CpusetCpus now
 		AttachStdin:     job.GetenvBool("AttachStdin"),
 		AttachStdout:    job.GetenvBool("AttachStdout"),
 		AttachStderr:    job.GetenvBool("AttachStderr"),

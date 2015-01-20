@@ -98,7 +98,7 @@ type Resources struct {
 	Memory     int64  `json:"memory"`
 	MemorySwap int64  `json:"memory_swap"`
 	CpuShares  int64  `json:"cpu_shares"`
-	Cpuset     string `json:"cpuset"`
+	CpusetCpus string `json:"cpuset_cpus"`
 }
 
 type Mount struct {
