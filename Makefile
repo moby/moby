@@ -28,9 +28,9 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 DOCKER_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 
-DOCKER_RUN_DOCKER := docker run --rm -it --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
+DOCKER_RUN_DOCKER := docker $(DOCKER_OPTIONS) run --rm -it --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
 
-DOCKER_RUN_DOCS := docker run --rm -it $(DOCS_MOUNT) -e AWS_S3_BUCKET -e NOCACHE
+DOCKER_RUN_DOCS := docker $(DOCKER_OPTIONS) run --rm -it $(DOCS_MOUNT) -e AWS_S3_BUCKET -e NOCACHE
 
 # for some docs workarounds (see below in "docs-build" target)
 GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
@@ -80,7 +80,7 @@ shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" .
+	docker $(DOCKER_OPTIONS) build -t "$(DOCKER_IMAGE)" .
 
 docs-build:
 	( git remote | grep -v upstream ) || git diff --name-status upstream/release..upstream/docs docs/ > docs/changed-files
@@ -88,7 +88,7 @@ docs-build:
 	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
 	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
 	echo "$(GITCOMMIT)" > docs/GITCOMMIT
-	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
+	docker $(DOCKER_OPTIONS) build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
 	mkdir bundles
