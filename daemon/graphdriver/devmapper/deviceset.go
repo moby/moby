@@ -717,8 +717,10 @@ func setCloseOnExec(name string) {
 }
 
 func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
-	if level >= 7 {
-		return // Ignore _LOG_DEBUG
+	if level >= devicemapper.LogLevelDebug {
+		// (vbatts) libdm debug is very verbose. If you're debugging libdm, you can
+		// comment out this check yourself
+		level = devicemapper.LogLevelInfo
 	}
 
 	// FIXME(vbatts) push this back into ./pkg/devicemapper/
@@ -939,6 +941,11 @@ func (devices *DeviceSet) closeTransaction() error {
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
+	if os.Getenv("DEBUG") != "" {
+		devicemapper.LogInitVerbose(devicemapper.LogLevelDebug)
+	} else {
+		devicemapper.LogInitVerbose(devicemapper.LogLevelWarn)
+	}
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
