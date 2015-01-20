@@ -4302,9 +4302,10 @@ func TestBuildWithTabs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := `["/bin/sh","-c","echo\tone\t\ttwo"]`
-	if res != expected {
-		t.Fatalf("Missing tabs.\nGot:%s\nExp:%s", res, expected)
+	expected1 := `["/bin/sh","-c","echo\tone\t\ttwo"]`
+	expected2 := `["/bin/sh","-c","echo\u0009one\u0009\u0009two"]` // syntactically equivalent, and what Go 1.3 generates
+	if res != expected1 && res != expected2 {
+		t.Fatalf("Missing tabs.\nGot: %s\nExp: %s or %s", res, expected1, expected2)
 	}
 	logDone("build - with tabs")
 }
