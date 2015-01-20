@@ -28,6 +28,7 @@ docker-run - Run a command in a new container
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
+[**--memory-swap**[=*MEMORY-SWAP]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
@@ -190,6 +191,11 @@ RAM. If a limit of 0 is specified, the container's memory is not limited. The
 actual limit may be rounded up to a multiple of the operating system's page
 size, if it is not already. The memory limit should be formatted as follows:
 `<number><optional unit>`, where unit = b, k, m or g.
+
+**--memory-swap**=""
+    Total memory usage (memory + swap)
+
+    Set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)

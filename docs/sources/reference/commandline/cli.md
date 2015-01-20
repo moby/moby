@@ -1613,6 +1613,7 @@ removed before the image is removed.
       --link=[]                  Add link to another container in the form of name:alias
       --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+      -memory-swap=""            Total memory usage (memory + swap), set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
