@@ -25,6 +25,7 @@
 prog="docker"
 exec="/usr/bin/$prog"
 pidfile="/var/run/$prog.pid"
+lib="/var/lib/$prog"
 lockfile="/var/lock/subsys/$prog"
 logfile="/var/log/$prog"
 
@@ -72,6 +73,9 @@ stop() {
     retval=$?
     echo
     [ $retval -eq 0 ] && rm -f $lockfile
+    if [ $(df | grep $lib | awk '{print $1}' | wc -l) -gt 0 ]; then
+        umount $(df | grep $lib | awk '{print $1}')
+    fi
     return $retval
 }
 
