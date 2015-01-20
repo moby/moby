@@ -2687,7 +2687,7 @@ func (s *containerStats) Display(w io.Writer) {
 }
 
 func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := cli.Subcmd("stats", "CONTAINER", "Stream the stats of a container", true)
+	cmd := cli.Subcmd("stats", "CONTAINER", "Display live container stats based on resource usage", true)
 	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, true)
 
