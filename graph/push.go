@@ -260,7 +260,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 		}
 	}
 
-	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index, false)
 	if err != nil {
 		return fmt.Errorf("error getting registry endpoint: %s", err)
 	}
