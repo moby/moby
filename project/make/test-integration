@@ -3,8 +3,18 @@ set -e
 
 DEST=$1
 
+INIT=$DEST/../dynbinary/dockerinit-$VERSION
+[ -x "$INIT" ] || {
+	source "$(dirname "$BASH_SOURCE")/.dockerinit"
+	INIT="$DEST/dockerinit"
+}
+export TEST_DOCKERINIT_PATH="$INIT"
+
 bundle_test_integration() {
-	LDFLAGS="$LDFLAGS $LDFLAGS_STATIC_DOCKER" go_test_dir ./integration \
+	LDFLAGS="
+		$LDFLAGS
+		-X $DOCKER_PKG/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"
+	" go_test_dir ./integration \
 		"-coverpkg $(find_dirs '*.go' | sed 's,^\.,'$DOCKER_PKG',g' | paste -d, -s)"
 }
 
