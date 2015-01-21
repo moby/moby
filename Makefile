@@ -34,6 +34,12 @@ DOCKER_RUN_DOCS := docker run --rm -it $(DOCS_MOUNT) -e AWS_S3_BUCKET -e NOCACHE
 
 # for some docs workarounds (see below in "docs-build" target)
 GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
+ARCH=$(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ -e s/arm.*/arm/ -e s/ppc.*/powerpc/)
+DOCKERFILE_PATH=hack/arch/$(ARCH)
+
+ifeq ($(wildcard $(DOCKERFILE_PATH)),)
+	DOCKERFILE_PATH=.
+endif
 
 default: binary
 
@@ -80,7 +86,7 @@ shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" .
+	docker build -f "$(DOCKERFILE_PATH)/Dockerfile" -t "$(DOCKER_IMAGE)" .
 
 docs-build:
 	( git remote | grep -v upstream ) || git diff --name-status upstream/release..upstream/docs docs/ > docs/changed-files
