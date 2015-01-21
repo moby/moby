@@ -53,6 +53,8 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	if err := parseSecurityOpt(container, hostConfig); err != nil {
 		return err
 	}
+
+	// FIXME: this should be handled by the volume subsystem
 	// Validate the HostConfig binds. Make sure that:
 	// the source exists
 	for _, bind := range hostConfig.Binds {
