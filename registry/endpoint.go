@@ -231,10 +231,13 @@ func (e *Endpoint) pingV2() (RegistryInfo, error) {
 	// Ensure it supports the v2 Registry API.
 	var supportsV2 bool
 
-	for _, versionName := range resp.Header[http.CanonicalHeaderKey("Docker-Distribution-API-Version")] {
-		if versionName == "registry/2.0" {
-			supportsV2 = true
-			break
+HeaderLoop:
+	for _, supportedVersions := range resp.Header[http.CanonicalHeaderKey("Docker-Distribution-API-Version")] {
+		for _, versionName := range strings.Fields(supportedVersions) {
+			if versionName == "registry/2.0" {
+				supportsV2 = true
+				break HeaderLoop
+			}
 		}
 	}
 
