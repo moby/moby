@@ -113,6 +113,14 @@ RUN git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.gi
 # Get the "cirros" image source so we can import it instead of fetching it during tests
 RUN curl -sSL -o /cirros.tar.gz https://github.com/ewindisch/docker-cirros/raw/1cded459668e8b9dbf4ef976c94c05add9bbd8e9/cirros-0.3.0-x86_64-lxc.tar.gz
 
+# Install registry
+ENV REGISTRY_COMMIT c448e0416925a9876d5576e412703c9b8b865e19
+RUN set -x \
+	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
+	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
+	&& GOPATH=/go/src/github.com/docker/distribution/Godeps/_workspace:/go \
+		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry
+
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT aa19d7b6609c6676e8258f6b900dea2eda1dbe95
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
@@ -144,17 +152,6 @@ RUN set -x \
 	&& git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
 	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday \
 	&& go install -v github.com/cpuguy83/go-md2man
-
-# Install registry
-COPY pkg/tarsum /go/src/github.com/docker/docker/pkg/tarsum
-# REGISTRY_COMMIT gives us the repeatability guarantees we need
-# (so that we're all testing the same version of the registry)
-ENV REGISTRY_COMMIT c448e0416925a9876d5576e412703c9b8b865e19
-RUN set -x \
-	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
-	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
-	&& go get -d github.com/docker/distribution/cmd/registry \
-	&& go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
