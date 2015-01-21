@@ -24,6 +24,7 @@ const (
 )
 
 var (
+	iptablesPath        string
 	supportsXlock       = false
 	ErrIptablesNotFound = errors.New("Iptables not found")
 )
@@ -43,8 +44,17 @@ func (e *ChainError) Error() string {
 	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
 }
 
-func init() {
-	supportsXlock = exec.Command("iptables", "--wait", "-L", "-n").Run() == nil
+func initCheck() error {
+
+	if iptablesPath == "" {
+		path, err := exec.LookPath("iptables")
+		if err != nil {
+			return ErrIptablesNotFound
+		}
+		iptablesPath = path
+		supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
+	}
+	return nil
 }
 
 func NewChain(name, bridge string, table Table) (*Chain, error) {
@@ -258,18 +268,17 @@ func Exists(args ...string) bool {
 
 // Call 'iptables' system command, passing supplied arguments
 func Raw(args ...string) ([]byte, error) {
-	path, err := exec.LookPath("iptables")
-	if err != nil {
-		return nil, ErrIptablesNotFound
-	}
 
+	if err := initCheck(); err != nil {
+		return nil, err
+	}
 	if supportsXlock {
 		args = append([]string{"--wait"}, args...)
 	}
 
-	log.Debugf("%s, %v", path, args)
+	log.Debugf("%s, %v", iptablesPath, args)
 
-	output, err := exec.Command(path, args...).CombinedOutput()
+	output, err := exec.Command(iptablesPath, args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
