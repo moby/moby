@@ -97,29 +97,40 @@ func TestAttachAfterDetach(t *testing.T) {
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	bytes := make([]byte, 10)
+	var nBytes int
+	readErr := make(chan error, 1)
+
 	go func() {
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("attach returned error %s", err)
-		}
-		cpty.Close() // unblocks the reader in case of a failure
+		time.Sleep(500 * time.Millisecond)
+		cpty.Write([]byte("\n"))
+		time.Sleep(500 * time.Millisecond)
+
+		nBytes, err = cpty.Read(bytes)
+		cpty.Close()
+		readErr <- err
 	}()
 
-	time.Sleep(500 * time.Millisecond)
-	cpty.Write([]byte("\n"))
-	time.Sleep(500 * time.Millisecond)
-	bytes := make([]byte, 10)
-
-	n, err := cpty.Read(bytes)
-
-	if err != nil {
-		t.Fatalf("prompt read failed: %v", err)
+	select {
+	case err := <-readErr:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for attach read")
 	}
 
-	if !strings.Contains(string(bytes[:n]), "/ #") {
-		t.Fatalf("failed to get a new prompt. got %s", string(bytes[:n]))
+	if err := cmd.Wait(); err != nil {
+		t.Fatal(err)
 	}
 
-	cpty.Write([]byte("exit\n"))
+	if !strings.Contains(string(bytes[:nBytes]), "/ #") {
+		t.Fatalf("failed to get a new prompt. got %s", string(bytes[:nBytes]))
+	}
 
 	logDone("attach - reconnect after detaching")
 }
