@@ -227,6 +227,21 @@ func (e *Endpoint) pingV2() (RegistryInfo, error) {
 	}
 	defer resp.Body.Close()
 
+	// The endpoint may have multiple supported versions.
+	// Ensure it supports the v2 Registry API.
+	var supportsV2 bool
+
+	for _, versionName := range resp.Header[http.CanonicalHeaderKey("Docker-Distribution-API-Version")] {
+		if versionName == "registry/2.0" {
+			supportsV2 = true
+			break
+		}
+	}
+
+	if !supportsV2 {
+		return RegistryInfo{}, fmt.Errorf("%s does not appear to be a v2 registry endpoint", e)
+	}
+
 	if resp.StatusCode == http.StatusOK {
 		// It would seem that no authentication/authorization is required.
 		// So we don't need to parse/add any authorization schemes.
