@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/docker/libtrust"
 )
 
 func TestDaemonRestartWithRunningContainersPorts(t *testing.T) {
@@ -349,4 +351,25 @@ func TestDaemonVolumesBindsRefs(t *testing.T) {
 	}
 
 	logDone("daemon - bind refs in data-containers survive daemon restart")
+}
+
+func TestDaemonKeyGeneration(t *testing.T) {
+	os.Remove("/etc/docker/key.json")
+	d := NewDaemon(t)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Could not start daemon: %v", err)
+	}
+	d.Stop()
+
+	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	if err != nil {
+		t.Fatalf("Error opening key file")
+	}
+	kid := k.KeyID()
+	// Test Key ID is a valid fingerprint (e.g. QQXN:JY5W:TBXI:MK3X:GX6P:PD5D:F56N:NHCS:LVRZ:JA46:R24J:XEFF)
+	if len(kid) != 59 {
+		t.Fatalf("Bad key ID: %s", kid)
+	}
+
+	logDone("daemon - key generation")
 }
