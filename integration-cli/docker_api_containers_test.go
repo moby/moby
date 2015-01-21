@@ -256,28 +256,46 @@ func TestVolumesFromHasPriority(t *testing.T) {
 
 func TestGetContainerStats(t *testing.T) {
 	defer deleteAllContainers()
-	name := "statscontainer"
-
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
+	var (
+		name   = "statscontainer"
+		runCmd = exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
+	)
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
+	type b struct {
+		body []byte
+		err  error
+	}
+	bc := make(chan b, 1)
 	go func() {
-		time.Sleep(4 * time.Second)
-		runCommand(exec.Command(dockerBinary, "kill", name))
-		runCommand(exec.Command(dockerBinary, "rm", name))
+		body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		bc <- b{body, err}
 	}()
 
-	body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
-	if err != nil {
-		t.Fatalf("GET containers/stats sockRequest failed: %v", err)
+	// allow some time to stream the stats from the container
+	time.Sleep(4 * time.Second)
+	if _, err := runCommand(exec.Command(dockerBinary, "rm", "-f", name)); err != nil {
+		t.Fatal(err)
 	}
 
-	dec := json.NewDecoder(bytes.NewBuffer(body))
-	var s *stats.Stats
-	if err := dec.Decode(&s); err != nil {
-		t.Fatal(err)
+	// collect the results from the stats stream or timeout and fail
+	// if the stream was not disconnected.
+	select {
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream was not closed after container was removed")
+	case sr := <-bc:
+		if sr.err != nil {
+			t.Fatal(err)
+		}
+
+		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
+		var s *stats.Stats
+		// decode only one object from the stream
+		if err := dec.Decode(&s); err != nil {
+			t.Fatal(err)
+		}
 	}
 	logDone("container REST API - check GET containers/stats")
 }
