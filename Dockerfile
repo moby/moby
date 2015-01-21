@@ -149,7 +149,7 @@ RUN set -x \
 COPY pkg/tarsum /go/src/github.com/docker/docker/pkg/tarsum
 # REGISTRY_COMMIT gives us the repeatability guarantees we need
 # (so that we're all testing the same version of the registry)
-ENV REGISTRY_COMMIT 21a69f53b5c7986b831f33849d551cd59ec8cbd1
+ENV REGISTRY_COMMIT c448e0416925a9876d5576e412703c9b8b865e19
 RUN set -x \
 	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
 	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
