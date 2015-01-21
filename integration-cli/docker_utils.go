@@ -274,6 +274,15 @@ func daemonHost() string {
 }
 
 func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
+		return nil, err
+	}
+
+	return sockRequestRaw(method, endpoint, jsonData, "application/json")
+}
+
+func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte, error) {
 	daemon := daemonHost()
 	daemonUrl, err := url.Parse(daemon)
 	if err != nil {
@@ -296,16 +305,15 @@ func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
 	client := httputil.NewClientConn(c, nil)
 	defer client.Close()
 
-	jsonData := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(method, endpoint, jsonData)
-	req.Header.Set("Content-Type", "application/json")
+	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {
 		return nil, fmt.Errorf("could not create new request: %v", err)
 	}
+
+	if ct == "" {
+		ct = "application/json"
+	}
+	req.Header.Set("Content-Type", ct)
 
 	resp, err := client.Do(req)
 	if err != nil {
