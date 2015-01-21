@@ -792,10 +792,7 @@ func TestRunEnvironment(t *testing.T) {
 		t.Fatal(err, out)
 	}
 
-	actualEnv := strings.Split(out, "\n")
-	if actualEnv[len(actualEnv)-1] == "" {
-		actualEnv = actualEnv[:len(actualEnv)-1]
-	}
+	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -821,6 +818,72 @@ func TestRunEnvironment(t *testing.T) {
 	deleteAllContainers()
 
 	logDone("run - verify environment")
+}
+
+func TestRunEnvironmentErase(t *testing.T) {
+	// Test to make sure that when we use -e on env vars that are
+	// not set in our local env that they're removed (if present) in
+	// the container
+	cmd := exec.Command(dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env")
+	cmd.Env = []string{}
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/root",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		t.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+
+	deleteAllContainers()
+
+	logDone("run - verify environment erase")
+}
+
+func TestRunEnvironmentOverride(t *testing.T) {
+	// Test to make sure that when we use -e on env vars that are
+	// already in the env that we're overriding them
+	cmd := exec.Command(dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env")
+	cmd.Env = []string{"HOSTNAME=bar"}
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/root2",
+		"HOSTNAME=bar",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		t.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			t.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+
+	deleteAllContainers()
+
+	logDone("run - verify environment override")
 }
 
 func TestRunContainerNetwork(t *testing.T) {

@@ -401,7 +401,17 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 		parts := strings.SplitN(e, "=", 2)
 		cache[parts[0]] = i
 	}
+
 	for _, value := range overrides {
+		// Values w/o = means they want this env to be removed/unset.
+		if !strings.Contains(value, "=") {
+			if i, exists := cache[value]; exists {
+				defaults[i] = "" // Used to indicate it should be removed
+			}
+			continue
+		}
+
+		// Just do a normal set/update
 		parts := strings.SplitN(value, "=", 2)
 		if i, exists := cache[parts[0]]; exists {
 			defaults[i] = value
@@ -409,7 +419,26 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 			defaults = append(defaults, value)
 		}
 	}
+
+	// Now remove all entries that we want to "unset"
+	for i := 0; i < len(defaults); i++ {
+		if defaults[i] == "" {
+			defaults = append(defaults[:i], defaults[i+1:]...)
+			i--
+		}
+	}
+
 	return defaults
+}
+
+func DoesEnvExist(name string) bool {
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if parts[0] == name {
+			return true
+		}
+	}
+	return false
 }
 
 // ReadSymlinkedDirectory returns the target directory of a symlink.
