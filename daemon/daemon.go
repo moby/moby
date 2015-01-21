@@ -104,6 +104,7 @@ type Daemon struct {
 	driver         graphdriver.Driver
 	execDriver     execdriver.Driver
 	trustStore     *trust.TrustStore
+	statsCollector *statsCollector
 }
 
 // Install installs daemon capabilities to eng.
@@ -116,6 +117,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"container_copy":    daemon.ContainerCopy,
 		"container_rename":  daemon.ContainerRename,
 		"container_inspect": daemon.ContainerInspect,
+		"container_stats":   daemon.ContainerStats,
 		"containers":        daemon.Containers,
 		"create":            daemon.ContainerCreate,
 		"rm":                daemon.ContainerRm,
@@ -982,6 +984,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		execDriver:     ed,
 		eng:            eng,
 		trustStore:     t,
+		statsCollector: newStatsCollector(1 * time.Second),
 	}
 	if err := daemon.restore(); err != nil {
 		return nil, err
@@ -1090,6 +1093,28 @@ func (daemon *Daemon) Unpause(c *Container) error {
 
 func (daemon *Daemon) Kill(c *Container, sig int) error {
 	return daemon.execDriver.Kill(c.command, sig)
+}
+
+func (daemon *Daemon) Stats(c *Container) (*execdriver.ResourceStats, error) {
+	return daemon.execDriver.Stats(c.ID)
+}
+
+func (daemon *Daemon) SubscribeToContainerStats(name string) (chan interface{}, error) {
+	c := daemon.Get(name)
+	if c == nil {
+		return nil, fmt.Errorf("no such container")
+	}
+	ch := daemon.statsCollector.collect(c)
+	return ch, nil
+}
+
+func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface{}) error {
+	c := daemon.Get(name)
+	if c == nil {
+		return fmt.Errorf("no such container")
+	}
+	daemon.statsCollector.unsubscribe(c, ch)
+	return nil
 }
 
 // Nuke kills all containers then removes all content

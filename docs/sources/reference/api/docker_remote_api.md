@@ -68,6 +68,12 @@ New endpoint to rename a container `id` to a new name.
 (`ReadonlyRootfs`) can be passed in the host config to mount the container's
 root filesystem as read only.
 
+`GET /containers/(id)/stats`
+
+**New!**
+This endpoint returns a stream of container stats based on resource usage.
+
+
 ## v1.16
 
 ### Full Documentation

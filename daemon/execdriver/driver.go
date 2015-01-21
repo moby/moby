@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 
+	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/devices"
 )
 
@@ -14,7 +16,7 @@ import (
 type Context map[string]string
 
 var (
-	ErrNotRunning              = errors.New("Process could not be started")
+	ErrNotRunning              = errors.New("Container is not running")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
 	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
@@ -61,6 +63,7 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
+	Stats(id string) (*ResourceStats, error)      // Get resource stats for a running container
 }
 
 // Network settings of the container
@@ -99,6 +102,13 @@ type Resources struct {
 	MemorySwap int64  `json:"memory_swap"`
 	CpuShares  int64  `json:"cpu_shares"`
 	Cpuset     string `json:"cpuset"`
+}
+
+type ResourceStats struct {
+	*libcontainer.ContainerStats
+	Read        time.Time `json:"read"`
+	MemoryLimit int64     `json:"memory_limit"`
+	SystemUsage uint64    `json:"system_usage"`
 }
 
 type Mount struct {

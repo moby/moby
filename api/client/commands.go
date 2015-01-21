@@ -16,14 +16,17 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"text/template"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/stats"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -2617,4 +2620,123 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 
 	return nil
+}
+
+type containerStats struct {
+	Name             string
+	CpuPercentage    float64
+	Memory           float64
+	MemoryLimit      float64
+	MemoryPercentage float64
+	NetworkRx        float64
+	NetworkTx        float64
+	mu               sync.RWMutex
+	err              error
+}
+
+func (s *containerStats) Collect(stream io.ReadCloser) {
+	defer stream.Close()
+	var (
+		previousCpu    uint64
+		previousSystem uint64
+		start          = true
+		dec            = json.NewDecoder(stream)
+	)
+	for {
+		var v *stats.Stats
+		if err := dec.Decode(&v); err != nil {
+			s.mu.Lock()
+			s.err = err
+			s.mu.Unlock()
+			return
+		}
+		var (
+			memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
+			cpuPercent = 0.0
+		)
+		if !start {
+			cpuPercent = calcuateCpuPercent(previousCpu, previousSystem, v)
+		}
+		start = false
+		s.mu.Lock()
+		s.CpuPercentage = cpuPercent
+		s.Memory = float64(v.MemoryStats.Usage)
+		s.MemoryLimit = float64(v.MemoryStats.Limit)
+		s.MemoryPercentage = memPercent
+		s.NetworkRx = float64(v.Network.RxBytes)
+		s.NetworkTx = float64(v.Network.TxBytes)
+		s.mu.Unlock()
+
+		previousCpu = v.CpuStats.CpuUsage.TotalUsage
+		previousSystem = v.CpuStats.SystemUsage
+	}
+}
+
+func (s *containerStats) Display(w io.Writer) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.err != nil {
+		return s.err
+	}
+	fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
+		s.Name,
+		s.CpuPercentage,
+		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
+		s.MemoryPercentage,
+		units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
+	return nil
+}
+
+func (cli *DockerCli) CmdStats(args ...string) error {
+	cmd := cli.Subcmd("stats", "CONTAINER", "Display live container stats based on resource usage", true)
+	cmd.Require(flag.Min, 1)
+	utils.ParseFlags(cmd, args, true)
+
+	names := cmd.Args()
+	sort.Strings(names)
+	var cStats []*containerStats
+	for _, n := range names {
+		s := &containerStats{Name: n}
+		cStats = append(cStats, s)
+		stream, _, err := cli.call("GET", "/containers/"+n+"/stats", nil, false)
+		if err != nil {
+			return err
+		}
+		go s.Collect(stream)
+	}
+	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	for _ = range time.Tick(500 * time.Millisecond) {
+		fmt.Fprint(cli.out, "\033[2J")
+		fmt.Fprint(cli.out, "\033[H")
+		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
+		toRemove := []int{}
+		for i, s := range cStats {
+			if err := s.Display(w); err != nil {
+				toRemove = append(toRemove, i)
+			}
+		}
+		for _, i := range toRemove {
+			cStats = append(cStats[:i], cStats[i+1:]...)
+		}
+		if len(cStats) == 0 {
+			return nil
+		}
+		w.Flush()
+	}
+	return nil
+}
+
+func calcuateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) float64 {
+	var (
+		cpuPercent = 0.0
+		// calculate the change for the cpu usage of the container in between readings
+		cpuDelta = float64(v.CpuStats.CpuUsage.TotalUsage - previousCpu)
+		// calculate the change for the entire system between readings
+		systemDelta = float64(v.CpuStats.SystemUsage - previousSystem)
+	)
+
+	if systemDelta > 0.0 && cpuDelta > 0.0 {
+		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CpuStats.CpuUsage.PercpuUsage)) * 100.0
+	}
+	return cpuPercent
 }

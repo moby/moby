@@ -13,9 +13,11 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
@@ -41,23 +43,28 @@ type driver struct {
 	root             string
 	initPath         string
 	activeContainers map[string]*activeContainer
+	machineMemory    int64
 	sync.Mutex
 }
 
 func NewDriver(root, initPath string) (*driver, error) {
-	if err := os.MkdirAll(root, 0700); err != nil {
+	meminfo, err := sysinfo.ReadMemInfo()
+	if err != nil {
 		return nil, err
 	}
 
+	if err := os.MkdirAll(root, 0700); err != nil {
+		return nil, err
+	}
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
 	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
-
 	return &driver{
 		root:             root,
 		initPath:         initPath,
 		activeContainers: make(map[string]*activeContainer),
+		machineMemory:    meminfo.MemTotal,
 	}, nil
 }
 
@@ -277,6 +284,33 @@ func (d *driver) createContainerRoot(id string) error {
 
 func (d *driver) Clean(id string) error {
 	return os.RemoveAll(filepath.Join(d.root, id))
+}
+
+func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	c := d.activeContainers[id]
+	state, err := libcontainer.GetState(filepath.Join(d.root, id))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, execdriver.ErrNotRunning
+		}
+		return nil, err
+	}
+	now := time.Now()
+	stats, err := libcontainer.GetStats(nil, state)
+	if err != nil {
+		return nil, err
+	}
+	memoryLimit := c.container.Cgroups.Memory
+	// if the container does not have any memory limit specified set the
+	// limit to the machines memory
+	if memoryLimit == 0 {
+		memoryLimit = d.machineMemory
+	}
+	return &execdriver.ResourceStats{
+		Read:           now,
+		ContainerStats: stats,
+		MemoryLimit:    memoryLimit,
+	}, nil
 }
 
 func getEnv(key string, env []string) string {

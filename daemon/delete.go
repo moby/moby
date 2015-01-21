@@ -49,6 +49,9 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	}
 
 	if container != nil {
+		// stop collection of stats for the container regardless
+		// if stats are currently getting collected.
+		daemon.statsCollector.stopCollection(container)
 		if container.IsRunning() {
 			if forceRemove {
 				if err := container.Kill(); err != nil {

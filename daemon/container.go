@@ -1414,3 +1414,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 		return nil, fmt.Errorf("network mode not set to container")
 	}
 }
+
+func (container *Container) Stats() (*execdriver.ResourceStats, error) {
+	return container.daemon.Stats(container)
+}

@@ -2001,8 +2001,28 @@ more details on finding shared images from the command line.
       -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
       -i, --interactive=false    Attach container's STDIN
 
-When run on a container that has already been started,
-takes no action and succeeds unconditionally.
+## stats
+
+    Usage: docker stats [CONTAINERS]
+
+    Display live container stats based on resource usage
+
+      --help=false       Print usage
+
+Running `docker stats` on two redis containers
+
+    $ sudo docker stats redis1 redis2
+    CONTAINER           CPU %               MEM USAGE/LIMIT     MEM %               NET I/O
+    redis1              0.07%               796 KiB/64 MiB      1.21%               788 B/648 B
+    redis2              0.07%               2.746 MiB/64 MiB    4.29%               1.266 KiB/648 B
+
+
+When run on running containers live container stats will be streamed
+back and displayed to the client.  Stopped containers will not 
+receive any updates to their stats unless the container is started again.
+
+> **Note:**
+> If you want more in depth resource usage for a container use the API endpoint
 
 ## stop
 

@@ -9,7 +9,9 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/docker/docker/api/stats"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
@@ -250,4 +252,32 @@ func TestVolumesFromHasPriority(t *testing.T) {
 	}
 
 	logDone("container REST API - check VolumesFrom has priority")
+}
+
+func TestGetContainerStats(t *testing.T) {
+	defer deleteAllContainers()
+	name := "statscontainer"
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+	go func() {
+		time.Sleep(4 * time.Second)
+		runCommand(exec.Command(dockerBinary, "kill", name))
+		runCommand(exec.Command(dockerBinary, "rm", name))
+	}()
+
+	body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+	if err != nil {
+		t.Fatalf("GET containers/stats sockRequest failed: %v", err)
+	}
+
+	dec := json.NewDecoder(bytes.NewBuffer(body))
+	var s *stats.Stats
+	if err := dec.Decode(&s); err != nil {
+		t.Fatal(err)
+	}
+	logDone("container REST API - check GET containers/stats")
 }
