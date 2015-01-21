@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-stats - Display live container stats based on resource usage.
+docker-stats - Display a live stream of one or more containers' resource usage statistics
 
 # SYNOPSIS
 **docker stats**
@@ -11,7 +11,7 @@ docker-stats - Display live container stats based on resource usage.
 
 # DESCRIPTION
 
-Display live container stats based on resource usage.
+Display a live stream of one or more containers' resource usage statistics
 
 # OPTIONS
 **--help**

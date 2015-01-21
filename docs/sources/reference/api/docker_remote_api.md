@@ -71,7 +71,7 @@ root filesystem as read only.
 `GET /containers/(id)/stats`
 
 **New!**
-This endpoint returns a stream of container stats based on resource usage.
+This endpoint returns a live stream of a container's resource usage statistics.
 
 
 ## v1.16

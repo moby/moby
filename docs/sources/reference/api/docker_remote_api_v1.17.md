@@ -518,7 +518,7 @@ Status Codes:
 
 `GET /containers/(id)/stats`
 
-Returns a stream of json objects of the container's stats
+This endpoint returns a live stream of a container's resource usage statistics.
 
 **Example request**:
 

@@ -98,7 +98,7 @@ func init() {
 			{"save", "Save an image to a tar archive"},
 			{"search", "Search for an image on the Docker Hub"},
 			{"start", "Start a stopped container"},
-			{"stats", "Display live container stats based on resource usage"},
+			{"stats", "Display a live stream of one or more containers' resource usage statistics"},
 			{"stop", "Stop a running container"},
 			{"tag", "Tag an image into a repository"},
 			{"top", "Lookup the running processes of a container"},
