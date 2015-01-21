@@ -2641,34 +2641,54 @@ func (s *containerStats) Collect(stream io.ReadCloser) {
 		previousSystem uint64
 		start          = true
 		dec            = json.NewDecoder(stream)
+		u              = make(chan error, 1)
 	)
-	for {
-		var v *stats.Stats
-		if err := dec.Decode(&v); err != nil {
+	go func() {
+		for {
+			var v *stats.Stats
+			if err := dec.Decode(&v); err != nil {
+				u <- err
+				return
+			}
+			var (
+				memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
+				cpuPercent = 0.0
+			)
+			if !start {
+				cpuPercent = calcuateCpuPercent(previousCpu, previousSystem, v)
+			}
+			start = false
 			s.mu.Lock()
-			s.err = err
+			s.CpuPercentage = cpuPercent
+			s.Memory = float64(v.MemoryStats.Usage)
+			s.MemoryLimit = float64(v.MemoryStats.Limit)
+			s.MemoryPercentage = memPercent
+			s.NetworkRx = float64(v.Network.RxBytes)
+			s.NetworkTx = float64(v.Network.TxBytes)
 			s.mu.Unlock()
-			return
+			previousCpu = v.CpuStats.CpuUsage.TotalUsage
+			previousSystem = v.CpuStats.SystemUsage
+			u <- nil
 		}
-		var (
-			memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
-			cpuPercent = 0.0
-		)
-		if !start {
-			cpuPercent = calcuateCpuPercent(previousCpu, previousSystem, v)
+	}()
+	for {
+		select {
+		case <-time.After(2 * time.Second):
+			// zero out the values if we have not received an update within
+			// the specified duration.
+			s.mu.Lock()
+			s.CpuPercentage = 0
+			s.Memory = 0
+			s.MemoryPercentage = 0
+			s.mu.Unlock()
+		case err := <-u:
+			if err != nil {
+				s.mu.Lock()
+				s.err = err
+				s.mu.Unlock()
+				return
+			}
 		}
-		start = false
-		s.mu.Lock()
-		s.CpuPercentage = cpuPercent
-		s.Memory = float64(v.MemoryStats.Usage)
-		s.MemoryLimit = float64(v.MemoryStats.Limit)
-		s.MemoryPercentage = memPercent
-		s.NetworkRx = float64(v.Network.RxBytes)
-		s.NetworkTx = float64(v.Network.TxBytes)
-		s.mu.Unlock()
-
-		previousCpu = v.CpuStats.CpuUsage.TotalUsage
-		previousSystem = v.CpuStats.SystemUsage
 	}
 }
 
