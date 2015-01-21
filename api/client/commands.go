@@ -2672,11 +2672,11 @@ func (s *containerStats) Collect(stream io.ReadCloser) {
 	}
 }
 
-func (s *containerStats) Display(w io.Writer) {
+func (s *containerStats) Display(w io.Writer) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.err != nil {
-		return
+		return s.err
 	}
 	fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
 		s.Name,
@@ -2684,6 +2684,7 @@ func (s *containerStats) Display(w io.Writer) {
 		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
 		s.MemoryPercentage,
 		units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
+	return nil
 }
 
 func (cli *DockerCli) CmdStats(args ...string) error {
@@ -2708,8 +2709,17 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		fmt.Fprint(cli.out, "\033[2J")
 		fmt.Fprint(cli.out, "\033[H")
 		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
-		for _, s := range cStats {
-			s.Display(w)
+		toRemove := []int{}
+		for i, s := range cStats {
+			if err := s.Display(w); err != nil {
+				toRemove = append(toRemove, i)
+			}
+		}
+		for _, i := range toRemove {
+			cStats = append(cStats[:i], cStats[i+1:]...)
+		}
+		if len(cStats) == 0 {
+			return nil
 		}
 		w.Flush()
 	}

@@ -98,7 +98,7 @@ func (s *statsCollector) run() {
 
 const nanoSeconds = 1e9
 
-// getSystemdCpuUSage returns the host system's cpu usage in nanoseconds
+// getSystemCpuUSage returns the host system's cpu usage in nanoseconds
 // for the system to match the cgroup readings are returned in the same format.
 func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
 	f, err := os.Open("/proc/stat")
