@@ -3,8 +3,22 @@ package portallocator
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"strings"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
+)
+
+const (
+	DefaultPortRangeStart = 49153
+	DefaultPortRangeEnd   = 65535
+)
+
+var (
+	beginPortRange = DefaultPortRangeStart
+	endPortRange   = DefaultPortRangeEnd
 )
 
 type portMap struct {
@@ -15,7 +29,7 @@ type portMap struct {
 func newPortMap() *portMap {
 	return &portMap{
 		p:    map[int]struct{}{},
-		last: EndPortRange,
+		last: endPortRange,
 	}
 }
 
@@ -29,11 +43,6 @@ func newProtoMap() protoMap {
 }
 
 type ipMapping map[string]protoMap
-
-const (
-	BeginPortRange = 49153
-	EndPortRange   = 65535
-)
 
 var (
 	ErrAllPortsAllocated = errors.New("all ports are allocated")
@@ -57,6 +66,29 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 		ip:   ip,
 		port: port,
 	}
+}
+
+func init() {
+	const param = "/proc/sys/net/ipv4/ip_local_port_range"
+
+	if line, err := ioutil.ReadFile(param); err != nil {
+		log.Errorf("Failed to read %s kernel parameter: %s", param, err.Error())
+	} else {
+		var start, end int
+		if n, err := fmt.Fscanf(strings.NewReader(string(line)), "%d\t%d", &start, &end); n != 2 || err != nil {
+			if err == nil {
+				err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
+			}
+			log.Errorf("Failed to parse port range from %s: %v", param, err)
+		} else {
+			beginPortRange = start
+			endPortRange = end
+		}
+	}
+}
+
+func GetPortRange() (int, int) {
+	return beginPortRange, endPortRange
 }
 
 func (e ErrPortAlreadyAllocated) IP() string {
@@ -137,10 +169,11 @@ func ReleaseAll() error {
 
 func (pm *portMap) findPort() (int, error) {
 	port := pm.last
-	for i := 0; i <= EndPortRange-BeginPortRange; i++ {
+	start, end := GetPortRange()
+	for i := 0; i <= end-start; i++ {
 		port++
-		if port > EndPortRange {
-			port = BeginPortRange
+		if port > end {
+			port = start
 		}
 
 		if _, ok := pm.p[port]; !ok {

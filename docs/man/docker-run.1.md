@@ -244,9 +244,10 @@ and foreground Docker containers.
    When set to true publish all exposed ports to the host interfaces. The
 default is false. If the operator uses -P (or -p) then Docker will make the
 exposed port accessible on the host and the ports will be available to any
-client that can reach the host. When using -P, Docker will bind the exposed
-ports to a random port on the host between 49153 and 65535. To find the
-mapping between the host ports and the exposed ports, use **docker port**.
+client that can reach the host. When using -P, Docker will bind any exposed
+port to a random port on the host within an *ephemeral port range* defined by
+`/proc/sys/net/ipv4/ip_local_port_range`. To find the mapping between the host
+ports and the exposed ports, use `docker port`.
 
 **-p**, **--publish**=[]
    Publish a container's port, or range of ports, to the host.

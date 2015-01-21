@@ -370,17 +370,18 @@ to provide special options when invoking `docker run`.  These options
 are covered in more detail in the [Docker User Guide](/userguide/dockerlinks)
 page.  There are two approaches.
 
-First, you can supply `-P` or `--publish-all=true|false` to `docker run`
-which is a blanket operation that identifies every port with an `EXPOSE`
-line in the image's `Dockerfile` and maps it to a host port somewhere in
-the range 49153–65535.  This tends to be a bit inconvenient, since you
-then have to run other `docker` sub-commands to learn which external
-port a given service was mapped to.
+First, you can supply `-P` or `--publish-all=true|false` to `docker run` which
+is a blanket operation that identifies every port with an `EXPOSE` line in the
+image's `Dockerfile` or `--expose <port>` commandline flag and maps it to a
+host port somewhere within an *ephemeral port range*. The `docker port` command
+then needs to be used to inspect created mapping. The *ephemeral port range* is
+configured by `/proc/sys/net/ipv4/ip_local_port_range` kernel parameter,
+typically ranging from 32768 to 61000.
 
-More convenient is the `-p SPEC` or `--publish=SPEC` option which lets
-you be explicit about exactly which external port on the Docker server —
-which can be any port at all, not just those in the 49153-65535 block —
-you want mapped to which port in the container.
+Mapping can be specified explicitly using `-p SPEC` or `--publish=SPEC` option.
+It allows you to particularize which port on docker server - which can be any
+port at all, not just one within the *ephemeral port range* — you want mapped
+to which port in the container.
 
 Either way, you should be able to peek at what Docker has accomplished
 in your network stack by examining your NAT tables.

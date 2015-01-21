@@ -25,10 +25,10 @@ container that ran a Python Flask application:
 > Docker can have a variety of network configurations. You can see more
 > information on Docker networking [here](/articles/networking/).
 
-When that container was created, the `-P` flag was used to automatically map any
-network ports inside it to a random high port from the range 49153
-to 65535 on our Docker host.  Next, when `docker ps` was run, you saw that
-port 5000 in the container was bound to port 49155 on the host.
+When that container was created, the `-P` flag was used to automatically map
+any network port inside it to a random high port within an *ephemeral port
+range* on your Docker host. Next, when `docker ps` was run, you saw that port
+5000 in the container was bound to port 49155 on the host.
 
     $ sudo docker ps nostalgic_morse
     CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
