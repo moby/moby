@@ -113,7 +113,7 @@ was no formal definition on as to which instructions handled environment
 replacement at the time. After 1.3 this behavior will be preserved and
 canonical.
 
-Environment variables (declared with the `ENV` statement) can also be used in
+Environment variables (declared with [the `ENV` statement](#env)) can also be used in
 certain instructions as variables to be interpreted by the `Dockerfile`. Escapes
 are also handled for including variable-like syntax into a statement literally.
 
@@ -349,9 +349,8 @@ accessible from the host by default. To expose ports to the host, at runtime,
     ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be passed to all future 
-`RUN`, `ENTRYPOINT`, and `CMD` instructions. This is
-functionally equivalent to prefixing the command with `<key>=<value>`
+`<value>`. This value will be in the environment of all "descendent" `Dockerfile`
+commands and can be [replaced inline](#environment-replacement) in many as well.
 
 The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
 will set a single variable to a value. The entire string after the first
@@ -382,9 +381,10 @@ from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
 
 > **Note**:
-> One example where this can cause unexpected consequences, is setting
-> `ENV DEBIAN_FRONTEND noninteractive`. Which will persist when the container
-> is run interactively; for example: `docker run -t -i image bash`
+> Environment persistence can cause unexpected effects. For example,
+> setting `ENV DEBIAN_FRONTEND noninteractive` may confuse apt-get
+> users on a Debian-based image. To set a value for a single command, use
+> `RUN <key>=<value> <command>`.
 
 ## ADD
 
