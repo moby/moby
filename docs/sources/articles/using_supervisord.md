@@ -39,7 +39,7 @@ our container.
 
 Here we're installing the `openssh-server`,
 `apache2` and `supervisor`
-(which provides the Supervisor daemon) packages. We're also creating two
+(which provides the Supervisor daemon) packages. We're also creating four
 new directories that are needed to run our SSH daemon and Supervisor.
 
 ## Adding Supervisor's configuration file
