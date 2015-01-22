@@ -18,7 +18,20 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
+	d.fixPermissions()
 	return graphdriver.NaiveDiffDriver(d), nil
+}
+
+func (d *Driver) fixPermissions() error {
+	dir := d.dir("id")
+	if err := os.Chmod(path.Dir(dir), 0711); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Chmod(d.home, 0711); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }
 
 type Driver struct {
@@ -39,7 +52,10 @@ func (d *Driver) Cleanup() error {
 
 func (d *Driver) Create(id, parent string) error {
 	dir := d.dir(id)
-	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
+	if err := os.MkdirAll(path.Dir(dir), 0711); err != nil {
+		return err
+	}
+	if err := os.Chmod(path.Dir(dir), 0711); err != nil {
 		return err
 	}
 	if err := os.Mkdir(dir, 0755); err != nil {

@@ -162,10 +162,13 @@ func (d *Driver) Cleanup() error {
 
 func (d *Driver) Create(id string, parent string) (retErr error) {
 	dir := d.dir(id)
-	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
+	if err := os.MkdirAll(path.Dir(dir), 0711); err != nil {
 		return err
 	}
-	if err := os.Mkdir(dir, 0700); err != nil {
+	if err := os.Chmod(path.Dir(dir), 0711); err != nil {
+		return err
+	}
+	if err := os.Mkdir(dir, 0711); err != nil {
 		return err
 	}
 

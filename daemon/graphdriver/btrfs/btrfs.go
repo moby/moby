@@ -36,7 +36,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		return nil, graphdriver.ErrPrerequisites
 	}
 
-	if err := os.MkdirAll(home, 0700); err != nil {
+	if err := os.MkdirAll(home, 0711); err != nil {
 		return nil, err
 	}
 
@@ -48,7 +48,23 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home: home,
 	}
 
+	if err := driver.fixPermissions(); err != nil {
+		return nil, err
+	}
+
 	return graphdriver.NaiveDiffDriver(driver), nil
+}
+
+func (d *Driver) fixPermissions() error {
+	dir := d.subvolumesDir()
+	if err := os.Chmod(dir, 0711); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Chmod(d.home, 0711); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }
 
 type Driver struct {
@@ -176,7 +192,10 @@ func (d *Driver) subvolumesDirId(id string) string {
 
 func (d *Driver) Create(id string, parent string) error {
 	subvolumes := path.Join(d.home, "subvolumes")
-	if err := os.MkdirAll(subvolumes, 0700); err != nil {
+	if err := os.MkdirAll(subvolumes, 0711); err != nil {
+		return err
+	}
+	if err := os.Chmod(subvolumes, 0711); err != nil {
 		return err
 	}
 	if parent == "" {

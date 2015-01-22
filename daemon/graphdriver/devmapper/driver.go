@@ -44,6 +44,10 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home:      home,
 	}
 
+	if err := os.Chmod(d.home, 0711); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
 	return graphdriver.NaiveDiffDriver(d), nil
 }
 
