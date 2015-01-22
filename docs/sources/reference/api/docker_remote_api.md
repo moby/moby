@@ -83,10 +83,21 @@ to an image.  For example you could add data describing the content of an image.
 **New!**
 Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
 
+`POST /containers/create`
+
+**New!**
+You can set labels on container create describing the container.
+
+`GET /containers/json`
+
+**New!**
+This endpoint now returns the labels associated with each container (`Labels`).
+
 `GET /containers/(id)/json`
 
 **New!**
 This endpoint now returns the list current execs associated with the container (`ExecIDs`).
+This endpoint now returns the container labels (`Config.Labels`).
 
 `POST /containers/(id)/rename`
 
@@ -104,6 +115,12 @@ root filesystem as read only.
 
 **New!**
 This endpoint returns a live stream of a container's resource usage statistics.
+
+`GET /images/json`
+
+**New!**
+This endpoint now returns the labels associated with each image (`Labels`).
+
 
 ## v1.16
 

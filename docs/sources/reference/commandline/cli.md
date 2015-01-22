@@ -1662,6 +1662,8 @@ removed before the image is removed.
       --link=[]                  Add link to another container
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
+      -l, --label=[]             Set meta data on a container, for example com.example.key=value
+      -label-file=[]             Read in a line delimited file of labels
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --memory-swap=""           Total memory (memory + swap), '-1' to disable swap
       --name=""                  Assign a name to the container
