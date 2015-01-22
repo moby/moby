@@ -149,6 +149,7 @@ Create a container
                "ReadonlyRootfs": false,
                "Dns": ["8.8.8.8"],
                "DnsSearch": [""],
+               "ExtraHosts": null,
                "VolumesFrom": ["parent", "other:ro"],
                "CapAdd": ["NET_ADMIN"],
                "CapDrop": ["MKNOD"],
@@ -223,6 +224,8 @@ Json Parameters:
         Specified as a boolean value.
   -   **Dns** - A list of dns servers for the container to use.
   -   **DnsSearch** - A list of DNS search domains
+  -   **ExtraHosts** - A list of hostnames/IP mappings to be added to the
+      container's `/etc/host` file. Specified in the form `["hostname:IP"]`.
   -   **VolumesFrom** - A list of volumes to inherit from another container.
         Specified in the form `<container name>[:<ro|rw>]`
   -   **CapAdd** - A list of kernel capabilties to add to the container.
