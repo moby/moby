@@ -3,6 +3,11 @@
 package main
 
 import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
@@ -14,6 +19,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 )
 
 const CanDaemon = true
@@ -28,6 +34,46 @@ func init() {
 	registryCfg.InstallFlags()
 }
 
+func migrateKey() (err error) {
+	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
+	oldPath := filepath.Join(getHomeDir(), ".docker", defaultTrustKeyFile)
+	newPath := filepath.Join(getDaemonConfDir(), defaultTrustKeyFile)
+	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && utils.IsFileOwner(oldPath) {
+		defer func() {
+			// Ensure old path is removed if no error occurred
+			if err == nil {
+				err = os.Remove(oldPath)
+			} else {
+				log.Warnf("Key migration failed, key file not removed at %s", oldPath)
+			}
+		}()
+
+		if err := os.MkdirAll(getDaemonConfDir(), os.FileMode(0644)); err != nil {
+			return fmt.Errorf("Unable to create daemon configuration directory: %s", err)
+		}
+
+		newFile, err := os.OpenFile(newPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			return fmt.Errorf("error creating key file %q: %s", newPath, err)
+		}
+		defer newFile.Close()
+
+		oldFile, err := os.Open(oldPath)
+		if err != nil {
+			return fmt.Errorf("error opening key file %q: %s", oldPath, err)
+		}
+		defer oldFile.Close()
+
+		if _, err := io.Copy(newFile, oldFile); err != nil {
+			return fmt.Errorf("error copying key: %s", err)
+		}
+
+		log.Infof("Migrated key from %s to %s", oldPath, newPath)
+	}
+
+	return nil
+}
+
 func mainDaemon() {
 	if flag.NArg() != 0 {
 		flag.Usage()
@@ -36,6 +82,9 @@ func mainDaemon() {
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 
+	if err := migrateKey(); err != nil {
+		log.Fatal(err)
+	}
 	daemonCfg.TrustKeyPath = *flTrustKey
 
 	// Load builtins

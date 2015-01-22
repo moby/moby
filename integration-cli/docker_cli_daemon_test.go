@@ -8,8 +8,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/docker/libtrust"
 )
 
 func TestDaemonRestartWithRunningContainersPorts(t *testing.T) {
@@ -349,4 +352,54 @@ func TestDaemonVolumesBindsRefs(t *testing.T) {
 	}
 
 	logDone("daemon - bind refs in data-containers survive daemon restart")
+}
+
+func TestDaemonKeyGeneration(t *testing.T) {
+	// TODO: skip or update for Windows daemon
+	os.Remove("/etc/docker/key.json")
+	d := NewDaemon(t)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Could not start daemon: %v", err)
+	}
+	d.Stop()
+
+	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	if err != nil {
+		t.Fatalf("Error opening key file")
+	}
+	kid := k.KeyID()
+	// Test Key ID is a valid fingerprint (e.g. QQXN:JY5W:TBXI:MK3X:GX6P:PD5D:F56N:NHCS:LVRZ:JA46:R24J:XEFF)
+	if len(kid) != 59 {
+		t.Fatalf("Bad key ID: %s", kid)
+	}
+
+	logDone("daemon - key generation")
+}
+
+func TestDaemonKeyMigration(t *testing.T) {
+	// TODO: skip or update for Windows daemon
+	os.Remove("/etc/docker/key.json")
+	k1, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatalf("Error generating private key: %s", err)
+	}
+	if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k1); err != nil {
+		t.Fatalf("Error saving private key: %s", err)
+	}
+
+	d := NewDaemon(t)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Could not start daemon: %v", err)
+	}
+	d.Stop()
+
+	k2, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	if err != nil {
+		t.Fatalf("Error opening key file")
+	}
+	if k1.KeyID() != k2.KeyID() {
+		t.Fatalf("Key not migrated")
+	}
+
+	logDone("daemon - key migration")
 }

@@ -28,6 +28,14 @@ func getHomeDir() string {
 	return os.Getenv("HOME")
 }
 
+func getDaemonConfDir() string {
+	// TODO: update for Windows daemon
+	if runtime.GOOS == "windows" {
+		return filepath.Join(os.Getenv("USERPROFILE"), ".docker")
+	}
+	return "/etc/docker"
+}
+
 var (
 	flVersion     = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 	flDaemon      = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
@@ -47,10 +55,20 @@ var (
 	flHosts    []string
 )
 
+func setDefaultConfFlag(flag *string, def string) {
+	if *flag == "" {
+		if *flDaemon {
+			*flag = filepath.Join(getDaemonConfDir(), def)
+		} else {
+			*flag = filepath.Join(getHomeDir(), ".docker", def)
+		}
+	}
+}
+
 func init() {
-	// placeholder for trust key flag
-	trustKeyDefault := filepath.Join(dockerCertPath, defaultTrustKeyFile)
-	flTrustKey = &trustKeyDefault
+	var placeholderTrustKey string
+	// TODO use flag flag.String([]string{"i", "-identity"}, "", "Path to libtrust key file")
+	flTrustKey = &placeholderTrustKey
 
 	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerCertPath, defaultCaFile), "Trust only remotes providing a certificate signed by the CA given here")
 	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
