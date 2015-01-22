@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -19,9 +20,17 @@ const (
 	REPO    = "foo42/bar"
 )
 
+func TestMain(m *testing.M) {
+	exitVal := m.Run()
+	// Remove the temporary certs directory
+	// which was changed in an init function.
+	os.RemoveAll(certsDirname)
+	os.Exit(exitVal)
+}
+
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &AuthConfig{}
-	endpoint, err := NewEndpoint(makeIndex("/v1/"))
+	endpoint, err := NewEndpoint(makeHttpsIndex("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,12 +103,26 @@ func TestEndpoint(t *testing.T) {
 		index.Secure = false
 	}
 
-	assertSecureIndex := func(index *IndexInfo) {
+	assertBadCertIndex := func(index *IndexInfo) {
 		index.Secure = true
 		_, err := NewEndpoint(index)
 		assertNotEqual(t, err, nil, index.Name+": Expected cert error for secure index")
 		assertEqual(t, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
 		index.Secure = false
+	}
+
+	assertSecureStandaloneRegistry := func(index *IndexInfo) {
+		index.Secure = true
+		ep, err := NewEndpoint(index)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ep.IsSecureV1Standalone() {
+			t.Fatalf("expected %s to be a secure v1 standalone registry", ep)
+		}
+		if err = ep.CheckSafeToSendAuthCredentials(); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	index := &IndexInfo{}
@@ -128,13 +151,38 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertInsecureIndex(index)
 
+	index.Name = makeHttpsBadCertURL("/v1/")
+	endpoint = expandEndpoint(index)
+	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
+	if endpoint.Version != APIVersion1 {
+		t.Fatal("Expected endpoint to be v1")
+	}
+	assertBadCertIndex(index)
+
+	index.Name = makeHttpsBadCertURL("")
+	endpoint = expandEndpoint(index)
+	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
+	if endpoint.Version != APIVersion1 {
+		t.Fatal("Expected endpoint to be v1")
+	}
+	assertBadCertIndex(index)
+
+	httpsURL := makeHttpsBadCertURL("")
+	index.Name = strings.TrimPrefix(httpsURL, "https://")
+	endpoint = expandEndpoint(index)
+	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
+	if endpoint.Version != APIVersion1 {
+		t.Fatal("Expected endpoint to be v1")
+	}
+	assertBadCertIndex(index)
+
 	index.Name = makeHttpsURL("/v1/")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	if endpoint.Version != APIVersion1 {
 		t.Fatal("Expected endpoint to be v1")
 	}
-	assertSecureIndex(index)
+	assertSecureStandaloneRegistry(index)
 
 	index.Name = makeHttpsURL("")
 	endpoint = expandEndpoint(index)
@@ -142,16 +190,16 @@ func TestEndpoint(t *testing.T) {
 	if endpoint.Version != APIVersion1 {
 		t.Fatal("Expected endpoint to be v1")
 	}
-	assertSecureIndex(index)
+	assertSecureStandaloneRegistry(index)
 
-	httpsURL := makeHttpsURL("")
-	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
+	httpsURL = makeHttpsURL("")
+	index.Name = strings.TrimPrefix(httpsURL, "https://")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
 	if endpoint.Version != APIVersion1 {
 		t.Fatal("Expected endpoint to be v1")
 	}
-	assertSecureIndex(index)
+	assertSecureStandaloneRegistry(index)
 
 	badEndpoints := []string{
 		"http://127.0.0.1/v1/",
@@ -169,7 +217,7 @@ func TestEndpoint(t *testing.T) {
 
 func TestGetRemoteHistory(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"), token)
+	hist, err := r.GetRemoteHistory(imageID, makeHttpsURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,16 +229,16 @@ func TestGetRemoteHistory(t *testing.T) {
 
 func TestLookupRemoteImage(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	err := r.LookupRemoteImage(imageID, makeURL("/v1/"), token)
+	err := r.LookupRemoteImage(imageID, makeHttpsURL("/v1/"), token)
 	assertEqual(t, err, nil, "Expected error of remote lookup to nil")
-	if err := r.LookupRemoteImage("abcdef", makeURL("/v1/"), token); err == nil {
+	if err := r.LookupRemoteImage("abcdef", makeHttpsURL("/v1/"), token); err == nil {
 		t.Fatal("Expected error of remote lookup to not nil")
 	}
 }
 
 func TestGetRemoteImageJSON(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	json, size, err := r.GetRemoteImageJSON(imageID, makeURL("/v1/"), token)
+	json, size, err := r.GetRemoteImageJSON(imageID, makeHttpsURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +247,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 		t.Fatal("Expected non-empty json")
 	}
 
-	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), token)
+	_, _, err = r.GetRemoteImageJSON("abcdef", makeHttpsURL("/v1/"), token)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -207,7 +255,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 
 func TestGetRemoteImageLayer(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	data, err := r.GetRemoteImageLayer(imageID, makeURL("/v1/"), token, 0)
+	data, err := r.GetRemoteImageLayer(imageID, makeHttpsURL("/v1/"), token, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +263,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 		t.Fatal("Expected non-nil data result")
 	}
 
-	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), token, 0)
+	_, err = r.GetRemoteImageLayer("abcdef", makeHttpsURL("/v1/"), token, 0)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -223,14 +271,14 @@ func TestGetRemoteImageLayer(t *testing.T) {
 
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO, token)
+	tags, err := r.GetRemoteTags([]string{makeHttpsURL("/v1/")}, REPO, token)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(tags), 1, "Expected one tag")
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
 
-	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz", token)
+	_, err = r.GetRemoteTags([]string{makeHttpsURL("/v1/")}, "foo42/baz", token)
 	if err == nil {
 		t.Fatal("Expected error when fetching tags for bogus repo")
 	}
@@ -238,11 +286,11 @@ func TestGetRemoteTags(t *testing.T) {
 
 func TestGetRepositoryData(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	parsedURL, err := url.Parse(makeURL("/v1/"))
+	parsedURL, err := url.Parse(makeHttpsURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	host := "http://" + parsedURL.Host + "/v1/"
+	host := "https://" + parsedURL.Host + "/v1/"
 	data, err := r.GetRepositoryData("foo42/bar")
 	if err != nil {
 		t.Fatal(err)
@@ -252,8 +300,8 @@ func TestGetRepositoryData(t *testing.T) {
 		fmt.Sprintf("Expected 2 endpoints in Endpoints, found %d instead", len(data.Endpoints)))
 	assertEqual(t, data.Endpoints[0], host,
 		fmt.Sprintf("Expected first endpoint to be %s but found %s instead", host, data.Endpoints[0]))
-	assertEqual(t, data.Endpoints[1], "http://test.example.com/v1/",
-		fmt.Sprintf("Expected first endpoint to be http://test.example.com/v1/ but found %s instead", data.Endpoints[1]))
+	assertEqual(t, data.Endpoints[1], "https://test.example.com/v1/",
+		fmt.Sprintf("Expected first endpoint to be https://test.example.com/v1/ but found %s instead", data.Endpoints[1]))
 
 }
 
@@ -264,7 +312,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
 	}
 
-	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"), token)
+	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeHttpsURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +321,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 func TestPushImageLayerRegistry(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	layer := strings.NewReader("")
-	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeURL("/v1/"), token, []byte{})
+	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeHttpsURL("/v1/"), token, []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -690,7 +738,7 @@ func TestNewIndexInfo(t *testing.T) {
 
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	err := r.PushRegistryTag("foo42/bar", imageID, "stable", makeURL("/v1/"), token)
+	err := r.PushRegistryTag("foo42/bar", imageID, "stable", makeHttpsURL("/v1/"), token)
 	if err != nil {
 		t.Fatal(err)
 	}

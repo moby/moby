@@ -79,7 +79,7 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 	if err := auth.Authorize(req); err != nil {
 		return nil, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, 
 	if err := auth.Authorize(req); err != nil {
 		return false, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return false, err
 	}
@@ -150,7 +150,7 @@ func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, b
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum str
 	if err := auth.Authorize(req); err != nil {
 		return nil, 0, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -218,7 +218,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err = r.doRequest(req)
+	res, err = r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 	if err := auth.Authorize(req); err != nil {
 		return nil, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}

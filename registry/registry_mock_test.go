@@ -1,7 +1,9 @@
 package registry
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -10,21 +12,25 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/opts"
+	"github.com/docker/libtrust"
 	"github.com/gorilla/mux"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 var (
-	testHTTPServer  *httptest.Server
-	testHTTPSServer *httptest.Server
-	testLayers      = map[string]map[string]string{
+	testHTTPServer         *httptest.Server
+	testHTTPSServer        *httptest.Server
+	testHTTPSServerBadCert *httptest.Server
+	testLayers             = map[string]map[string]string{
 		"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20": {
 			"json": `{"id":"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 				"comment":"test base image","created":"2013-03-23T12:53:11.10432-07:00",
@@ -92,6 +98,15 @@ var (
 )
 
 func init() {
+	// Swap out the global certsDirname with a temporary one for testing.
+	var err error
+	certsDirname, err = ioutil.TempDir("", "registry-pkg-test-cert-dir")
+	if err != nil {
+		log.Fatalf("unable to make temp cert directory: %s", err)
+	}
+
+	loadCerts(watchCertDirs())
+
 	r := mux.NewRouter()
 
 	// /v1/
@@ -110,7 +125,8 @@ func init() {
 	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
 
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
-	testHTTPSServer = httptest.NewTLSServer(handlerAccessLog(r))
+	testHTTPSServer = makeTestHTTPSServer(handlerAccessLog(r))
+	testHTTPSServerBadCert = httptest.NewTLSServer(handlerAccessLog(r))
 
 	// override net.LookupIP
 	lookupIP = func(host string) ([]net.IP, error) {
@@ -132,6 +148,61 @@ func init() {
 	}
 }
 
+func makeTestHTTPSServer(handler http.Handler) *httptest.Server {
+	testHTTPSServer = httptest.NewUnstartedServer(handler)
+
+	key, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		log.Fatalf("unable to generate server key: %s", err)
+	}
+
+	mockServerAddr := testHTTPSServer.Listener.Addr().String()
+
+	mockHost, _, err := net.SplitHostPort(mockServerAddr)
+	if err != nil {
+		log.Fatalf("unable to split mock server host/port: %s", err)
+	}
+
+	mockServerIP := net.ParseIP(mockHost)
+	serverCert, err := libtrust.GenerateSelfSignedServerCert(key, nil, []net.IP{mockServerIP})
+	if err != nil {
+		log.Fatalf("unable to generate self signed server cert: %s", err)
+	}
+
+	testHTTPSServer.TLS = &tls.Config{
+		Certificates: []tls.Certificate{
+			{
+				Certificate: [][]byte{serverCert.Raw},
+				PrivateKey:  key.CryptoPrivateKey(),
+				Leaf:        serverCert,
+			},
+		},
+	}
+
+	caCert, err := libtrust.GenerateCACert(key, key.PublicKey())
+	if err != nil {
+		log.Fatalf("unable to generate CA certificate: %s", err)
+	}
+
+	caCertPEM := pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCert.Raw,
+	}
+
+	mockCertsDirname := path.Join(certsDirname, mockServerAddr)
+	if err = os.MkdirAll(mockCertsDirname, os.FileMode(0755)); err != nil {
+		log.Fatalf("unable to create certs.d directory: %s", err)
+	}
+
+	if err = ioutil.WriteFile(path.Join(mockCertsDirname, "ca.crt"), pem.EncodeToMemory(&caCertPEM), os.FileMode(644)); err != nil {
+		log.Fatalf("unable to write mock server ca cert file: %s", err)
+	}
+
+	testHTTPSServer.StartTLS()
+
+	return testHTTPSServer
+}
+
 func handlerAccessLog(handler http.Handler) http.Handler {
 	logHandler := func(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
@@ -148,6 +219,10 @@ func makeHttpsURL(req string) string {
 	return testHTTPSServer.URL + req
 }
 
+func makeHttpsBadCertURL(req string) string {
+	return testHTTPSServerBadCert.URL + req
+}
+
 func makeIndex(req string) *IndexInfo {
 	index := &IndexInfo{
 		Name: makeURL(req),
@@ -157,7 +232,16 @@ func makeIndex(req string) *IndexInfo {
 
 func makeHttpsIndex(req string) *IndexInfo {
 	index := &IndexInfo{
-		Name: makeHttpsURL(req),
+		Name:   makeHttpsURL(req),
+		Secure: true,
+	}
+	return index
+}
+
+func makeHttpsIndexBadCert(req string) *IndexInfo {
+	index := &IndexInfo{
+		Name:   makeHttpsBadCertURL(req),
+		Secure: true,
 	}
 	return index
 }
@@ -414,7 +498,7 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerImages(w http.ResponseWriter, r *http.Request) {
-	u, _ := url.Parse(testHTTPServer.URL)
+	u, _ := url.Parse(testHTTPSServer.URL)
 	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
 	if r.Method == "PUT" {

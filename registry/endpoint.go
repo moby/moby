@@ -54,12 +54,12 @@ func NewEndpoint(index *IndexInfo) (*Endpoint, error) {
 	return endpoint, nil
 }
 
-func validateEndpoint(endpoint *Endpoint) error {
+func validateEndpoint(endpoint *Endpoint) (err error) {
 	log.Debugf("pinging registry endpoint %s", endpoint)
 
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
-	if _, err := endpoint.Ping(); err != nil {
+	if endpoint.RegInfo, err = endpoint.Ping(); err != nil {
 		if endpoint.IsSecure {
 			// If registry is secure and HTTPS failed, show user the error and tell them about `--insecure-registry`
 			// in case that's what they need. DO NOT accept unknown CA certificates, and DO NOT fallback to HTTP.
@@ -71,7 +71,7 @@ func validateEndpoint(endpoint *Endpoint) error {
 		endpoint.URL.Scheme = "http"
 
 		var err2 error
-		if _, err2 = endpoint.Ping(); err2 == nil {
+		if endpoint.RegInfo, err2 = endpoint.Ping(); err2 == nil {
 			return nil
 		}
 
@@ -112,6 +112,19 @@ type Endpoint struct {
 	IsSecure       bool
 	AuthChallenges []*AuthorizationChallenge
 	URLBuilder     *v2.URLBuilder
+	RegInfo        RegistryInfo
+}
+
+func (e *Endpoint) IsSecureV1Standalone() bool {
+	return e.IsSecure && e.URL.Scheme == "https" && e.Version == APIVersion1 && e.RegInfo.Standalone
+}
+
+func (e *Endpoint) CheckSafeToSendAuthCredentials() (err error) {
+	if !(e.IsSecure && e.URL.Scheme == "https") {
+		err = fmt.Errorf("cannot send login credentials over insecure channel: %s", e.URL)
+	}
+
+	return
 }
 
 // Get the formated URL for the root of this registry Endpoint
@@ -173,7 +186,9 @@ func (e *Endpoint) pingV1() (RegistryInfo, error) {
 		return RegistryInfo{Standalone: false}, err
 	}
 
-	resp, _, err := doRequest(req, nil, ConnectTimeout, e.IsSecure)
+	client := e.NewClient(nil, ConnectTimeout)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return RegistryInfo{Standalone: false}, err
 	}
@@ -221,7 +236,9 @@ func (e *Endpoint) pingV2() (RegistryInfo, error) {
 		return RegistryInfo{}, err
 	}
 
-	resp, _, err := doRequest(req, nil, ConnectTimeout, e.IsSecure)
+	client := e.NewClient(nil, ConnectTimeout)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return RegistryInfo{}, err
 	}
@@ -245,7 +262,7 @@ func (e *Endpoint) pingV2() (RegistryInfo, error) {
 	if resp.StatusCode == http.StatusOK {
 		// It would seem that no authentication/authorization is required.
 		// So we don't need to parse/add any authorization schemes.
-		return RegistryInfo{Standalone: true}, nil
+		return RegistryInfo{}, nil
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
