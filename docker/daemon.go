@@ -34,13 +34,22 @@ func init() {
 	registryCfg.InstallFlags()
 }
 
-func migrateKey() error {
+func migrateKey() (err error) {
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
 	oldPath := filepath.Join(getHomeDir(), ".docker", defaultTrustKeyFile)
 	newPath := filepath.Join(getDaemonConfDir(), defaultTrustKeyFile)
-	if _, err := os.Stat(newPath); os.IsNotExist(err) && utils.IsFileOwner(oldPath) {
+	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && utils.IsFileOwner(oldPath) {
+		defer func() {
+			// Ensure old path is removed if no error occurred
+			if err == nil {
+				err = os.Remove(oldPath)
+			} else {
+				log.Warnf("Key migration failed, key file not removed at %s", oldPath)
+			}
+		}()
+
 		if err := os.MkdirAll(getDaemonConfDir(), os.FileMode(0644)); err != nil {
-			return fmt.Errorf("Unable to create daemon configuraiton directory: %s", err)
+			return fmt.Errorf("Unable to create daemon configuration directory: %s", err)
 		}
 
 		newFile, err := os.OpenFile(newPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
@@ -51,16 +60,15 @@ func migrateKey() error {
 
 		oldFile, err := os.Open(oldPath)
 		if err != nil {
-			return fmt.Errorf("error opening open key file %q: %s", oldPath, err)
+			return fmt.Errorf("error opening key file %q: %s", oldPath, err)
 		}
+		defer oldFile.Close()
 
 		if _, err := io.Copy(newFile, oldFile); err != nil {
 			return fmt.Errorf("error copying key: %s", err)
 		}
 
-		oldFile.Close()
-		log.Debugf("Migrated key from %s to %s", oldPath, newPath)
-		return os.Remove(oldPath)
+		log.Infof("Migrated key from %s to %s", oldPath, newPath)
 	}
 
 	return nil
