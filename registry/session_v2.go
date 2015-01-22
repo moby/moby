@@ -226,7 +226,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 
 	method := "PUT"
 	log.Debugf("[registry] Calling %q %s", method, location)
-	req, err = r.reqFactory.NewRequest(method, location, blobRdr)
+	req, err = r.reqFactory.NewRequest(method, location, ioutil.NopCloser(blobRdr))
 	if err != nil {
 		return err
 	}
