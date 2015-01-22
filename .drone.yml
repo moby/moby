@@ -3,6 +3,7 @@ env:
   - AUTO_GOPATH=1
   - DOCKER_GRAPHDRIVER=vfs
   - DOCKER_EXECDRIVER=native
+  - TESTFLAGS='-test.v'
 script:
 # Setup the DockerInDocker environment.
   - hack/dind
