@@ -403,3 +403,77 @@ func TestDaemonKeyMigration(t *testing.T) {
 
 	logDone("daemon - key migration")
 }
+
+// Simulate an older daemon (pre 1.3) coming up with volumes specified in containers
+//	without corrosponding volume json
+func TestDaemonUpgradeWithVolumes(t *testing.T) {
+	d := NewDaemon(t)
+
+	graphDir := filepath.Join(os.TempDir(), "docker-test")
+	defer os.RemoveAll(graphDir)
+	if err := d.StartWithBusybox("-g", graphDir); err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := filepath.Join(os.TempDir(), "test")
+	defer os.RemoveAll(tmpDir)
+
+	if out, err := d.Cmd("create", "-v", tmpDir+":/foo", "--name=test", "busybox"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if err := d.Stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remove this since we're expecting the daemon to re-create it too
+	if err := os.RemoveAll(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	configDir := filepath.Join(graphDir, "volumes")
+
+	if err := os.RemoveAll(configDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Start("-g", graphDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+		t.Fatalf("expected volume path %s to exist but it does not", tmpDir)
+	}
+
+	dir, err := ioutil.ReadDir(configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dir) == 0 {
+		t.Fatalf("expected volumes config dir to contain data for new volume")
+	}
+
+	// Now with just removing the volume config and not the volume data
+	if err := d.Stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.RemoveAll(configDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Start("-g", graphDir); err != nil {
+		t.Fatal(err)
+	}
+
+	dir, err = ioutil.ReadDir(configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(dir) == 0 {
+		t.Fatalf("expected volumes config dir to contain data for new volume")
+	}
+
+	logDone("daemon - volumes from old(pre 1.3) daemon work")
+}
