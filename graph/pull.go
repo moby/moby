@@ -554,7 +554,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 
 	}
 
-	out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified - This is a tech preview, don't rely on it for security yet."))
+	out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 
 	if err = s.Set(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
 		return false, err
