@@ -428,10 +428,11 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 
 	if verified {
-		out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified"))
+		log.Printf("Image manifest for %s:%s has been verified", repoInfo.CanonicalName, tag)
 	} else {
 		out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 	}
+
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
@@ -552,6 +553,8 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		}
 
 	}
+
+	out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified - This is a tech preview, don't rely on it for security yet."))
 
 	if err = s.Set(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
 		return false, err

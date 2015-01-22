@@ -53,6 +53,44 @@ func TestPullImageWithAliases(t *testing.T) {
 	logDone("pull - image with aliases")
 }
 
+// pulling busybox should show verified message
+func TestPullVerified(t *testing.T) {
+	defer setupRegistry(t)()
+
+	repo := fmt.Sprintf("%v/dockercli/busybox:verified", privateRegistryURL)
+	defer deleteImages(repo)
+
+	// tag the image
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repo)); err != nil {
+		t.Fatalf("Failed to tag image verifiedTest: error %v, output %q", err, out)
+	}
+
+	// push it
+	if out, err := exec.Command(dockerBinary, "push", repo).CombinedOutput(); err != nil {
+		t.Fatalf("Failed to push image %v: error %v, output %q", err, string(out))
+	}
+
+	// remove it locally
+	if out, err := exec.Command(dockerBinary, "rmi", repo).CombinedOutput(); err != nil {
+		t.Fatalf("Failed to clean images: error %v, output %q", err, string(out))
+	}
+
+	// pull it
+	expected := "The image you are pulling has been verified"
+	pullCmd := exec.Command(dockerBinary, "pull", repo)
+	if out, _, err := runCommandWithOutput(pullCmd); err != nil || !strings.Contains(out, expected) {
+		t.Fatalf("pulling a verified image failed. expected: %s\ngot: %s, %v", expected, out, err)
+	}
+
+	// pull it again
+	pullCmd = exec.Command(dockerBinary, "pull", repo)
+	if out, _, err := runCommandWithOutput(pullCmd); err != nil || !strings.Contains(out, expected) {
+		t.Fatalf("pulling a verified image failed. expected: %s\ngot: %s, %v", expected, out, err)
+	}
+
+	logDone("pull - pull verified")
+}
+
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
 	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
