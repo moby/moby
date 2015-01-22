@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -373,4 +374,32 @@ func TestDaemonKeyGeneration(t *testing.T) {
 	}
 
 	logDone("daemon - key generation")
+}
+
+func TestDaemonKeyMigration(t *testing.T) {
+	// TODO: skip or update for Windows daemon
+	os.Remove("/etc/docker/key.json")
+	k1, err := libtrust.GenerateECP256PrivateKey()
+	if err != nil {
+		t.Fatalf("Error generating private key: %s", err)
+	}
+	if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k1); err != nil {
+		t.Fatalf("Error saving private key: %s", err)
+	}
+
+	d := NewDaemon(t)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Could not start daemon: %v", err)
+	}
+	d.Stop()
+
+	k2, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	if err != nil {
+		t.Fatalf("Error opening key file")
+	}
+	if k1.KeyID() != k2.KeyID() {
+		t.Fatalf("Key not migrated")
+	}
+
+	logDone("daemon - key migration")
 }
