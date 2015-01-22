@@ -81,6 +81,9 @@ func TestAttachAfterDetach(t *testing.T) {
 	}()
 
 	time.Sleep(500 * time.Millisecond)
+	if err := waitRun(name); err != nil {
+		t.Fatal(err)
+	}
 	cpty.Write([]byte{16})
 	time.Sleep(100 * time.Millisecond)
 	cpty.Write([]byte{17})
