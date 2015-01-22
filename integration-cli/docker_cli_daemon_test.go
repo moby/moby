@@ -354,6 +354,7 @@ func TestDaemonVolumesBindsRefs(t *testing.T) {
 }
 
 func TestDaemonKeyGeneration(t *testing.T) {
+	// TODO: skip or update for Windows daemon
 	os.Remove("/etc/docker/key.json")
 	d := NewDaemon(t)
 	if err := d.Start(); err != nil {

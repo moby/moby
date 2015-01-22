@@ -29,6 +29,7 @@ func getHomeDir() string {
 }
 
 func getDaemonConfDir() string {
+	// TODO: update for Windows daemon
 	if runtime.GOOS == "windows" {
 		return filepath.Join(os.Getenv("USERPROFILE"), ".docker")
 	}
