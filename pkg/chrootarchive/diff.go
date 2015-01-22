@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -60,11 +59,7 @@ func ApplyLayer(dest string, layer archive.ArchiveReader) (size int64, err error
 		return 0, err
 	}
 
-	defer func() {
-		if c, ok := decompressed.(io.Closer); ok {
-			c.Close()
-		}
-	}()
+	defer decompressed.Close()
 
 	cmd := reexec.Command("docker-applyLayer", dest)
 	cmd.Stdin = decompressed
