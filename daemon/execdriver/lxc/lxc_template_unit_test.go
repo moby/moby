@@ -248,7 +248,8 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	}
 	defer os.RemoveAll(root)
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
-	driver, err := NewDriver(root, "", false)
+	driver, err := NewDriver(root, "", true)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,9 +272,10 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 				Bridge:      "docker0",
 			},
 		},
-		ProcessConfig: processConfig,
-		CapAdd:        []string{"net_admin", "syslog"},
-		CapDrop:       []string{"kill", "mknod"},
+		ProcessConfig:   processConfig,
+		CapAdd:          []string{"net_admin", "syslog"},
+		CapDrop:         []string{"kill", "mknod"},
+		AppArmorProfile: "lxc-container-default-with-nesting",
 	}
 
 	p, err := driver.generateLXCConfig(command)
@@ -287,7 +289,7 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	grepFile(t, p, "lxc.network.ipv4 = 10.10.10.10/24")
 	grepFile(t, p, "lxc.network.ipv4.gateway = 10.10.10.1")
 	grepFile(t, p, "lxc.network.flags = up")
-
+	grepFile(t, p, "lxc.aa_profile = lxc-container-default-with-nesting")
 	// hostname
 	grepFile(t, p, "lxc.utsname = testhost")
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")

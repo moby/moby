@@ -75,8 +75,8 @@ lxc.aa_profile = unconfined
 # In non-privileged mode, lxc will automatically mount /proc and /sys in readonly mode
 # for security. See: http://man7.org/linux/man-pages/man5/lxc.container.conf.5.html
 lxc.mount.auto = proc sys
-	{{if .AppArmor}}
-lxc.aa_profile = .AppArmorProfile
+	{{if .AppArmorProfile}}
+lxc.aa_profile = {{.AppArmorProfile}}
 	{{end}}
 {{end}}
 
