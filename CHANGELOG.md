@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.5.0 (2015-02-10)
+
+#### Builder
++ Dockerfile to use for a given `docker build` can be specified with the `-f` flag
+* Dockerfile and .dockerignore files can be themselves excluded as part of the .dockerignore file, thus preventing modifications to these files invalidating ADD or COPY instructions cache
+* ADD and COPY instructions accept relative paths
+* Dockerfile `FROM scratch` instruction is now interpreted as a no-base specifier
+* Improve performance when exposing a large number of ports
+
+#### Hack
++ Allow client-side only integration tests for Windows
+* Include docker-py integration tests against Docker daemon as part of our test suites
+
+#### Packaging
++ Support for the new version of the registry HTTP API
+* Speed up `docker push` for images with a majority of already existing layers
+- Fixed contacting a private registry through a proxy
+
+#### Remote API
++ A new endpoint will stream live container resource metrics and can be accessed with the `docker stats` command
++ Containers can be renamed using the new `rename` endpoint and the associated `docker rename` command
+* Container `inspect` endpoint show the ID of `exec` commands running in this container
+* Container `inspect` endpoint show the number of times Docker auto-restarted the container
+* New types of event can be streamed by the `events` endpoint: ‘OOM’ (container died with out of memory), ‘exec_create’, and ‘exec_start'
+- Fixed returned string fields which hold numeric characters incorrectly omitting surrounding double quotes
+
+#### Runtime
++ Docker daemon has full IPv6 support
++ The `docker run` command can take the `--pid=host` flag to use the host PID namespace, which makes it possible for example to debug host processes using containerized debugging tools
++ The `docker run` command can take the `--read-only` flag to make the container’s root filesystem mounted as readonly, which can be used in combination with volumes to force a container’s processes to only write to locations that will be persisted
++ Container total memory usage can be limited for `docker run` using the `—memory-swap` flag
+* Major stability improvements for devicemapper storage driver
+* Better integration with host system: containers will reflect changes to the host's `/etc/resolv.conf` file when restarted
+* Better integration with host system: per-container iptable rules are moved to the DOCKER chain
+- Fixed container exiting on out of memory to return an invalid exit code
+
+#### Other
+* The HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables are properly taken into account by the client when connecting to the Docker daemon
+
 ## 1.4.1 (2014-12-15)
 
 #### Runtime
