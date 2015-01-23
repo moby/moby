@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/runconfig"
@@ -274,7 +273,6 @@ func (img *Image) CheckDepth() error {
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	log.Debugf("Json string: {%s}", src)
 	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err
