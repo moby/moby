@@ -22,6 +22,18 @@ const (
 	VersionDev
 )
 
+// VersionLabelForChecksum returns the label for the given tarsum
+// checksum, i.e., everything before the first `+` character in
+// the string or an empty string if no label separator is found.
+func VersionLabelForChecksum(checksum string) string {
+	// Checksums are in the form: {versionLabel}+{hashID}:{hex}
+	sepIndex := strings.Index(checksum, "+")
+	if sepIndex < 0 {
+		return ""
+	}
+	return checksum[:sepIndex]
+}
+
 // Get a list of all known tarsum Version
 func GetVersions() []Version {
 	v := []Version{}
