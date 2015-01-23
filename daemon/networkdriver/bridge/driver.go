@@ -396,7 +396,7 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 		return err
 	}
 
-	if netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
+	if err := netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
 		return fmt.Errorf("Unable to add private network: %s", err)
 	}
 
@@ -413,7 +413,7 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 			return err
 		}
 
-		if netlink.NetworkLinkAddIp(iface, ipAddr6, ipNet6); err != nil {
+		if err := netlink.NetworkLinkAddIp(iface, ipAddr6, ipNet6); err != nil {
 			return fmt.Errorf("Unable to add private IPv6 network: %s", err)
 		}
 	}
