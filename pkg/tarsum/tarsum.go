@@ -122,6 +122,7 @@ type tHashConfig struct {
 }
 
 var (
+	// NOTE: DO NOT include MD5 or SHA1, which are considered insecure.
 	standardHashConfigs = map[string]tHashConfig{
 		"sha256": {name: "sha256", hash: crypto.SHA256},
 		"sha512": {name: "sha512", hash: crypto.SHA512},
