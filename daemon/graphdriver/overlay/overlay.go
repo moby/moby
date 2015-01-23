@@ -118,6 +118,9 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	case graphdriver.FsMagicAufs:
 		log.Error("'overlay' is not supported over aufs.")
 		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicZfs:
+		log.Error("'overlay' is not supported over zfs.")
+		return nil, graphdriver.ErrIncompatibleFS
 	}
 
 	// Create the driver home dir
