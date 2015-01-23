@@ -10,7 +10,12 @@ possibleConfigs=(
 	"/usr/src/linux-$(uname -r)/.config"
 	'/usr/src/linux/.config'
 )
-: ${CONFIG:="${possibleConfigs[0]}"}
+
+if [ $# -gt 0 ]; then
+	CONFIG="$1"
+else
+	CONFIG="${possibleConfigs[0]}"
+fi
 
 if ! command -v zgrep &> /dev/null; then
 	zgrep() {
