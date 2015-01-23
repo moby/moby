@@ -153,7 +153,6 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
-				log.Debugf("(%s) does not match %s (id: %s), skipping", img.Tag, askedTag, img.ID)
 				if parallel {
 					errors <- nil
 				}
