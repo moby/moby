@@ -652,6 +652,16 @@ func (container *Container) KillSig(sig int) error {
 	return container.daemon.Kill(container, sig)
 }
 
+// Wrapper aroung KillSig() suppressing "no such process" error.
+func (container *Container) killPossiblyDeadProcess(sig int) error {
+	err := container.KillSig(sig)
+	if err == syscall.ESRCH {
+		log.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.GetPid(), sig)
+		return nil
+	}
+	return err
+}
+
 func (container *Container) Pause() error {
 	if container.IsPaused() {
 		return fmt.Errorf("Container %s is already paused", container.ID)
@@ -678,7 +688,7 @@ func (container *Container) Kill() error {
 	}
 
 	// 1. Send SIGKILL
-	if err := container.KillSig(9); err != nil {
+	if err := container.killPossiblyDeadProcess(9); err != nil {
 		return err
 	}
 
@@ -688,7 +698,10 @@ func (container *Container) Kill() error {
 		if pid := container.GetPid(); pid != 0 {
 			log.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
-				return err
+				if err != syscall.ESRCH {
+					return err
+				}
+				log.Debugf("Cannot kill process (pid=%d) with signal 9: no such process.", pid)
 			}
 		}
 	}
@@ -703,9 +716,9 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := container.KillSig(15); err != nil {
+	if err := container.killPossiblyDeadProcess(15); err != nil {
 		log.Infof("Failed to send SIGTERM to the process, force killing")
-		if err := container.KillSig(9); err != nil {
+		if err := container.killPossiblyDeadProcess(9); err != nil {
 			return err
 		}
 	}
