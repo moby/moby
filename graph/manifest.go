@@ -3,7 +3,6 @@ package graph
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -71,14 +70,13 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	if layer.Config == nil {
-		return nil, errors.New("Missing layer configuration")
-	}
 	manifest.Architecture = layer.Architecture
 	manifest.FSLayers = make([]*registry.FSLayer, 0, 4)
 	manifest.History = make([]*registry.ManifestHistory, 0, 4)
 	var metadata runconfig.Config
-	metadata = *layer.Config
+	if layer.Config != nil {
+		metadata = *layer.Config
+	}
 
 	for ; layer != nil; layer, err = layer.GetParent() {
 		if err != nil {
