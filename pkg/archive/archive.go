@@ -101,7 +101,6 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("[tar autodetect] n: %v", bs)
 
 	compression := DetectCompression(bs)
 	switch compression {
