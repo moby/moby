@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
 
@@ -46,6 +47,10 @@ func main() {
 	} else {
 		initLogging(log.InfoLevel)
 	}
+
+	// Set terminal emulation based on platform as required.
+	stdout, stderr, stdin := term.StdStreams()
+	log.SetOutput(stderr)
 
 	// -D, --debug, -l/--log-level=debug processing
 	// When/if -D is removed this block can be deleted
@@ -124,9 +129,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {

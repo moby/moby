@@ -137,19 +137,12 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 	if tlsConfig != nil {
 		scheme = "https"
 	}
-
 	if in != nil {
-		if file, ok := in.(*os.File); ok {
-			inFd = file.Fd()
-			isTerminalIn = term.IsTerminal(inFd)
-		}
+		inFd, isTerminalIn = term.GetHandleInfo(in)
 	}
 
 	if out != nil {
-		if file, ok := out.(*os.File); ok {
-			outFd = file.Fd()
-			isTerminalOut = term.IsTerminal(outFd)
-		}
+		outFd, isTerminalOut = term.GetHandleInfo(out)
 	}
 
 	if err == nil {
