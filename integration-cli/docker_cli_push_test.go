@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // pulling an image from the central registry should work
@@ -79,4 +83,36 @@ func TestPushInterrupt(t *testing.T) {
 	}
 
 	logDone("push - interrupted")
+}
+
+func TestPushEmptyLayer(t *testing.T) {
+	defer setupRegistry(t)()
+	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
+	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
+	if err != nil {
+		t.Fatalf("Unable to create test file: %v", err)
+	}
+	tw := tar.NewWriter(emptyTarball)
+	err = tw.Close()
+	if err != nil {
+		t.Fatalf("Error creating empty tarball: %v", err)
+	}
+	freader, err := os.Open(emptyTarball.Name())
+	if err != nil {
+		t.Fatalf("Could not open test tarball: %v", err)
+	}
+
+	importCmd := exec.Command(dockerBinary, "import", "-", repoName)
+	importCmd.Stdin = freader
+	out, _, err := runCommandWithOutput(importCmd)
+	if err != nil {
+		t.Errorf("import failed with errors: %v, output: %q", err, out)
+	}
+
+	// Now verify we can push it
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	if out, _, err := runCommandWithOutput(pushCmd); err != nil {
+		t.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
+	}
+	logDone("push - empty layer config to private registry")
 }
