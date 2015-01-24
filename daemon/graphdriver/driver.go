@@ -25,6 +25,7 @@ const (
 	FsMagicReiserFs    = FsMagic(0x52654973)
 	FsMagicSmbFs       = FsMagic(0x0000517B)
 	FsMagicJffs2Fs     = FsMagic(0x000072b6)
+	FsMagicZfs         = FsMagic(0x2fc12fc1)
 	FsMagicUnsupported = FsMagic(0x00000000)
 )
 
@@ -58,6 +59,7 @@ var (
 		FsMagicReiserFs:    "reiserfs",
 		FsMagicSmbFs:       "smb",
 		FsMagicJffs2Fs:     "jffs2",
+		FsMagicZfs:         "zfs",
 		FsMagicUnsupported: "unsupported",
 	}
 )
