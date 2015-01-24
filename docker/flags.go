@@ -97,7 +97,7 @@ func init() {
 			{"images", "List images"},
 			{"import", "Create a new filesystem image from the contents of a tarball"},
 			{"info", "Display system-wide information"},
-			{"inspect", "Return low-level information on a container"},
+			{"inspect", "Return low-level information on a container or image"},
 			{"kill", "Kill a running container"},
 			{"load", "Load an image from a tar archive"},
 			{"login", "Register or log in to a Docker registry server"},

@@ -144,7 +144,7 @@ unix://[/path/to/socket] to use.
   Display system-wide information
 
 **docker-inspect(1)**
-  Return low-level information on a container
+  Return low-level information on a container or image
 
 **docker-kill(1)**
   Kill a running container (which includes the wrapper process and everything
