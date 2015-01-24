@@ -72,6 +72,8 @@ setup_s3() {
 
 build_current_documentation() {
 	mkdocs build
+	cd site/
+	gzip -9k search_content.json
 }
 
 upload_current_documentation() {
