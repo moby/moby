@@ -169,13 +169,11 @@ func (r *Repository) Delete(path string) error {
 		return err
 	}
 
-	if volume.IsBindMount {
-		return nil
-	}
-
-	if err := r.driver.Remove(volume.ID); err != nil {
-		if !os.IsNotExist(err) {
-			return err
+	if !volume.IsBindMount {
+		if err := r.driver.Remove(volume.ID); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
 
