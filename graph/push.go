@@ -405,7 +405,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		}
 
 		// error out, no fallback to V1
-		return job.Error(err)
+		return job.Errorf("Error pushing to registry: %s", err)
 	}
 
 	if err != nil {
