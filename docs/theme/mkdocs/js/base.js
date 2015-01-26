@@ -1,12 +1,6 @@
 $(document).ready(function ()
 {
 
-  // Tipue Search activation
-  $('#tipue_search_input').tipuesearch({
-    'mode': 'json',
-    'contentLocation': '/search_content.json'
-  });
-
   prettyPrint();
 
   // Resizing
@@ -49,6 +43,12 @@ $(document).ready(function ()
     {
       $(this).removeClass('dd_on_hover');
     },
+  });
+
+  // Tipue Search activation
+  $('#tipue_search_input').tipuesearch({
+    'mode': 'json',
+    'contentLocation': '/search_content.json.gz'
   });
 
 });
