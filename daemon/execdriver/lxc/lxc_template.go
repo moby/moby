@@ -126,7 +126,9 @@ lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefi
 {{if .Network.Interface.Gateway}}
 lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
 {{end}}
-
+{{if .Network.Interface.MacAddress}}
+lxc.network.hwaddr = {{.Network.Interface.MacAddress}}
+{{end}}
 {{if .ProcessConfig.Env}}
 lxc.utsname = {{getHostname .ProcessConfig.Env}}
 {{end}}
@@ -194,6 +196,7 @@ func dropList(drops []string) ([]string, error) {
 
 func isDirectory(source string) string {
 	f, err := os.Stat(source)
+	log.Debugf("dir: %s\n", source)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "dir"

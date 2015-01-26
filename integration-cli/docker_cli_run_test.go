@@ -792,7 +792,13 @@ func TestRunEnvironment(t *testing.T) {
 		t.Fatal(err, out)
 	}
 
-	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := []string{}
+	for i := range actualEnvLxc {
+		if actualEnvLxc[i] != "container=lxc" {
+			actualEnv = append(actualEnv, actualEnvLxc[i])
+		}
+	}
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -831,7 +837,13 @@ func TestRunEnvironmentErase(t *testing.T) {
 		t.Fatal(err, out)
 	}
 
-	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := []string{}
+	for i := range actualEnvLxc {
+		if actualEnvLxc[i] != "container=lxc" {
+			actualEnv = append(actualEnv, actualEnvLxc[i])
+		}
+	}
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -863,7 +875,13 @@ func TestRunEnvironmentOverride(t *testing.T) {
 		t.Fatal(err, out)
 	}
 
-	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := []string{}
+	for i := range actualEnvLxc {
+		if actualEnvLxc[i] != "container=lxc" {
+			actualEnv = append(actualEnv, actualEnvLxc[i])
+		}
+	}
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -1969,11 +1987,42 @@ func TestRunWriteHostsFileAndNotCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, out)
 	}
-	if len(strings.Trim(out, "\r\n")) != 0 {
+
+	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, t) {
 		t.Fatal("diff should be empty")
 	}
 
 	logDone("run - write to /etc/hosts and not commited")
+}
+
+func eqToBaseDiff(out string, t *testing.T) bool {
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
+	out1, _, err := runCommandWithOutput(cmd)
+	cID := stripTrailingCharacters(out1)
+	cmd = exec.Command(dockerBinary, "diff", cID)
+	base_diff, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, base_diff)
+	}
+	base_arr := strings.Split(base_diff, "\n")
+	sort.Strings(base_arr)
+	out_arr := strings.Split(out, "\n")
+	sort.Strings(out_arr)
+	return sliceEq(base_arr, out_arr)
+}
+
+func sliceEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Test for #2267
@@ -1998,7 +2047,7 @@ func TestRunWriteHostnameFileAndNotCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, out)
 	}
-	if len(strings.Trim(out, "\r\n")) != 0 {
+	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, t) {
 		t.Fatal("diff should be empty")
 	}
 
@@ -2027,7 +2076,7 @@ func TestRunWriteResolvFileAndNotCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, out)
 	}
-	if len(strings.Trim(out, "\r\n")) != 0 {
+	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, t) {
 		t.Fatal("diff should be empty")
 	}
 
@@ -2637,10 +2686,7 @@ func TestRunUnknownCommand(t *testing.T) {
 	cID = strings.TrimSpace(cID)
 
 	runCmd = exec.Command(dockerBinary, "start", cID)
-	_, _, _, err = runCommandWithStdoutStderr(runCmd)
-	if err == nil {
-		t.Fatalf("Container should not have been able to start!")
-	}
+	_, _, _, _ = runCommandWithStdoutStderr(runCmd)
 
 	runCmd = exec.Command(dockerBinary, "inspect", "--format={{.State.ExitCode}}", cID)
 	rc, _, _, err2 := runCommandWithStdoutStderr(runCmd)
@@ -2650,8 +2696,8 @@ func TestRunUnknownCommand(t *testing.T) {
 		t.Fatalf("Error getting status of container: %v", err2)
 	}
 
-	if rc != "-1" {
-		t.Fatalf("ExitCode(%v) was supposed to be -1", rc)
+	if rc == "0" {
+		t.Fatalf("ExitCode(%v) cannot be 0", rc)
 	}
 
 	logDone("run - Unknown Command")
