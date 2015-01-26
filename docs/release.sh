@@ -91,7 +91,6 @@ upload_current_documentation() {
 	echo "  to $dst"
 	echo
 	#s3cmd --recursive --follow-symlinks --preserve --acl-public sync "$src" "$dst"
-	#aws s3 cp --profile $BUCKET --cache-control "max-age=3600" --acl public-read "site/search_content.json" "$dst"
 
 	# a really complicated way to send only the files we want
 	# if there are too many in any one set, aws s3 sync seems to fall over with 2 files to go
@@ -103,6 +102,9 @@ upload_current_documentation() {
 		echo "$run"
 		echo "======================="
 		$run
+
+	# Make sure the search_content.json.gz file has the right content-encoding
+	aws s3 cp --profile $BUCKET --cache-control "max-age=3600" --content-encoding="gzip" --acl public-read "site/search_content.json.gz" "$dst"
 }
 
 invalidate_cache() {
