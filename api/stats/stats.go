@@ -6,21 +6,21 @@ import "time"
 
 type ThrottlingData struct {
 	// Number of periods with throttling active
-	Periods uint64 `json:"periods,omitempty"`
+	Periods uint64 `json:"periods"`
 	// Number of periods when the container hit its throttling limit.
-	ThrottledPeriods uint64 `json:"throttled_periods,omitempty"`
+	ThrottledPeriods uint64 `json:"throttled_periods"`
 	// Aggregate time the container was throttled for in nanoseconds.
-	ThrottledTime uint64 `json:"throttled_time,omitempty"`
+	ThrottledTime uint64 `json:"throttled_time"`
 }
 
 // All CPU stats are aggregated since container inception.
 type CpuUsage struct {
 	// Total CPU time consumed.
 	// Units: nanoseconds.
-	TotalUsage uint64 `json:"total_usage,omitempty"`
+	TotalUsage uint64 `json:"total_usage"`
 	// Total CPU time consumed per core.
 	// Units: nanoseconds.
-	PercpuUsage []uint64 `json:"percpu_usage,omitempty"`
+	PercpuUsage []uint64 `json:"percpu_usage"`
 	// Time spent by tasks of the cgroup in kernel mode.
 	// Units: nanoseconds.
 	UsageInKernelmode uint64 `json:"usage_in_kernelmode"`
@@ -30,41 +30,41 @@ type CpuUsage struct {
 }
 
 type CpuStats struct {
-	CpuUsage       CpuUsage       `json:"cpu_usage,omitempty"`
+	CpuUsage       CpuUsage       `json:"cpu_usage"`
 	SystemUsage    uint64         `json:"system_cpu_usage"`
 	ThrottlingData ThrottlingData `json:"throttling_data,omitempty"`
 }
 
 type MemoryStats struct {
 	// current res_counter usage for memory
-	Usage uint64 `json:"usage,omitempty"`
+	Usage uint64 `json:"usage"`
 	// maximum usage ever recorded.
-	MaxUsage uint64 `json:"max_usage,omitempty"`
+	MaxUsage uint64 `json:"max_usage"`
 	// TODO(vishh): Export these as stronger types.
 	// all the stats exported via memory.stat.
-	Stats map[string]uint64 `json:"stats,omitempty"`
+	Stats map[string]uint64 `json:"stats"`
 	// number of times memory usage hits limits.
 	Failcnt uint64 `json:"failcnt"`
 	Limit   uint64 `json:"limit"`
 }
 
 type BlkioStatEntry struct {
-	Major uint64 `json:"major,omitempty"`
-	Minor uint64 `json:"minor,omitempty"`
-	Op    string `json:"op,omitempty"`
-	Value uint64 `json:"value,omitempty"`
+	Major uint64 `json:"major"`
+	Minor uint64 `json:"minor"`
+	Op    string `json:"op"`
+	Value uint64 `json:"value"`
 }
 
 type BlkioStats struct {
 	// number of bytes tranferred to and from the block device
-	IoServiceBytesRecursive []BlkioStatEntry `json:"io_service_bytes_recursive,omitempty"`
-	IoServicedRecursive     []BlkioStatEntry `json:"io_serviced_recursive,omitempty"`
-	IoQueuedRecursive       []BlkioStatEntry `json:"io_queue_recursive,omitempty"`
-	IoServiceTimeRecursive  []BlkioStatEntry `json:"io_service_time_recursive,omitempty"`
-	IoWaitTimeRecursive     []BlkioStatEntry `json:"io_wait_time_recursive,omitempty"`
-	IoMergedRecursive       []BlkioStatEntry `json:"io_merged_recursive,omitempty"`
-	IoTimeRecursive         []BlkioStatEntry `json:"io_time_recursive,omitempty"`
-	SectorsRecursive        []BlkioStatEntry `json:"sectors_recursive,omitempty"`
+	IoServiceBytesRecursive []BlkioStatEntry `json:"io_service_bytes_recursive"`
+	IoServicedRecursive     []BlkioStatEntry `json:"io_serviced_recursive"`
+	IoQueuedRecursive       []BlkioStatEntry `json:"io_queue_recursive"`
+	IoServiceTimeRecursive  []BlkioStatEntry `json:"io_service_time_recursive"`
+	IoWaitTimeRecursive     []BlkioStatEntry `json:"io_wait_time_recursive"`
+	IoMergedRecursive       []BlkioStatEntry `json:"io_merged_recursive"`
+	IoTimeRecursive         []BlkioStatEntry `json:"io_time_recursive"`
+	SectorsRecursive        []BlkioStatEntry `json:"sectors_recursive"`
 }
 
 type Network struct {
