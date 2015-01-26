@@ -236,10 +236,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	// Send the layer
 	log.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
 
-	prgRd := utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing")
-	defer prgRd.Close()
-
-	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, prgRd, ep, token, jsonRaw)
+	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
 	if err != nil {
 		return "", err
 	}
@@ -343,10 +340,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 		}
 
 		if !exists {
-			prgRd := utils.ProgressReader(arch, int(img.Size), out, sf, false, utils.TruncateID(img.ID), "Pushing")
-			defer prgRd.Close()
-
-			err = r.PutV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, prgRd, auth)
+			err = r.PutV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth)
 			if err != nil {
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 				return err
