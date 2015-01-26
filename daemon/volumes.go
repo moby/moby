@@ -25,6 +25,7 @@ type Mount struct {
 	Writable    bool
 	copyData    bool
 	from        *Container
+	isBind      bool
 }
 
 func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
@@ -80,7 +81,7 @@ func (m *Mount) initialize() error {
 	if hostPath, exists := m.container.Volumes[m.MountToPath]; exists {
 		// If this is a bind-mount/volumes-from, maybe it was passed in at start instead of create
 		// We need to make sure bind-mounts/volumes-from passed on start can override existing ones.
-		if !m.volume.IsBindMount && m.from == nil {
+		if (!m.volume.IsBindMount && !m.isBind) && m.from == nil {
 			return nil
 		}
 		if m.volume.Path == hostPath {
@@ -172,6 +173,7 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			volume:      vol,
 			MountToPath: mountToPath,
 			Writable:    writable,
+			isBind:      true, // in case the volume itself is a normal volume, but is being mounted in as a bindmount here
 		}
 	}
 
