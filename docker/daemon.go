@@ -36,7 +36,7 @@ func init() {
 
 func migrateKey() (err error) {
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
-	oldPath := filepath.Join(getHomeDir(), ".docker", defaultTrustKeyFile)
+	oldPath := filepath.Join(utils.GetHomeDir(), ".docker", defaultTrustKeyFile)
 	newPath := filepath.Join(getDaemonConfDir(), defaultTrustKeyFile)
 	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && utils.IsFileOwner(oldPath) {
 		defer func() {

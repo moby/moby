@@ -17,6 +17,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 )
 
 type DockerCli struct {
@@ -104,7 +105,7 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 }
 
 func (cli *DockerCli) LoadConfigFile() (err error) {
-	cli.configFile, err = registry.LoadConfig(os.Getenv("HOME"))
+	cli.configFile, err = registry.LoadConfig(utils.GetHomeDir())
 	if err != nil {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}

@@ -388,7 +388,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	var out2 engine.Env
 	err = out2.Decode(stream)
 	if err != nil {
-		cli.configFile, _ = registry.LoadConfig(os.Getenv("HOME"))
+		cli.configFile, _ = registry.LoadConfig(utils.GetHomeDir())
 		return err
 	}
 	registry.SaveConfig(cli.configFile)
