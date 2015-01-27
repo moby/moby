@@ -189,6 +189,7 @@ fi
 
 (
 	set -x
+	export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 	
 	# make sure we're fully up-to-date
 	chroot "$rootfsDir" bash -c 'apt-get update && apt-get dist-upgrade -y'
