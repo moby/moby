@@ -1,7 +1,10 @@
 package runconfig
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/appc/spec/schema"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
@@ -103,5 +106,48 @@ func Merge(userConf, imageConf *Config) error {
 			userConf.Volumes[k] = v
 		}
 	}
+	return nil
+}
+
+func MergeACI(userConf *Config, manifest *schema.ImageManifest) error {
+	if userConf.User == "" {
+		if strings.HasPrefix(manifest.App.User, "/") {
+			return fmt.Errorf("ACI with user field referring to an absolute path is not yet supported by Docker")
+		}
+		userConf.User = manifest.App.User
+	}
+	if manifest.App.Group != userConf.User {
+		// FIXME(ACI): Handle group correctly. For now, just do a basic partial check...
+		return fmt.Errorf("Groups in ACI are not yet supported by Docker. ")
+	}
+
+	// FIXME(ACI): Read manifest.App.Isolators
+
+	// FIXME(ACI): Do something with manifest.App.Ports
+
+	for _, imageEnv := range manifest.App.Environment {
+		found := false
+		imageEnvKey := imageEnv.Name
+		for _, userEnv := range userConf.Env {
+			userEnvKey := strings.Split(userEnv, "=")[0]
+			if imageEnvKey == userEnvKey {
+				found = true
+			}
+		}
+		if !found {
+			userConf.Env = append(userConf.Env, imageEnv.Name+"="+imageEnv.Value)
+		}
+	}
+
+	if len(userConf.Entrypoint) == 0 {
+		userConf.Entrypoint = []string(manifest.App.Exec)
+	}
+
+	if userConf.WorkingDir == "" {
+		userConf.WorkingDir = manifest.App.WorkingDirectory
+	}
+
+	// FIXME(ACI): manifest.App.MountPoints
+
 	return nil
 }

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/appc/spec/schema"
+
 	"github.com/docker/libcontainer/label"
 
 	log "github.com/Sirupsen/logrus"
@@ -491,6 +493,21 @@ func (daemon *Daemon) checkDeprecatedExpose(config *runconfig.Config) bool {
 	return false
 }
 
+func (daemon *Daemon) mergeAndVerifyConfigACI(config *runconfig.Config, manifest *schema.ImageManifest) ([]string, error) {
+	if manifest.App == nil {
+		return nil, fmt.Errorf("No app in ACI manifest")
+	}
+
+	if err := runconfig.MergeACI(config, manifest); err != nil {
+		return nil, err
+	}
+
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
+		return nil, fmt.Errorf("No command specified")
+	}
+	return nil, nil
+}
+
 func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) ([]string, error) {
 	warnings := []string{}
 	if (img != nil && daemon.checkDeprecatedExpose(img.Config)) || daemon.checkDeprecatedExpose(config) {
@@ -633,7 +650,7 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return err
 }
 
-func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
+func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgType string, imgID string) (*Container, error) {
 	var (
 		id  string
 		err error
@@ -649,6 +666,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	container := &Container{
 		// FIXME: we should generate the ID here instead of receiving it as an argument
 		ID:              id,
+		ImgType:         imgType,
 		Created:         time.Now().UTC(),
 		Path:            entrypoint,
 		Args:            args, //FIXME: de-duplicate from config

@@ -6,6 +6,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/appc/spec/schema"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -16,6 +18,7 @@ var acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
 func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	var (
 		allImages   map[string]*image.Image
+		allACI      map[string]*schema.ImageManifest
 		err         error
 		filt_tagged = true
 	)
@@ -40,8 +43,14 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 	if job.GetenvBool("all") && filt_tagged {
 		allImages, err = s.graph.Map()
+		if err == nil {
+			allACI, err = s.graph.MapACI(s.ACIRepo)
+		}
 	} else {
 		allImages, err = s.graph.Heads()
+		if err == nil {
+			allACI, err = s.graph.HeadsACI(s.ACIRepo)
+		}
 	}
 	if err != nil {
 		return job.Error(err)
@@ -82,6 +91,38 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 		}
 	}
+	for name, id := range s.ACIRepo {
+		if job.Getenv("filter") != "" {
+			if match, _ := path.Match(job.Getenv("filter"), name); !match {
+				continue
+			}
+		}
+		_, _, err := s.graph.GetACI(id)
+		if err != nil {
+			log.Printf("Warning: couldn't load %s (%s): %s", id, name, err)
+			continue
+		}
+
+		if out, exists := lookup[id]; exists {
+			if filt_tagged {
+				out.SetList("RepoTags", append(out.GetList("RepoTags"), name))
+			}
+		} else {
+			// get the boolean list for if only the untagged images are requested
+			delete(allACI, id)
+			if filt_tagged {
+				out := &engine.Env{}
+				out.SetJson("ParentId", "")
+				out.SetList("RepoTags", []string{"ACI: " + name})
+				out.SetJson("Id", id)
+				// FIXME: following fields not properly implemented yet
+				out.SetInt64("Created", 0)
+				out.SetInt64("Size", -1)
+				out.SetInt64("VirtualSize", -1)
+				lookup[id] = out
+			}
+		}
+	}
 	s.Unlock()
 
 	outs := engine.NewTable("Created", len(lookup))
@@ -99,6 +140,16 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)
 			out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+			outs.Add(out)
+		}
+		for range allACI {
+			out := &engine.Env{}
+			out.SetJson("ParentId", "")
+			out.SetList("RepoTags", []string{"<ACInone>:<ACInone>"})
+			out.SetJson("Id", "???")
+			out.SetInt64("Created", 0)
+			out.SetInt64("Size", -1)
+			out.SetInt64("VirtualSize", -1)
 			outs.Add(out)
 		}
 	}

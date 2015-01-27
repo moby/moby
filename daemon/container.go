@@ -57,6 +57,8 @@ type Container struct {
 
 	ID string
 
+	ImgType string
+
 	Created time.Time
 
 	Path string
@@ -99,6 +101,19 @@ type Container struct {
 }
 
 func (container *Container) FromDisk() error {
+	// It might be an ACI image or a Docker image. If the manifest file exists,
+	// then it is an ACI image. Just load the manifest.
+	manifestPath, err := container.manifestPath()
+	if err == nil {
+		_, err := os.Lstat(manifestPath)
+		if err == nil {
+			container.ImgType = "aci"
+		}
+	}
+	if container.ImgType == "" {
+		container.ImgType = "docker"
+	}
+
 	pth, err := container.jsonPath()
 	if err != nil {
 		return err
@@ -836,8 +851,15 @@ func (container *Container) hostConfigPath() (string, error) {
 	return container.getRootResourcePath("hostconfig.json")
 }
 
+// Docker images have a config.json file
 func (container *Container) jsonPath() (string, error) {
 	return container.getRootResourcePath("config.json")
+}
+
+// ACI images have an Image Manifest defined by the App Container Specification
+// https://github.com/appc/spec/blob/master/SPEC.md
+func (container *Container) manifestPath() (string, error) {
+	return container.getRootResourcePath("manifest")
 }
 
 // This method must be exported to be used from the lxc template

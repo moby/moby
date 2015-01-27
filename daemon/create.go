@@ -3,6 +3,9 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/appc/spec/discovery"
+	"github.com/appc/spec/schema"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -72,6 +75,77 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (*Container, []string, error) {
+	switch config.Format {
+	case "docker":
+		return daemon.CreateDockerContainer(config, hostConfig, name)
+	case "aci":
+		return daemon.CreateACIContainer(config, hostConfig, name)
+	default:
+		return daemon.CreateDockerContainer(config, hostConfig, name)
+	}
+}
+
+func (daemon *Daemon) CreateACIContainer(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (*Container, []string, error) {
+	var (
+		container        *Container
+		warnings         []string
+		imgID            string
+		err              error
+		aciImageManifest *schema.ImageManifest
+	)
+
+	// the image name (config.Image) passed by the user might be:
+	// - a name to be discovered "coreos.com/etcd:v2.0.0" (with tags / version)
+	//     => it *might* have just been pulled if it did not exist yet
+	//
+	// - an URL http:// or file://
+	//     => it has just been pulled.
+	//        FIXME(ACI): the cli should give the real image id but does not atm,
+	//                    see api/client/commands.go:createContainer()
+	app, err := discovery.NewAppFromString(config.Image)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// FIXME(ACI): tags/version not supported yet: app.Name passed directly
+	imgID, aciImageManifest, err = daemon.repositories.LookupACIImage(string(app.Name))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if warnings, err = daemon.mergeAndVerifyConfigACI(config, aciImageManifest); err != nil {
+		return nil, nil, err
+	}
+
+	if container, err = daemon.newContainer(name, config, config.Format, imgID); err != nil {
+		return nil, nil, err
+	}
+
+	if err := daemon.Register(container); err != nil {
+		return nil, nil, err
+	}
+	if err := daemon.createRootfs(container); err != nil {
+		return nil, nil, err
+	}
+	if hostConfig != nil {
+		if err := daemon.setHostConfig(container, hostConfig); err != nil {
+			return nil, nil, err
+		}
+	}
+	if err := container.Mount(); err != nil {
+		return nil, nil, err
+	}
+	defer container.Unmount()
+	if err := container.prepareVolumes(); err != nil {
+		return nil, nil, err
+	}
+	if err := container.ToDisk(); err != nil {
+		return nil, nil, err
+	}
+	return container, warnings, nil
+}
+
+func (daemon *Daemon) CreateDockerContainer(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (*Container, []string, error) {
 	var (
 		container *Container
 		warnings  []string
@@ -103,7 +177,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 	}
-	if container, err = daemon.newContainer(name, config, imgID); err != nil {
+	if container, err = daemon.newContainer(name, config, config.Format, imgID); err != nil {
 		return nil, nil, err
 	}
 	if err := daemon.Register(container); err != nil {
