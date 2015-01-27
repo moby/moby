@@ -219,7 +219,7 @@ inside it)
 # STORAGE DRIVER OPTIONS
 
 Options to storage backend can be specified with **--storage-opt** flags. The
-backends which currently take options are *devicemapper* and *aufs*. Therefore
+backends which currently take options are *devicemapper* and *aufs*. Therefore,
 use these flags with **-s=**devicemapper or **-s=**aufs
 
 Here is the list of *devicemapper* options:
@@ -289,7 +289,7 @@ Here is the list of *aufs* options:
 Specifies extra mount options used when mounting the aufs layers.
 
 # EXAMPLES
-Launching docker daemon with *devicemapper* backend with particular block devices
+Launching Docker daemon with *devicemapper* backend with particular block devices
 for data and metadata:
 
     docker -d -s=devicemapper \
@@ -297,7 +297,7 @@ for data and metadata:
       --storage-opt dm.metadatadev=/dev/vdc \
       --storage-opt dm.basesize=20G
 
-Launching docker daemon with *aufs*backend that applies `dirperm1` mount option
+Launching Docker daemon with *aufs* backend that applies `dirperm1` mount option
 to all layers
 
     docker -d -s=aufs \

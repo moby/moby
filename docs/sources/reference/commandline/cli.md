@@ -187,7 +187,7 @@ The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
 serious kernel crashes. However, `aufs` is also the only storage driver that allows
 containers to share executable and shared library memory, so is a useful choice
-when running thousands of containers with the same program or libraries. AUFS
+when running thousands of containers with the same program or libraries. The AUFS
 driver can be configured with `--storage-opt` flags. Refer to [AUFS
 storage driver options](#aufs-storage-driver-options) below for a way to
 customize this setup.
@@ -346,7 +346,7 @@ The devicemapper options are prefixed with `dm`. Currently supported options are
 
 ##### AUFS storage driver options
 
-The aufs options are prefixed with `aufs`. Current supported options are:
+The aufs options are prefixed with `aufs`. Currently supported options are:
 
  * `aufs.mountopt`
 
@@ -357,7 +357,7 @@ The aufs options are prefixed with `aufs`. Current supported options are:
         # Tell aufs to check the permission bits of the directory on the
         # topmost branch and ignore the permission bits on all lower branches.
         # This option is only available for kernel with `dirperm1` patches and
-        # can be used to fix aufs' permission bug (i.e. upper layer having
+        # can be used to fix aufs' permission bug (i.e., upper layer having
         # broader mask than the lower layer). More information about the
         # bug can be found at https://github.com/docker/docker/issues/783
         $ sudo docker -d --storage-opt aufs.mountopt=dirperm1
