@@ -50,10 +50,20 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	}
 	child.Close()
 
+	wait := func() (*os.ProcessState, error) {
+		ps, err := command.Process.Wait()
+		// we should kill all processes in cgroup when init is died if we use
+		// host PID namespace
+		if !container.Namespaces.Contains(libcontainer.NEWPID) {
+			killAllPids(container)
+		}
+		return ps, err
+	}
+
 	terminate := func(terr error) (int, error) {
 		// TODO: log the errors for kill and wait
 		command.Process.Kill()
-		command.Wait()
+		wait()
 		return -1, terr
 	}
 
@@ -109,16 +119,16 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 		startCallback()
 	}
 
-	if err := command.Wait(); err != nil {
+	ps, err := wait()
+	if err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return -1, err
 		}
 	}
-	if !container.Namespaces.Contains(libcontainer.NEWPID) {
-		killAllPids(container)
-	}
+	// waiting for pipe flushing
+	command.Wait()
 
-	waitStatus := command.ProcessState.Sys().(syscall.WaitStatus)
+	waitStatus := ps.Sys().(syscall.WaitStatus)
 	if waitStatus.Signaled() {
 		return EXIT_SIGNAL_OFFSET + int(waitStatus.Signal()), nil
 	}
