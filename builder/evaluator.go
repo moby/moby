@@ -116,6 +116,7 @@ type Builder struct {
 	image          string        // image name for commit processing
 	maintainer     string        // maintainer name. could probably be removed.
 	cmdSet         bool          // indicates is CMD was set in current Dockerfile
+	BuilderFlags   *BuilderFlags // current cmd's BuilderFlags - temporary
 	context        tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath    string        // the path of the temporary directory the local context is unpacked to (server side)
 	noBaseImage    bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
@@ -276,8 +277,9 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 	attrs := ast.Attributes
 	original := ast.Original
+	flags := ast.Flags
 	strs := []string{}
-	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
+	msg := fmt.Sprintf("Step %d : %s", stepN, original)
 
 	if cmd == "onbuild" {
 		if ast.Next == nil {
@@ -325,6 +327,8 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
+		b.BuilderFlags = NewBuilderFlags()
+		b.BuilderFlags.Args = flags
 		return f(b, strList, attrs, original)
 	}
 
