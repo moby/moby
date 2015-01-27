@@ -105,9 +105,6 @@ Settings page. A webhook is called only after a successful `push` is
 made. The webhook calls are HTTP POST requests with a JSON payload
 similar to the example shown below.
 
-> **Note:** For testing, you can try an HTTP request tool like
-> [requestb.in](http://requestb.in/).
-
 *Example webhook JSON payload:*
 
 ```
@@ -140,6 +137,13 @@ Webhooks allow you to notify people, services and other applications of
 new updates to your images and repositories. To get started adding webhooks,
 go to the desired repo in the Hub, and click "Webhooks" under the "Settings"
 box.
+
+> **Note:** For testing, you can try an HTTP request tool like
+> [requestb.in](http://requestb.in/).
+
+> **Note**: The Docker Hub servers are currently in the IP range
+> `162.242.195.64 - 162.242.195.127`, so you can restrict your webhooks to
+> accept webhook requests from that set of IP addresses.
 
 ### Webhook chains
 
