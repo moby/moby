@@ -687,6 +687,7 @@ stopping the service and removing the interface:
     $ sudo service docker stop
     $ sudo ip link set dev docker0 down
     $ sudo brctl delbr docker0
+    $ sudo iptables -t nat -F POSTROUTING
 
 Then, before starting the Docker service, create your own bridge and
 give it whatever configuration you want.  Here we will create a simple
@@ -712,6 +713,15 @@ illustrate the technique.
 
     $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker
     $ sudo service docker start
+
+    # Confirming new outgoing NAT masquerade is set up
+
+    $ sudo iptables -t nat -L -n
+    ...
+    Chain POSTROUTING (policy ACCEPT)
+    target     prot opt source               destination
+    MASQUERADE  all  --  192.168.5.0/24      0.0.0.0/0
+
 
 The result should be that the Docker server starts successfully and is
 now prepared to bind containers to the new bridge.  After pausing to
