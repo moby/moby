@@ -25,6 +25,7 @@ import (
 	imagepkg "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
@@ -433,7 +434,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	job.SetenvBool("json", b.StreamFormatter.Json())
 	job.SetenvBool("parallel", true)
 	job.SetenvJson("authConfig", pullRegistryAuth)
-	job.Stdout.Add(b.OutOld)
+	job.Stdout.Add(ioutils.NopWriteCloser(b.OutOld))
 	if err := job.Run(); err != nil {
 		return nil, err
 	}
