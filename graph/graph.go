@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/pkg/uidmap"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -182,6 +183,14 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 	// Apply the diff/layer
 	img.SetGraph(graph)
 	if err := image.StoreImage(img, layerData, tmp); err != nil {
+		return err
+	}
+	rootfs, err := graph.driver.Get(img.ID, "")
+	if err != nil {
+		return fmt.Errorf("Driver %s failed to get image rootfs %s: %s", graph.driver, img.ID, err)
+	}
+	defer graph.driver.Put(img.ID)
+	if err := uidmap.XlateUids(rootfs, false); err != nil {
 		return err
 	}
 	// Commit

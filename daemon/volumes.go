@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/uidmap"
 	"github.com/docker/docker/volumes"
 	"github.com/docker/libcontainer/label"
 )
@@ -265,6 +266,19 @@ func (container *Container) setupMounts() error {
 		if err := label.SetFileLabel(m.Source, container.MountLabel); err != nil {
 			return err
 		}
+	}
+
+	// Let root in the container own container.root and
+	// container.RootfsPath
+	cRootUid, err := uidmap.ContainerRootUid()
+	if err != nil {
+		return err
+	}
+	if err := os.Chown(container.root, int(cRootUid), int(cRootUid)); err != nil {
+		return err
+	}
+	if err := os.Chown(container.RootfsPath(), int(cRootUid), int(cRootUid)); err != nil {
+		return err
 	}
 
 	// Mount user specified volumes

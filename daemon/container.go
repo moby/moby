@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/uidmap"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -273,6 +274,18 @@ func populateCommand(c *Container, env []string) error {
 		return err
 	}
 
+	dockerRootUid, _ := uidmap.ContainerRootUid()
+	maxUid, _ := uidmap.HostMaxUid()
+
+	// Add 3 uid mappings: one to map docker-root on host to root in
+	// container and the other two to map all other UIDs one-to-one
+	// notably, host root is unmapped
+	uidMaps := []execdriver.UidMap{
+		{1, 1, dockerRootUid - 1},
+		{dockerRootUid + 1, dockerRootUid + 1, maxUid - dockerRootUid - 1},
+		{dockerRootUid, 0, 1},
+	}
+
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
@@ -309,6 +322,7 @@ func populateCommand(c *Container, env []string) error {
 		MountLabel:         c.GetMountLabel(),
 		LxcConfig:          lxcConfig,
 		AppArmorProfile:    c.AppArmorProfile,
+		UidMaps:            uidMaps,
 	}
 
 	return nil
@@ -364,6 +378,9 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	if err := container.setupMounts(); err != nil {
+		return err
+	}
+	if err := container.daemon.execDriver.AddUidMaps(container.command); err != nil {
 		return err
 	}
 

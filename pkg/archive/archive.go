@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/uidmap"
 )
 
 type (
@@ -191,6 +192,16 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		return err
 	}
 
+	containerRoot, err := uidmap.ContainerRootUid()
+	if err != nil {
+		return err
+	}
+	if hdr.Uid == int(containerRoot) {
+		hdr.Uid = 0
+	}
+	if hdr.Gid == int(containerRoot) {
+		hdr.Gid = 0
+	}
 	if fi.IsDir() && !strings.HasSuffix(name, "/") {
 		name = name + "/"
 	}

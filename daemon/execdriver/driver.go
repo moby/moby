@@ -61,6 +61,7 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
+	AddUidMaps(c *Command) error
 }
 
 // Network settings of the container
@@ -122,6 +123,12 @@ type ProcessConfig struct {
 	Console    string   `json:"-"` // dev/console path
 }
 
+type UidMap struct {
+	HostUid      uint32 `json:"host_uid"`
+	ContainerUid uint32 `json:"container_uid"`
+	Size         uint32 `json:"size"`
+}
+
 // Process wrapps an os/exec.Cmd to add more metadata
 type Command struct {
 	ID                 string            `json:"id"`
@@ -144,4 +151,5 @@ type Command struct {
 	MountLabel         string            `json:"mount_label"`
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
+	UidMaps            []UidMap          `json:"uid_maps"`
 }

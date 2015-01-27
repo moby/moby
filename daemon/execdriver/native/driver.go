@@ -44,6 +44,10 @@ type driver struct {
 	sync.Mutex
 }
 
+func (d *driver) AddUidMaps(c *execdriver.Command) error {
+	return nil
+}
+
 func NewDriver(root, initPath string) (*driver, error) {
 	if err := os.MkdirAll(root, 0711); err != nil {
 		return nil, err
