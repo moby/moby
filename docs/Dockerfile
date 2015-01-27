@@ -56,4 +56,6 @@ RUN VERSION=$(cat VERSION) \
 
 EXPOSE 8000
 
+RUN cd sources && rgrep --files-with-matches '{{ include ".*" }}' | xargs sed -i~ 's/{{ include "\(.*\)" }}/cat include\/\1/ge'
+
 CMD ["mkdocs", "serve"]

@@ -79,7 +79,7 @@ guide](/articles/dockerfile_best-practices/#build-cache) for more information):
     Successfully built 1a5ffc17324d
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*]( /userguide/dockerrepos/#image-push).
+repository to its registry*]( /userguide/dockerrepos/#contributing-to-docker-hub).
 
 ## Format
 
@@ -93,7 +93,7 @@ be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker runs the instructions in a `Dockerfile` in order. **The
 first instruction must be \`FROM\`** in order to specify the [*Base
-Image*](/terms/image/#base-image-def) from which you are building.
+Image*](/terms/image/#base-image) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
 comment. A `#` marker anywhere else in the line will
@@ -186,11 +186,11 @@ Or
 
     FROM <image>:<tag>
 
-The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image-def)
+The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
-/userguide/dockerrepos/#using-public-repositories).
+/userguide/dockerrepos).
 
 `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -763,7 +763,7 @@ and mark it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`.  For more information/examples and mounting instructions via the
-Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume-def)
+Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
 documentation.
 
 > **Note**:

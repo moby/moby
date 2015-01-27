@@ -240,7 +240,7 @@ alternative group.
 > **Warning**: 
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) for details.
+> /articles/security/#docker-daemon-attack-surface) for details.
 
 **Example:**
 

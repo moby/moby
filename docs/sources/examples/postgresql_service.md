@@ -6,7 +6,7 @@ page_keywords: docker, example, package installation, postgresql
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#giving-non-root-access)
 
 ## Installing PostgreSQL on Docker
 

@@ -21,9 +21,10 @@ Docker.
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/terms/layer/#ufs-def) to provide several useful features for
+System*](/terms/layer/#union-file-system) to provide several useful features for
 persistent or shared data:
 
+- Volumes are initialized when a container is created
 - Data volumes can be shared and reused between containers
 - Changes to a data volume are made directly
 - Changes to a data volume will not be included when you update an image
@@ -32,9 +33,9 @@ persistent or shared data:
 ### Adding a data volume
 
 You can add a data volume to a container using the `-v` flag with the
-`docker run` command. You can use the `-v` multiple times in a single
-`docker run` to mount multiple data volumes. Let's mount a single volume
-now in our web application container.
+`docker create` and `docker run` command. You can use the `-v` multiple times
+to mount multiple data volumes. Let's mount a single volume now in our web
+application container.
 
     $ sudo docker run -d -P --name web -v /webapp training/webapp python app.py
 
@@ -47,7 +48,15 @@ This will create a new volume inside a container at `/webapp`.
 ### Mount a Host Directory as a Data Volume
 
 In addition to creating a volume using the `-v` flag you can also mount a
-directory from your own host into a container.
+directory from your Docker daemon's host into a container.
+
+> **Note:**
+> If you are using Boot2Docker, your Docker daemon only has limited access to
+> your OSX/Windows filesystem. Boot2Docker tries to auto-share your `/Users`
+> (OSX) or `C:\Users` (Windows) directory - and so you can mount files or directories
+> using `docker run -v /Users/<path>:/<container path> ...` (OSX) or
+> `docker run -v /c/Users/<path>:/<container path ...` (Windows). All other paths
+> come from the Boot2Docker virtual machine's filesystem.
 
     $ sudo docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
 
@@ -67,8 +76,8 @@ create it for you.
 
 > **Note:** 
 > This is not available from a `Dockerfile` due to the portability
-> and sharing purpose of it. As the host directory is, by its nature,
-> host-dependent, a host directory specified in a `Dockerfile` probably
+> and sharing purpose of built images. The host directory is, by its nature,
+> host-dependent, so a host directory specified in a `Dockerfile` probably
 > wouldn't work on all hosts.
 
 Docker defaults to a read-write volume but we can also mount a directory
@@ -105,8 +114,10 @@ create a named Data Volume Container, and then to mount the data from
 it.
 
 Let's create a new named container with a volume to share.
+While this container doesn't run an application, it reuses the `training/postgres`
+image so that all containers are using layers in common, saveing disk space.
 
-    $ sudo docker run -d -v /dbdata --name dbdata training/postgres echo Data-only container for postgres
+    $ sudo docker create -v /dbdata --name dbdata training/postgres
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 

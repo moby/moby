@@ -17,7 +17,7 @@ If you get `docker: command not found` or something like
 incomplete Docker installation or insufficient privileges to access
 Docker on your machine.
 
-Please refer to [*Installation*](/installation/#installation-list)
+Please refer to [*Installation*](/installation)
 for installation instructions.
 
 ## Download a pre-built image
@@ -26,7 +26,7 @@ for installation instructions.
     $ sudo docker pull ubuntu
 
 This will find the `ubuntu` image by name on
-[*Docker Hub*](/userguide/dockerrepos/#find-public-images-on-docker-hub)
+[*Docker Hub*](/userguide/dockerrepos/#searching-for-images)
 and download it from [Docker Hub](https://hub.docker.com) to a local
 image cache.
 
@@ -37,7 +37,7 @@ image cache.
 > characters of the full image ID - which can be found using
 > `docker inspect` or `docker images --no-trunc=true`
 
-**If you're using OS X** then you shouldn't use `sudo`.
+{{ include "no-remote-sudo.md" }}
 
 ## Running an interactive shell
 
@@ -174,6 +174,6 @@ will be stored (as a diff). See which images you already have using the
 You now have an image state from which you can create new instances.
 
 Read more about [*Share Images via
-Repositories*](/userguide/dockerrepos/#working-with-the-repository) or
+Repositories*](/userguide/dockerrepos) or
 continue to the complete [*Command
-Line*](/reference/commandline/cli/#cli)
+Line*](/reference/commandline/cli)

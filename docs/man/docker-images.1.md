@@ -33,7 +33,7 @@ versions.
    Show all images (by default filter out the intermediate image layers). The default is *false*.
 
 **-f**, **--filter**=[]
-   Provide filter values (i.e. 'dangling=true')
+   Provide filter values (i.e., 'dangling=true')
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.
