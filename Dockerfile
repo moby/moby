@@ -151,7 +151,7 @@ ENV DOCKER_BUILDTAGS apparmor selinux btrfs_noversion
 COPY vendor /go/src/github.com/docker/docker/vendor
 # (copy vendor/ because go-md2man needs golang.org/x/net)
 RUN set -x \
-	&& git clone -b v1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
+	&& git clone -b v1.0.1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
 	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday \
 	&& go install -v github.com/cpuguy83/go-md2man
 
