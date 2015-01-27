@@ -59,7 +59,7 @@ as context.
 
 # EXAMPLES
 
-## Building an image using a Dockefile located inside the current directory
+## Building an image using a Dockerfile located inside the current directory
 
 Docker images can be built using the build command and a Dockerfile:
 
