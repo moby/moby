@@ -324,6 +324,12 @@ func (container *Container) Start() (err error) {
 		return nil
 	}
 
+	// if the container was deleted, but removal failed, we do not want to attempt
+	// to start it again
+	if container.Deleted {
+		return errors.New("Cannot start a container which is in deleted state.")
+	}
+
 	// if we encounter and error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {

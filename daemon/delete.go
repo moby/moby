@@ -84,6 +84,8 @@ func (daemon *Daemon) DeleteVolumes(volumeIDs map[string]struct{}) {
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
 // FIXME: rename to Rm for consistency with the CLI command
 func (daemon *Daemon) Destroy(container *Container) error {
+	var failureErr error
+
 	if container == nil {
 		return fmt.Errorf("The given container is <nil>")
 	}
@@ -97,6 +99,18 @@ func (daemon *Daemon) Destroy(container *Container) error {
 		return err
 	}
 
+	defer func() {
+		// if any of the final cleanup steps fail, restore the container ID into the index
+		// so that the end user has the opportunity to potentially correct external-to-Docker
+		// issues that led to the removal failure.  With the container remaining in the
+		// index it can be listed/seen and then removal can be performed again (successfully)
+		if failureErr != nil {
+			container.State.SetDeleted()
+			container.State.setError(failureErr)
+			daemon.idIndex.Add(container.ID)
+			daemon.containers.Add(container.ID, container)
+		}
+	}()
 	// Deregister the container before removing its directory, to avoid race conditions
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
@@ -106,20 +120,24 @@ func (daemon *Daemon) Destroy(container *Container) error {
 	}
 
 	if err := daemon.driver.Remove(container.ID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
+		failureErr = fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
+		return failureErr
 	}
 
 	initID := fmt.Sprintf("%s-init", container.ID)
 	if err := daemon.driver.Remove(initID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+		failureErr = fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+		return failureErr
 	}
 
 	if err := os.RemoveAll(container.root); err != nil {
-		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
+		failureErr = fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
+		return failureErr
 	}
 
 	if err := daemon.execDriver.Clean(container.ID); err != nil {
-		return fmt.Errorf("Unable to remove execdriver data for %s: %s", container.ID, err)
+		failureErr = fmt.Errorf("Unable to remove execdriver data for %s: %s", container.ID, err)
+		return failureErr
 	}
 
 	selinuxFreeLxcContexts(container.ProcessLabel)
