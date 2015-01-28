@@ -324,7 +324,7 @@ func (container *Container) Start() (err error) {
 		return nil
 	}
 
-	// if we encounter and error during start we need to ensure that any other
+	// if we encounter an error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
 		if err != nil {
