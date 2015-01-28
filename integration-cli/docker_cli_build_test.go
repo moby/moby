@@ -4091,6 +4091,44 @@ func TestBuildCmdShDashC(t *testing.T) {
 	logDone("build - cmd should have sh -c for non-json")
 }
 
+func TestBuildCmdSpaces(t *testing.T) {
+	// Test to make sure that when we strcat arrays we take into account
+	// the arg separator to make sure ["echo","hi"] and ["echo hi"] don't
+	// look the same
+	name := "testbuildcmdspaces"
+	defer deleteImages(name)
+	var id1 string
+	var id2 string
+	var err error
+
+	if id1, err = buildImage(name, "FROM busybox\nCMD [\"echo hi\"]\n", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if id2, err = buildImage(name, "FROM busybox\nCMD [\"echo\", \"hi\"]\n", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 == id2 {
+		t.Fatal("Should not have resulted in the same CMD")
+	}
+
+	// Now do the same with ENTRYPOINT
+	if id1, err = buildImage(name, "FROM busybox\nENTRYPOINT [\"echo hi\"]\n", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if id2, err = buildImage(name, "FROM busybox\nENTRYPOINT [\"echo\", \"hi\"]\n", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if id1 == id2 {
+		t.Fatal("Should not have resulted in the same ENTRYPOINT")
+	}
+
+	logDone("build - cmd with spaces")
+}
+
 func TestBuildCmdJSONNoShDashC(t *testing.T) {
 	name := "testbuildcmdjson"
 	defer deleteImages(name)
