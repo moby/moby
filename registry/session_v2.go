@@ -124,14 +124,15 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, 
 		return false, err
 	}
 	res.Body.Close() // close early, since we're not needing a body on this call .. yet?
-	switch res.StatusCode {
-	case 200:
+	switch {
+	case res.StatusCode >= 200 && res.StatusCode < 400:
 		// return something indicating no push needed
 		return true, nil
-	case 404:
+	case res.StatusCode == 404:
 		// return something indicating blob push needed
 		return false, nil
 	}
+
 	return false, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying head request for %s - %s:%s", res.StatusCode, imageName, sumType, sum), res)
 }
 
@@ -278,7 +279,9 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
+
+	// All 2xx and 3xx responses can be accepted for a put.
+	if res.StatusCode >= 400 {
 		if res.StatusCode == 401 {
 			return errLoginRequired
 		}
