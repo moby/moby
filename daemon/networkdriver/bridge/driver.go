@@ -150,6 +150,21 @@ func InitDriver(job *engine.Job) engine.Status {
 			}
 		}
 
+		// a bridge might exist but not have any IPv6 addr associated with it yet
+		// (for example, an existing Docker installation that has only been used
+		// with IPv4 and docker0 already is set up) In that case, we can perform
+		// the bridge init for IPv6 here, else we will error out below if --ipv6=true
+		if len(addrsv6) == 0 && enableIPv6 {
+			if err := setupIPv6Bridge(bridgeIPv6); err != nil {
+				return job.Error(err)
+			}
+			// recheck addresses now that IPv6 is setup on the bridge
+			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)
+			if err != nil {
+				return job.Error(err)
+			}
+		}
+
 		// TODO: Check if route to fixedCIDRv6 is set
 	}
 
@@ -401,26 +416,38 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 	}
 
 	if enableIPv6 {
-		// Enable IPv6 on the bridge
-		procFile := "/proc/sys/net/ipv6/conf/" + iface.Name + "/disable_ipv6"
-		if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
-			return fmt.Errorf("unable to enable IPv6 addresses on bridge: %s\n", err)
-		}
-
-		ipAddr6, ipNet6, err := net.ParseCIDR(bridgeIPv6)
-		if err != nil {
-			log.Errorf("BridgeIPv6 parsing failed")
+		if err := setupIPv6Bridge(bridgeIPv6); err != nil {
 			return err
-		}
-
-		if err := netlink.NetworkLinkAddIp(iface, ipAddr6, ipNet6); err != nil {
-			return fmt.Errorf("Unable to add private IPv6 network: %s", err)
 		}
 	}
 
 	if err := netlink.NetworkLinkUp(iface); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
+	return nil
+}
+
+func setupIPv6Bridge(bridgeIPv6 string) error {
+
+	iface, err := net.InterfaceByName(bridgeIface)
+	if err != nil {
+		return err
+	}
+	// Enable IPv6 on the bridge
+	procFile := "/proc/sys/net/ipv6/conf/" + iface.Name + "/disable_ipv6"
+	if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
+		return fmt.Errorf("Unable to enable IPv6 addresses on bridge: %v", err)
+	}
+
+	ipAddr6, ipNet6, err := net.ParseCIDR(bridgeIPv6)
+	if err != nil {
+		return fmt.Errorf("Unable to parse bridge IPv6 address: %q, error: %v", bridgeIPv6, err)
+	}
+
+	if err := netlink.NetworkLinkAddIp(iface, ipAddr6, ipNet6); err != nil {
+		return fmt.Errorf("Unable to add private IPv6 network: %v", err)
+	}
+
 	return nil
 }
 

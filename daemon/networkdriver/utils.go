@@ -74,7 +74,7 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	return netIP.Mask(network.Mask), net.IP(lastIP)
 }
 
-// Return the IPv4 address of a network interface
+// Return the first IPv4 address and slice of IPv6 addresses for the specified network interface
 func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
