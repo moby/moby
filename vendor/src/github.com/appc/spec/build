@@ -1,0 +1,24 @@
+#!/bin/bash -e
+
+ORG_PATH="github.com/appc"
+REPO_PATH="${ORG_PATH}/spec"
+
+if [ ! -h gopath/src/${REPO_PATH} ]; then
+	mkdir -p gopath/src/${ORG_PATH}
+	ln -s ../../../.. gopath/src/${REPO_PATH} || exit 255
+fi
+
+export GOBIN=${PWD}/bin
+export GOPATH=${PWD}/gopath
+
+eval $(go env)
+
+echo "Building actool..."
+go build -o $GOBIN/actool ${REPO_PATH}/actool
+
+if ! [[ -d "$(go env GOROOT)/pkg/linux_amd64" ]]; then
+	echo "go linux/amd64 not bootstrapped, not building ACE validator"
+else
+	echo "Building ACE validator..."
+	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o $GOBIN/ace-validator ${REPO_PATH}/ace
+fi

@@ -1,0 +1,59 @@
+{
+    "acVersion": "0.3.0",
+    "acKind": "ContainerRuntimeManifest",
+    "uuid": "6733C088-A507-4694-AABF-EDBE4FC5266F",
+    "apps": [
+        {
+            "app": "example.com/reduce-worker",
+            "imageID": "sha512-..."
+        },
+        {
+            "app": "example.com/worker-backup",
+            "mounts": [
+                {"volume": "database", "mountPoint": "db"},
+                {"volume": "buildoutput", "mountPoint": "out"}
+            ],
+            "imageID": "sha512-...",
+            "isolators": [
+                {
+                    "name": "memory/limit",
+                    "value": "1G"
+                }
+            ],
+            "annotations": [
+                {
+                    "name": "foo",
+                    "value": "baz"
+                }
+            ]
+        },
+        {
+            "app": "example.com/reduce-worker-register",
+            "imageID": "sha512-..."
+        }
+    ],
+    "volumes": [
+        {
+            "name": "database",
+            "kind": "host",
+            "source": "/opt/tenant1/database",
+            "readOnly": true
+        },
+        {
+            "name": "buildoutput",
+            "kind": "empty"
+        }
+    ],
+    "isolators": [
+        {
+            "name": "memory/limit",
+            "value": "4G"
+        }
+    ],
+    "annotations": [
+        {
+            "name": "ip-address",
+            "value": "10.1.2.3"
+        }
+    ]
+}
