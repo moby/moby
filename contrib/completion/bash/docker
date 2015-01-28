@@ -1151,6 +1151,7 @@ _docker() {
 		--dns
 		--dns-search
 		--exec-driver -e
+		--exec-opt
 		--fixed-cidr
 		--fixed-cidr-v6
 		--graph -g

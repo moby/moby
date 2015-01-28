@@ -452,6 +452,27 @@ https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
 not where the primary development of new functionality is taking place.
 Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
 
+#### Exec driver options
+
+Particular exec-driver can be configured with options specified with
+`--exec-opt` flags. The only driver accepting options is `native`
+(libcontainer) as of now. All its options are prefixed with `native`.
+
+Currently supported options are:
+
+ *  `native.cgroupdriver`
+
+    Specifies the management of the container's cgroups. As of now the only
+    viable options are `cgroupfs` and `systemd`. The option will always
+    fallback to `cgroupfs`. By default, if no option is specified, the
+    execdriver will try `systemd` and fallback to `cgroupfs`. Same applies if
+    `systemd` is passed as the `cgroupdriver` but is not capable of being used.
+
+    Example use:
+
+        $ sudo docker -d --exec-opt native.cgroupdriver=cgroupfs
+
+
 
 ### Daemon DNS options
 

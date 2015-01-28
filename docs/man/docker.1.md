@@ -124,6 +124,9 @@ unix://[/path/to/socket] to use.
 **-v**, **--version**=*true*|*false*
   Print version information and quit. Default is false.
 
+**--exec-opt**=[]
+  Set exec driver options. See EXEC DRIVER OPTIONS.
+
 **--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
@@ -318,6 +321,18 @@ for data and metadata:
       --storage-opt dm.datadev=/dev/vdb \
       --storage-opt dm.metadatadev=/dev/vdc \
       --storage-opt dm.basesize=20G
+
+# EXEC DRIVER OPTIONS
+
+Options to the exec-driver can be specified with the **--exec-opt** flags. The
+only driver accepting options is the *native* (libcontainer) driver. Therefore
+use these flags with **-s=**native.
+
+The following is the only *native* option:
+
+#### native.cgroupdriver
+Specifies the management of the container's cgroups. As of now the only viable
+options are `cgroupfs` and `systemd`. The option will always fallback to `cgroupfs`.
 
 #### Client
 For specific client examples please see the man page for the specific Docker
