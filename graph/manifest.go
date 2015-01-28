@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
@@ -93,28 +92,33 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			}
 		}
 
-		archive, err := layer.TarLayer()
-		if err != nil {
-			return nil, err
+		checksum := layer.Checksum
+		if tarsum.VersionLabelForChecksum(checksum) != tarsum.Version1.String() {
+			archive, err := layer.TarLayer()
+			if err != nil {
+				return nil, err
+			}
+
+			tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version1)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
+				return nil, err
+			}
+
+			checksum = tarSum.Sum(nil)
 		}
 
-		tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version1)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
-			return nil, err
-		}
-
-		tarId := tarSum.Sum(nil)
-
-		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: tarId})
-
-		layersSeen[layer.ID] = true
-		jsonData, err := ioutil.ReadFile(path.Join(s.graph.Root, layer.ID, "json"))
+		jsonData, err := layer.RawJson()
 		if err != nil {
 			return nil, fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err)
 		}
+
+		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: checksum})
+
+		layersSeen[layer.ID] = true
+
 		manifest.History = append(manifest.History, &registry.ManifestHistory{V1Compatibility: string(jsonData)})
 	}
 
