@@ -222,7 +222,7 @@ made through a pull request.
 		[Org.Operators.infrastructure]
 
 			people = [
-				"jess",
+				"jfrazelle",
 				"crosbymichael"
 			]
 
@@ -387,99 +387,104 @@ made through a pull request.
 	[people.aanand]
 	Name = "Aanand Prasad"
 	Email = "aanand@docker.com"
-	Github = "aanand"
+	GitHub = "aanand"
 
 	[people.aluzzardi]
 	Name = "Andrea Luzzardi"
 	Email = "aluzzardi@docker.com"
-	Github = "aluzzardi"
+	GitHub = "aluzzardi"
 
 	[people.bfirsh]
 	Name = "Ben Firshman"
 	Email = "ben@firshman.co.uk"
-	Github = "bfirsh"
+	GitHub = "bfirsh"
 
 	[people.ehazlett]
 	Name = "Evan Hazlett"
 	Email = "ejhazlett@gmail.com"
-	Github = "ehazlett"
+	GitHub = "ehazlett"
 
 	[people.erikh]
 	Name = "Erik Hollensbe"
 	Email = "erik@docker.com"
-	Github = "erikh"
+	GitHub = "erikh"
 
 	[people.erw]
 	Name = "Eric Windisch"
 	Email = "eric@windisch.us"
-	Github = "ewindisch"
+	GitHub = "ewindisch"
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"
 	Email = "arnaud@docker.com"
-	Github = "icecrime"
+	GitHub = "icecrime"
 
 	[people.jfrazelle]
 	Name = "Jessie Frazelle"
 	Email = "jess@docker.com"
-	Github = "jfrazelle"
+	GitHub = "jfrazelle"
 
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
-	Github = "lk4d4"
+	GitHub = "lk4d4"
 
 	[people.shykes]
 	Name = "Solomon Hykes"
 	Email = "solomon@docker.com"
-	Github = "shykes"
-
+	GitHub = "shykes"
+    
+	[people.spf13]
+	Name = "Steve Francia"
+	Email = "steve.francia@gmail.com"
+	GitHub = "spf13"
+	
 	[people.sven]
 	Name = "Sven Dowideit"
 	Email = "SvenDowideit@home.org.au"
 	GitHub = "SvenDowideit"
 
+	[people.tianon]
+	Name = "Tianon Gravi"
+	Email = "admwiggin@gmail.com"
+	GitHub = "tianon"
+
 	[people.tibor]
 	Name = "Tibor Vass"
 	Email = "tibor@docker.com"
-	Github = "tiborvass"
+	GitHub = "tiborvass"
 
 	[people.vbatts]
 	Name = "Vincent Batts"
 	Email = "vbatts@redhat.com"
-	Github = "vbatts"
+	GitHub = "vbatts"
 
 	[people.vieux]
 	Name = "Victor Vieux"
 	Email = "vieux@docker.com"
-	Github = "vieux"
+	GitHub = "vieux"
 
 	[people.vmarmol]
 	Name = "Victor Marmol"
 	Email = "vmarmol@google.com"
-	Github = "vmarmol"
+	GitHub = "vmarmol"
 
 	[people.jnagal]
 	Name = "Rohit Jnagal"
 	Email = "jnagal@google.com"
-	Github = "rjnagal"
+	GitHub = "rjnagal"
 
 	[people.mpatel]
 	Name = "Mrunal Patel"
 	Email = "mpatel@redhat.com"
-	Github = "mrunalp"
+	GitHub = "mrunalp"
 
 	[people.unclejack]
 	Name = "Cristian Staretu"
 	Email = "cristian.staretu@gmail.com"
-	Github = "unclejack"
+	GitHub = "unclejack"
 
 	[people.vish]
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
-	Github = "vishh"
-
-	[people.spf13]
-	Name = "Steve Francia"
-	Email = "steve.francia@gmail.com"
-	Github = "spf13"
+	GitHub = "vishh"
