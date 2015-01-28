@@ -278,6 +278,10 @@ Webhooks are available under the Settings menu of each Repository.
 > **Note:** If you want to test your webhook out we recommend using
 > a tool like [requestb.in](http://requestb.in/).
 
+> **Note**: The Docker Hub servers are currently in the IP range
+> `162.242.195.64 - 162.242.195.127`, so you can restrict your webhooks to
+> accept webhook requests from that set of IP addresses.
+
 ### Webhook chains
 
 Webhook chains allow you to chain calls to multiple services. For example,
