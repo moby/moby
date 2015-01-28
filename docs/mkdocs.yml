@@ -86,6 +86,7 @@ pages:
 - ['articles/networking.md', 'Articles', 'Advanced networking']
 - ['articles/security.md', 'Articles', 'Security']
 - ['articles/https.md', 'Articles', 'Running Docker with HTTPS']
+- ['articles/registry_mirror.md', 'Articles', 'Run a local registry mirror']
 - ['articles/host_integration.md', 'Articles', 'Automatically starting containers']
 - ['articles/baseimages.md', 'Articles', 'Creating a base image']
 - ['articles/dockerfile_best-practices.md', 'Articles', 'Best practices for writing Dockerfiles']
