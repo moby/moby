@@ -12,8 +12,8 @@ fi
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
-DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
-DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
+export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
+export DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	( set -x; exec \
