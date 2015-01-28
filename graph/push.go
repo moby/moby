@@ -322,16 +322,6 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 			return fmt.Errorf("Failed to parse json: %s", err)
 		}
 
-		img, err = s.graph.Get(img.ID)
-		if err != nil {
-			return err
-		}
-
-		arch, err := img.TarLayer()
-		if err != nil {
-			return fmt.Errorf("Could not get tar layer: %s", err)
-		}
-
 		// Call mount blob
 		exists, err := r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, auth)
 		if err != nil {
@@ -340,12 +330,9 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 		}
 
 		if !exists {
-			err = r.PutV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, utils.ProgressReader(arch, int(img.Size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth)
-			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+			if err := s.PushV2Image(r, img, endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, sf, out, auth); err != nil {
 				return err
 			}
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
 		} else {
 			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image already exists", nil))
 		}
@@ -353,6 +340,43 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 
 	// push the manifest
 	return r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth)
+}
+
+// PushV2Image pushes the image content to the v2 registry, first buffering the contents to disk
+func (s *TagStore) PushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName, sumType, sumStr string, sf *utils.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) error {
+	out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Buffering to Disk", nil))
+
+	image, err := s.graph.Get(img.ID)
+	if err != nil {
+		return err
+	}
+	arch, err := image.TarLayer()
+	if err != nil {
+		return err
+	}
+	tf, err := s.graph.newTempFile()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		tf.Close()
+		os.Remove(tf.Name())
+	}()
+
+	size, err := bufferToFile(tf, arch)
+	if err != nil {
+		return err
+	}
+
+	// Send the layer
+	log.Debugf("rendered layer for %s of [%d] size", img.ID, size)
+
+	if err := r.PutV2ImageBlob(endpoint, imageName, sumType, sumStr, utils.ProgressReader(tf, int(size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth); err != nil {
+		out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+		return err
+	}
+	out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
+	return nil
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
