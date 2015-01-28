@@ -30,7 +30,8 @@ func TestWriteLog(t *testing.T) {
 	if len(lines) != 30 {
 		t.Fatalf("Must be 30 lines but got %d", len(lines))
 	}
-	logRe := regexp.MustCompile(`\[.*\] Line that thinks that it is log line from docker`)
+	// 30+ symbols, five more can come from system timezone
+	logRe := regexp.MustCompile(`.{30,} Line that thinks that it is log line from docker`)
 	for _, l := range lines {
 		if !logRe.MatchString(l) {
 			t.Fatalf("Log line not in expected format: %q", l)
