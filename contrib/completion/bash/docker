@@ -789,6 +789,10 @@ _docker_start() {
 	esac
 }
 
+_docker_stats() {
+	__docker_containers_running
+}
+
 _docker_stop() {
 	case "$prev" in
 		--time|-t)
@@ -886,6 +890,7 @@ _docker() {
 		save
 		search
 		start
+		stats
 		stop
 		tag
 		top
