@@ -433,7 +433,7 @@ To assign globally routable IPv6 addresses to your containers you have to
 specify an IPv6 subnet to pick the addresses from. Set the IPv6 subnet via the
 `--fixed-cidr-v6` parameter when starting Docker daemon:
 
-    docker -d --ipv6 --fixed-cidr-v6="2001:db8:0:2:/64"
+    docker -d --ipv6 --fixed-cidr-v6="2001:db8:0:2::/64"
 
 The subnet for Docker containers should at least have a size of `/80`. This way
 an IPv6 address can end with the container's MAC address and you prevent NDP
@@ -443,11 +443,11 @@ With the `--fixed-cidr-v6` parameter set Docker will add a new route to the
 routing table. Further IPv6 routing will be enabled (you may prevent this by
 starting Docker daemon with `--ip-forward=false`):
 
-    $ route -A inet6 add 2001:db8:0:2/64 dev docker0
+    $ route -A inet6 add 2001:db8:0:2::/64 dev docker0
     $ echo 1 > /proc/sys/net/ipv6/conf/default/forwarding
     $ echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
 
-All traffic to the subnet `2001:db8:0:2/64` will now be routed
+All traffic to the subnet `2001:db8:0:2::/64` will now be routed
 via the `docker0` interface.
 
 Be aware that IPv6 forwarding may interfere with your existing IPv6
