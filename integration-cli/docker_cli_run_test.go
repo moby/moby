@@ -1753,6 +1753,23 @@ func TestRunAttachStdOutAndErrTTYMode(t *testing.T) {
 	logDone("run - Attach stderr and stdout with -t")
 }
 
+// Test for #10388 - this will run the same test as TestRunAttachStdOutAndErrTTYMode
+// but using --attach instead of -a to make sure we read the flag correctly
+func TestRunAttachWithDettach(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true")
+
+	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
+	if err == nil {
+		t.Fatalf("Container should have exited with error code different than 0", err)
+	} else if !strings.Contains(stderr, "Conflicting options: -a and -d") {
+		t.Fatalf("Should have been returned an error with conflicting options -a and -d")
+	}
+
+	logDone("run - Attach stdout with -d")
+}
+
 func TestRunState(t *testing.T) {
 	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
