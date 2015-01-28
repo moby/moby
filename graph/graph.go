@@ -223,6 +223,28 @@ func (graph *Graph) Mktemp(id string) (string, error) {
 	return dir, nil
 }
 
+func (graph *Graph) newTempFile() (*os.File, error) {
+	tmp, err := graph.Mktemp("")
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.TempFile(tmp, "")
+}
+
+func bufferToFile(f *os.File, src io.Reader) (int64, error) {
+	n, err := io.Copy(f, src)
+	if err != nil {
+		return n, err
+	}
+	if err = f.Sync(); err != nil {
+		return n, err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return n, err
+	}
+	return n, nil
+}
+
 // setupInitLayer populates a directory with mountpoints suitable
 // for bind-mounting dockerinit into the container. The mountpoint is simply an
 // empty file at /.dockerinit
