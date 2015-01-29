@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 	"github.com/kr/pty"
 )
 
@@ -122,12 +121,7 @@ func TestRunDetach(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -177,12 +171,7 @@ func TestAttachDetach(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	ch := make(chan struct{})
@@ -219,7 +208,7 @@ func TestAttachDetach(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cli = client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli = client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 
 	ch = make(chan struct{})
 	go func() {
@@ -270,12 +259,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	// Discard the CmdRun output
@@ -297,7 +281,7 @@ func TestAttachDetachTruncatedID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cli = client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli = client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 
 	ch := make(chan struct{})
 	go func() {
@@ -347,12 +331,7 @@ func TestAttachDisconnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	go func() {
@@ -421,11 +400,8 @@ func TestAttachDisconnect(t *testing.T) {
 func TestRunAutoRemove(t *testing.T) {
 	t.Skip("Fixme. Skipping test for now, race condition")
 	stdout, stdoutPipe := io.Pipe()
-	key, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, key, testDaemonProto, testDaemonAddr, nil)
+
+	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
 	defer cleanup(globalEngine, t)
 
 	c := make(chan struct{})

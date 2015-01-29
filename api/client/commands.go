@@ -1191,6 +1191,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	name := cmd.Arg(0)
 
 	cli.LoadConfigFile()
+	trustKey, err := api.LoadOrCreateTrustKey(cli.keyFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	remote, tag := parsers.ParseRepositoryTag(name)
 
@@ -1225,7 +1229,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	if err != nil {
 		return err
 	}
-	err = js.Sign(cli.key)
+	err = js.Sign(trustKey)
 	if err != nil {
 		return err
 	}
