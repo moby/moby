@@ -150,7 +150,7 @@ func (s *TagStore) pushImageToEndpoint(endpoint string, out io.Writer, remoteNam
 	// wait for all the images that require pushes to be collected into a consumable map.
 	shouldPush := <-pushes
 	// finish by pushing any images and tags to the endpoint.  The order that the images are pushed
-	// is very important that is why we are still itterating over the ordered list of imageIDs.
+	// is very important that is why we are still iterating over the ordered list of imageIDs.
 	for _, id := range imageIDs {
 		if _, push := shouldPush[id]; push {
 			if _, err := s.pushImage(r, out, id, endpoint, repo.Tokens, sf); err != nil {
