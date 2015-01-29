@@ -801,10 +801,6 @@ div + .form-inline {
   transition: box-shadow linear 0.2s, background linear 0.3s, width linear 0.3s;
   width: 140px;
 }
-#topmostnav .navbar-index-search .search-query:focus,
-#topmostnav .navbar-index-search .search-query.focused {
-  width: 200px;
-}
 #topmostnav.public {
   border-bottom: none;
   height: 80px;
