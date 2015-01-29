@@ -167,8 +167,9 @@ host. You might be asking about now: why wouldn't we just want to always
 use 1:1 port mappings in Docker containers rather than mapping to high
 ports? Well 1:1 mappings have the constraint of only being able to map
 one of each port on your local host. Let's say you want to test two
-Python applications: both bound to port 5000 inside your container.
-Without Docker's port mapping you could only access one at a time.
+Python applications: both bound to port 5000 inside their own containers.
+Without Docker's port mapping you could only access one at a time on the
+Docker host.
 
 So let's now browse to port 49155 in a web browser to
 see the application.
