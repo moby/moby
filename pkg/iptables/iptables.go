@@ -260,10 +260,22 @@ func Exists(args ...string) bool {
 	// because MASQUERADE rule will not be exactly what was passed
 	re := regexp.MustCompile(`[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}`)
 
-	return strings.Contains(
-		re.ReplaceAllString(string(existingRules), "?"),
-		re.ReplaceAllString(rule, "?"),
-	)
+	// make sure a rule contains IPs can be exactly matched in "iptables-save"
+	// get IP address in rule, then get the network from the IP address
+	addr := re.FindString(rule)
+	if _, netmaskAddr, err := net.ParseCIDR(addr); err == nil {
+		// use the network to substitute the IP in the rule
+		// and search it in "iptables-save"
+		return strings.Contains(
+			string(existingRules),
+			re.ReplaceAllString(rule, netmaskAddr.String()),
+		)
+	} else {
+		return strings.Contains(
+			re.ReplaceAllString(string(existingRules), "?"),
+			re.ReplaceAllString(rule, "?"),
+		)
+	}
 }
 
 // Call 'iptables' system command, passing supplied arguments
