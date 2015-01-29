@@ -195,7 +195,7 @@ or
 
 **WORKDIR**
  -- **WORKDIR /path/to/workdir**
- The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, and **ENTRYPOINT** Dockerfile commands that follow it.
+ The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, **ENTRYPOINT**, **COPY** and **ADD** Dockerfile commands that follow it.
  It can be used multiple times in a single Dockerfile. Relative paths are defined relative to the path of the previous **WORKDIR** instruction. For example:
  **WORKDIR /a WORKDIR b WORKDIR c RUN pwd** 
  In the above example, the output of the **pwd** command is **a/b/c**.
