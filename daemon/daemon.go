@@ -820,7 +820,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if os.Geteuid() != 0 {
 		return nil, fmt.Errorf("The Docker daemon needs to be run as root")
 	}
-	if err := checkKernelAndArch(); err != nil {
+	if err := checkKernel(); err != nil {
 		return nil, err
 	}
 
@@ -1205,11 +1205,7 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 	return match, nil
 }
 
-func checkKernelAndArch() error {
-	// Check for unsupported architectures
-	if runtime.GOARCH != "amd64" {
-		return fmt.Errorf("The Docker runtime currently only supports amd64 (not %s). This will change in the future. Aborting.", runtime.GOARCH)
-	}
+func checkKernel() error {
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather
 	// test for specific functionalities.
