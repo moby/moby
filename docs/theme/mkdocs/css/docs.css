@@ -59,7 +59,7 @@ pre {
 
 /* Main Navigation */
 #nav_menu > #docsnav {
-  max-width: 940px;
+  width: 940px;
   margin: 0 auto;
 }
 #nav_menu > #docsnav > #nav_search {
@@ -103,6 +103,7 @@ pre {
   background: #E8E8E8;
   position: relative;
   width: 100%;
+  min-width: 960px;
   height: 54px;
   z-index: 1000;
   top: auto;
@@ -319,6 +320,35 @@ pre {
 
 .content-body strong {
   font-weight: bold;
+}
+
+@media (max-width: 767px) {
+  #leftnav {
+    display: none !important;
+  }
+
+  .content-body {
+    padding: 0;
+  }
+
+  #content {
+    width: 100%;
+  }
+
+  #content .row {
+    margin: 0;
+    padding: 0 15px;
+  }
+
+  #content [class*="span"] {
+    display: block;
+    float: none;
+    width: 100%;
+    margin-left: 0;
+    -webkit-box-sizing: border-box;
+       -moz-box-sizing: border-box;
+            box-sizing: border-box;
+  }
 }
 
 #leftnav .nav.nav-tabs li a {
