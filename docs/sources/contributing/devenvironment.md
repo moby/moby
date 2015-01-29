@@ -10,6 +10,12 @@ used for all tests, builds and releases. The standard development
 environment defines all build dependencies: system libraries and
 binaries, go environment, go dependencies, etc.
 
+**Things you need:**
+
+ * Docker
+ * git
+ * make
+
 ## Install Docker
 
 Docker's build environment itself is a Docker container, so the first
@@ -43,18 +49,18 @@ with the name of branch or revision number.
 This following command builds a development environment using the
 `Dockerfile` in the current directory. Essentially, it installs all
 the build and runtime dependencies necessary to build and test Docker.
-Your first build will take some time to complete. On Linux systems:
-
-    $ sudo make build
-    
-On Mac OS X, from within the `boot2docker` shell:
+Your first build will take some time to complete. On Linux systems and on Mac
+OS X from within the `boot2docker` shell:
 
     $ make build
-
+    
 > **Note**:
 > On Mac OS X, the Docker make targets such as `build`, `binary`, and `test`
 > should **not** be built by the 'root' user. Therefore, you shouldn't use `sudo` when 
-> running these commands on OS X. 
+> running these commands on OS X.
+> On Linux, we suggest you add your current user to the `docker` group via
+> [these
+> instructions](http://docs.docker.com/installation/ubuntulinux/#giving-non-root-access).
 
 If the build is successful, congratulations! You have produced a clean
 build of docker, neatly encapsulated in a standard build environment.
@@ -64,13 +70,13 @@ build of docker, neatly encapsulated in a standard build environment.
 
 To create the Docker binary, run this command:
 
-    $ sudo make binary
+    $ make binary
 
 This will create the Docker binary in `./bundles/<version>-dev/binary/`. If you
 do not see files in the `./bundles` directory in your host, your `BINDDIR`
 setting is not set quite right. You want to run the following command: 
     
-    $ sudo make BINDDIR=. binary 
+    $ make BINDDIR=. binary 
 
 If you are on a non-Linux platform, e.g., OSX, you'll want to run `make cross`
 or `make BINDDIR=. cross`.
@@ -91,7 +97,7 @@ on ubuntu:
 
 To execute the test cases, run this command:
 
-    $ sudo make test
+    $ make test
 
 If the test are successful then the tail of the output should look
 something like this
@@ -138,7 +144,7 @@ is recommended.
 
 You can run an interactive session in the newly built container:
 
-    $ sudo make shell
+    $ make shell
 
     # type 'exit' or Ctrl-D to exit
 
@@ -148,7 +154,7 @@ If you want to read the documentation from a local website, or are
 making changes to it, you can build the documentation and then serve it
 by:
 
-    $ sudo make docs
+    $ make docs
     
     # when its done, you can point your browser to http://yourdockerhost:8000
     # type Ctrl-C to exit
