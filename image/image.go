@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -80,48 +79,15 @@ func LoadImage(root string) (*Image, error) {
 
 // StoreImage stores file system layer data for the given image to the
 // image's registered storage driver. Image metadata is stored in a file
-// at the specified root directory. This function also computes a checksum
-// of `layerData` if the image does not have one already.
-func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error {
-	// Store the layer
-	var (
-		size        int64
-		err         error
-		driver      = img.graph.Driver()
-		layerTarSum tarsum.TarSum
-	)
-
-	// If layerData is not nil, unpack it into the new layer
+// at the specified root directory.
+func StoreImage(img *Image, layerData archive.ArchiveReader, root string) (err error) {
+	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		// If the image doesn't have a checksum, we should add it. The layer
-		// checksums are verified when they are pulled from a remote, but when
-		// a container is committed it should be added here. Also ensure that
-		// the stored checksum has the latest version of tarsum (assuming we
-		// are using tarsum).
-		if tarsum.VersionLabelForChecksum(img.Checksum) != tarsum.Version1.String() {
-			// Either there was no checksum or it's not a tarsum.v1
-			layerDataDecompressed, err := archive.DecompressStream(layerData)
-			if err != nil {
-				return err
-			}
-			defer layerDataDecompressed.Close()
-
-			if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.Version1); err != nil {
-				return err
-			}
-
-			if size, err = driver.ApplyDiff(img.ID, img.Parent, layerTarSum); err != nil {
-				return err
-			}
-
-			img.Checksum = layerTarSum.Sum(nil)
-		} else if size, err = driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+		if img.Size, err = img.graph.Driver().ApplyDiff(img.ID, img.Parent, layerData); err != nil {
 			return err
 		}
-
 	}
 
-	img.Size = size
 	if err := img.SaveSize(root); err != nil {
 		return err
 	}
