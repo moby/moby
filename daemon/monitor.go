@@ -168,12 +168,10 @@ func (m *containerMonitor) Start() error {
 			// we need to check this before reentering the loop because the waitForNextRestart could have
 			// been terminated by a request from a user
 			if m.shouldStop {
-				m.container.ExitCode = exitStatus.ExitCode
 				return err
 			}
 			continue
 		}
-		m.container.ExitCode = exitStatus.ExitCode
 		if exitStatus.OOMKilled {
 			m.container.LogEvent("oom")
 		}
