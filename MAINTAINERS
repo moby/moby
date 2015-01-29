@@ -375,6 +375,14 @@ made through a pull request.
 				"aanand"
 			]
 
+		[Org.Subsystem.builder]
+
+			people = [
+				"erikh",
+				"tibor",
+				"duglin"
+			]
+
 
 [people]
 
@@ -398,6 +406,11 @@ made through a pull request.
 	Name = "Ben Firshman"
 	Email = "ben@firshman.co.uk"
 	Github = "bfirsh"
+
+	[people.duglin]
+	Name = "Doug Davis"
+	Email = "dug@us.ibm.com"
+	Github = "duglin"
 
 	[people.ehazlett]
 	Name = "Evan Hazlett"
