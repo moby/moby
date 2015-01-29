@@ -60,6 +60,7 @@ pre {
 /* Main Navigation */
 #nav_menu > #docsnav {
   max-width: 940px;
+  width: 940px;
   margin: 0 auto;
 }
 #nav_menu > #docsnav > #nav_search {
