@@ -623,3 +623,59 @@ func TestRunExecDir(t *testing.T) {
 
 	logDone("run - check execdriver dir behavior")
 }
+
+func TestRunMutableNetworkFiles(t *testing.T) {
+	defer deleteAllContainers()
+
+	for _, fn := range []string{"resolv.conf", "hosts"} {
+		deleteAllContainers()
+
+		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if strings.TrimSpace(string(content)) != "success" {
+			t.Fatal("Content was not what was modified in the container", string(content))
+		}
+
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "top"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		contID := strings.TrimSpace(out)
+
+		netFilePath := containerStorageFile(contID, fn)
+
+		f, err := os.OpenFile(netFilePath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := f.Seek(0, 0); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		if err := f.Truncate(0); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		if _, err := f.Write([]byte("success2\n")); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+
+		res, err := exec.Command(dockerBinary, "exec", contID, "cat", "/etc/"+fn).CombinedOutput()
+		if err != nil {
+			t.Fatalf("Output: %s, error: %s", res, err)
+		}
+		if string(res) != "success2\n" {
+			t.Fatalf("Expected content of %s: %q, got: %q", fn, "success2\n", res)
+		}
+	}
+	logDone("run - mutable network files")
+}
