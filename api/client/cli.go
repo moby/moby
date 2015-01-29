@@ -17,7 +17,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 )
 
 type DockerCli struct {
@@ -27,7 +26,7 @@ type DockerCli struct {
 	in         io.ReadCloser
 	out        io.Writer
 	err        io.Writer
-	key        libtrust.PrivateKey
+	keyFile    string
 	tlsConfig  *tls.Config
 	scheme     string
 	// inFd holds file descriptor of the client's STDIN, if it's a valid file
@@ -122,7 +121,7 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey, proto, addr string, tlsConfig *tls.Config) *DockerCli {
+func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, addr string, tlsConfig *tls.Config) *DockerCli {
 	var (
 		inFd          uintptr
 		outFd         uintptr
@@ -177,7 +176,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, key libtrust.PrivateKey,
 		in:            in,
 		out:           out,
 		err:           err,
-		key:           key,
+		keyFile:       keyFile,
 		inFd:          inFd,
 		outFd:         outFd,
 		isTerminalIn:  isTerminalIn,
