@@ -79,11 +79,6 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
-	trustKey, err := api.LoadOrCreateTrustKey(*flTrustKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	var (
 		cli       *client.DockerCli
 		tlsConfig tls.Config
@@ -125,9 +120,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, trustKey, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
