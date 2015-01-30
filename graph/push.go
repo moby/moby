@@ -2,6 +2,7 @@ package graph
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,6 +18,8 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
+
+var ErrV2RegistryUnavailable = errors.New("error v2 registry unavailable")
 
 // Retrieve the all the images to be uploaded in the correct order
 func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string) ([]string, map[string][]string, error) {
@@ -261,6 +264,10 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 
 	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
 	if err != nil {
+		if repoInfo.Index.Official {
+			log.Infof("Unable to push to V2 registry, falling back to v1: %s", err)
+			return ErrV2RegistryUnavailable
+		}
 		return fmt.Errorf("error getting registry endpoint: %s", err)
 	}
 	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, false)
@@ -428,8 +435,9 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 			return engine.StatusOK
 		}
 
-		// error out, no fallback to V1
-		return job.Errorf("Error pushing to registry: %s", err)
+		if err != ErrV2RegistryUnavailable {
+			return job.Errorf("Error pushing to registry: %s", err)
+		}
 	}
 
 	if err != nil {
