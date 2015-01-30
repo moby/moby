@@ -31,7 +31,6 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
-	Checksum        string            `json:"checksum"`
 	Size            int64
 
 	graph Graph

@@ -151,7 +151,6 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		out.Set("Os", image.OS)
 		out.SetInt64("Size", image.Size)
 		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-		out.Set("Checksum", image.Checksum)
 		if _, err = out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}
