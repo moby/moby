@@ -25,7 +25,6 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 		"import":         s.CmdImport,
 		"pull":           s.CmdPull,
 		"push":           s.CmdPush,
-		"image_manifest": s.CmdManifest,
 	} {
 		if err := eng.Register(name, handler); err != nil {
 			return fmt.Errorf("Could not register %q: %v", name, err)

@@ -65,6 +65,25 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 	return imageList, tagsByImage, nil
 }
 
+func (s *TagStore) getImageTags(localName, askedTag string) ([]string, error) {
+	localRepo, err := s.Get(localName)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("Checking %s against %#v", askedTag, localRepo)
+	if len(askedTag) > 0 {
+		if _, ok := localRepo[askedTag]; !ok {
+			return nil, fmt.Errorf("Tag does not exist for %s:%s", localName, askedTag)
+		}
+		return []string{askedTag}, nil
+	}
+	var tags []string
+	for tag := range localRepo {
+		tags = append(tags, tag)
+	}
+	return tags, nil
+}
+
 // createImageIndex returns an index of an image's layer IDs and tags.
 func (s *TagStore) createImageIndex(images []string, tags map[string][]string) []*registry.ImgData {
 	var imageIndex []*registry.ImgData
@@ -251,7 +270,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	return imgData.Checksum, nil
 }
 
-func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out io.Writer, repoInfo *registry.RepositoryInfo, manifestBytes, tag string, sf *utils.StreamFormatter) error {
+func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter) error {
 	if repoInfo.Official {
 		j := eng.Job("trust_update_base")
 		if err := j.Run(); err != nil {
@@ -263,13 +282,22 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 	if err != nil {
 		return fmt.Errorf("error getting registry endpoint: %s", err)
 	}
+
+	tags, err := s.getImageTags(repoInfo.LocalName, tag)
+	if err != nil {
+		return err
+	}
+	if len(tags) == 0 {
+		return fmt.Errorf("No tags to push for %s", repoInfo.LocalName)
+	}
+
 	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, false)
 	if err != nil {
 		return fmt.Errorf("error getting authorization: %s", err)
 	}
 
-	// if no manifest is given, generate and sign with the key associated with the local tag store
-	if len(manifestBytes) == 0 {
+	for _, tag := range tags {
+		log.Debugf("Pushing %s:%s to v2 repository", repoInfo.LocalName, tag)
 		mBytes, err := s.newManifest(repoInfo.LocalName, repoInfo.RemoteName, tag)
 		if err != nil {
 			return err
@@ -287,63 +315,66 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 		if err != nil {
 			return err
 		}
-		log.Infof("Signed manifest using daemon's key: %s", s.trustKey.KeyID())
+		log.Infof("Signed manifest for %s:%s using daemon's key: %s", repoInfo.LocalName, tag, s.trustKey.KeyID())
 
-		manifestBytes = string(signedBody)
-	}
+		manifestBytes := string(signedBody)
 
-	manifest, verified, err := s.verifyManifest(eng, []byte(manifestBytes))
-	if err != nil {
-		return fmt.Errorf("error verifying manifest: %s", err)
-	}
-
-	if err := checkValidManifest(manifest); err != nil {
-		return fmt.Errorf("invalid manifest: %s", err)
-	}
-
-	if !verified {
-		log.Debugf("Pushing unverified image")
-	}
-
-	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
-		var (
-			sumStr  = manifest.FSLayers[i].BlobSum
-			imgJSON = []byte(manifest.History[i].V1Compatibility)
-		)
-
-		sumParts := strings.SplitN(sumStr, ":", 2)
-		if len(sumParts) < 2 {
-			return fmt.Errorf("Invalid checksum: %s", sumStr)
-		}
-		manifestSum := sumParts[1]
-
-		img, err := image.NewImgJSON(imgJSON)
+		manifest, verified, err := s.loadManifest(eng, signedBody)
 		if err != nil {
-			return fmt.Errorf("Failed to parse json: %s", err)
+			return fmt.Errorf("error verifying manifest: %s", err)
 		}
 
-		// Call mount blob
-		exists, err := r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, auth)
-		if err != nil {
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
-			return err
+		if err := checkValidManifest(manifest); err != nil {
+			return fmt.Errorf("invalid manifest: %s", err)
 		}
 
-		if !exists {
-			if err := s.PushV2Image(r, img, endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, sf, out, auth); err != nil {
+		if verified {
+			log.Infof("Pushing verified image, key %s is registered for %q", s.trustKey.KeyID(), repoInfo.RemoteName)
+		}
+
+		for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
+			var (
+				sumStr  = manifest.FSLayers[i].BlobSum
+				imgJSON = []byte(manifest.History[i].V1Compatibility)
+			)
+
+			sumParts := strings.SplitN(sumStr, ":", 2)
+			if len(sumParts) < 2 {
+				return fmt.Errorf("Invalid checksum: %s", sumStr)
+			}
+			manifestSum := sumParts[1]
+
+			img, err := image.NewImgJSON(imgJSON)
+			if err != nil {
+				return fmt.Errorf("Failed to parse json: %s", err)
+			}
+
+			// Call mount blob
+			exists, err := r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, auth)
+			if err != nil {
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
 				return err
 			}
-		} else {
-			out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image already exists", nil))
+
+			if !exists {
+				if err := s.pushV2Image(r, img, endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, sf, out, auth); err != nil {
+					return err
+				}
+			} else {
+				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image already exists", nil))
+			}
+		}
+
+		// push the manifest
+		if err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth); err != nil {
+			return err
 		}
 	}
-
-	// push the manifest
-	return r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader([]byte(manifestBytes)), auth)
+	return nil
 }
 
 // PushV2Image pushes the image content to the v2 registry, first buffering the contents to disk
-func (s *TagStore) PushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName, sumType, sumStr string, sf *utils.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) error {
+func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName, sumType, sumStr string, sf *utils.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) error {
 	out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Buffering to Disk", nil))
 
 	image, err := s.graph.Get(img.ID)
@@ -398,7 +429,6 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	}
 
 	tag := job.Getenv("tag")
-	manifestBytes := job.Getenv("manifest")
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
 
@@ -418,12 +448,8 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err2)
 	}
 
-	if len(tag) == 0 {
-		tag = DEFAULTTAG
-	}
-
 	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
-		err := s.pushV2Repository(r, job.Eng, job.Stdout, repoInfo, manifestBytes, tag, sf)
+		err := s.pushV2Repository(r, job.Eng, job.Stdout, repoInfo, tag, sf)
 		if err == nil {
 			return engine.StatusOK
 		}

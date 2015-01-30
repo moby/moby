@@ -15,35 +15,6 @@ import (
 	"github.com/docker/libtrust"
 )
 
-func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("usage: %s NAME", job.Name)
-	}
-	name := job.Args[0]
-	tag := job.Getenv("tag")
-	if tag == "" {
-		tag = "latest"
-	}
-
-	// Resolve the Repository name from fqn to endpoint + name
-	repoInfo, err := registry.ParseRepositoryInfo(name)
-	if err != nil {
-		return job.Error(err)
-	}
-
-	manifestBytes, err := s.newManifest(name, repoInfo.RemoteName, tag)
-	if err != nil {
-		return job.Error(err)
-	}
-
-	_, err = job.Stdout.Write(manifestBytes)
-	if err != nil {
-		return job.Error(err)
-	}
-
-	return engine.StatusOK
-}
-
 func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error) {
 	manifest := &registry.ManifestData{
 		Name:          remoteName,
@@ -130,7 +101,12 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 	return manifestBytes, nil
 }
 
-func (s *TagStore) verifyManifest(eng *engine.Engine, manifestBytes []byte) (*registry.ManifestData, bool, error) {
+// loadManifest loads a manifest from a byte array and verifies its content.
+// The signature must be verified or an error is returned. If the manifest
+// contains no signatures by a trusted key for the name in the manifest, the
+// image is not considered verified. The parsed manifest object and a boolean
+// for whether the manifest is verified is returned.
+func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte) (*registry.ManifestData, bool, error) {
 	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
 	if err != nil {
 		return nil, false, fmt.Errorf("error parsing payload: %s", err)
