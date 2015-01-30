@@ -97,6 +97,9 @@ run**.
 **--cidfile**=""
    Write the container ID to the file
 
+**--cpu-rt**=*true*|*false*
+   Allow processes within the container to run with real-time priority. The default is *false*.
+
 **--cpuset**=""
    CPUs in which to allow execution (0-3, 0,1)
 
