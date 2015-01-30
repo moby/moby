@@ -63,7 +63,10 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			}
 		}
 
-		checksum := layer.Checksum
+		checksum, err := layer.GetCheckSum(s.graph.ImageRoot(layer.ID))
+		if err != nil {
+			return nil, fmt.Errorf("Error getting image checksum: %s", err)
+		}
 		if tarsum.VersionLabelForChecksum(checksum) != tarsum.Version1.String() {
 			archive, err := layer.TarLayer()
 			if err != nil {
@@ -79,6 +82,11 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			}
 
 			checksum = tarSum.Sum(nil)
+
+			// Save checksum value
+			if err := layer.SaveCheckSum(s.graph.ImageRoot(layer.ID), checksum); err != nil {
+				return nil, err
+			}
 		}
 
 		jsonData, err := layer.RawJson()
