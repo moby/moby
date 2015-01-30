@@ -291,28 +291,22 @@ auto-extraction capability, you should always use `COPY`.
 
 ### [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
 
-The best use for `ENTRYPOINT` is as a helper script. Using `ENTRYPOINT` for
-other tasks can make your code harder to understand. For example,
+The best use for `ENTRYPOINT` is as the main command.
 
-....docker run -it official-image bash
+Let's start with an example, of an image for the cli tool `s3cmd`:
 
-is much easier to understand than
+    ENTRYPOINT ["s3cmd"]
+    CMD ["--help"]
 
-....docker run -it --entrypoint bash official-image -i
+Now people who consume this image can easily run commands via syntax like the
+following:
 
-This is especially true for new Docker users, who might naturally assume the
-above command will work fine. In cases where an image uses `ENTRYPOINT` for
-anything other than just a wrapper script, the command will fail and the
-beginning user will then be forced to learn about `ENTRYPOINT` and
-`--entrypoint`.
+    $ docker run scmd ls s3://mybucket
 
-In order to avoid a situation where commands are run without clear visibility
-to the user, make sure your script ends with something like `exec "$@"` (see
-[the exec builtin command](http://wiki.bash-hackers.org/commands/builtin/exec)).
-After the entrypoint completes, the script will transparently bootstrap the command
-invoked by the user, making what has been run clear to the user (for example,
-`docker run -it mysql mysqld --some --flags` will transparently run
-`mysqld --some --flags` after `ENTRYPOINT` runs `initdb`).
+This is nice because the image name can double as a refernce to the binary as
+shown in the command above.
+
+People also often use `ENTRYPOINT` is as a helper script.
 
 For example, let’s look at the `Dockerfile` for the
 [Postgres Official Image](https://github.com/docker-library/postgres).
