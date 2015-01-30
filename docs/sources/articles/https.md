@@ -150,11 +150,11 @@ need to provide your client keys, certificates and trusted CA:
 If you want to secure your Docker client connections by default, you can move
 the files to the `.docker` directory in your home directory -- and set the
 `DOCKER_HOST` and `DOCKER_TLS_VERIFY` variables as well (instead of passing
-`-H=tcp://:2376` and `--tlsverify` on every call).
+`-H=tcp://$HOST:2376` and `--tlsverify` on every call).
 
     $ mkdir -pv ~/.docker
     $ cp -v {ca,cert,key}.pem ~/.docker
-    $ export DOCKER_HOST=tcp://:2376 DOCKER_TLS_VERIFY=1
+    $ export DOCKER_HOST=tcp://$HOST:2376 DOCKER_TLS_VERIFY=1
 
 Docker will now connect securely by default:
 
