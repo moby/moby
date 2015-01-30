@@ -31,7 +31,6 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
-	Checksum        string            `json:"checksum"`
 	Size            int64
 
 	graph Graph
@@ -112,6 +111,24 @@ func (img *Image) SaveSize(root string) error {
 		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
 	}
 	return nil
+}
+
+func (img *Image) SaveCheckSum(root, checksum string) error {
+	if err := ioutil.WriteFile(path.Join(root, "checksum"), []byte(checksum), 0600); err != nil {
+		return fmt.Errorf("Error storing checksum in %s/checksum: %s", root, err)
+	}
+	return nil
+}
+
+func (img *Image) GetCheckSum(root string) (string, error) {
+	cs, err := ioutil.ReadFile(path.Join(root, "checksum"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(cs), err
 }
 
 func jsonPath(root string) string {
