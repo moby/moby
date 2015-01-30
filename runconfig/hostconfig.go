@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/syslog"
 	"github.com/docker/docker/utils"
 )
 
@@ -98,6 +99,12 @@ type RestartPolicy struct {
 	MaximumRetryCount int
 }
 
+type SyslogConfig struct {
+	Url      string
+	Priority syslog.Priority
+	Tag      string
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
@@ -119,6 +126,7 @@ type HostConfig struct {
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
 	ReadonlyRootfs  bool
+	SyslogConfig    *SyslogConfig
 }
 
 // This is used by the create command when you want to set both the
@@ -181,6 +189,7 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
 		hostConfig.CapDrop = CapDrop
 	}
+	job.GetenvJson("SyslogConfig", &hostConfig.SyslogConfig)
 
 	return hostConfig
 }

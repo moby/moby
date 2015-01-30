@@ -1350,6 +1350,9 @@ timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
 
+This command is useful when you need to peek into a running container.
+See `--syslog` option of `docker run` command for an advanced log collection.
+
 ## pause
 
     Usage: docker pause CONTAINER
@@ -1634,6 +1637,11 @@ removed before the image is removed.
       --rm=false                 Automatically remove the container when it exits (incompatible with -d)
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      --syslog=false             Send logs to the syslog server
+      --syslog-url=""            URL of syslog server (e.g., "tcp://log-server:514" or "udp://log-server:1234")
+      --syslog-facility="user"   Facility to use when sending log messages to the syslog
+      --syslog-severity="info"   Severity to use when sending log messages to the syslog
+      --syslog-tag=""            Tag to attach to log messages forwarded to the syslog
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
@@ -1780,6 +1788,20 @@ An example of a file passed with `--env-file`
 
 This will create and run a new container with the container name being
 `console`.
+
+    $ sudo docker run --syslog --syslog-tag MONGODB mongo:latest
+
+The `--syslog` flag will make Docker forward logs to the system's log server
+in addition to sending it to Docker's internal log store.
+The `--syslog-tag MONGO` flag will add a tag, `MONGO`, to the selected log messages.
+You can customize syslog facility and severity for messages with `--syslog-facility`
+and `--syslog-severity` arguments.
+
+    $ sudo docker run --syslog --syslog-url udp://log-server:514 mongo:latest
+
+The `--syslog-url` allows sending log messages to a remote syslog server.
+
+Enabling syslog support does not change functionality of `docker logs` command in any way.
 
     $ sudo docker run --link /redis:redis --name console ubuntu bash
 

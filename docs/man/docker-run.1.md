@@ -41,6 +41,11 @@ docker-run - Run a command in a new container
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
 [**--sig-proxy**[=*true*]]
+[**--syslog**[=false]]
+[**--syslog-url**[=*SYSLOGURL*]]
+[**--syslog-facility**[=*FACILITY*]]
+[**--syslog-severity**[=*SEVERITY*]]
+[**--syslog-tag**[=*TAG*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -284,6 +289,21 @@ its root filesystem mounted as read only prohibiting any writes.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
+
+**--syslog**=*true*|*false*
+   When set to true Docker will send all STDOUT and STDERR output to the syslog server in addition to sending it to Docker's internal log store. The default is *false*.
+
+**--syslog-url**=""
+   URL of syslog server (e.g. "tcp://log-server:514" or "udp://log-server:1234"). If empty, use host system's syslog server. The default is "".
+
+**--syslog-facility**="user"
+   Facility to use when sending log messages to syslog. See syslog(3) for list of available values. The default is "user".
+
+**--syslog-severity**="info"
+   Severity to use when sending log messages to the syslog. See syslog(3) for list of available values. The default is "info".
+
+**--syslog-tag**=""
+   Tag to attach to log messages forwarded to the syslog. The default is the Docker process name (E.g., "/usr/bin/docker").
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

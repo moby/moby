@@ -2,6 +2,7 @@ package runconfig
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/syslog"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/utils"
 )
@@ -64,6 +66,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "Default is to create a private IPC namespace (POSIX SysV IPC) for the container\n'container:<name|id>': reuses another container shared memory, semaphores and message queues\n'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits (no, on-failure[:max-retry], always)")
 		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
+
+		flSyslog         = cmd.Bool([]string{"-syslog"}, false, "Also send logs to Syslog server")
+		flSyslogUrl      = cmd.String([]string{"-syslog-url"}, "", "URL of Syslog server (e.g. \"tcp://log-server:514\" or \"udp://log-server:1234\")")
+		flSyslogTag      = cmd.String([]string{"-syslog-tag"}, "", "Tag to attach to log messages forwarded to Syslog")
+		flSyslogFacility = cmd.String([]string{"-syslog-facility"}, "user", "Facility to use when sending log messages to Syslog")
+		flSyslogSeverity = cmd.String([]string{"-syslog-severity"}, "info", "Severity to use when sending log messages to Syslog")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR.")
@@ -268,6 +276,26 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
+	var syslogConfig *SyslogConfig
+	if *flSyslog {
+		syslogUrl, err := parseSyslogUrl(*flSyslogUrl)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+
+		syslogFacility, err := parseSyslogFacility(*flSyslogFacility)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+
+		syslogSeverity, err := parseSyslogSeverity(*flSyslogSeverity)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+
+		syslogConfig = &SyslogConfig{Url: syslogUrl, Priority: syslogFacility | syslogSeverity, Tag: *flSyslogTag}
+	}
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -314,6 +342,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		RestartPolicy:   restartPolicy,
 		SecurityOpt:     flSecurityOpt.GetAll(),
 		ReadonlyRootfs:  *flReadonlyRootfs,
+		SyslogConfig:    syslogConfig,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
@@ -433,4 +462,102 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+func parseSyslogUrl(value string) (string, error) {
+	if value == "" {
+		return value, nil
+	}
+
+	url, err := url.Parse(value)
+	if err != nil {
+		return value, err
+	}
+
+	var schemeKnown = false
+	for _, knownScheme := range []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6"} {
+		if url.Scheme == knownScheme {
+			schemeKnown = true
+			break
+		}
+	}
+
+	if !schemeKnown {
+		return value, fmt.Errorf("unknown syslog protocol: %s", url.Scheme)
+	}
+
+	return fmt.Sprintf("%s://%s", url.Scheme, url.Host), nil
+}
+
+func parseSyslogFacility(value string) (syslog.Priority, error) {
+	switch value {
+	case "kern":
+		return syslog.LOG_KERN, nil
+	case "user":
+		return syslog.LOG_USER, nil
+	case "mail":
+		return syslog.LOG_MAIL, nil
+	case "daemon":
+		return syslog.LOG_DAEMON, nil
+	case "auth":
+		return syslog.LOG_AUTH, nil
+	case "syslog":
+		return syslog.LOG_SYSLOG, nil
+	case "lpr":
+		return syslog.LOG_LPR, nil
+	case "news":
+		return syslog.LOG_NEWS, nil
+	case "uucp":
+		return syslog.LOG_UUCP, nil
+	case "cron":
+		return syslog.LOG_CRON, nil
+	case "authpriv":
+		return syslog.LOG_AUTHPRIV, nil
+	case "ftp":
+		return syslog.LOG_FTP, nil
+
+	case "local0":
+		return syslog.LOG_LOCAL0, nil
+	case "local1":
+		return syslog.LOG_LOCAL1, nil
+	case "local2":
+		return syslog.LOG_LOCAL2, nil
+	case "local3":
+		return syslog.LOG_LOCAL3, nil
+	case "local4":
+		return syslog.LOG_LOCAL4, nil
+	case "local5":
+		return syslog.LOG_LOCAL5, nil
+	case "local6":
+		return syslog.LOG_LOCAL6, nil
+	case "local7":
+		return syslog.LOG_LOCAL7, nil
+
+	default:
+		return 0, fmt.Errorf("invalid syslog facility: %s", value)
+	}
+}
+
+func parseSyslogSeverity(value string) (syslog.Priority, error) {
+	switch value {
+	case "emerg":
+		return syslog.LOG_EMERG, nil
+	case "alert":
+		return syslog.LOG_ALERT, nil
+	case "crit":
+		return syslog.LOG_CRIT, nil
+	case "err":
+		return syslog.LOG_ERR, nil
+	case "warning":
+		return syslog.LOG_WARNING, nil
+	case "notice":
+		return syslog.LOG_NOTICE, nil
+	case "info":
+		return syslog.LOG_INFO, nil
+	case "debug":
+		return syslog.LOG_DEBUG, nil
+
+	default:
+		return 0, fmt.Errorf("invalid syslog severity: %s", value)
+	}
 }
