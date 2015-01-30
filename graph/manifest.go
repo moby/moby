@@ -21,8 +21,25 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 	tag := job.Getenv("tag")
-	if tag == "" {
-		tag = "latest"
+
+	var tags []string
+	if tag != "" {
+		tags = []string{tag}
+	} else {
+		// Get all the tags, if required.
+		localRepo, err := s.Get(name)
+		if err != nil {
+			return job.Error(err)
+		}
+
+		if localRepo == nil {
+			return job.Error(fmt.Errorf("repo does not exist: %v", err))
+		}
+
+		tags = make([]string, 0, len(localRepo))
+		for tag := range localRepo {
+			tags = append(tags, tag)
+		}
 	}
 
 	// Resolve the Repository name from fqn to endpoint + name
@@ -31,14 +48,20 @@ func (s *TagStore) CmdManifest(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	manifestBytes, err := s.newManifest(name, repoInfo.RemoteName, tag)
-	if err != nil {
-		return job.Error(err)
-	}
+	// HACK(stevvooe): Stream multiple manifests as newline-separated, json
+	// records. Since they are byteslices, they end up as a series of base64
+	// encoded strings.
+	enc := json.NewEncoder(job.Stdout)
 
-	_, err = job.Stdout.Write(manifestBytes)
-	if err != nil {
-		return job.Error(err)
+	for _, tag := range tags {
+		manifestBytes, err := s.newManifest(name, repoInfo.RemoteName, tag)
+		if err != nil {
+			return job.Error(err)
+		}
+
+		if err := enc.Encode(manifestBytes); err != nil {
+			return job.Error(err)
+		}
 	}
 
 	return engine.StatusOK

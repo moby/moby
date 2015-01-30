@@ -1220,49 +1220,64 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	v := url.Values{}
 	v.Set("tag", tag)
 
-	body, _, err := readBody(cli.call("GET", "/images/"+remote+"/manifest?"+v.Encode(), nil, false))
+	rc, _, err := cli.call("GET", "/images/"+remote+"/manifest?"+v.Encode(), nil, false)
 	if err != nil {
 		return err
 	}
+	defer rc.Close()
 
-	js, err := libtrust.NewJSONSignature(body)
-	if err != nil {
-		return err
-	}
-	err = js.Sign(trustKey)
-	if err != nil {
-		return err
-	}
+	dec := json.NewDecoder(rc)
 
-	signedBody, err := js.PrettySignature("signatures")
-	if err != nil {
-		return err
-	}
+	for {
+		var body []byte
 
-	push := func(authConfig registry.AuthConfig) error {
-		buf, err := json.Marshal(authConfig)
+		if err := dec.Decode(&body); err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return err
+		}
+
+		js, err := libtrust.NewJSONSignature(body)
 		if err != nil {
 			return err
 		}
-		registryAuthHeader := []string{
-			base64.URLEncoding.EncodeToString(buf),
+		err = js.Sign(trustKey)
+		if err != nil {
+			return err
 		}
 
-		return cli.stream("POST", "/images/"+remote+"/push?"+v.Encode(), bytes.NewReader(signedBody), cli.out, map[string][]string{
-			"X-Registry-Auth": registryAuthHeader,
-		})
-	}
+		signedBody, err := js.PrettySignature("signatures")
+		if err != nil {
+			return err
+		}
 
-	if err := push(authConfig); err != nil {
-		if strings.Contains(err.Error(), "Status 401") {
-			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
-			if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
+		push := func(authConfig registry.AuthConfig) error {
+			buf, err := json.Marshal(authConfig)
+			if err != nil {
 				return err
 			}
-			authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
-			return push(authConfig)
+			registryAuthHeader := []string{
+				base64.URLEncoding.EncodeToString(buf),
+			}
+
+			return cli.stream("POST", "/images/"+remote+"/push?"+v.Encode(), bytes.NewReader(signedBody), cli.out, map[string][]string{
+				"X-Registry-Auth": registryAuthHeader,
+			})
 		}
-		return err
+
+		if err := push(authConfig); err != nil {
+			if strings.Contains(err.Error(), "Status 401") {
+				fmt.Fprintln(cli.out, "\nPlease login prior to push:")
+				if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
+					return err
+				}
+				authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
+				return push(authConfig)
+			}
+			return err
+		}
 	}
 	return nil
 }
@@ -2729,7 +2744,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		go s.Collect(stream)
 	}
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	for _ = range time.Tick(500 * time.Millisecond) {
+	for range time.Tick(500 * time.Millisecond) {
 		fmt.Fprint(cli.out, "\033[2J")
 		fmt.Fprint(cli.out, "\033[H")
 		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
