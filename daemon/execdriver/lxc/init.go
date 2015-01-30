@@ -79,11 +79,8 @@ func getArgs() *InitArgs {
 	var (
 		// Get cmdline arguments
 		user       = flag.String("u", "", "username or uid")
-		gateway    = flag.String("g", "", "gateway address")
-		ip         = flag.String("i", "", "ip address")
 		workDir    = flag.String("w", "", "workdir")
 		privileged = flag.Bool("privileged", false, "privileged mode")
-		mtu        = flag.Int("mtu", 1500, "interface mtu")
 		capAdd     = flag.String("cap-add", "", "capabilities to add")
 		capDrop    = flag.String("cap-drop", "", "capabilities to drop")
 	)
@@ -92,12 +89,9 @@ func getArgs() *InitArgs {
 
 	return &InitArgs{
 		User:       *user,
-		Gateway:    *gateway,
-		Ip:         *ip,
 		WorkDir:    *workDir,
 		Privileged: *privileged,
 		Args:       flag.Args(),
-		Mtu:        *mtu,
 		CapAdd:     *capAdd,
 		CapDrop:    *capDrop,
 	}
