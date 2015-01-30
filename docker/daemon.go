@@ -130,9 +130,9 @@ func mainDaemon() {
 	// Serve api
 	job := eng.Job("serveapi", flHosts...)
 	job.SetenvBool("Logging", true)
-	job.SetenvBool("EnableCors", *flEnableCors)
+	job.SetenvBool("EnableCors", daemonCfg.EnableCors)
 	job.Setenv("Version", dockerversion.VERSION)
-	job.Setenv("SocketGroup", *flSocketGroup)
+	job.Setenv("SocketGroup", daemonCfg.SocketGroup)
 
 	job.SetenvBool("Tls", *flTls)
 	job.SetenvBool("TlsVerify", *flTlsVerify)

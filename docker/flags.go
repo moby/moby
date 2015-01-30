@@ -31,15 +31,13 @@ func getDaemonConfDir() string {
 }
 
 var (
-	flVersion     = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-	flDaemon      = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
-	flDebug       = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
-	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group for the unix socket")
-	flLogLevel    = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
-	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify flag")
-	flHelp        = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
+	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
+	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
+	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
+	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify flag")
+	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
+	flTlsVerify = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	flTrustKey *string
