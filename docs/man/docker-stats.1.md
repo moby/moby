@@ -13,8 +13,6 @@ CONTAINER [CONTAINER...]
 
 Display a live stream of one or more containers' resource usage statistics
 
-Note: this functionality currently only works when using the *libcontainer* exec-driver.
-
 # OPTIONS
 **--help**
   Print usage statement

@@ -86,8 +86,6 @@ root filesystem as read only.
 **New!**
 This endpoint returns a live stream of a container's resource usage statistics.
 
-> **Note**: this functionality currently only works when using the *libcontainer* exec-driver.
-
 
 ## v1.16
 
