@@ -44,6 +44,7 @@ echo
 DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
+	validate-toml
 
 	binary
 
