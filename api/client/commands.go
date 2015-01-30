@@ -46,7 +46,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 )
 
 const (
@@ -1191,10 +1190,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	name := cmd.Arg(0)
 
 	cli.LoadConfigFile()
-	trustKey, err := api.LoadOrCreateTrustKey(cli.keyFile)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	remote, tag := parsers.ParseRepositoryTag(name)
 
@@ -1220,25 +1215,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	v := url.Values{}
 	v.Set("tag", tag)
 
-	body, _, err := readBody(cli.call("GET", "/images/"+remote+"/manifest?"+v.Encode(), nil, false))
-	if err != nil {
-		return err
-	}
-
-	js, err := libtrust.NewJSONSignature(body)
-	if err != nil {
-		return err
-	}
-	err = js.Sign(trustKey)
-	if err != nil {
-		return err
-	}
-
-	signedBody, err := js.PrettySignature("signatures")
-	if err != nil {
-		return err
-	}
-
 	push := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
@@ -1248,7 +1224,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 			base64.URLEncoding.EncodeToString(buf),
 		}
 
-		return cli.stream("POST", "/images/"+remote+"/push?"+v.Encode(), bytes.NewReader(signedBody), cli.out, map[string][]string{
+		return cli.stream("POST", "/images/"+remote+"/push?"+v.Encode(), nil, cli.out, map[string][]string{
 			"X-Registry-Auth": registryAuthHeader,
 		})
 	}
