@@ -128,13 +128,28 @@ func (ub *URLBuilder) BuildBlobUploadChunkURL(name, uuid string, values ...url.V
 
 // clondedRoute returns a clone of the named route from the router. Routes
 // must be cloned to avoid modifying them during url generation.
-func (ub *URLBuilder) cloneRoute(name string) *mux.Route {
+func (ub *URLBuilder) cloneRoute(name string) clonedRoute {
 	route := new(mux.Route)
-	*route = *ub.router.GetRoute(name) // clone the route
+	root := new(url.URL)
 
-	return route.
-		Schemes(ub.root.Scheme).
-		Host(ub.root.Host)
+	*route = *ub.router.GetRoute(name) // clone the route
+	*root = *ub.root
+
+	return clonedRoute{Route: route, root: root}
+}
+
+type clonedRoute struct {
+	*mux.Route
+	root *url.URL
+}
+
+func (cr clonedRoute) URL(pairs ...string) (*url.URL, error) {
+	routeURL, err := cr.Route.URL(pairs...)
+	if err != nil {
+		return nil, err
+	}
+
+	return cr.root.ResolveReference(routeURL), nil
 }
 
 // appendValuesURL appends the parameters to the url.
