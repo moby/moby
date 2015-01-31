@@ -100,8 +100,9 @@ type DeviceSet struct {
 }
 
 type DiskUsage struct {
-	Used  uint64
-	Total uint64
+	Used      uint64
+	Total     uint64
+	Available uint64
 }
 
 type Status struct {
@@ -1574,6 +1575,28 @@ func (devices *DeviceSet) MetadataDevicePath() string {
 	return devices.metadataDevice
 }
 
+func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, error) {
+	buf := new(syscall.Statfs_t)
+	err := syscall.Statfs(loopFile, buf)
+	if err != nil {
+		log.Warnf("Warning: Couldn't stat loopfile filesystem %v: %v", loopFile, err)
+		return 0, err
+	}
+	return buf.Bfree * uint64(buf.Bsize), nil
+}
+
+func (devices *DeviceSet) isRealFile(loopFile string) (bool, error) {
+	if loopFile != "" {
+		fi, err := os.Stat(loopFile)
+		if err != nil {
+			log.Warnf("Warning: Couldn't stat loopfile %v: %v", loopFile, err)
+			return false, err
+		}
+		return fi.Mode().IsRegular(), nil
+	}
+	return false, nil
+}
+
 // Status returns the current status of this deviceset
 func (devices *DeviceSet) Status() *Status {
 	devices.Lock()
@@ -1595,12 +1618,28 @@ func (devices *DeviceSet) Status() *Status {
 
 		status.Data.Used = dataUsed * blockSizeInSectors * 512
 		status.Data.Total = dataTotal * blockSizeInSectors * 512
+		status.Data.Available = status.Data.Total - status.Data.Used
 
 		// metadata blocks are always 4k
 		status.Metadata.Used = metadataUsed * 4096
 		status.Metadata.Total = metadataTotal * 4096
+		status.Metadata.Available = status.Metadata.Total - status.Metadata.Used
 
 		status.SectorSize = blockSizeInSectors * 512
+
+		if check, _ := devices.isRealFile(devices.dataLoopFile); check {
+			actualSpace, err := devices.getUnderlyingAvailableSpace(devices.dataLoopFile)
+			if err == nil && actualSpace < status.Data.Available {
+				status.Data.Available = actualSpace
+			}
+		}
+
+		if check, _ := devices.isRealFile(devices.metadataLoopFile); check {
+			actualSpace, err := devices.getUnderlyingAvailableSpace(devices.metadataLoopFile)
+			if err == nil && actualSpace < status.Metadata.Available {
+				status.Metadata.Available = actualSpace
+			}
+		}
 	}
 
 	return status
