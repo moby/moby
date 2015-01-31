@@ -870,5 +870,18 @@ func setupRegistry(t *testing.T) func() {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Wait for registry to be ready to serve requests.
+	for i := 0; i != 5; i++ {
+		if err = reg.Ping(); err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if err != nil {
+		t.Fatal("Timeout waiting for test registry to become available")
+	}
+
 	return func() { reg.Close() }
 }
