@@ -51,10 +51,12 @@ func getToken(username, password string, params map[string]string, registryEndpo
 		reqParams.Add("scope", scopeField)
 	}
 
-	reqParams.Add("account", username)
+	if username != "" {
+		reqParams.Add("account", username)
+		req.SetBasicAuth(username, password)
+	}
 
 	req.URL.RawQuery = reqParams.Encode()
-	req.SetBasicAuth(username, password)
 
 	resp, err := client.Do(req)
 	if err != nil {
