@@ -115,7 +115,7 @@ it.
 
 Let's create a new named container with a volume to share.
 While this container doesn't run an application, it reuses the `training/postgres`
-image so that all containers are using layers in common, saveing disk space.
+image so that all containers are using layers in common, saving disk space.
 
     $ sudo docker create -v /dbdata --name dbdata training/postgres
 
