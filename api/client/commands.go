@@ -424,7 +424,7 @@ func (cli *DockerCli) CmdLogout(args ...string) error {
 
 // 'docker wait': block until a container stops
 func (cli *DockerCli) CmdWait(args ...string) error {
-	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.", true)
+	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", utils.CmdDescWait, true)
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -444,7 +444,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
+	cmd := cli.Subcmd("version", "", utils.CmdDescVersion, true)
 	cmd.Require(flag.Exact, 0)
 
 	utils.ParseFlags(cmd, args, false)
@@ -486,7 +486,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 
 // 'docker info': display system-wide information.
 func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := cli.Subcmd("info", "", "Display system-wide information", true)
+	cmd := cli.Subcmd("info", "", utils.CmdDescInfo, true)
 	cmd.Require(flag.Exact, 0)
 	utils.ParseFlags(cmd, args, false)
 
@@ -623,7 +623,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
-	cmd := cli.Subcmd("restart", "CONTAINER [CONTAINER...]", "Restart a running container", true)
+	cmd := cli.Subcmd("restart", "CONTAINER [CONTAINER...]", utils.CmdDescRestart, true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default is 10 seconds.")
 	cmd.Require(flag.Min, 1)
 
@@ -801,7 +801,7 @@ func (cli *DockerCli) CmdUnpause(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPause(args ...string) error {
-	cmd := cli.Subcmd("pause", "CONTAINER", "Pause all processes within a container", true)
+	cmd := cli.Subcmd("pause", "CONTAINER", utils.CmdDescPause, true)
 	cmd.Require(flag.Exact, 1)
 	utils.ParseFlags(cmd, args, false)
 
@@ -838,7 +838,7 @@ func (cli *DockerCli) CmdRename(args ...string) error {
 }
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container or image", true)
+	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", utils.CmdDescInspect, true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template.")
 	cmd.Require(flag.Min, 1)
 
@@ -997,7 +997,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 // 'docker rmi IMAGE' removes all images with the name IMAGE
 func (cli *DockerCli) CmdRmi(args ...string) error {
 	var (
-		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images", true)
+		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", utils.CmdDescRmi, true)
 		force   = cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	)
@@ -1039,7 +1039,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 }
 
 func (cli *DockerCli) CmdHistory(args ...string) error {
-	cmd := cli.Subcmd("history", "IMAGE", "Show the history of an image", true)
+	cmd := cli.Subcmd("history", "IMAGE", utils.CmdDescHistory, true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	cmd.Require(flag.Exact, 1)
@@ -1091,7 +1091,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 }
 
 func (cli *DockerCli) CmdRm(args ...string) error {
-	cmd := cli.Subcmd("rm", "CONTAINER [CONTAINER...]", "Remove one or more containers", true)
+	cmd := cli.Subcmd("rm", "CONTAINER [CONTAINER...]", utils.CmdDescRm, true)
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
 	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link and not the underlying container")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
@@ -1306,7 +1306,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImages(args ...string) error {
-	cmd := cli.Subcmd("images", "[REPOSITORY]", "List images", true)
+	cmd := cli.Subcmd("images", "[REPOSITORY]", utils.CmdDescImages, true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (by default filter out the intermediate image layers)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
@@ -1538,7 +1538,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		psFilterArgs = filters.Args{}
 		v            = url.Values{}
 
-		cmd      = cli.Subcmd("ps", "", "List containers", true)
+		cmd      = cli.Subcmd("ps", "", utils.CmdDescPs, true)
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers. Only running containers are shown by default.")
@@ -1688,7 +1688,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := cli.Subcmd("commit", "CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes", true)
+	cmd := cli.Subcmd("commit", "CONTAINER [REPOSITORY[:TAG]]", utils.CmdDescCommit, true)
 	flPause := cmd.Bool([]string{"p", "-pause"}, true, "Pause container during commit")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
@@ -1744,7 +1744,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 }
 
 func (cli *DockerCli) CmdEvents(args ...string) error {
-	cmd := cli.Subcmd("events", "", "Get real time events from the server", true)
+	cmd := cli.Subcmd("events", "", utils.CmdDescEvents, true)
 	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")
 	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
 	flFilter := opts.NewListOpts(nil)
@@ -1811,7 +1811,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 }
 
 func (cli *DockerCli) CmdDiff(args ...string) error {
-	cmd := cli.Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem", true)
+	cmd := cli.Subcmd("diff", "CONTAINER", utils.CmdDescDiff, true)
 	cmd.Require(flag.Exact, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1843,7 +1843,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	var (
-		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container", true)
+		cmd    = cli.Subcmd("logs", "CONTAINER", utils.CmdDescLogs, true)
 		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 		tail   = cmd.String([]string{"-tail"}, "all", "Output the specified number of lines at the end of logs (defaults to all logs)")
@@ -1882,7 +1882,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	var (
-		cmd     = cli.Subcmd("attach", "CONTAINER", "Attach to a running container", true)
+		cmd     = cli.Subcmd("attach", "CONTAINER", utils.CmdDescAttach, true)
 		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
 		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process (non-TTY mode only). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.")
 	)
@@ -2004,7 +2004,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 type ports []int
 
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := cli.Subcmd("tag", "IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository", true)
+	cmd := cli.Subcmd("tag", "IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", utils.CmdDescTag, true)
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	cmd.Require(flag.Exact, 2)
 
@@ -2169,7 +2169,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 }
 
 func (cli *DockerCli) CmdCreate(args ...string) error {
-	cmd := cli.Subcmd("create", "IMAGE [COMMAND] [ARG...]", "Create a new container", true)
+	cmd := cli.Subcmd("create", "IMAGE [COMMAND] [ARG...]", utils.CmdDescCreate, true)
 
 	// These are flags not stored in Config/HostConfig
 	var (
@@ -2197,7 +2197,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 
 func (cli *DockerCli) CmdRun(args ...string) error {
 	// FIXME: just use runconfig.Parse already
-	cmd := cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", "Run a command in a new container", true)
+	cmd := cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", utils.CmdDescRun, true)
 
 	// These are flags not stored in Config/HostConfig
 	var (
@@ -2398,7 +2398,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH", true)
+	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", utils.CmdDescCp, true)
 	cmd.Require(flag.Exact, 2)
 
 	utils.ParseFlags(cmd, args, true)
@@ -2493,7 +2493,7 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 }
 
 func (cli *DockerCli) CmdExec(args ...string) error {
-	cmd := cli.Subcmd("exec", "CONTAINER COMMAND [ARG...]", "Run a command in a running container", true)
+	cmd := cli.Subcmd("exec", "CONTAINER COMMAND [ARG...]", utils.CmdDescExec, true)
 
 	execConfig, err := runconfig.ParseExec(cmd, args)
 	// just in case the ParseExec does not exit
@@ -2688,7 +2688,7 @@ func (s *containerStats) Display(w io.Writer) error {
 }
 
 func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := cli.Subcmd("stats", "CONTAINER", "Display a live stream of one or more containers' resource usage statistics", true)
+	cmd := cli.Subcmd("stats", "CONTAINER", utils.CmdDescStats, true)
 	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, true)
 
