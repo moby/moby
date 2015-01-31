@@ -188,7 +188,6 @@ func InitDriver(job *engine.Job) engine.Status {
 
 	networkv4 = addrv4.(*net.IPNet)
 
-	log.Infof("enableIPv6 = %t", enableIPv6)
 	if enableIPv6 {
 		if len(addrsv6) == 0 {
 			return job.Error(errors.New("IPv6 enabled but no IPv6 detected"))
