@@ -387,6 +387,9 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 		if err != nil {
 			return err
 		}
+		if len(tags) == 0 {
+			return registry.ErrDoesNotExist
+		}
 		for _, t := range tags {
 			if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, t, sf, parallel, auth); err != nil {
 				return err
