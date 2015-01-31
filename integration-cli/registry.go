@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,6 +51,18 @@ http:
 		cmd: cmd,
 		dir: tmp,
 	}, nil
+}
+
+func (t *testRegistryV2) Ping() error {
+	// We always ping through HTTP for our test registry.
+	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", privateRegistryURL))
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("registry ping replied with an unexpected status code %s", resp.StatusCode)
+	}
+	return nil
 }
 
 func (r *testRegistryV2) Close() {
