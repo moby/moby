@@ -1359,7 +1359,7 @@ nano-second part of the timestamp will be padded with zero when necessary.
 
 ## pause
 
-    Usage: docker pause CONTAINER
+    Usage: docker pause CONTAINER [CONTAINER...]
 
     Pause all processes within a container
 
@@ -1395,22 +1395,6 @@ just a specific mapping:
     2014/06/24 11:53:36 Error: No public port '7890/udp' published for test
     $ sudo docker port test 7890
     0.0.0.0:4321
-
-## pause
-
-    Usage: docker pause CONTAINER
-
-    Pause all processes within a container
-
-The `docker pause` command uses the cgroups freezer to suspend all processes in
-a container.  Traditionally when suspending a process the `SIGSTOP` signal is
-used, which is observable by the process being suspended. With the cgroups freezer
-the process is unaware, and unable to capture, that it is being suspended,
-and subsequently resumed.
-
-See the
-[cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
-for further details.
 
 ## rename
 
@@ -2081,7 +2065,7 @@ them to [*Share Images via Repositories*](
 
 ## unpause
 
-    Usage: docker unpause CONTAINER
+    Usage: docker unpause CONTAINER [CONTAINER...]
 
     Unpause all processes within a container
 

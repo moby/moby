@@ -6,7 +6,7 @@ docker-unpause - Unpause all processes within a container
 
 # SYNOPSIS
 **docker unpause**
-CONTAINER
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 
