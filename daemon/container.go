@@ -1198,7 +1198,7 @@ func (container *Container) verifyDaemonSettings() {
 		log.Infof("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
 		container.Config.Memory = 0
 	}
-	if container.Config.Memory > 0 && !container.daemon.sysInfo.SwapLimit {
+	if container.Config.MemorySwap != -1 && (container.Config.Memory > 0 || container.Config.MemorySwap > 0) && !container.daemon.sysInfo.SwapLimit {
 		log.Infof("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
 		container.Config.MemorySwap = -1
 	}
