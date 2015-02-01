@@ -60,7 +60,12 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 		return nil, err
 	}
 	trustKey, err := libtrust.LoadKeyFile(trustKeyPath)
-	if err == libtrust.ErrKeyFileDoesNotExist {
+
+	if err != nil {
+		if err != libtrust.ErrKeyFileDoesNotExist {
+			log.Warnf("Error loading key file %s: %s", trustKeyPath, err)
+			log.Warnf("Regenerating a new libtrust key")
+		}
 		trustKey, err = libtrust.GenerateECP256PrivateKey()
 		if err != nil {
 			return nil, fmt.Errorf("Error generating key: %s", err)
@@ -68,8 +73,6 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 		if err := libtrust.SaveKey(trustKeyPath, trustKey); err != nil {
 			return nil, fmt.Errorf("Error saving key file: %s", err)
 		}
-	} else if err != nil {
-		return nil, fmt.Errorf("Error loading key file %s: %s", trustKeyPath, err)
 	}
 	return trustKey, nil
 }
