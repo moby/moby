@@ -64,17 +64,17 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 			}
 		}
 
-                // require volume removal if the container has the sole reference to a volume
-                if !removeVolume {
-                        for id := range container.VolumePaths() {
-                                if v := daemon.volumes.Get(id); v != nil && !v.IsBindMount {
-                                        containers := v.Containers()
-                                        if len(containers) == 1 {
-                                                return job.Errorf("Cannot remove a container with sole ownership of volumes. Volume %s must be removed ith -v.", v.Path)
-                                        }
-                                }
-                        }
-                }
+		// require volume removal if the container has the sole reference to a volume
+		if !removeVolume {
+			for id := range container.VolumePaths() {
+				if v := daemon.volumes.Get(id); v != nil && !v.IsBindMount {
+					containers := v.Containers()
+					if len(containers) == 1 {
+						return job.Errorf("Cannot remove a container with sole ownership of volumes. Volume %s must be removed with -v.", v.Path)
+					}
+				}
+			}
+		}
 
 		if forceRemove {
 			if err := daemon.ForceRm(container); err != nil {
