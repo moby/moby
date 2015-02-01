@@ -199,7 +199,7 @@ How the project is run
 ======================
 
 Docker is a very, very active project. If you want to learn more about how it is run,
-or want to get more involved, the best place to start is [the project directory](https://github.com/docker/docker/tree/project).
+or want to get more involved, the best place to start is [the project directory](https://github.com/docker/docker/tree/master/project).
 
 We are always open to suggestions on process improvements, and are always looking for more maintainers.
 
