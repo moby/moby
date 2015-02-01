@@ -64,7 +64,7 @@ This will mount the host directory, `/src/webapp`, into the container at
 `/opt/webapp`.
 
 > **Note:**
-> If the path `/opt/webapp` already exists inside the container's image, it's
+> If the path `/opt/webapp` already exists inside the container's image, its
 > contents will be replaced by the contents of `/src/webapp` on the host to stay
 > consistent with the expected behavior of `mount`
 
