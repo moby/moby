@@ -128,6 +128,8 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, 
 	case res.StatusCode >= 200 && res.StatusCode < 400:
 		// return something indicating no push needed
 		return true, nil
+	case res.StatusCode == 401:
+		return false, errLoginRequired
 	case res.StatusCode == 404:
 		// return something indicating blob push needed
 		return false, nil
