@@ -130,6 +130,7 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 		}
 		for _, result := range results.Results {
 			out := &engine.Env{}
+			result.Name = repoInfo.Index.Name + "/" + result.Name
 			out.Import(result)
 			outs.Add(out)
 		}
