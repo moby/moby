@@ -91,7 +91,7 @@ no hard rules here but it is best to give the names consideration.
 
 The **-t**/**--tag** flag is used to rename an image. Here are some examples:
 
-Though it is not a good practice, image names can be arbtrary:
+Though it is not a good practice, image names can be arbitrary:
 
     docker build -t myimage .
 
