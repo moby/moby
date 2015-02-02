@@ -521,7 +521,9 @@ Status Codes:
 
 `GET /containers/(id)/stats`
 
-This endpoint returns a live stream of a container's resource usage statistics.
+This endpoint will returns a live stream of a running container's resource usage statistics.
+It will attach to any created container, but will only send resource usage information
+when the container is running.
 
 **Example request**:
 

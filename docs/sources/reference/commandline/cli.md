@@ -2012,6 +2012,11 @@ more details on finding shared images from the command line.
 
       --help=false       Print usage
 
+The `docker stats` command will listen for a stats stream for all created containers
+requested. It will however only display data for containers when they are running.
+
+Stopped or paused containers will not return any data.
+
 Running `docker stats` on multiple containers
 
     $ sudo docker stats redis1 redis2
@@ -2019,12 +2024,9 @@ Running `docker stats` on multiple containers
     redis1              0.07%               796 KiB/64 MiB      1.21%               788 B/648 B
     redis2              0.07%               2.746 MiB/64 MiB    4.29%               1.266 KiB/648 B
 
-
-The `docker stats` command will only return a live stream of data for running 
-containers. Stopped containers will not return any data.
-
 > **Note:**
-> If you want more detailed information about a container's resource usage, use the API endpoint.
+> If you want more detailed information about a container's resource usage, use the
+> [stats API endpoint](reference/api/docker_remote_api_v1.17/#get-container-stats-based-on-resource-usage).
 
 ## stop
 
