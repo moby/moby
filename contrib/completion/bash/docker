@@ -169,6 +169,23 @@ __docker_capabilities() {
 	" -- "$cur" ) )
 }
 
+# a selection of the available signals that is most likely of interest in the
+# context of docker containers.
+__docker_signals() {
+	local signals=(
+		SIGCONT
+		SIGHUP
+		SIGINT
+		SIGKILL
+		SIGQUIT
+		SIGSTOP
+		SIGTERM
+		SIGUSR1
+		SIGUSR2
+	)
+	COMPREPLY=( $( compgen -W "${signals[*]} ${signals[*]#SIG}" -- "$( echo $cur | tr '[:lower:]' '[:upper:]')" ) )
+}
+
 _docker_docker() {
 	local boolean_options="
 		--api-enable-cors
@@ -417,7 +434,21 @@ _docker_inspect() {
 }
 
 _docker_kill() {
-	__docker_containers_running
+	case "$prev" in
+		--signal|-s)
+			__docker_signals
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--signal -s" -- "$cur" ) )
+			;;
+		*)
+			__docker_containers_running
+			;;
+	esac
 }
 
 _docker_load() {
