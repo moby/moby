@@ -572,14 +572,14 @@ func TestRunCreateVolume(t *testing.T) {
 func TestRunCreateVolumeWithSymlink(t *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-createvolumewithsymlink", "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
-		RUN mkdir /foo && ln -s /foo /bar`)
+		RUN ln -s home /bar`)
 	buildCmd.Dir = workingDirectory
 	err := buildCmd.Run()
 	if err != nil {
 		t.Fatalf("could not build 'docker-test-createvolumewithsymlink': %v", err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", "docker-test-createvolumewithsymlink", "sh", "-c", "mount | grep -q /foo/foo")
+	cmd := exec.Command(dockerBinary, "run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", "docker-test-createvolumewithsymlink", "sh", "-c", "mount | grep -q /home/foo")
 	exitCode, err := runCommand(cmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
@@ -615,7 +615,7 @@ func TestRunVolumesFromSymlinkPath(t *testing.T) {
 	name := "docker-test-volumesfromsymlinkpath"
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
-		RUN mkdir /baz && ln -s /baz /foo
+		RUN ln -s home /foo
 		VOLUME ["/foo/bar"]`)
 	buildCmd.Dir = workingDirectory
 	err := buildCmd.Run()
