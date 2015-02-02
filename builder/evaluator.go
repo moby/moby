@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -170,16 +171,12 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 // Reads a Dockerfile from the current context. It assumes that the
 // 'filename' is a relative path from the root of the context
 func (b *Builder) readDockerfile(origFile string) error {
-	filename := filepath.Join(b.contextPath, origFile)
-
-	tmpDockerPath := filepath.Dir(filename) + string(os.PathSeparator)
-	tmpContextPath := filepath.Clean(b.contextPath) + string(os.PathSeparator)
-
-	if !strings.HasPrefix(tmpDockerPath, tmpContextPath) {
-		return fmt.Errorf("Dockerfile (%s) must be within the build context", origFile)
+	filename, err := symlink.FollowSymlinkInScope(filepath.Join(b.contextPath, origFile), b.contextPath)
+	if err != nil {
+		return fmt.Errorf("The Dockerfile (%s) must be within the build context", origFile)
 	}
 
-	fi, err := os.Stat(filename)
+	fi, err := os.Lstat(filename)
 	if os.IsNotExist(err) {
 		return fmt.Errorf("Cannot locate specified Dockerfile: %s", origFile)
 	}
