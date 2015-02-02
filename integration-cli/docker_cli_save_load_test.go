@@ -400,6 +400,7 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 	}
 
 	found := false
+	var entriesSansDev []string
 	for _, entry := range dirs {
 		if entry.IsDir() {
 			layerPath := filepath.Join(extractionDirectory, entry.Name(), "layer.tar")
@@ -410,11 +411,16 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 			}
 
 			entries, err := ListTar(f)
+			for _, e := range entries {
+				if !strings.Contains(e, "dev/") {
+					entriesSansDev = append(entriesSansDev, e)
+				}
+			}
 			if err != nil {
 				t.Fatalf("encountered error while listing tar entries: %s", err)
 			}
 
-			if reflect.DeepEqual(entries, layerEntries) || reflect.DeepEqual(entries, layerEntriesAUFS) {
+			if reflect.DeepEqual(entriesSansDev, layerEntries) || reflect.DeepEqual(entriesSansDev, layerEntriesAUFS) {
 				found = true
 				break
 			}
