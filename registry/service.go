@@ -2,6 +2,9 @@ package registry
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 )
@@ -81,6 +84,64 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
+// Compare two registries taking into consideration just their index names.
+func cmpRepoNamesByIndexName(fst, snd string) int {
+	ia := strings.Index(fst, "/")
+	ib := strings.Index(snd, "/")
+	if ia >= 0 && ib >= 0 {
+		switch {
+		case fst[:ia] < snd[:ib]:
+			return -1
+		case fst[:ia] > snd[:ib]:
+			return 1
+		}
+	}
+	switch {
+	case ia < ib:
+		return -1
+	case ia > ib:
+		return 1
+	}
+	return 0
+}
+
+// Compare two items in the result table of search command.
+// First compare the index name name. Second compare their rating. Then compare their name.
+func cmpSearchResults(fst, snd *engine.Env) int {
+	nameA := fst.Get("name")
+	nameB := snd.Get("name")
+	ret := cmpRepoNamesByIndexName(nameA, nameB)
+	switch {
+	case ret < 0:
+		return -1
+	case ret > 1:
+		return 1
+	}
+	starsA := fst.Get("star_count")
+	starsB := snd.Get("star_count")
+	intA, errA := strconv.ParseInt(starsA, 10, 64)
+	intB, errB := strconv.ParseInt(starsB, 10, 64)
+	if errA == nil && errB == nil {
+		switch {
+		case intA > intB:
+			return -1
+		case intA < intB:
+			return 1
+		}
+	}
+	switch {
+	case starsA > starsB:
+		return -1
+	case starsA < starsB:
+		return 1
+	case nameA < nameB:
+		return -1
+	case nameA > nameB:
+		return 1
+	}
+	return 0
+}
+
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
 //
@@ -96,7 +157,10 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 // Output:
 //	Results are sent as a collection of structured messages (using engine.Table).
 //	Each result is sent as a separate message.
-//	Results are ordered by number of stars on the public registry.
+//	Results are ordered by:
+//	    1. registry's index name
+//          2. number of stars on registry
+//          3. registry's name
 func (s *Service) Search(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 {
 		return job.Errorf("Usage: %s TERM", job.Name)
@@ -109,7 +173,7 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
 
-	outs := engine.NewTable("star_count", 0)
+	outs := engine.NewTableWithCmpFunc(cmpSearchResults, 0)
 
 	doSearch := func(term string) error {
 		repoInfo, err := ResolveRepositoryInfo(job, term)
@@ -164,7 +228,7 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 	}
-	outs.ReverseSort()
+	outs.Sort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		return job.Error(err)
 	}

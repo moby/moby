@@ -8,9 +8,16 @@ import (
 	"strconv"
 )
 
+// Function taking two Env items returning:
+//   -1  if fst should be ordered before snd
+//    1  if fst should be ordered after snd
+//    0  otherwise
+type CmpFunc func(fst, snd *Env) int
+
 type Table struct {
 	Data    []*Env
 	sortKey string
+	cmpFunc CmpFunc
 	Chan    chan *Env
 }
 
@@ -18,12 +25,28 @@ func NewTable(sortKey string, sizeHint int) *Table {
 	return &Table{
 		make([]*Env, 0, sizeHint),
 		sortKey,
+		nil,
+		make(chan *Env),
+	}
+}
+
+func NewTableWithCmpFunc(cmp CmpFunc, sizeHint int) *Table {
+	return &Table{
+		make([]*Env, 0, sizeHint),
+		"",
+		cmp,
 		make(chan *Env),
 	}
 }
 
 func (t *Table) SetKey(sortKey string) {
 	t.sortKey = sortKey
+	t.cmpFunc = nil
+}
+
+func (t *Table) SetCmpFunc(cmp CmpFunc) {
+	t.sortKey = ""
+	t.cmpFunc = cmp
 }
 
 func (t *Table) Add(env *Env) {
@@ -35,7 +58,10 @@ func (t *Table) Len() int {
 }
 
 func (t *Table) Less(a, b int) bool {
-	return t.lessBy(a, b, t.sortKey)
+	if t.cmpFunc == nil {
+		return t.lessBy(a, b, t.sortKey)
+	}
+	return t.cmpFunc(t.Data[a], t.Data[b]) < 0
 }
 
 func (t *Table) lessBy(a, b int, by string) bool {
