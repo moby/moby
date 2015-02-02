@@ -26,7 +26,7 @@ func TestPullImageWithAliases(t *testing.T) {
 		}
 		defer deleteImages(repo)
 		if out, err := exec.Command(dockerBinary, "push", repo).CombinedOutput(); err != nil {
-			t.Fatalf("Failed to push image %v: error %v, output %q", err, string(out))
+			t.Fatalf("Failed to push image %v: error %v, output %q", repo, err, string(out))
 		}
 	}
 
@@ -67,7 +67,7 @@ func TestPullVerified(t *testing.T) {
 
 	// push it
 	if out, err := exec.Command(dockerBinary, "push", repo).CombinedOutput(); err != nil {
-		t.Fatalf("Failed to push image %v: error %v, output %q", err, string(out))
+		t.Fatalf("Failed to push image %v: error %v, output %q", repo, err, string(out))
 	}
 
 	// remove it locally
