@@ -2614,7 +2614,12 @@ type containerStats struct {
 	err              error
 }
 
-func (s *containerStats) Collect(stream io.ReadCloser) {
+func (s *containerStats) Collect(cli *DockerCli) {
+	stream, _, err := cli.call("GET", "/containers/"+s.Name+"/stats", nil, false)
+	if err != nil {
+		s.err = err
+		return
+	}
 	defer stream.Close()
 	var (
 		previousCpu    uint64
@@ -2694,28 +2699,44 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 
 	names := cmd.Args()
 	sort.Strings(names)
-	var cStats []*containerStats
-	for _, n := range names {
-		s := &containerStats{Name: n}
-		cStats = append(cStats, s)
-		stream, _, err := cli.call("GET", "/containers/"+n+"/stats", nil, false)
-		if err != nil {
-			return err
-		}
-		go s.Collect(stream)
-	}
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	for _ = range time.Tick(500 * time.Millisecond) {
+	var (
+		cStats []*containerStats
+		w      = tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	)
+	printHeader := func() {
 		fmt.Fprint(cli.out, "\033[2J")
 		fmt.Fprint(cli.out, "\033[H")
 		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
+	}
+	for _, n := range names {
+		s := &containerStats{Name: n}
+		cStats = append(cStats, s)
+		go s.Collect(cli)
+	}
+	// do a quick pause so that any failed connections for containers that do not exist are able to be
+	// evicted before we display the initial or default values.
+	time.Sleep(500 * time.Millisecond)
+	var errs []string
+	for _, c := range cStats {
+		c.mu.Lock()
+		if c.err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %s", c.Name, c.err.Error()))
+		}
+		c.mu.Unlock()
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, ", "))
+	}
+	for _ = range time.Tick(500 * time.Millisecond) {
+		printHeader()
 		toRemove := []int{}
 		for i, s := range cStats {
 			if err := s.Display(w); err != nil {
 				toRemove = append(toRemove, i)
 			}
 		}
-		for _, i := range toRemove {
+		for j := len(toRemove) - 1; j >= 0; j-- {
+			i := toRemove[j]
 			cStats = append(cStats[:i], cStats[i+1:]...)
 		}
 		if len(cStats) == 0 {
