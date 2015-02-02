@@ -5,43 +5,6 @@ This directory contains the Docker user manual in the Markdown format.
 Do *not* edit the man pages in the man1 directory. Instead, amend the
 Markdown (*.md) files.
 
-# File List
-
-    docker.md
-    docker-attach.md
-    docker-build.md
-    docker-commit.md
-    docker-cp.md
-    docker-diff.md
-    docker-events.md
-    docker-export.md
-    docker-history.md
-    docker-images.md
-    docker-import.md
-    docker-info.md
-    docker-inspect.md
-    docker-kill.md
-    docker-load.md
-    docker-login.md
-    docker-logs.md
-    docker-port.md
-    docker-ps.md
-    docker-pull.md
-    docker-push.md
-    docker-restart.md
-    docker-rmi.md
-    docker-rm.md
-    docker-run.md
-    docker-save.md
-    docker-search.md
-    docker-start.md
-    docker-stop.md
-    docker-tag.md
-    docker-top.md
-    docker-wait.md
-    Dockerfile
-    md2man-all.sh
-
 # Generating man pages from the Markdown files
 
 The recommended approach for generating the man pages is via a Docker
