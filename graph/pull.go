@@ -21,32 +21,30 @@ import (
 
 func (s *TagStore) CmdRegistryPull(job *engine.Job) engine.Status {
 	var (
-		tmp        = job.Args[0]
-		status     = engine.StatusErr
-		registries = registry.RegistryList
+		tmp    = job.Args[0]
+		status = engine.StatusErr
 	)
+	doPull := func(what string) engine.Status {
+		job.Args[0] = what
+		return s.CmdPull(job)
+	}
 	// Unless the index name is specified, iterate over all registries until
 	// the matching image is found.
 	if registry.RepositoryNameHasIndex(tmp) {
-		registries = []string{""}
-	} else if len(registries) == 0 {
+		return doPull(tmp)
+	}
+	if len(registry.RegistryList) == 0 {
 		return job.Errorf("No configured registry to pull from.")
-	} else if job.GetenvBool("protectOfficialRegistry") && registries[0] != registry.INDEXNAME {
+	}
+	if job.GetenvBool("protectOfficialRegistry") {
 		// We must ensure that registry missing hostname will be pulled from
 		// official one, if the `protectOfficialRegistry` tells us so.
-		registries = []string{""}
-		tmp = fmt.Sprintf("%s/%s", registry.INDEXNAME, tmp)
+		return doPull(fmt.Sprintf("%s/%s", registry.INDEXNAME, tmp))
 	}
-	for i, r := range registries {
-		if i > 0 {
-			// Prepend the index name to the image/repository.
-			job.Args[0] = fmt.Sprintf("%s/%s", r, tmp)
-		} else {
-			job.Args[0] = tmp
-		}
-		status := s.CmdPull(job)
-		if status == engine.StatusOK {
-			return status
+	for _, r := range registry.RegistryList {
+		// Prepend the index name to the image/repository.
+		if status = doPull(fmt.Sprintf("%s/%s", r, tmp)); status == engine.StatusOK {
+			break
 		}
 	}
 	return status
@@ -149,6 +147,24 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 		}
 		// Unexpected HTTP error
 		return err
+	}
+	if strings.HasPrefix(repoInfo.LocalName, registry.INDEXNAME+"/") {
+		newEndpoints := []string{}
+		unofficial := []string{}
+		for _, endpoint := range repoData.Endpoints {
+			if parsedURL, err := url.Parse(endpoint); err == nil {
+				if strings.HasSuffix(parsedURL.Host, registry.INDEXNAME) {
+					newEndpoints = append(newEndpoints, endpoint)
+				} else {
+					log.Infof("Filtering out endpoint \"%s\" pointing out to unofficial registry.", endpoint)
+					unofficial = append(unofficial, strings.Replace(repoInfo.LocalName, registry.INDEXNAME, parsedURL.Host, 1))
+				}
+			}
+		}
+		if len(newEndpoints) == 0 {
+			return fmt.Errorf("Official registry redirects to unofficial for repository \"%s\", please specify it as: %s", repoInfo.LocalName, strings.Join(unofficial, " or "))
+		}
+		repoData.Endpoints = newEndpoints
 	}
 
 	log.Debugf("Retrieving the tag list")

@@ -124,6 +124,18 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	return img, nil
 }
 
+// Returns local name for given registry name unless the name already
+// exists. Id of existing local image won't be touched neither.
+func (store *TagStore) NormalizeLocalName(name string) string {
+	if _, exists := store.Repositories[name]; exists {
+		return name
+	}
+	if _, err := store.graph.idIndex.Get(name); err == nil {
+		return name
+	}
+	return registry.NormalizeLocalName(name)
+}
+
 // Return a reverse-lookup table of all the names which refer to each image
 // Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
 func (store *TagStore) ByID() map[string][]string {
@@ -178,9 +190,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 	if err := store.reload(); err != nil {
 		return false, err
 	}
-	if _, exists := store.Repositories[repoName]; !exists {
-		repoName = registry.NormalizeLocalName(repoName)
-	}
+	repoName = store.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		if tag != "" {
 			if _, exists2 := r[tag]; exists2 {
@@ -222,11 +232,6 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		return err
 	}
 	var repo Repository
-	// Do not default to the first additional registry if we deal with an image
-	// from the official one which will be missing a hostname.
-	if !registry.RepositoryNameHasIndex(repoName) && registry.IndexServerName() != registry.INDEXSERVER {
-		repoName = fmt.Sprintf("%s/%s", registry.INDEXNAME, repoName)
-	}
 	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r

@@ -157,7 +157,7 @@ func TestTagOfficialNames(t *testing.T) {
 		out, _, err = runCommandWithOutput(imagesCmd)
 		if err != nil {
 			t.Errorf("listing images failed with errors: %v, %s", err, out)
-		} else if strings.Contains(out, name) {
+		} else if strings.Contains(out, name) && name != "docker.io/busybox" {
 			t.Errorf("images should not have listed '%s'", name)
 			deleteImages(name + ":latest")
 		} else {

@@ -127,7 +127,9 @@ func TestPullImageOfficialNames(t *testing.T) {
 		if err != nil {
 			t.Errorf("listing images failed with errors: %v", err)
 		} else if strings.Contains(out, name) {
-			t.Errorf("images should not have listed '%s'", name)
+			if name != "docker.io/hello-world" {
+				t.Errorf("images should not have listed '%s'", name)
+			}
 		}
 	}
 	logDone("pull - pull official names")

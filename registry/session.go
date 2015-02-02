@@ -224,17 +224,19 @@ func isEndpointBlocked(endpoint string) bool {
 }
 
 func (r *Session) GetRemoteTags(registries []string, repository string, token []string) (map[string]string, error) {
-	if strings.Count(repository, "/") == 0 {
-		// This will be removed once the Registry supports auto-resolution on
-		// the "library" namespace
-		repository = "library/" + repository
-	}
 	for _, host := range registries {
+		var repo = repository
+
+		if host == INDEXSERVER && strings.Count(repo, "/") == 0 {
+			// This will be removed once the Registry supports auto-resolution on
+			// the "library" namespace
+			repo = "library/" + repo
+		}
 		if isEndpointBlocked(host) {
 			log.Errorf("Cannot query blocked registry at %s for remote tags.", host)
 			continue
 		}
-		endpoint := fmt.Sprintf("%srepositories/%s/tags", host, repository)
+		endpoint := fmt.Sprintf("%srepositories/%s/tags", host, repo)
 		req, err := r.reqFactory.NewRequest("GET", endpoint, nil)
 
 		if err != nil {

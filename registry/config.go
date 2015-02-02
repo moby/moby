@@ -419,7 +419,6 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
 		}
 
-		repoInfo.LocalName = normalizedName
 		repoInfo.RemoteName = normalizedName
 		// If the normalized name does not contain a '/' (e.g. "foo")
 		// then it is an official repo.
@@ -428,14 +427,16 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 			// Fix up remote name for official repos.
 			repoInfo.RemoteName = "library/" + normalizedName
 		}
-
-		// *TODO: Prefix this with 'docker.io/'.
-		repoInfo.CanonicalName = repoInfo.LocalName
+		repoInfo.LocalName = repoInfo.Index.Name + "/" + normalizedName
 	} else {
 		// *TODO: Decouple index name from hostname (via registry configuration?)
-		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
-		repoInfo.CanonicalName = repoInfo.LocalName
+		if repoInfo.Index.Name != "" {
+			repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
+		} else {
+			repoInfo.LocalName = repoInfo.RemoteName
+		}
 	}
+	repoInfo.CanonicalName = repoInfo.LocalName
 	return repoInfo, nil
 }
 
@@ -443,7 +444,7 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 // remote name for private indexes.
 func (repoInfo *RepositoryInfo) GetSearchTerm() string {
 	if repoInfo.Index.Official {
-		return repoInfo.LocalName
+		return strings.TrimPrefix(repoInfo.RemoteName, "library/")
 	}
 	return repoInfo.RemoteName
 }
