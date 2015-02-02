@@ -284,7 +284,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
 	if err != nil {
 		if repoInfo.Index.Official {
-			log.Infof("Unable to push to V2 registry, falling back to v1: %s", err)
+			log.Debugf("Unable to push to V2 registry, falling back to v1: %s", err)
 			return ErrV2RegistryUnavailable
 		}
 		return fmt.Errorf("error getting registry endpoint: %s", err)
