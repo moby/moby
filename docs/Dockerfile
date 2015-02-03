@@ -64,11 +64,10 @@ CMD ["mkdocs", "serve"]
 # Sven plans to move each Dockerfile into the respective repository
 
 # Docker Swarm
-ADD https://raw.githubusercontent.com/docker/swarm/master/logo.png /docs/sources/swarm/logo.png
-ADD https://raw.githubusercontent.com/docker/swarm/master/README.md /docs/sources/swarm/README.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/userguide.md /docs/sources/swarm/README.md
 ADD https://raw.githubusercontent.com/docker/swarm/master/discovery/README.md /docs/sources/swarm/discovery.md
 ADD https://raw.githubusercontent.com/docker/swarm/master/api/README.md /docs/sources/swarm/API.md
-ADD https://raw.githubusercontent.com/docker/swarm/master/scheduler/filter/README.md /docs/sources/swarm/filters.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/scheduler/filter/README.md /docs/sources/swarm/scheduler/filter.md
 
 # Docker Machine
 ADD https://raw.githubusercontent.com/docker/machine/master/docs/dockermachine.md /docs/sources/machine/userguide.md

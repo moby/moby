@@ -2,4 +2,4 @@
 - ['swarm/README.md', 'User Guide', 'Docker Swarm' ]
 - ['swarm/discovery.md', 'Reference', 'Swarm discovery']
 - ['swarm/API.md', 'Reference', 'Swarm API']
-- ['swarm/filters.md', 'Reference', 'Swarm filters']
+- ['swarm/scheduler/filter.md', 'Reference', 'Swarm filters']
