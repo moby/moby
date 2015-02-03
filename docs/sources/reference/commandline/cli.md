@@ -926,7 +926,7 @@ You'll need two shells for this example.
     2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
     2014-09-03T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
-    $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
+    $ sudo docker events --since '2013-09-03T15:49:29'
     2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
     2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
     2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
