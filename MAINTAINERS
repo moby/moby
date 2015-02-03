@@ -191,9 +191,6 @@ made through a pull request.
 	#
 	# The role is also responsible for managing and measuring the success of the overall project
 	# and ensuring it is governed properly working in concert with the Docker Governance Advisory Board (DGAB).
-	#
-	# We are currently looking for a chief operator. Get in touch if you're interested!
-	#
 	"Chief Operator" = "spf13"
 
 	[Org.Operators]
