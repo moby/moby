@@ -169,7 +169,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 
 		// Now reset the dockerfileName to be relative to the build context
-		*dockerfileName, err = filepath.Rel(filename, absRoot)
+		*dockerfileName, err = filepath.Rel(absRoot, filename)
 		if err != nil {
 			return err
 		}
