@@ -421,7 +421,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	// Mount options are clipped to page size(4096 bytes). If there are more
 	// layers then these are remounted individually using append.
 
-	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-50) // room for xino & mountLabel
+	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-54) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
 	firstMount := true
@@ -445,7 +445,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 
 		if firstMount {
-			data := label.FormatMountLabel(fmt.Sprintf("%s,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
+			data := label.FormatMountLabel(fmt.Sprintf("%s,dio,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
 			if err = mount("none", target, "aufs", 0, data); err != nil {
 				return
 			}
