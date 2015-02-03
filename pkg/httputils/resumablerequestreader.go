@@ -10,7 +10,7 @@ import (
 )
 
 type resumableRequestReader struct {
-	client          *http.Client
+	client          Client
 	request         *http.Request
 	lastRange       int64
 	totalSize       int64
@@ -19,14 +19,21 @@ type resumableRequestReader struct {
 	maxFailures     uint32
 }
 
+// Client describes an HTTP client or wrapper
+// of an HTTP client with a Do() method for performing
+// requests.
+type Client interface {
+	Do(req *http.Request) (resp *http.Response, err error)
+}
+
 // ResumableRequestReader makes it possible to resume reading a request's body transparently
 // maxfail is the number of times we retry to make requests again (not resumes)
 // totalsize is the total length of the body; auto detect if not provided
-func ResumableRequestReader(c *http.Client, r *http.Request, maxfail uint32, totalsize int64) io.ReadCloser {
+func ResumableRequestReader(c Client, r *http.Request, maxfail uint32, totalsize int64) io.ReadCloser {
 	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize}
 }
 
-func ResumableRequestReaderWithInitialResponse(c *http.Client, r *http.Request, maxfail uint32, totalsize int64, initialResponse *http.Response) io.ReadCloser {
+func ResumableRequestReaderWithInitialResponse(c Client, r *http.Request, maxfail uint32, totalsize int64, initialResponse *http.Response) io.ReadCloser {
 	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, currentResponse: initialResponse}
 }
 

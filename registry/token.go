@@ -15,7 +15,7 @@ type tokenResponse struct {
 	Token string `json:"token"`
 }
 
-func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) (token string, err error) {
+func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (token string, err error) {
 	realm, ok := params["realm"]
 	if !ok {
 		return "", errors.New("no realm specified for token auth challenge")
@@ -27,11 +27,11 @@ func getToken(username, password string, params map[string]string, registryEndpo
 	}
 
 	if realmURL.Scheme == "" {
-		if registryEndpoint.IsSecure {
-			realmURL.Scheme = "https"
-		} else {
-			realmURL.Scheme = "http"
-		}
+		realmURL.Scheme = registryEndpoint.URL.Scheme
+	}
+
+	if realmURL.Scheme != "https" {
+		return "", fmt.Errorf("cannot send token credentials over insecure channel: %s", realmURL)
 	}
 
 	req, err := factory.NewRequest("GET", realmURL.String(), nil)
@@ -57,6 +57,8 @@ func getToken(username, password string, params map[string]string, registryEndpo
 	}
 
 	req.URL.RawQuery = reqParams.Encode()
+
+	client := newClient(nil, ConnectTimeout, true)
 
 	resp, err := client.Do(req)
 	if err != nil {

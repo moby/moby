@@ -70,12 +70,6 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 		return auth.tokenCache, nil
 	}
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment},
-		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-	}
 	factory := HTTPRequestFactory(nil)
 
 	for _, challenge := range auth.registryEndpoint.AuthChallenges {
@@ -89,7 +83,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 				params[k] = v
 			}
 			params["scope"] = fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
-			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint, client, factory)
+			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint, factory)
 			if err != nil {
 				return "", err
 			}
@@ -242,19 +236,14 @@ func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HT
 // loginV1 tries to register/login to the v1 registry server.
 func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
 	var (
-		status  string
-		reqBody []byte
-		err     error
-		client  = &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives: true,
-				Proxy:             http.ProxyFromEnvironment,
-			},
-			CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-		}
+		status        string
+		reqBody       []byte
+		err           error
 		reqStatusCode = 0
 		serverAddress = authConfig.ServerAddress
 	)
+
+	client := registryEndpoint.NewClient(nil, ConnectTimeout)
 
 	log.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
 
@@ -362,14 +351,6 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
 	log.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment,
-		},
-		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-	}
-
 	var (
 		err       error
 		allErrors []error
@@ -380,9 +361,9 @@ func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 
 		switch strings.ToLower(challenge.Scheme) {
 		case "basic":
-			err = tryV2BasicAuthLogin(authConfig, challenge.Parameters, registryEndpoint, client, factory)
+			err = tryV2BasicAuthLogin(authConfig, challenge.Parameters, registryEndpoint, factory)
 		case "bearer":
-			err = tryV2TokenAuthLogin(authConfig, challenge.Parameters, registryEndpoint, client, factory)
+			err = tryV2TokenAuthLogin(authConfig, challenge.Parameters, registryEndpoint, factory)
 		default:
 			// Unsupported challenge types are explicitly skipped.
 			err = fmt.Errorf("unsupported auth scheme: %q", challenge.Scheme)
@@ -400,13 +381,15 @@ func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 	return "", fmt.Errorf("no successful auth challenge for %s - errors: %s", registryEndpoint, allErrors)
 }
 
-func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) error {
+func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) error {
 	req, err := factory.NewRequest("GET", registryEndpoint.Path(""), nil)
 	if err != nil {
 		return err
 	}
 
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+
+	client := registryEndpoint.NewClient(nil, ConnectTimeout)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -421,8 +404,8 @@ func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 	return nil
 }
 
-func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) error {
-	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
+func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) error {
+	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, factory)
 	if err != nil {
 		return err
 	}
@@ -433,6 +416,8 @@ func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	client := registryEndpoint.NewClient(nil, ConnectTimeout)
 
 	resp, err := client.Do(req)
 	if err != nil {

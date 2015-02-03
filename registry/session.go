@@ -29,6 +29,7 @@ type Session struct {
 	indexEndpoint *Endpoint
 	jar           *cookiejar.Jar
 	timeout       TimeoutType
+	client        *Client
 }
 
 func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpoint *Endpoint, timeout bool) (r *Session, err error) {
@@ -46,26 +47,21 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 		return nil, err
 	}
 
-	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
-	// alongside our requests.
-	if r.indexEndpoint.VersionString(1) != IndexServerAddress() && r.indexEndpoint.URL.Scheme == "https" {
-		info, err := r.indexEndpoint.Ping()
-		if err != nil {
-			return nil, err
-		}
-		if info.Standalone {
-			log.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", r.indexEndpoint.String())
-			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
-			factory.AddDecorator(dec)
-		}
+	// If we're working with a v1 standalone registry over a secure
+	// HTTPS connection, send Basic Auth headers alongside our requests.
+	if authConfig != nil && r.indexEndpoint.IsSecureV1Standalone() {
+		log.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", r.indexEndpoint)
+		factory.AddDecorator(utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password))
 	}
+
+	r.client = endpoint.NewClient(r.jar, r.timeout)
 
 	r.reqFactory = factory
 	return r, nil
 }
 
-func (r *Session) doRequest(req *http.Request) (*http.Response, *http.Client, error) {
-	return doRequest(req, r.jar, r.timeout, r.indexEndpoint.IsSecure)
+func (r *Session) doRequest(req *http.Request) (*http.Response, error) {
+	return r.client.Do(req)
 }
 
 // Retrieve the history of a given image from the Registry.
@@ -76,7 +72,8 @@ func (r *Session) GetRemoteHistory(imgID, registry string, token []string) ([]st
 		return nil, err
 	}
 	setTokenAuth(req, token)
-	res, _, err := r.doRequest(req)
+
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +105,8 @@ func (r *Session) LookupRemoteImage(imgID, registry string, token []string) erro
 		return err
 	}
 	setTokenAuth(req, token)
-	res, _, err := r.doRequest(req)
+
+	res, err := r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -127,7 +125,7 @@ func (r *Session) GetRemoteImageJSON(imgID, registry string, token []string) ([]
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
 	setTokenAuth(req, token)
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
 	}
@@ -155,7 +153,6 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	var (
 		retries    = 5
 		statusCode = 0
-		client     *http.Client
 		res        *http.Response
 		imageURL   = fmt.Sprintf("%simages/%s/layer", registry, imgID)
 	)
@@ -167,7 +164,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	setTokenAuth(req, token)
 	for i := 1; i <= retries; i++ {
 		statusCode = 0
-		res, client, err = r.doRequest(req)
+		res, err = r.doRequest(req)
 		if err != nil {
 			log.Debugf("Error contacting registry: %s", err)
 			if res != nil {
@@ -194,7 +191,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 
 	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
 		log.Debugf("server supports resume")
-		return httputils.ResumableRequestReaderWithInitialResponse(client, req, 5, imgSize, res), nil
+		return httputils.ResumableRequestReaderWithInitialResponse(r.client, req, 5, imgSize, res), nil
 	}
 	log.Debugf("server doesn't support resume")
 	return res.Body, nil
@@ -214,7 +211,7 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 			return nil, err
 		}
 		setTokenAuth(req, token)
-		res, _, err := r.doRequest(req)
+		res, err := r.doRequest(req)
 		if err != nil {
 			return nil, err
 		}
@@ -270,7 +267,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 	req.Header.Set("X-Docker-Token", "true")
 
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +327,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, t
 	req.Header.Set("X-Docker-Checksum", imgData.Checksum)
 	req.Header.Set("X-Docker-Checksum-Payload", imgData.ChecksumPayload)
 
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
@@ -366,7 +363,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 	req.Header.Add("Content-type", "application/json")
 	setTokenAuth(req, token)
 
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return fmt.Errorf("Failed to upload metadata: %s", err)
 	}
@@ -411,7 +408,7 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 	req.ContentLength = -1
 	req.TransferEncoding = []string{"chunked"}
 	setTokenAuth(req, token)
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to upload layer: %s", err)
 	}
@@ -448,7 +445,7 @@ func (r *Session) PushRegistryTag(remote, revision, tag, registry string, token 
 	req.Header.Add("Content-type", "application/json")
 	setTokenAuth(req, token)
 	req.ContentLength = int64(len(revision))
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -556,7 +553,7 @@ func (r *Session) putImageRequest(u string, headers map[string][]string, body []
 	for k, v := range headers {
 		req.Header[k] = v
 	}
-	response, _, err := r.doRequest(req)
+	response, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +575,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 		req.SetBasicAuth(r.authConfig.Username, r.authConfig.Password)
 	}
 	req.Header.Set("X-Docker-Token", "true")
-	res, _, err := r.doRequest(req)
+	res, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -604,7 +601,7 @@ func (r *Session) GetAuthConfig(withPasswd bool) *AuthConfig {
 }
 
 func setTokenAuth(req *http.Request, token []string) {
-	if req.Header.Get("Authorization") == "" { // Don't override
+	if req.Header.Get("Authorization") == "" && len(token) > 0 { // Don't override
 		req.Header.Set("Authorization", "Token "+strings.Join(token, ","))
 	}
 }
