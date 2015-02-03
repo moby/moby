@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -169,12 +170,15 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 // Reads a Dockerfile from the current context. It assumes that the
 // 'filename' is a relative path from the root of the context
-func (b *Builder) readDockerfile(filename string) error {
-	filename = path.Join(b.contextPath, filename)
+func (b *Builder) readDockerfile(origFile string) error {
+	filename, err := symlink.FollowSymlinkInScope(filepath.Join(b.contextPath, origFile), b.contextPath)
+	if err != nil {
+		return fmt.Errorf("The Dockerfile (%s) must be within the build context", origFile)
+	}
 
-	fi, err := os.Stat(filename)
+	fi, err := os.Lstat(filename)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("Cannot build a directory without a Dockerfile")
+		return fmt.Errorf("Cannot locate specified Dockerfile: %s", origFile)
 	}
 	if fi.Size() == 0 {
 		return ErrDockerfileEmpty
@@ -201,13 +205,13 @@ func (b *Builder) readDockerfile(filename string) error {
 	// Note that this assumes the Dockerfile has been read into memory and
 	// is now safe to be removed.
 
-	excludes, _ := utils.ReadDockerIgnore(path.Join(b.contextPath, ".dockerignore"))
+	excludes, _ := utils.ReadDockerIgnore(filepath.Join(b.contextPath, ".dockerignore"))
 	if rm, _ := fileutils.Matches(".dockerignore", excludes); rm == true {
-		os.Remove(path.Join(b.contextPath, ".dockerignore"))
+		os.Remove(filepath.Join(b.contextPath, ".dockerignore"))
 		b.context.(tarsum.BuilderContext).Remove(".dockerignore")
 	}
 	if rm, _ := fileutils.Matches(b.dockerfileName, excludes); rm == true {
-		os.Remove(path.Join(b.contextPath, b.dockerfileName))
+		os.Remove(filepath.Join(b.contextPath, b.dockerfileName))
 		b.context.(tarsum.BuilderContext).Remove(b.dockerfileName)
 	}
 

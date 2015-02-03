@@ -299,3 +299,70 @@ func TestGetContainerStats(t *testing.T) {
 	}
 	logDone("container REST API - check GET containers/stats")
 }
+
+func TestBuildApiDockerfilePath(t *testing.T) {
+	// Test to make sure we stop people from trying to leave the
+	// build context when specifying the path to the dockerfile
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	dockerfile := []byte("FROM busybox")
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(dockerfile)),
+	}); err != nil {
+		t.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		t.Fatalf("failed to write tar file content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	out, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
+	if err == nil {
+		t.Fatalf("Build was supposed to fail: %s", out)
+	}
+
+	if !strings.Contains(string(out), "must be within the build context") {
+		t.Fatalf("Didn't complain about leaving build context: %s", out)
+	}
+
+	logDone("container REST API - check build w/bad Dockerfile path")
+}
+
+func TestBuildApiDockerfileSymlink(t *testing.T) {
+	// Test to make sure we stop people from trying to leave the
+	// build context when specifying a symlink as the path to the dockerfile
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     "Dockerfile",
+		Typeflag: tar.TypeSymlink,
+		Linkname: "/etc/passwd",
+	}); err != nil {
+		t.Fatalf("failed to write tar file header: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	out, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+	if err == nil {
+		t.Fatalf("Build was supposed to fail: %s", out)
+	}
+
+	// The reason the error is "Cannot locate specified Dockerfile" is because
+	// in the builder, the symlink is resolved within the context, therefore
+	// Dockerfile -> /etc/passwd becomes etc/passwd from the context which is
+	// a nonexistent file.
+	if !strings.Contains(string(out), "Cannot locate specified Dockerfile: Dockerfile") {
+		t.Fatalf("Didn't complain about leaving build context: %s", out)
+	}
+
+	logDone("container REST API - check build w/bad Dockerfile symlink path")
+}
