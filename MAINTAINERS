@@ -404,10 +404,15 @@ made through a pull request.
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
 
+	[people.crosbymichael]
+	Name = "Michael Crosby"
+	Email = "crosbymichael@gmail.com"
+	GitHub = "crosbymichael"
+
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
-	Github = "duglin"
+	GitHub = "duglin"
 
 	[people.ehazlett]
 	Name = "Evan Hazlett"
