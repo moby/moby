@@ -4630,3 +4630,67 @@ func TestBuildFromOfficialNames(t *testing.T) {
 	}
 	logDone("build - from official names")
 }
+
+func TestBuildDockerfileOutsideContext(t *testing.T) {
+	name := "testbuilddockerfileoutsidecontext"
+	tmpdir, err := ioutil.TempDir("", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	ctx := filepath.Join(tmpdir, "context")
+	if err := os.MkdirAll(ctx, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte("FROM busybox"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+	if err := os.Chdir(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "outsideDockerfile"), []byte("FROM busbox"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../outsideDockerfile", filepath.Join(ctx, "dockerfile1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(tmpdir, "outsideDockerfile"), filepath.Join(ctx, "dockerfile2")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link("../outsideDockerfile", filepath.Join(ctx, "dockerfile3")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(tmpdir, "outsideDockerfile"), filepath.Join(ctx, "dockerfile4")); err != nil {
+		t.Fatal(err)
+	}
+	for _, dockerfilePath := range []string{
+		"../outsideDockerfile",
+		filepath.Join(ctx, "dockerfile1"),
+		filepath.Join(ctx, "dockerfile2"),
+		filepath.Join(ctx, "dockerfile3"),
+		filepath.Join(ctx, "dockerfile4"),
+	} {
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "-t", name, "--no-cache", "-f", dockerfilePath, "."))
+		if err == nil {
+			t.Fatalf("Expected error with %s. Out: %s", dockerfilePath, out)
+		}
+		deleteImages(name)
+	}
+
+	os.Chdir(tmpdir)
+
+	// Path to Dockerfile should be resolved relative to working directory, not relative to context.
+	// There is a Dockerfile in the context, but since there is no Dockerfile in the current directory, the following should fail
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx))
+	if err == nil {
+		t.Fatalf("Expected error. Out: %s", out)
+	}
+	deleteImages(name)
+
+	logDone("build - Dockerfile outside context")
+}

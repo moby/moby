@@ -39,6 +39,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
@@ -147,36 +148,36 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 
-		var filename string       // path to Dockerfile
-		var origDockerfile string // used for error msg
+		filename := *dockerfileName // path to Dockerfile
 
 		if *dockerfileName == "" {
 			// No -f/--file was specified so use the default
-			origDockerfile = api.DefaultDockerfileName
-			*dockerfileName = origDockerfile
+			*dockerfileName = api.DefaultDockerfileName
 			filename = path.Join(absRoot, *dockerfileName)
-		} else {
-			origDockerfile = *dockerfileName
-			if filename, err = filepath.Abs(*dockerfileName); err != nil {
-				return err
-			}
-
-			// Verify that 'filename' is within the build context
-			if !strings.HasSuffix(absRoot, string(os.PathSeparator)) {
-				absRoot += string(os.PathSeparator)
-			}
-			if !strings.HasPrefix(filename, absRoot) {
-				return fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", *dockerfileName, root)
-			}
-
-			// Now reset the dockerfileName to be relative to the build context
-			*dockerfileName = filename[len(absRoot):]
 		}
 
-		if _, err = os.Stat(filename); os.IsNotExist(err) {
-			return fmt.Errorf("Can not locate Dockerfile: %s", origDockerfile)
+		origDockerfile := *dockerfileName // used for error msg
+
+		if filename, err = filepath.Abs(filename); err != nil {
+			return err
 		}
-		var includes []string = []string{"."}
+
+		// Verify that 'filename' is within the build context
+		filename, err = symlink.FollowSymlinkInScope(filename, absRoot)
+		if err != nil {
+			return fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", origDockerfile, root)
+		}
+
+		// Now reset the dockerfileName to be relative to the build context
+		*dockerfileName, err = filepath.Rel(absRoot, filename)
+		if err != nil {
+			return err
+		}
+
+		if _, err = os.Lstat(filename); os.IsNotExist(err) {
+			return fmt.Errorf("Cannot locate Dockerfile: %s", origDockerfile)
+		}
+		var includes = []string{"."}
 
 		excludes, err := utils.ReadDockerIgnore(path.Join(root, ".dockerignore"))
 		if err != nil {
