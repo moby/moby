@@ -561,6 +561,18 @@ familiar with using LXC directly.
 > you can use `--lxc-conf` to set a container's IP address, but this will not be
 > reflected in the `/etc/hosts` file.
 
+## Logging drivers (--log-driver)
+
+You can specify a different logging driver for the container than for the daemon.
+
+### Log driver: none
+
+Disables any logging for the container.
+
+### Log driver: json-file
+
+Default logging driver for Docker. Writes JSON messages to file.
+
 ## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder)

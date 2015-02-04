@@ -89,23 +89,24 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
-	ID             string
-	repository     string
-	sysInitPath    string
-	containers     *contStore
-	execCommands   *execStore
-	graph          *graph.Graph
-	repositories   *graph.TagStore
-	idIndex        *truncindex.TruncIndex
-	sysInfo        *sysinfo.SysInfo
-	volumes        *volumes.Repository
-	eng            *engine.Engine
-	config         *Config
-	containerGraph *graphdb.Database
-	driver         graphdriver.Driver
-	execDriver     execdriver.Driver
-	trustStore     *trust.TrustStore
-	statsCollector *statsCollector
+	ID               string
+	repository       string
+	sysInitPath      string
+	containers       *contStore
+	execCommands     *execStore
+	graph            *graph.Graph
+	repositories     *graph.TagStore
+	idIndex          *truncindex.TruncIndex
+	sysInfo          *sysinfo.SysInfo
+	volumes          *volumes.Repository
+	eng              *engine.Engine
+	config           *Config
+	containerGraph   *graphdb.Database
+	driver           graphdriver.Driver
+	execDriver       execdriver.Driver
+	trustStore       *trust.TrustStore
+	statsCollector   *statsCollector
+	defaultLogConfig runconfig.LogConfig
 }
 
 // Install installs daemon capabilities to eng.
@@ -984,23 +985,24 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	daemon := &Daemon{
-		ID:             trustKey.PublicKey().KeyID(),
-		repository:     daemonRepo,
-		containers:     &contStore{s: make(map[string]*Container)},
-		execCommands:   newExecStore(),
-		graph:          g,
-		repositories:   repositories,
-		idIndex:        truncindex.NewTruncIndex([]string{}),
-		sysInfo:        sysInfo,
-		volumes:        volumes,
-		config:         config,
-		containerGraph: graph,
-		driver:         driver,
-		sysInitPath:    sysInitPath,
-		execDriver:     ed,
-		eng:            eng,
-		trustStore:     t,
-		statsCollector: newStatsCollector(1 * time.Second),
+		ID:               trustKey.PublicKey().KeyID(),
+		repository:       daemonRepo,
+		containers:       &contStore{s: make(map[string]*Container)},
+		execCommands:     newExecStore(),
+		graph:            g,
+		repositories:     repositories,
+		idIndex:          truncindex.NewTruncIndex([]string{}),
+		sysInfo:          sysInfo,
+		volumes:          volumes,
+		config:           config,
+		containerGraph:   graph,
+		driver:           driver,
+		sysInitPath:      sysInitPath,
+		execDriver:       ed,
+		eng:              eng,
+		trustStore:       t,
+		statsCollector:   newStatsCollector(1 * time.Second),
+		defaultLogConfig: config.LogConfig,
 	}
 
 	// Setup shutdown handlers
