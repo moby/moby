@@ -48,9 +48,9 @@ func IndexServerName() string {
 // the current process.
 func (options *Options) InstallFlags() {
 	options.Mirrors = opts.NewListOpts(ValidateMirror)
-	flag.Var(&options.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
+	flag.Var(&options.Mirrors, []string{"-registry-mirror"}, "Preferred Docker registry mirror")
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
-	flag.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)")
+	flag.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure registry communication")
 }
 
 type netIPNet net.IPNet
