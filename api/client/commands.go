@@ -679,7 +679,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 		cmd       = cli.Subcmd("start", "CONTAINER [CONTAINER...]", "Restart a stopped container", true)
 		attach    = cmd.Bool([]string{"a", "-attach"}, false, "Attach container's STDOUT and STDERR and forward all signals to the process")
-		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
+		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN if container's STDIN is open")
 	)
 
 	cmd.Require(flag.Min, 1)

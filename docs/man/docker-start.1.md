@@ -23,7 +23,11 @@ Start a stopped container.
   Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
-   Attach container's STDIN. The default is *false*.
+   Attach container's STDIN if the container's STDIN is open. The default is *false*.
+ 
+   **-i** option only work when the container's STDIN is open. The container's STDIN is 
+   opened by setting the **-i** option when the container is created use **docker create** 
+   or **docker run**.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
