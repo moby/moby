@@ -70,42 +70,38 @@ expect an integer, and they can only be specified once.
 
     Options:
       --api-enable-cors=false                    Enable CORS headers in the remote API
-      -b, --bridge=""                            Attach containers to a pre-existing network bridge
-                                                   use 'none' to disable container networking
-      --bip=""                                   Use this CIDR notation address for the network bridge's IP, not compatible with -b
+      -b, --bridge=""                            Attach containers to a network bridge
+      --bip=""                                   Specify network bridge IP
       -D, --debug=false                          Enable debug mode
       -d, --daemon=false                         Enable daemon mode
-      --dns=[]                                   Force Docker to use specific DNS servers
-      --dns-search=[]                            Force Docker to use specific DNS search domains
-      -e, --exec-driver="native"                 Force the Docker runtime to use a specific exec driver
-      --fixed-cidr=""                            IPv4 subnet for fixed IPs (e.g.: 10.20.0.0/16)
-                                                   this subnet must be nested in the bridge subnet (which is defined by -b or --bip)
-      --fixed-cidr-v6=""                         IPv6 subnet for global IPs (e.g.: 2a00:1450::/64)
-      -G, --group="docker"                       Group to assign the unix socket specified by -H when running in daemon mode
-                                                   use '' (the empty string) to disable setting of a group
-      -g, --graph="/var/lib/docker"              Path to use as the root of the Docker runtime
-      -H, --host=[]                              The socket(s) to bind to in daemon mode or connect to in client mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
-      --icc=true                                 Allow unrestricted inter-container and Docker daemon host communication
-      --insecure-registry=[]                     Enable insecure communication with specified registries (disables certificate verification for HTTPS and enables HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)
-      --ip=0.0.0.0                               Default IP address to use when binding container ports
-      --ip-forward=true                          Enable net.ipv4.ip_forward and IPv6 forwarding if --fixed-cidr-v6 is defined. IPv6 forwarding may interfere with your existing IPv6 configuration when using Router Advertisement.
-      --ip-masq=true                             Enable IP masquerading for bridge's IP range
-      --iptables=true                            Enable Docker's addition of iptables rules
-      --ipv6=false                               Enable Docker IPv6 support
-       -l, --log-level="info"                    Set the logging level (debug, info, warn, error, fatal)
-      --label=[]                                 Set key=value labels to the daemon (displayed in `docker info`)
+      --dns=[]                                   DNS server to use
+      --dns-search=[]                            DNS search domains to use
+      -e, --exec-driver="native"                 Exec driver to use
+      --fixed-cidr=""                            IPv4 subnet for fixed IPs
+      --fixed-cidr-v6=""                         IPv6 subnet for fixed IPs
+      -G, --group="docker"                       Group for the unix socket
+      -g, --graph="/var/lib/docker"              Root of the Docker runtime
+      -H, --host=[]                              Daemon socket(s) to use or connect to
+      --icc=true                                 Enable inter-container communication
+      --insecure-registry=[]                     Enable insecure registry communication
+      --ip=0.0.0.0                               Default IP when binding container ports
+      --ip-forward=true                          Enable net.ipv4.ip_forward
+      --ip-masq=true                             Enable IP masquerading
+      --iptables=true                            Enable addition of iptables rules
+      --ipv6=false                               Enable IPv6 networking
+       -l, --log-level="info"                    Set the logging level
+      --label=[]                                 Set key=value labels to the daemon
       --mtu=0                                    Set the containers network MTU
-                                                   if no value is provided: default to the default route MTU or 1500 if no default route is available
       -p, --pidfile="/var/run/docker.pid"        Path to use for daemon PID file
-      --registry-mirror=[]                       Specify a preferred Docker registry mirror
-      -s, --storage-driver=""                    Force the Docker runtime to use a specific storage driver
-      --selinux-enabled=false                    Enable selinux support. SELinux does not presently support the BTRFS storage driver
+      --registry-mirror=[]                       Preferred Docker registry mirror
+      -s, --storage-driver=""                    Storage driver to use
+      --selinux-enabled=false                    Enable selinux support
       --storage-opt=[]                           Set storage driver options
       --tls=false                                Use TLS; implied by --tlsverify flag
-      --tlscacert="/home/sven/.docker/ca.pem"    Trust only remotes providing a certificate signed by the CA given here
+      --tlscacert="/home/sven/.docker/ca.pem"    Trust certs signed only by this CA
       --tlscert="/home/sven/.docker/cert.pem"    Path to TLS certificate file
       --tlskey="/home/sven/.docker/key.pem"      Path to TLS key file
-      --tlsverify=false                          Use TLS and verify the remote (daemon: verify client, client: verify daemon)
+      --tlsverify=false                          Use TLS and verify the remote
       -v, --version=false                        Print version information and quit
 
 Options with [] may be specified multiple times.
@@ -428,7 +424,7 @@ Docker supports softlinks for the Docker data directory
     Attach to a running container
 
       --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxy all received signals to the process (non-TTY mode only). SIGCHLD, SIGKILL, and SIGSTOP are not proxied.
+      --sig-proxy=true    Proxy all received signals to the process
 
 The `attach` command lets you view or interact with any running container's
 primary process (`pid 1`).
@@ -489,12 +485,13 @@ To kill the container, use `docker kill`.
 
     Build a new image from the source code at PATH
 
-      --force-rm=false         Always remove intermediate containers, even after unsuccessful builds
+      -f, --file=""            Name of the Dockerfile(Default is 'Dockerfile')
+      --force-rm=false         Always remove intermediate containers
       --no-cache=false         Do not use cache when building the image
       --pull=false             Always attempt to pull a newer version of the image
       -q, --quiet=false        Suppress the verbose output generated by the containers
       --rm=true                Remove intermediate containers after a successful build
-      -t, --tag=""             Repository name (and optionally a tag) to be applied to the resulting image in case of success
+      -t, --tag=""             Repository name (and optionally a tag) for the image
 
 Use this command to build Docker images from a Dockerfile and a
 "context".
@@ -734,41 +731,31 @@ Creates a new container.
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+      --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
-      --dns-search=[]            Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
+      --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
-      --env-file=[]              Read in a line delimited file of environment variables
-      --expose=[]                Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
+      --env-file=[]              Read in a file of environment variables
+      --expose=[]                Expose a port or a range of ports
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
-      --ipc=""                   Default is to create a private IPC namespace (POSIX SysV IPC) for the container
-                                   'container:<name|id>': reuses another container shared memory, semaphores and message queues
-                                   'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
-      --link=[]                  Add link to another container in the form of <name or id>:alias
-      --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-      -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+      --ipc=""                   IPC namespace to use
+      --link=[]                  Add link to another container
+      --lxc-conf=[]              Add custom lxc options
+      -m, --memory=""            Memory limit
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
-                                   'bridge': creates a new network stack for the container on the docker bridge
-                                   'none': no networking for this container
-                                   'container:<name|id>': reuses another container network stack
-                                   'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
-      -P, --publish-all=false    Publish all exposed ports to random ports on the host interfaces
-      -p, --publish=[]           Publish a container's port, or a range of ports (e.g., `-p 3300-3310`), to the host
-                                   format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
-                                   Both hostPort and containerPort can be specified as a range of ports. 
-                                   When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
-                                   (use 'docker port' to see the actual mapping)
+      -P, --publish-all=false    Publish all exposed ports to random ports
+      -p, --publish=[]           Publish a container's port(s) to the host
       --privileged=false         Give extended privileges to this container
-      --read-only=false           Mount the container's root filesystem as read only
-      --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
+      --read-only=false          Mount the container's root filesystem as read only
+      --restart=""               Restart policy to apply when a container exits
       --security-opt=[]          Security Options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
-      -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
+      -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -1043,7 +1030,7 @@ To see how the `docker:latest` image was built:
 
     List images
 
-      -a, --all=false      Show all images (by default filter out the intermediate image layers)
+      -a, --all=false      Show all images (default hides intermediate images)
       -f, --filter=[]      Provide filter values (i.e., 'dangling=true')
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
@@ -1136,7 +1123,9 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create an empty filesystem image and import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
+    Create an empty filesystem image and import the contents of the
+	tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then
+	optionally tag it.
 
 URLs must start with `http` and point to a single file archive (.tar,
 .tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
@@ -1305,7 +1294,8 @@ Restores both images and tags.
 
     Usage: docker login [OPTIONS] [SERVER]
 
-    Register or log in to a Docker registry server, if no server is specified "https://index.docker.io/v1/" is the default.
+    Register or log in to a Docker registry server, if no server is
+	specified "https://index.docker.io/v1/" is the default.
 
       -e, --email=""       Email
       -p, --password=""    Password
@@ -1321,7 +1311,8 @@ adding the server name.
 
     Usage: docker logout [SERVER]
 
-    Log out from a Docker registry, if no server is specified "https://index.docker.io/v1/" is the default.
+    Log out from a Docker registry, if no server is
+	specified "https://index.docker.io/v1/" is the default.
 
 For example:
 
@@ -1335,7 +1326,7 @@ For example:
 
       -f, --follow=false        Follow log output
       -t, --timestamps=false    Show timestamps
-      --tail="all"              Output the specified number of lines at the end of logs (defaults to all logs)
+      --tail="all"              Number of lines to show from the end of the logs
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
 
@@ -1370,7 +1361,8 @@ for further details.
 
     Usage: docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 
-    List port mappings for the CONTAINER, or lookup the public-facing port that is NAT-ed to the PRIVATE_PORT
+    List port mappings for the CONTAINER, or lookup the public-facing port that is
+	NAT-ed to the PRIVATE_PORT
 
 You can find out all the ports mapped by not specifying a `PRIVATE_PORT`, or
 just a specific mapping:
@@ -1418,17 +1410,17 @@ The `docker rename` command allows the container to be renamed to a different na
 
     List containers
 
-      -a, --all=false       Show all containers. Only running containers are shown by default.
-      --before=""           Show only container created before Id or Name, include non-running ones.
+      -a, --all=false       Show all containers (default shows just running)
+      --before=""           Show only container created before Id or Name.
       -f, --filter=[]       Provide filter values. Valid filters:
                               exited=<int> - containers with exit code of <int>
                               status=(restarting|running|paused|exited)
-      -l, --latest=false    Show only the latest created container, include non-running ones.
-      -n=-1                 Show n last created containers, include non-running ones.
+      -l, --latest=false    Show the latest created container, include non-running.
+      -n=-1                 Show n last created containers, include non-running .
       --no-trunc=false      Don't truncate output
       -q, --quiet=false     Only display numeric IDs
       -s, --size=false      Display total file sizes
-      --since=""            Show only containers created since Id or Name, include non-running ones.
+      --since=""            Show created since Id or Name, include non-running.
 
 Running `docker ps` showing 2 linked containers.
 
@@ -1510,7 +1502,7 @@ registry or to a self-hosted one.
 
     Restart a running container
 
-      -t, --time=10      Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default is 10 seconds.
+      -t, --time=10      Seconds to wait for stop before killing the container.
 
 ## rm
 
@@ -1519,7 +1511,7 @@ registry or to a self-hosted one.
     Remove one or more containers
 
       -f, --force=false      Force the removal of a running container (uses SIGKILL)
-      -l, --link=false       Remove the specified link and not the underlying container
+      -l, --link=false       Remove the specified link
       -v, --volumes=false    Remove the volumes associated with the container
 
 #### Examples
@@ -1597,7 +1589,7 @@ removed before the image is removed.
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
-      -d, --detach=false         Detached mode: run the container in the background and print the new container ID
+      -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
@@ -1611,9 +1603,9 @@ removed before the image is removed.
                                    'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                    'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
       --link=[]                  Add link to another container in the form of name:alias
-      --lxc-conf=[]              (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-      -m, --memory=""            Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-      -memory-swap=""            Total memory usage (memory + swap), set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)
+      --lxc-conf=[]              Add custom lxc options
+      -m, --memory=""            Memory limit
+      -memory-swap=""            Total memory (memory+swap), '-1' to disable swap
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
@@ -1631,9 +1623,9 @@ removed before the image is removed.
       --privileged=false         Give extended privileges to this container
       --read-only=false           Mount the container's root filesystem as read only
       --restart=""               Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
-      --rm=false                 Automatically remove the container when it exits (incompatible with -d)
+      --rm=false                 Automatically remove the container when it exits
       --security-opt=[]          Security Options
-      --sig-proxy=true           Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.
+      --sig-proxy=true           Proxy received signals to the process
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
@@ -2001,7 +1993,7 @@ more details on finding shared images from the command line.
 
     Restart a stopped container
 
-      -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
+      -a, --attach=false         Attach STDOUT/STDERR and forward signals
       -i, --interactive=false    Attach container's STDIN
 
 ## stats
@@ -2030,9 +2022,10 @@ containers. Stopped containers will not return any data.
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
-    Stop a running container by sending SIGTERM and then SIGKILL after a grace period
+    Stop a running container by sending SIGTERM and then SIGKILL after a
+	grace period
 
-      -t, --time=10      Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
+      -t, --time=10      Seconds to wait for stop before killing it.
 
 The main process inside the container will receive `SIGTERM`, and after a
 grace period, `SIGKILL`.
