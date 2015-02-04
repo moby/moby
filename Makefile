@@ -67,6 +67,9 @@ test-unit: build
 test-integration: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-integration
 
+test-integration-behave: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-behave
+
 test-integration-cli: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-cli
 
