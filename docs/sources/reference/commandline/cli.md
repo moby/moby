@@ -32,19 +32,24 @@ To list the help on any command just execute the command, followed by the `--hel
 
 ## Option types
 
-Single character commandline options can be combined, so rather than
+Single character command line options can be combined, so rather than
 typing `docker run -t -i --name test busybox sh`,
 you can write `docker run -ti --name test busybox sh`.
 
 ### Boolean
 
-Boolean options look like `-d=false`. The value you
-see is the default value which gets set if you do **not** use the
-boolean flag. If you do call `run -d`, that sets the
-opposite boolean value, so in this case, `true`, and
-so `docker run -d` **will** run in "detached" mode,
-in the background. Other boolean options are similar – specifying them
-will set the value to the opposite of the default value.
+Boolean options take the form `-d=false`. The value you see in the help text is the
+default value which is set if you do **not** specify that flag. If you specify
+a Boolean flag without a value, this will set the flag to `true`, irrespective
+of the default value.
+
+For example, running `docker run -d` will set the value to `true`, so
+your container **will** run in "detached" mode, in the background.
+
+Options which default to `true` (e.g., `docker build --rm=true`) can only
+be set to the non-default value by explicitly setting them to `false`:
+
+    $ docker build --rm=false .
 
 ### Multi
 
