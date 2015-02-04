@@ -263,7 +263,7 @@ this case we're basing our new image on an Ubuntu 14.04 image.
 
 Next we use the `MAINTAINER` instruction to specify who maintains our new image.
 
-Lastly, we've specified three `RUN` instructions. A `RUN` instruction executes
+Lastly, we've specified two `RUN` instructions. A `RUN` instruction executes
 a command inside the image, for example installing a package. Here we're
 updating our APT cache, installing Ruby and RubyGems and then installing the
 Sinatra gem.
