@@ -191,9 +191,6 @@ made through a pull request.
 	#
 	# The role is also responsible for managing and measuring the success of the overall project
 	# and ensuring it is governed properly working in concert with the Docker Governance Advisory Board (DGAB).
-	#
-	# We are currently looking for a chief operator. Get in touch if you're interested!
-	#
 	"Chief Operator" = "spf13"
 
 	[Org.Operators]
@@ -407,10 +404,15 @@ made through a pull request.
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
 
+	[people.crosbymichael]
+	Name = "Michael Crosby"
+	Email = "crosbymichael@gmail.com"
+	GitHub = "crosbymichael"
+
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
-	Github = "duglin"
+	GitHub = "duglin"
 
 	[people.ehazlett]
 	Name = "Evan Hazlett"
