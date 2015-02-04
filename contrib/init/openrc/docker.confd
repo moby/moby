@@ -11,3 +11,7 @@
 
 # any other random options you want to pass to docker
 DOCKER_OPTS=""
+
+# how to contact the docker daemon
+DOCKER_HOST="unix:///run/docker.unix"
+
