@@ -211,7 +211,7 @@ component affected. For example, if a change affects `docs/` and `registry/`, it
 needs an absolute majority from the maintainers of `docs/` AND, separately, an
 absolute majority of the maintainers of `registry/`.
 
-For more details see [MAINTAINERS.md](project/MAINTAINERS.md)
+For more details see [MAINTAINERS](MAINTAINERS)
 
 ### Sign your work
 
