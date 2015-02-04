@@ -99,14 +99,10 @@ if [ "$DOCKER_EXECDRIVER" = 'lxc' ]; then
 fi
 
 # Use these flags when compiling the tests and final binary
-LDFLAGS='
-	-X '$DOCKER_PKG'/dockerversion.GITCOMMIT "'$GITCOMMIT'"
-	-X '$DOCKER_PKG'/dockerversion.VERSION "'$VERSION'"
-'
 
-if [ -z "$DEBUG" ]; then
-	LDFLAGS="-w $LDFLAGS"
-fi
+IAMSTATIC='true'
+source "$(dirname "$BASH_SOURCE")/make/.dockerversion"
+LDFLAGS='-w'
 
 LDFLAGS_STATIC='-linkmode external'
 # Cgo -H windows is incompatible with -linkmode external.
@@ -128,7 +124,6 @@ TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
-	-X $DOCKER_PKG/dockerversion.IAMSTATIC true
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
 "
 

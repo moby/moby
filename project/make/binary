@@ -11,6 +11,8 @@ if [[ "$(uname -s)" == CYGWIN* ]]; then
 	DEST=$(cygpath -mw $DEST)
 fi
 
+source "$(dirname "$BASH_SOURCE")/.dockerversion"
+
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \

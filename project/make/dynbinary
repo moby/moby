@@ -14,7 +14,7 @@ fi
 # DOCKER_INITSHA1 is exported so that other bundlescripts can easily access it later without recalculating it
 
 (
-	export LDFLAGS_STATIC_DOCKER="-X $DOCKER_PKG/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\" -X $DOCKER_PKG/dockerversion.INITPATH \"$DOCKER_INITPATH\""
+	export IAMSTATIC="false"
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/static_build /}" ) # we're not building a "static" binary here
 	source "$(dirname "$BASH_SOURCE")/binary"

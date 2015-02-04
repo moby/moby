@@ -2,8 +2,8 @@ package docker
 
 import (
 	"errors"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
