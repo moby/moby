@@ -111,7 +111,11 @@ similar to the example shown below.
 {
   "callback_url": "https://registry.hub.docker.com/u/svendowideit/busybox/hook/2141bc0cdec4hebec411i4c1g40242eg110020/",
   "push_data": {
-    "images": [],
+    "images": [
+        "27d47432a69bca5f2700e4dff7de0388ed65f9d3fb1ec645e2bc24c223dc1cc3",
+        "51a9c7c1f8bb2fa19bcd09789a34e63f35abb80044bc10196e304f6634cc582c",
+        ...
+    ],
     "pushed_at": 1.417566822e+09,
     "pusher": "svendowideit"
   },
@@ -135,7 +139,7 @@ similar to the example shown below.
 
 Webhooks allow you to notify people, services and other applications of
 new updates to your images and repositories. To get started adding webhooks,
-go to the desired repo in the Hub, and click "Webhooks" under the "Settings"
+go to the desired repository in the Hub, and click "Webhooks" under the "Settings"
 box.
 
 > **Note:** For testing, you can try an HTTP request tool like
