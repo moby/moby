@@ -104,3 +104,31 @@ func TestValidateDnsSearch(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateExtraHosts(t *testing.T) {
+	valid := []string{
+		`myhost:192.168.0.1`,
+		`thathost:10.0.2.1`,
+		`anipv6host:2003:ab34:e::1`,
+		`ipv6local:::1`,
+	}
+
+	invalid := []string{
+		`myhost:192.notanipaddress.1`,
+		`thathost-nosemicolon10.0.0.1`,
+		`anipv6host:::::1`,
+		`ipv6local:::0::`,
+	}
+
+	for _, extrahost := range valid {
+		if _, err := ValidateExtraHost(extrahost); err != nil {
+			t.Fatalf("ValidateExtraHost(`"+extrahost+"`) should succeed: error %v", err)
+		}
+	}
+
+	for _, extrahost := range invalid {
+		if _, err := ValidateExtraHost(extrahost); err == nil {
+			t.Fatalf("ValidateExtraHost(`" + extrahost + "`) should have failed validation")
+		}
+	}
+}
