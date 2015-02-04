@@ -940,6 +940,7 @@ Query Parameters:
 
 -   **t** – repository name (and optionally a tag) to be applied to
     the resulting image in case of success
+-   **remote** – build source URI (git or HTTPS/HTTP)
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 
