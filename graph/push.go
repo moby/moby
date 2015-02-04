@@ -455,7 +455,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err2)
 	}
 
-	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
+	if endpoint.Version == registry.APIVersion2 {
 		err := s.pushV2Repository(r, job.Eng, job.Stdout, repoInfo, tag, sf)
 		if err == nil {
 			return engine.StatusOK
