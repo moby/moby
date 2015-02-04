@@ -77,6 +77,11 @@ else
 	exit 1
 fi
 
+case `uname -m` in
+        ppc64*|s390x)
+                USE_GCCGO=1;;
+esac
+
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"

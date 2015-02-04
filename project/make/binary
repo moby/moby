@@ -13,15 +13,39 @@ fi
 
 source "$(dirname "$BASH_SOURCE")/.dockerversion"
 
-go build \
-	-o "$DEST/$BINARY_FULLNAME" \
-	"${BUILDFLAGS[@]}" \
-	-ldflags "
-		$LDFLAGS
-		$LDFLAGS_STATIC_DOCKER
-	" \
-	./docker
+if [ -z "$USE_GCCGO" ]; then
+	go build \
+		-o "$DEST/$BINARY_FULLNAME" \
+		"${BUILDFLAGS[@]}" \
+		-ldflags "
+			$LDFLAGS
+			$LDFLAGS_STATIC_DOCKER
+		" \
+		./docker
+else
+	source "$(dirname "$BASH_SOURCE")/.dockernsenter"
+
+	mv $PWD/vendor/src/github.com/docker/libcontainer/namespaces/nsenter/nsenter.c $PWD/docker/.
+	rm $PWD/vendor/src/github.com/docker/libcontainer/namespaces/nsenter/nsenter.go 
+
+	if [ "$STATIC_DOCKER" == "true" ]; then
+		EXTLDFLAGS_STATIC_DOCKER="-Wl,--no-export-dynamic $EXTLDFLAGS_STATIC_DOCKER"
+	else
+		EXTLDFLAGS_STATIC_DOCKER="-static-libgo $(echo $EXTLDFLAGS_STATIC_DOCKER | sed "s/$EXTLDFLAGS_STATIC//")"
+	fi
+	go build --compiler=gccgo \
+		-o "$DEST/$BINARY_FULLNAME" \
+		"${BUILDFLAGS[@]}" \
+		--gccgoflags "
+			-g
+			$EXTLDFLAGS_STATIC_DOCKER
+			-ldl
+		" \
+		./docker
+fi
+
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
 
 hash_files "$DEST/$BINARY_FULLNAME"
+
