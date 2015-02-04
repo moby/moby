@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/libtrust"
 )
@@ -559,4 +560,146 @@ func TestDaemonRestartRenameContainer(t *testing.T) {
 	}
 
 	logDone("daemon - rename persists through daemon restart")
+}
+
+func TestDaemonLoggingDriverDefault(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res struct {
+		Log    string    `json:log`
+		Stream string    `json:stream`
+		Time   time.Time `json:time`
+	}
+	if err := json.NewDecoder(f).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Log != "testline\n" {
+		t.Fatalf("Unexpected log line: %q, expected: %q", res.Log, "testline\n")
+	}
+	if res.Stream != "stdout" {
+		t.Fatalf("Unexpected stream: %q, expected: %q", res.Stream, "stdout")
+	}
+	if !time.Now().After(res.Time) {
+		t.Fatalf("Log time %v in future", res.Time)
+	}
+	logDone("daemon - default 'json-file' logging driver")
+}
+
+func TestDaemonLoggingDriverDefaultOverride(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "--log-driver=none", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
+	}
+	logDone("daemon - default logging driver override in run")
+}
+
+func TestDaemonLoggingDriverNone(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox("--log-driver=none"); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
+	}
+	logDone("daemon - 'none' logging driver")
+}
+
+func TestDaemonLoggingDriverNoneOverride(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox("--log-driver=none"); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "--log-driver=json-file", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res struct {
+		Log    string    `json:log`
+		Stream string    `json:stream`
+		Time   time.Time `json:time`
+	}
+	if err := json.NewDecoder(f).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Log != "testline\n" {
+		t.Fatalf("Unexpected log line: %q, expected: %q", res.Log, "testline\n")
+	}
+	if res.Stream != "stdout" {
+		t.Fatalf("Unexpected stream: %q, expected: %q", res.Stream, "stdout")
+	}
+	if !time.Now().After(res.Time) {
+		t.Fatalf("Log time %v in future", res.Time)
+	}
+	logDone("daemon - 'none' logging driver override in run")
 }
