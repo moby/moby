@@ -233,7 +233,7 @@ command to list the specified container's environment variables.
 > will scrub them when spawning shells for connection.
 
 > **Note**:
-> Unlike host entries in the [`/ets/hosts` file](#updating-the-etchosts-file),
+> Unlike host entries in the [`/etc/hosts` file](#updating-the-etchosts-file),
 > IP addresses stored in the environment variables are not automatically updated
 > if the source container is restarted. We recommend using the host entries in
 > `/etc/hosts` to resolve the IP address of linked containers.
