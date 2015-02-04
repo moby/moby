@@ -139,7 +139,7 @@ for un-encrypted, and port `2376` for encrypted communication with the daemon.
 > for security reasons.
 
 On Systemd based systems, you can communicate with the daemon via
-[systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
+[Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
 `docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
 you can also specify individual sockets: `docker -d -H fd://3`. If the
 specified socket activated files aren't found, then Docker will exit. You
