@@ -285,7 +285,6 @@ func TestPostCreateNull(t *testing.T) {
 		"Memory":0,
 		"MemorySwap":0,
 		"CpuShares":0,
-		"Cpuset":null,
 		"AttachStdin":true,
 		"AttachStdout":true,
 		"AttachStderr":true,
@@ -301,6 +300,7 @@ func TestPostCreateNull(t *testing.T) {
 		"WorkingDir":"",
 		"Entrypoint":null,
 		"NetworkDisabled":false,
+		"MacAddress":null,
 		"OnBuild":null}`, unitTestImageID)
 
 	req, err := http.NewRequest("POST", "/containers/create", strings.NewReader(configStr))
@@ -326,8 +326,8 @@ func TestPostCreateNull(t *testing.T) {
 	containerAssertExists(eng, containerID, t)
 
 	c := daemon.Get(containerID)
-	if c.Config.Cpuset != "" {
-		t.Fatalf("Cpuset should have been empty - instead its:" + c.Config.Cpuset)
+	if c.Config.MacAddress != "" {
+		t.Fatalf("MacAddress should have been empty - instead its:" + c.Config.MacAddress)
 	}
 }
 

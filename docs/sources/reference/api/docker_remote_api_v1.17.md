@@ -116,7 +116,8 @@ Create a container
              "Memory": 0,
              "MemorySwap": 0,
              "CpuShares": 512,
-             "Cpuset": "0,1",
+             "CpusetCpus": "0,1",
+             "CpusetMems": "0,1",
              "AttachStdin": false,
              "AttachStdout": true,
              "AttachStderr": true,
@@ -180,7 +181,9 @@ Json Parameters:
 -   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs othercontainers).
-    **CpuSet** - String value containg the cgroups Cpuset to use.
+-   **Cpuset** - The same as CpusetCpus, but obsoleted, please don't use.
+-   **CpusetCpus** - String value containg the cgroups CpusetCpus to use.
+-   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -1517,7 +1520,7 @@ Create a new image from a container's changes
              "Memory": 0,
              "MemorySwap": 0,
              "CpuShares": 512,
-             "Cpuset": "0,1",
+             "CpusetCpus": "0,1",
              "AttachStdin": false,
              "AttachStdout": true,
              "AttachStderr": true,
