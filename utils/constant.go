@@ -1,0 +1,47 @@
+package utils
+
+const (
+	CmdDescAttach string = "Attach to a running container"
+	CmdDescBuild  string = "Build an image from a Dockerfile"
+	CmdDescCommit string = "Create a new image from a container's changes"
+	CmdDescCp     string = "Copy files/folders from a container's filesystem to the host path"
+	CmdDescCreate string = "Create a new container"
+	CmdDescDiff   string = "Inspect changes on a container's filesystem"
+	CmdDescEvents string = "Get real time events from the server"
+	CmdDescExec   string = "Run a command in a running container"
+
+	// FIXME:the output about the command_export between `docker help` and `docker help export` are different,
+	// have no idea which one to choose at this time.
+	CmdDescExport string = "Stream the contents of a container as a tar archive"
+
+	CmdDescHistory string = "Show the history of an image"
+	CmdDescImages  string = "List images"
+	CmdDescImport  string = "Create a new filesystem image from the contents of a tarball"
+	CmdDescInfo    string = "Display system-wide information"
+	CmdDescInspect string = "Return low-level information on a container or image"
+	CmdDescKill    string = "Kill a running container"
+	CmdDescLoad    string = "Load an image from a tar archive"
+	CmdDescLogin   string = "Register or log in to a Docker registry server"
+	CmdDescLogout  string = "Log out from a Docker registry server"
+	CmdDescLogs    string = "Fetch the logs of a container"
+	CmdDescPort    string = "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT"
+	CmdDescPause   string = "Pause all processes within a container"
+	CmdDescPs      string = "List containers"
+	CmdDescPull    string = "Pull an image or a repository from a Docker registry server"
+	CmdDescPush    string = "Push an image or a repository to a Docker registry server"
+	CmdDescRename  string = "Rename an existing container"
+	CmdDescRestart string = "Restart a running container"
+	CmdDescRm      string = "Remove one or more containers"
+	CmdDescRmi     string = "Remove one or more images"
+	CmdDescRun     string = "Run a command in a new container"
+	CmdDescSave    string = "Save an image to a tar archive"
+	CmdDescSearch  string = "Search for an image on the Docker Hub"
+	CmdDescStart   string = "Start a stopped container"
+	CmdDescStats   string = "Display a live stream of one or more containers' resource usage statistics"
+	CmdDescStop    string = "Stop a running container"
+	CmdDescTag     string = "Tag an image into a repository"
+	CmdDescTop     string = "Lookup the running processes of a container"
+	CmdDescUnpause string = "Unpause a paused container"
+	CmdDescVersion string = "Show the Docker version information"
+	CmdDescWait    string = "Block until a container stops, then print its exit code"
+)
