@@ -131,11 +131,12 @@ for each.
 """
 
 		# Triage
-		[Rules.review.states.nolabel]
+		[Rules.review.states.0-triage]
 
-			# Maintainers are expected to triage new incoming pull requests by adding
-			# the correct labels (e.g. `1-design-review`) potentially skipping some steps
-			# depending on the kind of pull request. Use common sense for judging.
+			# Maintainers are expected to triage new incoming pull requests by removing
+			# the `0-triage` label and adding the correct labels (e.g. `1-design-review`)
+			# potentially skipping some steps depending on the kind of pull request.
+			# Use common sense for judging.
 			#
 			# Checking for DCO should be done at this stage.
 			#
@@ -157,8 +158,8 @@ for each.
 			# Ideally, documentation should reflect the expected behavior of the code.
 			# No code review should take place in this step.
 			#
-			# Once design is approved, this label should be removed and the next label
-			# added.
+			# Once design is approved, a maintainer should make sure to remove this label
+			# and add the next one.
 
 			close = "design rejected"
 			3-docs-review = "proposals with only documentation changes"
@@ -168,14 +169,14 @@ for each.
 		[Rules.review.states.2-code-review]
 
 			# Maintainers are expected to review the code and ensure that it is good
-			# quality and in accordance with the documentation.
+			# quality and in accordance with the documentation in the PR.
 			#
 			# If documentation is absent but expected, maintainers should ask for documentation.
 			#
 			# All tests should pass.
 			#
-			# Once code is approved according to the rules of the subsystem, this label
-			# should be removed and the next label added.
+			# Once code is approved according to the rules of the subsystem, a maintainer
+			# should make sure to remove this label and add the next one.
 
 			close = ""
 			1-design-review = "raises design concerns"
@@ -190,8 +191,8 @@ for each.
 			# for any editorial change that makes the documentation more consistent and
 			# easier to understand.
 			#
-			# Once documentation is approved, this label should be removed and the next
-			# label added.
+			# Once documentation is approved, a maintainer should make sure to remove this
+			# label and add the next one.
 
 			close = ""
 			2-code-review = "requires more code changes"
