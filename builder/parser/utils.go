@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -50,17 +49,19 @@ func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
 // splitCommand takes a single line of text and parses out the cmd and args,
 // which are used for dispatching to more exact parsing functions.
 func splitCommand(line string) (string, string, error) {
+	var args string
+
 	// Make sure we get the same results irrespective of leading/trailing spaces
 	cmdline := TOKEN_WHITESPACE.Split(strings.TrimSpace(line), 2)
+	cmd := strings.ToLower(cmdline[0])
 
-	if len(cmdline) != 2 {
-		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at %q", line)
+	if len(cmdline) == 2 {
+		args = strings.TrimSpace(cmdline[1])
 	}
 
-	cmd := strings.ToLower(cmdline[0])
 	// the cmd should never have whitespace, but it's possible for the args to
 	// have trailing whitespace.
-	return cmd, strings.TrimSpace(cmdline[1]), nil
+	return cmd, args, nil
 }
 
 // covers comments and empty lines. Lines should be trimmed before passing to

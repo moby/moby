@@ -49,14 +49,14 @@ func TestBuildEmptyWhitespace(t *testing.T) {
 		name,
 		`
     FROM busybox
-    RUN 
+    COPY
       quux \
       bar
     `,
 		true)
 
 	if err == nil {
-		t.Fatal("no error when dealing with a RUN statement with no content on the same line")
+		t.Fatal("no error when dealing with a COPY statement with no content on the same line")
 	}
 
 	logDone("build - statements with whitespace and no content should generate a parse error")
@@ -4821,4 +4821,52 @@ func TestBuildVolumeFileExistsinContainer(t *testing.T) {
 	}
 
 	logDone("build - errors when volume is specified where a file exists")
+}
+
+func TestBuildMissingArgs(t *testing.T) {
+	// test to make sure these cmds w/o any args will generate an error
+	// Notice some commands are missing because its ok for them to
+	// not have any args - like: CMD, RUN, ENTRYPOINT
+	cmds := []string{
+		"ADD",
+		"COPY",
+		"ENV",
+		"EXPOSE",
+		"FROM",
+		"MAINTAINER",
+		"ONBUILD",
+		"USER",
+		"VOLUME",
+		"WORKDIR",
+	}
+
+	defer deleteAllContainers()
+
+	for _, cmd := range cmds {
+		var dockerfile string
+
+		if cmd == "FROM" {
+			dockerfile = cmd
+		} else {
+			// Add FROM to make sure we don't complain about it missing
+			dockerfile = "FROM busybox\n" + cmd
+		}
+
+		ctx, err := fakeContext(dockerfile, map[string]string{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ctx.Close()
+		var out string
+		if out, err = buildImageFromContext("args", ctx, true); err == nil {
+			t.Fatalf("%s was supposed to fail:%s", cmd, out)
+		}
+		if !strings.Contains(err.Error(), cmd+" requires") {
+			t.Fatalf("%s returned the wrong type of error:%s", cmd, err)
+		}
+
+		ctx.Close()
+	}
+
+	logDone("build - verify missing args")
 }

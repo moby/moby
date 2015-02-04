@@ -30,6 +30,10 @@ func parseIgnore(rest string) (*Node, map[string]bool, error) {
 // ONBUILD RUN foo bar -> (onbuild (run foo bar))
 //
 func parseSubCommand(rest string) (*Node, map[string]bool, error) {
+	if rest == "" {
+		return nil, nil, nil
+	}
+
 	_, child, err := parseLine(rest)
 	if err != nil {
 		return nil, nil, err
@@ -133,7 +137,7 @@ func parseEnv(rest string) (*Node, map[string]bool, error) {
 	}
 
 	if len(words) == 0 {
-		return nil, nil, fmt.Errorf("ENV must have some arguments")
+		return nil, nil, fmt.Errorf("ENV requires at least one argument")
 	}
 
 	// Old format (ENV name value)
@@ -181,6 +185,10 @@ func parseEnv(rest string) (*Node, map[string]bool, error) {
 // parses a whitespace-delimited set of arguments. The result is effectively a
 // linked list of string arguments.
 func parseStringsWhitespaceDelimited(rest string) (*Node, map[string]bool, error) {
+	if rest == "" {
+		return nil, nil, nil
+	}
+
 	node := &Node{}
 	rootnode := node
 	prevnode := node
@@ -201,6 +209,9 @@ func parseStringsWhitespaceDelimited(rest string) (*Node, map[string]bool, error
 
 // parsestring just wraps the string in quotes and returns a working node.
 func parseString(rest string) (*Node, map[string]bool, error) {
+	if rest == "" {
+		return nil, nil, nil
+	}
 	n := &Node{}
 	n.Value = rest
 	return n, nil, nil
@@ -235,7 +246,9 @@ func parseJSON(rest string) (*Node, map[string]bool, error) {
 // so, passes to parseJSON; if not, quotes the result and returns a single
 // node.
 func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
-	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return nil, nil, nil
+	}
 
 	node, attrs, err := parseJSON(rest)
 
@@ -255,8 +268,6 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 // so, passes to parseJSON; if not, attmpts to parse it as a whitespace
 // delimited string.
 func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
-	rest = strings.TrimSpace(rest)
-
 	node, attrs, err := parseJSON(rest)
 
 	if err == nil {

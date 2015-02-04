@@ -3,7 +3,6 @@ package parser
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -76,10 +75,6 @@ func parseLine(line string) (string, *Node, error) {
 	cmd, args, err := splitCommand(line)
 	if err != nil {
 		return "", nil, err
-	}
-
-	if len(args) == 0 {
-		return "", nil, fmt.Errorf("Instruction %q is empty; cannot continue", cmd)
 	}
 
 	node := &Node{}

@@ -240,6 +240,9 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
 
 	if cmd == "onbuild" {
+		if ast.Next == nil {
+			return fmt.Errorf("ONBUILD requires at least one argument")
+		}
 		ast = ast.Next.Children[0]
 		strs = append(strs, ast.Value)
 		msg += " " + ast.Value

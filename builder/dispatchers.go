@@ -39,7 +39,7 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool, origina
 //
 func env(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("ENV is missing arguments")
+		return fmt.Errorf("ENV requires at least one argument")
 	}
 
 	if len(args)%2 != 0 {
@@ -78,7 +78,7 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 // Sets the maintainer metadata.
 func maintainer(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("MAINTAINER requires only one argument")
+		return fmt.Errorf("MAINTAINER requires exactly one argument")
 	}
 
 	b.maintainer = args[0]
@@ -159,6 +159,10 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 // cases.
 //
 func onbuild(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("ONBUILD requires at least one argument")
+	}
+
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
@@ -327,6 +331,10 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 func expose(b *Builder, args []string, attributes map[string]bool, original string) error {
 	portsTab := args
 
+	if len(args) == 0 {
+		return fmt.Errorf("EXPOSE requires at least one argument")
+	}
+
 	if b.Config.ExposedPorts == nil {
 		b.Config.ExposedPorts = make(nat.PortSet)
 	}
@@ -373,7 +381,7 @@ func user(b *Builder, args []string, attributes map[string]bool, original string
 //
 func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("Volume cannot be empty")
+		return fmt.Errorf("VOLUME requires at least one argument")
 	}
 
 	if b.Config.Volumes == nil {
