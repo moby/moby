@@ -325,7 +325,7 @@ Currently supported options are:
 
     Enables or disables the use of blkdiscard when removing devicemapper
     devices. This is enabled by default (only) if using loopback devices and is
-    required to res-parsify the loopback file on image/container removal.
+    required to resparsify the loopback file on image/container removal.
 
     Disabling this on loopback can lead to *much* faster container removal
     times, but will make the space used in `/var/lib/docker` directory not be
