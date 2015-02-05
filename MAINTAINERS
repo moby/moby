@@ -187,9 +187,11 @@ for each.
 		[Rules.review.states.3-docs-review]
 
 			# Maintainers are expected to review the documentation in its bigger context,
-			# ensuring consistency throughout the entire documentation. They should ask
-			# for any editorial change that makes the documentation more consistent and
-			# easier to understand.
+			# ensuring consistency, completeness, validity, and breadth of coverage across
+			# all extent and new documentation.
+			#
+			# They should ask for any editorial change that makes the documentation more
+			# consistent and easier to understand.
 			#
 			# Once documentation is approved, a maintainer should make sure to remove this
 			# label and add the next one.
