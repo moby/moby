@@ -2,78 +2,44 @@ page_title: Docker 1.x Series Release Notes
 page_description: Release Notes for Docker 1.x.
 page_keywords: docker, documentation, about, technology, understanding, release
 
-#Release Notes
+# Release Notes
 
 You can view release notes for earlier version of Docker by selecting the
 desired version from the drop-down list at the top right of this page.
 
-##Version 1.4.1
-(2014-12-17)
- 
-This release fixes an issue related to mounting volumes on `create`. Details available in the [Github milestone](https://github.com/docker/docker/issues?q=milestone%3A1.4.1+is%3Aclosed).
+## Version 1.5.0
+(2015-02-03)
 
-##Version 1.4.0
-(2014-12-11)
- 
-This release provides a number of new features, but is mainly focused on bug
-fixes and improvements to platform stability and security.
+For a complete list of patches, fixes, and other improvements, see the
+[merge PR on GitHub](https://github.com/docker/docker/pull/10286).
 
-For a complete list of patches, fixes, and other improvements, see the [merge PR on GitHub](https://github.com/docker/docker/pull/9345).
- 
 *New Features*
 
-* You can now add labels to the Docker daemon using key=value pairs defined with
-the new `--label` flag. The labels are displayed by running `docker info`. In
-addition, `docker info` also now returns an ID and hostname field. For more
-information, see  the 
-[command line reference](http://docs.docker.com/reference/commandline/cli/#daemon).
-* The `ENV` instruction in the `Dockerfile` now supports arguments in the form 
-of `ENV name=value name2=value2..`. For more information, see the 
-[command line reference](http://docs.docker.com/reference/builder/#env)
-* Introducing a new, still 
-[experimental, overlayfs storage driver](https://github.com/docker/docker/pull/7619/).
-* You can now add filters to `docker events` to filter events by event name, 
-container, or image. For more information, see  the 
-[command line reference](http://docs.docker.com/reference/commandline/cli/#events).
-* The `docker cp` command now supports copying files from the filesystem of a
-container's volumes. For more information, see  the 
-[remote API reference](http://docs.docker.com/reference/api/docker_remote_api/).
-* The `docker tag` command has been fixed so that it correctly honors `--force`
-when overriding a tag for existing image. For more information, see 
-the [command line reference](http://docs.docker.com/reference/commandline/cli/#tag).
-
-* Container volumes are now initialized during `docker create`. For more information, see 
-the [command line reference](http://docs.docker.com/reference/commandline/cli/#create).
-
-*Security Fixes*
-
-Patches and changes were made to address the following vulnerabilities:
-
-* CVE-2014-9356: Path traversal during processing of absolute symlinks.
-Absolute symlinks were not adequately checked for  traversal which created a
-vulnerability via image extraction and/or volume mounts.
-* CVE-2014-9357: Escalation of privileges during decompression of LZMA (.xz)
-archives. Docker 1.3.2 added `chroot` for archive extraction. This created a
-vulnerability that could allow malicious images or builds to write files to the
-host system and escape containerization, leading to privilege escalation.
-* CVE-2014-9358: Path traversal and spoofing opportunities via image
-identifiers. Image IDs passed either via `docker load` or registry communications
-were not sufficiently validated. This created a vulnerability to path traversal
-attacks wherein malicious images or repository spoofing could lead to graph
-corruption and manipulation.
-
-> **Note:** the above CVEs are also patched in Docker 1.3.3, which was released
-> concurrently with 1.4.0.
-
-*Runtime fixes*
-
-* Fixed an issue that caused image archives to be read slowly.
-
-*Client fixes*
- 
-* Fixed a regression related to STDIN redirection.
-* Fixed a regression involving `docker cp` when the current directory is the
-destination.
+* The Docker daemon has now supports for IPv6 networking between containers
+  and on the `docker0` bridge. For more information see the
+  [IPv6 networking reference](/articles/networking/#ipv6).
+* Docker container filesystems can now be set to`--read-only`, restricting your
+  container to writing to volumes [PR# 10093](https://github.com/docker/docker/pull/10093).
+* A new `docker stats CONTAINERID` command has been added to allow users to view a
+  continuously updating stream of container resource usage statistics. See the
+  [`stats` command line reference](/reference/commandline/cli/#stats) and the 
+  [container `stats` API reference](/reference/api/docker_remote_api_v1.17/#get-container-stats-based-on-resource-usage).
+  **Note**: this feature is only enabled for the `libcontainer` exec-driver at this point.
+* Users can now specify the file to use as the `Dockerfile` by running
+  `docker build -f alternate.dockerfile .`. This will allow the definition of multiple
+  `Dockerfile`s for a single project. See the [`docker build` command reference](
+/reference/commandline/cli/#build) for more information.
+* The v1 Open Image specification has been created to document the current Docker image
+  format and metadata. Please see [the Open Image specification document](
+https://github.com/docker/docker/blob/master/image/spec/v1.md) for more details.
+* This release also includes a number of significant performance improvements in
+  build and image management ([PR #9720](https://github.com/docker/docker/pull/9720),
+  [PR #8827](https://github.com/docker/docker/pull/8827))
+* The `docker inspect` command now lists ExecIDs generated for each `docker exec` process.
+  See [PR #9800](https://github.com/docker/docker/pull/9800)) for more details.
+* The `docker inspect` command now shows the number of container restarts when there
+  is a restart policy ([PR #9621](https://github.com/docker/docker/pull/9621))
+* This version of Docker is built using Go 1.4
 
 > **Note:**
 > Development history prior to version 1.0 can be found by
@@ -90,3 +56,10 @@ An idiosyncrasy in AUFS prevents permissions from propagating predictably
 between upper and lower layers. This can cause issues with accessing private
 keys, database instances, etc. For complete information and workarounds see
 [Github Issue 783](https://github.com/docker/docker/issues/783).
+
+* **Docker Hub incompatible with Safari 8**
+Docker Hub has multiple issues displaying on Safari 8, the default browser
+for OS X 10.10 (Yosemite). Users should access the hub using a different
+browser. Most notably, changes in the way Safari handles cookies means that the
+user is repeatedly logged out. For more information, see the [Docker
+forum post](https://forums.docker.com/t/new-safari-in-yosemite-issue/300).
