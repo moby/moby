@@ -201,7 +201,7 @@ Here is the list of supported options:
 
     Enables or disables the use of blkdiscard when removing
     devicemapper devices. This is enabled by default (only) if using
-    loopback devices and is required to res-parsify the loopback file
+    loopback devices and is required to resparsify the loopback file
     on image/container removal.
 
     Disabling this on loopback can lead to *much* faster container
