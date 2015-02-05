@@ -143,9 +143,9 @@ for each.
 			# If an owner, responsible for closing or merging, can be assigned to the PR,
 			# the better.
 
-			close = "unresponsive contributor without DCO"
-			3-docs-review = "Non-proposal documentation-only change"
-			2-code-review = "trivial bugfix"
+			close = "e.g. unresponsive contributor without DCO"
+			3-docs-review = "non-proposal documentation-only change"
+			2-code-review = "e.g. trivial bugfix"
 			1-design-review = "general case"
 
 		# Design review
