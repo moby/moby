@@ -177,7 +177,8 @@ Json Parameters:
       for the container.
 -   **User** - A string value containg the user to use inside the container.
 -   **Memory** - Memory limit in bytes.
--   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
+-   **MemorySwap**- Total memory limit (memory + swap); set `-1` to disable swap,
+      always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs othercontainers).
     **CpuSet** - String value containg the cgroups Cpuset to use.
