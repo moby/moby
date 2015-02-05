@@ -426,29 +426,24 @@ Docker supports softlinks for the Docker data directory
       --no-stdin=false    Do not attach STDIN
       --sig-proxy=true    Proxy all received signals to the process
 
-The `attach` command lets you view or interact with any running container's
-primary process (`pid 1`).
+The `docker attach` command allows you to attach to a running container using
+the container's ID or name, either to view its ongoing output or to control it
+interactively.  You can attach to the same contained process multiple times
+simultaneously, screen sharing style, or quickly view the progress of your
+daemonized process.
 
-You can attach to the same contained process multiple times simultaneously, screen
-sharing style, or quickly view the progress of your daemonized process.
+You can detach from the container (and leave it running) with `CTRL-p CTRL-q`
+(for a quiet exit) or `CTRL-c` which will send a `SIGKILL` to the container.
+When you are attached to a container, and exit its main process, the process's
+exit code will be returned to the client.
 
-> **Note:** This command is not for running a new process in a container.
-> See: [`docker exec`](#exec).
-
-You can detach from the container again (and leave it running) with
-`CTRL-p CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a
-SIGKILL to the container, or `CTRL-\` to get a stacktrace of the
-Docker client when it quits. When you detach from the container's
-process the exit code will be returned to the client.
-
-To stop a container, use `docker stop`.
-
-To kill the container, use `docker kill`.
+It is forbidden to redirect the standard input of a `docker attach` command while
+attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 #### Examples
 
-    $ ID=$(sudo docker run -d ubuntu /usr/bin/top -b)
-    $ sudo docker attach $ID
+    $ sudo docker run -d --name topdemo ubuntu /usr/bin/top -b)
+    $ sudo docker attach topdemo
     top - 02:05:52 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
     Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
     Cpu(s):  0.1%us,  0.2%sy,  0.0%ni, 99.7%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
@@ -477,7 +472,23 @@ To kill the container, use `docker kill`.
      PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
           1 root      20   0 17208 1144  932 R    0  0.3   0:00.03 top
     ^C$
-    $ sudo docker stop $ID
+    $ echo $?
+    0
+    $ docker ps -a | grep topdemo
+    7998ac8581f9        ubuntu:14.04        "/usr/bin/top -b"   38 seconds ago      Exited (0) 21 seconds ago                          topdemo 
+
+And in this second example, you can see the exit code returned by the `bash` process
+is returned by the `docker attach` command to its caller too:
+
+    $ sudo docker run --name test -d -it debian
+    275c44472aebd77c926d4527885bb09f2f6db21d878c75f0a1c212c03d3bcfab
+    $ sudo docker attach test
+    $$ exit 13
+    exit
+    $ echo $?
+    13
+    $ sudo docker ps -a | grep test
+    275c44472aeb        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
 
 ## build
 
@@ -1650,6 +1661,19 @@ information about the `--expose`, `-p`, `-P` and `--link` parameters,
 and linking containers.
 
 #### Examples
+
+    $ sudo docker run --name test -it debian
+    $$ exit 13
+    exit
+    $ echo $?
+    13
+    $ sudo docker ps -a | grep test
+    275c44472aeb        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
+
+In this example, we are running `bash` interactively in the `debian:latest` image, and giving
+the container the name `test`. We then quit `bash` by running `exit 13`, which means `bash`
+will have an exit code of `13`. This is then passed on to the caller of `docker run`, and
+is recorded in the `test` container metadata.
 
     $ sudo docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 
