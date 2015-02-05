@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/parser"
@@ -21,7 +22,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// whitelist of commands allowed for a commit
+// whitelist of commands allowed for a commit/import
 var validCommitCommands = map[string]bool{
 	"entrypoint": true,
 	"cmd":        true,
@@ -162,7 +163,7 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 	}
 
 	var (
-		changes   = job.Getenv("changes")
+		changes   = job.GetenvList("changes")
 		newConfig runconfig.Config
 	)
 
@@ -170,7 +171,7 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	ast, err := parser.Parse(bytes.NewBufferString(changes))
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return job.Error(err)
 	}

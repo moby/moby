@@ -205,9 +205,13 @@ func TestCommitWithHostBindMount(t *testing.T) {
 
 func TestCommitChange(t *testing.T) {
 	defer deleteAllContainers()
-	cmd(t, "run", "--name", "test", "busybox", "true")
 
-	cmd := exec.Command(dockerBinary, "commit",
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit",
 		"--change", "EXPOSE 8080",
 		"--change", "ENV DEBUG true",
 		"test", "test-commit")
