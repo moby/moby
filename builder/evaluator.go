@@ -309,7 +309,5 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		return f(b, strList, attrs, original)
 	}
 
-	fmt.Fprintf(b.ErrStream, "# Skipping unknown instruction %s\n", strings.ToUpper(cmd))
-
-	return nil
+	return fmt.Errorf("Unknown instruction: %s", strings.ToUpper(cmd))
 }
