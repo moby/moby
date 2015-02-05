@@ -4,48 +4,34 @@ page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, 
 
 # CentOS
 
-While the Docker package is provided by default as part of CentOS-7,
-it is provided by the EPEL repository for CentOS-6. Please note that
-this changes the installation instructions slightly between versions. If you
-need the latest version, you can always use the latest binary which works on
-kernel 3.8 and above.
+Docker is supported on the following versions of CentOS:
 
-These instructions work for CentOS 6 and later. They will likely work for
-other binary compatible EL6 distributions such as Scientific Linux, but
-they haven't been tested.
+- [*CentOS 7 (64-bit)*](#installing-docker---centos-7)
+- [*CentOS 6.5 (64-bit)*](#installing-docker---centos-6.5) or later
+
+These instructions are likely work for other binary compatible EL6/EL7 distributions
+such as Scientific Linux, but they haven't been tested.
 
 Please note that due to the current Docker limitations, Docker is able to
 run only on the **64 bit** architecture.
 
-To run Docker, you will need [CentOS6](http://www.centos.org) or higher,
-with a kernel version 2.6.32-431 or higher as this has specific kernel
-fixes to allow Docker to run.
+## Kernel support
+
+Currently the CentOS project will only support Docker when running on kernels
+shipped by the distribution. There are kernel changes which will cause issues
+if one decides to step outside that box and run non-distribution kernel packages.
+
+To run Docker on [CentOS-6.5](http://www.centos.org) or later, you will need
+kernel version 2.6.32-431 or higher as this has specific kernel fixes to allow
+Docker to run.
 
 ## Installing Docker - CentOS-7
 Docker is included by default in the CentOS-Extras repository. To install
-simply run the following command.
+run the following command:
 
     $ sudo yum install docker
 
-## Kernel support
-
-Currently the CentOS project will only support Docker via the EPEL package when
-running on kernels shipped by the distribution. There are things like namespace
-changes which will cause issues if one decides to step outside that box and run
-non-distro kernel packages.
-
-### Manual installation of latest version
-
-While using a package is the recommended way of installing Docker,
-the above package might not be the latest version. If you need the latest
-version, [you can install the binary directly](
-https://docs.docker.com/installation/binaries/).
-
-When installing the binary without a package, you may want
-to integrate Docker with systemd. For this, simply install the two unit files
-(service and socket) from [the github
-repository](https://github.com/docker/docker/tree/master/contrib/init/systemd)
-to `/etc/systemd/system`.
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
 ### FirewallD
 
@@ -55,32 +41,49 @@ conflict with Docker.
 When `firewalld` is started or restarted it will remove the `DOCKER` chain
 from iptables, preventing Docker from working properly.
 
-When using systemd, `firewalld` is started before Docker, but if you
+When using Systemd, `firewalld` is started before Docker, but if you
 start or restart `firewalld` after Docker, you will have to restart the Docker daemon.
 
-## Installing Docker - CentOS-6
-Please note that this for CentOS-6, this package is part of [Extra Packages
-for Enterprise Linux (EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort
-to create and maintain additional packages for the RHEL distribution.
+## Installing Docker - CentOS-6.5
+
+For Centos-6.5, the Docker package is part of [Extra Packages
+for Enterprise Linux (EPEL)](https://fedoraproject.org/wiki/EPEL) repository,
+a community effort to create and maintain additional packages for the RHEL distribution.
 
 Firstly, you need to ensure you have the EPEL repository enabled. Please
 follow the [EPEL installation instructions](
 https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F).
 
-The `docker-io` package provides Docker on EPEL.
+For CentOS-6, there is a package name conflict with a system tray application
+and its executable, so the Docker RPM package was called `docker-io`.
 
-If you already have the (unrelated) `docker` package
-installed, it will conflict with `docker-io`.
-There's a [bug report](
-https://bugzilla.redhat.com/show_bug.cgi?id=1043676) filed for it.
-To proceed with `docker-io` installation, please remove `docker` first.
+To proceed with `docker-io` installation on CentOS-6, you may need to remove the
+`docker` package first.
 
-Next, let's install the `docker-io` package which
-will install Docker on our host.
+    $ sudo yum -y remove docker
+
+Next, let's install the `docker-io` package which will install Docker on our host.
 
     $ sudo yum install docker-io
 
-## Using Docker
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+## Manual installation of latest Docker release
+
+While using a package is the recommended way of installing Docker,
+the above package might not be the current release version. If you need the latest
+version, [you can install the binary directly](
+https://docs.docker.com/installation/binaries/).
+
+When installing the binary without a package, you may want
+to integrate Docker with Systemd. For this, install the two unit files
+(service and socket) from [the GitHub
+repository](https://github.com/docker/docker/tree/master/contrib/init/systemd)
+to `/etc/systemd/system`.
+
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+## Starting the Docker daemon
 
 Once Docker is installed, you will need to start the docker daemon.
 
@@ -115,13 +118,13 @@ If everything is working properly, you'll get a simple bash prompt. Type
 ## Custom daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
-Docker runtime files, or make other customizations, read our systemd article to
-learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+Docker runtime files, or make other customizations, read our Systemd article to
+learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
 
 ## Dockerfiles
 The CentOS Project provides a number of sample Dockerfiles which you may use
 either as templates or to familiarize yourself with docker. These templates
-are available on github at [https://github.com/CentOS/CentOS-Dockerfiles](
+are available on GitHub at [https://github.com/CentOS/CentOS-Dockerfiles](
 https://github.com/CentOS/CentOS-Dockerfiles)
 
 **Done!** You can either continue with the [Docker User
