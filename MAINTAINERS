@@ -320,6 +320,11 @@ made through a pull request.
 				"sven",
 			]
 
+      files = [
+        "/docs/*",
+        "*.md"
+      ]
+
 		[Org.Subsystems.libcontainer]
 
 			people = [
@@ -338,6 +343,10 @@ made through a pull request.
 				"joffrey",
 				"samalba"
 			]
+
+      files = [
+        "/registry/*"
+      ]
 
 		[Org.Subsystems."build tools"]
 
