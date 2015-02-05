@@ -70,9 +70,9 @@ pages:
 - ['docker-hub/official_repos.md', 'Docker Hub', 'Official Repo Guidelines']
 
 # Docker Hub Enterprise
-- ['docker-hub-enterprise/index.md', '**HIDDEN**' ]
-- ['docker-hub-enterprise/install-config.md', 'Docker Hub Enterprise', 'Installation and Configuration' ]
-- ['docker-hub-enterprise/usage.md', 'Docker Hub Enterprise', 'User Guide' ]
+#- ['docker-hub-enterprise/index.md', '**HIDDEN**' ]
+#- ['docker-hub-enterprise/install-config.md', 'Docker Hub Enterprise', 'Installation and Configuration' ]
+#- ['docker-hub-enterprise/usage.md', 'Docker Hub Enterprise', 'User Guide' ]
 
 # Examples:
 - ['examples/index.md', '**HIDDEN**']
