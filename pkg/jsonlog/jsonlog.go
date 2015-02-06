@@ -23,7 +23,7 @@ func (jl *JSONLog) Format(format string) (string, error) {
 		m, err := json.Marshal(jl)
 		return string(m), err
 	}
-	return fmt.Sprintf("[%s] %s", jl.Created.Format(format), jl.Log), nil
+	return fmt.Sprintf("%s %s", jl.Created.Format(format), jl.Log), nil
 }
 
 func (jl *JSONLog) Reset() {
