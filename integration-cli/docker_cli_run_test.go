@@ -493,6 +493,21 @@ func TestVolumesFromGetsProperMode(t *testing.T) {
 	logDone("run - volumes from ignores `rw` if inherrited volume is `ro`")
 }
 
+// Test for GH#10618
+func TestRunNoDupVolumes(t *testing.T) {
+	cmd := exec.Command(dockerBinary, "run", "-v", "/etc:/someplace", "-v", "/usr/lib:/someplace", "busybox", "echo", "hi")
+	if out, _, err := runCommandWithOutput(cmd); err == nil {
+		t.Fatal("Expected error about duplicate volume definitions")
+	} else {
+		if !strings.Contains(out, "Duplicate volume") {
+			t.Fatalf("Expected 'duplicate volume' error, got %v", err)
+		}
+	}
+	deleteAllContainers()
+
+	logDone("run - don't allow multiple (bind) volumes on the same container target")
+}
+
 // Test for #1351
 func TestRunApplyVolumesFromBeforeVolumes(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "touch", "/test/foo")
