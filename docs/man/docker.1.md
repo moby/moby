@@ -219,8 +219,8 @@ inside it)
 # STORAGE DRIVER OPTIONS
 
 Options to storage backend can be specified with **--storage-opt** flags. The
-only backend which currently takes options is *devicemapper*. Therefore use these
-flags with **-s=**devicemapper.
+backends which currently take options are *devicemapper* and *aufs*. Therefore,
+use these flags with **-s=**devicemapper or **-s=**aufs
 
 Here is the list of *devicemapper* options:
 
@@ -283,14 +283,25 @@ Disabling this on loopback can lead to *much* faster container removal times,
 but will prevent the space used in `/var/lib/docker` directory from being returned to
 the system for other use when containers are removed.
 
+Here is the list of *aufs* options:
+
+#### aufs.mountopt
+Specifies extra mount options used when mounting the aufs layers.
+
 # EXAMPLES
-Launching docker daemon with *devicemapper* backend with particular block devices
+Launching Docker daemon with *devicemapper* backend with particular block devices
 for data and metadata:
 
     docker -d -s=devicemapper \
       --storage-opt dm.datadev=/dev/vdb \
       --storage-opt dm.metadatadev=/dev/vdc \
       --storage-opt dm.basesize=20G
+
+Launching Docker daemon with *aufs* backend that applies `dirperm1` mount option
+to all layers
+
+    docker -d -s=aufs \
+      --storage-opt aufs.mountopt=dirperm1
 
 #### Client
 For specific client examples please see the man page for the specific Docker
@@ -300,3 +311,4 @@ command. For example:
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com) based on docker.com source material and internal work.
+Dec 2014, updated by Daniel, Dao Quang Minh (dqminh89 at gmail dot com)

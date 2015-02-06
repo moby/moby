@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
 )
@@ -56,9 +57,12 @@ type Driver struct {
 	root       string
 	sync.Mutex // Protects concurrent modification to active
 	active     map[string]int
+
+	// custom mount options for aufs. This will be applied for each aufs layer
+	mountOptions string
 }
 
-// New returns a new AUFS driver.
+// Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
 func Init(root string, options []string) (graphdriver.Driver, error) {
 
@@ -90,6 +94,21 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 	a := &Driver{
 		root:   root,
 		active: make(map[string]int),
+	}
+
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+
+		switch key {
+		case "aufs.mountopt":
+			a.mountOptions = val
+		default:
+			return nil, fmt.Errorf("Unknown option %s\n", key)
+		}
 	}
 
 	// Create the root aufs driver dir and return
@@ -421,7 +440,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	// Mount options are clipped to page size(4096 bytes). If there are more
 	// layers then these are remounted individually using append.
 
-	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-50) // room for xino & mountLabel
+	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-len(a.mountOptions)-50) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
 	firstMount := true
@@ -445,7 +464,11 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 
 		if firstMount {
-			data := label.FormatMountLabel(fmt.Sprintf("%s,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
+			mountOptions := "xino=/dev/shm/aufs.xino"
+			if a.mountOptions != "" {
+				mountOptions += "," + a.mountOptions
+			}
+			data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), mountOptions), mountLabel)
 			if err = mount("none", target, "aufs", 0, data); err != nil {
 				return
 			}
