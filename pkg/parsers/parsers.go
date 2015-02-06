@@ -77,7 +77,7 @@ func ParseRepositoryTag(repos string) (string, string) {
 }
 
 func PartParser(template, data string) (map[string]string, error) {
-	// ip:public:private
+	// ip:hostPort:containerPort
 	var (
 		templateParts = strings.Split(template, ":")
 		parts         = strings.Split(data, ":")
