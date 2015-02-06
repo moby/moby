@@ -31,7 +31,7 @@ docker-run - Run a command in a new container
 [**--lxc-conf**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
-[**--memory-swap**[=*MEMORY-SWAP]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]

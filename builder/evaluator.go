@@ -125,6 +125,12 @@ type Builder struct {
 	context        tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath    string        // the path of the temporary directory the local context is unpacked to (server side)
 	noBaseImage    bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
+
+	// Set resource restrictions for build containers
+	cpuSetCpus string
+	cpuShares  int64
+	memory     int64
+	memorySwap int64
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -156,6 +162,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	// some initializations that would not have been supplied by the caller.
 	b.Config = &runconfig.Config{}
+
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {

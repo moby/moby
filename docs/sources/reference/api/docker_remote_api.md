@@ -60,12 +60,17 @@ You can set ulimit settings to be used within the container.
 `GET /info`
 
 **New!**
-This endpoint now returns `SystemTime`, `HttpProxy`,`HttpsProxy` and `NoProxy`. 
+This endpoint now returns `SystemTime`, `HttpProxy`,`HttpsProxy` and `NoProxy`.
 
 `GET /images/json`
 
 **New!**
 Added a `RepoDigests` field to include image digest information.
+
+`POST /build`
+
+**New!**
+Builds can now set resource constraints for all containers created for the build.
 
 ## v1.17
 

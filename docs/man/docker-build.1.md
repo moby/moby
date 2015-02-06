@@ -14,6 +14,11 @@ docker-build - Build a new image from the source code at PATH
 [**-q**|**--quiet**[=*false*]]
 [**--rm**[=*true*]]
 [**-t**|**--tag**[=*TAG*]]
+[**-m**|**--memory**[=*MEMORY*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
+[**-c**|**--cpu-shares**[=*0*]]
+[**--cpuset-cpus**[=*CPUSET-CPUS*]]
+
 PATH | URL | -
 
 # DESCRIPTION
