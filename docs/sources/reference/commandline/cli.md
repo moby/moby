@@ -2028,6 +2028,8 @@ more details on finding shared images from the command line.
 
       --help=false       Print usage
 
+> **Note**: this functionality currently only works when using the *libcontainer* exec-driver.
+
 Running `docker stats` on multiple containers
 
     $ sudo docker stats redis1 redis2
