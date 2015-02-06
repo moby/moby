@@ -70,6 +70,7 @@ type Container struct {
 	ResolvConfPath string
 	HostnamePath   string
 	HostsPath      string
+	LogPath        string
 	Name           string
 	Driver         string
 	ExecDriver     string
@@ -1322,16 +1323,17 @@ func (container *Container) setupWorkingDirectory() error {
 
 func (container *Container) startLoggingToDisk() error {
 	// Setup logging of stdout and stderr to disk
-	pth, err := container.logPath("json")
+	logPath, err := container.logPath("json")
 	if err != nil {
 		return err
 	}
+	container.LogPath = logPath
 
-	if err := container.daemon.LogToDisk(container.stdout, pth, "stdout"); err != nil {
+	if err := container.daemon.LogToDisk(container.stdout, container.LogPath, "stdout"); err != nil {
 		return err
 	}
 
-	if err := container.daemon.LogToDisk(container.stderr, pth, "stderr"); err != nil {
+	if err := container.daemon.LogToDisk(container.stderr, container.LogPath, "stderr"); err != nil {
 		return err
 	}
 

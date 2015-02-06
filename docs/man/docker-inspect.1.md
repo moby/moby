@@ -101,6 +101,7 @@ To get information on a container use it's ID or instance name:
         "ResolvConfPath": "/etc/resolv.conf",
         "HostnamePath": "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/hostname",
         "HostsPath": "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/hosts",
+        "LogPath": "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b-json.log",
         "Name": "/ecstatic_ptolemy",
         "Driver": "devicemapper",
         "ExecDriver": "native-0.1",
