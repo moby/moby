@@ -3,42 +3,38 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/api/stats"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestContainerApiGetAll(t *testing.T) {
+func (suite *IntegTestSuite) ContainerAPIGetAll() {
+	t := suite.T()
+	assert := assert.New(t)
 	startCount, err := getContainerCount()
-	if err != nil {
-		t.Fatalf("Cannot query container count: %v", err)
-	}
+	assert.Nil(err, fmt.Sprintf("Cannot query container count: %v", err))
 
 	name := "getall"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		t.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	assert.Nil(err, fmt.Sprintf("Error on container creation: %v, output: %q", err, out))
 
 	body, err := sockRequest("GET", "/containers/json?all=1", nil)
-	if err != nil {
-		t.Fatalf("GET all containers sockRequest failed: %v", err)
-	}
+	assert.Nil(err, fmt.Sprintf("GET all containers sockRequest failed: %v", err))
 
 	var inspectJSON []struct {
 		Names []string
 	}
-	if err = json.Unmarshal(body, &inspectJSON); err != nil {
-		t.Fatalf("unable to unmarshal response body: %v", err)
-	}
+	err = json.Unmarshal(body, &inspectJSON)
+	assert.Nil(err, fmt.Sprintf("unable to unmarshal response body: %v", err))
 
 	if len(inspectJSON) != startCount+1 {
 		t.Fatalf("Expected %d container(s), %d found (started with: %d)", startCount+1, len(inspectJSON), startCount)
@@ -48,15 +44,16 @@ func TestContainerApiGetAll(t *testing.T) {
 		t.Fatalf("Container Name mismatch. Expected: %q, received: %q\n", "/"+name, actual)
 	}
 
-	deleteAllContainers()
-
 	logDone("container REST API - check GET json/all=1")
 }
 
-func TestContainerApiGetExport(t *testing.T) {
+func (suite *IntegTestSuite) ContainerAPIGetExport() {
+	t := suite.T()
+	assert := assert.New(t)
 	name := "exportcontainer"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test")
 	out, _, err := runCommandWithOutput(runCmd)
+
 	if err != nil {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
@@ -81,15 +78,14 @@ func TestContainerApiGetExport(t *testing.T) {
 		}
 	}
 
-	if !found {
-		t.Fatalf("The created test file has not been found in the exported image")
-	}
-	deleteAllContainers()
+	assert.Nil(found, true, "The created test file has not been found in the exported image")
 
 	logDone("container REST API - check GET containers/export")
 }
 
-func TestContainerApiGetChanges(t *testing.T) {
+func (suite *IntegTestSuite) ContainerAPIGetChanges() {
+	t := suite.T()
+	assert := assert.New(t)
 	name := "changescontainer"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -117,17 +113,14 @@ func TestContainerApiGetChanges(t *testing.T) {
 			success = true
 		}
 	}
-	if !success {
-		t.Fatalf("/etc/passwd has been removed but is not present in the diff")
-	}
-
-	deleteAllContainers()
+	assert.Nil(success, true, "/etc/passwd has been removed but is not present in the diff")
 
 	logDone("container REST API - check GET containers/changes")
 }
 
-func TestContainerApiStartVolumeBinds(t *testing.T) {
-	defer deleteAllContainers()
+func (suite *IntegTestSuite) ContainerAPIStartVolumeBinds() {
+	t := suite.T()
+	assert := assert.New(t)
 	name := "testing"
 	config := map[string]interface{}{
 		"Image":   "busybox",
@@ -139,9 +132,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	}
 
 	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
@@ -151,9 +142,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	}
 
 	pth, err := inspectFieldMap(name, "Volumes", "/tmp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
 
 	if pth != bindPath {
 		t.Fatalf("expected volume host path to be %s, got %s", bindPath, pth)
@@ -162,8 +151,9 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	logDone("container REST API - check volume binds on start")
 }
 
-func TestContainerApiStartVolumesFrom(t *testing.T) {
-	defer deleteAllContainers()
+func (suite *IntegTestSuite) ContainerAPIStartVolumesFrom() {
+	t := suite.T()
+	assert := assert.New(t)
 	volName := "voltst"
 	volPath := "/tmp"
 
@@ -189,13 +179,10 @@ func TestContainerApiStartVolumesFrom(t *testing.T) {
 	}
 
 	pth, err := inspectFieldMap(name, "Volumes", volPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
+
 	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
 
 	if pth != pth2 {
 		t.Fatalf("expected volume host path to be %s, got %s", pth, pth2)
@@ -206,7 +193,9 @@ func TestContainerApiStartVolumesFrom(t *testing.T) {
 
 // Ensure that volumes-from has priority over binds/anything else
 // This is pretty much the same as TestRunApplyVolumesFromBeforeVolumes, except with passing the VolumesFrom and the bind on start
-func TestVolumesFromHasPriority(t *testing.T) {
+func (suite *IntegTestSuite) VolumesFromHasPriority() {
+	t := suite.T()
+	assert := assert.New(t)
 	defer deleteAllContainers()
 	volName := "voltst"
 	volPath := "/tmp"
@@ -226,9 +215,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 	}
 
 	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
 
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
@@ -239,13 +226,9 @@ func TestVolumesFromHasPriority(t *testing.T) {
 	}
 
 	pth, err := inspectFieldMap(name, "Volumes", volPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
 	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err)
 
 	if pth != pth2 {
 		t.Fatalf("expected volume host path to be %s, got %s", pth, pth2)
@@ -254,8 +237,8 @@ func TestVolumesFromHasPriority(t *testing.T) {
 	logDone("container REST API - check VolumesFrom has priority")
 }
 
-func TestGetContainerStats(t *testing.T) {
-	defer deleteAllContainers()
+func (suite *IntegTestSuite) GetContainerStats() {
+	t := suite.T()
 	var (
 		name   = "statscontainer"
 		runCmd = exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
@@ -300,7 +283,8 @@ func TestGetContainerStats(t *testing.T) {
 	logDone("container REST API - check GET containers/stats")
 }
 
-func TestBuildApiDockerfilePath(t *testing.T) {
+func (suite *IntegTestSuite) BuildAPIDockerfilePath() {
+	t := suite.T()
 	// Test to make sure we stop people from trying to leave the
 	// build context when specifying the path to the dockerfile
 	buffer := new(bytes.Buffer)
@@ -333,7 +317,8 @@ func TestBuildApiDockerfilePath(t *testing.T) {
 	logDone("container REST API - check build w/bad Dockerfile path")
 }
 
-func TestBuildApiDockerfileSymlink(t *testing.T) {
+func (suite *IntegTestSuite) BuildAPIDockerfileSymlink() {
+	t := suite.T()
 	// Test to make sure we stop people from trying to leave the
 	// build context when specifying a symlink as the path to the dockerfile
 	buffer := new(bytes.Buffer)
