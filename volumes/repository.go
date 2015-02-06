@@ -125,28 +125,12 @@ func (r *Repository) get(path string) *Volume {
 	return r.volumes[filepath.Clean(path)]
 }
 
-func (r *Repository) Add(volume *Volume) error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	return r.add(volume)
-}
-
 func (r *Repository) add(volume *Volume) error {
 	if vol := r.get(volume.Path); vol != nil {
 		return fmt.Errorf("Volume exists: %s", volume.ID)
 	}
 	r.volumes[volume.Path] = volume
 	return nil
-}
-
-func (r *Repository) Remove(volume *Volume) {
-	r.lock.Lock()
-	r.remove(volume)
-	r.lock.Unlock()
-}
-
-func (r *Repository) remove(volume *Volume) {
-	delete(r.volumes, volume.Path)
 }
 
 func (r *Repository) Delete(path string) error {
@@ -178,7 +162,7 @@ func (r *Repository) Delete(path string) error {
 		}
 	}
 
-	r.remove(volume)
+	delete(r.volumes, volume.Path)
 	return nil
 }
 
