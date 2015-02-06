@@ -204,7 +204,8 @@ func validateDomain(val string) (string, error) {
 }
 
 func ValidateExtraHost(val string) (string, error) {
-	arr := strings.Split(val, ":")
+	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
+	arr := strings.SplitN(val, ":", 2)
 	if len(arr) != 2 || len(arr[0]) == 0 {
 		return "", fmt.Errorf("bad format for add-host: %s", val)
 	}

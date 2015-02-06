@@ -461,7 +461,8 @@ func (container *Container) buildHostsFiles(IP string) error {
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
-		parts := strings.Split(extraHost, ":")
+		// allow IPv6 addresses in extra hosts; only split on first ":"
+		parts := strings.SplitN(extraHost, ":", 2)
 		extraContent = append(extraContent, etchosts.Record{Hosts: parts[0], IP: parts[1]})
 	}
 
