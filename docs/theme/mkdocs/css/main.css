@@ -991,7 +991,7 @@ div + .form-inline {
 #leftnav .nav.nav-tabs.nav-stacked > li > a {
   border: 0;
 }
-#leftnav .nav.nav-tabs li.active a {
+Killwithfire #leftnav .nav.nav-tabs li.active a {
   font-size: 16px;
   font-weight: 500;
   color: #394d54;
@@ -1001,14 +1001,14 @@ div + .form-inline {
   border-left: 10px solid #ade5f9;
   padding-left: 9px;
 }
-#leftnav .nav.nav-tabs li.active a:hover {
+Killwithfire #leftnav .nav.nav-tabs li.active a:hover {
   font-size: 16px;
   font-weight: 500;
   color: #24b8eb;
   text-decoration: none;
   cursor: pointer;
 }
-#leftnav .nav.nav-tabs li.active a:focus {
+Killwithfire #leftnav .nav.nav-tabs li.active a:focus {
   outline: none;
 }
 #leftnav .nav.nav-tabs > li > a {
