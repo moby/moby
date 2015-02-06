@@ -69,6 +69,9 @@ type containerMonitor struct {
 	// left waiting for nothing to happen during this time
 	stopChan chan struct{}
 
+	// like startSignal but for restoring a container
+	restoreSignal chan struct{}
+
 	// timeIncrement is the amount of time to wait between restarts
 	// this is in milliseconds
 	timeIncrement int
@@ -87,6 +90,7 @@ func (container *Container) StartMonitor(s supervisor, policy container.RestartP
 		timeIncrement: defaultTimeIncrement,
 		stopChan:      make(chan struct{}),
 		startSignal:   make(chan struct{}),
+		restoreSignal: make(chan struct{}),
 	}
 
 	return container.monitor.wait()
@@ -240,6 +244,49 @@ func (m *containerMonitor) start() error {
 	}
 }
 
+// Like Start() but for restoring a container.
+func (m *containerMonitor) Restore() error {
+	var (
+		err error
+		// XXX The following line should be changed to
+		//     exitStatus execdriver.ExitStatus to match Start()
+		exitCode     int
+		afterRestore bool
+	)
+
+	defer func() {
+		if afterRestore {
+			m.container.Lock()
+			m.container.setStopped(&execdriver.ExitStatus{exitCode, false})
+			defer m.container.Unlock()
+		}
+		m.Close()
+	}()
+
+	if err := m.container.startLoggingToDisk(); err != nil {
+		m.resetContainer(false)
+		return err
+	}
+
+	pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
+
+	m.container.LogEvent("restore")
+	m.lastStartTime = time.Now()
+	if exitCode, err = m.container.daemon.Restore(m.container, pipes, m.restoreCallback); err != nil {
+		log.Errorf("Error restoring container: %s, exitCode=%d", err, exitCode)
+		m.container.ExitCode = -1
+		m.resetContainer(false)
+		return err
+	}
+	afterRestore = true
+
+	m.container.ExitCode = exitCode
+	m.resetMonitor(err == nil && exitCode == 0)
+	m.container.LogEvent("die")
+	m.resetContainer(true)
+	return err
+}
+
 // resetMonitor resets the stateful fields on the containerMonitor based on the
 // previous runs success or failure.  Regardless of success, if the container had
 // an execution time of more than 10s then reset the timer back to the default
@@ -333,6 +380,29 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 		logrus.Errorf("Error saving container to disk: %v", err)
 	}
 	return nil
+}
+
+// Like callback() but for restoring a container.
+func (m *containerMonitor) restoreCallback(processConfig *execdriver.ProcessConfig, restorePid int) {
+	// If restorePid is 0, it means that restore failed.
+	if restorePid != 0 {
+		m.container.setRunning(restorePid)
+	}
+
+	// Unblock the goroutine waiting in waitForRestore().
+	select {
+	case <-m.restoreSignal:
+	default:
+		close(m.restoreSignal)
+	}
+
+	if restorePid != 0 {
+		// Write config.json and hostconfig.json files
+		// to /var/lib/docker/containers/<ID>.
+		if err := m.container.ToDisk(); err != nil {
+			log.Debugf("%s", err)
+		}
+	}
 }
 
 // resetContainer resets the container's IO and ensures that the command is able to be executed again

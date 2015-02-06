@@ -146,7 +146,11 @@ func (daemon *Daemon) waitForStart(container *container.Container) error {
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(container *container.Container) {
-	daemon.releaseNetwork(container)
+	if container.IsCheckpointed() {
+		log.CRDbg("not calling ReleaseNetwork() for checkpointed container %s", container.ID)
+	} else {
+		daemon.releaseNetwork(container)
+	}
 
 	container.UnmountIpcMounts(detachMounted)
 

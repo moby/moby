@@ -332,6 +332,18 @@ func (daemon *Daemon) restore() error {
 			logrus.Debugf("Loaded container %v", container.ID)
 
 			containers[container.ID] = &cr{container: container}
+
+			// If the container was checkpointed, we need to reserve
+			// the IP address that it was using.
+			//
+			// XXX We should also reserve host ports (if any).
+			if container.IsCheckpointed() {
+				/*err = bridge.ReserveIP(container.ID, container.NetworkSettings.IPAddress)
+				if err != nil {
+					log.Errorf("Failed to reserve IP %s for container %s",
+						container.ID, container.NetworkSettings.IPAddress)
+				}*/
+			}
 		} else {
 			logrus.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
 		}
@@ -1005,6 +1017,25 @@ func (daemon *Daemon) Run(c *container.Container, pipes *execdriver.Pipes, start
 		return daemon.setNetworkNamespaceKey(c.ID, pid)
 	})
 	return daemon.execDriver.Run(c.Command, pipes, hooks)
+}
+
+func (daemon *Daemon) Checkpoint(c *Container) error {
+	if err := daemon.execDriver.Checkpoint(c.command); err != nil {
+		return err
+	}
+	c.SetCheckpointed()
+	return nil
+}
+
+func (daemon *Daemon) Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback) (int, error) {
+	// Mount the container's filesystem (daemon/graphdriver/aufs/aufs.go).
+	_, err := daemon.driver.Get(c.ID, c.GetMountLabel())
+	if err != nil {
+		return 0, err
+	}
+
+	exitCode, err := daemon.execDriver.Restore(c.command, pipes, restoreCallback)
+	return exitCode, err
 }
 
 func (daemon *Daemon) kill(c *container.Container, sig int) error {
