@@ -29,19 +29,76 @@ func ValidateHost(val string) (string, error) {
 	return host, nil
 }
 
-//TODO remove, used on < 1.5 in getContainersJSON
+// TODO remove, used on < 1.5 in getContainersJSON
 func DisplayablePorts(ports *engine.Table) string {
-	result := []string{}
-	ports.SetKey("PublicPort")
+	var (
+		result          = []string{}
+		hostMappings    = []string{}
+		startOfGroupMap map[string]int
+		lastInGroupMap  map[string]int
+	)
+	startOfGroupMap = make(map[string]int)
+	lastInGroupMap = make(map[string]int)
+	ports.SetKey("PrivatePort")
 	ports.Sort()
 	for _, port := range ports.Data {
-		if port.Get("IP") == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PrivatePort"), port.Get("Type")))
-		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
+		var (
+			current      = port.GetInt("PrivatePort")
+			portKey      = port.Get("Type")
+			startOfGroup int
+			lastInGroup  int
+		)
+		if port.Get("IP") != "" {
+			if port.GetInt("PublicPort") != current {
+				hostMappings = append(hostMappings, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
+				continue
+			}
+			portKey = fmt.Sprintf("%s/%s", port.Get("IP"), port.Get("Type"))
 		}
+		startOfGroup = startOfGroupMap[portKey]
+		lastInGroup = lastInGroupMap[portKey]
+
+		if startOfGroup == 0 {
+			startOfGroupMap[portKey] = current
+			lastInGroupMap[portKey] = current
+			continue
+		}
+
+		if current == (lastInGroup + 1) {
+			lastInGroupMap[portKey] = current
+			continue
+		}
+		result = append(result, FormGroup(portKey, startOfGroup, lastInGroup))
+		startOfGroupMap[portKey] = current
+		lastInGroupMap[portKey] = current
 	}
+	for portKey, startOfGroup := range startOfGroupMap {
+		result = append(result, FormGroup(portKey, startOfGroup, lastInGroupMap[portKey]))
+	}
+	result = append(result, hostMappings...)
 	return strings.Join(result, ", ")
+}
+
+func FormGroup(key string, start, last int) string {
+	var (
+		group     string
+		parts     = strings.Split(key, "/")
+		groupType = parts[0]
+		ip        = ""
+	)
+	if len(parts) > 1 {
+		ip = parts[0]
+		groupType = parts[1]
+	}
+	if start == last {
+		group = fmt.Sprintf("%d", start)
+	} else {
+		group = fmt.Sprintf("%d-%d", start, last)
+	}
+	if ip != "" {
+		group = fmt.Sprintf("%s:%s->%s", ip, group, group)
+	}
+	return fmt.Sprintf("%s/%s", group, groupType)
 }
 
 func MatchesContentType(contentType, expectedType string) bool {
