@@ -89,8 +89,10 @@ you need to access the AWS bucket you'll be deploying to.
 
 The release script will create an s3 if needed, and will then push the files to it.
 
-    [profile dowideit-docs] aws_access_key_id = IHOIUAHSIDH234rwf....
-    aws_secret_access_key = OIUYSADJHLKUHQWIUHE......  region = ap-southeast-2
+    [profile dowideit-docs]
+    aws_access_key_id = IHOIUAHSIDH234rwf....
+    aws_secret_access_key = OIUYSADJHLKUHQWIUHE......
+    region = ap-southeast-2
 
 The `profile` name must be the same as the name of the bucket you are deploying
 to - which you call from the `docker` directory:
