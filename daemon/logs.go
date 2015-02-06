@@ -22,14 +22,16 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 
 	var (
-		name   = job.Args[0]
-		stdout = job.GetenvBool("stdout")
-		stderr = job.GetenvBool("stderr")
-		tail   = job.Getenv("tail")
-		follow = job.GetenvBool("follow")
-		times  = job.GetenvBool("timestamps")
-		lines  = -1
-		format string
+		name       = job.Args[0]
+		stdout     = job.GetenvBool("stdout")
+		stderr     = job.GetenvBool("stderr")
+		tail       = job.Getenv("tail")
+		follow     = job.GetenvBool("follow")
+		times      = job.GetenvBool("timestamps")
+		lines      = -1
+		format     string
+		stdoutPipe io.ReadCloser
+		stderrPipe io.ReadCloser
 	)
 	if !(stdout || stderr) {
 		return job.Errorf("You must choose at least one stream")
@@ -44,6 +46,20 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	if container == nil {
 		return job.Errorf("No such container: %s", name)
 	}
+
+	// Get log pipes before reading log files so we don't lose logs in between
+	if follow && container.IsRunning() {
+		if stdout {
+			stdoutPipe = container.StdoutLogPipe()
+			defer stdoutPipe.Close()
+		}
+
+		if stderr {
+			stderrPipe = container.StderrLogPipe()
+			defer stderrPipe.Close()
+		}
+	}
+
 	cLog, err := container.ReadLog("json")
 	if err != nil && os.IsNotExist(err) {
 		// Legacy logs
@@ -111,14 +127,13 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 			}
 		}
 	}
+
 	if follow && container.IsRunning() {
 		errors := make(chan error, 2)
 		wg := sync.WaitGroup{}
 
 		if stdout {
 			wg.Add(1)
-			stdoutPipe := container.StdoutLogPipe()
-			defer stdoutPipe.Close()
 			go func() {
 				errors <- jsonlog.WriteLog(stdoutPipe, job.Stdout, format)
 				wg.Done()
@@ -126,8 +141,6 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 		}
 		if stderr {
 			wg.Add(1)
-			stderrPipe := container.StderrLogPipe()
-			defer stderrPipe.Close()
 			go func() {
 				errors <- jsonlog.WriteLog(stderrPipe, job.Stderr, format)
 				wg.Done()
