@@ -252,6 +252,7 @@ Json Parameters:
   -   **LogConfig** - Logging configuration to container, format
         `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}
         Available types: `json-file`, `none`.
+        `json-file` logging driver.
 
 Query Parameters:
 
@@ -440,6 +441,9 @@ Status Codes:
 `GET /containers/(id)/logs`
 
 Get stdout and stderr logs from the container ``id``
+
+> **Note**:
+> This endpoint works only for containers with `json-file` logging driver.
 
 **Example request**:
 

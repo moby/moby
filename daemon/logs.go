@@ -44,6 +44,9 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	if err != nil {
 		return job.Error(err)
 	}
+	if container.LogDriverType() != "json-file" {
+		return job.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
+	}
 	cLog, err := container.ReadLog("json")
 	if err != nil && os.IsNotExist(err) {
 		// Legacy logs

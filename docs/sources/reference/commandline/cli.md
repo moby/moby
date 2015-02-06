@@ -1405,6 +1405,9 @@ For example:
       -t, --timestamps=false    Show timestamps
       --tail="all"              Number of lines to show from the end of the logs
 
+NOTE: this command is available only for containers with `json-file` logging
+driver.
+
 The `docker logs` command batch-retrieves logs present at the time of execution.
 
 The `docker logs --follow` command will continue streaming the new output from

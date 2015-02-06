@@ -565,13 +565,15 @@ familiar with using LXC directly.
 
 You can specify a different logging driver for the container than for the daemon.
 
-### Log driver: none
+### Logging driver: none
 
-Disables any logging for the container.
+Disables any logging for the container. `docker logs` won't be available with
+this driver.
 
 ### Log driver: json-file
 
-Default logging driver for Docker. Writes JSON messages to file.
+Default logging driver for Docker. Writes JSON messages to file. `docker logs`
+command is available only for this logging driver
 
 ## Overriding Dockerfile image defaults
 
