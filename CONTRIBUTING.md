@@ -12,6 +12,7 @@ feels wrong or incomplete.
 * [Build Environment](#build-environment)
 * [Contribution Guidelines](#contribution-guidelines)
 * [Community Guidelines](#docker-community-guidelines)
+* [Docker Dev Bot](#docker-dev-bot)
 
 ## Reporting Security Issues
 
@@ -354,3 +355,22 @@ do need a fair way to deal with people who are making our community suck.
   appeals, we know that mistakes happen, and we'll work with you to come up with
   a fair solution if there has been a misunderstanding.
 
+
+## Docker Dev Bot
+
+`docker-dev-bot` is responsible to check PR for adherence to the Contributing Guidelines, and help maintainers communicate about the acceptance of an specific PR.
+
+### `docker-dev-bot` auto-cheks
+
+Docker will be listening to all the PR created and make a series of checks and provide feedback inside the PR's comments about what's needed to improve the PR.
+
+* Branching name convention for bug/feature branches;
+* PR's title length and prefix;
+* Check commit's changed files, and ping maintainers based on subsystem X maintainers;
+* Asks/suggest tagging for better issue triage;
+* Check if commits are signed.
+
+### `docker-dev-bot` commands
+
+* Listens to LGTM from subsystem maintainers and check if it has the majority, and auto-merge if it applies;
+* Accept release commands from release maintainers.
