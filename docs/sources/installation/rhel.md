@@ -1,10 +1,24 @@
 page_title: Installation on Red Hat Enterprise Linux
-page_description: Installation instructions for Docker on Red Hat Enterprise Linux.
-page_keywords: Docker, Docker documentation, requirements, linux, rhel, centos
+page_description: Instructions for installing Docker on Red Hat Enterprise Linux.
+page_keywords: Docker, Docker documentation, requirements, linux, rhel
 
-# Red Hat Enterprise Linux 7
+# Red Hat Enterprise Linux
 
-**Red Hat Enterprise Linux 7** has [shipped with
+Docker is supported on the following versions of RHEL:
+
+- [*Red Hat Enterprise Linux 7 (64-bit)*](#red-hat-enterprise-linux-7-installation)
+- [*Red Hat Enterprise Linux 6.5 (64-bit)*](#red-hat-enterprise-linux-6.5-installation) or later
+
+## Kernel support
+
+RHEL will only support Docker via the *extras* channel or EPEL package when
+running on kernels shipped by the distribution. There are kernel changes which
+will cause issues if one decides to step outside that box and run
+non-distribution kernel packages.
+
+## Red Hat Enterprise Linux 7 Installation
+
+**Red Hat Enterprise Linux 7 (64 bit)** has [shipped with
 Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
 An overview and some guidance can be found in the [Release
 Notes](https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/7.0_Release_Notes/chap-Red_Hat_Enterprise_Linux-7.0_Release_Notes-Linux_Containers_with_Docker_Format.html).
@@ -25,50 +39,43 @@ Enterprise Linux 7](https://access.redhat.com/site/articles/881893)
 guide, can be found by Red Hat customers on the [Red Hat Customer
 Portal](https://access.redhat.com/).
 
-# Red Hat Enterprise Linux 6
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-Docker is available for **RHEL** on EPEL. Please note that
-this package is part of [Extra Packages for Enterprise Linux
-(EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
-create and maintain additional packages for the RHEL distribution.
+## Red Hat Enterprise Linux 6.5 Installation
 
-Also note that due to the current Docker limitations, Docker is able to
-run only on the **64 bit** architecture.
-
-You will need [RHEL
-6.5](https://access.redhat.com/site/articles/3078#RHEL6) or higher, with
+You will need **64 bit** [RHEL
+6.5](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
 a RHEL 6 kernel version 2.6.32-431 or higher as this has specific kernel
 fixes to allow Docker to work.
 
-## Kernel support
-
-RHEL will only support Docker via the *extras* channel or EPEL package when
-running on kernels shipped by the distribution. There are things like namespace
-changes which will cause issues if one decides to step outside that box and run
-non-distro kernel packages.
-
-## Installation
+Docker is available for **RHEL6.5** on EPEL. Please note that
+this package is part of [Extra Packages for Enterprise Linux
+(EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
+create and maintain additional packages for the RHEL distribution.
 
 Firstly, you need to install the EPEL repository. Please follow the
 [EPEL installation
 instructions](https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F).
 
-The `docker-io` package provides Docker on EPEL.
+There is a package name conflict with a system tray application
+and its executable, so the Docker RPM package was called `docker-io`.
 
-If you already have the (unrelated) `docker` package
-installed, it will conflict with `docker-io`.
-There's a [bug report](
-https://bugzilla.redhat.com/show_bug.cgi?id=1043676) filed for it.
-To proceed with `docker-io` installation, please remove `docker` first.
+To proceed with `docker-io` installation, you may need to remove the
+`docker` package first.
 
-Next, let's install the `docker-io` package which
-will install Docker on our host.
+    $ sudo yum -y remove docker
 
-    $ sudo yum -y install docker-io
+Next, let's install the `docker-io` package which will install Docker on our host.
+
+    $ sudo yum install docker-io
 
 To update the `docker-io` package
 
     $ sudo yum -y update docker-io
+
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+## Starting the Docker daemon
 
 Now that it's installed, let's start the Docker daemon.
 
@@ -93,8 +100,8 @@ Continue with the [User Guide](/userguide/).
 ## Custom daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
-Docker runtime files, or make other customizations, read our systemd article to
-learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+Docker runtime files, or make other customizations, read our Systemd article to
+learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
 
 
 ## Issues?
