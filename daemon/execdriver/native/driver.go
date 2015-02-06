@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/utils"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
@@ -305,6 +306,155 @@ func (d *Driver) Unpause(c *execdriver.Command) error {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
 	return active.Resume()
+}
+
+// XXX Where is the right place for the following
+//     const and getCheckpointImageDir() function?
+const (
+	containersDir = "/var/lib/docker/containers"
+	criuImgDir    = "criu_img"
+)
+
+func getCheckpointImageDir(containerId string) string {
+	return filepath.Join(containersDir, containerId, criuImgDir)
+}
+
+func (d *driver) Checkpoint(c *execdriver.Command) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+	container := active.container
+
+	// Create an image directory for this container (which
+	// may already exist from a previous checkpoint).
+	imageDir := getCheckpointImageDir(c.ID)
+	err := os.MkdirAll(imageDir, 0700)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// Copy container.json and state.json files to the CRIU
+	// image directory for later use during restore.  Do this
+	// before checkpointing because after checkpoint the container
+	// will exit and these files will be removed.
+	log.CRDbg("saving container.json and state.json before calling CRIU in %s", imageDir)
+	srcFiles := []string{"container.json", "state.json"}
+	for _, f := range srcFiles {
+		srcFile := filepath.Join(d.root, c.ID, f)
+		dstFile := filepath.Join(imageDir, f)
+		if _, err := utils.CopyFile(srcFile, dstFile); err != nil {
+			return err
+		}
+	}
+
+	d.Lock()
+	defer d.Unlock()
+	err = namespaces.Checkpoint(container, imageDir, c.ProcessConfig.Process.Pid)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type restoreOutput struct {
+	exitCode int
+	err      error
+}
+
+func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback) (int, error) {
+	imageDir := getCheckpointImageDir(c.ID)
+	container, err := d.createRestoreContainer(c, imageDir)
+	if err != nil {
+		return 1, err
+	}
+
+	var term execdriver.Terminal
+
+	if c.ProcessConfig.Tty {
+		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
+	}
+	if err != nil {
+		return -1, err
+	}
+	c.ProcessConfig.Terminal = term
+
+	d.Lock()
+	d.activeContainers[c.ID] = &activeContainer{
+		container: container,
+		cmd:       &c.ProcessConfig.Cmd,
+	}
+	d.Unlock()
+	defer d.cleanContainer(c.ID)
+
+	// Since the CRIU binary exits after restoring the container, we
+	// need to reap its child by setting PR_SET_CHILD_SUBREAPER (36)
+	// so that it'll be owned by this process (Docker daemon) after restore.
+	//
+	// XXX This really belongs to where the Docker daemon starts.
+	if _, _, syserr := syscall.RawSyscall(syscall.SYS_PRCTL, 36, 1, 0); syserr != 0 {
+		return -1, fmt.Errorf("Could not set PR_SET_CHILD_SUBREAPER (syserr %d)", syserr)
+	}
+
+	restoreOutputChan := make(chan restoreOutput, 1)
+	waitForRestore := make(chan struct{})
+
+	go func() {
+		exitCode, err := namespaces.Restore(container, c.ProcessConfig.Stdin, c.ProcessConfig.Stdout, c.ProcessConfig.Stderr, c.ProcessConfig.Console, filepath.Join(d.root, c.ID), imageDir,
+			func(child *os.File, args []string) *exec.Cmd {
+				cmd := new(exec.Cmd)
+				cmd.Path = d.initPath
+				cmd.Args = append([]string{
+					DriverName,
+					"-restore",
+					"-pipe", "3",
+					"--",
+				}, args...)
+				cmd.ExtraFiles = []*os.File{child}
+				return cmd
+			},
+			func(restorePid int) error {
+				log.CRDbg("restorePid=%d", restorePid)
+				if restorePid == 0 {
+					restoreCallback(&c.ProcessConfig, 0)
+					return nil
+				}
+
+				// The container.json file should be written *after* the container
+				// has started because its StdFds cannot be initialized before.
+				//
+				// XXX How do we handle error here?
+				d.writeContainerFile(container, c.ID)
+				close(waitForRestore)
+				if restoreCallback != nil {
+					c.ProcessConfig.Process, err = os.FindProcess(restorePid)
+					if err != nil {
+						log.Debugf("cannot find restored process %d", restorePid)
+						return err
+					}
+					c.ContainerPid = c.ProcessConfig.Process.Pid
+					restoreCallback(&c.ProcessConfig, c.ContainerPid)
+				}
+				return nil
+			})
+		restoreOutputChan <- restoreOutput{exitCode, err}
+	}()
+
+	select {
+	case restoreOutput := <-restoreOutputChan:
+		// there was an error
+		return restoreOutput.exitCode, restoreOutput.err
+	case <-waitForRestore:
+		// container restored
+		break
+	}
+
+	// Wait for the container to exit.
+	restoreOutput := <-restoreOutputChan
+	return restoreOutput.exitCode, restoreOutput.err
 }
 
 // Terminate implements the exec driver Driver interface.
