@@ -59,7 +59,7 @@ In this example, we'll assume that your `docker.service` file looks something li
 This will allow us to add extra flags to the `/etc/sysconfig/docker` file by
 setting `OPTIONS`:
 
-    OPTIONS="--graph /mnt/docker-data --storage btrfs"
+    OPTIONS="--graph /mnt/docker-data --storage-driver btrfs"
 
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
