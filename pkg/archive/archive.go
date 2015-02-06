@@ -458,7 +458,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
-					log.Debugf("Can't add file %s to tar: %s", srcPath, err)
+					log.Debugf("Can't add file %s to tar: %s", filePath, err)
 				}
 				return nil
 			})
