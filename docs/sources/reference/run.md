@@ -310,13 +310,26 @@ The operator can also adjust the performance parameters of the
 container:
 
     -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+    -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
     -c=0 : CPU shares (relative weight)
 
-The operator can constrain the memory available to a container easily
-with `docker run -m`. If the host supports swap memory, then the `-m`
-memory setting can be larger than physical RAM.
+We have four ways to set memory usage:
+ - memory=inf, memory-swap=inf (not specify any of them)
+   There is no memory limit, you can use as much as you want.
 
-Similarly the operator can increase the priority of this container with
+ - memory=L<inf, memory-swap=inf (specify memory and set memory-swap as `-1`)
+   It is not allowed to use more than L bytes of memory, but use as much swap
+   as you want (only if the host supports swap memory).
+
+ - memory=L<inf, memory-swap=2*L (specify memory without memory-swap)
+   It is not allowed to use more than L bytes of memory, swap *plus* memory
+   usage is double of that.
+
+ - memory=L<inf, memory-swap=S<inf, L<=S (specify both memory and memory-swap)
+   It is not allowed to use more than L bytes of memory, swap *plus* memory
+   usage is limited by S.
+
+The operator can increase the priority of this container with
 the `-c` option. By default, all containers run at the same priority and
 get the same proportion of CPU cycles, but you can tell the kernel to
 give more shares of CPU time to one or more containers when you start

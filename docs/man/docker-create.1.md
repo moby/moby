@@ -27,6 +27,7 @@ docker-create - Create a new container
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
@@ -110,6 +111,18 @@ IMAGE [COMMAND] [ARG...]
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
 
+   Allows you to constrain the memory available to a container. If the host
+supports swap memory, then the **-m** memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value would be very large, that's millions of trillions).
+
+**--memory-swap**=""
+   Total memory limit (memory + swap)
+
+   Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
+This value should always larger than **-m**, so you should alway use this with **-m**.
+
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
 
@@ -142,7 +155,7 @@ IMAGE [COMMAND] [ARG...]
    Give extended privileges to this container. The default is *false*.
 
 **--read-only**=*true*|*false*
-    Mount the container's root filesystem as read only.
+   Mount the container's root filesystem as read only.
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

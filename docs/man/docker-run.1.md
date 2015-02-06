@@ -186,16 +186,16 @@ which interface and port to use.
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
 
    Allows you to constrain the memory available to a container. If the host
-supports swap memory, then the -m memory setting can be larger than physical
-RAM. If a limit of 0 is specified, the container's memory is not limited. The
-actual limit may be rounded up to a multiple of the operating system's page
-size, if it is not already. The memory limit should be formatted as follows:
-`<number><optional unit>`, where unit = b, k, m or g.
+supports swap memory, then the **-m** memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value would be very large, that's millions of trillions).
 
 **--memory-swap**=""
-    Total memory usage (memory + swap)
+   Total memory limit (memory + swap)
 
-    Set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)
+   Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
+This value should always larger than **-m**, so you should alway use this with **-m**.
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
