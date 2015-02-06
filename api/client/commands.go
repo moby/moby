@@ -2235,7 +2235,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 	} else {
-		if fl := cmd.Lookup("attach"); fl != nil {
+		if fl := cmd.Lookup("-attach"); fl != nil {
 			flAttach = fl.Value.(*opts.ListOpts)
 			if flAttach.Len() != 0 {
 				return ErrConflictAttachDetach
