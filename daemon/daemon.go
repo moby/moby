@@ -155,28 +155,39 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	return nil
 }
 
-// Get looks for a container by the specified ID or name, and returns it.
-// If the container is not found, or if an error occurs, nil is returned.
-func (daemon *Daemon) Get(name string) *Container {
-	id, err := daemon.idIndex.Get(name)
-	if err == nil {
-		return daemon.containers.Get(id)
+// Get looks for a container with the provided prefix
+func (daemon *Daemon) Get(prefix string) (*Container, error) {
+	if containerByID := daemon.containers.Get(prefix); containerByID != nil {
+
+		// prefix is an exact match to a full container ID
+		return containerByID, nil
 	}
 
-	if c, _ := daemon.GetByName(name); c != nil {
-		return c
+	// Either GetByName finds an entity matching prefix exactly, or it doesn't.
+	// Check value of containerByName and ignore any errors
+	containerByName, _ := daemon.GetByName(prefix)
+	containerId, indexError := daemon.idIndex.Get(prefix)
+
+	if containerByName != nil {
+
+		// prefix is an exact match to a full container Name
+		return containerByName, nil
 	}
 
-	if err == truncindex.ErrDuplicateID {
-		log.Errorf("Short ID %s is ambiguous: please retry with more characters or use the full ID.\n", name)
+	if containerId != "" {
+
+		// prefix is a fuzzy match to a container ID
+		return daemon.containers.Get(containerId), nil
 	}
-	return nil
+
+	return nil, indexError
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
 func (daemon *Daemon) Exists(id string) bool {
-	return daemon.Get(id) != nil
+	c, _ := daemon.Get(id)
+	return c != nil
 }
 
 func (daemon *Daemon) containerRoot(id string) string {
@@ -715,9 +726,9 @@ func (daemon *Daemon) Children(name string) (map[string]*Container, error) {
 	children := make(map[string]*Container)
 
 	err = daemon.containerGraph.Walk(name, func(p string, e *graphdb.Entity) error {
-		c := daemon.Get(e.ID())
-		if c == nil {
-			return fmt.Errorf("Could not get container for name %s and id %s", e.ID(), p)
+		c, err := daemon.Get(e.ID())
+		if err != nil {
+			return err
 		}
 		children[p] = c
 		return nil
@@ -754,7 +765,10 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if err != nil {
 				return err
 			}
-			child := daemon.Get(parts["name"])
+			child, err := daemon.Get(parts["name"])
+			if err != nil {
+				return err
+			}
 			if child == nil {
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
@@ -1100,18 +1114,18 @@ func (daemon *Daemon) Stats(c *Container) (*execdriver.ResourceStats, error) {
 }
 
 func (daemon *Daemon) SubscribeToContainerStats(name string) (chan interface{}, error) {
-	c := daemon.Get(name)
-	if c == nil {
-		return nil, fmt.Errorf("no such container")
+	c, err := daemon.Get(name)
+	if err != nil {
+		return nil, err
 	}
 	ch := daemon.statsCollector.collect(c)
 	return ch, nil
 }
 
 func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface{}) error {
-	c := daemon.Get(name)
-	if c == nil {
-		return fmt.Errorf("no such container")
+	c, err := daemon.Get(name)
+	if err != nil {
+		return err
 	}
 	daemon.statsCollector.unsubscribe(c, ch)
 	return nil

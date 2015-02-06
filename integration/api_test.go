@@ -325,7 +325,7 @@ func TestPostCreateNull(t *testing.T) {
 
 	containerAssertExists(eng, containerID, t)
 
-	c := daemon.Get(containerID)
+	c, _ := daemon.Get(containerID)
 	if c.Config.Cpuset != "" {
 		t.Fatalf("Cpuset should have been empty - instead its:" + c.Config.Cpuset)
 	}

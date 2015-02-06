@@ -63,16 +63,16 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 
 	var beforeCont, sinceCont *Container
 	if before != "" {
-		beforeCont = daemon.Get(before)
-		if beforeCont == nil {
-			return job.Error(fmt.Errorf("Could not find container with name or id %s", before))
+		beforeCont, err = daemon.Get(before)
+		if err != nil {
+			return job.Error(err)
 		}
 	}
 
 	if since != "" {
-		sinceCont = daemon.Get(since)
-		if sinceCont == nil {
-			return job.Error(fmt.Errorf("Could not find container with name or id %s", since))
+		sinceCont, err = daemon.Get(since)
+		if err != nil {
+			return job.Error(err)
 		}
 	}
 

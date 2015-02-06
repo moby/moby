@@ -17,10 +17,10 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
 	forceRemove := job.GetenvBool("forceRemove")
-	container := daemon.Get(name)
 
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	if removeLink {
@@ -36,7 +36,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		if pe == nil {
 			return job.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
-		parentContainer := daemon.Get(pe.ID())
+		parentContainer, _ := daemon.Get(pe.ID())
 
 		if parentContainer != nil {
 			parentContainer.DisableLink(n)

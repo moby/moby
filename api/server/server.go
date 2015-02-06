@@ -1114,7 +1114,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
 		log.Errorf("%s", err.Error())
-		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
+		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {
 			return fmt.Errorf("Could not find the file %s in container %s", origResource, vars["name"])

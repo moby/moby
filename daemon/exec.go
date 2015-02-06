@@ -97,10 +97,9 @@ func (d *Daemon) unregisterExecCommand(execConfig *execConfig) {
 }
 
 func (d *Daemon) getActiveContainer(name string) (*Container, error) {
-	container := d.Get(name)
-
-	if container == nil {
-		return nil, fmt.Errorf("No such container: %s", name)
+	container, err := d.Get(name)
+	if err != nil {
+		return nil, err
 	}
 
 	if !container.IsRunning() {

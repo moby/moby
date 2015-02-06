@@ -12,9 +12,9 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 
-	container := daemon.Get(name)
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	var (
