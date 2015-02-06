@@ -50,7 +50,8 @@ func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
 // splitCommand takes a single line of text and parses out the cmd and args,
 // which are used for dispatching to more exact parsing functions.
 func splitCommand(line string) (string, string, error) {
-	cmdline := TOKEN_WHITESPACE.Split(line, 2)
+	// Make sure we get the same results irrespective of leading/trailing spaces
+	cmdline := TOKEN_WHITESPACE.Split(strings.TrimSpace(line), 2)
 
 	if len(cmdline) != 2 {
 		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at %q", line)
