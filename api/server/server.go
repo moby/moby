@@ -1202,6 +1202,34 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 	return nil
 }
 
+func wsContainersExecStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	h := websocket.Handler(func(ws *websocket.Conn) {
+		defer ws.Close()
+
+		job := eng.Job("execStart", vars["name"])
+		job.SetenvBool("Detach", false)
+		job.Setenv("Tty", r.Form.Get("tty"))
+		job.Stdin.Add(ws)
+		job.Stdout.Add(ws)
+		job.Stderr.Set(ws)
+
+		if err := job.Run(); err != nil {
+			log.Errorf("Error starting exec command in container %s: %s\n", vars["name"], err)
+		}
+	})
+	h.ServeHTTP(w, r)
+
+	return nil
+}
+
 func postContainerExecResize(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1320,6 +1348,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/containers/{name:.*}/stats":     getContainersStats,
 			"/containers/{name:.*}/attach/ws": wsContainersAttach,
 			"/exec/{id:.*}/json":              getExecByID,
+			"/exec/{name:.*}/start/ws":        wsContainersExecStart,
 		},
 		"POST": {
 			"/auth":                         postAuth,

@@ -1795,6 +1795,32 @@ Status Codes:
     **Stream details**:
     Similar to the stream behavior of `POST /container/(id)/attach` API
 
+### Exec Start (websocket)
+
+`GET /exec/(id)/start/ws`
+
+Starts a previously set up exec instance `id`. This API sets up and interactive
+session with the `exec` command via websocket according to the io configuration
+when the exec instance `id` was created.
+
+Implements websocket protocol handshake according to [RFC 6455](http://tools.ietf.org/html/rfc6455)
+
+**Example request**
+
+        GET /exec/e90e34656806/start/ws?tty=0 HTTP/1.1
+
+**Example response**
+
+        {{ STREAM }}
+
+Query Parameters:
+
+-   **tty** – Boolean value, attach standard streams to a tty
+
+Status Codes:
+
+    **404** - no such exec instance
+
 ### Exec Resize
 
 `POST /exec/(id)/resize`
