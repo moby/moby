@@ -61,7 +61,7 @@ func TestRequestNewIps(t *testing.T) {
 	var ip net.IP
 	var err error
 
-	for i := 2; i < 10; i++ {
+	for i := 1; i < 10; i++ {
 		ip, err = RequestIP(network, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -167,7 +167,7 @@ func TestGetReleasedIp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 252; i++ {
+	for i := 0; i < 253; i++ {
 		_, err = RequestIP(network, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -278,23 +278,24 @@ func TestRequestSpecificIpV6(t *testing.T) {
 
 func TestIPAllocator(t *testing.T) {
 	expectedIPs := []net.IP{
-		0: net.IPv4(127, 0, 0, 2),
-		1: net.IPv4(127, 0, 0, 3),
-		2: net.IPv4(127, 0, 0, 4),
-		3: net.IPv4(127, 0, 0, 5),
-		4: net.IPv4(127, 0, 0, 6),
+		0: net.IPv4(127, 0, 0, 1),
+		1: net.IPv4(127, 0, 0, 2),
+		2: net.IPv4(127, 0, 0, 3),
+		3: net.IPv4(127, 0, 0, 4),
+		4: net.IPv4(127, 0, 0, 5),
+		5: net.IPv4(127, 0, 0, 6),
 	}
 
 	gwIP, n, _ := net.ParseCIDR("127.0.0.1/29")
 
 	network := &net.IPNet{IP: gwIP, Mask: n.Mask}
 	// Pool after initialisation (f = free, u = used)
-	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
+	// 1(f) - 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
 	//  ↑
 
-	// Check that we get 5 IPs, from 127.0.0.2–127.0.0.6, in that
+	// Check that we get 6 IPs, from 127.0.0.1–127.0.0.6, in that
 	// order.
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 6; i++ {
 		ip, err := RequestIP(network, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -303,27 +304,31 @@ func TestIPAllocator(t *testing.T) {
 		assertIPEquals(t, expectedIPs[i], ip)
 	}
 	// Before loop begin
-	// 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
+	// 1(f) - 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
 	//  ↑
 
 	// After i = 0
-	// 2(u) - 3(f) - 4(f) - 5(f) - 6(f)
+	// 1(u) - 2(f) - 3(f) - 4(f) - 5(f) - 6(f)
 	//         ↑
 
 	// After i = 1
-	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
+	// 1(u) - 2(u) - 3(f) - 4(f) - 5(f) - 6(f)
 	//                ↑
 
 	// After i = 2
-	// 2(u) - 3(u) - 4(u) - 5(f) - 6(f)
+	// 1(u) - 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
 	//                       ↑
 
 	// After i = 3
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(f)
+	// 1(u) - 2(u) - 3(u) - 4(u) - 5(f) - 6(f)
 	//                              ↑
 
 	// After i = 4
-	// 2(u) - 3(u) - 4(u) - 5(u) - 6(u)
+	// 1(u) - 2(u) - 3(u) - 4(u) - 5(u) - 6(f)
+	//                                     ↑
+
+	// After i = 5
+	// 1(u) - 2(u) - 3(u) - 4(u) - 5(u) - 6(u)
 	//  ↑
 
 	// Check that there are no more IPs
@@ -336,20 +341,20 @@ func TestIPAllocator(t *testing.T) {
 	if err := ReleaseIP(network, expectedIPs[3]); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(u) - 5(f) - 6(u)
+	// 1(u) - 2(u) - 3(u) - 4(f) - 5(u) - 6(u)
 	//                       ↑
 
 	if err := ReleaseIP(network, expectedIPs[2]); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(f) - 5(f) - 6(u)
-	//                       ↑
+	// 1(u) - 2(u) - 3(f) - 4(f) - 5(u) - 6(u)
+	//                ↑
 
 	if err := ReleaseIP(network, expectedIPs[4]); err != nil {
 		t.Fatal(err)
 	}
-	// 2(u) - 3(u) - 4(f) - 5(f) - 6(f)
-	//                       ↑
+	// 1(u) - 2(u) - 3(f) - 4(f) - 5(f) - 6(u)
+	//                              ↑
 
 	// Make sure that IPs are reused in sequential order, starting
 	// with the first released IP
@@ -512,10 +517,10 @@ func TestAllocateDifferentSubnets(t *testing.T) {
 		Mask: []byte{255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0}, // /64 netmask
 	}
 	expectedIPs := []net.IP{
-		0: net.IPv4(192, 168, 0, 2),
-		1: net.IPv4(192, 168, 0, 3),
-		2: net.IPv4(127, 0, 0, 2),
-		3: net.IPv4(127, 0, 0, 3),
+		0: net.IPv4(192, 168, 0, 1),
+		1: net.IPv4(192, 168, 0, 2),
+		2: net.IPv4(127, 0, 0, 1),
+		3: net.IPv4(127, 0, 0, 2),
 		4: net.ParseIP("2a00:1450::1"),
 		5: net.ParseIP("2a00:1450::2"),
 		6: net.ParseIP("2a00:1450::3"),
