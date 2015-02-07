@@ -2293,6 +2293,27 @@ func TestBuildExposeOrder(t *testing.T) {
 	logDone("build - expose order")
 }
 
+func TestBuildExposeUpperCaseProto(t *testing.T) {
+	name := "testbuildexposeuppercaseproto"
+	expected := "map[5678/udp:map[]]"
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM scratch
+        EXPOSE 5678/UDP`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Exposed ports %s, expected %s", res, expected)
+	}
+	logDone("build - expose port with upper case proto")
+}
+
 func TestBuildEmptyEntrypointInheritance(t *testing.T) {
 	name := "testbuildentrypointinheritance"
 	name2 := "testbuildentrypointinheritance2"
