@@ -431,9 +431,8 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 
 	if verified {
 		log.Printf("Image manifest for %s:%s has been verified", repoInfo.CanonicalName, tag)
-	} else {
-		out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 	}
+	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
@@ -497,7 +496,8 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Verifying Checksum", nil))
 
 				if finalChecksum := tarSumReader.Sum(nil); !strings.EqualFold(finalChecksum, sumStr) {
-					return fmt.Errorf("image verification failed: checksum mismatch - expected %q but got %q", sumStr, finalChecksum)
+					log.Infof("Image verification failed: checksum mismatch - expected %q but got %q", sumStr, finalChecksum)
+					verified = false
 				}
 
 				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Download complete", nil))
@@ -556,7 +556,9 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 
 	}
 
-	out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
+	if verified && layersDownloaded {
+		out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
+	}
 
 	if err = s.Set(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
 		return false, err
