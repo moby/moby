@@ -188,6 +188,12 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 			continue
 		}
 
+		if stat, err := os.Stat(filepath.Join(container.basefs, path)); err == nil {
+			if !stat.IsDir() {
+				return nil, fmt.Errorf("file exists at %s, can't create volume there")
+			}
+		}
+
 		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
 		if err != nil {
 			return nil, err

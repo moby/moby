@@ -4784,3 +4784,20 @@ RUN echo "  \
 
 	logDone("build - test spaces with quotes")
 }
+
+// #4393
+func TestBuildVolumeFileExistsinContainer(t *testing.T) {
+	buildCmd := exec.Command(dockerBinary, "build", "-t", "docker-test-errcreatevolumewithfile", "-")
+	buildCmd.Stdin = strings.NewReader(`
+	FROM busybox
+	RUN touch /foo
+	VOLUME /foo
+	`)
+
+	out, _, err := runCommandWithOutput(buildCmd)
+	if err == nil || !strings.Contains(out, "file exists") {
+		t.Fatalf("expected build to fail when file exists in container at requested volume path")
+	}
+
+	logDone("build - errors when volume is specified where a file exists")
+}
