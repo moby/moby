@@ -9,6 +9,8 @@ page_keywords: docker guide, docker, docker platform, virtualization framework, 
 Docker allows you to run applications inside containers. Running an
 application inside a container takes a single command: `docker run`.
 
+{{ include "no-remote-sudo.md" }}
+
 ## Hello world
 
 Let's try it now.

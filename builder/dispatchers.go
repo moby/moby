@@ -12,12 +12,19 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
+)
+
+const (
+	// NoBaseImageSpecifier is the symbol used by the FROM
+	// command to specify that no base image is to be used.
+	NoBaseImageSpecifier string = "scratch"
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
@@ -114,6 +121,12 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
+	if name == NoBaseImageSpecifier {
+		b.image = ""
+		b.noBaseImage = true
+		return nil
+	}
+
 	image, err := b.Daemon.Repositories().LookupImage(name)
 	if b.Pull {
 		image, err = b.pullImage(name)
@@ -171,14 +184,11 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 
 	workdir := args[0]
 
-	if workdir[0] == '/' {
-		b.Config.WorkingDir = workdir
-	} else {
-		if b.Config.WorkingDir == "" {
-			b.Config.WorkingDir = "/"
-		}
-		b.Config.WorkingDir = filepath.Join(b.Config.WorkingDir, workdir)
+	if !filepath.IsAbs(workdir) {
+		workdir = filepath.Join("/", b.Config.WorkingDir, workdir)
 	}
+
+	b.Config.WorkingDir = workdir
 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
@@ -193,7 +203,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if b.image == "" {
+	if b.image == "" && !b.noBaseImage {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 
@@ -262,7 +272,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 		b.Config.Cmd = append([]string{"/bin/sh", "-c"}, b.Config.Cmd...)
 	}
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %v", b.Config.Cmd)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %q", b.Config.Cmd)); err != nil {
 		return err
 	}
 
@@ -302,7 +312,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		b.Config.Cmd = nil
 	}
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %v", b.Config.Entrypoint)); err != nil {
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %q", b.Config.Entrypoint)); err != nil {
 		return err
 	}
 
@@ -326,14 +336,21 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		return err
 	}
 
+	// instead of using ports directly, we build a list of ports and sort it so
+	// the order is consistent. This prevents cache burst where map ordering
+	// changes between builds
+	portList := make([]string, len(ports))
+	var i int
 	for port := range ports {
 		if _, exists := b.Config.ExposedPorts[port]; !exists {
 			b.Config.ExposedPorts[port] = struct{}{}
 		}
+		portList[i] = string(port)
+		i++
 	}
+	sort.Strings(portList)
 	b.Config.PortSpecs = nil
-
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %v", ports))
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
 }
 
 // USER foo

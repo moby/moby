@@ -23,11 +23,6 @@ func newAllocatedMap(network *net.IPNet) *allocatedMap {
 	begin := big.NewInt(0).Add(ipToBigInt(firstIP), big.NewInt(1))
 	end := big.NewInt(0).Sub(ipToBigInt(lastIP), big.NewInt(1))
 
-	// if IPv4 network, then allocation range starts at begin + 1 because begin is bridge IP
-	if len(firstIP) == 4 {
-		begin = begin.Add(begin, big.NewInt(1))
-	}
-
 	return &allocatedMap{
 		p:     make(map[string]struct{}),
 		begin: begin,
@@ -121,7 +116,6 @@ func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
 
 	// Register the IP.
 	allocated.p[ip.String()] = struct{}{}
-	allocated.last.Set(pos)
 
 	return ip, nil
 }

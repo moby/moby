@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -95,5 +97,28 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 
 	if err = os.Remove("/tmp/fileLinkTest"); err != nil {
 		t.Errorf("failed to remove symlink: %s", err)
+	}
+}
+
+func TestWriteCounter(t *testing.T) {
+	dummy1 := "This is a dummy string."
+	dummy2 := "This is another dummy string."
+	totalLength := int64(len(dummy1) + len(dummy2))
+
+	reader1 := strings.NewReader(dummy1)
+	reader2 := strings.NewReader(dummy2)
+
+	var buffer bytes.Buffer
+	wc := NewWriteCounter(&buffer)
+
+	reader1.WriteTo(wc)
+	reader2.WriteTo(wc)
+
+	if wc.Count != totalLength {
+		t.Errorf("Wrong count: %d vs. %d", wc.Count, totalLength)
+	}
+
+	if buffer.String() != dummy1+dummy2 {
+		t.Error("Wrong message written")
 	}
 }

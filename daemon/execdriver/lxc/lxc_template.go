@@ -1,12 +1,17 @@
 package lxc
 
 import (
-	"github.com/docker/docker/daemon/execdriver"
-	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
-	"github.com/docker/libcontainer/label"
+	"fmt"
 	"os"
 	"strings"
 	"text/template"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/execdriver"
+	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer/label"
+	"github.com/docker/libcontainer/security/capabilities"
 )
 
 const LxcTemplate = `
@@ -16,12 +21,6 @@ lxc.network.type = veth
 lxc.network.link = {{.Network.Interface.Bridge}}
 lxc.network.name = eth0
 lxc.network.mtu = {{.Network.Mtu}}
-{{if .Network.Interface.IPAddress}}
-lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefixLen}}
-{{end}}
-{{if .Network.Interface.Gateway}}
-lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
-{{end}}
 lxc.network.flags = up
 {{else if .Network.HostNetworking}}
 lxc.network.type = none
@@ -62,13 +61,24 @@ lxc.cgroup.devices.allow = {{$allowedDevice.GetCgroupAllowString}}
 lxc.pivotdir = lxc_putold
 
 # NOTICE: These mounts must be applied within the namespace
-
+{{if .ProcessConfig.Privileged}}
 # WARNING: mounting procfs and/or sysfs read-write is a known attack vector.
 # See e.g. http://blog.zx2c4.com/749 and http://bit.ly/T9CkqJ
 # We mount them read-write here, but later, dockerinit will call the Restrict() function to remount them read-only.
 # We cannot mount them directly read-only, because that would prevent loading AppArmor profiles.
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
 lxc.mount.entry = sysfs {{escapeFstabSpaces $ROOTFS}}/sys sysfs nosuid,nodev,noexec 0 0
+	{{if .AppArmor}}
+lxc.aa_profile = unconfined
+	{{end}}
+{{else}}
+# In non-privileged mode, lxc will automatically mount /proc and /sys in readonly mode
+# for security. See: http://man7.org/linux/man-pages/man5/lxc.container.conf.5.html
+lxc.mount.auto = proc sys
+	{{if .AppArmorProfile}}
+lxc.aa_profile = {{.AppArmorProfile}}
+	{{end}}
+{{end}}
 
 {{if .ProcessConfig.Tty}}
 lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
@@ -83,26 +93,6 @@ lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountL
 lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,rw,create={{$createVal}} 0 0
 {{else}}
 lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabSpaces $value.Destination}} none rbind,ro,create={{$createVal}} 0 0
-{{end}}
-{{end}}
-
-{{if .ProcessConfig.Env}}
-lxc.utsname = {{getHostname .ProcessConfig.Env}}
-{{end}}
-
-{{if .ProcessConfig.Privileged}}
-# No cap values are needed, as lxc is starting in privileged mode
-{{else}}
-{{range $value := keepCapabilities .CapAdd .CapDrop}}
-lxc.cap.keep = {{$value}}
-{{end}}
-{{end}}
-
-{{if .ProcessConfig.Privileged}}
-{{if .AppArmor}}
-lxc.aa_profile = unconfined
-{{else}}
-# Let AppArmor normal confinement take place (i.e., not unconfined)
 {{end}}
 {{end}}
 
@@ -128,6 +118,37 @@ lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
 lxc.{{$value}}
 {{end}}
 {{end}}
+
+{{if .Network.Interface}}
+{{if .Network.Interface.IPAddress}}
+lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefixLen}}
+{{end}}
+{{if .Network.Interface.Gateway}}
+lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
+{{end}}
+{{if .Network.Interface.MacAddress}}
+lxc.network.hwaddr = {{.Network.Interface.MacAddress}}
+{{end}}
+{{if .ProcessConfig.Env}}
+lxc.utsname = {{getHostname .ProcessConfig.Env}}
+{{end}}
+
+{{if .ProcessConfig.Privileged}}
+# No cap values are needed, as lxc is starting in privileged mode
+{{else}}
+	{{ with keepCapabilities .CapAdd .CapDrop }}
+		{{range .}}
+lxc.cap.keep = {{.}}
+		{{end}}
+	{{else}}
+		{{ with dropList .CapDrop }}
+		{{range .}}
+lxc.cap.drop = {{.}}
+		{{end}}
+		{{end}}
+	{{end}}
+{{end}}
+{{end}}
 `
 
 var LxcTemplateCompiled *template.Template
@@ -138,21 +159,44 @@ func escapeFstabSpaces(field string) string {
 	return strings.Replace(field, " ", "\\040", -1)
 }
 
-func keepCapabilities(adds []string, drops []string) []string {
+func keepCapabilities(adds []string, drops []string) ([]string, error) {
 	container := nativeTemplate.New()
+	log.Debugf("adds %s drops %s\n", adds, drops)
 	caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
+	if err != nil {
+		return nil, err
+	}
 	var newCaps []string
 	for _, cap := range caps {
-		newCaps = append(newCaps, strings.ToLower(cap))
+		log.Debugf("cap %s\n", cap)
+		realCap := capabilities.GetCapability(cap)
+		numCap := fmt.Sprintf("%d", realCap.Value)
+		newCaps = append(newCaps, numCap)
 	}
-	if err != nil {
-		return []string{}
+
+	return newCaps, nil
+}
+
+func dropList(drops []string) ([]string, error) {
+	if utils.StringsContainsNoCase(drops, "all") {
+		var newCaps []string
+		for _, cap := range capabilities.GetAllCapabilities() {
+			log.Debugf("drop cap %s\n", cap)
+			realCap := capabilities.GetCapability(cap)
+			if realCap == nil {
+				return nil, fmt.Errorf("Invalid capability '%s'", cap)
+			}
+			numCap := fmt.Sprintf("%d", realCap.Value)
+			newCaps = append(newCaps, numCap)
+		}
+		return newCaps, nil
 	}
-	return newCaps
+	return []string{}, nil
 }
 
 func isDirectory(source string) string {
 	f, err := os.Stat(source)
+	log.Debugf("dir: %s\n", source)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "dir"
@@ -203,6 +247,7 @@ func init() {
 		"formatMountLabel":  label.FormatMountLabel,
 		"isDirectory":       isDirectory,
 		"keepCapabilities":  keepCapabilities,
+		"dropList":          dropList,
 		"getHostname":       getHostname,
 	}
 	LxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)

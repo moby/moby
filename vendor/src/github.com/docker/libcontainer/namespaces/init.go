@@ -13,7 +13,6 @@ import (
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/console"
-	"github.com/docker/libcontainer/ipc"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libcontainer/mount"
 	"github.com/docker/libcontainer/netlink"
@@ -65,7 +64,10 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, pip
 	if err := json.NewDecoder(pipe).Decode(&networkState); err != nil {
 		return err
 	}
-
+	// join any namespaces via a path to the namespace fd if provided
+	if err := joinExistingNamespaces(container.Namespaces); err != nil {
+		return err
+	}
 	if consolePath != "" {
 		if err := console.OpenAndDup(consolePath); err != nil {
 			return err
@@ -79,9 +81,7 @@ func Init(container *libcontainer.Config, uncleanRootfs, consolePath string, pip
 			return fmt.Errorf("setctty %s", err)
 		}
 	}
-	if err := ipc.Initialize(container.IpcNsPath); err != nil {
-		return fmt.Errorf("setup IPC %s", err)
-	}
+
 	if err := setupNetwork(container, networkState); err != nil {
 		return fmt.Errorf("setup networking %s", err)
 	}
@@ -170,7 +170,7 @@ func RestoreParentDeathSignal(old int) error {
 }
 
 // SetupUser changes the groups, gid, and uid for the user inside the container
-func SetupUser(u string) error {
+func SetupUser(container *libcontainer.Config) error {
 	// Set up defaults.
 	defaultExecUser := user.ExecUser{
 		Uid:  syscall.Getuid(),
@@ -178,22 +178,24 @@ func SetupUser(u string) error {
 		Home: "/",
 	}
 
-	passwdFile, err := user.GetPasswdFile()
+	passwdPath, err := user.GetPasswdPath()
 	if err != nil {
 		return err
 	}
 
-	groupFile, err := user.GetGroupFile()
+	groupPath, err := user.GetGroupPath()
 	if err != nil {
 		return err
 	}
 
-	execUser, err := user.GetExecUserFile(u, &defaultExecUser, passwdFile, groupFile)
+	execUser, err := user.GetExecUserPath(container.User, &defaultExecUser, passwdPath, groupPath)
 	if err != nil {
 		return fmt.Errorf("get supplementary groups %s", err)
 	}
 
-	if err := syscall.Setgroups(execUser.Sgids); err != nil {
+	suppGroups := append(execUser.Sgids, container.AdditionalGroups...)
+
+	if err := syscall.Setgroups(suppGroups); err != nil {
 		return fmt.Errorf("setgroups %s", err)
 	}
 
@@ -273,7 +275,7 @@ func FinalizeNamespace(container *libcontainer.Config) error {
 		return fmt.Errorf("set keep caps %s", err)
 	}
 
-	if err := SetupUser(container.User); err != nil {
+	if err := SetupUser(container); err != nil {
 		return fmt.Errorf("setup user %s", err)
 	}
 
@@ -304,6 +306,25 @@ func LoadContainerEnvironment(container *libcontainer.Config) error {
 		}
 		if err := os.Setenv(p[0], p[1]); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// joinExistingNamespaces gets all the namespace paths specified for the container and
+// does a setns on the namespace fd so that the current process joins the namespace.
+func joinExistingNamespaces(namespaces []libcontainer.Namespace) error {
+	for _, ns := range namespaces {
+		if ns.Path != "" {
+			f, err := os.OpenFile(ns.Path, os.O_RDONLY, 0)
+			if err != nil {
+				return err
+			}
+			err = system.Setns(f.Fd(), uintptr(namespaceInfo[ns.Type]))
+			f.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

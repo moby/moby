@@ -10,7 +10,12 @@ possibleConfigs=(
 	"/usr/src/linux-$(uname -r)/.config"
 	'/usr/src/linux/.config'
 )
-: ${CONFIG:="${possibleConfigs[0]}"}
+
+if [ $# -gt 0 ]; then
+	CONFIG="$1"
+else
+	CONFIG="${possibleConfigs[0]}"
+fi
 
 if ! command -v zgrep &> /dev/null; then
 	zgrep() {
@@ -138,6 +143,9 @@ flags=(
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
 	NF_NAT NF_NAT_NEEDED
+
+	# required for bind-mounting /dev/mqueue into containers
+	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
 echo

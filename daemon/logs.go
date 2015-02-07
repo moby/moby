@@ -40,9 +40,9 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	if tail == "" {
 		tail = "all"
 	}
-	container := daemon.Get(name)
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
 	cLog, err := container.ReadLog("json")
 	if err != nil && os.IsNotExist(err) {
@@ -99,7 +99,8 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 				}
 				logLine := l.Log
 				if times {
-					logLine = fmt.Sprintf("%s %s", l.Created.Format(format), logLine)
+					// format can be "" or time format, so here can't be error
+					logLine, _ = l.Format(format)
 				}
 				if l.Stream == "stdout" && stdout {
 					io.WriteString(job.Stdout, logLine)

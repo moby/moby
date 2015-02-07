@@ -120,7 +120,8 @@ or
 **ENV**
  --**ENV <key> <value>**
  The ENV instruction sets the environment variable <key> to
- the value <value>. This value is passed to all future RUN instructions. This is
+ the value <value>. This value is passed to all future 
+ RUN, ENTRYPOINT, and CMD instructions. This is
  functionally equivalent to prefixing the command with **<key>=<value>**.  The
  environment variables that are set with ENV persist when a container is run
  from the resulting image. Use docker inspect to inspect these values, and
@@ -131,13 +132,31 @@ or
  interactively, as with the following command: **docker run -t -i image bash**
 
 **ADD**
- --**ADD <src>... <dest>** The ADD instruction copies new files, directories
- or remote file URLs to the filesystem of the container at path <dest>.  
+ --ADD has two forms:
+ **ADD <src>... <dest>**
+ **ADD ["<src>"... "<dest>"]** This form is required for paths containing
+ whitespace.
+ The ADD instruction copies new files, directories
+ or remote file URLs to the filesystem of the container at path <dest>.
  Mutliple <src> resources may be specified but if they are files or directories
- then they must be relative to the source directory that is being built 
- (the context of the build).  <dest> is the absolute path to
- which the source is copied inside the target container.  All new files and
- directories are created with mode 0755, with uid and gid 0.
+ then they must be relative to the source directory that is being built
+ (the context of the build). The <dest> is the absolute path, or path relative
+ to `WORKDIR`, into which the source is copied inside the target container.
+ All new files and directories are created with mode 0755 and with the uid 
+ and gid of 0.
+
+**COPY**
+ --COPY has two forms:
+ **COPY <src>... <dest>**
+ **COPY ["<src>"... "<dest>"]** This form is required for paths containing
+ whitespace.
+ The COPY instruction copies new files from <src> and
+ adds them to the filesystem of the container at path <dest>. The <src> must be
+ the path to a file or directory relative to the source directory that is
+ being built (the context of the build) or a remote file URL. The `<dest>` is an
+ absolute path, or a path relative to `WORKDIR`, into which the source will
+ be copied inside the target container. All new files and directories are
+ created with mode 0755 and with the uid and gid of 0.
 
 **ENTRYPOINT**
  --**ENTRYPOINT** has two forms: ENTRYPOINT ["executable", "param1", "param2"]
@@ -176,7 +195,7 @@ or
 
 **WORKDIR**
  -- **WORKDIR /path/to/workdir**
- The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, and **ENTRYPOINT** Dockerfile commands that follow it.
+ The WORKDIR instruction sets the working directory for the **RUN**, **CMD**, **ENTRYPOINT**, **COPY** and **ADD** Dockerfile commands that follow it.
  It can be used multiple times in a single Dockerfile. Relative paths are defined relative to the path of the previous **WORKDIR** instruction. For example:
  **WORKDIR /a WORKDIR b WORKDIR c RUN pwd** 
  In the above example, the output of the **pwd** command is **a/b/c**.

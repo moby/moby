@@ -25,13 +25,6 @@ func copyDir(src, dst string) error {
 	return nil
 }
 
-// Helper to sort []Change by path
-type byPath struct{ changes []Change }
-
-func (b byPath) Less(i, j int) bool { return b.changes[i].Path < b.changes[j].Path }
-func (b byPath) Len() int           { return len(b.changes) }
-func (b byPath) Swap(i, j int)      { b.changes[i], b.changes[j] = b.changes[j], b.changes[i] }
-
 type FileType uint32
 
 const (
@@ -220,7 +213,7 @@ func TestChangesDirsMutated(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sort.Sort(byPath{changes})
+	sort.Sort(changesByPath(changes))
 
 	expectedChanges := []Change{
 		{"/dir1", ChangeDelete},
@@ -286,7 +279,7 @@ func TestApplyLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ApplyLayer(src, layerCopy); err != nil {
+	if _, err := ApplyLayer(src, layerCopy); err != nil {
 		t.Fatal(err)
 	}
 

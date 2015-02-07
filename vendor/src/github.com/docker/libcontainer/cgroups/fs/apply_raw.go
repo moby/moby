@@ -105,7 +105,7 @@ func GetStats(systemPaths map[string]string) (*cgroups.Stats, error) {
 	stats := cgroups.NewStats()
 	for name, path := range systemPaths {
 		sys, ok := subsystems[name]
-		if !ok {
+		if !ok || !cgroups.PathExists(path) {
 			continue
 		}
 		if err := sys.GetStats(path, stats); err != nil {
@@ -124,11 +124,17 @@ func Freeze(c *cgroups.Cgroup, state cgroups.FreezerState) error {
 		return err
 	}
 
+	prevState := c.Freezer
 	c.Freezer = state
 
 	freezer := subsystems["freezer"]
+	err = freezer.Set(d)
+	if err != nil {
+		c.Freezer = prevState
+		return err
+	}
 
-	return freezer.Set(d)
+	return nil
 }
 
 func GetPids(c *cgroups.Cgroup) ([]int, error) {

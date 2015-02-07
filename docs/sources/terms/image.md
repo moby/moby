@@ -8,10 +8,10 @@ page_keywords: containers, lxc, concepts, explanation, image, container
 
 ![](/terms/images/docker-filesystems-debian.png)
 
-In Docker terminology, a read-only [*Layer*](/terms/layer/#layer-def) is
+In Docker terminology, a read-only [*Layer*](/terms/layer/#layer) is
 called an **image**. An image never changes.
 
-Since Docker uses a [*Union File System*](/terms/layer/#ufs-def), the
+Since Docker uses a [*Union File System*](/terms/layer/#union-file-system), the
 processes think the whole file system is mounted read-write. But all the
 changes go to the top-most writeable layer, and underneath, the original
 file in the read-only image is unchanged. Since images don't change,

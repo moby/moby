@@ -119,8 +119,23 @@ func (container *Container) VolumePaths() map[string]struct{} {
 }
 
 func (container *Container) registerVolumes() {
-	for _, mnt := range container.VolumeMounts() {
-		mnt.volume.AddContainer(container.ID)
+	for path := range container.VolumePaths() {
+		if v := container.daemon.volumes.Get(path); v != nil {
+			v.AddContainer(container.ID)
+			continue
+		}
+
+		// if container was created with an old daemon, this volume may not be registered so we need to make sure it gets registered
+		writable := true
+		if rw, exists := container.VolumesRW[path]; exists {
+			writable = rw
+		}
+		v, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
+		if err != nil {
+			log.Debugf("error registering volume %s: %v", path, err)
+			continue
+		}
+		v.AddContainer(container.ID)
 	}
 }
 
@@ -142,6 +157,10 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 		path, mountToPath, writable, err := parseBindMountSpec(spec)
 		if err != nil {
 			return nil, err
+		}
+		// Check if a bind mount has already been specified for the same container path
+		if m, exists := mounts[mountToPath]; exists {
+			return nil, fmt.Errorf("Duplicate volume %q: %q already in use, mounted from %q", path, mountToPath, m.volume.Path)
 		}
 		// Check if a volume already exists for this and use it
 		vol, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
@@ -167,6 +186,12 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 		// Check if this has already been created
 		if _, exists := container.Volumes[path]; exists {
 			continue
+		}
+
+		if stat, err := os.Stat(filepath.Join(container.basefs, path)); err == nil {
+			if !stat.IsDir() {
+				return nil, fmt.Errorf("file exists at %s, can't create volume there")
+			}
 		}
 
 		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
@@ -214,20 +239,61 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 	return path, mountToPath, writable, nil
 }
 
+func parseVolumesFromSpec(spec string) (string, string, error) {
+	specParts := strings.SplitN(spec, ":", 2)
+	if len(specParts) == 0 {
+		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
+	}
+
+	var (
+		id   = specParts[0]
+		mode = "rw"
+	)
+	if len(specParts) == 2 {
+		mode = specParts[1]
+		if !validMountMode(mode) {
+			return "", "", fmt.Errorf("invalid mode for volumes-from: %s", mode)
+		}
+	}
+	return id, mode, nil
+}
+
 func (container *Container) applyVolumesFrom() error {
 	volumesFrom := container.hostConfig.VolumesFrom
+	if len(volumesFrom) > 0 && container.AppliedVolumesFrom == nil {
+		container.AppliedVolumesFrom = make(map[string]struct{})
+	}
 
-	mountGroups := make([]map[string]*Mount, 0, len(volumesFrom))
+	mountGroups := make(map[string][]*Mount)
 
 	for _, spec := range volumesFrom {
-		mountGroup, err := parseVolumesFromSpec(container.daemon, spec)
+		id, mode, err := parseVolumesFromSpec(spec)
 		if err != nil {
 			return err
 		}
-		mountGroups = append(mountGroups, mountGroup)
+		if _, exists := container.AppliedVolumesFrom[id]; exists {
+			// Don't try to apply these since they've already been applied
+			continue
+		}
+
+		c, err := container.daemon.Get(id)
+		if err != nil {
+			return err
+		}
+
+		var (
+			fromMounts = c.VolumeMounts()
+			mounts     []*Mount
+		)
+
+		for _, mnt := range fromMounts {
+			mnt.Writable = mnt.Writable && (mode == "rw")
+			mounts = append(mounts, mnt)
+		}
+		mountGroups[id] = mounts
 	}
 
-	for _, mounts := range mountGroups {
+	for id, mounts := range mountGroups {
 		for _, mnt := range mounts {
 			mnt.from = mnt.container
 			mnt.container = container
@@ -235,6 +301,7 @@ func (container *Container) applyVolumesFrom() error {
 				return err
 			}
 		}
+		container.AppliedVolumesFrom[id] = struct{}{}
 	}
 	return nil
 }
@@ -282,36 +349,6 @@ func (container *Container) setupMounts() error {
 
 	container.command.Mounts = mounts
 	return nil
-}
-
-func parseVolumesFromSpec(daemon *Daemon, spec string) (map[string]*Mount, error) {
-	specParts := strings.SplitN(spec, ":", 2)
-	if len(specParts) == 0 {
-		return nil, fmt.Errorf("Malformed volumes-from specification: %s", spec)
-	}
-
-	c := daemon.Get(specParts[0])
-	if c == nil {
-		return nil, fmt.Errorf("Container %s not found. Impossible to mount its volumes", specParts[0])
-	}
-
-	mounts := c.VolumeMounts()
-
-	if len(specParts) == 2 {
-		mode := specParts[1]
-		if !validMountMode(mode) {
-			return nil, fmt.Errorf("Invalid mode for volumes-from: %s", mode)
-		}
-
-		// Set the mode for the inheritted volume
-		for _, mnt := range mounts {
-			// Ensure that if the inherited volume is not writable, that we don't make
-			// it writable here
-			mnt.Writable = mnt.Writable && (mode == "rw")
-		}
-	}
-
-	return mounts, nil
 }
 
 func (container *Container) VolumeMounts() map[string]*Mount {

@@ -38,22 +38,23 @@ func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
 		}
 	}
 
-	if container := daemon.Get(name); container != nil {
-		// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
-		if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
-			if err := container.Kill(); err != nil {
-				return job.Errorf("Cannot kill container %s: %s", name, err)
-			}
-			container.LogEvent("kill")
-		} else {
-			// Otherwise, just send the requested signal
-			if err := container.KillSig(int(sig)); err != nil {
-				return job.Errorf("Cannot kill container %s: %s", name, err)
-			}
-			// FIXME: Add event for signals
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
+	}
+
+	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
+	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
+		if err := container.Kill(); err != nil {
+			return job.Errorf("Cannot kill container %s: %s", name, err)
 		}
+		container.LogEvent("kill")
 	} else {
-		return job.Errorf("No such container: %s", name)
+		// Otherwise, just send the requested signal
+		if err := container.KillSig(int(sig)); err != nil {
+			return job.Errorf("Cannot kill container %s: %s", name, err)
+		}
+		// FIXME: Add event for signals
 	}
 	return engine.StatusOK
 }

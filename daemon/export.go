@@ -11,20 +11,23 @@ func (daemon *Daemon) ContainerExport(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s container_id", job.Name)
 	}
 	name := job.Args[0]
-	if container := daemon.Get(name); container != nil {
-		data, err := container.Export()
-		if err != nil {
-			return job.Errorf("%s: %s", name, err)
-		}
-		defer data.Close()
 
-		// Stream the entire contents of the container (basically a volatile snapshot)
-		if _, err := io.Copy(job.Stdout, data); err != nil {
-			return job.Errorf("%s: %s", name, err)
-		}
-		// FIXME: factor job-specific LogEvent to engine.Job.Run()
-		container.LogEvent("export")
-		return engine.StatusOK
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
+
+	data, err := container.Export()
+	if err != nil {
+		return job.Errorf("%s: %s", name, err)
+	}
+	defer data.Close()
+
+	// Stream the entire contents of the container (basically a volatile snapshot)
+	if _, err := io.Copy(job.Stdout, data); err != nil {
+		return job.Errorf("%s: %s", name, err)
+	}
+	// FIXME: factor job-specific LogEvent to engine.Job.Run()
+	container.LogEvent("export")
+	return engine.StatusOK
 }

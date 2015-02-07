@@ -10,9 +10,8 @@ import (
 )
 
 var (
-	// ErrNoID is thrown when attempting to use empty prefixes
-	ErrNoID        = errors.New("prefix can't be empty")
-	errDuplicateID = errors.New("multiple IDs were found")
+	ErrEmptyPrefix     = errors.New("Prefix can't be empty")
+	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
 )
 
 func init() {
@@ -46,7 +45,7 @@ func (idx *TruncIndex) addID(id string) error {
 		return fmt.Errorf("illegal character: ' '")
 	}
 	if id == "" {
-		return ErrNoID
+		return ErrEmptyPrefix
 	}
 	if _, exists := idx.ids[id]; exists {
 		return fmt.Errorf("id already exists: '%s'", id)
@@ -86,26 +85,26 @@ func (idx *TruncIndex) Delete(id string) error {
 // Get retrieves an ID from the TruncIndex. If there are multiple IDs
 // with the given prefix, an error is thrown.
 func (idx *TruncIndex) Get(s string) (string, error) {
-	idx.RLock()
-	defer idx.RUnlock()
+	if s == "" {
+		return "", ErrEmptyPrefix
+	}
 	var (
 		id string
 	)
-	if s == "" {
-		return "", ErrNoID
-	}
 	subTreeVisitFunc := func(prefix patricia.Prefix, item patricia.Item) error {
 		if id != "" {
 			// we haven't found the ID if there are two or more IDs
 			id = ""
-			return errDuplicateID
+			return ErrAmbiguousPrefix
 		}
 		id = string(prefix)
 		return nil
 	}
 
+	idx.RLock()
+	defer idx.RUnlock()
 	if err := idx.trie.VisitSubtree(patricia.Prefix(s), subTreeVisitFunc); err != nil {
-		return "", fmt.Errorf("no such id: %s", s)
+		return "", err
 	}
 	if id != "" {
 		return id, nil

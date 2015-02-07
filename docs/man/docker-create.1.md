@@ -21,17 +21,21 @@ docker-create - Create a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
+[**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
@@ -87,6 +91,9 @@ IMAGE [COMMAND] [ARG...]
 **-h**, **--hostname**=""
    Container host name
 
+**--help**
+  Print usage statement
+
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
 
@@ -96,13 +103,25 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
-   Add link to another container in the form of name:alias
+   Add link to another container in the form of <name or id>:alias
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+
+   Allows you to constrain the memory available to a container. If the host
+supports swap memory, then the **-m** memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value would be very large, that's millions of trillions).
+
+**--memory-swap**=""
+   Total memory limit (memory + swap)
+
+   Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
+This value should always larger than **-m**, so you should alway use this with **-m**.
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
@@ -118,15 +137,25 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **-P**, **--publish-all**=*true*|*false*
-   Publish all exposed ports to the host interfaces. The default is *false*.
+   Publish all exposed ports to random ports on the host interfaces. The default is *false*.
 
 **-p**, **--publish**=[]
-   Publish a container's port to the host
+   Publish a container's port, or a range of ports, to the host
                                format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                               Both hostPort and containerPort can be specified as a range of ports. 
+                               When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
+
+**--pid**=host
+   Set the PID mode for the container
+     **host**: use the host's PID namespace inside the container.
+     Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
+
+**--read-only**=*true*|*false*
+   Mount the container's root filesystem as read only.
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

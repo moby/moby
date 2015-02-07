@@ -6,13 +6,15 @@ docker-port - List port mappings for the CONTAINER, or lookup the public-facing 
 
 # SYNOPSIS
 **docker port**
+[**--help**]
 CONTAINER [PRIVATE_PORT[/PROTO]]
 
 # DESCRIPTION
 List port mappings for the CONTAINER, or lookup the public-facing port that is NAT-ed to the PRIVATE_PORT
 
 # OPTIONS
-There are no available options.
+**--help**
+  Print usage statement
 
 # EXAMPLES
 You can find out all the ports mapped by not specifying a `PRIVATE_PORT`, or

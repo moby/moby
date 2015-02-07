@@ -47,9 +47,9 @@ func (v *Volume) Export(resource, name string) (io.ReadCloser, error) {
 		basePath = path.Dir(basePath)
 	}
 	return archive.TarWithOptions(basePath, &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		Name:        name,
-		Includes:    filter,
+		Compression:  archive.Uncompressed,
+		Name:         name,
+		IncludeFiles: filter,
 	})
 }
 
@@ -86,30 +86,14 @@ func (v *Volume) AddContainer(containerId string) {
 	v.lock.Unlock()
 }
 
-func (v *Volume) createIfNotExist() error {
-	if stat, err := os.Stat(v.Path); err != nil && os.IsNotExist(err) {
-		if stat.IsDir() {
-			os.MkdirAll(v.Path, 0755)
-		}
-
-		if err := os.MkdirAll(filepath.Dir(v.Path), 0755); err != nil {
-			return err
-		}
-		f, err := os.OpenFile(v.Path, os.O_CREATE, 0755)
-		if err != nil {
-			return err
-		}
-		f.Close()
-	}
-	return nil
-}
-
 func (v *Volume) initialize() error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	if err := v.createIfNotExist(); err != nil {
-		return err
+	if _, err := os.Stat(v.Path); err != nil && os.IsNotExist(err) {
+		if err := os.MkdirAll(v.Path, 0755); err != nil {
+			return err
+		}
 	}
 
 	if err := os.MkdirAll(v.configPath, 0755); err != nil {
@@ -133,6 +117,7 @@ func (v *Volume) ToDisk() error {
 	defer v.lock.Unlock()
 	return v.toDisk()
 }
+
 func (v *Volume) toDisk() error {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -146,6 +131,7 @@ func (v *Volume) toDisk() error {
 
 	return ioutil.WriteFile(pth, data, 0666)
 }
+
 func (v *Volume) FromDisk() error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

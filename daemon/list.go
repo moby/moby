@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/graphdb"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
@@ -45,24 +47,31 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 	}
 
+	if i, ok := psFilters["status"]; ok {
+		for _, value := range i {
+			if value == "exited" {
+				all = true
+			}
+		}
+	}
 	names := map[string][]string{}
 	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
-	}, -1)
+	}, 1)
 
 	var beforeCont, sinceCont *Container
 	if before != "" {
-		beforeCont = daemon.Get(before)
-		if beforeCont == nil {
-			return job.Error(fmt.Errorf("Could not find container with name or id %s", before))
+		beforeCont, err = daemon.Get(before)
+		if err != nil {
+			return job.Error(err)
 		}
 	}
 
 	if since != "" {
-		sinceCont = daemon.Get(since)
-		if sinceCont == nil {
-			return job.Error(fmt.Errorf("Could not find container with name or id %s", since))
+		sinceCont, err = daemon.Get(since)
+		if err != nil {
+			return job.Error(err)
 		}
 	}
 
@@ -73,7 +82,6 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if !container.Running && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
-
 		if !psFilters.Match("name", container.Name) {
 			return nil
 		}
@@ -96,10 +104,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 && !container.Running {
+		if len(filt_exited) > 0 {
 			should_skip := true
 			for _, code := range filt_exited {
-				if code == container.ExitCode {
+				if code == container.ExitCode && !container.Running {
 					should_skip = false
 					break
 				}
@@ -114,9 +122,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 		displayed++
 		out := &engine.Env{}
-		out.Set("Id", container.ID)
+		out.SetJson("Id", container.ID)
 		out.SetList("Names", names[container.ID])
-		out.Set("Image", daemon.Repositories().ImageName(container.Image))
+		img := container.Config.Image
+		_, tag := parsers.ParseRepositoryTag(container.Config.Image)
+		if tag == "" {
+			img = img + ":" + graph.DEFAULTTAG
+		}
+		out.SetJson("Image", img)
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {

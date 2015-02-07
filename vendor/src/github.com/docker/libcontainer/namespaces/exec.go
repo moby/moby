@@ -17,6 +17,10 @@ import (
 	"github.com/docker/libcontainer/system"
 )
 
+const (
+	EXIT_SIGNAL_OFFSET = 128
+)
+
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
@@ -46,10 +50,20 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 	}
 	child.Close()
 
+	wait := func() (*os.ProcessState, error) {
+		ps, err := command.Process.Wait()
+		// we should kill all processes in cgroup when init is died if we use
+		// host PID namespace
+		if !container.Namespaces.Contains(libcontainer.NEWPID) {
+			killAllPids(container)
+		}
+		return ps, err
+	}
+
 	terminate := func(terr error) (int, error) {
 		// TODO: log the errors for kill and wait
 		command.Process.Kill()
-		command.Wait()
+		wait()
 		return -1, terr
 	}
 
@@ -105,12 +119,52 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 		startCallback()
 	}
 
-	if err := command.Wait(); err != nil {
+	ps, err := wait()
+	if err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return -1, err
 		}
 	}
-	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+	// waiting for pipe flushing
+	command.Wait()
+
+	waitStatus := ps.Sys().(syscall.WaitStatus)
+	if waitStatus.Signaled() {
+		return EXIT_SIGNAL_OFFSET + int(waitStatus.Signal()), nil
+	}
+	return waitStatus.ExitStatus(), nil
+}
+
+// killAllPids itterates over all of the container's processes
+// sending a SIGKILL to each process.
+func killAllPids(container *libcontainer.Config) error {
+	var (
+		procs   []*os.Process
+		freeze  = fs.Freeze
+		getPids = fs.GetPids
+	)
+	if systemd.UseSystemd() {
+		freeze = systemd.Freeze
+		getPids = systemd.GetPids
+	}
+	freeze(container.Cgroups, cgroups.Frozen)
+	pids, err := getPids(container.Cgroups)
+	if err != nil {
+		return err
+	}
+	for _, pid := range pids {
+		// TODO: log err without aborting if we are unable to find
+		// a single PID
+		if p, err := os.FindProcess(pid); err == nil {
+			procs = append(procs, p)
+			p.Kill()
+		}
+	}
+	freeze(container.Cgroups, cgroups.Thawed)
+	for _, p := range procs {
+		p.Wait()
+	}
+	return err
 }
 
 // DefaultCreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces

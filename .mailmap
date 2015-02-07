@@ -6,6 +6,24 @@
 #
 # For explanation on this file format: man git-shortlog
 
+Patrick Stapleton <github@gdi2290.com>
+Shishir Mahajan <shishir.mahajan@redhat.com> <smahajan@redhat.com>
+Erwin van der Koogh <info@erronis.nl>
+Ahmed Kamal <email.ahmedkamal@googlemail.com>
+Tejesh Mehta <tejesh.mehta@gmail.com> <tj@init.me>
+Cristian Staretu <cristian.staretu@gmail.com>
+Cristian Staretu <cristian.staretu@gmail.com> <unclejacksons@gmail.com>
+Cristian Staretu <cristian.staretu@gmail.com> <unclejack@users.noreply.github.com>
+Marcus Linke <marcus.linke@gmx.de>
+Aleksandrs Fadins <aleks@s-ko.net>
+Christopher Latham <sudosurootdev@gmail.com>
+Hu Keping <hukeping@huawei.com>
+Wayne Chang <wayne@neverfear.org>
+Chen Chao <cc272309126@gmail.com>
+Daehyeok Mun <daehyeok@gmail.com>
+<daehyeok@gmail.com> <daehyeok@daehyeokui-MacBook-Air.local>
+<jt@yadutaf.fr> <admin@jtlebi.fr>
+<jeff@docker.com> <jefferya@programmerq.net>
 <charles.hooper@dotcloud.com> <chooper@plumata.com>
 <daniel.mizyrycki@dotcloud.com> <daniel@dotcloud.com>
 <daniel.mizyrycki@dotcloud.com> <mzdaniel@glidelink.net>
@@ -58,7 +76,7 @@ Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
 <michael@docker.com> <michael@crosbymichael.com>
 <michael@docker.com> <crosby.michael@gmail.com>
 <michael@docker.com> <crosbymichael@gmail.com>
-<github@developersupport.net> <github@metaliveblog.com> 
+<github@developersupport.net> <github@metaliveblog.com>
 <brandon@ifup.org> <brandon@ifup.co>
 <dano@spotify.com> <daniel.norberg@gmail.com>
 <danny@codeaholics.org> <Danny.Yates@mailonline.co.uk>
@@ -74,7 +92,6 @@ Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@docker.com>
 Sven Dowideit <SvenDowideit@home.org.au> <¨SvenDowideit@home.org.au¨>
 Sven Dowideit <SvenDowideit@home.org.au> <SvenDowideit@users.noreply.github.com>
 Sven Dowideit <SvenDowideit@home.org.au> <sven@t440s.home.gateway>
-unclejack <unclejacksons@gmail.com> <unclejack@users.noreply.github.com>
 <alexl@redhat.com> <alexander.larsson@gmail.com>
 Alexandr Morozov <lk4d4math@gmail.com>
 <git.nivoc@neverbox.com> <kuehnle@online.de>

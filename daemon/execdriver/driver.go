@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 
+	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/devices"
 )
 
@@ -14,7 +16,7 @@ import (
 type Context map[string]string
 
 var (
-	ErrNotRunning              = errors.New("Process could not be started")
+	ErrNotRunning              = errors.New("Container is not running")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
 	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
@@ -61,6 +63,7 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
+	Stats(id string) (*ResourceStats, error)      // Get resource stats for a running container
 }
 
 // Network settings of the container
@@ -77,12 +80,21 @@ type Ipc struct {
 	HostIpc     bool   `json:"host_ipc"`
 }
 
+// PID settings of the container
+type Pid struct {
+	HostPid bool `json:"host_pid"`
+}
+
 type NetworkInterface struct {
-	Gateway     string `json:"gateway"`
-	IPAddress   string `json:"ip"`
-	IPPrefixLen int    `json:"ip_prefix_len"`
-	MacAddress  string `json:"mac_address"`
-	Bridge      string `json:"bridge"`
+	Gateway              string `json:"gateway"`
+	IPAddress            string `json:"ip"`
+	IPPrefixLen          int    `json:"ip_prefix_len"`
+	MacAddress           string `json:"mac"`
+	Bridge               string `json:"bridge"`
+	GlobalIPv6Address    string `json:"global_ipv6"`
+	LinkLocalIPv6Address string `json:"link_local_ipv6"`
+	GlobalIPv6PrefixLen  int    `json:"global_ipv6_prefix_len"`
+	IPv6Gateway          string `json:"ipv6_gateway"`
 }
 
 type Resources struct {
@@ -90,6 +102,13 @@ type Resources struct {
 	MemorySwap int64  `json:"memory_swap"`
 	CpuShares  int64  `json:"cpu_shares"`
 	Cpuset     string `json:"cpuset"`
+}
+
+type ResourceStats struct {
+	*libcontainer.ContainerStats
+	Read        time.Time `json:"read"`
+	MemoryLimit int64     `json:"memory_limit"`
+	SystemUsage uint64    `json:"system_usage"`
 }
 
 type Mount struct {
@@ -116,12 +135,14 @@ type ProcessConfig struct {
 // Process wrapps an os/exec.Cmd to add more metadata
 type Command struct {
 	ID                 string            `json:"id"`
-	Rootfs             string            `json:"rootfs"`   // root fs of the container
+	Rootfs             string            `json:"rootfs"` // root fs of the container
+	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	InitPath           string            `json:"initpath"` // dockerinit
 	WorkingDir         string            `json:"working_dir"`
 	ConfigPath         string            `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
 	Network            *Network          `json:"network"`
 	Ipc                *Ipc              `json:"ipc"`
+	Pid                *Pid              `json:"pid"`
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
 	AllowedDevices     []*devices.Device `json:"allowed_devices"`

@@ -91,13 +91,15 @@ func (l *Link) ToEnv() []string {
 
 			i = j + 1
 			continue
+		} else {
+			i++
 		}
-
+	}
+	for _, p := range l.Ports {
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))
-		i++
 	}
 
 	// Load the linked container's name into the environment
@@ -138,7 +140,8 @@ func (l *Link) getDefaultPort() *nat.Port {
 }
 
 func (l *Link) Enable() error {
-	if err := l.toggle("-I", false); err != nil {
+	// -A == iptables append flag
+	if err := l.toggle("-A", false); err != nil {
 		return err
 	}
 	l.IsEnabled = true
@@ -148,6 +151,7 @@ func (l *Link) Enable() error {
 func (l *Link) Disable() {
 	// We do not care about errors here because the link may not
 	// exist in iptables
+	// -D == iptables delete flag
 	l.toggle("-D", true)
 
 	l.IsEnabled = false

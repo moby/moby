@@ -16,18 +16,19 @@ func (daemon *Daemon) ContainerCopy(job *engine.Job) engine.Status {
 		resource = job.Args[1]
 	)
 
-	if container := daemon.Get(name); container != nil {
-
-		data, err := container.Copy(resource)
-		if err != nil {
-			return job.Error(err)
-		}
-		defer data.Close()
-
-		if _, err := io.Copy(job.Stdout, data); err != nil {
-			return job.Error(err)
-		}
-		return engine.StatusOK
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
-	return job.Errorf("No such container: %s", name)
+
+	data, err := container.Copy(resource)
+	if err != nil {
+		return job.Error(err)
+	}
+	defer data.Close()
+
+	if _, err := io.Copy(job.Stdout, data); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
 }

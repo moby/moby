@@ -5,14 +5,14 @@ Docker is an open source project to pack, ship and run any application
 as a lightweight container
 
 Docker containers are both *hardware-agnostic* and *platform-agnostic*.
-This means that they can run anywhere, from your laptop to the largest
+This means they can run anywhere, from your laptop to the largest
 EC2 compute instance and everything in between - and they don't require
-that you use a particular language, framework or packaging system. That
+you to use a particular language, framework or packaging system. That
 makes them great building blocks for deploying and scaling web apps,
-databases and backend services without depending on a particular stack
+databases, and backend services without depending on a particular stack
 or provider.
 
-Docker is an open-source implementation of the deployment engine which
+Docker began as an open-source implementation of the deployment engine which
 powers [dotCloud](http://dotcloud.com), a popular Platform-as-a-Service.
 It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
@@ -22,7 +22,7 @@ applications and databases.
 
 ## Security Disclosure
 
-Security is very important to us.  If you have any issue regarding security, 
+Security is very important to us. If you have any issue regarding security, 
 please disclose the information responsibly by sending an email to 
 security@docker.com and not by creating a github issue.
 
@@ -59,24 +59,24 @@ now support the primitives necessary for containerization, including
 Linux with [openvz](http://openvz.org),
 [vserver](http://linux-vserver.org) and more recently
 [lxc](http://lxc.sourceforge.net), Solaris with
-[zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc)
+[zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
 and FreeBSD with
 [Jails](http://www.freebsd.org/doc/handbook/jails.html).
 
 Docker builds on top of these low-level primitives to offer developers a
-portable format and runtime environment that solves all 4 problems.
+portable format and runtime environment that solves all four problems.
 Docker containers are small (and their transfer can be optimized with
 layers), they have basically zero memory and cpu overhead, they are
-completely portable and are designed from the ground up with an
+completely portable, and are designed from the ground up with an
 application-centric design.
 
-The best part: because Docker operates at the OS level, it can still be
+Perhaps best of all, because Docker operates at the OS level, it can still be
 run inside a VM!
 
 ## Plays well with others
 
-Docker does not require that you buy into a particular programming
-language, framework, packaging system or configuration language.
+Docker does not require you to buy into a particular programming
+language, framework, packaging system, or configuration language.
 
 Is your application a Unix process? Does it use files, tcp connections,
 environment variables, standard Unix streams and command-line arguments
@@ -100,21 +100,21 @@ This is usually difficult for several reasons:
     typically don't work well with each other, requiring awkward
     custom integrations.
 
-  * Conflicting dependencies. Different applications may depend on
+  * *Conflicting dependencies*. Different applications may depend on
     different versions of the same dependency. Packaging tools handle
     these situations with various degrees of ease - but they all
     handle them in different and incompatible ways, which again forces
     the developer to do extra work.
   
-  * Custom dependencies. A developer may need to prepare a custom
+  * *Custom dependencies*. A developer may need to prepare a custom
     version of their application's dependency. Some packaging systems
     can handle custom versions of a dependency, others can't - and all
     of them handle it differently.
 
 
-Docker solves dependency hell by giving the developer a simple way to
-express *all* their application's dependencies in one place, and
-streamline the process of assembling them. If this makes you think of
+Docker solves the problem of dependency hell by giving the developer a simple
+way to express *all* their application's dependencies in one place, while
+streamlining the process of assembling them. If this makes you think of
 [XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
 *replace* your favorite packaging systems. It simply orchestrates
 their use in a simple and repeatable way. How does it do that? With
@@ -178,19 +178,35 @@ Contributing to Docker
 ======================
 
 [![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
-[![Build Status](https://ci.dockerproject.com/github.com/docker/docker/status.svg?branch=master)](https://ci.dockerproject.com/github.com/docker/docker)
+[![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
-Want to hack on Docker? Awesome! There are instructions to get you
-started [here](CONTRIBUTING.md). If you'd like to contribute to the
+Want to hack on Docker? Awesome! We have [instructions to help you get
+started](CONTRIBUTING.md). If you'd like to contribute to the
 documentation, please take a look at this [README.md](https://github.com/docker/docker/blob/master/docs/README.md).
 
 These instructions are probably not perfect, please let us know if anything
-feels wrong or incomplete.
+feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
+
+Want to run Docker from a master build? You can download 
+master builds at [master.dockerproject.com](https://master.dockerproject.com). 
+They are updated with each commit merged into the master branch.
+
+Don't know how to use that super cool new feature in the master build? Check
+out the master docs at
+[docs.master.dockerproject.com](http://docs.master.dockerproject.com).
+
+How the project is run
+======================
+
+Docker is a very, very active project. If you want to learn more about how it is run,
+or want to get more involved, the best place to start is [the project directory](https://github.com/docker/docker/tree/master/project).
+
+We are always open to suggestions on process improvements, and are always looking for more maintainers.
 
 ### Legal
 
 *Brought to you courtesy of our legal counsel. For more context,
-please see the Notice document.*
+please see the "NOTICE" document in this repo.*
 
 Use and transfer of Docker may be subject to certain restrictions by the
 United States and other governments.  
@@ -205,4 +221,22 @@ Licensing
 Docker is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://github.com/docker/docker/blob/master/LICENSE) for the full
 license text.
+
+Other Docker Related Projects
+=============================
+There are a number of projects under development that are based on Docker's
+core technology. These projects expand the tooling built around the
+Docker platform to broaden its application and utility. 
+
+If you know of another project underway that should be listed here, please help
+us keep this list up-to-date by submitting a PR.
+
+* [Docker Registry](https://github.com/docker/docker-registry): Registry 
+server for Docker (hosting/delivering of repositories and images) 
+* [Docker Machine](https://github.com/docker/machine): Machine management 
+for a container-centric world 
+* [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
+system 
+* [Docker Compose, aka Fig](https://github.com/docker/fig): 
+Multi-container application management
 

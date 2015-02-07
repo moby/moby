@@ -12,8 +12,7 @@ import (
 func (s *TagStore) Install(eng *engine.Engine) error {
 	for name, handler := range map[string]engine.Handler{
 		"image_set":      s.CmdSet,
-		"image_tag":      s.CmdTag,
-		"tag":            s.CmdTagLegacy, // FIXME merge with "image_tag"
+		"tag":            s.CmdTag,
 		"image_get":      s.CmdGet,
 		"image_inspect":  s.CmdLookup,
 		"image_tarlayer": s.CmdTarLayer,
@@ -109,12 +108,12 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 		//		metaphor, in practice people either ignore it or use it as a
 		//		generic description field which it isn't. On deprecation shortlist.
 		res.SetAuto("Created", img.Created)
-		res.Set("Author", img.Author)
+		res.SetJson("Author", img.Author)
 		res.Set("Os", img.OS)
 		res.Set("Architecture", img.Architecture)
 		res.Set("DockerVersion", img.DockerVersion)
-		res.Set("Id", img.ID)
-		res.Set("Parent", img.Parent)
+		res.SetJson("Id", img.ID)
+		res.SetJson("Parent", img.Parent)
 	}
 	res.WriteTo(job.Stdout)
 	return engine.StatusOK
@@ -137,20 +136,19 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		}
 
 		out := &engine.Env{}
-		out.Set("Id", image.ID)
-		out.Set("Parent", image.Parent)
-		out.Set("Comment", image.Comment)
+		out.SetJson("Id", image.ID)
+		out.SetJson("Parent", image.Parent)
+		out.SetJson("Comment", image.Comment)
 		out.SetAuto("Created", image.Created)
-		out.Set("Container", image.Container)
+		out.SetJson("Container", image.Container)
 		out.SetJson("ContainerConfig", image.ContainerConfig)
 		out.Set("DockerVersion", image.DockerVersion)
-		out.Set("Author", image.Author)
+		out.SetJson("Author", image.Author)
 		out.SetJson("Config", image.Config)
 		out.Set("Architecture", image.Architecture)
 		out.Set("Os", image.OS)
 		out.SetInt64("Size", image.Size)
 		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-		out.Set("Checksum", image.Checksum)
 		if _, err = out.WriteTo(job.Stdout); err != nil {
 			return job.Error(err)
 		}

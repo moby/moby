@@ -2,10 +2,25 @@
 
 DEST=$1
 
-PKGVERSION="$VERSION"
-if [ -n "$(git status --porcelain)" ]; then
-	PKGVERSION="$PKGVERSION-$(date +%Y%m%d%H%M%S)-$GITCOMMIT"
+PKGVERSION="${VERSION//-/'~'}"
+# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
+if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
+	GIT_UNIX="$(git log -1 --pretty='%at')"
+	GIT_DATE="$(date --date "@$GIT_UNIX" +'%Y%m%d.%H%M%S')"
+	GIT_COMMIT="$(git log -1 --pretty='%h')"
+	GIT_VERSION="git${GIT_DATE}.0.${GIT_COMMIT}"
+	# GIT_VERSION is now something like 'git20150128.112847.0.17e840a'
+	PKGVERSION="$PKGVERSION~$GIT_VERSION"
 fi
+
+# $ dpkg --compare-versions 1.5.0 gt 1.5.0~rc1 && echo true || echo false
+# true
+# $ dpkg --compare-versions 1.5.0~rc1 gt 1.5.0~git20150128.112847.17e840a && echo true || echo false
+# true
+# $ dpkg --compare-versions 1.5.0~git20150128.112847.17e840a gt 1.5.0~dev~git20150128.112847.17e840a && echo true || echo false
+# true
+
+# ie, 1.5.0 > 1.5.0~rc1 > 1.5.0~git20150128.112847.17e840a > 1.5.0~dev~git20150128.112847.17e840a
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
 PACKAGE_URL="http://www.docker.com/"
@@ -124,7 +139,7 @@ EOF
 
 		# create lxc-docker-VERSION package
 		fpm -s dir -C $DIR \
-			--name lxc-docker-$VERSION --version $PKGVERSION \
+			--name lxc-docker-$VERSION --version "$PKGVERSION" \
 			--after-install $DEST/postinst \
 			--before-remove $DEST/prerm \
 			--after-remove $DEST/postrm \
@@ -157,7 +172,7 @@ EOF
 
 		# create empty lxc-docker wrapper package
 		fpm -s empty \
-			--name lxc-docker --version $PKGVERSION \
+			--name lxc-docker --version "$PKGVERSION" \
 			--architecture "$PACKAGE_ARCHITECTURE" \
 			--depends lxc-docker-$VERSION \
 			--description "$PACKAGE_DESCRIPTION" \

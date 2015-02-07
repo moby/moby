@@ -53,7 +53,7 @@ func expectBlkioStatsEquals(t *testing.T, expected, actual cgroups.BlkioStats) {
 	}
 
 	if err := blkioStatEntryEquals(expected.IoMergedRecursive, actual.IoMergedRecursive); err != nil {
-		log.Printf("blkio IoMergedRecursive do not match - %s vs %s\n", expected.IoMergedRecursive, actual.IoMergedRecursive)
+		log.Printf("blkio IoMergedRecursive do not match - %v vs %v\n", expected.IoMergedRecursive, actual.IoMergedRecursive)
 		t.Fail()
 	}
 
@@ -89,5 +89,9 @@ func expectMemoryStatEquals(t *testing.T, expected, actual cgroups.MemoryStats) 
 			log.Printf("Expected memory stat value %d but found %d\n", expValue, actValue)
 			t.Fail()
 		}
+	}
+	if expected.Failcnt != actual.Failcnt {
+		log.Printf("Expected memory failcnt %d but found %d\n", expected.Failcnt, actual.Failcnt)
+		t.Fail()
 	}
 }

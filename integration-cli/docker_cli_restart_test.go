@@ -151,3 +151,66 @@ func TestRestartWithVolumes(t *testing.T) {
 
 	logDone("restart - does not create a new volume on restart")
 }
+
+func TestRestartPolicyNO(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--restart=no", "busybox", "false")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	id := strings.TrimSpace(string(out))
+	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if name != "no" {
+		t.Fatalf("Container restart policy name is %s, expected %s", name, "no")
+	}
+
+	logDone("restart - recording restart policy name for --restart=no")
+}
+
+func TestRestartPolicyAlways(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--restart=always", "busybox", "false")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	id := strings.TrimSpace(string(out))
+	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if name != "always" {
+		t.Fatalf("Container restart policy name is %s, expected %s", name, "always")
+	}
+
+	logDone("restart - recording restart policy name for --restart=always")
+}
+
+func TestRestartPolicyOnFailure(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--restart=on-failure:1", "busybox", "false")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	id := strings.TrimSpace(string(out))
+	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if name != "on-failure" {
+		t.Fatalf("Container restart policy name is %s, expected %s", name, "on-failure")
+	}
+
+	logDone("restart - recording restart policy name for --restart=on-failure")
+}

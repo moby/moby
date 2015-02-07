@@ -15,15 +15,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/opts"
 	"github.com/gorilla/mux"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 var (
-	testHTTPServer     *httptest.Server
-	insecureRegistries []string
-	testLayers         = map[string]map[string]string{
+	testHTTPServer  *httptest.Server
+	testHTTPSServer *httptest.Server
+	testLayers      = map[string]map[string]string{
 		"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20": {
 			"json": `{"id":"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 				"comment":"test base image","created":"2013-03-23T12:53:11.10432-07:00",
@@ -86,6 +87,7 @@ var (
 		"":            {net.ParseIP("0.0.0.0")},
 		"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 		"example.com": {net.ParseIP("42.42.42.42")},
+		"other.com":   {net.ParseIP("43.43.43.43")},
 	}
 )
 
@@ -108,11 +110,7 @@ func init() {
 	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
 
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
-	URL, err := url.Parse(testHTTPServer.URL)
-	if err != nil {
-		panic(err)
-	}
-	insecureRegistries = []string{URL.Host}
+	testHTTPSServer = httptest.NewTLSServer(handlerAccessLog(r))
 
 	// override net.LookupIP
 	lookupIP = func(host string) ([]net.IP, error) {
@@ -144,6 +142,52 @@ func handlerAccessLog(handler http.Handler) http.Handler {
 
 func makeURL(req string) string {
 	return testHTTPServer.URL + req
+}
+
+func makeHttpsURL(req string) string {
+	return testHTTPSServer.URL + req
+}
+
+func makeIndex(req string) *IndexInfo {
+	index := &IndexInfo{
+		Name: makeURL(req),
+	}
+	return index
+}
+
+func makeHttpsIndex(req string) *IndexInfo {
+	index := &IndexInfo{
+		Name: makeHttpsURL(req),
+	}
+	return index
+}
+
+func makePublicIndex() *IndexInfo {
+	index := &IndexInfo{
+		Name:     IndexServerAddress(),
+		Secure:   true,
+		Official: true,
+	}
+	return index
+}
+
+func makeServiceConfig(mirrors []string, insecure_registries []string) *ServiceConfig {
+	options := &Options{
+		Mirrors:            opts.NewListOpts(nil),
+		InsecureRegistries: opts.NewListOpts(nil),
+	}
+	if mirrors != nil {
+		for _, mirror := range mirrors {
+			options.Mirrors.Set(mirror)
+		}
+	}
+	if insecure_registries != nil {
+		for _, insecure_registries := range insecure_registries {
+			options.InsecureRegistries.Set(insecure_registries)
+		}
+	}
+
+	return NewServiceConfig(options)
 }
 
 func writeHeaders(w http.ResponseWriter) {
@@ -191,6 +235,40 @@ func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
 		message = fmt.Sprintf("%v != %v", a, b)
 	}
 	t.Fatal(message)
+}
+
+func assertNotEqual(t *testing.T, a interface{}, b interface{}, message string) {
+	if a != b {
+		return
+	}
+	if len(message) == 0 {
+		message = fmt.Sprintf("%v == %v", a, b)
+	}
+	t.Fatal(message)
+}
+
+// Similar to assertEqual, but does not stop test
+func checkEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string) {
+	if a == b {
+		return
+	}
+	message := fmt.Sprintf("%v != %v", a, b)
+	if len(messagePrefix) != 0 {
+		message = messagePrefix + ": " + message
+	}
+	t.Error(message)
+}
+
+// Similar to assertNotEqual, but does not stop test
+func checkNotEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string) {
+	if a != b {
+		return
+	}
+	message := fmt.Sprintf("%v == %v", a, b)
+	if len(messagePrefix) != 0 {
+		message = messagePrefix + ": " + message
+	}
+	t.Error(message)
 }
 
 func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -271,6 +349,7 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repositoryName := mux.Vars(r)["repository"]
+	repositoryName = NormalizeLocalName(repositoryName)
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
@@ -290,6 +369,7 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	repositoryName := vars["repository"]
+	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
@@ -310,6 +390,7 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	repositoryName := vars["repository"]
+	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName]
 	if !exists {

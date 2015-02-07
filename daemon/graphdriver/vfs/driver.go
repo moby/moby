@@ -1,10 +1,8 @@
 package vfs
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 
 	"github.com/docker/docker/daemon/graphdriver"
@@ -37,14 +35,6 @@ func (d *Driver) Status() [][2]string {
 
 func (d *Driver) Cleanup() error {
 	return nil
-}
-
-func isGNUcoreutils() bool {
-	if stdout, err := exec.Command("cp", "--version").Output(); err == nil {
-		return bytes.Contains(stdout, []byte("GNU coreutils"))
-	}
-
-	return false
 }
 
 func (d *Driver) Create(id, parent string) error {
@@ -93,9 +83,10 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return dir, nil
 }
 
-func (d *Driver) Put(id string) {
+func (d *Driver) Put(id string) error {
 	// The vfs driver has no runtime resources (e.g. mounts)
 	// to clean up, so we don't need anything here
+	return nil
 }
 
 func (d *Driver) Exists(id string) bool {

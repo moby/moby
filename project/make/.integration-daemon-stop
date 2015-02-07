@@ -1,0 +1,9 @@
+#!/bin/bash
+
+for pidFile in $(find "$DEST" -name docker.pid); do
+	pid=$(set -x; cat "$pidFile")
+	( set -x; kill $pid )
+	if ! wait $pid; then
+		echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
+	fi
+done

@@ -7,6 +7,7 @@ docker-exec - Run a command in a running container
 # SYNOPSIS
 **docker exec**
 [**-d**|**--detach**[=*false*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**-t**|**--tty**[=*false*]]
 CONTAINER COMMAND [ARG...]
@@ -24,6 +25,9 @@ container is unpaused, and then run
 # OPTIONS
 **-d**, **--detach**=*true*|*false*
    Detached mode: run command in the background. The default is *false*.
+
+**--help**
+  Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.

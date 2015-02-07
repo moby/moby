@@ -3,6 +3,7 @@ package parser
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -32,7 +33,7 @@ type Node struct {
 var (
 	dispatch                map[string]func(string) (*Node, map[string]bool, error)
 	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
-	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\\s*$`)
+	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\[ \t]*$`)
 	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
 )
 
@@ -41,7 +42,7 @@ func init() {
 	// The command is parsed and mapped to the line parser. The line parser
 	// recieves the arguments but not the command, and returns an AST after
 	// reformulating the arguments according to the rules in the parser
-	// functions. Errors are propogated up by Parse() and the resulting AST can
+	// functions. Errors are propagated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
 	dispatch = map[string]func(string) (*Node, map[string]bool, error){
 		"user":       parseString,
@@ -50,8 +51,8 @@ func init() {
 		"env":        parseEnv,
 		"maintainer": parseString,
 		"from":       parseString,
-		"add":        parseStringsWhitespaceDelimited,
-		"copy":       parseStringsWhitespaceDelimited,
+		"add":        parseMaybeJSONToList,
+		"copy":       parseMaybeJSONToList,
 		"run":        parseMaybeJSON,
 		"cmd":        parseMaybeJSON,
 		"entrypoint": parseMaybeJSON,
@@ -77,6 +78,10 @@ func parseLine(line string) (string, *Node, error) {
 		return "", nil, err
 	}
 
+	if len(args) == 0 {
+		return "", nil, fmt.Errorf("Instruction %q is empty; cannot continue", cmd)
+	}
+
 	node := &Node{}
 	node.Value = cmd
 
@@ -85,10 +90,7 @@ func parseLine(line string) (string, *Node, error) {
 		return "", nil, err
 	}
 
-	if sexp.Value != "" || sexp.Next != nil || sexp.Children != nil {
-		node.Next = sexp
-	}
-
+	node.Next = sexp
 	node.Attributes = attrs
 	node.Original = line
 

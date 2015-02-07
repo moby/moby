@@ -26,6 +26,9 @@ To see the man page for a command run **man docker <command>**.
 **-D**=*true*|*false*
    Enable debug mode. Default is false.
 
+**--help**
+  Print usage statement
+
 **-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
    The socket(s) to bind to in daemon mode specified using one or more
@@ -49,9 +52,11 @@ unix://[/path/to/socket] to use.
 **-g**=""
   Path to use as the root of the Docker runtime. Default is `/var/lib/docker`.
 
-
 **--fixed-cidr**=""
-  IPv4 subnet for fixed IPs (ex: 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
+  IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
+
+**--fixed-cidr-v6**=""
+  IPv6 subnet for global IPv6 addresses (e.g., 2a00:1450::/64)
 
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
@@ -59,13 +64,19 @@ unix://[/path/to/socket] to use.
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
 
+**--ip-forward**=*true*|*false*
+  Docker will enable IP forwarding. Default is true. If `--fixed-cidr-v6` is set. IPv6 forwarding will be activated, too. This may reject Router Advertisements and interfere with the host's existing IPv6 configuration. For more information please consult the documentation about "Advanced Networking - IPv6".
+
 **--ip-masq**=*true*|*false*
   Enable IP masquerading for bridge's IP range. Default is true.
 
 **--iptables**=*true*|*false*
   Disable Docker's addition of iptables rules. Default is true.
 
-**-l**, **--log-level**="*debug*|*info*|*error*|*fatal*""
+**--ipv6**=*true*|*false*
+  Enable IPv6 support. Default is false. Docker will create an IPv6-enabled bridge with address fe80::1 which will allow you to create IPv6-enabled containers. Use together with `--fixed-cidr-v6` to provide globally routable IPv6 addresses. IPv6 forwarding will be enabled if not used with `--ip-forward=false`. This may collide with your host's current IPv6 settings. For more information please consult the documentation about "Advanced Networking - IPv6".
+
+**-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*""
   Set the logging level. Default is `info`.
 
 **--label**="[]"
@@ -133,7 +144,7 @@ unix://[/path/to/socket] to use.
   Display system-wide information
 
 **docker-inspect(1)**
-  Return low-level information on a container
+  Return low-level information on a container or image
 
 **docker-kill(1)**
   Kill a running container (which includes the wrapper process and everything
@@ -266,7 +277,7 @@ is 64K.
 #### dm.blkdiscard
 Enables or disables the use of blkdiscard when removing devicemapper devices.
 This is enabled by default (only) if using loopback devices and is required to
-res-parsify the loopback file on image/container removal.
+resparsify the loopback file on image/container removal.
 
 Disabling this on loopback can lead to *much* faster container removal times,
 but will prevent the space used in `/var/lib/docker` directory from being returned to

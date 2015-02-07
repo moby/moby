@@ -1,6 +1,5 @@
-FROM crosbymichael/golang
+FROM golang:1.4
 
-RUN apt-get update && apt-get install -y gcc make
 RUN go get golang.org/x/tools/cmd/cover
 
 ENV GOPATH $GOPATH:/go/src/github.com/docker/libcontainer/vendor

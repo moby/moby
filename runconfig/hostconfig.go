@@ -66,6 +66,27 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+type PidMode string
+
+// IsPrivate indicates whether container use it's private pid stack
+func (n PidMode) IsPrivate() bool {
+	return !(n.IsHost())
+}
+
+func (n PidMode) IsHost() bool {
+	return n == "host"
+}
+
+func (n PidMode) Valid() bool {
+	parts := strings.Split(string(n), ":")
+	switch mode := parts[0]; mode {
+	case "", "host":
+	default:
+		return false
+	}
+	return true
+}
+
 type DeviceMapping struct {
 	PathOnHost        string
 	PathInContainer   string
@@ -92,10 +113,12 @@ type HostConfig struct {
 	Devices         []DeviceMapping
 	NetworkMode     NetworkMode
 	IpcMode         IpcMode
+	PidMode         PidMode
 	CapAdd          []string
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
+	ReadonlyRootfs  bool
 }
 
 // This is used by the create command when you want to set both the
@@ -125,6 +148,8 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 		IpcMode:         IpcMode(job.Getenv("IpcMode")),
+		PidMode:         PidMode(job.Getenv("PidMode")),
+		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)

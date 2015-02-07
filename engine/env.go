@@ -7,6 +7,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/utils"
 )
 
 type Env []string
@@ -242,9 +244,10 @@ func (env *Env) Encode(dst io.Writer) error {
 	return nil
 }
 
-func (env *Env) WriteTo(dst io.Writer) (n int64, err error) {
-	// FIXME: return the number of bytes written to respect io.WriterTo
-	return 0, env.Encode(dst)
+func (env *Env) WriteTo(dst io.Writer) (int64, error) {
+	wc := utils.NewWriteCounter(dst)
+	err := env.Encode(wc)
+	return wc.Count, err
 }
 
 func (env *Env) Import(src interface{}) (err error) {

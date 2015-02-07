@@ -44,12 +44,15 @@ func (p *JSONProgress) String() string {
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
-	current := units.HumanSize(int64(p.Current))
+	current := units.HumanSize(float64(p.Current))
 	if p.Total <= 0 {
 		return fmt.Sprintf("%8v", current)
 	}
-	total := units.HumanSize(int64(p.Total))
+	total := units.HumanSize(float64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
+	if percentage > 50 {
+		percentage = 50
+	}
 	if width > 110 {
 		// this number can't be negetive gh#7136
 		numSpaces := 0
