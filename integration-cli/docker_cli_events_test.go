@@ -180,6 +180,9 @@ func TestEventsImageUntagDelete(t *testing.T) {
 
 func TestEventsImagePull(t *testing.T) {
 	since := time.Now().Unix()
+
+	defer deleteImages("hello-world")
+
 	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
 		t.Fatalf("pulling the hello-world image from has failed: %s, %v", out, err)
