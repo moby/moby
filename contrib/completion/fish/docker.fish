@@ -345,7 +345,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from save' -s o -l output -d
 complete -c docker -A -f -n '__fish_seen_subcommand_from save' -a '(__fish_print_docker_images)' -d "Image"
 
 # search
-complete -c docker -f -n '__fish_docker_no_subcommand' -a search -d 'Search for an image on the Docker Hub'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a search -d 'Search for an image on the registry (defaults to the Docker Hub)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from search' -l automated -d 'Only show automated builds'
 complete -c docker -A -f -n '__fish_seen_subcommand_from search' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from search' -l no-trunc -d "Don't truncate output"
