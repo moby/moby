@@ -480,6 +480,12 @@ The copy obeys the following rules:
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
 
+- If `<src>` is a symbolic link to a file or directory the physical directory
+  or the file that the link points to is copied to the destination. The link
+  itself is not preserved. If the link is a directory the contents of that 
+  directory are copied. The physical files and the directories must be inside
+  the *context* of the build. 
+
 - If multiple `<src>` resources are specified, either directly or due to the
   use of a wildcard, then `<dest>` must be a directory, and it must end with 
   a slash `/`.
@@ -538,6 +544,12 @@ The copy obeys the following rules:
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
   will be considered a directory and the contents of `<src>` will be written
   at `<dest>/base(<src>)`.
+
+- If `<src>` is a symbolic link to a file or directory the physical directory
+  or the file that the link points to is copied to the destination. The link
+  itself is not preserved. If the link is a directory the contents of that 
+  directory are copied. The physical files and the directories must be inside
+  the *context* of the build.
 
 - If multiple `<src>` resources are specified, either directly or due to the
   use of a wildcard, then `<dest>` must be a directory, and it must end with 

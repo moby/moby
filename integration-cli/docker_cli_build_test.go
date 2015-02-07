@@ -767,6 +767,147 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 	logDone("build - add single file to existing dir")
 }
 
+func TestBuildAddLinkToDir(t *testing.T) {
+	name := "testaddlinktoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+ADD exists/test_file test_file
+ADD link2dir lexists
+RUN ls -L test_file lexists lexists/test_file  
+[ "$(readlink /lexists)" == "test_file" ]`,
+		map[string]string{
+			"exists/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("exists", "link2dir"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add a directory link to a dir")
+}
+
+func TestBuildAddMultipleLinksToDir(t *testing.T) {
+	name := "testaddlinktoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+ADD a/b lexists0
+ADD a/b/c lexists
+RUN ls -L lexists 
+[ "$(readlink /lexists0)" == "../B" && "$(readlink /lexists0)" == "../A/C" ]`,
+		map[string]string{
+			"A/C":     "test file1",
+			"B/file2": "test file2",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("A", "a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("../B", "A/b"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("../A/C", "B/c"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add a directory mulitple link to a dir")
+}
+
+func TestBuildAddLinkToDirCache(t *testing.T) {
+	name := "testaddlinktoexistdircache"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+ADD exists/test_file test_file
+ADD link2dir lexists
+RUN ls -L test_file lexists lexists/test_file
+[ "$(readlink /lexists)" == "test_file" ]`,
+		map[string]string{
+			"exists/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("exists", "link2dir"); err != nil {
+		t.Fatal(err)
+	}
+	var id1, id2, id3 string
+	if id1, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	if id1 != id2 {
+		fmt.Errorf("Didn't use the cache")
+	}
+	//invalidate cache
+	ctx.Add("/exists/test_file2", "test2")
+	if id3, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	if id1 == id3 {
+		fmt.Errorf("Shouldn't use the cache")
+	}
+
+	logDone("build - add a directory link to a dir check caching")
+}
+
+func TestBuildAddLinkToDirOutsideContext(t *testing.T) {
+	name := "testaddlinktodiroutsidecontext"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+ADD exists/test_file test_file
+ADD link2dir lexists
+RUN ls -L test_file lexists lexists/test_file `,
+		map[string]string{
+			"exists/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("/etc/hosts", "link2dir"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		if !strings.Contains(err.Error(), "Forbidden path outside the build context") {
+			t.Fatalf("Wrong error %v, must be 'Forbidden path outside the build context ...'", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - add a directory link to a dir that is outside the context")
+}
+
+func TestBuildCopyLinkToDir(t *testing.T) {
+	name := "testcopylinktoexistdir"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+COPY exists/test_file test_file
+COPY link2dir lexists
+RUN ls -L test_file lexists lexists/test_file
+[ "$(readlink /lexists)" == "test_file" ]`,
+		map[string]string{
+			"exists/test_file": "test1",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.Link("exists", "link2dir"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - copy a directory link to a dir")
+}
+
 func TestBuildCopyAddMultipleFiles(t *testing.T) {
 	name := "testcopymultiplefilestofile"
 	defer deleteImages(name)
