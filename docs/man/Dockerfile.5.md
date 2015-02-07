@@ -138,7 +138,7 @@ or
  whitespace.
  The ADD instruction copies new files, directories
  or remote file URLs to the filesystem of the container at path <dest>.
- Mutliple <src> resources may be specified but if they are files or directories
+ Multiple <src> resources may be specified but if they are files or directories
  then they must be relative to the source directory that is being built
  (the context of the build). The <dest> is the absolute path, or path relative
  to `WORKDIR`, into which the source is copied inside the target container.
