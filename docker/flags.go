@@ -36,7 +36,7 @@ var (
 	flDebug       = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flSocketGroup = flag.String([]string{"G", "-group"}, "docker", "Group for the unix socket")
 	flLogLevel    = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flEnableCors  = flag.Bool([]string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
+	flEnableCors  = flag.String([]string{"R", "-api-enable-cors"}, "*", "Enable CORS headers in the remote API")
 	flTls         = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify flag")
 	flHelp        = flag.Bool([]string{"h", "-help"}, false, "Print usage")
 	flTlsVerify   = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
