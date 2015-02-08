@@ -54,10 +54,12 @@ var replaceEnvAllowed = map[string]struct{}{
 	"user":    {},
 }
 
-var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
+// EvaluateTable is public so that we can get the list of Dockerfile
+// commands from within the test cases
+var EvaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
-	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
+	EvaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
 		"env":        env,
 		"maintainer": maintainer,
 		"add":        add,
@@ -224,7 +226,7 @@ func (b *Builder) readDockerfile(origFile string) error {
 // Child[Node, Node, Node] where Child is from parser.Node.Children and each
 // node comes from parser.Node.Next. This forms a "line" with a statement and
 // arguments and we process them in this normalized form by hitting
-// evaluateTable with the leaf nodes of the command and the Builder object.
+// EvaluateTable with the leaf nodes of the command and the Builder object.
 //
 // ONBUILD is a special case; in this case the parser will emit:
 // Child[Node, Child[Node, Node...]] where the first node is the literal
@@ -280,7 +282,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
-	if f, ok := evaluateTable[cmd]; ok {
+	if f, ok := EvaluateTable[cmd]; ok {
 		return f(b, strList, attrs, original)
 	}
 

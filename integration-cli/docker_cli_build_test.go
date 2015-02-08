@@ -19,6 +19,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -4726,9 +4727,9 @@ func TestBuildSpaces(t *testing.T) {
 
 	name := "testspaces"
 	defer deleteImages(name)
-	ctx, err := fakeContext("FROM busybox\nRUN\n",
+	ctx, err := fakeContext("FROM busybox\nCOPY\n",
 		map[string]string{
-			"Dockerfile": "FROM busybox\nRUN\n",
+			"Dockerfile": "FROM busybox\nCOPY\n",
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -4739,7 +4740,7 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatal("Build 1 was supposed to fail, but didn't")
 	}
 
-	ctx.Add("Dockerfile", "FROM busybox\nRUN    ")
+	ctx.Add("Dockerfile", "FROM busybox\nCOPY    ")
 	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
 		t.Fatal("Build 2 was supposed to fail, but didn't")
 	}
@@ -4753,7 +4754,7 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatalf("Build 2's error wasn't the same as build 1's\n1:%s\n2:%s", err1, err2)
 	}
 
-	ctx.Add("Dockerfile", "FROM busybox\n   RUN")
+	ctx.Add("Dockerfile", "FROM busybox\n   COPY")
 	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
 		t.Fatal("Build 3 was supposed to fail, but didn't")
 	}
@@ -4767,7 +4768,7 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatalf("Build 3's error wasn't the same as build 1's\n1:%s\n3:%s", err1, err2)
 	}
 
-	ctx.Add("Dockerfile", "FROM busybox\n   RUN    ")
+	ctx.Add("Dockerfile", "FROM busybox\n   COPY    ")
 	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
 		t.Fatal("Build 4 was supposed to fail, but didn't")
 	}
@@ -4824,26 +4825,27 @@ func TestBuildVolumeFileExistsinContainer(t *testing.T) {
 }
 
 func TestBuildMissingArgs(t *testing.T) {
-	// test to make sure these cmds w/o any args will generate an error
-	// Notice some commands are missing because its ok for them to
-	// not have any args - like: CMD, RUN, ENTRYPOINT
-	cmds := []string{
-		"ADD",
-		"COPY",
-		"ENV",
-		"EXPOSE",
-		"FROM",
-		"MAINTAINER",
-		"ONBUILD",
-		"USER",
-		"VOLUME",
-		"WORKDIR",
+	// Test to make sure that all Dockerfile commands (except the ones listed
+	// in skipCmds) will generate an error if no args are provided.
+	// Note: INSERT is deprecated so we exclude it because of that.
+
+	skipCmds := map[string]struct{}{
+		"CMD":        {},
+		"RUN":        {},
+		"ENTRYPOINT": {},
+		"INSERT":     {},
 	}
 
 	defer deleteAllContainers()
 
-	for _, cmd := range cmds {
+	for cmd := range builder.EvaluateTable {
 		var dockerfile string
+
+		cmd = strings.ToUpper(cmd)
+
+		if _, ok := skipCmds[cmd]; ok {
+			continue
+		}
 
 		if cmd == "FROM" {
 			dockerfile = cmd
@@ -4859,13 +4861,11 @@ func TestBuildMissingArgs(t *testing.T) {
 		defer ctx.Close()
 		var out string
 		if out, err = buildImageFromContext("args", ctx, true); err == nil {
-			t.Fatalf("%s was supposed to fail:%s", cmd, out)
+			t.Fatalf("%s was supposed to fail. Out:%s", cmd, out)
 		}
 		if !strings.Contains(err.Error(), cmd+" requires") {
 			t.Fatalf("%s returned the wrong type of error:%s", cmd, err)
 		}
-
-		ctx.Close()
 	}
 
 	logDone("build - verify missing args")
