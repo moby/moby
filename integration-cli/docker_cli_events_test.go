@@ -296,3 +296,85 @@ func TestEventsFilters(t *testing.T) {
 
 	logDone("events - filters")
 }
+
+func TestEventsFilterContainerID(t *testing.T) {
+	since := time.Now().Unix()
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container1 := stripTrailingCharacters(out)
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container2 := stripTrailingCharacters(out)
+
+	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", fmt.Sprintf("container=%s", container1))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s(%s)", exitCode, err, out)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+	}
+	dieEvent := strings.Fields(events[len(events)-1])
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+
+	eventsCmd = exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", fmt.Sprintf("container=%s", container2))
+	out, exitCode, err = runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s(%s)", exitCode, err, out)
+	}
+
+	events = strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+	}
+	dieEvent = strings.Fields(events[len(events)-1])
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+
+	eventsCmd = exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", fmt.Sprintf("container=%s", container1[:12]))
+	out, exitCode, err = runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s(%s)", exitCode, err, out)
+	}
+
+	events = strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+	}
+	dieEvent = strings.Fields(events[len(events)-1])
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+
+	eventsCmd = exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", fmt.Sprintf("container=%s", container2[:12]))
+	out, exitCode, err = runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s(%s)", exitCode, err, out)
+	}
+
+	events = strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+	}
+	dieEvent = strings.Fields(events[len(events)-1])
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+
+	logDone("events - filters using container id")
+
+}
