@@ -323,6 +323,11 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		return nil
 	}
 
+	if strings.HasPrefix(finfo.Name(), ".") {
+		log.Debugf("Skipping file %s", path)
+		return nil
+	}
+
 	if finfo.Name() == deviceSetMetaFile {
 		log.Debugf("Skipping file %s", path)
 		return nil
