@@ -245,3 +245,47 @@ func TestEventsFilters(t *testing.T) {
 
 	logDone("events - filters")
 }
+
+func TestEventsFilterImageName(t *testing.T) {
+	since := time.Now().Unix()
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_1", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container1 := stripTrailingCharacters(out)
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_2", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container2 := stripTrailingCharacters(out)
+
+	for _, s := range []string{"busybox", "busybox:latest"} {
+		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", fmt.Sprintf("image=%s", s))
+		out, _, err := runCommandWithOutput(eventsCmd)
+		if err != nil {
+			t.Fatalf("Failed to get events, error: %s(%s)", err, out)
+		}
+		events := strings.Split(out, "\n")
+		events = events[:len(events)-1]
+		if len(events) == 0 {
+			t.Fatalf("Expected events but found none for the image busybox:latest")
+		}
+		count1 := 0
+		count2 := 0
+		for _, e := range events {
+			if strings.Contains(e, container1) {
+				count1++
+			} else if strings.Contains(e, container2) {
+				count2++
+			}
+		}
+		if count1 == 0 || count2 == 0 {
+			t.Fatalf("Expected events from each container but got %d from %s and %d from %s", count1, container1, count2, container2)
+		}
+	}
+
+	logDone("events - filters using image")
+
+}

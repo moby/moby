@@ -2,6 +2,7 @@ package events
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
@@ -111,6 +112,12 @@ func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.
 		for _, v := range filter {
 			if v == field {
 				return false
+			}
+			if strings.Contains(field, ":") {
+				image := strings.Split(field, ":")
+				if image[0] == v {
+					return false
+				}
 			}
 		}
 		return true
