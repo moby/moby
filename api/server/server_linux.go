@@ -27,7 +27,7 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 }
 
 func setupUnixHttp(addr string, job *engine.Job) (*HttpServer, error) {
-	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("Version"))
+    r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
 
 	if err := syscall.Unlink(addr); err != nil && !os.IsNotExist(err) {
 		return nil, err
