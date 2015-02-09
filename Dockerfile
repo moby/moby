@@ -84,10 +84,8 @@ RUN cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 ENV DOCKER_CROSSPLATFORMS \
 	linux/386 linux/arm \
 	darwin/amd64 darwin/386 \
-	freebsd/amd64 freebsd/386 freebsd/arm
-
-# TODO when https://jenkins.dockerproject.com/job/Windows/ is green, add windows back to the list above
-#	windows/amd64 windows/386
+	freebsd/amd64 freebsd/386 freebsd/arm \
+	windows/amd64 windows/386
 
 # (set an explicit GOARM of 5 for maximum compatibility)
 ENV GOARM 5
