@@ -59,18 +59,27 @@ a new service that will be started after the docker daemon service has started.
       /usr/bin/docker start -a redis_server
     end script
 
-
 ### systemd
 
     [Unit]
     Description=Redis container
-    Author=Me
+    Requires=docker.service
     After=docker.service
 
     [Service]
     Restart=always
     ExecStart=/usr/bin/docker start -a redis_server
+    # for more options, use 'run' instead of 'start', but not suggested
+    # ExecStart=/usr/bin/docker run redis_server
     ExecStop=/usr/bin/docker stop -t 2 redis_server
 
     [Install]
     WantedBy=local.target
+
+if you need to pass options to the redis container (such as '--env'), 
+then you'll need to use 'docker run' rather than 'docker start'.
+
+    [Service]
+    ...
+    ExecStart=/usr/bin/docker run --env foo=bar redis_server
+    ...
