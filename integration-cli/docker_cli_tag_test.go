@@ -54,7 +54,7 @@ func TestTagInvalidUnprefixedRepo(t *testing.T) {
 			t.Fatalf("tag busybox %v should have failed", repo)
 		}
 	}
-	logDone("tag - busybox invalid repo names --> must fail")
+	logDone("tag - busybox invalid repo names --> must not work")
 }
 
 // ensure we don't allow the use of invalid tags; these tag operations should fail
@@ -70,7 +70,7 @@ func TestTagInvalidPrefixedRepo(t *testing.T) {
 			t.Fatalf("tag busybox %v should have failed", repotag)
 		}
 	}
-	logDone("tag - busybox with invalid repo:tagnames --> must fail")
+	logDone("tag - busybox with invalid repo:tagnames --> must not work")
 }
 
 // ensure we allow the use of valid tags
@@ -111,7 +111,7 @@ func TestTagExistedNameWithoutForce(t *testing.T) {
 	}
 	deleteImages("busybox:test")
 
-	logDone("tag - busybox with an existed tag name without -f option --> must fail")
+	logDone("tag - busybox with an existed tag name without -f option --> must not work")
 }
 
 // tag an image with an existed tag name with -f option should work

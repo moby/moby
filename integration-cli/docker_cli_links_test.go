@@ -193,7 +193,7 @@ func TestLinksNotStartedParentNotFail(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	logDone("link - container start not failing on updating stopped parent links")
+	logDone("link - container start successfully updating stopped parent links")
 }
 
 func TestLinksHostsFilesInject(t *testing.T) {

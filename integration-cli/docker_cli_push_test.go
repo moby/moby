@@ -37,7 +37,7 @@ func TestPushUnprefixedRepo(t *testing.T) {
 	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
 		t.Fatalf("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
 	}
-	logDone("push - unprefixed busybox repo must fail")
+	logDone("push - unprefixed busybox repo must not pass")
 }
 
 func TestPushUntagged(t *testing.T) {

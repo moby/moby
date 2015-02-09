@@ -135,7 +135,7 @@ func TestStartRecordError(t *testing.T) {
 		t.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
 	}
 
-	logDone("start - set state error when start fails")
+	logDone("start - set state error when start is unsuccessful")
 }
 
 // gh#8726: a failed Start() breaks --volumes-from on subsequent Start()'s

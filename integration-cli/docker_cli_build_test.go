@@ -1796,7 +1796,7 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 		}
 
 	}
-	logDone("build - ADD from context with inaccessible files must fail")
+	logDone("build - ADD from context with inaccessible files must not pass")
 	logDone("build - ADD from context with accessible links must work")
 	logDone("build - ADD from context with ignored inaccessible files must work")
 }
@@ -2169,7 +2169,7 @@ func TestBuildContextCleanupFailedBuild(t *testing.T) {
 		t.Fatalf("context should have been deleted, but wasn't")
 	}
 
-	logDone("build - verify context cleanup works properly after a failed build")
+	logDone("build - verify context cleanup works properly after an unsuccessful build")
 }
 
 func TestBuildCmd(t *testing.T) {
@@ -3206,7 +3206,7 @@ func TestBuildFails(t *testing.T) {
 	} else {
 		t.Fatal("Error must not be nil")
 	}
-	logDone("build - fails")
+	logDone("build - unsuccessful")
 }
 
 func TestBuildFailsDockerfileEmpty(t *testing.T) {
@@ -3220,7 +3220,7 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	} else {
 		t.Fatal("Error must not be nil")
 	}
-	logDone("build - fails with empty dockerfile")
+	logDone("build - unsuccessful with empty dockerfile")
 }
 
 func TestBuildOnBuild(t *testing.T) {
@@ -4327,7 +4327,7 @@ func TestBuildVerifySingleQuoteFails(t *testing.T) {
 		t.Fatal("The image was not supposed to be able to run")
 	}
 
-	logDone("build - verify single quotes fail")
+	logDone("build - verify single quotes break the build")
 }
 
 func TestBuildVerboseOut(t *testing.T) {
