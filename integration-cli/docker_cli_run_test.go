@@ -60,6 +60,19 @@ func TestRunEchoStdoutWithMemoryLimit(t *testing.T) {
 	logDone("run - echo with memory limit")
 }
 
+// should run without memory swap
+func TestRunWithoutMemoryswapLimit(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-m", "16m", "--memory-swap", "-1", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("failed to run container, output: %q", out)
+	}
+
+	deleteAllContainers()
+
+	logDone("run - without memory swap limit")
+}
+
 // "test" should be printed
 func TestRunEchoStdoutWitCPULimit(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "busybox", "echo", "test")
