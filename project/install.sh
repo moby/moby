@@ -151,11 +151,11 @@ case "$lsb_dist" in
 
 		if [ ! -e /usr/lib/apt/methods/https ]; then
 			apt_get_update
-			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https' )
+			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https ca-certificates' )
 		fi
 		if [ -z "$curl" ]; then
 			apt_get_update
-			( set -x; $sh_c 'sleep 3; apt-get install -y -q curl' )
+			( set -x; $sh_c 'sleep 3; apt-get install -y -q curl ca-certificates' )
 			curl='curl -sSL'
 		fi
 		(
