@@ -495,7 +495,23 @@ func TestVolumesFromGetsProperMode(t *testing.T) {
 
 // Test for GH#10618
 func TestRunNoDupVolumes(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-v", "/etc:/someplace", "-v", "/usr/lib:/someplace", "busybox", "echo", "hi")
+
+	bindPath1, err := ioutil.TempDir("", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(bindPath1)
+
+	bindPath2, err := ioutil.TempDir("", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(bindPath2)
+
+	mountstr1 := bindPath1 + ":/someplace"
+	mountstr2 := bindPath2 + ":/someplace"
+
+	cmd := exec.Command(dockerBinary, "run", "-v", mountstr1, "-v", mountstr2, "busybox", "true")
 	if out, _, err := runCommandWithOutput(cmd); err == nil {
 		t.Fatal("Expected error about duplicate volume definitions")
 	} else {
