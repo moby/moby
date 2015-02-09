@@ -50,8 +50,8 @@
 
 #leftnav li {
   margin-top: 20px;
-  text-indent: -16px;
-  padding-left: 16px;
+ // text-indent: -16px;
+  padding-left: 10px;
 }
 #leftnav .nav-tabs.nav ul li {
   margin-top: 5px;
@@ -130,7 +130,7 @@ pre {
   box-sizing: border-box;
 }
 #nav_menu #docsnav #main-nav > li {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   color: #253237;
   line-height: 2em;
@@ -195,13 +195,13 @@ pre {
   display: block;
 }
 .dd_menu li a {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   color: #005976;
 }
 .dd_menu li a:hover {
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   color: #24b8eb;
 }
