@@ -173,6 +173,8 @@ Under the hood, Docker is built on the following components:
   [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
   capabilities of the Linux kernel;
 * The [Go](http://golang.org) programming language.
+* The [Docker Image Specification] (https://github.com/docker/docker/blob/master/image/spec/v1.md)
+* The [Libcontainer Specification] (https://github.com/docker/libcontainer/blob/master/SPEC.md)
 
 Contributing to Docker
 ======================
