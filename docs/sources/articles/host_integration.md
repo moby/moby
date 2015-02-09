@@ -65,11 +65,14 @@ a new service that will be started after the docker daemon service has started.
     [Unit]
     Description=Redis container
     Author=Me
+    Requires=docker.service
     After=docker.service
 
     [Service]
     Restart=always
     ExecStart=/usr/bin/docker start -a redis_server
+    # for more options, use 'run' instead of 'start', but not suggested
+    # ExecStart=/usr/bin/docker run redis_server
     ExecStop=/usr/bin/docker stop -t 2 redis_server
 
     [Install]
