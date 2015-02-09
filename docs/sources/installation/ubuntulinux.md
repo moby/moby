@@ -80,6 +80,11 @@ To verify that everything has worked as expected:
 
 Which should download the `ubuntu` image, and then start `bash` in a container.
 
+Type `exit` to exit
+
+**Done!**, continue with the [User Guide](/userguide/).
+
+
 ## Ubuntu Precise 12.04 (LTS) (64-bit)
 
 This installation path should work at all times.
