@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -113,11 +114,11 @@ func TestValidateExtraHosts(t *testing.T) {
 		`ipv6local:::1`,
 	}
 
-	invalid := []string{
-		`myhost:192.notanipaddress.1`,
-		`thathost-nosemicolon10.0.0.1`,
-		`anipv6host:::::1`,
-		`ipv6local:::0::`,
+	invalid := map[string]string{
+		`myhost:192.notanipaddress.1`:  `invalid IP`,
+		`thathost-nosemicolon10.0.0.1`: `bad format`,
+		`anipv6host:::::1`:             `invalid IP`,
+		`ipv6local:::0::`:              `invalid IP`,
 	}
 
 	for _, extrahost := range valid {
@@ -126,9 +127,13 @@ func TestValidateExtraHosts(t *testing.T) {
 		}
 	}
 
-	for _, extrahost := range invalid {
-		if _, err := ValidateExtraHost(extrahost); err == nil {
-			t.Fatalf("ValidateExtraHost(`" + extrahost + "`) should have failed validation")
+	for extraHost, expectedError := range invalid {
+		if _, err := ValidateExtraHost(extraHost); err == nil {
+			t.Fatalf("ValidateExtraHost(`%q`) should have failed validation", extraHost)
+		} else {
+			if !strings.Contains(err.Error(), expectedError) {
+				t.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
+			}
 		}
 	}
 }
