@@ -93,14 +93,13 @@ This installation path should work at all times.
 
 **Linux kernel 3.13**
 
-Kernel 3.13 is currently the recommended kernel version for Ubuntu Precise.
-Some Ubuntu Precise installs have an older kernel installed, so it must
-be upgraded. The kernel you'll install when following these steps has AUFS
-built in.
+For Ubuntu Precise, the currently recommended kernel version is 3.13.
+Ubuntu Precise installations with older kernels must be upgraded. The
+kernel you'll install when following these steps has AUFS built in.
 We also include the generic headers to enable packages that depend on them,
 like ZFS and the VirtualBox guest additions. If you didn't install the
 headers for your "precise" kernel, then you can skip these headers for the
-"trusty" kernel. It is safer to include the headers if you're not sure.
+"trusty" kernel. If you're unsure, you should include the headers for safety.
 
 > **Warning**:
 > Kernels 3.8 and 3.11 are no longer supported by Canonical. Systems

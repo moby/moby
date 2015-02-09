@@ -36,14 +36,13 @@ A 3.10 Linux kernel is the minimum requirement for Docker.
 Kernels older than 3.10 lack some of the features required to run Docker
 containers. These older versions are known to have bugs which cause data loss
 and frequently panic under certain conditions.
-We recommend kernel 3.10 or newer.
 
 The latest minor version (3.x.y) of the 3.10 (or a newer maintained version)
 Linux kernel is recommended. Keeping the kernel up to date with the latest
 minor version will ensure critical kernel bugs get fixed.
 
 > **Warning**:
-> Installing custom kernels and kernel packages is likely to not be
+> Installing custom kernels and kernel packages is probably not
 > supported by your Linux distribution's vendor. Please make sure to
 > ask your vendor about Docker support first before attempting to
 > install custom kernels on your distribution.
@@ -56,7 +55,12 @@ minor version will ensure critical kernel bugs get fixed.
 Note that Docker also has a client mode, which can run on virtually any
 Linux kernel (it even builds on OS X!).
 
-## Check if AppArmor and SELinux are enabled
+## Enable AppArmor and SELinux when possible
+
+Please use AppArmor or SELinux if your Linux distribution supports
+either of the two. This helps improve security and blocks certain
+types of exploits. Your distribution's documentation should provide
+detailed steps on how to enable the recommended security mechanism.
 
 Some Linux distributions enable AppArmor or SELinux by default and
 they run a kernel which doesn't meet the minimum requirements (3.10
@@ -64,21 +68,15 @@ or newer). Updating the kernel to 3.10 or newer on such a system
 might not be enough to start Docker and run containers.
 Incompatibilities between the version of AppArmor/SELinux user
 space utilities provided by the system and the kernel could prevent
-Docker from running, from starting containers or make containers
+Docker from running, from starting containers or, cause containers to
 exhibit unexpected behaviour.
 
 > **Warning**:
-> If any of the two security mechanisms is enabled, it should not be
+> If either of the security mechanisms is enabled, it should not be
 > disabled to make Docker or its containers run. This will reduce
 > security in that environment, lose support from the distribution's
-> vendor for the system and might break regulations, and security
+> vendor for the system, and might break regulations and security
 > policies in heavily regulated environments.
-
-> **Warning**:
-> Please use AppArmor or SELinux if your Linux distribution supports
-> either of the two. This helps improve security and blocks certain
-> types of exploits. Your distribution's documentation should provide
-> detailed steps on how to enable the recommended security mechanism.
 
 ## Get the docker binary:
 

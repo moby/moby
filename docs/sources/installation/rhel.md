@@ -61,12 +61,10 @@ changes which will cause issues if one decides to step outside that box and run
 non-distro kernel packages.
 
 > **Warning**:
-> Please make sure that your system is up to date by installing updates
-> using `yum update` and rebooting your system.
-> Keeping the system up to date is recommended to ensure your system
-> receives fixes for critical security vulnerabilities and severe bugs.
-> The fixes for severe bugs include fixes for potential kernel panics
-> specific to kernel 2.6.32.
+> Please keep your system up to date using `yum update` and rebooting
+> your system. Keeping your system updated ensures critical security
+>  vulnerabilities and severe bugs (such as those found in kernel 2.6.32)
+> are fixed.
 
 ## Installation
 
