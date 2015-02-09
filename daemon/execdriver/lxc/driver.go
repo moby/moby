@@ -15,14 +15,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kr/pty"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/mount/nodes"
+	"github.com/docker/libcontainer/system"
+	"github.com/kr/pty"
 )
 
 const DriverName = "lxc"
@@ -57,8 +58,9 @@ func (d *driver) Name() string {
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	var (
-		term execdriver.Terminal
-		err  error
+		term     execdriver.Terminal
+		err      error
+		dataPath = d.containerDir(c.ID)
 	)
 
 	if c.ProcessConfig.Tty {
@@ -107,15 +109,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	params = append(params,
 		"--",
 		c.InitPath,
-	)
-	if c.Network.Interface != nil {
-		params = append(params,
-			"-g", c.Network.Interface.Gateway,
-			"-i", fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-		)
-	}
-	params = append(params,
-		"-mtu", strconv.Itoa(c.Network.Mtu),
 	)
 
 	if c.ProcessConfig.User != "" {
@@ -186,25 +179,84 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		close(waitLock)
 	}()
 
-	// Poll lxc for RUNNING status
-	pid, err := d.waitForStart(c, waitLock)
-	if err != nil {
+	terminate := func(terr error) (execdriver.ExitStatus, error) {
 		if c.ProcessConfig.Process != nil {
 			c.ProcessConfig.Process.Kill()
 			c.ProcessConfig.Wait()
 		}
-		return execdriver.ExitStatus{ExitCode: -1}, err
+		return execdriver.ExitStatus{ExitCode: -1}, terr
+	}
+	// Poll lxc for RUNNING status
+	pid, err := d.waitForStart(c, waitLock)
+	if err != nil {
+		return terminate(err)
+	}
+
+	started, err := system.GetProcessStartTime(pid)
+	if err != nil {
+		return terminate(err)
+	}
+	cgroupPaths, err := cgroupPaths(c.ID)
+	if err != nil {
+		return terminate(err)
+	}
+
+	state := &libcontainer.State{
+		InitPid:       pid,
+		InitStartTime: started,
+		CgroupPaths:   cgroupPaths,
+	}
+
+	if err := libcontainer.SaveState(dataPath, state); err != nil {
+		return terminate(err)
 	}
 
 	c.ContainerPid = pid
 
 	if startCallback != nil {
+		log.Debugf("Invoking startCallback")
 		startCallback(&c.ProcessConfig, pid)
+	}
+	oomKill := false
+	oomKillNotification, err := libcontainer.NotifyOnOOM(state)
+	if err == nil {
+		_, oomKill = <-oomKillNotification
+		log.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
+
+	} else {
+		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
 	}
 
 	<-waitLock
 
-	return execdriver.ExitStatus{ExitCode: getExitCode(c)}, waitErr
+	// check oom error
+	exitCode := getExitCode(c)
+	if oomKill {
+		exitCode = 137
+	}
+	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: oomKill}, waitErr
+}
+
+// Return an map of susbystem -> container cgroup
+func cgroupPaths(containerId string) (map[string]string, error) {
+	subsystems, err := cgroups.GetAllSubsystems()
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("subsystems: %s", subsystems)
+	paths := make(map[string]string)
+	for _, subsystem := range subsystems {
+		cgroupRoot, cgroupDir, err := findCgroupRootAndDir(subsystem)
+		log.Debugf("cgroup path %s %s", cgroupRoot, cgroupDir)
+		if err != nil {
+			//unsupported subystem
+			continue
+		}
+		path := filepath.Join(cgroupRoot, cgroupDir, "lxc", containerId)
+		paths[subsystem] = path
+	}
+
+	return paths, nil
 }
 
 /// Return the exit code of the process
@@ -348,17 +400,25 @@ func (d *driver) Info(id string) execdriver.Info {
 	}
 }
 
+func findCgroupRootAndDir(subsystem string) (string, string, error) {
+	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
+	if err != nil {
+		return "", "", err
+	}
+
+	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
+	if err != nil {
+		return "", "", err
+	}
+	return cgroupRoot, cgroupDir, nil
+}
+
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
 	// cpu is chosen because it is the only non optional subsystem in cgroups
 	subsystem := "cpu"
-	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
-	if err != nil {
-		return pids, err
-	}
-
-	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
+	cgroupRoot, cgroupDir, err := findCgroupRootAndDir(subsystem)
 	if err != nil {
 		return pids, err
 	}
@@ -418,8 +478,12 @@ func rootIsShared() bool {
 	return true
 }
 
+func (d *driver) containerDir(containerId string) string {
+	return path.Join(d.root, "containers", containerId)
+}
+
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	root := path.Join(d.root, "containers", c.ID, "config.lxc")
+	root := path.Join(d.containerDir(c.ID), "config.lxc")
 
 	fo, err := os.Create(root)
 	if err != nil {
