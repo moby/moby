@@ -162,6 +162,43 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	logDone("container REST API - check volume binds on start")
 }
 
+// Test for GH#10618
+func TestContainerApiStartDupVolumeBinds(t *testing.T) {
+	defer deleteAllContainers()
+	name := "testdups"
+	config := map[string]interface{}{
+		"Image":   "busybox",
+		"Volumes": map[string]struct{}{"/tmp": {}},
+	}
+
+	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatal(err)
+	}
+
+	bindPath1, err := ioutil.TempDir("", "test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(bindPath1)
+	bindPath2, err := ioutil.TempDir("", "test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(bindPath2)
+
+	config = map[string]interface{}{
+		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
+	}
+	if body, err := sockRequest("POST", "/containers/"+name+"/start", config); err == nil {
+		t.Fatal("expected container start to fail when duplicate volume binds to same container path")
+	} else {
+		if !strings.Contains(string(body), "Duplicate volume") {
+			t.Fatalf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err)
+		}
+	}
+
+	logDone("container REST API - check for duplicate volume binds error on start")
+}
 func TestContainerApiStartVolumesFrom(t *testing.T) {
 	defer deleteAllContainers()
 	volName := "voltst"
