@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -34,6 +35,7 @@ type Job struct {
 	status  Status
 	end     time.Time
 	closeIO bool
+	wg      sync.WaitGroup
 }
 
 type Status int
@@ -67,6 +69,8 @@ func (job *Job) Run() error {
 	if !job.end.IsZero() {
 		return fmt.Errorf("%s: job has already completed", job.Name)
 	}
+	job.wg.Add(1)
+	defer job.wg.Done()
 	// Log beginning and end of the job
 	if job.Eng.Logging {
 		log.Infof("+job %s", job.CallString())
@@ -239,4 +243,21 @@ func (job *Job) StatusCode() int {
 
 func (job *Job) SetCloseIO(val bool) {
 	job.closeIO = val
+}
+
+func (job *Job) Wait() {
+	job.wg.Wait()
+	return
+}
+
+func (job *Job) Attach(stdout io.Writer, stderr io.Writer) {
+	if stdout != nil {
+		job.Stdout.Add(stdout)
+	}
+	if stderr != nil {
+		job.Stderr.Add(stderr)
+	}
+
+	job.Wait()
+	return
 }
