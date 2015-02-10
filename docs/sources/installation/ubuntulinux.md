@@ -91,15 +91,22 @@ This installation path should work at all times.
 
 ### Dependencies
 
-**Linux kernel 3.8**
+**Linux kernel 3.13**
 
-Due to a bug in LXC, Docker works best on the 3.8 kernel. Precise comes
-with a 3.2 kernel, so we need to upgrade it. The kernel you'll install
-when following these steps comes with AUFS built in. We also include the
-generic headers to enable packages that depend on them, like ZFS and the
-VirtualBox guest additions. If you didn't install the headers for your
-"precise" kernel, then you can skip these headers for the "raring"
-kernel. But it is safer to include them if you're not sure.
+For Ubuntu Precise, the currently recommended kernel version is 3.13.
+Ubuntu Precise installations with older kernels must be upgraded. The
+kernel you'll install when following these steps has AUFS built in.
+We also include the generic headers to enable packages that depend on them,
+like ZFS and the VirtualBox guest additions. If you didn't install the
+headers for your "precise" kernel, then you can skip these headers for the
+"trusty" kernel. If you're unsure, you should include the headers for safety.
+
+> **Warning**:
+> Kernels 3.8 and 3.11 are no longer supported by Canonical. Systems
+> running these kernels need to be updated using the instructions below.
+> Running Docker on these unsupported systems isn't supported either.
+> These old kernels are no longer patched for security vulnerabilities
+> and severe bugs which lead to data loss.
 
 Please read the installation instructions for backported kernels at
 Ubuntu.org to understand why you also need to install the Xorg packages
@@ -109,10 +116,10 @@ each version.
 
     # install the backported kernel
     $ sudo apt-get update
-    $ sudo apt-get install linux-image-generic-lts-raring linux-headers-generic-lts-raring
+    $ sudo apt-get install linux-image-generic-lts-trusty linux-headers-generic-lts-trusty
     
     # install the backported kernel and xorg if using Unity/Xorg
-    $ sudo apt-get install --install-recommends linux-generic-lts-raring xserver-xorg-lts-raring libgl1-mesa-glx-lts-raring
+    $ sudo apt-get install --install-recommends linux-generic-lts-trusty xserver-xorg-lts-trusty libgl1-mesa-glx-lts-trusty
 
     # reboot
     $ sudo reboot
