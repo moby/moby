@@ -22,22 +22,39 @@
 
 #leftnav {
   height: 100%;
-}
-
-#leftnav h3 {
-  font-size: 10px;
-  font-weight: 700;
-  color: #394d54;
-  line-height: 1;
-  margin: 10px 0 10px 0;
-  padding-left: 20px;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-#leftnav li.active {
-  margin-bottom: 10px;
+#leftnav .nav ul {
+  line-height: 1;
+  margin: 10px 10px 0px 16px;
+  padding: 0;
+  list-style: none;
+}
+#leftnav .nav li ul a,
+#leftnav .nav li ul a:hover {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 13px;
+  font-weight: 400;
+  color: #394d54;
+}
+#leftnav .nav li ul a:hover {
+  color: #24b8eb;
+}
+
+#leftnav .nav.nav-tabs li a,
+#leftnav .nav.nav-tabs li li {
+  line-height: 1.1 !important;
+}
+
+#leftnav li {
+  margin-top: 20px;
+ // text-indent: -16px;
+  padding-left: 10px;
+}
+#leftnav .nav-tabs.nav ul li {
+  margin-top: 5px;
 }
 
 .content-body {
@@ -113,7 +130,7 @@ pre {
   box-sizing: border-box;
 }
 #nav_menu #docsnav #main-nav > li {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   color: #253237;
   line-height: 2em;
@@ -178,13 +195,13 @@ pre {
   display: block;
 }
 .dd_menu li a {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   color: #005976;
 }
 .dd_menu li a:hover {
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
   color: #24b8eb;
 }
@@ -320,13 +337,6 @@ pre {
 
 .content-body strong {
   font-weight: bold;
-}
-
-#leftnav .nav.nav-tabs li a {
-  line-height: 20px !important;
-  padding-top: 15px !important;
-  padding-right: 8px;
-  padding-bottom: 15px !important;
 }
 
 /* Logged-in/out header */
