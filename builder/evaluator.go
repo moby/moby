@@ -163,7 +163,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	}
 
 	if b.image == "" {
-		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
+		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
 
 	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))

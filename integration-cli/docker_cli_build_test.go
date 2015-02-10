@@ -4870,3 +4870,15 @@ func TestBuildMissingArgs(t *testing.T) {
 
 	logDone("build - verify missing args")
 }
+
+func TestBuildEmptyScratch(t *testing.T) {
+	defer deleteImages("sc")
+	_, out, err := buildImageWithOut("sc", "FROM scratch", true)
+	if err == nil {
+		t.Fatalf("Build was supposed to fail")
+	}
+	if !strings.Contains(out, "No image was generated") {
+		t.Fatalf("Wrong error message: %v", out)
+	}
+	logDone("build - empty scratch Dockerfile")
+}
