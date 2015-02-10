@@ -53,7 +53,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 
 	for _, d := range dirs {
 		if d.IsDir() {
-			if err := s.recursiveLoad(job.Eng, d.Name(), tmpImageDir); err != nil {
+			if err := s.recursiveLoad(job, d.Name(), tmpImageDir); err != nil {
 				return job.Error(err)
 			}
 		}
@@ -80,7 +80,8 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {
+func (s *TagStore) recursiveLoad(job *engine.Job, address, tmpImageDir string) error {
+	eng := job.Eng
 	if err := eng.Job("image_get", address).Run(); err != nil {
 		log.Debugf("Loading %s", address)
 
@@ -106,10 +107,10 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 		}
 
 		// ensure no two downloads of the same layer happen at the same time
-		if c, err := s.poolAdd("pull", "layer:"+img.ID); err != nil {
-			if c != nil {
+		if a, err := s.poolAdd("pull", "layer:"+img.ID, job); err != nil {
+			if a != nil {
 				log.Debugf("Image (id: %s) load is already running, waiting: %v", img.ID, err)
-				<-c
+				a.Attach(job.Stdout, job.Stderr)
 				return nil
 			}
 
@@ -120,7 +121,7 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 
 		if img.Parent != "" {
 			if !s.graph.Exists(img.Parent) {
-				if err := s.recursiveLoad(eng, img.Parent, tmpImageDir); err != nil {
+				if err := s.recursiveLoad(job, img.Parent, tmpImageDir); err != nil {
 					return err
 				}
 			}

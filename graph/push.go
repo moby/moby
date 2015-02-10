@@ -489,7 +489,11 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
 
-	if _, err := s.poolAdd("push", repoInfo.LocalName); err != nil {
+	if j, err := s.poolAdd("push", repoInfo.LocalName, job); err != nil {
+		if j != nil {
+			j.Attach(job.Stdout, job.Stderr)
+			return engine.StatusOK
+		}
 		return job.Error(err)
 	}
 	defer s.poolRemove("push", repoInfo.LocalName)
