@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	APIVERSION            version.Version = "1.17"
+	APIVERSION            version.Version = "1.18"
 	DEFAULTHTTPHOST                       = "127.0.0.1"
 	DEFAULTUNIXSOCKET                     = "/var/run/docker.sock"
 	DefaultDockerfileName string          = "Dockerfile"
