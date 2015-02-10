@@ -42,8 +42,10 @@ will display something like:
 	 Metadata file: /dev/loop4
 	 Data Space Used: 2.536 GB
 	 Data Space Total: 107.4 GB
+	 Data Space Available: 104.8 GB
 	 Metadata Space Used: 7.93 MB
 	 Metadata Space Total: 2.147 GB
+	 Metadata Space Available: 2.14 GB
 	 Udev Sync Supported: true
 	 Data loop file: /home/docker/devicemapper/devicemapper/data
 	 Metadata loop file: /home/docker/devicemapper/devicemapper/metadata
@@ -60,8 +62,10 @@ status information about the driver.
  *  `Metadata file` blockdevice file used for the devicemapper metadata
  *  `Data Space Used` tells how much of `Data file` is currently used
  *  `Data Space Total` tells max size the `Data file`
+ *  `Data Space Available` tells how much free space there is in the `Data file`. If you are using a loop device this will report the actual space available to the loop device on the underlying filesystem.
  *  `Metadata Space Used` tells how much of `Metadata file` is currently used
  *  `Metadata Space Total` tells max size the `Metadata file`
+ *  `Metadata Space Available` tells how much free space there is in the `Metadata file`. If you are using a loop device this will report the actual space available to the loop device on the underlying filesystem.
  *  `Udev Sync Supported` tells whether devicemapper is able to sync with Udev. Should be `true`.
  *  `Data loop file` file attached to `Data file`, if loopback device is used
  *  `Metadata loop file` file attached to `Metadata file`, if loopback device is used
