@@ -1398,7 +1398,7 @@ func TestRunDisallowBindMountingRootToRoot(t *testing.T) {
 
 	deleteAllContainers()
 
-	logDone("run - bind mount /:/ as volume should fail")
+	logDone("run - bind mount /:/ as volume should not work")
 }
 
 // Verify that a container gets default DNS when only localhost resolvers exist
@@ -2234,7 +2234,7 @@ func TestRunCidFileCleanupIfEmpty(t *testing.T) {
 		t.Fatalf("empty CIDFile %q should've been deleted", tmpCidFile)
 	}
 	deleteAllContainers()
-	logDone("run - cleanup empty cidfile on fail")
+	logDone("run - cleanup empty cidfile on error")
 }
 
 // #2098 - Docker cidFiles only contain short version of the containerId
@@ -2367,7 +2367,7 @@ func TestRunPortInUse(t *testing.T) {
 	}
 
 	deleteAllContainers()
-	logDone("run - fail if port already in use")
+	logDone("run - error out if port already in use")
 }
 
 // https://github.com/docker/docker/issues/8428

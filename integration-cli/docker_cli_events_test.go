@@ -93,7 +93,7 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 		t.Fatalf("event should be die, not %#v", dieEvent)
 	}
 
-	logDone("events - container failed to start logs die")
+	logDone("events - container unwilling to start logs die")
 }
 
 func TestEventsLimit(t *testing.T) {
