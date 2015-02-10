@@ -89,9 +89,10 @@ func (m *Mount) initialize() error {
 
 		// Make sure we remove these old volumes we don't actually want now.
 		// Ignore any errors here since this is just cleanup, maybe someone volumes-from'd this volume
-		v := m.container.daemon.volumes.Get(hostPath)
-		v.RemoveContainer(m.container.ID)
-		m.container.daemon.volumes.Delete(v.Path)
+		if v := m.container.daemon.volumes.Get(hostPath); v != nil {
+			v.RemoveContainer(m.container.ID)
+			m.container.daemon.volumes.Delete(v.Path)
+		}
 	}
 
 	// This is the full path to container fs + mntToPath
