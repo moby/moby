@@ -19,6 +19,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -49,14 +50,14 @@ func TestBuildEmptyWhitespace(t *testing.T) {
 		name,
 		`
     FROM busybox
-    RUN 
+    COPY
       quux \
       bar
     `,
 		true)
 
 	if err == nil {
-		t.Fatal("no error when dealing with a RUN statement with no content on the same line")
+		t.Fatal("no error when dealing with a COPY statement with no content on the same line")
 	}
 
 	logDone("build - statements with whitespace and no content should generate a parse error")
@@ -4726,9 +4727,9 @@ func TestBuildSpaces(t *testing.T) {
 
 	name := "testspaces"
 	defer deleteImages(name)
-	ctx, err := fakeContext("FROM busybox\nRUN\n",
+	ctx, err := fakeContext("FROM busybox\nCOPY\n",
 		map[string]string{
-			"Dockerfile": "FROM busybox\nRUN\n",
+			"Dockerfile": "FROM busybox\nCOPY\n",
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -4739,7 +4740,7 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatal("Build 1 was supposed to fail, but didn't")
 	}
 
-	ctx.Add("Dockerfile", "FROM busybox\nRUN    ")
+	ctx.Add("Dockerfile", "FROM busybox\nCOPY    ")
 	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
 		t.Fatal("Build 2 was supposed to fail, but didn't")
 	}
@@ -4753,7 +4754,7 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatalf("Build 2's error wasn't the same as build 1's\n1:%s\n2:%s", err1, err2)
 	}
 
-	ctx.Add("Dockerfile", "FROM busybox\n   RUN")
+	ctx.Add("Dockerfile", "FROM busybox\n   COPY")
 	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
 		t.Fatal("Build 3 was supposed to fail, but didn't")
 	}
@@ -4767,7 +4768,7 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatalf("Build 3's error wasn't the same as build 1's\n1:%s\n3:%s", err1, err2)
 	}
 
-	ctx.Add("Dockerfile", "FROM busybox\n   RUN    ")
+	ctx.Add("Dockerfile", "FROM busybox\n   COPY    ")
 	if _, err2 = buildImageFromContext(name, ctx, false); err2 == nil {
 		t.Fatal("Build 4 was supposed to fail, but didn't")
 	}
@@ -4821,4 +4822,51 @@ func TestBuildVolumeFileExistsinContainer(t *testing.T) {
 	}
 
 	logDone("build - errors when volume is specified where a file exists")
+}
+
+func TestBuildMissingArgs(t *testing.T) {
+	// Test to make sure that all Dockerfile commands (except the ones listed
+	// in skipCmds) will generate an error if no args are provided.
+	// Note: INSERT is deprecated so we exclude it because of that.
+
+	skipCmds := map[string]struct{}{
+		"CMD":        {},
+		"RUN":        {},
+		"ENTRYPOINT": {},
+		"INSERT":     {},
+	}
+
+	defer deleteAllContainers()
+
+	for cmd := range builder.EvaluateTable {
+		var dockerfile string
+
+		cmd = strings.ToUpper(cmd)
+
+		if _, ok := skipCmds[cmd]; ok {
+			continue
+		}
+
+		if cmd == "FROM" {
+			dockerfile = cmd
+		} else {
+			// Add FROM to make sure we don't complain about it missing
+			dockerfile = "FROM busybox\n" + cmd
+		}
+
+		ctx, err := fakeContext(dockerfile, map[string]string{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ctx.Close()
+		var out string
+		if out, err = buildImageFromContext("args", ctx, true); err == nil {
+			t.Fatalf("%s was supposed to fail. Out:%s", cmd, out)
+		}
+		if !strings.Contains(err.Error(), cmd+" requires") {
+			t.Fatalf("%s returned the wrong type of error:%s", cmd, err)
+		}
+	}
+
+	logDone("build - verify missing args")
 }
