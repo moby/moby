@@ -33,6 +33,7 @@ var (
 	DefaultThinpBlockSize       uint32 = 128      // 64K = 128 512b sectors
 	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
 	DeviceIdMapSz               int    = (MaxDeviceId + 1) / 8
+	DefaultAutoLoopFile         bool   = false
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -1630,6 +1631,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		doBlkDiscard:         true,
 		thinpBlockSize:       DefaultThinpBlockSize,
 		deviceIdMap:          make([]byte, DeviceIdMapSz),
+		autoLoopfile:         DefaultAutoLoopFile,
 	}
 
 	foundBlkDiscard := false

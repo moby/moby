@@ -13,6 +13,7 @@ func init() {
 	DefaultDataLoopbackSize = 300 * 1024 * 1024
 	DefaultMetaDataLoopbackSize = 200 * 1024 * 1024
 	DefaultBaseFsSize = 300 * 1024 * 1024
+	DefaultAutoLoopFile = true
 	if err := graphtest.InitLoopbacks(); err != nil {
 		panic(err)
 	}
