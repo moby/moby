@@ -449,10 +449,9 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 
-	img, err := s.graph.Get(repoInfo.LocalName)
-	r, err2 := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
-	if err2 != nil {
-		return job.Error(err2)
+	r, err := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	if endpoint.Version == registry.APIVersion2 {
@@ -466,26 +465,19 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		}
 	}
 
-	if err != nil {
-		reposLen := 1
-		if tag == "" {
-			reposLen = len(s.Repositories[repoInfo.LocalName])
-		}
-		job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
-		// If it fails, try to get the repository
-		if localRepo, exists := s.Repositories[repoInfo.LocalName]; exists {
-			if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
-				return job.Error(err)
-			}
-			return engine.StatusOK
-		}
-		return job.Error(err)
+	reposLen := 1
+	if tag == "" {
+		reposLen = len(s.Repositories[repoInfo.LocalName])
 	}
-
-	var token []string
-	job.Stdout.Write(sf.FormatStatus("", "The push refers to an image: [%s]", repoInfo.CanonicalName))
-	if _, err := s.pushImage(r, job.Stdout, img.ID, endpoint.String(), token, sf); err != nil {
+	job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
+	// If it fails, try to get the repository
+	localRepo, exists := s.Repositories[repoInfo.LocalName]
+	if !exists {
+		return job.Errorf("Repository does not exist: %s", repoInfo.LocalName)
+	}
+	if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
 		return job.Error(err)
 	}
 	return engine.StatusOK
+
 }
