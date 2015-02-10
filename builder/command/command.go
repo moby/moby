@@ -17,6 +17,7 @@ const (
 	Volume     = "volume"
 	User       = "user"
 	Insert     = "insert"
+	Nocache    = "nocache"
 )
 
 // Commands is list of all Dockerfile commands
@@ -36,4 +37,5 @@ var Commands = map[string]struct{}{
 	Volume:     {},
 	User:       {},
 	Insert:     {},
+	Nocache:    {},
 }

@@ -18,6 +18,8 @@ For a complete list of patches, fixes, and other improvements, see the
 * [1.6] The Docker daemon will no longer ignore unknown commands
   while processing a `Dockerfile`. Instead it will generate an error and halt
   processing.
+* There is a new Dockerfile command called `NOCACHE` which will disable
+  caching from that point forward in the processing of the Dockerfile.
 * The Docker daemon has now supports for IPv6 networking between containers
   and on the `docker0` bridge. For more information see the
   [IPv6 networking reference](/articles/networking/#ipv6).

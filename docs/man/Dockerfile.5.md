@@ -26,7 +26,7 @@ For example:
 
 # DESCRIPTION
 
-A Dockerfile is a file that automates the steps of creating a Docker image. 
+A Dockerfile is a file that automates the steps of creating a Docker image.
 A Dockerfile is similar to a Makefile.
 
 # USAGE
@@ -142,7 +142,7 @@ A Dockerfile is similar to a Makefile.
   ```
 
   -- To make the container run the same executable every time, use **ENTRYPOINT** in
-  combination with **CMD**. 
+  combination with **CMD**.
   If the user specifies arguments to `docker run`, the specified commands
   override the default in **CMD**.
   Do not confuse **RUN** with **CMD**. **RUN** runs a command and commits the result.
@@ -160,8 +160,8 @@ A Dockerfile is similar to a Makefile.
   ```
 
   An image can have more than one label. To specify multiple labels, separate
-  each key-value pair by a space. 
-  
+  each key-value pair by a space.
+
   Labels are additive including `LABEL`s in `FROM` images. As the system
   encounters and then applies a new label, new `key`s override any previous
   labels with identical keys.
@@ -178,7 +178,7 @@ A Dockerfile is similar to a Makefile.
 **ENV**
   -- `ENV <key> <value>`
   The **ENV** instruction sets the environment variable <key> to
-  the value `<value>`. This value is passed to all future 
+  the value `<value>`. This value is passed to all future
   RUN, **ENTRYPOINT**, and **CMD** instructions. This is
   functionally equivalent to prefixing the command with `<key>=<value>`.  The
   environment variables that are set with **ENV** persist when a container is run
@@ -205,7 +205,7 @@ A Dockerfile is similar to a Makefile.
   then they must be relative to the source directory that is being built
   (the context of the build). The `<dest>` is the absolute path, or path relative
   to **WORKDIR**, into which the source is copied inside the target container.
-  All new files and directories are created with mode 0755 and with the uid 
+  All new files and directories are created with mode 0755 and with the uid
   and gid of **0**.
 
 **COPY**
@@ -310,8 +310,8 @@ A Dockerfile is similar to a Makefile.
   You can register any build instruction as a trigger. A trigger is useful if
   you are defining an image to use as a base for building other images. For
   example, if you are defining an application build environment or a daemon that
-  is customized with a user-specific configuration.  
-  
+  is customized with a user-specific configuration.
+
   Consider an image intended as a reusable python application builder. It must
   add application source code to a particular directory, and might need a build
   script called after that. You can't just call **ADD** and **RUN** now, because
@@ -323,6 +323,16 @@ A Dockerfile is similar to a Makefile.
   difficult to update because it mixes with application-specific code.
   The solution is to use **ONBUILD** to register instructions in advance, to
   run later, during the next build stage.
+
+**NOCACHE**
+ -- **NOCACHE**
+ The `NOCACHE` instruction will turn off caching from that point forward
+ in the Dockerfile processing. If caching is already turned off, e.g. via
+ the `--no-cache` flag on the `docker build` command, then this instruction
+ will have no effect. While the builder will no longer look in the cache
+ as it processing the instructions, the cache will still be populated
+ so that future builds (that have caching turned on) can still leverage
+ this optimization.
 
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.

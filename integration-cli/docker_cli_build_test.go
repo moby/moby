@@ -5386,6 +5386,7 @@ func TestBuildMissingArgs(t *testing.T) {
 		"RUN":        {},
 		"ENTRYPOINT": {},
 		"INSERT":     {},
+		"NOCACHE":    {},
 	}
 
 	defer deleteAllContainers()
@@ -5597,4 +5598,62 @@ func TestBuildEmptyStringVolume(t *testing.T) {
 	}
 
 	logDone("build - empty string volume")
+}
+
+func TestBuildNoCache(t *testing.T) {
+	name := "nocache"
+	defer deleteImages(name)
+
+	dockerfile := `FROM busybox
+RUN echo hi
+RUN echo bye`
+
+	id1, out, err := buildImageWithOut(name, dockerfile, true)
+	if err != nil {
+		t.Fatal("Build 1 failed: %s", err)
+	}
+
+	dockerfile = `FROM busybox
+RUN echo hi
+NOCACHE
+RUN echo bye`
+	id2, out, err := buildImageWithOut(name, dockerfile, true)
+	if err != nil {
+		t.Fatal("Build 2 failed: %s", err)
+	}
+	if id1 == id2 {
+		t.Fatalf("Build 2 used the cache but shouldn't have!\n%s", out)
+	}
+
+	id3, out, err := buildImageWithOut(name, dockerfile, true)
+	if err != nil {
+		t.Fatalf("Build 3 failed: %s", err)
+	}
+	if id3 == id2 || id3 == id1 {
+		t.Fatalf("Build 3 used the cache but shouldn't have!\n%s", out)
+	}
+
+	_, out, err = buildImageWithOut(name, dockerfile, false)
+	if err != nil {
+		t.Fatalf("Build 4 failed: %s", err)
+	}
+	if !strings.Contains(out, "no effect") || strings.Contains(out, "cache off") {
+		t.Fatalf("Build 4 should not have been able to turn off the cache.\n%s",
+			out)
+	}
+
+	dockerfile = `FROM busybox
+RUN echo hi
+NOCACHE
+NOCACHE
+RUN echo bye`
+	id2, out, err = buildImageWithOut(name, dockerfile, true)
+	if err != nil {
+		t.Fatalf("Build 5 failed: %s", err)
+	}
+	if !strings.Contains(out, "caching off") || !strings.Contains(out, "no effect") {
+		t.Fatalf("Build 5 should turn on then off\n", out)
+	}
+
+	logDone("build - NOCACHE cmd")
 }
