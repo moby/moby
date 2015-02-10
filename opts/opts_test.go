@@ -30,7 +30,23 @@ func TestValidateIPAddress(t *testing.T) {
 func TestListOpts(t *testing.T) {
 	o := NewListOpts(nil)
 	o.Set("foo")
-	o.String()
+	if o.String() != "[foo]" {
+		t.Errorf("%s != [foo]", o.String())
+	}
+	o.Set("bar")
+	if o.Len() != 2 {
+		t.Errorf("%d != 2", o.Len())
+	}
+	if !o.Get("bar") {
+		t.Error("o.Get(\"bar\") == false")
+	}
+	if o.Get("baz") {
+		t.Error("o.Get(\"baz\") == true")
+	}
+	o.Delete("foo")
+	if o.String() != "[bar]" {
+		t.Errorf("%s != [bar]", o.String())
+	}
 }
 
 func TestValidateDnsSearch(t *testing.T) {

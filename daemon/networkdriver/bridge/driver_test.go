@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/iptables"
 )
 
 func init() {
@@ -117,4 +118,44 @@ func TestMacAddrGeneration(t *testing.T) {
 	if generateMacAddr(ip2).String() == mac {
 		t.Fatal("Non-unique MAC address")
 	}
+}
+
+func TestLinkContainers(t *testing.T) {
+	eng := engine.New()
+	eng.Logging = false
+
+	// Init driver
+	job := eng.Job("initdriver")
+	if res := InitDriver(job); res != engine.StatusOK {
+		t.Fatal("Failed to initialize network driver")
+	}
+
+	// Allocate interface
+	job = eng.Job("allocate_interface", "container_id")
+	if res := Allocate(job); res != engine.StatusOK {
+		t.Fatal("Failed to allocate network interface")
+	}
+
+	job.Args[0] = "-I"
+
+	job.Setenv("ChildIP", "172.17.0.2")
+	job.Setenv("ParentIP", "172.17.0.1")
+	job.SetenvBool("IgnoreErrors", false)
+	job.SetenvList("Ports", []string{"1234"})
+
+	bridgeIface = "lo"
+	_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res := LinkContainers(job); res != engine.StatusOK {
+		t.Fatalf("LinkContainers failed")
+	}
+
+	// flush rules
+	if _, err = iptables.Raw([]string{"-F", "DOCKER"}...); err != nil {
+		t.Fatal(err)
+	}
+
 }

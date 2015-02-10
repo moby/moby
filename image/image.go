@@ -9,9 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -33,7 +31,6 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
-	Checksum        string            `json:"checksum"`
 	Size            int64
 
 	graph Graph
@@ -81,44 +78,15 @@ func LoadImage(root string) (*Image, error) {
 
 // StoreImage stores file system layer data for the given image to the
 // image's registered storage driver. Image metadata is stored in a file
-// at the specified root directory. This function also computes the TarSum
-// of `layerData` (currently using tarsum.dev).
-func StoreImage(img *Image, layerData archive.ArchiveReader, root string) error {
-	// Store the layer
-	var (
-		size        int64
-		err         error
-		driver      = img.graph.Driver()
-		layerTarSum tarsum.TarSum
-	)
-
-	// If layerData is not nil, unpack it into the new layer
+// at the specified root directory.
+func StoreImage(img *Image, layerData archive.ArchiveReader, root string) (err error) {
+	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		layerDataDecompressed, err := archive.DecompressStream(layerData)
-		if err != nil {
+		if img.Size, err = img.graph.Driver().ApplyDiff(img.ID, img.Parent, layerData); err != nil {
 			return err
 		}
-
-		defer layerDataDecompressed.Close()
-
-		if layerTarSum, err = tarsum.NewTarSum(layerDataDecompressed, true, tarsum.VersionDev); err != nil {
-			return err
-		}
-
-		if size, err = driver.ApplyDiff(img.ID, img.Parent, layerTarSum); err != nil {
-			return err
-		}
-
-		checksum := layerTarSum.Sum(nil)
-
-		if img.Checksum != "" && img.Checksum != checksum {
-			log.Warnf("image layer checksum mismatch: computed %q, expected %q", checksum, img.Checksum)
-		}
-
-		img.Checksum = checksum
 	}
 
-	img.Size = size
 	if err := img.SaveSize(root); err != nil {
 		return err
 	}
@@ -143,6 +111,24 @@ func (img *Image) SaveSize(root string) error {
 		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
 	}
 	return nil
+}
+
+func (img *Image) SaveCheckSum(root, checksum string) error {
+	if err := ioutil.WriteFile(path.Join(root, "checksum"), []byte(checksum), 0600); err != nil {
+		return fmt.Errorf("Error storing checksum in %s/checksum: %s", root, err)
+	}
+	return nil
+}
+
+func (img *Image) GetCheckSum(root string) (string, error) {
+	cs, err := ioutil.ReadFile(path.Join(root, "checksum"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(cs), err
 }
 
 func jsonPath(root string) string {
@@ -273,7 +259,6 @@ func (img *Image) CheckDepth() error {
 func NewImgJSON(src []byte) (*Image, error) {
 	ret := &Image{}
 
-	log.Debugf("Json string: {%s}", src)
 	// FIXME: Is there a cleaner way to "purify" the input json?
 	if err := json.Unmarshal(src, ret); err != nil {
 		return nil, err

@@ -44,11 +44,13 @@ func CheckRouteOverlaps(toCheck *net.IPNet) error {
 
 // Detects overlap between one IPNet and another
 func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	if firstIP, _ := NetworkRange(netX); netY.Contains(firstIP) {
-		return true
-	}
-	if firstIP, _ := NetworkRange(netY); netX.Contains(firstIP) {
-		return true
+	if len(netX.IP) == len(netY.IP) {
+		if firstIP, _ := NetworkRange(netX); netY.Contains(firstIP) {
+			return true
+		}
+		if firstIP, _ := NetworkRange(netY); netX.Contains(firstIP) {
+			return true
+		}
 	}
 	return false
 }
@@ -72,31 +74,34 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	return netIP.Mask(network.Mask), net.IP(lastIP)
 }
 
-// Return the IPv4 address of a network interface
-func GetIfaceAddr(name string) (net.Addr, error) {
+// Return the first IPv4 address and slice of IPv6 addresses for the specified network interface
+func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var addrs4 []net.Addr
+	var addrs6 []net.Addr
 	for _, addr := range addrs {
 		ip := (addr.(*net.IPNet)).IP
 		if ip4 := ip.To4(); ip4 != nil {
 			addrs4 = append(addrs4, addr)
+		} else if ip6 := ip.To16(); len(ip6) == net.IPv6len {
+			addrs6 = append(addrs6, addr)
 		}
 	}
 	switch {
 	case len(addrs4) == 0:
-		return nil, fmt.Errorf("Interface %v has no IP addresses", name)
+		return nil, nil, fmt.Errorf("Interface %v has no IPv4 addresses", name)
 	case len(addrs4) > 1:
 		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
 			name, (addrs4[0].(*net.IPNet)).IP)
 	}
-	return addrs4[0], nil
+	return addrs4[0], addrs6, nil
 }
 
 func GetDefaultRouteIface() (*net.Interface, error) {

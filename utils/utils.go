@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"crypto/sha1"
@@ -93,7 +94,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	if target == "" {
 		return false
 	}
-	if dockerversion.IAMSTATIC {
+	if dockerversion.IAMSTATIC == "true" {
 		if selfPath == "" {
 			return false
 		}
@@ -290,14 +291,6 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 	}
 }
 
-var localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
-
-// RemoveLocalDns looks into the /etc/resolv.conf,
-// and removes any local nameserver entries.
-func RemoveLocalDns(resolvConf []byte) []byte {
-	return localHostRx.ReplaceAll(resolvConf, []byte{})
-}
-
 // An StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
 	Status     string
@@ -408,7 +401,17 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 		parts := strings.SplitN(e, "=", 2)
 		cache[parts[0]] = i
 	}
+
 	for _, value := range overrides {
+		// Values w/o = means they want this env to be removed/unset.
+		if !strings.Contains(value, "=") {
+			if i, exists := cache[value]; exists {
+				defaults[i] = "" // Used to indicate it should be removed
+			}
+			continue
+		}
+
+		// Just do a normal set/update
 		parts := strings.SplitN(value, "=", 2)
 		if i, exists := cache[parts[0]]; exists {
 			defaults[i] = value
@@ -416,7 +419,26 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 			defaults = append(defaults, value)
 		}
 	}
+
+	// Now remove all entries that we want to "unset"
+	for i := 0; i < len(defaults); i++ {
+		if defaults[i] == "" {
+			defaults = append(defaults[:i], defaults[i+1:]...)
+			i--
+		}
+	}
+
 	return defaults
+}
+
+func DoesEnvExist(name string) bool {
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if parts[0] == name {
+			return true
+		}
+	}
+	return false
 }
 
 // ReadSymlinkedDirectory returns the target directory of a symlink.
@@ -491,4 +513,35 @@ func StringsContainsNoCase(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// Reads a .dockerignore file and returns the list of file patterns
+// to ignore. Note this will trim whitespace from each line as well
+// as use GO's "clean" func to get the shortest/cleanest path for each.
+func ReadDockerIgnore(path string) ([]string, error) {
+	// Note that a missing .dockerignore file isn't treated as an error
+	reader, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+		}
+		return nil, nil
+	}
+	defer reader.Close()
+
+	scanner := bufio.NewScanner(reader)
+	var excludes []string
+
+	for scanner.Scan() {
+		pattern := strings.TrimSpace(scanner.Text())
+		if pattern == "" {
+			continue
+		}
+		pattern = filepath.Clean(pattern)
+		excludes = append(excludes, pattern)
+	}
+	if err = scanner.Err(); err != nil {
+		return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+	}
+	return excludes, nil
 }

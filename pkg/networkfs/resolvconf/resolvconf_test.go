@@ -156,3 +156,83 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 		t.Fatalf("Expected to not find '%s' got '%s'", notExpected, content)
 	}
 }
+
+func TestFilterResolvDns(t *testing.T) {
+	ns0 := "nameserver 10.16.60.14\nnameserver 10.16.60.21\n"
+
+	if result, _ := FilterResolvDns([]byte(ns0), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed No Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 := "nameserver 10.16.60.14\nnameserver 10.16.60.21\nnameserver 127.0.0.1\n"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 = "nameserver 10.16.60.14\nnameserver 127.0.0.1\nnameserver 10.16.60.21\n"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 = "nameserver 127.0.1.1\nnameserver 10.16.60.14\nnameserver 10.16.60.21\n"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 = "nameserver ::1\nnameserver 10.16.60.14\nnameserver 127.0.2.1\nnameserver 10.16.60.21\n"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	ns1 = "nameserver 10.16.60.14\nnameserver ::1\nnameserver 10.16.60.21\nnameserver ::1"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	// with IPv6 disabled (false param), the IPv6 nameserver should be removed
+	ns1 = "nameserver 10.16.60.14\nnameserver 2002:dead:beef::1\nnameserver 10.16.60.21\nnameserver ::1"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost+IPv6 off: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	// with IPv6 enabled, the IPv6 nameserver should be preserved
+	ns0 = "nameserver 10.16.60.14\nnameserver 2002:dead:beef::1\nnameserver 10.16.60.21\n"
+	ns1 = "nameserver 10.16.60.14\nnameserver 2002:dead:beef::1\nnameserver 10.16.60.21\nnameserver ::1"
+	if result, _ := FilterResolvDns([]byte(ns1), true); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed Localhost+IPv6 on: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	// with IPv6 enabled, and no non-localhost servers, Google defaults (both IPv4+IPv6) should be added
+	ns0 = "\nnameserver 8.8.8.8\nnameserver 8.8.4.4\nnameserver 2001:4860:4860::8888\nnameserver 2001:4860:4860::8844"
+	ns1 = "nameserver 127.0.0.1\nnameserver ::1\nnameserver 127.0.2.1"
+	if result, _ := FilterResolvDns([]byte(ns1), true); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed no Localhost+IPv6 enabled: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+
+	// with IPv6 disabled, and no non-localhost servers, Google defaults (only IPv4) should be added
+	ns0 = "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	ns1 = "nameserver 127.0.0.1\nnameserver ::1\nnameserver 127.0.2.1"
+	if result, _ := FilterResolvDns([]byte(ns1), false); result != nil {
+		if ns0 != string(result) {
+			t.Fatalf("Failed no Localhost+IPv6 enabled: expected \n<%s> got \n<%s>", ns0, string(result))
+		}
+	}
+}

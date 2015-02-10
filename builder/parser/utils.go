@@ -2,29 +2,9 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
-
-// QuoteString walks characters (after trimming), escapes any quotes and
-// escapes, then wraps the whole thing in quotes. Very useful for generating
-// argument output in nodes.
-func QuoteString(str string) string {
-	result := ""
-	chars := strings.Split(strings.TrimSpace(str), "")
-
-	for _, char := range chars {
-		switch char {
-		case `"`:
-			result += `\"`
-		case `\`:
-			result += `\\`
-		default:
-			result += char
-		}
-	}
-
-	return `"` + result + `"`
-}
 
 // dumps the AST defined by `node` as a list of sexps. Returns a string
 // suitable for printing.
@@ -41,7 +21,7 @@ func (node *Node) Dump() string {
 			if len(n.Children) > 0 {
 				str += " " + n.Dump()
 			} else {
-				str += " " + QuoteString(n.Value)
+				str += " " + strconv.Quote(n.Value)
 			}
 		}
 	}

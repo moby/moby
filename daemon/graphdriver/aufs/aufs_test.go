@@ -568,7 +568,7 @@ func TestStatus(t *testing.T) {
 		t.Fatal("Status should not be nil or empty")
 	}
 	rootDir := status[0]
-	dirs := status[1]
+	dirs := status[2]
 	if rootDir[0] != "Root Dir" {
 		t.Fatalf("Expected Root Dir got %s", rootDir[0])
 	}

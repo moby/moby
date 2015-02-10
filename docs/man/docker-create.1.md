@@ -21,6 +21,7 @@ docker-create - Create a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
@@ -31,7 +32,9 @@ docker-create - Create a new container
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
+[**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
@@ -87,6 +90,9 @@ IMAGE [COMMAND] [ARG...]
 **-h**, **--hostname**=""
    Container host name
 
+**--help**
+  Print usage statement
+
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
 
@@ -96,7 +102,7 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
-   Add link to another container in the form of name:alias
+   Add link to another container in the form of <name or id>:alias
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
@@ -118,15 +124,25 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **-P**, **--publish-all**=*true*|*false*
-   Publish all exposed ports to the host interfaces. The default is *false*.
+   Publish all exposed ports to random ports on the host interfaces. The default is *false*.
 
 **-p**, **--publish**=[]
-   Publish a container's port to the host
+   Publish a container's port, or a range of ports, to the host
                                format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                               Both hostPort and containerPort can be specified as a range of ports. 
+                               When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
+
+**--pid**=host
+   Set the PID mode for the container
+     **host**: use the host's PID namespace inside the container.
+     Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
+
+**--read-only**=*true*|*false*
+    Mount the container's root filesystem as read only.
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

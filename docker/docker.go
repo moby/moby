@@ -67,6 +67,8 @@ func main() {
 		flHosts = append(flHosts, defaultHost)
 	}
 
+	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
+
 	if *flDaemon {
 		mainDaemon()
 		return
@@ -118,9 +120,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, nil, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {

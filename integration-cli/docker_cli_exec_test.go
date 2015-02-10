@@ -2,9 +2,13 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -339,7 +343,7 @@ func TestExecTtyWithoutStdin(t *testing.T) {
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			t.Fatal("exec should have failed")
 		} else if !strings.Contains(out, expected) {
-			t.Fatal("exec failed with error %q: expected %q", out, expected)
+			t.Fatalf("exec failed with error %q: expected %q", out, expected)
 		}
 	}()
 
@@ -350,4 +354,102 @@ func TestExecTtyWithoutStdin(t *testing.T) {
 	}
 
 	logDone("exec - forbid piped stdin to tty enabled container")
+}
+
+func TestExecParseError(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal (non-detached) case first
+	cmd := exec.Command(dockerBinary, "exec", "top")
+	if _, stderr, code, err := runCommandWithStdoutStderr(cmd); err == nil || !strings.Contains(stderr, "See '"+dockerBinary+" exec --help'") || code == 0 {
+		t.Fatalf("Should have thrown error & point to help: %s", stderr)
+	}
+	logDone("exec - error on parseExec should point to help")
+}
+
+func TestExecStopNotHanging(t *testing.T) {
+	defer deleteAllContainers()
+	if out, err := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top").CombinedOutput(); err != nil {
+		t.Fatal(out, err)
+	}
+
+	if err := exec.Command(dockerBinary, "exec", "testing", "top").Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	wait := make(chan struct{})
+	go func() {
+		if out, err := exec.Command(dockerBinary, "stop", "testing").CombinedOutput(); err != nil {
+			t.Fatal(out, err)
+		}
+		close(wait)
+	}()
+	select {
+	case <-time.After(3 * time.Second):
+		t.Fatal("Container stop timed out")
+	case <-wait:
+	}
+	logDone("exec - container with exec not hanging on stop")
+}
+
+func TestExecCgroup(t *testing.T) {
+	defer deleteAllContainers()
+	var cmd *exec.Cmd
+
+	cmd = exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
+	_, err := runCommand(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/1/cgroup")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	containerCgroups := sort.StringSlice(strings.Split(string(out), "\n"))
+
+	var wg sync.WaitGroup
+	var s sync.Mutex
+	execCgroups := []sort.StringSlice{}
+	// exec a few times concurrently to get consistent failure
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			cmd = exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
+			out, _, err := runCommandWithOutput(cmd)
+			if err != nil {
+				t.Fatal(out, err)
+			}
+			cg := sort.StringSlice(strings.Split(string(out), "\n"))
+
+			s.Lock()
+			execCgroups = append(execCgroups, cg)
+			s.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	for _, cg := range execCgroups {
+		if !reflect.DeepEqual(cg, containerCgroups) {
+			fmt.Println("exec cgroups:")
+			for _, name := range cg {
+				fmt.Printf(" %s\n", name)
+			}
+
+			fmt.Println("container cgroups:")
+			for _, name := range containerCgroups {
+				fmt.Printf(" %s\n", name)
+			}
+			t.Fatal("cgroups mismatched")
+		}
+	}
+
+	logDone("exec - exec has the container cgroups")
 }

@@ -29,18 +29,19 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		}
 
 		out := &engine.Env{}
-		out.Set("Id", container.ID)
+		out.SetJson("Id", container.ID)
 		out.SetAuto("Created", container.Created)
 		out.SetJson("Path", container.Path)
 		out.SetList("Args", container.Args)
 		out.SetJson("Config", container.Config)
 		out.SetJson("State", container.State)
-		out.Set("Image", container.Image)
+		out.Set("Image", container.ImageID)
 		out.SetJson("NetworkSettings", container.NetworkSettings)
 		out.Set("ResolvConfPath", container.ResolvConfPath)
 		out.Set("HostnamePath", container.HostnamePath)
 		out.Set("HostsPath", container.HostsPath)
-		out.Set("Name", container.Name)
+		out.SetJson("Name", container.Name)
+		out.SetInt("RestartCount", container.RestartCount)
 		out.Set("Driver", container.Driver)
 		out.Set("ExecDriver", container.ExecDriver)
 		out.Set("MountLabel", container.MountLabel)
@@ -48,6 +49,8 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 		out.SetJson("Volumes", container.Volumes)
 		out.SetJson("VolumesRW", container.VolumesRW)
 		out.SetJson("AppArmorProfile", container.AppArmorProfile)
+
+		out.SetList("ExecIDs", container.GetExecIDs())
 
 		if children, err := daemon.Children(container.Name); err == nil {
 			for linkAlias, child := range children {

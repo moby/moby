@@ -55,13 +55,55 @@ func (av APIVersion) String() string {
 	return apiVersions[av]
 }
 
-var DefaultAPIVersion APIVersion = APIVersion1
 var apiVersions = map[APIVersion]string{
 	1: "v1",
 	2: "v2",
 }
 
+// API Version identifiers.
 const (
-	APIVersion1 = iota + 1
+	APIVersionUnknown = iota
+	APIVersion1
 	APIVersion2
 )
+
+// RepositoryInfo Examples:
+// {
+//   "Index" : {
+//     "Name" : "docker.io",
+//     "Mirrors" : ["https://registry-2.docker.io/v1/", "https://registry-3.docker.io/v1/"],
+//     "Secure" : true,
+//     "Official" : true,
+//   },
+//   "RemoteName" : "library/debian",
+//   "LocalName" : "debian",
+//   "CanonicalName" : "docker.io/debian"
+//   "Official" : true,
+// }
+
+// {
+//   "Index" : {
+//     "Name" : "127.0.0.1:5000",
+//     "Mirrors" : [],
+//     "Secure" : false,
+//     "Official" : false,
+//   },
+//   "RemoteName" : "user/repo",
+//   "LocalName" : "127.0.0.1:5000/user/repo",
+//   "CanonicalName" : "127.0.0.1:5000/user/repo",
+//   "Official" : false,
+// }
+type IndexInfo struct {
+	Name     string
+	Mirrors  []string
+	Secure   bool
+	Official bool
+}
+
+type RepositoryInfo struct {
+	Index         *IndexInfo
+	RemoteName    string
+	LocalName     string
+	CanonicalName string
+	Official      bool
+}

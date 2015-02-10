@@ -45,6 +45,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 	}
 
+	if i, ok := psFilters["status"]; ok {
+		for _, value := range i {
+			if value == "exited" {
+				all = true
+			}
+		}
+	}
+
 	names := map[string][]string{}
 	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
@@ -73,7 +81,6 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		if !container.Running && !all && n <= 0 && since == "" && before == "" {
 			return nil
 		}
-
 		if !psFilters.Match("name", container.Name) {
 			return nil
 		}
@@ -96,10 +103,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 && !container.Running {
+		if len(filt_exited) > 0 {
 			should_skip := true
 			for _, code := range filt_exited {
-				if code == container.ExitCode {
+				if code == container.ExitCode && !container.Running {
 					should_skip = false
 					break
 				}
@@ -114,9 +121,9 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		}
 		displayed++
 		out := &engine.Env{}
-		out.Set("Id", container.ID)
+		out.SetJson("Id", container.ID)
 		out.SetList("Names", names[container.ID])
-		out.Set("Image", daemon.Repositories().ImageName(container.Image))
+		out.SetJson("Image", daemon.Repositories().ImageName(container.ImageID))
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {

@@ -121,7 +121,6 @@ func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
 
 	// Register the IP.
 	allocated.p[ip.String()] = struct{}{}
-	allocated.last.Set(pos)
 
 	return ip, nil
 }

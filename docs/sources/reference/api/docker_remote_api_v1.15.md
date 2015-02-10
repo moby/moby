@@ -36,27 +36,27 @@ List containers
         [
              {
                      "Id": "8dfafdbc3a40",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 1",
                      "Created": 1367854155,
                      "Status": "Exit 0",
-                     "Ports":[{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
-                     "SizeRw":12288,
-                     "SizeRootFs":0
+                     "Ports": [{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
+                     "SizeRw": 12288,
+                     "SizeRootFs": 0
              },
              {
                      "Id": "9cd87474be90",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 222222",
                      "Created": 1367854155,
                      "Status": "Exit 0",
-                     "Ports":[],
-                     "SizeRw":12288,
-                     "SizeRootFs":0
+                     "Ports": [],
+                     "SizeRw": 12288,
+                     "SizeRootFs": 0
              },
              {
                      "Id": "3176a2479c92",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 3333333333333333",
                      "Created": 1367854154,
                      "Status": "Exit 0",
@@ -66,13 +66,13 @@ List containers
              },
              {
                      "Id": "4cb07b47f9fb",
-                     "Image": "base:latest",
+                     "Image": "ubuntu:latest",
                      "Command": "echo 444444444444444444444444444444444",
                      "Created": 1367854152,
                      "Status": "Exit 0",
-                     "Ports":[],
-                     "SizeRw":12288,
-                     "SizeRootFs":0
+                     "Ports": [],
+                     "SizeRw": 12288,
+                     "SizeRootFs": 0
              }
         ]
 
@@ -88,6 +88,9 @@ Query Parameters:
         non-running ones.
 -   **size** – 1/True/true or 0/False/false, Show the containers
         sizes
+-   **filters** - a json encoded value of the filters (a map[string][]string) to process on the containers list. Available filters:
+  -   exited=&lt;int&gt; -- containers with exit code of &lt;int&gt;
+  -   status=(restarting|running|paused|exited)
 
 Status Codes:
 
@@ -107,44 +110,45 @@ Create a container
         Content-Type: application/json
 
         {
-             "Hostname":"",
+             "Hostname": "",
              "Domainname": "",
-             "User":"",
-             "Memory":0,
-             "MemorySwap":0,
+             "User": "",
+             "Memory": 0,
+             "MemorySwap": 0,
              "CpuShares": 512,
              "Cpuset": "0,1",
-             "AttachStdin":false,
-             "AttachStdout":true,
-             "AttachStderr":true,
-             "Tty":false,
-             "OpenStdin":false,
-             "StdinOnce":false,
-             "Env":null,
-             "Cmd":[
+             "AttachStdin": false,
+             "AttachStdout": true,
+             "AttachStderr": true,
+             "Tty": false,
+             "OpenStdin": false,
+             "StdinOnce": false,
+             "Env": null,
+             "Cmd": [
                      "date"
              ],
              "Entrypoint": "",
-             "Image":"base",
-             "Volumes":{
+             "Image": "ubuntu",
+             "Volumes": {
                      "/tmp": {}
              },
-             "WorkingDir":"",
+             "WorkingDir": "",
              "NetworkDisabled": false,
-             "MacAddress":"12:34:56:78:9a:bc",
-             "ExposedPorts":{
+             "MacAddress": "12:34:56:78:9a:bc",
+             "ExposedPorts": {
                      "22/tcp": {}
              },
              "SecurityOpts": [""],
              "HostConfig": {
-               "Binds":["/tmp:/tmp"],
-               "Links":["redis3:redis"],
-               "LxcConf":{"lxc.utsname":"docker"},
-               "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
-               "PublishAllPorts":false,
-               "Privileged":false,
+               "Binds": ["/tmp:/tmp"],
+               "Links": ["redis3:redis"],
+               "LxcConf": {"lxc.utsname":"docker"},
+               "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
+               "PublishAllPorts": false,
+               "Privileged": false,
                "Dns": ["8.8.8.8"],
                "DnsSearch": [""],
+               "ExtraHosts": null,
                "VolumesFrom": ["parent", "other:ro"],
                "CapAdd": ["NET_ADMIN"],
                "CapDrop": ["MKNOD"],
@@ -160,8 +164,8 @@ Create a container
         Content-Type: application/json
 
         {
-             "Id":"f91ddc4b01e079c4481a8340bbbeca4dbd33d6e4a10662e499f8eacbb5bf252b"
-             "Warnings":[]
+             "Id": "f91ddc4b01e079c4481a8340bbbeca4dbd33d6e4a10662e499f8eacbb5bf252b"
+             "Warnings": []
         }
 
 Json Parameters:
@@ -217,6 +221,8 @@ Json Parameters:
         a boolean value.
   -   **Dns** - A list of dns servers for the container to use.
   -   **DnsSearch** - A list of DNS search domains
+  -   **ExtraHosts** - A list of hostnames/IP mappings to be added to the
+      container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
   -   **VolumesFrom** - A list of volumes to inherit from another container.
         Specified in the form `<container name>[:<ro|rw>]`
   -   **CapAdd** - A list of kernel capabilties to add to the container.
@@ -227,6 +233,8 @@ Json Parameters:
           exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
           controls the number of times to retry before giving up.
           The default is not to restart. (optional)
+          An ever increasing delay (double the previous delay, starting at 100mS)
+          is added before each restart to prevent flooding the server.
   -   **NetworkMode** - Sets the networking mode for the container. Supported
         values are: `bridge`, `host`, and `container:<name|id>`
   -   **Devices** - A list of devices to add to the container specified in the
@@ -283,11 +291,10 @@ Return low-level information on the container `id`
                                      "date"
                              ],
                              "Dns": null,
-                             "Image": "base",
+                             "Image": "ubuntu",
                              "Volumes": {},
                              "VolumesFrom": "",
-                             "WorkingDir":""
-
+                             "WorkingDir": ""
                      },
                      "State": {
                              "Running": false,
@@ -322,8 +329,8 @@ Return low-level information on the container `id`
                          },
                          "Links": ["/name:alias"],
                          "PublishAllPorts": false,
-                         "CapAdd: ["NET_ADMIN"],
-                         "CapDrop: ["MKNOD"]
+                         "CapAdd": ["NET_ADMIN"],
+                         "CapDrop": ["MKNOD"]
                      }
         }
 
@@ -349,7 +356,7 @@ List processes running inside the container `id`
         Content-Type: application/json
 
         {
-             "Titles":[
+             "Titles": [
                      "USER",
                      "PID",
                      "%CPU",
@@ -362,7 +369,7 @@ List processes running inside the container `id`
                      "TIME",
                      "COMMAND"
                      ],
-             "Processes":[
+             "Processes": [
                      ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
                      ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
              ]
@@ -427,16 +434,16 @@ Inspect changes on container `id`'s filesystem
 
         [
              {
-                     "Path":"/dev",
-                     "Kind":0
+                     "Path": "/dev",
+                     "Kind": 0
              },
              {
-                     "Path":"/dev/kmsg",
-                     "Kind":1
+                     "Path": "/dev/kmsg",
+                     "Kind": 1
              },
              {
-                     "Path":"/test",
-                     "Kind":1
+                     "Path": "/test",
+                     "Kind": 1
              }
         ]
 
@@ -503,12 +510,12 @@ Start the container `id`
         Content-Type: application/json
 
         {
-             "Binds":["/tmp:/tmp"],
-             "Links":["redis3:redis"],
-             "LxcConf":{"lxc.utsname":"docker"},
-             "PortBindings":{ "22/tcp": [{ "HostPort": "11022" }] },
-             "PublishAllPorts":false,
-             "Privileged":false,
+             "Binds": ["/tmp:/tmp"],
+             "Links": ["redis3:redis"],
+             "LxcConf": {"lxc.utsname":"docker"},
+             "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
+             "PublishAllPorts": false,
+             "Privileged": false,
              "Dns": ["8.8.8.8"],
              "DnsSearch": [""],
              "VolumesFrom": ["parent", "other:ro"],
@@ -554,6 +561,8 @@ Json Parameters:
         exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
         controls the number of times to retry before giving up.
         The default is not to restart. (optional)
+        An ever increasing delay (double the previous delay, starting at 100mS)
+        is added before each restart to prevent flooding the server.
 -   **NetworkMode** - Sets the networking mode for the container. Supported
       values are: `bridge`, `host`, and `container:<name|id>`
 -   **Devices** - A list of devices to add to the container specified in the
@@ -721,7 +730,7 @@ Status Codes:
 
     When using the TTY setting is enabled in
     [`POST /containers/create`
-    ](../docker_remote_api_v1.9/#post--containers-create "POST /containers/create"),
+    ](/reference/api/docker_remote_api_v1.9/#create-a-container "POST /containers/create"),
     the stream is the raw data from the process PTY and client's stdin.
     When the TTY is disabled, then the stream is multiplexed to separate
     stdout and stderr.
@@ -761,6 +770,41 @@ Status Codes:
     4.  Read the extracted size and output it on the correct output
     5.  Goto 1
 
+### Attach to a container (websocket)
+
+`GET /containers/(id)/attach/ws`
+
+Attach to the container `id` via websocket
+
+Implements websocket protocol handshake according to [RFC 6455](http://tools.ietf.org/html/rfc6455)
+
+**Example request**
+
+        GET /containers/e90e34656806/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1 HTTP/1.1
+
+**Example response**
+
+        {{ STREAM }}
+
+Query Parameters:
+
+-   **logs** – 1/True/true or 0/False/false, return logs. Default false
+-   **stream** – 1/True/true or 0/False/false, return stream.
+        Default false
+-   **stdin** – 1/True/true or 0/False/false, if stream=true, attach
+        to stdin. Default false
+-   **stdout** – 1/True/true or 0/False/false, if logs=true, return
+        stdout log, if stream=true, attach to stdout. Default false
+-   **stderr** – 1/True/true or 0/False/false, if logs=true, return
+        stderr log, if stream=true, attach to stderr. Default false
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **404** – no such container
+-   **500** – server error
+
 ### Wait a container
 
 `POST /containers/(id)/wait`
@@ -776,7 +820,7 @@ Block until container `id` stops, then returns the exit code
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"StatusCode":0}
+        {"StatusCode": 0}
 
 Status Codes:
 
@@ -824,7 +868,7 @@ Copy files or folders of container `id`
         Content-Type: application/json
 
         {
-             "Resource":"test.txt"
+             "Resource": "test.txt"
         }
 
 **Example response**:
@@ -884,7 +928,8 @@ Status Codes:
 Query Parameters:
 
 -   **all** – 1/True/true or 0/False/false, default false
--   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list.
+-   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
+  -   dangling=true
 
 ### Create an image
 
@@ -894,16 +939,16 @@ Create an image, either by pulling it from the registry or by importing it
 
 **Example request**:
 
-        POST /images/create?fromImage=base HTTP/1.1
+        POST /images/create?fromImage=ubuntu HTTP/1.1
 
 **Example response**:
 
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"status":"Pulling..."}
-        {"status":"Pulling", "progress":"1 B/ 100 B", "progressDetail":{"current":1, "total":100}}
-        {"error":"Invalid..."}
+        {"status": "Pulling..."}
+        {"status": "Pulling", "progress": "1 B/ 100 B", "progressDetail": {"current": 1, "total": 100}}
+        {"error": "Invalid..."}
         ...
 
     When using this endpoint to pull an image from the registry, the
@@ -938,7 +983,7 @@ Return low-level information on the image `name`
 
 **Example request**:
 
-        GET /images/base/json HTTP/1.1
+        GET /images/ubuntu/json HTTP/1.1
 
 **Example response**:
 
@@ -946,31 +991,31 @@ Return low-level information on the image `name`
         Content-Type: application/json
 
         {
-             "Created":"2013-03-23T22:24:18.818426-07:00",
-             "Container":"3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+             "Created": "2013-03-23T22:24:18.818426-07:00",
+             "Container": "3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
              "ContainerConfig":
                      {
-                             "Hostname":"",
-                             "User":"",
-                             "Memory":0,
-                             "MemorySwap":0,
-                             "AttachStdin":false,
-                             "AttachStdout":false,
-                             "AttachStderr":false,
-                             "PortSpecs":null,
-                             "Tty":true,
-                             "OpenStdin":true,
-                             "StdinOnce":false,
-                             "Env":null,
+                             "Hostname": "",
+                             "User": "",
+                             "Memory": 0,
+                             "MemorySwap": 0,
+                             "AttachStdin": false,
+                             "AttachStdout": false,
+                             "AttachStderr": false,
+                             "PortSpecs": null,
+                             "Tty": true,
+                             "OpenStdin": true,
+                             "StdinOnce": false,
+                             "Env": null,
                              "Cmd": ["/bin/bash"],
-                             "Dns":null,
-                             "Image":"base",
-                             "Volumes":null,
-                             "VolumesFrom":"",
-                             "WorkingDir":""
+                             "Dns": null,
+                             "Image": "ubuntu",
+                             "Volumes": null,
+                             "VolumesFrom": "",
+                             "WorkingDir": ""
                      },
-             "Id":"b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-             "Parent":"27cf784147099545",
+             "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+             "Parent": "27cf784147099545",
              "Size": 6824592
         }
 
@@ -988,7 +1033,7 @@ Return the history of the image `name`
 
 **Example request**:
 
-        GET /images/base/history HTTP/1.1
+        GET /images/ubuntu/history HTTP/1.1
 
 **Example response**:
 
@@ -997,14 +1042,14 @@ Return the history of the image `name`
 
         [
              {
-                     "Id":"b750fe79269d",
-                     "Created":1364102658,
-                     "CreatedBy":"/bin/bash"
+                     "Id": "b750fe79269d",
+                     "Created": 1364102658,
+                     "CreatedBy": "/bin/bash"
              },
              {
-                     "Id":"27cf78414709",
-                     "Created":1364068391,
-                     "CreatedBy":""
+                     "Id": "27cf78414709",
+                     "Created": 1364068391,
+                     "CreatedBy": ""
              }
         ]
 
@@ -1029,9 +1074,9 @@ Push the image `name` on the registry
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"status":"Pushing..."}
-        {"status":"Pushing", "progress":"1/? (n/a)", "progressDetail":{"current":1}}}
-        {"error":"Invalid..."}
+        {"status": "Pushing..."}
+        {"status": "Pushing", "progress": "1/? (n/a)", "progressDetail": {"current": 1}}}
+        {"error": "Invalid..."}
         ...
 
     If you wish to push an image on to a private registry, that image must already have been tagged
@@ -1102,9 +1147,9 @@ Remove the image `name` from the filesystem
         Content-type: application/json
 
         [
-         {"Untagged":"3e2f21a89f"},
-         {"Deleted":"3e2f21a89f"},
-         {"Deleted":"53b4f83ac9"}
+         {"Untagged": "3e2f21a89f"},
+         {"Deleted": "3e2f21a89f"},
+         {"Deleted": "53b4f83ac9"}
         ]
 
 Query Parameters:
@@ -1191,9 +1236,9 @@ Build an image from Dockerfile via stdin
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"stream":"Step 1..."}
-        {"stream":"..."}
-        {"error":"Error...", "errorDetail":{"code": 123, "message": "Error..."}}
+        {"stream": "Step 1..."}
+        {"stream": "..."}
+        {"error": "Error...", "errorDetail": {"code": 123, "message": "Error..."}}
 
     The stream must be a tar archive compressed with one of the
     following algorithms: identity (no compression), gzip, bzip2, xz.
@@ -1207,6 +1252,7 @@ Query Parameters:
 
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
+-   **remote** – git or HTTP/HTTPS URI build source
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 -   **rm** - remove intermediate containers after a successful build (default behavior)
@@ -1234,10 +1280,10 @@ Get the default username and email
         Content-Type: application/json
 
         {
-             "username":"hannibal",
-             "password:"xxxx",
-             "email":"hannibal@a-team.com",
-             "serveraddress":"https://index.docker.io/v1/"
+             "username":" hannibal",
+             "password: "xxxx",
+             "email": "hannibal@a-team.com",
+             "serveraddress": "https://index.docker.io/v1/"
         }
 
 **Example response**:
@@ -1266,20 +1312,20 @@ Display system-wide information
         Content-Type: application/json
 
         {
-             "Containers":11,
-             "Images":16,
-             "Driver":"btrfs",
-             "ExecutionDriver":"native-0.1",
-             "KernelVersion":"3.12.0-1-amd64"
-             "Debug":false,
+             "Containers": 11,
+             "Images": 16,
+             "Driver": "btrfs",
+             "ExecutionDriver": "native-0.1",
+             "KernelVersion": "3.12.0-1-amd64"
+             "Debug": false,
              "NFd": 11,
-             "NGoroutines":21,
-             "NEventsListener":0,
-             "InitPath":"/usr/bin/docker",
-             "IndexServerAddress":["https://index.docker.io/v1/"],
-             "MemoryLimit":true,
-             "SwapLimit":false,
-             "IPv4Forwarding":true
+             "NGoroutines": 21,
+             "NEventsListener": 0,
+             "InitPath": "/usr/bin/docker",
+             "IndexServerAddress": ["https://index.docker.io/v1/"],
+             "MemoryLimit": true,
+             "SwapLimit": false,
+             "IPv4Forwarding": true
         }
 
 Status Codes:
@@ -1303,10 +1349,10 @@ Show the docker version information
         Content-Type: application/json
 
         {
-             "ApiVersion":"1.12",
-             "Version":"0.2.2",
-             "GitCommit":"5a2a5cc+CHANGES",
-             "GoVersion":"go1.0.3"
+             "ApiVersion": "1.12",
+             "Version": "0.2.2",
+             "GitCommit": "5a2a5cc+CHANGES",
+             "GoVersion": "go1.0.3"
         }
 
 Status Codes:
@@ -1348,30 +1394,30 @@ Create a new image from a container's changes
         Content-Type: application/json
 
         {
-             "Hostname":"",
+             "Hostname": "",
              "Domainname": "",
-             "User":"",
-             "Memory":0,
-             "MemorySwap":0,
+             "User": "",
+             "Memory": 0,
+             "MemorySwap": 0,
              "CpuShares": 512,
              "Cpuset": "0,1",
-             "AttachStdin":false,
-             "AttachStdout":true,
-             "AttachStderr":true,
-             "PortSpecs":null,
-             "Tty":false,
-             "OpenStdin":false,
-             "StdinOnce":false,
-             "Env":null,
-             "Cmd":[
+             "AttachStdin": false,
+             "AttachStdout": true,
+             "AttachStderr": true,
+             "PortSpecs": null,
+             "Tty": false,
+             "OpenStdin": false,
+             "StdinOnce": false,
+             "Env": null,
+             "Cmd": [
                      "date"
              ],
-             "Volumes":{
+             "Volumes": {
                      "/tmp": {}
              },
-             "WorkingDir":"",
+             "WorkingDir": "",
              "NetworkDisabled": false,
-             "ExposedPorts":{
+             "ExposedPorts": {
                      "22/tcp": {}
              }
         }
@@ -1381,7 +1427,7 @@ Create a new image from a container's changes
         HTTP/1.1 201 Created
         Content-Type: application/vnd.docker.raw-stream
 
-        {"Id":"596069db4bf5"}
+        {"Id": "596069db4bf5"}
 
 Json Parameters:
 
@@ -1426,10 +1472,10 @@ and Docker images will report:
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"status":"create","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
-        {"status":"start","id":"dfdf82bd3881","from":"base:latest","time":1374067924}
-        {"status":"stop","id":"dfdf82bd3881","from":"base:latest","time":1374067966}
-        {"status":"destroy","id":"dfdf82bd3881","from":"base:latest","time":1374067970}
+        {"status": "create", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
+        {"status": "start", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
+        {"status": "stop", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067966}
+        {"status": "destroy", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067970}
 
 Query Parameters:
 
@@ -1539,7 +1585,7 @@ the root that contains a list of repository and tag names mapped to layer IDs.
 
 ```
 {"hello-world":
-    {"latest":"565a9d68a73f6706862bfe8409a7f659776d4d60a8d096eb4a3cbce6999cc2a1"}
+    {"latest": "565a9d68a73f6706862bfe8409a7f659776d4d60a8d096eb4a3cbce6999cc2a1"}
 }
 ```
 
@@ -1555,11 +1601,11 @@ Sets up an exec instance in a running container `id`
         Content-Type: application/json
 
         {
-	     "AttachStdin":false,
-	     "AttachStdout":true,
-	     "AttachStderr":true,
-	     "Tty":false,
-	     "Cmd":[
+	     "AttachStdin": false,
+	     "AttachStdout": true,
+	     "AttachStderr": true,
+	     "Tty": false,
+	     "Cmd": [
                      "date"
              ],
         }
@@ -1570,7 +1616,7 @@ Sets up an exec instance in a running container `id`
         Content-Type: application/json
 
         {
-             "Id":"f90e34656806"
+             "Id": "f90e34656806"
         }
 
 Json Parameters:
@@ -1601,8 +1647,8 @@ interactive session with the `exec` command.
         Content-Type: application/json
 
         {
-	     "Detach":false,
-	     "Tty":false,
+	     "Detach": false,
+	     "Tty": false,
         }
 
 **Example response**:

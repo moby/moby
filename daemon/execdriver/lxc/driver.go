@@ -76,11 +76,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	})
 
 	if err := d.generateEnvConfig(c); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	params := []string{
 		"lxc-start",
@@ -154,11 +154,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ProcessConfig.Args = append([]string{name}, arg...)
 
 	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	if err := c.ProcessConfig.Start(); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	var (
@@ -182,7 +182,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			c.ProcessConfig.Process.Kill()
 			c.ProcessConfig.Wait()
 		}
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	c.ContainerPid = pid
@@ -193,7 +193,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	<-waitLock
 
-	return execdriver.ExitStatus{getExitCode(c), false}, waitErr
+	return execdriver.ExitStatus{ExitCode: getExitCode(c)}, waitErr
 }
 
 /// Return the exit code of the process
@@ -523,4 +523,9 @@ func (t *TtyConsole) Close() error {
 
 func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	return -1, ErrExec
+}
+
+func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	return nil, fmt.Errorf("container stats are not supported with LXC")
+
 }

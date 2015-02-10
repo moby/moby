@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 )
 
-var chrootArchiver = &archive.Archiver{Untar}
+var chrootArchiver = &archive.Archiver{Untar: Untar}
 
 func chroot(path string) error {
 	if err := syscall.Chroot(path); err != nil {
@@ -50,8 +50,8 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 	if options == nil {
 		options = &archive.TarOptions{}
 	}
-	if options.Excludes == nil {
-		options.Excludes = []string{}
+	if options.ExcludePatterns == nil {
+		options.ExcludePatterns = []string{}
 	}
 
 	var (

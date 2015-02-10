@@ -6,7 +6,7 @@ page_keywords: docker, example, package installation, node, centos
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#dockergroup)
+>   access*](/installation/binaries/#giving-non-root-access)
 
 The goal of this example is to show you how you can build your own
 Docker images from a parent image using a `Dockerfile`
@@ -180,6 +180,11 @@ Now you can call your app using `curl` (install if needed via:
     Connection: keep-alive
 
     Hello world
+
+If you use Boot2docker on OS X, the port is actually mapped to the Docker host VM,
+and you should use the following command:
+
+    $ curl $(boot2docker ip):49160
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at

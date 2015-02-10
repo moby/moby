@@ -610,7 +610,7 @@ func TestRestore(t *testing.T) {
 	}
 
 	// Simulate a crash/manual quit of dockerd: process dies, states stays 'Running'
-	cStdin, _ := container2.StdinPipe()
+	cStdin := container2.StdinPipe()
 	cStdin.Close()
 	if _, err := container2.WaitStop(2 * time.Second); err != nil {
 		t.Fatal(err)
@@ -653,7 +653,7 @@ func TestRestore(t *testing.T) {
 	if err := container3.Run(); err != nil {
 		t.Fatal(err)
 	}
-	container2.SetStopped(&execdriver.ExitStatus{0, false})
+	container2.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 }
 
 func TestDefaultContainerName(t *testing.T) {

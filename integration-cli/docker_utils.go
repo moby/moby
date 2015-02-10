@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -206,20 +207,33 @@ func (d *Daemon) Stop() error {
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		return fmt.Errorf("could not send signal: %v", err)
 	}
-out:
+out1:
 	for {
 		select {
 		case err := <-d.wait:
 			return err
-		case <-time.After(20 * time.Second):
+		case <-time.After(15 * time.Second):
+			// time for stopping jobs and run onShutdown hooks
 			d.t.Log("timeout")
-			break out
+			break out1
+		}
+	}
+
+out2:
+	for {
+		select {
+		case err := <-d.wait:
+			return err
 		case <-tick:
-			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i+1, d.cmd.Process.Pid)
+			i++
+			if i > 4 {
+				d.t.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
+				break out2
+			}
+			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 				return fmt.Errorf("could not send signal: %v", err)
 			}
-			i++
 		}
 	}
 
@@ -251,27 +265,55 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
-func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
-	// FIX: the path to sock should not be hardcoded
-	sock := filepath.Join("/", "var", "run", "docker.sock")
-	c, err := net.DialTimeout("unix", sock, time.Duration(10*time.Second))
-	if err != nil {
-		return nil, fmt.Errorf("could not dial docker sock at %s: %v", sock, err)
+func daemonHost() string {
+	daemonUrlStr := "unix:///var/run/docker.sock"
+	if daemonHostVar := os.Getenv("DOCKER_TEST_HOST"); daemonHostVar != "" {
+		daemonUrlStr = daemonHostVar
 	}
+	return daemonUrlStr
+}
 
-	client := httputil.NewClientConn(c, nil)
-	defer client.Close()
-
+func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
 	jsonData := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(method, endpoint, jsonData)
-	req.Header.Set("Content-Type", "application/json")
+	return sockRequestRaw(method, endpoint, jsonData, "application/json")
+}
+
+func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte, error) {
+	daemon := daemonHost()
+	daemonUrl, err := url.Parse(daemon)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
+	}
+
+	var c net.Conn
+	switch daemonUrl.Scheme {
+	case "unix":
+		c, err = net.DialTimeout(daemonUrl.Scheme, daemonUrl.Path, time.Duration(10*time.Second))
+	case "tcp":
+		c, err = net.DialTimeout(daemonUrl.Scheme, daemonUrl.Host, time.Duration(10*time.Second))
+	default:
+		err = fmt.Errorf("unknown scheme %v", daemonUrl.Scheme)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not dial docker daemon at %s: %v", daemon, err)
+	}
+
+	client := httputil.NewClientConn(c, nil)
+	defer client.Close()
+
+	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {
 		return nil, fmt.Errorf("could not create new request: %v", err)
 	}
+
+	if ct == "" {
+		ct = "application/json"
+	}
+	req.Header.Set("Content-Type", ct)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -829,4 +871,25 @@ func readContainerFile(containerId, filename string) ([]byte, error) {
 	}
 
 	return content, nil
+}
+
+func setupRegistry(t *testing.T) func() {
+	reg, err := newTestRegistryV2(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for registry to be ready to serve requests.
+	for i := 0; i != 5; i++ {
+		if err = reg.Ping(); err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if err != nil {
+		t.Fatal("Timeout waiting for test registry to become available")
+	}
+
+	return func() { reg.Close() }
 }

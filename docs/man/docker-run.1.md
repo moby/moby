@@ -22,17 +22,21 @@ docker-run - Run a command in a new container
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
+[**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
+[**--memory-swap**[=*MEMORY-SWAP]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
+[**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
@@ -146,12 +150,15 @@ ENTRYPOINT.
    Read in a line delimited file of environment variables
 
 **--expose**=[]
-   Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
+   Expose a port, or a range of ports (e.g. --expose=3300-3310), from the container without publishing it to your host
 
 **-h**, **--hostname**=""
    Container host name
 
    Sets the container host name that is available inside the container.
+
+**--help**
+  Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
@@ -164,7 +171,7 @@ ENTRYPOINT.
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--link**=[]
-   Add link to another container in the form of name:alias
+   Add link to another container in the form of <name or id>:alias
 
    If the operator
 uses **--link** when starting the new client container, then the client
@@ -185,6 +192,11 @@ actual limit may be rounded up to a multiple of the operating system's page
 size, if it is not already. The memory limit should be formatted as follows:
 `<number><optional unit>`, where unit = b, k, m or g.
 
+**--memory-swap**=""
+    Total memory usage (memory + swap)
+
+    Set '-1' to disable swap (format: <number><optional unit>, where unit = b, k, m or g)
+
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
 
@@ -196,7 +208,6 @@ according to RFC4862.
    Assign a name to the container
 
    The operator can identify a container in three ways:
-
     UUID long identifier (“f78375b1c487e03c9438c729345e54db9d20cfa2ac1fc3494b6eb60872e74778”)
     UUID short identifier (“f78375b1c487”)
     Name (“jonah”)
@@ -215,7 +226,7 @@ and foreground Docker containers.
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **-P**, **--publish-all**=*true*|*false*
-   Publish all exposed ports to the host interfaces. The default is *false*.
+   Publish all exposed ports to random ports on the host interfaces. The default is *false*.
 
    When set to true publish all exposed ports to the host interfaces. The
 default is false. If the operator uses -P (or -p) then Docker will make the
@@ -225,9 +236,16 @@ ports to a random port on the host between 49153 and 65535. To find the
 mapping between the host ports and the exposed ports, use **docker port**.
 
 **-p**, **--publish**=[]
-   Publish a container's port to the host
+   Publish a container's port, or range of ports, to the host.
                                format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                               Both hostPort and containerPort can be specified as a range of ports. 
+                               When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
+
+**--pid**=host
+   Set the PID mode for the container
+     **host**: use the host's PID namespace inside the container.
+     Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
@@ -241,6 +259,13 @@ access any devices. A “privileged” container is given access to all devices.
 to all devices on the host as well as set some configuration in AppArmor to
 allow the container nearly all the same access to the host as processes running
 outside of a container on the host.
+
+**--read-only**=*true*|*false*
+    Mount the container's root filesystem as read only.
+
+    By default a container will have its root filesystem writable allowing processes
+to write files anywhere.  By specifying the `--read-only` flag the container will have
+its root filesystem mounted as read only prohibiting any writes.
 
 **--restart**=""
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)

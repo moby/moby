@@ -49,13 +49,16 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	}
 
 	if container != nil {
+		// stop collection of stats for the container regardless
+		// if stats are currently getting collected.
+		daemon.statsCollector.stopCollection(container)
 		if container.IsRunning() {
 			if forceRemove {
 				if err := container.Kill(); err != nil {
 					return job.Errorf("Could not kill running container, cannot remove - %v", err)
 				}
 			} else {
-				return job.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f")
+				return job.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
 			}
 		}
 		if err := daemon.Destroy(container); err != nil {

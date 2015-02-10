@@ -6,6 +6,7 @@ docker-history - Show the history of an image
 
 # SYNOPSIS
 **docker history**
+[**--help**]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 IMAGE
@@ -15,6 +16,9 @@ IMAGE
 Show the history of when and how an image was created.
 
 # OPTIONS
+**--help**
+  Print usage statement
+
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.
 

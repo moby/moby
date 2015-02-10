@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -79,5 +80,37 @@ func TestParsePortMapping(t *testing.T) {
 	}
 	if data["private"] != "8080" {
 		t.Fail()
+	}
+}
+
+func TestParsePortRange(t *testing.T) {
+	if start, end, err := ParsePortRange("8000-8080"); err != nil || start != 8000 || end != 8080 {
+		t.Fatalf("Error: %s or Expecting {start,end} values {8000,8080} but found {%d,%d}.", err, start, end)
+	}
+}
+
+func TestParsePortRangeIncorrectRange(t *testing.T) {
+	if _, _, err := ParsePortRange("9000-8080"); err == nil || !strings.Contains(err.Error(), "Invalid range specified for the Port") {
+		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+	}
+}
+
+func TestParsePortRangeIncorrectEndRange(t *testing.T) {
+	if _, _, err := ParsePortRange("8000-a"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+	}
+
+	if _, _, err := ParsePortRange("8000-30a"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+	}
+}
+
+func TestParsePortRangeIncorrectStartRange(t *testing.T) {
+	if _, _, err := ParsePortRange("a-8000"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
+	}
+
+	if _, _, err := ParsePortRange("30a-8000"); err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("Expecting error 'Invalid range specified for the Port' but received %s.", err)
 	}
 }

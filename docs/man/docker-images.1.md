@@ -6,6 +6,7 @@ docker-images - List images
 
 # SYNOPSIS
 **docker images**
+[**--help**]
 [**-a**|**--all**[=*false*]]
 [**-f**|**--filter**[=*[]*]]
 [**--no-trunc**[=*false*]]
@@ -33,7 +34,10 @@ versions.
    Show all images (by default filter out the intermediate image layers). The default is *false*.
 
 **-f**, **--filter**=[]
-   Provide filter values (i.e. 'dangling=true')
+   Provide filter values (i.e., 'dangling=true')
+
+**--help**
+  Print usage statement
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.
