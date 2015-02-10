@@ -2002,7 +2002,7 @@ more details on finding shared images from the command line.
     Restart a stopped container
 
       -a, --attach=false         Attach container's STDOUT and STDERR and forward all signals to the process
-      -i, --interactive=false    Attach container's STDIN
+      -i, --interactive=false    Attach container's STDIN if container's STDIN is open
 
 ## stats
 
