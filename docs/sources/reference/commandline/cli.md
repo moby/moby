@@ -109,6 +109,7 @@ expect an integer, and they can only be specified once.
       --tlskey="~/.docker/key.pem"           Path to TLS key file
       --tlsverify=false                      Use TLS and verify the remote
       -v, --version=false                    Print version information and quit
+      --default-ulimit=[]                    Set default ulimit settings for containers.
 
 Options with [] may be specified multiple times.
 
@@ -403,6 +404,14 @@ to your Docker host's configuration:
 This will only add the proxy and authentication to the Docker daemon's requests -
 your `docker build`s and running containers will need extra configuration to use
 the proxy
+
+### Default Ulimits
+
+`--default-ulimit` allows you to set the default `ulimit` options to use for all
+containers. It takes the same options as `--ulimit` for `docker run`. If these
+defaults are not set, `ulimit` settings will be inheritted, if not set on
+`docker run`, from the Docker daemon. Any `--ulimit` options passed to
+`docker run` will overwrite these defaults.
 
 ### Miscellaneous options
 
@@ -1973,6 +1982,23 @@ You can add other hosts into a container's `/etc/hosts` file by using one or mor
 >
 >      $ alias hostip="ip route show 0.0.0.0/0 | grep -Eo 'via \S+' | awk '{ print \$2 }'"
 >      $ docker run  --add-host=docker:$(hostip) --rm -it debian
+
+### Setting ulimits in a container
+
+Since setting `ulimit` settings in a container requires extra privileges not
+available in the default container, you can set these using the `--ulimit` flag.
+`--ulimit` is specified with a soft and hard limit as such:
+`<type>=<soft limit>[:<hard limit>]`, for example:
+
+```
+    $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
+    1024
+```
+
+>**Note:**
+> If you do not provide a `hard limit`, the `soft limit` will be used for both
+values. If no `ulimits` are set, they will be inherited from the default `ulimits`
+set on the daemon.
 
 ## save
 

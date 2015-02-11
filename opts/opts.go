@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/utils"
 )
 
@@ -41,6 +42,10 @@ func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 
 func LabelListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateLabel), names, usage)
+}
+
+func UlimitMapVar(values map[string]*ulimit.Ulimit, names []string, usage string) {
+	flag.Var(NewUlimitOpt(values), names, usage)
 }
 
 // ListOpts type
