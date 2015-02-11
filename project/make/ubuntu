@@ -146,6 +146,7 @@ EOF
 			--architecture "$PACKAGE_ARCHITECTURE" \
 			--prefix / \
 			--depends iptables \
+			--depends apparmor \
 			--deb-recommends aufs-tools \
 			--deb-recommends ca-certificates \
 			--deb-recommends git \
