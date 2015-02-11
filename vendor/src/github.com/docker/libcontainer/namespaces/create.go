@@ -8,3 +8,4 @@ import (
 )
 
 type CreateCommand func(container *libcontainer.Config, console, dataPath, init string, childPipe *os.File, args []string) *exec.Cmd
+type SetupCommand func(container *libcontainer.Config, console, dataPath, init string) *exec.Cmd

@@ -10,8 +10,15 @@ import (
 	"syscall"
 )
 
-func PivotRoot(rootfs string) error {
-	pivotDir, err := ioutil.TempDir(rootfs, ".pivot_root")
+func PivotRoot(rootfs, pivotBaseDir string) error {
+	if pivotBaseDir == "" {
+		pivotBaseDir = "/"
+	}
+	tmpDir := filepath.Join(rootfs, pivotBaseDir)
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		return fmt.Errorf("can't create tmp dir %s, error %v", tmpDir, err)
+	}
+	pivotDir, err := ioutil.TempDir(tmpDir, ".pivot_root")
 	if err != nil {
 		return fmt.Errorf("can't create pivot_root dir %s, error %v", pivotDir, err)
 	}
@@ -25,7 +32,7 @@ func PivotRoot(rootfs string) error {
 	}
 
 	// path to pivot dir now changed, update
-	pivotDir = filepath.Join("/", filepath.Base(pivotDir))
+	pivotDir = filepath.Join(pivotBaseDir, filepath.Base(pivotDir))
 	if err := syscall.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
 		return fmt.Errorf("unmount pivot_root dir %s", err)
 	}

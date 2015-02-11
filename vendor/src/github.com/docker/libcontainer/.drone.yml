@@ -6,4 +6,5 @@ script:
   - bash /go/src/github.com/docker/docker/hack/make/validate-dco
   - bash /go/src/github.com/docker/docker/hack/make/validate-gofmt
   - export GOPATH="$GOPATH:/go:$(pwd)/vendor" # Drone mucks with our GOPATH
+  - go get golang.org/x/tools/cmd/vet && go vet ./...
   - make direct-test

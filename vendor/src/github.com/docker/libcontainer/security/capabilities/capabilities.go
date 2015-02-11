@@ -1,8 +1,6 @@
 package capabilities
 
 import (
-	"os"
-
 	"github.com/syndtr/gocapability/capability"
 )
 
@@ -11,7 +9,7 @@ const allCapabilityTypes = capability.CAPS | capability.BOUNDS
 // DropBoundingSet drops the capability bounding set to those specified in the
 // container configuration.
 func DropBoundingSet(capabilities []string) error {
-	c, err := capability.NewPid(os.Getpid())
+	c, err := capability.NewPid(0)
 	if err != nil {
 		return err
 	}
@@ -29,7 +27,7 @@ func DropBoundingSet(capabilities []string) error {
 
 // DropCapabilities drops all capabilities for the current process except those specified in the container configuration.
 func DropCapabilities(capList []string) error {
-	c, err := capability.NewPid(os.Getpid())
+	c, err := capability.NewPid(0)
 	if err != nil {
 		return err
 	}

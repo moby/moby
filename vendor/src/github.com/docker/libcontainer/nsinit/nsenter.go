@@ -82,3 +82,21 @@ func nsenterIp(config *libcontainer.Config, args []string) {
 
 	w.Flush()
 }
+
+func nsenterSetup(config *libcontainer.Config, args []string) {
+	if len(args) < 2 || len(args) > 3 {
+		log.Fatalf("expected setup to have 2 or 3 arguments not %d", len(args))
+	}
+
+	dataPath := args[0]
+	uncleanRootfs := args[1]
+
+	consolePath := ""
+	if len(args) == 3 {
+		consolePath = args[2]
+	}
+
+	if err := namespaces.SetupContainer(config, dataPath, uncleanRootfs, consolePath); err != nil {
+		log.Fatalf("failed to nsenter setup: %s", err)
+	}
+}

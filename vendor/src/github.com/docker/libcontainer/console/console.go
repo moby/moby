@@ -13,7 +13,7 @@ import (
 )
 
 // Setup initializes the proper /dev/console inside the rootfs path
-func Setup(rootfs, consolePath, mountLabel string) error {
+func Setup(rootfs, consolePath, mountLabel string, hostRootUid, hostRootGid int) error {
 	oldMask := syscall.Umask(0000)
 	defer syscall.Umask(oldMask)
 
@@ -21,7 +21,7 @@ func Setup(rootfs, consolePath, mountLabel string) error {
 		return err
 	}
 
-	if err := os.Chown(consolePath, 0, 0); err != nil {
+	if err := os.Chown(consolePath, hostRootUid, hostRootGid); err != nil {
 		return err
 	}
 

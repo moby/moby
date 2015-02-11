@@ -39,6 +39,11 @@ func (v *Veth) Create(n *Network, nspid int, networkState *NetworkState) error {
 	if err := SetMtu(name1, n.Mtu); err != nil {
 		return err
 	}
+	if n.HairpinMode {
+		if err := SetHairpinMode(name1, true); err != nil {
+			return err
+		}
+	}
 	if err := InterfaceUp(name1); err != nil {
 		return err
 	}

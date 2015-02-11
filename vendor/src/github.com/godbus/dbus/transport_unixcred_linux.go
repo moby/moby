@@ -1,4 +1,7 @@
-// +build !darwin
+// The UnixCredentials system call is currently only implemented on Linux
+// http://golang.org/src/pkg/syscall/sockcmsg_linux.go
+// https://golang.org/s/go1.4-syscall
+// http://code.google.com/p/go/source/browse/unix/sockcmsg_linux.go?repo=sys
 
 package dbus
 

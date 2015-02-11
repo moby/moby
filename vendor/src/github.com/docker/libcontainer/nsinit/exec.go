@@ -84,7 +84,7 @@ func startInExistingContainer(config *libcontainer.Config, state *libcontainer.S
 	)
 	signal.Notify(sigc)
 
-	if config.Tty {
+	if config.Tty && action != "setup" {
 		stdin = nil
 		stdout = nil
 		stderr = nil
@@ -143,6 +143,10 @@ func startContainer(container *libcontainer.Config, dataPath string, args []stri
 		return cmd
 	}
 
+	setupCommand := func(container *libcontainer.Config, console, dataPath, init string) *exec.Cmd {
+		return namespaces.DefaultSetupCommand(container, console, dataPath, init)
+	}
+
 	var (
 		master  *os.File
 		console string
@@ -189,7 +193,7 @@ func startContainer(container *libcontainer.Config, dataPath string, args []stri
 		}()
 	}
 
-	return namespaces.Exec(container, stdin, stdout, stderr, console, dataPath, args, createCommand, startCallback)
+	return namespaces.Exec(container, stdin, stdout, stderr, console, dataPath, args, createCommand, setupCommand, startCallback)
 }
 
 func resizeTty(master *os.File) {
