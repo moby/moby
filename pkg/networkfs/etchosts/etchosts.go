@@ -18,8 +18,9 @@ func (r Record) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+var defaultLocalhost = Record{Hosts: "localhost", IP: "127.0.0.1"}
+
 var defaultContent = []Record{
-	{Hosts: "localhost", IP: "127.0.0.1"},
 	{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
 	{Hosts: "ip6-localnet", IP: "fe00::0"},
 	{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
@@ -29,6 +30,7 @@ var defaultContent = []Record{
 
 func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 	content := bytes.NewBuffer(nil)
+	localhostRecord := defaultLocalhost
 	if IP != "" {
 		var mainRec Record
 		mainRec.IP = IP
@@ -40,6 +42,12 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 		if _, err := mainRec.WriteTo(content); err != nil {
 			return err
 		}
+	} else {
+		localhostRecord.Hosts = fmt.Sprintf("%s %s", defaultLocalhost.Hosts, hostname)
+	}
+
+	if _, err := localhostRecord.WriteTo(content); err != nil {
+		return err
 	}
 
 	for _, r := range defaultContent {
