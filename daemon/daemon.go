@@ -440,7 +440,9 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 		for {
 			select {
 			case event := <-watcher.Events:
-				if event.Op&fsnotify.Write == fsnotify.Write {
+				if event.Name == "/etc/resolv.conf" &&
+					(event.Op&fsnotify.Write == fsnotify.Write ||
+						event.Op&fsnotify.Create == fsnotify.Create) {
 					// verify a real change happened before we go further--a file write may have happened
 					// without an actual change to the file
 					updatedResolvConf, newResolvConfHash, err := resolvconf.GetIfChanged()
@@ -473,7 +475,7 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 		}
 	}()
 
-	if err := watcher.Add("/etc/resolv.conf"); err != nil {
+	if err := watcher.Add("/etc"); err != nil {
 		return err
 	}
 	return nil
