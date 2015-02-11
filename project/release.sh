@@ -292,7 +292,7 @@ fi
 echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
 
 # Then import the repository key
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys $gpgFingerprint
+apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys $gpgFingerprint
 
 # Install docker
 apt-get update
