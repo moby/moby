@@ -15,9 +15,15 @@ type BlkioGroup struct {
 }
 
 func (s *BlkioGroup) Set(d *data) error {
-	// we just want to join this group even though we don't set anything
-	if _, err := d.join("blkio"); err != nil && !cgroups.IsNotFound(err) {
+	dir, err := d.join("blkio")
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
+	}
+
+	if d.c.BlkioWeight != 0 {
+		if err := writeFile(dir, "blkio.weight", strconv.FormatInt(d.c.BlkioWeight, 10)); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -25,7 +25,7 @@ type mount struct {
 
 // InitializeMountNamespace sets up the devices, mount points, and filesystems for use inside a
 // new mount namespace.
-func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountConfig *MountConfig) error {
+func InitializeMountNamespace(rootfs, console string, sysReadonly bool, hostRootUid, hostRootGid int, mountConfig *MountConfig) error {
 	var (
 		err  error
 		flag = syscall.MS_PRIVATE
@@ -58,14 +58,17 @@ func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountCon
 		return fmt.Errorf("create device nodes %s", err)
 	}
 
-	if err := SetupPtmx(rootfs, console, mountConfig.MountLabel); err != nil {
+	if err := SetupPtmx(rootfs, console, mountConfig.MountLabel, hostRootUid, hostRootGid); err != nil {
 		return err
 	}
 
 	// stdin, stdout and stderr could be pointing to /dev/null from parent namespace.
 	// Re-open them inside this namespace.
-	if err := reOpenDevNull(rootfs); err != nil {
-		return fmt.Errorf("Failed to reopen /dev/null %s", err)
+	// FIXME: Need to fix this for user namespaces.
+	if hostRootUid == 0 {
+		if err := reOpenDevNull(rootfs); err != nil {
+			return fmt.Errorf("Failed to reopen /dev/null %s", err)
+		}
 	}
 
 	if err := setupDevSymlinks(rootfs); err != nil {
@@ -79,7 +82,7 @@ func InitializeMountNamespace(rootfs, console string, sysReadonly bool, mountCon
 	if mountConfig.NoPivotRoot {
 		err = MsMoveRoot(rootfs)
 	} else {
-		err = PivotRoot(rootfs)
+		err = PivotRoot(rootfs, mountConfig.PivotDir)
 	}
 
 	if err != nil {

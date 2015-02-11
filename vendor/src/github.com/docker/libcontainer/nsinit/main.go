@@ -28,6 +28,11 @@ func init() {
 		Usage:  "display the container's network interfaces",
 		Action: nsenterIp,
 	}
+
+	argvs["setup"] = &rFunc{
+		Usage:  "finish setting up init before it is ready to exec",
+		Action: nsenterSetup,
+	}
 }
 
 func main() {

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <getopt.h>
 
@@ -84,6 +85,12 @@ void print_usage()
 		"nsenter --nspid <pid> --console <console> -- cmd1 arg1 arg2...\n");
 }
 
+void child_handler(int sig)
+{
+	while (waitpid(-1, NULL, WNOHANG) > 0) {
+	}
+}
+
 void nsenter()
 {
 	int argc, c;
@@ -100,6 +107,15 @@ void nsenter()
 #ifdef PR_SET_CHILD_SUBREAPER
 	if (prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) == -1) {
 		pr_perror("Failed to set child subreaper");
+		exit(1);
+	}
+	// setup SIGCHLD handler to reap zombie processes
+	struct sigaction sa;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &child_handler;
+	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+		pr_perror("Failed to set SIGCHLD handler");
 		exit(1);
 	}
 #endif

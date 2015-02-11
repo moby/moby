@@ -38,6 +38,12 @@ type Network struct {
 	// container's interfaces if a pair is created, specifically in the case of type veth
 	// Note: This does not apply to loopback interfaces.
 	TxQueueLen int `json:"txqueuelen,omitempty"`
+
+	// HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
+	// bridge port in the case of type veth
+	// Note: This is unsupported on some systems.
+	// Note: This does not apply to loopback interfaces.
+	HairpinMode bool `json:"hairpin_mode"`
 }
 
 // Struct describing the network specific runtime state that will be maintained by libcontainer for all running containers

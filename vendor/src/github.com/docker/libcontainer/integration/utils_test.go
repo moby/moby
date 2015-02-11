@@ -90,6 +90,6 @@ func runContainer(config *libcontainer.Config, console string, args ...string) (
 
 	buffers = newStdBuffers()
 	exitCode, err = namespaces.Exec(config, buffers.Stdin, buffers.Stdout, buffers.Stderr,
-		console, config.RootFs, args, namespaces.DefaultCreateCommand, nil)
+		console, config.RootFs, args, namespaces.DefaultCreateCommand, namespaces.DefaultSetupCommand, nil)
 	return
 }

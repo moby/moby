@@ -115,6 +115,7 @@ func TestExecInRlimit(t *testing.T) {
 func startLongRunningContainer(config *libcontainer.Config) (*exec.Cmd, string, chan error) {
 	containerErr := make(chan error, 1)
 	containerCmd := &exec.Cmd{}
+	setupContainerCmd := &exec.Cmd{}
 	var statePath string
 
 	createCmd := func(container *libcontainer.Config, console, dataPath, init string,
@@ -124,6 +125,12 @@ func startLongRunningContainer(config *libcontainer.Config) (*exec.Cmd, string, 
 		return containerCmd
 	}
 
+	setupCmd := func(container *libcontainer.Config, console, dataPath, init string) *exec.Cmd {
+		setupContainerCmd = namespaces.DefaultSetupCommand(container, console, dataPath, init)
+		statePath = dataPath
+		return setupContainerCmd
+	}
+
 	var containerStart sync.WaitGroup
 	containerStart.Add(1)
 	go func() {
@@ -131,7 +138,7 @@ func startLongRunningContainer(config *libcontainer.Config) (*exec.Cmd, string, 
 		_, err := namespaces.Exec(config,
 			buffers.Stdin, buffers.Stdout, buffers.Stderr,
 			"", config.RootFs, []string{"sleep", "10"},
-			createCmd, containerStart.Done)
+			createCmd, setupCmd, containerStart.Done)
 		containerErr <- err
 	}()
 	containerStart.Wait()
