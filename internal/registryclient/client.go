@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/registry/api/v2"
 )
 
 // Client implements the client interface to the registry http api
