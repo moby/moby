@@ -227,6 +227,7 @@ func populateCommand(c *Container, env []string) error {
 				GlobalIPv6Address:    network.GlobalIPv6Address,
 				GlobalIPv6PrefixLen:  network.GlobalIPv6PrefixLen,
 				IPv6Gateway:          network.IPv6Gateway,
+				HairpinMode:          network.HairpinMode,
 			}
 		}
 	case "container":
@@ -556,6 +557,7 @@ func (container *Container) AllocateNetwork() error {
 	container.NetworkSettings.GlobalIPv6Address = env.Get("GlobalIPv6")
 	container.NetworkSettings.GlobalIPv6PrefixLen = env.GetInt("GlobalIPv6PrefixLen")
 	container.NetworkSettings.IPv6Gateway = env.Get("IPv6Gateway")
+	container.NetworkSettings.HairpinMode = env.GetBool("HairpinMode")
 
 	return nil
 }

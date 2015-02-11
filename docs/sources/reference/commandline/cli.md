@@ -107,6 +107,7 @@ expect an integer, and they can only be specified once.
       --tlscert="/home/sven/.docker/cert.pem"    Path to TLS certificate file
       --tlskey="/home/sven/.docker/key.pem"      Path to TLS key file
       --tlsverify=false                          Use TLS and verify the remote
+      --userland-proxy=true                      Use userland proxy for loopback traffic
       -v, --version=false                        Print version information and quit
 
 Options with [] may be specified multiple times.

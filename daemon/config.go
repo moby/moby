@@ -44,6 +44,7 @@ type Config struct {
 	Context                     map[string][]string
 	TrustKeyPath                string
 	Labels                      []string
+	EnableUserlandProxy         bool
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -75,6 +76,7 @@ func (config *Config) InstallFlags() {
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "DNS server to use")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "DNS search domains to use")
 	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon")
+	flag.BoolVar(&config.EnableUserlandProxy, []string{"-userland-proxy"}, false, "Use userland proxy for loopback traffic")
 }
 
 func getDefaultNetworkMtu() int {

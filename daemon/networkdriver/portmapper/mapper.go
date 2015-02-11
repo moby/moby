@@ -38,7 +38,7 @@ func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
 
-func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err error) {
+func Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -62,7 +62,9 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 			container: container,
 		}
 
-		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
+		if useProxy {
+			proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
+		}
 	case *net.UDPAddr:
 		proto = "udp"
 		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
@@ -75,7 +77,9 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 			container: container,
 		}
 
-		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
+		if useProxy {
+			proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
+		}
 	default:
 		return nil, ErrUnknownBackendAddressType
 	}
@@ -99,7 +103,9 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 
 	cleanup := func() error {
 		// need to undo the iptables rules before we return
-		proxy.Stop()
+		if proxy != nil {
+			proxy.Stop()
+		}
 		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
 		if err := portallocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
 			return err
@@ -108,13 +114,15 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		return nil
 	}
 
-	if err := proxy.Start(); err != nil {
-		if err := cleanup(); err != nil {
-			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
+	if proxy != nil {
+		if err := proxy.Start(); err != nil {
+			if err := cleanup(); err != nil {
+				return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
+			}
+			return nil, err
 		}
-		return nil, err
+		m.userlandProxy = proxy
 	}
-	m.userlandProxy = proxy
 	currentMappings[key] = m
 	return m.host, nil
 }
@@ -129,7 +137,9 @@ func Unmap(host net.Addr) error {
 		return ErrPortNotMapped
 	}
 
-	data.userlandProxy.Stop()
+	if data.userlandProxy != nil {
+		data.userlandProxy.Stop()
+	}
 
 	delete(currentMappings, key)
 
