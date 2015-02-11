@@ -71,8 +71,15 @@ name) matches the hostname you will use to connect to Docker:
 
 Next, we're going to sign the public key with our CA:
 
+Since tls connections can be made via IP address as well as dns name,
+this extension allows for your client to connect via IP address.  You will
+need to replace $YOUR_IP_ADDRESS with your IP address. If there
+is more than one simply continue to add them separated by commas.
+
+    $ echo subjectAltName = IP:$YOUR_PUBLIC_IP > extfile.cnf
+
     $ openssl x509 -req -days 365 -in server.csr -CA ca.pem -CAkey ca-key.pem \
-      -CAcreateserial -out server-cert.pem
+      -CAcreateserial -out server-cert.pem -extfile extfile.cnf
     Signature ok
     subject=/CN=your.host.com
     Getting CA Private Key
