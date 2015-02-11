@@ -392,6 +392,8 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 	if err != nil {
 		return err
 	}
+	defer arch.Close()
+
 	tf, err := s.graph.newTempFile()
 	if err != nil {
 		return err

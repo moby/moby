@@ -73,6 +73,8 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 				return nil, err
 			}
 
+			defer archive.Close()
+
 			tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version1)
 			if err != nil {
 				return nil, err
