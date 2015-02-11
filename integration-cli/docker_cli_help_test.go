@@ -58,8 +58,8 @@ func TestHelpWidth(t *testing.T) {
 			if len(line) > 80 {
 				t.Fatalf("Line is too long(%d chars):\n%s", len(line), line)
 			}
-			if home != "" && strings.Contains(line, home) {
-				t.Fatalf("Help for %q should use ~ instead of %q on:\n%s", command, home, line)
+			if scanForHome && strings.Contains(line, `=`+home) {
+				t.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
 			}
 			if runtime.GOOS != "windows" {
 				i := strings.Index(line, homedir.GetShortcutString())

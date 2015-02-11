@@ -24,7 +24,6 @@ import (
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/mount/nodes"
-	"github.com/docker/libcontainer/system"
 	"github.com/kr/pty"
 )
 
@@ -135,6 +134,15 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"--",
 		c.InitPath,
 	)
+	if c.Network.Interface != nil {
+		params = append(params,
+			"-g", c.Network.Interface.Gateway,
+			"-i", fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
+		)
+	}
+	params = append(params,
+		"-mtu", strconv.Itoa(c.Network.Mtu),
+	)
 
 	if c.ProcessConfig.User != "" {
 		params = append(params, "-u", c.ProcessConfig.User)
@@ -217,19 +225,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return terminate(err)
 	}
 
-	started, err := system.GetProcessStartTime(pid)
-	if err != nil {
-		return terminate(err)
-	}
 	cgroupPaths, err := cgroupPaths(c.ID)
 	if err != nil {
 		return terminate(err)
 	}
 
 	state := &libcontainer.State{
-		InitPid:       pid,
-		InitStartTime: started,
-		CgroupPaths:   cgroupPaths,
+		InitPid:     pid,
+		CgroupPaths: cgroupPaths,
 	}
 
 	if err := libcontainer.SaveState(dataPath, state); err != nil {
