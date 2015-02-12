@@ -19,7 +19,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -4828,7 +4828,6 @@ func TestBuildMissingArgs(t *testing.T) {
 	// Test to make sure that all Dockerfile commands (except the ones listed
 	// in skipCmds) will generate an error if no args are provided.
 	// Note: INSERT is deprecated so we exclude it because of that.
-
 	skipCmds := map[string]struct{}{
 		"CMD":        {},
 		"RUN":        {},
@@ -4838,15 +4837,13 @@ func TestBuildMissingArgs(t *testing.T) {
 
 	defer deleteAllContainers()
 
-	for cmd := range builder.EvaluateTable {
-		var dockerfile string
-
+	for _, cmd := range command.Commands {
 		cmd = strings.ToUpper(cmd)
-
 		if _, ok := skipCmds[cmd]; ok {
 			continue
 		}
 
+		var dockerfile string
 		if cmd == "FROM" {
 			dockerfile = cmd
 		} else {
