@@ -497,10 +497,11 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	var (
-		localName   = job.Args[0]
-		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders map[string][]string
+		localName     = job.Args[0]
+		allowInsecure = job.GetenvBool("allowInsecure")
+		sf            = utils.NewStreamFormatter(job.GetenvBool("json"))
+		authConfig    = &registry.AuthConfig{}
+		metaHeaders   map[string][]string
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
@@ -517,6 +518,10 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	defer s.poolRemove("push", repoInfo.LocalName)
+
+	if allowInsecure {
+		repoInfo.Index.Secure = false
+	}
 
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {

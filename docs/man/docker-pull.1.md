@@ -7,7 +7,7 @@ docker-pull - Pull an image or a repository from the registry
 # SYNOPSIS
 **docker pull**
 [**-a**|**--all-tags**[=*false*]]
-[**--help**] 
+[**--help**]
 NAME[:TAG]
 
 # DESCRIPTION
@@ -19,7 +19,9 @@ It is also possible to specify a non-default registry to pull from.
 
 # OPTIONS
 **-a**, **--all-tags**=*true*|*false*
-   Download all tagged images in the repository. The default is *false*.
+  Download all tagged images in the repository. The default is *false*.
+**-i**, **--insecure-registry**=*true*|*false*
+  Allow communication with insecure registries. The default is *false*.
 **--help**
   Print usage statement
 
@@ -51,9 +53,9 @@ It is also possible to specify a non-default registry to pull from.
 
     $ sudo docker pull registry.hub.docker.com/fedora:20
     Pulling repository fedora
-    3f2fed40e4b0: Download complete 
-    511136ea3c5a: Download complete 
-    fd241224e9cf: Download complete 
+    3f2fed40e4b0: Download complete
+    511136ea3c5a: Download complete
+    fd241224e9cf: Download complete
 
     Status: Downloaded newer image for registry.hub.docker.com/fedora:20
 
