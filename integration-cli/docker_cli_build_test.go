@@ -3877,7 +3877,7 @@ func TestBuildAddTarXz(t *testing.T) {
 		if err := tw.Close(); err != nil {
 			t.Fatalf("failed to close tar archive: %v", err)
 		}
-		xzCompressCmd := exec.Command("xz", "test.tar")
+		xzCompressCmd := exec.Command("xz", "-k", "test.tar")
 		xzCompressCmd.Dir = tmpDir
 		out, _, err := runCommandWithOutput(xzCompressCmd)
 		if err != nil {
@@ -3930,7 +3930,7 @@ func TestBuildAddTarXzGz(t *testing.T) {
 			t.Fatalf("failed to close tar archive: %v", err)
 		}
 
-		xzCompressCmd := exec.Command("xz", "test.tar")
+		xzCompressCmd := exec.Command("xz", "-k", "test.tar")
 		xzCompressCmd.Dir = tmpDir
 		out, _, err := runCommandWithOutput(xzCompressCmd)
 		if err != nil {
