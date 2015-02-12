@@ -65,7 +65,7 @@ uses. Be strategic and cautious about the number of layers you use.
 Whenever possible, ease later changes by sorting multi-line arguments
 alphanumerically. This will help you avoid duplication of packages and make the
 list much easier to update. This also makes PRs a lot easier to read and
-review. Adding a space before a backslash (`\`) helps as well. 
+review. Adding a space before a backslash (`\`) helps as well.
 
 Here’s an example from the [`buildpack-deps` image](https://github.com/docker-library/buildpack-deps):
 
@@ -291,26 +291,32 @@ auto-extraction capability, you should always use `COPY`.
 
 ### [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
 
-The best use for `ENTRYPOINT` is as the main command.
+The best use for `ENTRYPOINT` is to set the image's main command, allowing that
+image to be run as though it was that command (and then use `CMD` as the
+default flags).
 
-Let's start with an example, of an image for the cli tool `s3cmd`:
+Let's start with an example of an image for the command line tool `s3cmd`:
 
     ENTRYPOINT ["s3cmd"]
     CMD ["--help"]
 
-Now people who consume this image can easily run commands via syntax like the
-following:
+Now the image can be run like this to show the command's help:
 
-    $ docker run scmd ls s3://mybucket
+    $ docker run s3cmd
 
-This is nice because the image name can double as a refernce to the binary as
+Or using the right parameters to execute a command:
+
+    $ docker run s3cmd ls s3://mybucket
+
+This is useful because the image name can double as a reference to the binary as
 shown in the command above.
 
-People also often use `ENTRYPOINT` is as a helper script.
+The `ENTRYPOINT` instruction can also be used in combination with a helper
+script, allowing it to function in a similar way to the command above, even
+when starting the tool may require more than one step.
 
-For example, let’s look at the `Dockerfile` for the
-[Postgres Official Image](https://github.com/docker-library/postgres).
-It refers to the following script: 
+For example, the [Postgres Official Image](https://registry.hub.docker.com/_/postgres/)
+uses the following script as its `ENTRYPOINT`:
 
 ```bash
 #!/bin/bash
@@ -329,11 +335,33 @@ fi
 exec "$@"
 ```
 
-That script then gets copied into the container and run via `ENTRYPOINT` on
-container startup:
+> **Note**:
+> This script uses [the `exec` Bash command](http://wiki.bash-hackers.org/commands/builtin/exec)
+> so that the final running application becomes the container's PID 1. This allows
+> the application to receive any Unix signals sent to the container.
+> See the [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#ENTRYPOINT)
+> help for more details.
+
+
+The helper script is copied into the container and run via `ENTRYPOINT` on
+container start:
 
     COPY ./docker-entrypoint.sh /
     ENTRYPOINT ["/docker-entrypoint.sh"]
+
+This script allows the user to interact with Postgres in several ways.
+
+It can simply start Postgres:
+
+    $ docker run postgres
+
+Or, it can be used to run Postgres and pass parameters to the server:
+
+    $ docker run postgres postres --help
+
+Lastly, it could also be used to start a totally different tool, such Bash:
+
+    $ docker run --rm -it postgres bash
 
 ### [`VOLUME`](https://docs.docker.com/reference/builder/#volume)
 
