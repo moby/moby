@@ -89,8 +89,6 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 	testRequires(c, Network)
 
 	names := []string{
-		"docker.io/hello-world",
-		"index.docker.io/hello-world",
 		"library/hello-world",
 		"docker.io/library/hello-world",
 		"index.docker.io/library/hello-world",

@@ -98,7 +98,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 		return tr.RoundTripper.RoundTrip(orig)
 	}
 
-	req := transport.CloneRequest(orig)
+	req := cloneRequest(orig)
 	tr.mu.Lock()
 	tr.modReq[orig] = req
 	tr.mu.Unlock()
@@ -164,12 +164,11 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
-	if endpoint.VersionString(1) != IndexServerAddress() && endpoint.URL.Scheme == "https" {
+	if endpoint.VersionString(1) != INDEXSERVER && endpoint.URL.Scheme == "https" {
 		info, err := endpoint.Ping()
 		if err != nil {
 			return nil, err
 		}
-
 		if info.Standalone && authConfig != nil {
 			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
 			alwaysSetBasicAuth = true
@@ -265,7 +264,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %v", err)
 	}
-	// TODO: why are we doing retries at this level?
+	// TODO(tiborvass): why are we doing retries at this level?
 	// These retries should be generic to both v1 and v2
 	for i := 1; i <= retries; i++ {
 		statusCode = 0
@@ -432,7 +431,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 
 	// Forge a better object from the retrieved data
-	imgsData := make(map[string]*ImgData)
+	imgsData := make(map[string]*ImgData, len(remoteChecksums))
 	for _, elem := range remoteChecksums {
 		imgsData[elem.ID] = elem
 	}
