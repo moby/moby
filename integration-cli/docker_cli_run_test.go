@@ -862,7 +862,8 @@ func TestRunEnvironmentErase(t *testing.T) {
 	// not set in our local env that they're removed (if present) in
 	// the container
 	cmd := exec.Command(dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env")
-	cmd.Env = []string{}
+	cmd.Env = appendDockerHostEnv([]string{})
+
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
@@ -900,7 +901,8 @@ func TestRunEnvironmentOverride(t *testing.T) {
 	// Test to make sure that when we use -e on env vars that are
 	// already in the env that we're overriding them
 	cmd := exec.Command(dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env")
-	cmd.Env = []string{"HOSTNAME=bar"}
+	cmd.Env = appendDockerHostEnv([]string{"HOSTNAME=bar"})
+
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		t.Fatal(err, out)
