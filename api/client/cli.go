@@ -155,7 +155,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 
 	// The transport is created here for reuse during the client session
 	tr := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: tlsConfig,
 	}
 
@@ -168,6 +167,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 			return net.DialTimeout(proto, addr, timeout)
 		}
 	} else {
+		tr.Proxy = http.ProxyFromEnvironment
 		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
 	}
 
