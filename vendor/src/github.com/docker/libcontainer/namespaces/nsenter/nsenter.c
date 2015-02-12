@@ -2,6 +2,10 @@
 //
 // formated with indent -linux nsenter.c
 
+#define _GNU_SOURCE
+#include <sched.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
@@ -17,7 +21,7 @@
 
 #define pr_perror(fmt, ...) fprintf(stderr, "nsenter: " fmt ": %m\n", ##__VA_ARGS__)
 
-static const kBufSize = 256;
+static const int kBufSize = 256;
 static const char *kNsEnter = "nsenter";
 
 void get_args(int *argc, char ***argv)
