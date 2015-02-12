@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
@@ -45,35 +46,33 @@ var (
 
 // Environment variable interpolation will happen on these statements only.
 var replaceEnvAllowed = map[string]struct{}{
-	"env":     {},
-	"add":     {},
-	"copy":    {},
-	"workdir": {},
-	"expose":  {},
-	"volume":  {},
-	"user":    {},
+	command.Env:     {},
+	command.Add:     {},
+	command.Copy:    {},
+	command.Workdir: {},
+	command.Expose:  {},
+	command.Volume:  {},
+	command.User:    {},
 }
 
-// EvaluateTable is public so that we can get the list of Dockerfile
-// commands from within the test cases
-var EvaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
+var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
-	EvaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
-		"env":        env,
-		"maintainer": maintainer,
-		"add":        add,
-		"copy":       dispatchCopy, // copy() is a go builtin
-		"from":       from,
-		"onbuild":    onbuild,
-		"workdir":    workdir,
-		"run":        run,
-		"cmd":        cmd,
-		"entrypoint": entrypoint,
-		"expose":     expose,
-		"volume":     volume,
-		"user":       user,
-		"insert":     insert,
+	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
+		command.Env:        env,
+		command.Maintainer: maintainer,
+		command.Add:        add,
+		command.Copy:       dispatchCopy, // copy() is a go builtin
+		command.From:       from,
+		command.Onbuild:    onbuild,
+		command.Workdir:    workdir,
+		command.Run:        run,
+		command.Cmd:        cmd,
+		command.Entrypoint: entrypoint,
+		command.Expose:     expose,
+		command.Volume:     volume,
+		command.User:       user,
+		command.Insert:     insert,
 	}
 }
 
@@ -226,7 +225,7 @@ func (b *Builder) readDockerfile(origFile string) error {
 // Child[Node, Node, Node] where Child is from parser.Node.Children and each
 // node comes from parser.Node.Next. This forms a "line" with a statement and
 // arguments and we process them in this normalized form by hitting
-// EvaluateTable with the leaf nodes of the command and the Builder object.
+// evaluateTable with the leaf nodes of the command and the Builder object.
 //
 // ONBUILD is a special case; in this case the parser will emit:
 // Child[Node, Child[Node, Node...]] where the first node is the literal
@@ -282,7 +281,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
-	if f, ok := EvaluateTable[cmd]; ok {
+	if f, ok := evaluateTable[cmd]; ok {
 		return f(b, strList, attrs, original)
 	}
 
