@@ -311,7 +311,7 @@ func TestFollowSymlinkEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res != wd {
-		t.Fatal("expected %q got %q", wd, res)
+		t.Fatalf("expected %q got %q", wd, res)
 	}
 }
 

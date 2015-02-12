@@ -484,9 +484,7 @@ func serveRequestUsingVersion(method, target string, version version.Version, bo
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ServeRequest(eng, version, r, req); err != nil {
-		t.Fatal(err)
-	}
+	ServeRequest(eng, version, r, req)
 	return r
 }
 

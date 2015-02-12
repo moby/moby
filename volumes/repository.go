@@ -57,9 +57,10 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 	}
 	path = filepath.Clean(path)
 
-	path, err = filepath.EvalSymlinks(path)
-	if err != nil {
-		return nil, err
+	// Ignore the error here since the path may not exist
+	// Really just want to make sure the path we are using is real(or non-existant)
+	if cleanPath, err := filepath.EvalSymlinks(path); err == nil {
+		path = cleanPath
 	}
 
 	v := &Volume{
@@ -87,16 +88,10 @@ func (r *Repository) restore() error {
 
 	for _, v := range dir {
 		id := v.Name()
-		path, err := r.driver.Get(id, "")
-		if err != nil {
-			log.Debugf("Could not find volume for %s: %v", id, err)
-			continue
-		}
 		vol := &Volume{
 			ID:         id,
 			configPath: r.configPath + "/" + id,
 			containers: make(map[string]struct{}),
-			Path:       path,
 		}
 		if err := vol.FromDisk(); err != nil {
 			if !os.IsNotExist(err) {
@@ -175,13 +170,11 @@ func (r *Repository) Delete(path string) error {
 		return err
 	}
 
-	if volume.IsBindMount {
-		return nil
-	}
-
-	if err := r.driver.Remove(volume.ID); err != nil {
-		if !os.IsNotExist(err) {
-			return err
+	if !volume.IsBindMount {
+		if err := r.driver.Remove(volume.ID); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
 

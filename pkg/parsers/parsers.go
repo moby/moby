@@ -104,3 +104,28 @@ func ParseKeyValueOpt(opt string) (string, string, error) {
 	}
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
+
+func ParsePortRange(ports string) (uint64, uint64, error) {
+	if ports == "" {
+		return 0, 0, fmt.Errorf("Empty string specified for ports.")
+	}
+	if !strings.Contains(ports, "-") {
+		start, err := strconv.ParseUint(ports, 10, 16)
+		end := start
+		return start, end, err
+	}
+
+	parts := strings.Split(ports, "-")
+	start, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, 0, err
+	}
+	if end < start {
+		return 0, 0, fmt.Errorf("Invalid range specified for the Port: %s", ports)
+	}
+	return start, end, nil
+}

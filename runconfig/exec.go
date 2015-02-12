@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/utils"
 )
 
 type ExecConfig struct {
@@ -48,14 +49,12 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		execCmd   []string
 		container string
 	)
-	if err := cmd.Parse(args); err != nil {
+	cmd.Require(flag.Min, 2)
+	if err := utils.ParseFlags(cmd, args, true); err != nil {
 		return nil, err
 	}
-	parsedArgs := cmd.Args()
-	if len(parsedArgs) < 2 {
-		return nil, fmt.Errorf("not enough arguments to create exec command")
-	}
 	container = cmd.Arg(0)
+	parsedArgs := cmd.Args()
 	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{

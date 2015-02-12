@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	APIVERSION        version.Version = "1.16"
-	DEFAULTHTTPHOST                   = "127.0.0.1"
-	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
+	APIVERSION            version.Version = "1.17"
+	DEFAULTHTTPHOST                       = "127.0.0.1"
+	DEFAULTUNIXSOCKET                     = "/var/run/docker.sock"
+	DefaultDockerfileName string          = "Dockerfile"
 )
 
 func ValidateHost(val string) (string, error) {
@@ -54,7 +55,7 @@ func MatchesContentType(contentType, expectedType string) bool {
 // LoadOrCreateTrustKey attempts to load the libtrust key at the given path,
 // otherwise generates a new one
 func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
-	err := os.MkdirAll(path.Dir(trustKeyPath), 0700)
+	err := os.MkdirAll(filepath.Dir(trustKeyPath), 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 			return nil, fmt.Errorf("Error saving key file: %s", err)
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("Error loading key file: %s", err)
+		return nil, fmt.Errorf("Error loading key file %s: %s", trustKeyPath, err)
 	}
 	return trustKey, nil
 }

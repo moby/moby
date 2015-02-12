@@ -7,6 +7,7 @@ docker-search - Search the Docker Hub for images
 # SYNOPSIS
 **docker search**
 [**--automated**[=*false*]]
+[**--help**]
 [**--no-trunc**[=*false*]]
 [**-s**|**--stars**[=*0*]]
 TERM
@@ -18,9 +19,14 @@ of images returned displays the name, description (truncated by default),
 number of stars awarded, whether the image is official, and whether it
 is automated.
 
+*Note* - Search queries will only return up to 25 results
+
 # OPTIONS
 **--automated**=*true*|*false*
    Only show automated builds. The default is *false*.
+
+**--help**
+  Print usage statement
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.

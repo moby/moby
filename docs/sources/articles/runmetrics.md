@@ -105,9 +105,9 @@ The first half (without the `total_` prefix) contains statistics relevant
 to the processes within the cgroup, excluding sub-cgroups. The second half
 (with the `total_` prefix) includes sub-cgroups as well.
 
-Some metrics are "gauges", i.e. values that can increase or decrease
+Some metrics are "gauges", i.e., values that can increase or decrease
 (e.g., swap, the amount of swap space used by the members of the cgroup).
-Some others are "counters", i.e. values that can only go up, because
+Some others are "counters", i.e., values that can only go up, because
 they represent occurrences of a specific event (e.g., pgfault, which
 indicates the number of page faults which happened since the creation of
 the cgroup; this number can never decrease).
@@ -211,7 +211,7 @@ For each container, you will find a pseudo-file `cpuacct.stat`,
 containing the CPU usage accumulated by the processes of the container,
 broken down between `user` and `system` time. If you're not familiar
 with the distinction, `user` is the time during which the processes were
-in direct control of the CPU (i.e. executing process code), and `system`
+in direct control of the CPU (i.e., executing process code), and `system`
 is the time during which the CPU was executing system calls on behalf of
 those processes.
 
@@ -366,7 +366,7 @@ Please review [*Enumerating Cgroups*](#enumerating-cgroups) to learn how to find
 the cgroup of a process running in the container of which you want to
 measure network usage. From there, you can examine the pseudo-file named
 `tasks`, which contains the PIDs that are in the
-control group (i.e. in the container). Pick any one of them.
+control group (i.e., in the container). Pick any one of them.
 
 Putting everything together, if the "short ID" of a container is held in
 the environment variable `$CID`, then you can do this:

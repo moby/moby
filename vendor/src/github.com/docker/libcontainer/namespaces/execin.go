@@ -73,6 +73,11 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 		return terminate(err)
 	}
 
+	// finish cgroups' setup, unblock the child process.
+	if _, err := parent.WriteString("1"); err != nil {
+		return terminate(err)
+	}
+
 	if err := json.NewEncoder(parent).Encode(container); err != nil {
 		return terminate(err)
 	}
@@ -95,6 +100,10 @@ func FinalizeSetns(container *libcontainer.Config, args []string) error {
 	// clear the current processes env and replace it with the environment defined on the container
 	if err := LoadContainerEnvironment(container); err != nil {
 		return err
+	}
+
+	if err := setupRlimits(container); err != nil {
+		return fmt.Errorf("setup rlimits %s", err)
 	}
 
 	if err := FinalizeNamespace(container); err != nil {

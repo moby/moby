@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,13 +12,55 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
 )
+
+func TestBuildJSONEmptyRun(t *testing.T) {
+	name := "testbuildjsonemptyrun"
+	defer deleteImages(name)
+
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    RUN []
+    `,
+		true)
+
+	if err != nil {
+		t.Fatal("error when dealing with a RUN statement with empty JSON array")
+	}
+
+	logDone("build - RUN with an empty array should not panic")
+}
+
+func TestBuildEmptyWhitespace(t *testing.T) {
+	name := "testbuildemptywhitespace"
+	defer deleteImages(name)
+
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    RUN 
+      quux \
+      bar
+    `,
+		true)
+
+	if err == nil {
+		t.Fatal("no error when dealing with a RUN statement with no content on the same line")
+	}
+
+	logDone("build - statements with whitespace and no content should generate a parse error")
+}
 
 func TestBuildShCmdJSONEntrypoint(t *testing.T) {
 	name := "testbuildshcmdjsonentrypoint"
@@ -734,7 +777,7 @@ RUN mkdir /exists
 RUN touch /exists/exists_file
 RUN chown -R dockerio.dockerio /exists
 COPY test_file1 test_file2 /exists/
-ADD test_file3 test_file4 https://docker.com/robots.txt /exists/
+ADD test_file3 test_file4 https://dockerproject.com/robots.txt /exists/
 RUN [ $(ls -l / | grep exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
 RUN [ $(ls -l /exists/test_file1 | awk '{print $3":"$4}') = 'root:root' ]
 RUN [ $(ls -l /exists/test_file2 | awk '{print $3":"$4}') = 'root:root' ]
@@ -759,7 +802,7 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatal(err)
 	}
-	logDone("build - mulitple file copy/add tests")
+	logDone("build - multiple file copy/add tests")
 }
 
 func TestBuildAddMultipleFilesToFile(t *testing.T) {
@@ -767,7 +810,7 @@ func TestBuildAddMultipleFilesToFile(t *testing.T) {
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
 	ADD file1.txt file2.txt test
-        `,
+	`,
 		map[string]string{
 			"file1.txt": "test1",
 			"file2.txt": "test1",
@@ -779,10 +822,33 @@ func TestBuildAddMultipleFilesToFile(t *testing.T) {
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
 	}
 
 	logDone("build - multiple add files to file")
+}
+
+func TestBuildJSONAddMultipleFilesToFile(t *testing.T) {
+	name := "testjsonaddmultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	ADD ["file1.txt", "file2.txt", "test"]
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file json syntax")
 }
 
 func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
@@ -790,7 +856,7 @@ func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
 	ADD file*.txt test
-        `,
+	`,
 		map[string]string{
 			"file1.txt": "test1",
 			"file2.txt": "test1",
@@ -802,10 +868,33 @@ func TestBuildAddMultipleFilesToFileWild(t *testing.T) {
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
 	}
 
 	logDone("build - multiple add files to file wild")
+}
+
+func TestBuildJSONAddMultipleFilesToFileWild(t *testing.T) {
+	name := "testjsonaddmultiplefilestofilewild"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	ADD ["file*.txt", "test"]
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file wild json syntax")
 }
 
 func TestBuildCopyMultipleFilesToFile(t *testing.T) {
@@ -813,7 +902,7 @@ func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM scratch
 	COPY file1.txt file2.txt test
-        `,
+	`,
 		map[string]string{
 			"file1.txt": "test1",
 			"file2.txt": "test1",
@@ -825,10 +914,153 @@ func TestBuildCopyMultipleFilesToFile(t *testing.T) {
 
 	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
 	}
 
 	logDone("build - multiple copy files to file")
+}
+
+func TestBuildJSONCopyMultipleFilesToFile(t *testing.T) {
+	name := "testjsoncopymultiplefilestofile"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM scratch
+	COPY ["file1.txt", "file2.txt", "test"]
+	`,
+		map[string]string{
+			"file1.txt": "test1",
+			"file2.txt": "test1",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple copy files to file json syntax")
+}
+
+func TestBuildAddFileWithWhitespace(t *testing.T) {
+	name := "testaddfilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN mkdir "/test dir"
+RUN mkdir "/test_dir"
+ADD [ "test file1", "/test_file1" ]
+ADD [ "test_file2", "/test file2" ]
+ADD [ "test file3", "/test file3" ]
+ADD [ "test dir/test_file4", "/test_dir/test_file4" ]
+ADD [ "test_dir/test_file5", "/test dir/test_file5" ]
+ADD [ "test dir/test_file6", "/test dir/test_file6" ]
+RUN [ $(cat "/test_file1") = 'test1' ]
+RUN [ $(cat "/test file2") = 'test2' ]
+RUN [ $(cat "/test file3") = 'test3' ]
+RUN [ $(cat "/test_dir/test_file4") = 'test4' ]
+RUN [ $(cat "/test dir/test_file5") = 'test5' ]
+RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
+		map[string]string{
+			"test file1":          "test1",
+			"test_file2":          "test2",
+			"test file3":          "test3",
+			"test dir/test_file4": "test4",
+			"test_dir/test_file5": "test5",
+			"test dir/test_file6": "test6",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - add file with whitespace")
+}
+
+func TestBuildCopyFileWithWhitespace(t *testing.T) {
+	name := "testcopyfilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN mkdir "/test dir"
+RUN mkdir "/test_dir"
+COPY [ "test file1", "/test_file1" ]
+COPY [ "test_file2", "/test file2" ]
+COPY [ "test file3", "/test file3" ]
+COPY [ "test dir/test_file4", "/test_dir/test_file4" ]
+COPY [ "test_dir/test_file5", "/test dir/test_file5" ]
+COPY [ "test dir/test_file6", "/test dir/test_file6" ]
+RUN [ $(cat "/test_file1") = 'test1' ]
+RUN [ $(cat "/test file2") = 'test2' ]
+RUN [ $(cat "/test file3") = 'test3' ]
+RUN [ $(cat "/test_dir/test_file4") = 'test4' ]
+RUN [ $(cat "/test dir/test_file5") = 'test5' ]
+RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
+		map[string]string{
+			"test file1":          "test1",
+			"test_file2":          "test2",
+			"test file3":          "test3",
+			"test dir/test_file4": "test4",
+			"test_dir/test_file5": "test5",
+			"test dir/test_file6": "test6",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - copy file with whitespace")
+}
+
+func TestBuildAddMultipleFilesToFileWithWhitespace(t *testing.T) {
+	name := "testaddmultiplefilestofilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+	ADD [ "test file1", "test file2", "test" ]
+    `,
+		map[string]string{
+			"test file1": "test1",
+			"test file2": "test2",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple add files to file with whitespace")
+}
+
+func TestBuildCopyMultipleFilesToFileWithWhitespace(t *testing.T) {
+	name := "testcopymultiplefilestofilewithwhitespace"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+	COPY [ "test file1", "test file2", "test" ]
+        `,
+		map[string]string{
+			"test file1": "test1",
+			"test file2": "test2",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
+	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
+	}
+
+	logDone("build - multiple copy files to file with whitespace")
 }
 
 func TestBuildCopyWildcard(t *testing.T) {
@@ -1826,6 +2058,46 @@ func TestBuildWorkdirWithEnvVariables(t *testing.T) {
 	logDone("build - workdir with env variables")
 }
 
+func TestBuildRelativeCopy(t *testing.T) {
+	name := "testbuildrelativecopy"
+	defer deleteImages(name)
+	dockerfile := `
+		FROM busybox
+			WORKDIR /test1
+			WORKDIR test2
+			RUN [ "$PWD" = '/test1/test2' ]
+			COPY foo ./
+			RUN [ "$(cat /test1/test2/foo)" = 'hello' ]
+			ADD foo ./bar/baz
+			RUN [ "$(cat /test1/test2/bar/baz)" = 'hello' ]
+			COPY foo ./bar/baz2
+			RUN [ "$(cat /test1/test2/bar/baz2)" = 'hello' ]
+			WORKDIR ..
+			COPY foo ./
+			RUN [ "$(cat /test1/foo)" = 'hello' ]
+			COPY foo /test3/
+			RUN [ "$(cat /test3/foo)" = 'hello' ]
+			WORKDIR /test4
+			COPY . .
+			RUN [ "$(cat /test4/foo)" = 'hello' ]
+			WORKDIR /test5/test6
+			COPY foo ../
+			RUN [ "$(cat /test5/foo)" = 'hello' ]
+			`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - relative copy/add")
+}
+
 func TestBuildEnv(t *testing.T) {
 	name := "testbuildenv"
 	expected := "[PATH=/test:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
@@ -1940,6 +2212,85 @@ func TestBuildExpose(t *testing.T) {
 		t.Fatalf("Exposed ports %s, expected %s", res, expected)
 	}
 	logDone("build - expose")
+}
+
+func TestBuildExposeMorePorts(t *testing.T) {
+	// start building docker file with a large number of ports
+	portList := make([]string, 50)
+	line := make([]string, 100)
+	expectedPorts := make([]int, len(portList)*len(line))
+	for i := 0; i < len(portList); i++ {
+		for j := 0; j < len(line); j++ {
+			p := i*len(line) + j + 1
+			line[j] = strconv.Itoa(p)
+			expectedPorts[p-1] = p
+		}
+		if i == len(portList)-1 {
+			portList[i] = strings.Join(line, " ")
+		} else {
+			portList[i] = strings.Join(line, " ") + ` \`
+		}
+	}
+
+	dockerfile := `FROM scratch
+	EXPOSE {{range .}} {{.}}
+	{{end}}`
+	tmpl := template.Must(template.New("dockerfile").Parse(dockerfile))
+	buf := bytes.NewBuffer(nil)
+	tmpl.Execute(buf, portList)
+
+	name := "testbuildexpose"
+	defer deleteImages(name)
+	_, err := buildImage(name, buf.String(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if all the ports are saved inside Config.ExposedPorts
+	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exposedPorts map[string]interface{}
+	if err := json.Unmarshal([]byte(res), &exposedPorts); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range expectedPorts {
+		ep := fmt.Sprintf("%d/tcp", p)
+		if _, ok := exposedPorts[ep]; !ok {
+			t.Errorf("Port(%s) is not exposed", ep)
+		} else {
+			delete(exposedPorts, ep)
+		}
+	}
+	if len(exposedPorts) != 0 {
+		t.Errorf("Unexpected extra exposed ports %v", exposedPorts)
+	}
+	logDone("build - expose large number of ports")
+}
+
+func TestBuildExposeOrder(t *testing.T) {
+	buildID := func(name, exposed string) string {
+		_, err := buildImage(name, fmt.Sprintf(`FROM scratch
+		EXPOSE %s`, exposed), true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := inspectField(name, "Id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	id1 := buildID("testbuildexpose1", "80 2375")
+	id2 := buildID("testbuildexpose2", "2375 80")
+	defer deleteImages("testbuildexpose1", "testbuildexpose2")
+	if id1 != id2 {
+		t.Errorf("EXPOSE should invalidate the cache only when ports actually changed")
+	}
+	logDone("build - expose order")
 }
 
 func TestBuildEmptyEntrypointInheritance(t *testing.T) {
@@ -2157,6 +2508,46 @@ func TestBuildWithoutCache(t *testing.T) {
 		t.Fatal("The cache should have been invalided but hasn't.")
 	}
 	logDone("build - without cache")
+}
+
+func TestBuildConditionalCache(t *testing.T) {
+	name := "testbuildconditionalcache"
+	name2 := "testbuildconditionalcache2"
+	defer deleteImages(name, name2)
+
+	dockerfile := `
+		FROM busybox
+        ADD foo /tmp/`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"foo": "hello",
+	})
+
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatalf("Error building #1: %s", err)
+	}
+
+	if err := ctx.Add("foo", "bye"); err != nil {
+		t.Fatalf("Error modifying foo: %s", err)
+	}
+
+	id2, err := buildImageFromContext(name, ctx, false)
+	if err != nil {
+		t.Fatalf("Error building #2: %s", err)
+	}
+	if id2 == id1 {
+		t.Fatal("Should not have used the cache")
+	}
+
+	id3, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		t.Fatalf("Error building #3: %s", err)
+	}
+	if id3 != id2 {
+		t.Fatal("Should have used the cache")
+	}
+
+	logDone("build - conditional cache")
 }
 
 func TestBuildADDLocalFileWithCache(t *testing.T) {
@@ -2922,11 +3313,33 @@ docker.com>"
 		t.Fatal(err)
 	}
 
-	if res != "Docker IO <io@docker.com>" {
-		t.Fatal("Parsed string did not match the escaped string")
+	if res != "\"Docker IO <io@docker.com>\"" {
+		t.Fatalf("Parsed string did not match the escaped string. Got: %q", res)
 	}
 
 	logDone("build - validate escaping whitespace")
+}
+
+func TestBuildVerifyIntString(t *testing.T) {
+	// Verify that strings that look like ints are still passed as strings
+	name := "testbuildstringing"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  MAINTAINER 123
+  `, true)
+
+	out, rc, err := runCommandWithOutput(exec.Command(dockerBinary, "inspect", name))
+	if rc != 0 || err != nil {
+		t.Fatalf("Unexcepted error from inspect: rc: %v  err: %v", rc, err)
+	}
+
+	if !strings.Contains(out, "\"123\"") {
+		t.Fatalf("Output does not contain the int as a string:\n%s", out)
+	}
+
+	logDone("build - verify int/strings as strings")
 }
 
 func TestBuildDockerignore(t *testing.T) {
@@ -2987,26 +3400,134 @@ func TestBuildDockerignoringDockerfile(t *testing.T) {
 	name := "testbuilddockerignoredockerfile"
 	defer deleteImages(name)
 	dockerfile := `
-        FROM scratch`
+        FROM busybox
+		ADD . /tmp/
+		RUN ! ls /tmp/Dockerfile
+		RUN ls /tmp/.dockerignore`
 	ctx, err := fakeContext(dockerfile, map[string]string{
-		"Dockerfile":    "FROM scratch",
+		"Dockerfile":    dockerfile,
 		".dockerignore": "Dockerfile\n",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ctx.Close()
-	if _, err = buildImageFromContext(name, ctx, true); err == nil {
-		t.Fatalf("Didn't get expected error from ignoring Dockerfile")
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore Dockerfile correctly:%s", err)
 	}
 
 	// now try it with ./Dockerfile
 	ctx.Add(".dockerignore", "./Dockerfile\n")
-	if _, err = buildImageFromContext(name, ctx, true); err == nil {
-		t.Fatalf("Didn't get expected error from ignoring ./Dockerfile")
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore ./Dockerfile correctly:%s", err)
 	}
 
 	logDone("build - test .dockerignore of Dockerfile")
+}
+
+func TestBuildDockerignoringRenamedDockerfile(t *testing.T) {
+	name := "testbuilddockerignoredockerfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+		ADD . /tmp/
+		RUN ls /tmp/Dockerfile
+		RUN ! ls /tmp/MyDockerfile
+		RUN ls /tmp/.dockerignore`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    "Should not use me",
+		"MyDockerfile":  dockerfile,
+		".dockerignore": "MyDockerfile\n",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore MyDockerfile correctly:%s", err)
+	}
+
+	// now try it with ./MyDockerfile
+	ctx.Add(".dockerignore", "./MyDockerfile\n")
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore ./MyDockerfile correctly:%s", err)
+	}
+
+	logDone("build - test .dockerignore of renamed Dockerfile")
+}
+
+func TestBuildDockerignoringDockerignore(t *testing.T) {
+	name := "testbuilddockerignoredockerignore"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+		ADD . /tmp/
+		RUN ! ls /tmp/.dockerignore
+		RUN ls /tmp/Dockerfile`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    dockerfile,
+		".dockerignore": ".dockerignore\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't ignore .dockerignore correctly:%s", err)
+	}
+	logDone("build - test .dockerignore of .dockerignore")
+}
+
+func TestBuildDockerignoreTouchDockerfile(t *testing.T) {
+	var id1 string
+	var id2 string
+
+	name := "testbuilddockerignoretouchdockerfile"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+		ADD . /tmp/`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":    dockerfile,
+		".dockerignore": "Dockerfile\n",
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if id1, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+	if id1 != id2 {
+		t.Fatalf("Didn't use the cache - 1")
+	}
+
+	// Now make sure touching Dockerfile doesn't invalidate the cache
+	if err = ctx.Add("Dockerfile", dockerfile+"\n# hi"); err != nil {
+		t.Fatalf("Didn't add Dockerfile: %s", err)
+	}
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+	if id1 != id2 {
+		t.Fatalf("Didn't use the cache - 2")
+	}
+
+	// One more time but just 'touch' it instead of changing the content
+	if err = ctx.Add("Dockerfile", dockerfile+"\n# hi"); err != nil {
+		t.Fatalf("Didn't add Dockerfile: %s", err)
+	}
+	if id2, err = buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatalf("Didn't build it correctly:%s", err)
+	}
+	if id1 != id2 {
+		t.Fatalf("Didn't use the cache - 3")
+	}
+
+	logDone("build - test .dockerignore touch dockerfile")
 }
 
 func TestBuildDockerignoringWholeDir(t *testing.T) {
@@ -3781,9 +4302,10 @@ func TestBuildWithTabs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := "[\"/bin/sh\",\"-c\",\"echo\\u0009one\\u0009\\u0009two\"]"
-	if res != expected {
-		t.Fatalf("Missing tabs.\nGot:%s\nExp:%s", res, expected)
+	expected1 := `["/bin/sh","-c","echo\tone\t\ttwo"]`
+	expected2 := `["/bin/sh","-c","echo\u0009one\u0009\u0009two"]` // syntactically equivalent, and what Go 1.3 generates
+	if res != expected1 && res != expected2 {
+		t.Fatalf("Missing tabs.\nGot: %s\nExp: %s or %s", res, expected1, expected2)
 	}
 	logDone("build - with tabs")
 }
@@ -3799,7 +4321,7 @@ func TestBuildStderr(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stderr != "" {
-		t.Fatal("Stderr should have been empty, instead its: %q", stderr)
+		t.Fatalf("Stderr should have been empty, instead its: %q", stderr)
 	}
 	logDone("build - testing stderr")
 }
@@ -3947,4 +4469,190 @@ CMD cat /foo/file`,
 	}
 
 	logDone("build - volumes retain contents in build")
+}
+
+func TestBuildRenamedDockerfile(t *testing.T) {
+	defer deleteAllContainers()
+
+	ctx, err := fakeContext(`FROM busybox
+	RUN echo from Dockerfile`,
+		map[string]string{
+			"Dockerfile":       "FROM busybox\nRUN echo from Dockerfile",
+			"files/Dockerfile": "FROM busybox\nRUN echo from files/Dockerfile",
+			"files/dFile":      "FROM busybox\nRUN echo from files/dFile",
+			"dFile":            "FROM busybox\nRUN echo from dFile",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", "test1", ".")
+
+	if err != nil {
+		t.Fatalf("Failed to build: %s\n%s", out, err)
+	}
+	if !strings.Contains(out, "from Dockerfile") {
+		t.Fatalf("Should have used Dockerfile, output:%s", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-f", "files/Dockerfile", "-t", "test2", ".")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "from files/Dockerfile") {
+		t.Fatalf("Should have used files/Dockerfile, output:%s", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "--file=files/dFile", "-t", "test3", ".")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "from files/dFile") {
+		t.Fatalf("Should have used files/dFile, output:%s", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "--file=dFile", "-t", "test4", ".")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "from dFile") {
+		t.Fatalf("Should have used dFile, output:%s", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "--file=/etc/passwd", "-t", "test5", ".")
+
+	if err == nil {
+		t.Fatalf("Was supposed to fail to find passwd")
+	}
+
+	if !strings.Contains(out, "The Dockerfile (/etc/passwd) must be within the build context (.)") {
+		t.Fatalf("Wrong error message for passwd:%v", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir+"/files", "build", "-f", "../Dockerfile", "-t", "test5", "..")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "from Dockerfile") {
+		t.Fatalf("Should have used root Dockerfile, output:%s", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir+"/files", "build", "-f", ctx.Dir+"/files/Dockerfile", "-t", "test6", "..")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "from files/Dockerfile") {
+		t.Fatalf("Should have used files Dockerfile - 2, output:%s", out)
+	}
+
+	out, _, err = dockerCmdInDir(t, ctx.Dir+"/files", "build", "-f", "../Dockerfile", "-t", "test7", ".")
+
+	if err == nil || !strings.Contains(out, "must be within the build context") {
+		t.Fatalf("Should have failed with Dockerfile out of context")
+	}
+
+	out, _, err = dockerCmdInDir(t, "/tmp", "build", "-t", "test6", ctx.Dir)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "from Dockerfile") {
+		t.Fatalf("Should have used root Dockerfile, output:%s", out)
+	}
+
+	logDone("build - rename dockerfile")
+}
+
+func TestBuildFromOfficialNames(t *testing.T) {
+	name := "testbuildfromofficial"
+	fromNames := []string{
+		"busybox",
+		"docker.io/busybox",
+		"index.docker.io/busybox",
+		"library/busybox",
+		"docker.io/library/busybox",
+		"index.docker.io/library/busybox",
+	}
+	for idx, fromName := range fromNames {
+		imgName := fmt.Sprintf("%s%d", name, idx)
+		_, err := buildImage(imgName, "FROM "+fromName, true)
+		if err != nil {
+			t.Errorf("Build failed using FROM %s: %s", fromName, err)
+		}
+		deleteImages(imgName)
+	}
+	logDone("build - from official names")
+}
+
+func TestBuildDockerfileOutsideContext(t *testing.T) {
+	name := "testbuilddockerfileoutsidecontext"
+	tmpdir, err := ioutil.TempDir("", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	ctx := filepath.Join(tmpdir, "context")
+	if err := os.MkdirAll(ctx, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte("FROM busybox"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+	if err := os.Chdir(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "outsideDockerfile"), []byte("FROM busbox"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../outsideDockerfile", filepath.Join(ctx, "dockerfile1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(tmpdir, "outsideDockerfile"), filepath.Join(ctx, "dockerfile2")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link("../outsideDockerfile", filepath.Join(ctx, "dockerfile3")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(tmpdir, "outsideDockerfile"), filepath.Join(ctx, "dockerfile4")); err != nil {
+		t.Fatal(err)
+	}
+	for _, dockerfilePath := range []string{
+		"../outsideDockerfile",
+		filepath.Join(ctx, "dockerfile1"),
+		filepath.Join(ctx, "dockerfile2"),
+		filepath.Join(ctx, "dockerfile3"),
+		filepath.Join(ctx, "dockerfile4"),
+	} {
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "-t", name, "--no-cache", "-f", dockerfilePath, "."))
+		if err == nil {
+			t.Fatalf("Expected error with %s. Out: %s", dockerfilePath, out)
+		}
+		deleteImages(name)
+	}
+
+	os.Chdir(tmpdir)
+
+	// Path to Dockerfile should be resolved relative to working directory, not relative to context.
+	// There is a Dockerfile in the context, but since there is no Dockerfile in the current directory, the following should fail
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx))
+	if err == nil {
+		t.Fatalf("Expected error. Out: %s", out)
+	}
+	deleteImages(name)
+
+	logDone("build - Dockerfile outside context")
 }

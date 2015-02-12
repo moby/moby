@@ -65,7 +65,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 }
 
 func (r *Session) doRequest(req *http.Request) (*http.Response, *http.Client, error) {
-	return doRequest(req, r.jar, r.timeout, r.indexEndpoint.secure)
+	return doRequest(req, r.jar, r.timeout, r.indexEndpoint.IsSecure)
 }
 
 // Retrieve the history of a given image from the Registry.
@@ -102,22 +102,21 @@ func (r *Session) GetRemoteHistory(imgID, registry string, token []string) ([]st
 }
 
 // Check if an image exists in the Registry
-// TODO: This method should return the errors instead of masking them and returning false
-func (r *Session) LookupRemoteImage(imgID, registry string, token []string) bool {
-
+func (r *Session) LookupRemoteImage(imgID, registry string, token []string) error {
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
 	if err != nil {
-		log.Errorf("Error in LookupRemoteImage %s", err)
-		return false
+		return err
 	}
 	setTokenAuth(req, token)
 	res, _, err := r.doRequest(req)
 	if err != nil {
-		log.Errorf("Error in LookupRemoteImage %s", err)
-		return false
+		return err
 	}
 	res.Body.Close()
-	return res.StatusCode == 200
+	if res.StatusCode != 200 {
+		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
+	}
+	return nil
 }
 
 // Retrieve an image from the Registry.
@@ -585,7 +584,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexepected status code %d", res.StatusCode), res)
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
 	result := new(SearchResults)
 	err = json.NewDecoder(res.Body).Decode(result)

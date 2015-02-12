@@ -111,6 +111,7 @@ func (o *Output) Close() error {
 		}
 	}
 	o.tasks.Wait()
+	o.dests = nil
 	return firstErr
 }
 

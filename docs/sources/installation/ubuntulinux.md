@@ -17,15 +17,15 @@ Please read [*Docker and UFW*](#docker-and-ufw), if you plan to use [UFW
 ## Ubuntu Trusty 14.04 (LTS) (64-bit)
 
 Ubuntu Trusty comes with a 3.13.0 Linux kernel, and a `docker.io` package which
-installs Docker 0.9.1 and all its prerequisites from Ubuntu's repository.
+installs Docker 1.0.1 and all its prerequisites from Ubuntu's repository.
 
 > **Note**:
 > Ubuntu (and Debian) contain a much older KDE3/GNOME2 package called ``docker``, so the
-> package and the executable are called ``docker.io``.
+> Ubuntu-maintained package and executable are named ``docker.io``.
 
-### Installation
+### Ubuntu-maintained Package Installation
 
-To install the latest Ubuntu package (may not be the latest Docker release):
+To install the latest Ubuntu package (this is **not** the most recent Docker release):
 
     $ sudo apt-get update
     $ sudo apt-get install docker.io
@@ -33,6 +33,13 @@ To install the latest Ubuntu package (may not be the latest Docker release):
 Then, to enable tab-completion of Docker commands in BASH, either restart BASH or:
 
     $ source /etc/bash_completion.d/docker.io
+
+> **Note**:
+> Since the Ubuntu package is quite dated at this point, you may want to use
+> the following section to install the most recent release of Docker.
+> If you install the Docker version, you do not need to install ``docker.io`` from Ubuntu.
+
+### Docker-maintained Package Installation
 
 If you'd like to try the latest version of Docker:
 
@@ -73,21 +80,33 @@ To verify that everything has worked as expected:
 
 Which should download the `ubuntu` image, and then start `bash` in a container.
 
+Type `exit` to exit
+
+**Done!**, continue with the [User Guide](/userguide/).
+
+
 ## Ubuntu Precise 12.04 (LTS) (64-bit)
 
 This installation path should work at all times.
 
 ### Dependencies
 
-**Linux kernel 3.8**
+**Linux kernel 3.13**
 
-Due to a bug in LXC, Docker works best on the 3.8 kernel. Precise comes
-with a 3.2 kernel, so we need to upgrade it. The kernel you'll install
-when following these steps comes with AUFS built in. We also include the
-generic headers to enable packages that depend on them, like ZFS and the
-VirtualBox guest additions. If you didn't install the headers for your
-"precise" kernel, then you can skip these headers for the "raring"
-kernel. But it is safer to include them if you're not sure.
+For Ubuntu Precise, the currently recommended kernel version is 3.13.
+Ubuntu Precise installations with older kernels must be upgraded. The
+kernel you'll install when following these steps has AUFS built in.
+We also include the generic headers to enable packages that depend on them,
+like ZFS and the VirtualBox guest additions. If you didn't install the
+headers for your "precise" kernel, then you can skip these headers for the
+"trusty" kernel. If you're unsure, you should include the headers for safety.
+
+> **Warning**:
+> Kernels 3.8 and 3.11 are no longer supported by Canonical. Systems
+> running these kernels need to be updated using the instructions below.
+> Running Docker on these unsupported systems isn't supported either.
+> These old kernels are no longer patched for security vulnerabilities
+> and severe bugs which lead to data loss.
 
 Please read the installation instructions for backported kernels at
 Ubuntu.org to understand why you also need to install the Xorg packages
@@ -97,10 +116,10 @@ each version.
 
     # install the backported kernel
     $ sudo apt-get update
-    $ sudo apt-get install linux-image-generic-lts-raring linux-headers-generic-lts-raring
+    $ sudo apt-get install linux-image-generic-lts-trusty linux-headers-generic-lts-trusty
     
     # install the backported kernel and xorg if using Unity/Xorg
-    $ sudo apt-get install --install-recommends linux-generic-lts-raring xserver-xorg-lts-raring libgl1-mesa-glx-lts-raring
+    $ sudo apt-get install --install-recommends linux-generic-lts-trusty xserver-xorg-lts-trusty libgl1-mesa-glx-lts-trusty
 
     # reboot
     $ sudo reboot
@@ -233,7 +252,7 @@ alternative group.
 > **Warning**: 
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) for details.
+> /articles/security/#docker-daemon-attack-surface) for details.
 
 **Example:**
 

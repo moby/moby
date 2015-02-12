@@ -134,6 +134,10 @@ func (self *HTTPRequestFactory) AddDecorator(d ...HTTPRequestDecorator) {
 	self.decorators = append(self.decorators, d...)
 }
 
+func (self *HTTPRequestFactory) GetDecorators() []HTTPRequestDecorator {
+	return self.decorators
+}
+
 // NewRequest() creates a new *http.Request,
 // applies all decorators in the HTTPRequestFactory on the request,
 // then applies decorators provided by d on the request.

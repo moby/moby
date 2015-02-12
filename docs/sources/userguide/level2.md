@@ -39,7 +39,7 @@ What is the Dockerfile instruction to specify the base image?<br>
 	
 	<div class="alert alert-success" id="all_good" style="display:none;">Congratulations, you made no mistake!<br />
 	Tell the world <a href="https://twitter.com/share" class="twitter-share-button" data-url="http://www.docker.io/learn/dockerfile/level1/" data-text="I just successfully answered questions of the #Dockerfile tutorial Level 1. What's your score?" data-via="docker" >Tweet</a><br />
-	And try the next challenge: <a href="#fill_the_dockerfile">Fill the Dockerfile</a>
+	And try the next challenge: <a href="#fill-the-dockerfile">Fill the Dockerfile</a>
 	</div>
 	<div class="alert alert-error" id="no_good" style="display:none;">Your Dockerfile skills are not yet perfect, try to take the time to read this tutorial again.</div>
 	<div class="alert alert-block" id="some_good" style="display:none;">You're almost there! Read carefully the sections corresponding to your errors, and take the test again!</div>

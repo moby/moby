@@ -49,6 +49,11 @@ chmod +x "$rootfsDir/usr/sbin/policy-rc.d"
 # shrink a little, since apt makes us cache-fat (wheezy: ~157.5MB vs ~120MB)
 ( set -x; chroot "$rootfsDir" apt-get clean )
 
+# this file is one APT creates to make sure we don't "autoremove" our currently
+# in-use kernel, which doesn't really apply to debootstraps/Docker images that
+# don't even have kernels installed
+rm -f "$rootfsDir/etc/apt/apt.conf.d/01autoremove-kernels"
+
 # Ubuntu 10.04 sucks... :)
 if strings "$rootfsDir/usr/bin/dpkg" | grep -q unsafe-io; then
 	# force dpkg not to call sync() after package extraction (speeding up installs)

@@ -6,6 +6,7 @@ Requires=docker.socket
 
 [Service]
 ExecStart=/usr/bin/docker -d -H fd://
+MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
 

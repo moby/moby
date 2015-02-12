@@ -7,7 +7,7 @@ page_keywords: docker, run, configure, runtime
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its own file system,
 its own networking, and its own isolated process tree.  The
-[*Image*](/terms/image/#image-def) which starts the process may define
+[*Image*](/terms/image/#image) which starts the process may define
 defaults related to the binary to run, the networking to expose, and
 more, but `docker run` gives final control to the operator who starts
 the container from the image. That's the main reason
@@ -114,7 +114,7 @@ The UUID identifiers come from the Docker daemon, and if you do not
 assign a name to the container with `--name` then the daemon will also
 generate a random string name too. The name can become a handy way to
 add meaning to a container since you can use this name when defining
-[*links*](/userguide/dockerlinks/#working-with-links-names) (or any
+[*links*](/userguide/dockerlinks) (or any
 other place you need to identify a container). This works for both
 background and foreground Docker containers.
 
@@ -133,11 +133,31 @@ While not strictly a means of identifying a container, you can specify a version
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
 
+## PID Settings
+    --pid=""  : Set the PID (Process) Namespace mode for the container,
+           'host': use the host's PID namespace inside the container
+By default, all containers have the PID namespace enabled.
+
+PID namespace provides separation of processes. The PID Namespace removes the
+view of the system processes, and allows process ids to be reused including
+pid 1.
+
+In certain cases you want your container to share the host's process namespace,
+basically allowing processes within the container to see all of the processes
+on the system.  For example, you could build a container with debugging tools
+like `strace` or `gdb`, but want to use these tools when debugging processes
+within the container.
+
+    $ sudo docker run --pid=host rhel7 strace -p 1234
+
+This command would allow you to use `strace` inside the container on pid 1234 on
+the host.
+
 ## IPC Settings
     --ipc=""  : Set the IPC mode for the container,
                                  'container:<name|id>': reuses another container's IPC namespace
                                  'host': use the host's IPC namespace inside the container
-By default, all containers have the IPC namespace enabled 
+By default, all containers have the IPC namespace enabled.
 
 IPC (POSIX/SysV IPC) namespace provides separation of named shared memory segments, semaphores and message queues.  
 
@@ -254,7 +274,7 @@ the container exits**, you can add the `--rm` flag:
     --security-opt="label:type:TYPE"   : Set the label type for the container
     --security-opt="label:level:LEVEL" : Set the label level for the container
     --security-opt="label:disable"     : Turn off label confinement for the container
-    --secutity-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
+    --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
                                          to the container
 
 You can override the default labeling scheme for each container by specifying
@@ -420,7 +440,7 @@ familiar with using LXC directly.
 
 ## Overriding Dockerfile image defaults
 
-When a developer builds an image from a [*Dockerfile*](/reference/builder/#dockerbuilder)
+When a developer builds an image from a [*Dockerfile*](/reference/builder)
 or when she commits it, the developer can set a number of default parameters
 that take effect when the image starts up as a container.
 
@@ -487,11 +507,12 @@ or override the Dockerfile's exposed defaults:
     --expose=[]: Expose a port or a range of ports from the container
                 without publishing it to your host
     -P=false   : Publish all exposed ports to the host interfaces
-    -p=[]      : Publish a container᾿s port to the host (format:
-                 ip:hostPort:containerPort | ip::containerPort |
-                 hostPort:containerPort | containerPort)
-                 (use 'docker port' to see the actual mapping)
-    --link=""  : Add link to another container (name:alias)
+    -p=[]      : Publish a container᾿s port or a range of ports to the host 
+                   format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                   Both hostPort and containerPort can be specified as a range of ports. 
+                   When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
+                   (use 'docker port' to see the actual mapping)
+    --link=""  : Add link to another container (<name or id>:alias)
 
 As mentioned previously, `EXPOSE` (and `--expose`) makes ports available
 **in** a container for incoming connections. The port number on the
@@ -574,7 +595,7 @@ above, or already defined by the developer with a Dockerfile `ENV`:
 
 Similarly the operator can set the **hostname** with `-h`.
 
-`--link name:alias` also sets environment variables, using the *alias* string to
+`--link <name or id>:alias` also sets environment variables, using the *alias* string to
 define environment variables within the container that give the IP and PORT
 information for connecting to the service container. Let's imagine we have a
 container running Redis:
@@ -626,6 +647,12 @@ mechanism to communicate with a linked container by its alias:
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
 
+> **Note**:
+> Unlike host entries in the `/ets/hosts` file, IP addresses stored in the
+> environment variables are not automatically updated if the source container is
+> restarted. We recommend using the host entries in `/etc/hosts` to resolve the
+> IP address of linked containers.
+
 ## VOLUME (shared filesystems)
 
     -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
@@ -634,7 +661,7 @@ container's `/etc/hosts` entry will be automatically updated.
 
 The volumes commands are complex enough to have their own documentation
 in section [*Managing data in 
-containers*](/userguide/dockervolumes/#volume-def). A developer can define
+containers*](/userguide/dockervolumes). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

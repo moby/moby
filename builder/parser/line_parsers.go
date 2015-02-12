@@ -10,13 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"unicode"
 )
 
 var (
-	errDockerfileJSONNesting = errors.New("You may not nest arrays in Dockerfile statements.")
+	errDockerfileNotStringArray = errors.New("When using JSON array syntax, arrays must be comprised of strings only.")
 )
 
 // ignore the current argument. This will still leave a command parsed, but
@@ -209,34 +208,27 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 
 // parseJSON converts JSON arrays to an AST.
 func parseJSON(rest string) (*Node, map[string]bool, error) {
-	var (
-		myJson   []interface{}
-		next     = &Node{}
-		orignext = next
-		prevnode = next
-	)
-
+	var myJson []interface{}
 	if err := json.Unmarshal([]byte(rest), &myJson); err != nil {
 		return nil, nil, err
 	}
 
+	var top, prev *Node
 	for _, str := range myJson {
-		switch str.(type) {
-		case string:
-		case float64:
-			str = strconv.FormatFloat(str.(float64), 'G', -1, 64)
-		default:
-			return nil, nil, errDockerfileJSONNesting
+		if s, ok := str.(string); !ok {
+			return nil, nil, errDockerfileNotStringArray
+		} else {
+			node := &Node{Value: s}
+			if prev == nil {
+				top = node
+			} else {
+				prev.Next = node
+			}
+			prev = node
 		}
-		next.Value = str.(string)
-		next.Next = &Node{}
-		prevnode = next
-		next = next.Next
 	}
 
-	prevnode.Next = nil
-
-	return orignext, map[string]bool{"json": true}, nil
+	return top, map[string]bool{"json": true}, nil
 }
 
 // parseMaybeJSON determines if the argument appears to be a JSON array. If
@@ -250,7 +242,7 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 	if err == nil {
 		return node, attrs, nil
 	}
-	if err == errDockerfileJSONNesting {
+	if err == errDockerfileNotStringArray {
 		return nil, nil, err
 	}
 
@@ -270,7 +262,7 @@ func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 	if err == nil {
 		return node, attrs, nil
 	}
-	if err == errDockerfileJSONNesting {
+	if err == errDockerfileNotStringArray {
 		return nil, nil, err
 	}
 

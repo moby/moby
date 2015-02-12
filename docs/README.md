@@ -25,13 +25,18 @@ In the root of the `docker` source directory:
 
     $ make docs
     .... (lots of output) ....
-    $ docker run --rm -it  -e AWS_S3_BUCKET -p 8000:8000 "docker-docs:master" mkdocs serve
+    docker run --rm -it  -e AWS_S3_BUCKET -p 8000:8000 "docker-docs:master" mkdocs serve
     Running at: http://0.0.0.0:8000/
     Live reload enabled.
     Hold ctrl+c to quit.
 
 If you have any issues you need to debug, you can use `make docs-shell` and then
 run `mkdocs serve`
+
+## Testing the links
+
+You can use `make docs-test` to generate a report of missing links that are referenced in
+the documentation - there should be none.
 
 ## Adding a new document
 
@@ -84,8 +89,10 @@ you need to access the AWS bucket you'll be deploying to.
 
 The release script will create an s3 if needed, and will then push the files to it.
 
-    [profile dowideit-docs] aws_access_key_id = IHOIUAHSIDH234rwf....
-    aws_secret_access_key = OIUYSADJHLKUHQWIUHE......  region = ap-southeast-2
+    [profile dowideit-docs]
+    aws_access_key_id = IHOIUAHSIDH234rwf....
+    aws_secret_access_key = OIUYSADJHLKUHQWIUHE......
+    region = ap-southeast-2
 
 The `profile` name must be the same as the name of the bucket you are deploying
 to - which you call from the `docker` directory:
@@ -140,11 +147,13 @@ to view your results and make sure what you published is what you wanted.
 
 When you're happy with it, publish the docs to our live site:
 
-    make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+    make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes DISTRIBUTION_ID=C2K6......FL2F docs-release
 
 Test the uncached version of the live docs at http://docs.docker.com.s3-website-us-east-1.amazonaws.com/
     
 Note that the new docs will not appear live on the site until the cache (a complex,
-distributed CDN system) is flushed. This requires someone with S3 keys. Contact Docker
-(Sven Dowideit or John Costa) for assistance. 
+distributed CDN system) is flushed. The `make docs-release` command will do this
+_if_ the `DISTRIBUTION_ID` is set to the Cloudfront distribution ID (ask the meta
+team) - this will take at least 15 minutes to run and you can check its progress
+with the CDN Cloudfront Chrome addin.
 

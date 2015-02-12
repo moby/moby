@@ -7,7 +7,7 @@ page_keywords: chef, installation, usage, docker, documentation
 > **Note**:
 > Please note this is a community contributed installation path. The only
 > `official` installation is using the
-> [*Ubuntu*](/installation/ubuntulinux/#ubuntu-linux) installation
+> [*Ubuntu*](/installation/ubuntulinux) installation
 > path. This version may sometimes be out of date.
 
 ## Requirements

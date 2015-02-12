@@ -6,8 +6,8 @@ page_keywords: Docker, Docker documentation, installation, debian
 
 Docker is supported on the following versions of Debian:
 
- - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-8-64-bit)
- - [*Debian 7.5 Wheezy (64-bit)*](#debian-wheezy-7-64-bit)
+ - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
+ - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
 
 ## Debian Jessie 8.0 (64-bit)
 
@@ -41,13 +41,13 @@ Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more detail
 on why 3.8 is required, see discussion on
 [bug #407](https://github.com/docker/docker/issues/407%20kernel%20versions)).
 
-Fortunately, wheezy-backports currently has [Kernel 3.14
+Fortunately, wheezy-backports currently has [Kernel 3.16
 ](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
 which is officially supported by Docker.
 
 ### Installation
 
-1. Install Kernel 3.14 from wheezy-backports
+1. Install Kernel from wheezy-backports
  
     Add the following line to your `/etc/apt/sources.list`
 
@@ -81,7 +81,7 @@ use the `-G` flag to specify an alternative group.
 > **Warning**: 
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#dockersecurity-daemon) details.
+> /articles/security/#docker-daemon-attack-surface) details.
 
 **Example:**
 

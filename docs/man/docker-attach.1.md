@@ -6,24 +6,30 @@ docker-attach - Attach to a running container
 
 # SYNOPSIS
 **docker attach**
+[**--help**]/
 [**--no-stdin**[=*false*]]
 [**--sig-proxy**[=*true*]]
 CONTAINER
 
 # DESCRIPTION
-If you **docker run** a container in detached mode (**-d**), you can reattach to
-the detached container with **docker attach** using the container's ID or name.
+The **docker attach** command allows you to attach to a running container using
+the container's ID or name, either to view its ongoing output or to control it
+interactively.  You can attach to the same contained process multiple times
+simultaneously, screen sharing style, or quickly view the progress of your
+daemonized process.
 
-You can detach from the container again (and leave it running) with `CTRL-p 
-CTRL-q` (for a quiet exit), or `CTRL-c`  which will send a SIGKILL to the
-container, or `CTRL-\` to get a stacktrace of the Docker client when it quits.
-When you detach from a container the exit code will be returned to
-the client.
+You can detach from the container (and leave it running) with `CTRL-p CTRL-q`
+(for a quiet exit) or `CTRL-c` which will send a `SIGKILL` to the container.
+When you are attached to a container, and exit its main process, the process's
+exit code will be returned to the client.
 
-It is forbidden to redirect the standard input of a docker attach command while
-attaching to a tty-enabled container (i.e.: launched with -t`).
+It is forbidden to redirect the standard input of a `docker attach` command while
+attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 # OPTIONS
+**--help**
+  Print usage statement
+
 **--no-stdin**=*true*|*false*
    Do not attach STDIN. The default is *false*.
 

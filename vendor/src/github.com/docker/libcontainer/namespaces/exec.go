@@ -17,6 +17,10 @@ import (
 	"github.com/docker/libcontainer/system"
 )
 
+const (
+	EXIT_SIGNAL_OFFSET = 128
+)
+
 // TODO(vishh): This is part of the libcontainer API and it does much more than just namespaces related work.
 // Move this to libcontainer package.
 // Exec performs setup outside of a namespace so that a container can be
@@ -110,7 +114,47 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 			return -1, err
 		}
 	}
-	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
+	if !container.Namespaces.Contains(libcontainer.NEWPID) {
+		killAllPids(container)
+	}
+
+	waitStatus := command.ProcessState.Sys().(syscall.WaitStatus)
+	if waitStatus.Signaled() {
+		return EXIT_SIGNAL_OFFSET + int(waitStatus.Signal()), nil
+	}
+	return waitStatus.ExitStatus(), nil
+}
+
+// killAllPids itterates over all of the container's processes
+// sending a SIGKILL to each process.
+func killAllPids(container *libcontainer.Config) error {
+	var (
+		procs   []*os.Process
+		freeze  = fs.Freeze
+		getPids = fs.GetPids
+	)
+	if systemd.UseSystemd() {
+		freeze = systemd.Freeze
+		getPids = systemd.GetPids
+	}
+	freeze(container.Cgroups, cgroups.Frozen)
+	pids, err := getPids(container.Cgroups)
+	if err != nil {
+		return err
+	}
+	for _, pid := range pids {
+		// TODO: log err without aborting if we are unable to find
+		// a single PID
+		if p, err := os.FindProcess(pid); err == nil {
+			procs = append(procs, p)
+			p.Kill()
+		}
+	}
+	freeze(container.Cgroups, cgroups.Thawed)
+	for _, p := range procs {
+		p.Wait()
+	}
+	return err
 }
 
 // DefaultCreateCommand will return an exec.Cmd with the Cloneflags set to the proper namespaces

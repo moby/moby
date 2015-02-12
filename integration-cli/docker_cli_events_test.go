@@ -1,29 +1,22 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"unicode"
-
-	"github.com/kr/pty"
 )
 
 func TestEventsUntag(t *testing.T) {
-	out, _, _ := dockerCmd(t, "images", "-q")
-	image := strings.Split(out, "\n")[0]
+	image := "busybox"
 	dockerCmd(t, "tag", image, "utest:tag1")
 	dockerCmd(t, "tag", image, "utest:tag2")
 	dockerCmd(t, "rmi", "utest:tag1")
 	dockerCmd(t, "rmi", "utest:tag2")
 	eventsCmd := exec.Command("timeout", "0.2", dockerBinary, "events", "--since=1")
-	out, _, _ = runCommandWithOutput(eventsCmd)
+	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
@@ -185,54 +178,11 @@ func TestEventsImageUntagDelete(t *testing.T) {
 	logDone("events - image untag, delete is logged")
 }
 
-// #5979
-func TestEventsRedirectStdout(t *testing.T) {
-
-	since := time.Now().Unix()
-
-	dockerCmd(t, "run", "busybox", "true")
-
-	defer deleteAllContainers()
-
-	file, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("could not create temp file: %v", err)
-	}
-	defer os.Remove(file.Name())
-
-	command := fmt.Sprintf("%s events --since=%d --until=%d > %s", dockerBinary, since, time.Now().Unix(), file.Name())
-	_, tty, err := pty.Open()
-	if err != nil {
-		t.Fatalf("Could not open pty: %v", err)
-	}
-	cmd := exec.Command("sh", "-c", command)
-	cmd.Stdin = tty
-	cmd.Stdout = tty
-	cmd.Stderr = tty
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("run err for command %q: %v", command, err)
-	}
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		for _, c := range scanner.Text() {
-			if unicode.IsControl(c) {
-				t.Fatalf("found control character %v", []byte(string(c)))
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("Scan err for command %q: %v", command, err)
-	}
-
-	logDone("events - redirect stdout")
-}
-
 func TestEventsImagePull(t *testing.T) {
 	since := time.Now().Unix()
-	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
+	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		t.Fatalf("pulling the scratch image from has failed: %s, %v", out, err)
+		t.Fatalf("pulling the hello-world image from has failed: %s, %v", out, err)
 	}
 
 	eventsCmd := exec.Command(dockerBinary, "events",
@@ -243,7 +193,7 @@ func TestEventsImagePull(t *testing.T) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
 
-	if !strings.HasSuffix(event, "scratch:latest: pull") {
+	if !strings.HasSuffix(event, "hello-world:latest: pull") {
 		t.Fatalf("Missing pull event - got:%q", event)
 	}
 

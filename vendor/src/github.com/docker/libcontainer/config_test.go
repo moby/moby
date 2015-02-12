@@ -64,12 +64,12 @@ func TestConfigJsonFormat(t *testing.T) {
 		t.Fail()
 	}
 
-	if !container.Namespaces["NEWNET"] {
+	if !container.Namespaces.Contains(NEWNET) {
 		t.Log("namespaces should contain NEWNET")
 		t.Fail()
 	}
 
-	if container.Namespaces["NEWUSER"] {
+	if container.Namespaces.Contains(NEWUSER) {
 		t.Log("namespaces should not contain NEWUSER")
 		t.Fail()
 	}
@@ -156,5 +156,17 @@ func TestSelinuxLabels(t *testing.T) {
 	}
 	if container.MountConfig.MountLabel != label {
 		t.Fatalf("expected mount label %q but received %q", label, container.MountConfig.MountLabel)
+	}
+}
+
+func TestRemoveNamespace(t *testing.T) {
+	ns := Namespaces{
+		{Type: NEWNET},
+	}
+	if !ns.Remove(NEWNET) {
+		t.Fatal("NEWNET was not removed")
+	}
+	if len(ns) != 0 {
+		t.Fatalf("namespaces should have 0 items but reports %d", len(ns))
 	}
 }

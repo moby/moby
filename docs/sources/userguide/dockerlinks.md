@@ -146,7 +146,7 @@ Now, create a new `web` container and link it with your `db` container.
 This will link the new `web` container with the `db` container you created
 earlier. The `--link` flag takes the form:
 
-    --link name:alias
+    --link <name or id>:alias
 
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.
@@ -232,6 +232,12 @@ command to list the specified container's environment variables.
 > container. Similarly, some daemons (such as `sshd`)
 > will scrub them when spawning shells for connection.
 
+> **Note**:
+> Unlike host entries in the [`/etc/hosts` file](#updating-the-etchosts-file),
+> IP addresses stored in the environment variables are not automatically updated
+> if the source container is restarted. We recommend using the host entries in
+> `/etc/hosts` to resolve the IP address of linked containers.
+
 You can see that Docker has created a series of environment variables with
 useful information about the source `db` container. Each variable is prefixed with
 `DB_`, which is populated from the `alias` you specified above. If the `alias`
@@ -282,6 +288,8 @@ will be automatically updated with the source container's new IP address,
 allowing linked communication to continue.
 
     $ sudo docker restart db
+    db
+    $ sudo docker run -t -i --rm --link db:db training/webapp /bin/bash
     root@aed84ee21bde:/opt/webapp# cat /etc/hosts
     172.17.0.7  aed84ee21bde
     . . .

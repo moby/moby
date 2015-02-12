@@ -40,10 +40,10 @@ over to the [User Guide](/userguide).
 ## Standard Ubuntu Installation
 
 If you want a more hands-on installation, then you can follow the
-[*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions installing Docker
-on any EC2 instance running Ubuntu. Just follow Step 1 from [*Amazon
-QuickStart*](#amazon-quickstart) to pick an image (or use one of your
+[*Ubuntu*](/installation/ubuntulinux) instructions installing Docker
+on any EC2 instance running Ubuntu. Just follow Step 1 from the Amazon
+QuickStart above to pick an image (or use one of your
 own) and skip the step with the *User Data*. Then continue with the
-[*Ubuntu*](../ubuntulinux/#ubuntu-linux) instructions.
+[*Ubuntu*](/installation/ubuntulinux) instructions.
 
 Continue with the [User Guide](/userguide/).

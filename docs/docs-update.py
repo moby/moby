@@ -56,14 +56,14 @@ def update_cli_reference():
             # Prose
             match = re.match("(    \s*)Usage: docker ([a-z]+)", line)
             if match:
-                # the begining of a Docker command usage block
+                # the beginning of a Docker command usage block
                 space = match.group(1)
                 command = match.group(2)
                 mode = 'c'
             else:
                 match = re.match("(    \s*)Usage of .*docker.*:", line)
                 if match:
-                    # the begining of the Docker --help usage block
+                    # the beginning of the Docker --help usage block
                     space = match.group(1)
                     command = ""
                     mode = 'c'

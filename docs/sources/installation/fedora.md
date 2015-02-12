@@ -1,40 +1,48 @@
 page_title: Installation on Fedora
-page_description: Installation instructions for Docker on Fedora.
-page_keywords: Docker, Docker documentation, Fedora, requirements, virtualbox, vagrant, git, ssh, putty, cygwin, linux
+page_description: Instructions for installing Docker on Fedora.
+page_keywords: Docker, Docker documentation, Fedora, requirements, linux
 
 # Fedora
 
-Docker is available in **Fedora 19 and later**. Please note that due to
-the current Docker limitations Docker is able to run only on the **64
-bit** architecture.
+Docker is supported on the following versions of Fedora:
 
-## Installation
+- [*Fedora 20 (64-bit)*](#fedora-20-installation)
+- [*Fedora 21 and later (64-bit)*](#fedora-21-and-later-installation)
 
-The `docker-io` package provides Docker on Fedora.
+Currently the Fedora project will only support Docker when running on kernels
+shipped by the distribution. There are kernel changes which will cause issues
+if one decides to step outside that box and run non-distribution kernel packages.
 
-If you have the (unrelated) `docker` package installed already, it will
-conflict with `docker-io`. There's a [bug
-report](https://bugzilla.redhat.com/show_bug.cgi?id=1043676) filed for
-it. To proceed with `docker-io` installation on Fedora 19, please remove
-`docker` first.
+## Fedora 21 and later installation
+
+Install the `docker` package which will install Docker on our host.
+
+    $ sudo yum -y install docker
+
+To update the `docker` package:
+
+    $ sudo yum -y update docker
+
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+## Fedora 20 installation
+
+For `Fedora 20`, there is a package name conflict with a system tray application
+and its executable, so the Docker RPM package was called `docker-io`.
+
+To proceed with `docker-io` installation on Fedora 20, please remove the `docker`
+package first.
 
     $ sudo yum -y remove docker
-
-For Fedora 21 and later, the `wmdocker` package will
-provide the same functionality as `docker` and will
-also not conflict with `docker-io`.
-
-    $ sudo yum -y install wmdocker
-    $ sudo yum -y remove docker
-
-Install the `docker-io` package which will install
-Docker on our host.
-
     $ sudo yum -y install docker-io
 
-To update the `docker-io` package:
+To update the `docker` package:
 
     $ sudo yum -y update docker-io
+
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+## Starting the Docker daemon
 
 Now that it's installed, let's start the Docker daemon.
 
@@ -54,24 +62,21 @@ Now let's verify that Docker is working.
 
 ## Granting rights to users to use Docker
 
-Fedora 19 and 20 shipped with Docker 0.11. The package has already been updated
-to 1.0 in Fedora 20. If you are still using the 0.11 version you will need to
-grant rights to users of Docker.
-
 The `docker` command line tool contacts the `docker` daemon process via a
-socket file `/var/run/docker.sock` owned by group `docker`. One must be 
-member of that group in order to contact the `docker -d` process.
+socket file `/var/run/docker.sock` owned by `root:root`. Though it's
+[recommended](https://lists.projectatomic.io/projectatomic-archives/atomic-devel/2015-January/msg00034.html)
+to use `sudo` for docker commands, if users wish to avoid it, an administrator can
+create a `docker` group, have it own `/var/run/docker.sock`, and add users to this group.
 
-    $ usermod -a -G docker login_name
-
-Adding users to the `docker` group is *not* necessary for Docker versions 1.0
-and above.
+    $ sudo groupadd docker
+    $ sudo chown root:docker /var/run/docker.sock
+    $ sudo usermod -a -G docker $USERNAME
 
 ## Custom daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
-Docker runtime files, or make other customizations, read our systemd article to
-learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+Docker runtime files, or make other customizations, read our Systemd article to
+learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
 
 ## What next?
 

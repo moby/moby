@@ -189,8 +189,7 @@ Return low-level information on the container `id`
                              "Image": "ubuntu",
                              "Volumes": {},
                              "VolumesFrom": "",
-                             "WorkingDir":""
-
+                             "WorkingDir": ""
                      },
                      "State": {
                              "Running": false,
@@ -235,7 +234,7 @@ List processes running inside the container `id`
         Content-Type: application/json
 
         {
-             "Titles":[
+             "Titles": [
                      "USER",
                      "PID",
                      "%CPU",
@@ -248,7 +247,7 @@ List processes running inside the container `id`
                      "TIME",
                      "COMMAND"
                      ],
-             "Processes":[
+             "Processes": [
                      ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
                      ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
              ]
@@ -281,16 +280,16 @@ Inspect changes on container `id`'s filesystem
 
         [
              {
-                     "Path":"/dev",
-                     "Kind":0
+                     "Path": "/dev",
+                     "Kind": 0
              },
              {
-                     "Path":"/dev/kmsg",
-                     "Kind":1
+                     "Path": "/dev/kmsg",
+                     "Kind": 1
              },
              {
-                     "Path":"/test",
-                     "Kind":1
+                     "Path": "/test",
+                     "Kind": 1
              }
         ]
 
@@ -461,6 +460,41 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
+### Attach to a container (websocket)
+
+`GET /containers/(id)/attach/ws`
+
+Attach to the container `id` via websocket
+
+Implements websocket protocol handshake according to [RFC 6455](http://tools.ietf.org/html/rfc6455)
+
+**Example request**
+
+        GET /containers/e90e34656806/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1 HTTP/1.1
+
+**Example response**
+
+        {{ STREAM }}
+
+Query Parameters:
+
+-   **logs** – 1/True/true or 0/False/false, return logs. Default false
+-   **stream** – 1/True/true or 0/False/false, return stream.
+        Default false
+-   **stdin** – 1/True/true or 0/False/false, if stream=true, attach
+        to stdin. Default false
+-   **stdout** – 1/True/true or 0/False/false, if logs=true, return
+        stdout log, if stream=true, attach to stdout. Default false
+-   **stderr** – 1/True/true or 0/False/false, if logs=true, return
+        stderr log, if stream=true, attach to stderr. Default false
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **404** – no such container
+-   **500** – server error
+
 ### Wait a container
 
 `POST /containers/(id)/wait`
@@ -476,7 +510,7 @@ Block until container `id` stops, then returns the exit code
         HTTP/1.1 200 OK
         Content-Type: application/json
 
-        {"StatusCode":0}
+        {"StatusCode": 0}
 
 Status Codes:
 
@@ -522,7 +556,7 @@ Copy files or folders of container `id`
         Content-Type: application/json
 
         {
-             "Resource":"test.txt"
+             "Resource": "test.txt"
         }
 
 **Example response**:
@@ -743,14 +777,14 @@ Return the history of the image `name`
 
         [
              {
-                     "Id":"b750fe79269d",
-                     "Created":1364102658,
-                     "CreatedBy":"/bin/bash"
+                     "Id": "b750fe79269d",
+                     "Created": 1364102658,
+                     "CreatedBy": "/bin/bash"
              },
              {
-                     "Id":"27cf78414709",
-                     "Created":1364068391,
-                     "CreatedBy":""
+                     "Id": "27cf78414709",
+                     "Created": 1364068391,
+                     "CreatedBy": ""
              }
         ]
 
@@ -828,9 +862,9 @@ Remove the image `name` from the filesystem
         Content-type: application/json
 
         [
-         {"Untagged":"3e2f21a89f"},
-         {"Deleted":"3e2f21a89f"},
-         {"Deleted":"53b4f83ac9"}
+         {"Untagged": "3e2f21a89f"},
+         {"Deleted": "3e2f21a89f"},
+         {"Deleted": "53b4f83ac9"}
         ]
 
 Status Codes:
@@ -906,6 +940,7 @@ Query Parameters:
 
 -   **t** – repository name (and optionally a tag) to be applied to
     the resulting image in case of success
+-   **remote** – build source URI (git or HTTPS/HTTP)
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
 
@@ -926,10 +961,10 @@ Get the default username and email
         Content-Type: application/json
 
         {
-             "username":"hannibal",
-             "password:"xxxx",
-             "email":"hannibal@a-team.com",
-             "serveraddress":"https://index.docker.io/v1/"
+             "username":" hannibal",
+             "password: "xxxx",
+             "email": "hannibal@a-team.com",
+             "serveraddress": "https://index.docker.io/v1/"
         }
 
 **Example response**:
@@ -1022,7 +1057,7 @@ Create a new image from a container's changes
         HTTP/1.1 201 OK
             Content-Type: application/vnd.docker.raw-stream
 
-        {"Id":"596069db4bf5"}
+        {"Id": "596069db4bf5"}
 
 Query Parameters:
 

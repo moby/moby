@@ -45,7 +45,7 @@ Our example is set up like this:
 ## Creating the client certificates
 
 You will use OpenSSL's `genrsa` and `req` commands to first generate an RSA
-key and then use the key to create the certificate request.   
+key and then use the key to create the certificate.   
 
     $ openssl genrsa -out client.key 1024
     $ openssl req -new -x509 -text -key client.key -out client.cert
