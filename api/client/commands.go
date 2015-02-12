@@ -1191,6 +1191,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry", true)
+	allowInsecure := cmd.Bool([]string{"i", "-insecure-registry"}, false, "Allow communication with insecure registries")
 	cmd.Require(flag.Exact, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1223,6 +1224,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	v := url.Values{}
 	v.Set("tag", tag)
 
+	if *allowInsecure {
+		v.Set("allowInsecure", "1")
+	}
+
 	push := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
@@ -1254,6 +1259,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry", true)
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
+	allowInsecure := cmd.Bool([]string{"i", "-insecure-registry"}, false, "Allow communication with insecure registries")
 	cmd.Require(flag.Exact, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1272,6 +1278,10 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	v.Set("fromImage", newRemote)
+
+	if *allowInsecure {
+		v.Set("allowInsecure", "1")
+	}
 
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
