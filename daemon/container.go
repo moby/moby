@@ -215,6 +215,45 @@ func (container *Container) getRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
+func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.Device, err error) {
+	device, err := devices.DeviceFromPath(deviceMapping.PathOnHost, deviceMapping.CgroupPermissions)
+	// if there was no error, return the device
+	if err == nil {
+		device.Path = deviceMapping.PathInContainer
+		return append(devs, device), nil
+	}
+
+	// if the device is not a device node
+	// try to see if it's a directory holding many devices
+	if err == devices.ErrNotADevice {
+
+		// check if it is a directory
+		if src, e := os.Stat(deviceMapping.PathOnHost); e == nil && src.IsDir() {
+
+			// mount the internal devices recursively
+			filepath.Walk(deviceMapping.PathOnHost, func(dpath string, f os.FileInfo, e error) error {
+				childDevice, e := devices.DeviceFromPath(dpath, deviceMapping.CgroupPermissions)
+				if e != nil {
+					// ignore the device
+					return nil
+				}
+
+				// add the device to userSpecified devices
+				childDevice.Path = strings.Replace(dpath, deviceMapping.PathOnHost, deviceMapping.PathInContainer, 1)
+				devs = append(devs, childDevice)
+
+				return nil
+			})
+		}
+	}
+
+	if len(devs) > 0 {
+		return devs, nil
+	}
+
+	return devs, fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
+}
+
 func populateCommand(c *Container, env []string) error {
 	en := &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
@@ -267,14 +306,14 @@ func populateCommand(c *Container, env []string) error {
 	pid.HostPid = c.hostConfig.PidMode.IsHost()
 
 	// Build lists of devices allowed and created within the container.
-	userSpecifiedDevices := make([]*configs.Device, len(c.hostConfig.Devices))
-	for i, deviceMapping := range c.hostConfig.Devices {
-		device, err := devices.DeviceFromPath(deviceMapping.PathOnHost, deviceMapping.CgroupPermissions)
+	var userSpecifiedDevices []*configs.Device
+	for _, deviceMapping := range c.hostConfig.Devices {
+		devs, err := getDevicesFromPath(deviceMapping)
 		if err != nil {
-			return fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
+			return err
 		}
-		device.Path = deviceMapping.PathInContainer
-		userSpecifiedDevices[i] = device
+
+		userSpecifiedDevices = append(userSpecifiedDevices, devs...)
 	}
 	allowedDevices := append(configs.DefaultAllowedDevices, userSpecifiedDevices...)
 

@@ -173,3 +173,30 @@ func TestRunContainerWithCgroupParentAbsPath(t *testing.T) {
 
 	logDone("run - cgroup parent with absolute cgroup path")
 }
+
+func TestRunDeviceDirectory(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "timer") {
+		t.Fatalf("expected output /dev/snd/timer, received %s", actual)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
+
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "seq") {
+		t.Fatalf("expected output /dev/othersnd/timer, received %s", actual)
+	}
+
+	logDone("run - test --device directory mounts all internal devices")
+}
