@@ -42,7 +42,7 @@ You can still call an old version of the API using
 
 ### Full Documentation
 
-[*Docker Remote API v1.18*](/reference/api/docker_remote_api_v1.18/)
+[*Docker Remote API v1.18*](/docs/sources/reference/api/docker_remote_api_v1.18.md)
 
 ### What's new
 
@@ -50,7 +50,7 @@ You can still call an old version of the API using
 
 ### Full Documentation
 
-[*Docker Remote API v1.17*](/reference/api/docker_remote_api_v1.17/)
+[*Docker Remote API v1.17*](/docs/sources/reference/api/docker_remote_api_v1.17.md)
 
 ### What's new
 
@@ -88,7 +88,7 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
 ### Full Documentation
 
-[*Docker Remote API v1.16*](/reference/api/docker_remote_api_v1.16/)
+[*Docker Remote API v1.16*](/docs/sources/reference/api/docker_remote_api_v1.16.md)
 
 ### What's new
 
@@ -116,7 +116,7 @@ You can now copy data which is contained in a volume.
 
 ### Full Documentation
 
-[*Docker Remote API v1.15*](/reference/api/docker_remote_api_v1.15/)
+[*Docker Remote API v1.15*](/docs/sources/reference/api/docker_remote_api_v1.15.md)
 
 ### What's new
 
@@ -130,7 +130,7 @@ Previously this was only available when starting a container.
 
 ### Full Documentation
 
-[*Docker Remote API v1.14*](/reference/api/docker_remote_api_v1.14/)
+[*Docker Remote API v1.14*](/docs/sources/reference/api/docker_remote_api_v1.14.md)
 
 ### What's new
 
@@ -156,7 +156,7 @@ the `tag` parameter at the same time will return an error.
 
 ### Full Documentation
 
-[*Docker Remote API v1.13*](/reference/api/docker_remote_api_v1.13/)
+[*Docker Remote API v1.13*](/docs/sources/reference/api/docker_remote_api_v1.13.md)
 
 ### What's new
 
@@ -184,7 +184,7 @@ Added a `pause` parameter (default `true`) to pause the container during commit
 
 ### Full Documentation
 
-[*Docker Remote API v1.12*](/reference/api/docker_remote_api_v1.12/)
+[*Docker Remote API v1.12*](/docs/sources/reference/api/docker_remote_api_v1.12.md)
 
 ### What's new
 
@@ -209,7 +209,7 @@ The `insert` endpoint has been removed.
 
 ### Full Documentation
 
-[*Docker Remote API v1.11*](/reference/api/docker_remote_api_v1.11/)
+[*Docker Remote API v1.11*](/docs/sources/reference/api/docker_remote_api_v1.11.md)
 
 ### What's new
 
@@ -232,7 +232,7 @@ This url is preferred method for getting container logs now.
 
 ### Full Documentation
 
-[*Docker Remote API v1.10*](/reference/api/docker_remote_api_v1.10/)
+[*Docker Remote API v1.10*](/docs/sources/reference/api/docker_remote_api_v1.10.md)
 
 ### What's new
 
@@ -255,7 +255,7 @@ You can now use the force parameter to force delete a
 
 ### Full Documentation
 
-[*Docker Remote API v1.9*](/reference/api/docker_remote_api_v1.9/)
+[*Docker Remote API v1.9*](/docs/sources/reference/api/docker_remote_api_v1.9.md)
 
 ### What's new
 
@@ -271,7 +271,7 @@ accepting an AuthConfig object must be updated.
 
 ### Full Documentation
 
-[*Docker Remote API v1.8*](/reference/api/docker_remote_api_v1.8/)
+[*Docker Remote API v1.8*](/docs/sources/reference/api/docker_remote_api_v1.8.md)
 
 ### What's new
 
@@ -303,7 +303,7 @@ without having to parse the string.
 
 ### Full Documentation
 
-[*Docker Remote API v1.7*](/reference/api/docker_remote_api_v1.7/)
+[*Docker Remote API v1.7*](/docs/sources/reference/api/docker_remote_api_v1.7.md)
 
 ### What's new
 
@@ -402,7 +402,7 @@ output is now generated in the client, using the
 
 ### Full Documentation
 
-[*Docker Remote API v1.6*](/reference/api/docker_remote_api_v1.6/)
+[*Docker Remote API v1.6*](/docs/sources/reference/api/docker_remote_api_v1.6.md)
 
 ### What's new
 
@@ -420,7 +420,7 @@ previous API version didn't change. Stdout and stderr are merged.
 
 ### Full Documentation
 
-[*Docker Remote API v1.5*](/reference/api/docker_remote_api_v1.5/)
+[*Docker Remote API v1.5*](/docs/sources/reference/api/docker_remote_api_v1.5.md)
 
 ### What's new
 
@@ -447,7 +447,7 @@ port mapping.
 
 ### Full Documentation
 
-[*Docker Remote API v1.4*](/reference/api/docker_remote_api_v1.4/)
+[*Docker Remote API v1.4*](/docs/sources/reference/api/docker_remote_api_v1.4.md)
 
 ### What's new
 
@@ -474,7 +474,7 @@ docker v0.5.0
 
 ### Full Documentation
 
-[*Docker Remote API v1.3*](/reference/api/docker_remote_api_v1.3/)
+[*Docker Remote API v1.3*](/docs/sources/reference/api/docker_remote_api_v1.3.md)
 
 ### What's new
 
@@ -514,7 +514,7 @@ docker v0.4.2
 
 ### Full Documentation
 
-[*Docker Remote API v1.2*](/reference/api/docker_remote_api_v1.2/)
+[*Docker Remote API v1.2*](/docs/sources/reference/api/docker_remote_api_v1.2.md)
 
 ### What's new
 
@@ -546,7 +546,7 @@ docker v0.4.0
 
 ### Full Documentation
 
-[*Docker Remote API v1.1*](/reference/api/docker_remote_api_v1.1/)
+[*Docker Remote API v1.1*](/docs/sources/reference/api/docker_remote_api_v1.1.md)
 
 ### What's new
 
@@ -573,7 +573,7 @@ docker v0.3.4
 
 ### Full Documentation
 
-[*Docker Remote API v1.0*](/reference/api/docker_remote_api_v1.0/)
+[*Docker Remote API v1.0*](/docs/sources/reference/api/docker_remote_api_v1.0.md)
 
 ### What's new
 
