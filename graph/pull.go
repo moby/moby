@@ -24,11 +24,12 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	}
 
 	var (
-		localName   = job.Args[0]
-		tag         string
-		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders map[string][]string
+		localName     = job.Args[0]
+		allowInsecure = job.GetenvBool("allowInsecure")
+		tag           string
+		sf            = utils.NewStreamFormatter(job.GetenvBool("json"))
+		authConfig    = &registry.AuthConfig{}
+		metaHeaders   map[string][]string
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
@@ -55,6 +56,10 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	defer s.poolRemove("pull", repoInfo.LocalName+":"+tag)
+
+	if allowInsecure {
+		repoInfo.Index.Secure = false
+	}
 
 	log.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 	endpoint, err := repoInfo.GetEndpoint()

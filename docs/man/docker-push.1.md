@@ -10,12 +10,14 @@ docker-push - Push an image or a repository to the registry
 NAME[:TAG]
 
 # DESCRIPTION
-Push an image or a repository to a registry. The default registry is the Docker 
-Hub located at [hub.docker.com](https://hub.docker.com/). However the 
-image can be pushed to another, perhaps private, registry as demonstrated in 
+Push an image or a repository to a registry. The default registry is the Docker
+Hub located at [hub.docker.com](https://hub.docker.com/). However the
+image can be pushed to another, perhaps private, registry as demonstrated in
 the example below.
 
 # OPTIONS
+**-i**, **--insecure-registry**=*true*|*false*
+  Allow communication with insecure registries. The default is *false*.
 **--help**
   Print usage statement
 

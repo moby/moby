@@ -1124,6 +1124,7 @@ Query Parameters:
 -   **repo** – repository
 -   **tag** – tag
 -   **registry** – the registry to pull from
+-   **allowInsecure** – 1/True/true or 0/False/false, default false
 
     Request Headers:
 
@@ -1252,6 +1253,7 @@ Push the image `name` on the registry
 Query Parameters:
 
 -   **tag** – the tag to associate with the image on the registry, optional
+-   **allowInsecure** – 1/True/true or 0/False/false, default false
 
 Request Headers:
 
