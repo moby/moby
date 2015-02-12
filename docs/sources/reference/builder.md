@@ -626,8 +626,7 @@ ENTRYPOINT ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
 
 If you need to write a starter script for a single executable, you can ensure that
 the final executable receives the Unix signals by using `exec` and `gosu`
-(see [the Dockerfile best practices](/articles/dockerfile_best-practices/#entrypoint)
-for more details):
+commands:
 
 ```bash
 #!/bin/bash
