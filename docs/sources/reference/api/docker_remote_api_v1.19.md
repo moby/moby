@@ -644,6 +644,10 @@ This endpoint returns a live stream of a container's resource usage statistics.
            }
         }
 
+Query Parameters:
+
+-   **stream** – 1/True/true or 0/False/false, pull stats once then disconnect. Default true
+
 Status Codes:
 
 -   **200** – no error

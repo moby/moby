@@ -326,6 +326,7 @@ __docker_subcommand () {
             ;;
         (stats)
             _arguments \
+                '--no-stream[Disable streaming stats and only pull the first result]' \
                 '*:containers:__docker_runningcontainers'
             ;;
         (rm)

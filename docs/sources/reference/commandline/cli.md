@@ -2377,6 +2377,7 @@ more details on finding shared images from the command line.
     Display a live stream of one or more containers' resource usage statistics
 
       --help=false       Print usage
+      --no-stream=false  Disable streaming stats and only pull the first result
 
 Running `docker stats` on multiple containers
 

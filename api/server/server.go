@@ -611,7 +611,7 @@ func (s *Server) getContainersStats(eng *engine.Engine, version version.Version,
 		return fmt.Errorf("Missing parameter")
 	}
 
-	return s.daemon.ContainerStats(vars["name"], utils.NewWriteFlusher(w))
+	return s.daemon.ContainerStats(vars["name"], boolValue(r, "stream"), utils.NewWriteFlusher(w))
 }
 
 func (s *Server) getContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
