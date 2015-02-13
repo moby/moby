@@ -55,7 +55,7 @@ should exist. If it doesn't, you need to install the package
 
 Then, add the Docker repository key to your local keychain.
 
-    $ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+    $ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install
 the `lxc-docker` package.
@@ -147,7 +147,7 @@ should exist. If it doesn't, you need to install the package
 
 Then, add the Docker repository key to your local keychain.
 
-    $ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+    $ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install
 the `lxc-docker` package.
@@ -203,7 +203,7 @@ Docker is available as a Debian package, which makes installation easy.
 
 First add the Docker repository key to your local keychain.
 
-    $ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+    $ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 
 Add the Docker repository to your apt sources list, update and install
 the `lxc-docker` package.
