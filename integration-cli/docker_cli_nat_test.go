@@ -9,6 +9,8 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	iface, err := net.InterfaceByName("eth0")
 	if err != nil {
 		t.Skipf("Test not running with `make test`. Interface eth0 not found: %s", err)

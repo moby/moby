@@ -31,6 +31,8 @@ func TestLinksEtcHostsRegularFile(t *testing.T) {
 }
 
 func TestLinksEtcHostsContentMatch(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -93,6 +95,8 @@ func TestLinksPingLinkedContainersAfterRename(t *testing.T) {
 }
 
 func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	dockerCmd(t, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "sleep", "10")
 	dockerCmd(t, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "sleep", "10")
 
@@ -197,6 +201,8 @@ func TestLinksNotStartedParentNotFail(t *testing.T) {
 }
 
 func TestLinksHostsFilesInject(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	defer deleteAllContainers()
 
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "--name", "one", "busybox", "top"))
@@ -249,6 +255,8 @@ func TestLinksNetworkHostContainer(t *testing.T) {
 }
 
 func TestLinksUpdateOnRestart(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	defer deleteAllContainers()
 
 	if out, err := exec.Command(dockerBinary, "run", "-d", "--name", "one", "busybox", "top").CombinedOutput(); err != nil {
