@@ -14,7 +14,7 @@ possibleConfigs=(
 if [ $# -gt 0 ]; then
 	CONFIG="$1"
 else
-	CONFIG="${possibleConfigs[0]}"
+	: ${CONFIG:="${possibleConfigs[0]}"}
 fi
 
 if ! command -v zgrep &> /dev/null; then
@@ -94,7 +94,7 @@ if [ ! -e "$CONFIG" ]; then
 	if [ ! -e "$CONFIG" ]; then
 		wrap_warning "error: cannot find kernel config"
 		wrap_warning "  try running this script again, specifying the kernel config:"
-		wrap_warning "    CONFIG=/path/to/kernel/.config $0"
+		wrap_warning "    CONFIG=/path/to/kernel/.config $0 or $0 /path/to/kernel/.config"
 		exit 1
 	fi
 fi
