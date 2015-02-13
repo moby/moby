@@ -58,6 +58,8 @@ DEFAULT_BUNDLES=(
 	cover
 	cross
 	tgz
+
+	package-rpm
 	ubuntu
 )
 

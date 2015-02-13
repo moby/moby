@@ -5,7 +5,7 @@ They should not be called directly - instead, pass it as argument to make.sh, fo
 
 ```
 ./hack/make.sh test
-./hack/make.sh binary ubuntu
+./hack/make.sh binary package-rpm ubuntu
 
 # Or to run all bundles:
 ./hack/make.sh
