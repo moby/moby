@@ -173,11 +173,7 @@ string is equivalent to setting the `--tlsverify` flag. The following are equiva
 
 The Docker client will honor the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables (or the lowercase versions thereof). `HTTPS_PROXY` takes
-precedence over `HTTP_PROXY`. If you happen to have a proxy configured with the
-`HTTP_PROXY` or `HTTPS_PROXY` environment variables but still want to
-communicate with the Docker daemon over its default `unix` domain socket,
-setting the `NO_PROXY` environment variable to the path of the socket
-(`/var/run/docker.sock`) is required.
+precedence over `HTTP_PROXY`.
 
 ### Daemon storage-driver option
 
