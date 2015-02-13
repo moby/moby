@@ -79,7 +79,7 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 
 	switch table {
 	case Nat:
-		preroute := []string{
+		preroute := []string{"PREROUTING",
 			"-m", "addrtype",
 			"--dst-type", "LOCAL"}
 		if !Exists(preroute...) {
@@ -87,7 +87,7 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 				return nil, fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 			}
 		}
-		output := []string{
+		output := []string{"OUTPUT",
 			"-m", "addrtype",
 			"--dst-type", "LOCAL",
 			"!", "--dst", "127.0.0.0/8"}
@@ -200,7 +200,11 @@ func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) err
 
 // Add linking rule to nat/PREROUTING chain.
 func (c *Chain) Prerouting(action Action, args ...string) error {
-	a := []string{"-t", string(Nat), string(action), "PREROUTING"}
+	a := []string{"-t", string(Nat), string(action)}
+	if len(args) == 0 || args[0] != "PREROUTING" {
+		a = append(a, "PREROUTING")
+	}
+
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
@@ -214,7 +218,10 @@ func (c *Chain) Prerouting(action Action, args ...string) error {
 
 // Add linking rule to an OUTPUT chain
 func (c *Chain) Output(action Action, args ...string) error {
-	a := []string{"-t", string(c.Table), string(action), "OUTPUT"}
+	a := []string{"-t", string(c.Table), string(action)}
+	if len(args) == 0 || args[0] != "OUTPUT" {
+		a = append(a, "OUTPUT")
+	}
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
