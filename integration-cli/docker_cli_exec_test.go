@@ -424,7 +424,7 @@ func TestExecCgroup(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
-			cmd = exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
+			cmd := exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
 			out, _, err := runCommandWithOutput(cmd)
 			if err != nil {
 				t.Fatal(out, err)
