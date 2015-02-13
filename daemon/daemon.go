@@ -155,31 +155,32 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	return nil
 }
 
-// Get looks for a container with the provided prefix
-func (daemon *Daemon) Get(prefix string) (*Container, error) {
-	if containerByID := daemon.containers.Get(prefix); containerByID != nil {
-
+// Get looks for a container using the provided information, which could be
+// one of the following inputs from the caller:
+//  - A full container ID, which will exact match a container in daemon's list
+//  - A container name, which will only exact match via the GetByName() function
+//  - A partial container ID prefix (e.g. short ID) of any length that is
+//    unique enough to only return a single container object
+//  If none of these searches succeed, an error is returned
+func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
+	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
 		// prefix is an exact match to a full container ID
 		return containerByID, nil
 	}
 
-	// Either GetByName finds an entity matching prefix exactly, or it doesn't.
-	// Check value of containerByName and ignore any errors
-	containerByName, _ := daemon.GetByName(prefix)
-	containerId, indexError := daemon.idIndex.Get(prefix)
+	// GetByName will match only an exact name provided; we ignore errors
+	containerByName, _ := daemon.GetByName(prefixOrName)
+	containerId, indexError := daemon.idIndex.Get(prefixOrName)
 
 	if containerByName != nil {
-
 		// prefix is an exact match to a full container Name
 		return containerByName, nil
 	}
 
 	if containerId != "" {
-
 		// prefix is a fuzzy match to a container ID
 		return daemon.containers.Get(containerId), nil
 	}
-
 	return nil, indexError
 }
 
@@ -767,9 +768,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			}
 			child, err := daemon.Get(parts["name"])
 			if err != nil {
-				return err
-			}
-			if child == nil {
+				//An error from daemon.Get() means this name could not be found
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
 			if child.hostConfig.NetworkMode.IsHost() {
