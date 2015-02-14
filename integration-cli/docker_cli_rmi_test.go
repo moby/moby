@@ -102,7 +102,12 @@ func TestRmiTagWithExistingContainers(t *testing.T) {
 
 func TestRmiForceWithExistingContainers(t *testing.T) {
 	image := "busybox-clone"
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "/docker-busybox")); err != nil {
+
+	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
+	cmd.Stdin = strings.NewReader(`FROM busybox
+MAINTAINER foo`)
+
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
 		t.Fatalf("Could not build %s: %s, %v", image, out, err)
 	}
 
