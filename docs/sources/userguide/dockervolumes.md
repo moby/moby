@@ -28,7 +28,12 @@ persistent or shared data:
 - Data volumes can be shared and reused between containers
 - Changes to a data volume are made directly
 - Changes to a data volume will not be included when you update an image
-- Volumes persist until no containers use them
+- Data volumes persist even if the container itself is deleted
+
+Data volumes are designed to persist data, independent of the container's life 
+cycle. Docker will therefore *never* automatically delete volumes when you remove 
+a container, nor will it "garbage collect" volumes that are no longer referenced 
+by a container.
 
 ### Adding a data volume
 
@@ -140,6 +145,14 @@ container, or the subsequent containers `db1` and `db2`, the volumes will not
 be deleted.  To delete the volume from disk, you must explicitly call
 `docker rm -v` against the last container with a reference to the volume. This
 allows you to upgrade, or effectively migrate data volumes between containers.
+
+> **Note:** Docker will not warn you when removing a container *without* 
+> providing the `-v` option to delete its volumes. If you remove containers
+> without using the `-v` option, you may end up with "dangling" volumes; 
+> volumes that are no longer referenced by a container.
+> Dangling volumes are difficult to get rid of and can take up a large amount
+> of disk space. We're working on improving volume management and you can check
+> progress on this in [pull request #8484](https://github.com/docker/docker/pull/8484)
 
 ## Backup, restore, or migrate data volumes
 
