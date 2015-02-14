@@ -3,11 +3,10 @@
 The source for Docker documentation is here under `sources/` and uses extended
 Markdown, as implemented by [MkDocs](http://mkdocs.org).
 
-The HTML files are built and hosted on `https://docs.docker.com`, and update
-automatically after each change to the master or release branch of [Docker on
-GitHub](https://github.com/docker/docker) thanks to post-commit hooks. The
-`docs` branch maps to the "latest" documentation and the `master` (unreleased
-development) branch maps to the "master" documentation.
+The HTML files are built and hosted on
+[http://docs.docker.com](http://docs.docker.com), and update automatically
+after each change to the `docs` branch of [Docker on
+GitHub](https://github.com/docker/docker) thanks to post-commit hooks.
 
 ## Contributing
 
@@ -61,25 +60,21 @@ work!](../CONTRIBUTING.md#sign-your-work)
 
 ## Branches
 
+| Branch   | Description                    | URL (published via commit-hook)                                              |
+|----------|--------------------------------|------------------------------------------------------------------------------|
+| `docs`   | Official release documentation | [http://docs.docker.com](http://docs.docker.com)                             |
+| `master` | Unreleased development work    | [http://docs.master.dockerproject.com](http://docs.master.dockerproject.com) |
+
 **There are two branches related to editing docs**: `master` and `docs`. You
-should always edit the documentation on a local branch of the `master`
-branch, and send a PR against `master`.
+should always edit the documentation on a local branch of the `master` branch,
+and send a PR against `master`.  That way your fixes will automatically get
+included in later releases, and docs maintainers can easily cherry-pick your
+changes into the `docs` release branch.  In the rare case where your change is
+not forward-compatible, you may need to base your changes on the `docs` branch.
 
-That way your fixes will automatically get included in later releases, and docs
-maintainers can easily cherry-pick your changes into the `docs` release branch.
-In the rare case where your change is not forward-compatible, you may need to
-base your changes on the `docs` branch.
-
-Also, now that we have a `docs` branch, we can keep the
-[http://docs.docker.com](http://docs.docker.com) docs up to date with any bugs
-found between Docker code releases.
-
-> **Warning**: When *reading* the docs, the
-> [http://docs-stage.docker.com](http://docs-stage.docker.com) documentation may
-> include features not yet part of any official Docker release. The `beta-docs`
-> site should be used only for understanding bleeding-edge development and
-> `docs.docker.com` (which points to the `docs` branch`) should be used for the
-> latest official release.
+Also, since there is a separate `docs` branch, we can keep
+[http://docs.docker.com](http://docs.docker.com) up to date with any bugs found
+between Docker code releases.
 
 ## Publishing Documentation
 
