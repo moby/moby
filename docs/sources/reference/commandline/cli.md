@@ -2027,6 +2027,7 @@ more details on finding shared images from the command line.
 
     Display a live stream of one or more containers' resource usage statistics
 
+      -d, --display=-1   Show only count displays, then exit
       --help=false       Print usage
 
 > **Note**: this functionality currently only works when using the *libcontainer* exec-driver.

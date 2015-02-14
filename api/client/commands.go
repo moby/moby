@@ -2702,6 +2702,7 @@ func (s *containerStats) Display(w io.Writer) error {
 
 func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd := cli.Subcmd("stats", "CONTAINER", "Display a live stream of one or more containers' resource usage statistics", true)
+	display := cmd.Int([]string{"d", "-display"}, -1, "Show only count displays, then exit")
 	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, true)
 
@@ -2735,7 +2736,12 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
+	k := 0
 	for _ = range time.Tick(500 * time.Millisecond) {
+		if *display >= 0 && k >= *display {
+			break
+		}
+		k += 1
 		printHeader()
 		toRemove := []int{}
 		for i, s := range cStats {
