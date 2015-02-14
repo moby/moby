@@ -2617,7 +2617,7 @@ func TestRunVolumesCleanPaths(t *testing.T) {
 func TestRunSlowStdoutConsumer(t *testing.T) {
 	defer deleteAllContainers()
 
-	c := exec.Command("/bin/bash", "-c", dockerBinary+` run --rm -i busybox /bin/sh -c "dd if=/dev/zero of=/foo bs=1024 count=2000 &>/dev/null; catv /foo"`)
+	c := exec.Command(dockerBinary, "run", "--rm", "busybox", "/bin/sh", "-c", "dd if=/dev/zero of=/dev/stdout bs=1024 count=2000 | catv")
 
 	stdout, err := c.StdoutPipe()
 	if err != nil {
