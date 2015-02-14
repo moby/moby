@@ -15,8 +15,11 @@ func TestEventsUntag(t *testing.T) {
 	dockerCmd(t, "tag", image, "utest:tag2")
 	dockerCmd(t, "rmi", "utest:tag1")
 	dockerCmd(t, "rmi", "utest:tag2")
-	eventsCmd := exec.Command("timeout", "0.2", dockerBinary, "events", "--since=1")
-	out, _, _ := runCommandWithOutput(eventsCmd)
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=1")
+	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*200))
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events - exit code %d: %s", exitCode, err)
+	}
 	events := strings.Split(out, "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
