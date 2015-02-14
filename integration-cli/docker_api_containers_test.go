@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -138,11 +136,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	bindPath := randomUnixTmpDirPath("test")
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
@@ -175,16 +169,8 @@ func TestContainerApiStartDupVolumeBinds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bindPath1, err := ioutil.TempDir("", "test1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(bindPath1)
-	bindPath2, err := ioutil.TempDir("", "test2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(bindPath2)
+	bindPath1 := randomUnixTmpDirPath("test1")
+	bindPath2 := randomUnixTmpDirPath("test2")
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
@@ -262,11 +248,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	bindPath := randomUnixTmpDirPath("test")
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
 		"Binds":       []string{bindPath + ":/tmp"},
