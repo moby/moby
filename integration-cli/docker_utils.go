@@ -20,6 +20,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api"
 )
 
 // Daemon represents a Docker daemon for the testing framework.
@@ -266,8 +268,8 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 }
 
 func daemonHost() string {
-	daemonUrlStr := "unix:///var/run/docker.sock"
-	if daemonHostVar := os.Getenv("DOCKER_TEST_HOST"); daemonHostVar != "" {
+	daemonUrlStr := "unix://" + api.DEFAULTUNIXSOCKET
+	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {
 		daemonUrlStr = daemonHostVar
 	}
 	return daemonUrlStr
@@ -771,6 +773,12 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 	err = os.Chdir(ctx.Dir)
 	if err != nil {
 		return nil, err
+	}
+	if output, err := exec.Command("git", "config", "user.name", "Fake User").CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("error trying to set 'user.name': %s (%s)", err, output)
+	}
+	if output, err := exec.Command("git", "config", "user.email", "fake.user@example.com").CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("error trying to set 'user.email': %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("error trying to add files to repo: %s (%s)", err, output)

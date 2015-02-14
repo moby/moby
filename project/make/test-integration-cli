@@ -16,9 +16,6 @@ bundle_test_integration_cli() {
 	# even and especially on test failures
 	didFail=
 	if ! {
-		# pull the busybox image before running the tests
-		sleep 2
-
 		source "$(dirname "$BASH_SOURCE")/.ensure-busybox"
 		source "$(dirname "$BASH_SOURCE")/.ensure-emptyfs"
 

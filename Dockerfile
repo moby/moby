@@ -122,7 +122,7 @@ RUN set -x \
 		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT aa19d7b6609c6676e8258f6b900dea2eda1dbe95
+ENV DOCKER_PY_COMMIT d39da1167975aaeb6c423b99621ecda1223477b8
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT

@@ -18,8 +18,8 @@ DEST=$1
 			git clone https://github.com/docker/docker-py.git "$dockerPy"
 		}
 
-		export PYTHONPATH="$dockerPy" # import "docker" from our local docker-py
-		python "$dockerPy/tests/integration_test.py"
+		# exporting PYTHONPATH to import "docker" from our local docker-py
+		test_env PYTHONPATH="$dockerPy" python "$dockerPy/tests/integration_test.py"
 	}; then
 		didFail=1
 	fi

@@ -58,7 +58,7 @@ go_run_test_dir() {
 		echo
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		precompiled="$DEST/precompiled/$dir.test$(binary_extension)"
-		if ! ( cd "$dir" && "$precompiled" $TESTFLAGS ); then
+		if ! ( cd "$dir" && test_env "$precompiled" $TESTFLAGS ); then
 			TESTS_FAILED+=("$dir")
 			echo
 			echo "${RED}Tests failed: $dir${TEXTRESET}"
