@@ -101,7 +101,7 @@ A Dockerfile is similar to a Makefile.
   -- **CMD** has three forms:
 
   ```
-  # Exececutable form
+  # Executable form
   CMD ["executable", "param1", "param2"]`
 
   # Provide default arguments to ENTRYPOINT
