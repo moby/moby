@@ -632,6 +632,7 @@ _docker_run() {
 		--privileged
 		--publish-all -P
 		--tty -t
+		--persist-ports
 	"
 
 	[ "$command" = "run" ] && all_options="$all_options

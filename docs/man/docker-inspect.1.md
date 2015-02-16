@@ -124,7 +124,8 @@ To get information on a container use it's ID or instance name:
             "DriverOptions": {
                 "lxc": null
             },
-            "CliAddress": ""
+            "CliAddress": "",
+            "PersistPorts": false
         }
 
 ## Getting the IP address of a container instance

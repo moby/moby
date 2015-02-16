@@ -33,6 +33,7 @@ docker-create - Create a new container
 [**--net**[=*"bridge"*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
+[**--persist-ports**[=*false*]]
 [**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
@@ -145,6 +146,9 @@ This value should always larger than **-m**, so you should alway use this with *
                                Both hostPort and containerPort can be specified as a range of ports. 
                                When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
+
+**--persist-ports**=*true*|*false*
+   Persist published host ports that were dynamically allocated so that they remain the same even after restarting the container.
 
 **--pid**=host
    Set the PID mode for the container

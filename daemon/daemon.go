@@ -404,9 +404,23 @@ func (daemon *Daemon) restore() error {
 	if daemon.config.AutoRestart {
 		log.Debugf("Restarting containers...")
 
+		// Preinitalize network in containers with explicit host ports in
+		// hostConfig. This will prevent the allocator from using these ports
+		// when starting containers with dynamic allocated ports.
 		for _, container := range registeredContainers {
-			if container.hostConfig.RestartPolicy.Name == "always" ||
-				(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0) {
+			if !container.policyShouldRestart() {
+				continue
+			}
+			if !container.hasHostConfigHostPort() {
+				continue
+			}
+			if err := container.initializeNetworking(); err != nil {
+				log.Debugf("Failed to preinitialize container network %s: %s", container.ID, err)
+			}
+		}
+
+		for _, container := range registeredContainers {
+			if container.policyShouldRestart() {
 				log.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {

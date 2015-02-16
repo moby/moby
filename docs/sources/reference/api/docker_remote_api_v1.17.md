@@ -155,7 +155,8 @@ Create a container
                "CapDrop": ["MKNOD"],
                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
                "NetworkMode": "bridge",
-               "Devices": []
+               "Devices": [],
+               "PersistPorts": false
             }
         }
 
@@ -219,6 +220,8 @@ Json Parameters:
         Take note that `port` is specified as a string and not an integer value.
   -   **PublishAllPorts** - Allocates a random host port for all of a container's
         exposed ports. Specified as a boolean value.
+  -   **PersistPorts** - Persist published host ports that were dynamically
+        allocated so that they remain the same even after restarting the container.
   -   **Privileged** - Gives the container full access to the host.  Specified as
         a boolean value.
   -   **ReadonlyRootfs** - Mount the container's root filesystem as read only.
@@ -337,7 +340,8 @@ Return low-level information on the container `id`
 				"Name": "on-failure"
 			},
 			"SecurityOpt": null,
-			"VolumesFrom": null
+			"VolumesFrom": null,
+			"PersistPorts": false
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",

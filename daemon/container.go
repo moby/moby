@@ -479,7 +479,7 @@ func (container *Container) buildHostnameAndHostsFiles(IP string) error {
 
 func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
-	if container.Config.NetworkDisabled || !mode.IsPrivate() {
+	if container.isNetworkAllocated() || container.Config.NetworkDisabled || !mode.IsPrivate() {
 		return nil
 	}
 
@@ -542,6 +542,9 @@ func (container *Container) AllocateNetwork() error {
 			eng.Job("release_interface", container.ID).Run()
 			return err
 		}
+	}
+	if container.hostConfig.PersistPorts {
+		container.hostConfig.PortBindings = bindings
 	}
 	container.WriteHostConfig()
 
@@ -1433,4 +1436,23 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 
 func (container *Container) Stats() (*execdriver.ResourceStats, error) {
 	return container.daemon.Stats(container)
+}
+
+func (container *Container) hasHostConfigHostPort() bool {
+	if container.hostConfig == nil || container.hostConfig.PortBindings == nil {
+		return false
+	}
+	for _, b := range container.hostConfig.PortBindings {
+		for _, bb := range b {
+			if bb.HostPort != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (container *Container) policyShouldRestart() bool {
+	return container.hostConfig.RestartPolicy.Name == "always" ||
+		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }

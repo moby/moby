@@ -1,8 +1,10 @@
 package daemon
 
 import (
-	"github.com/docker/docker/nat"
 	"testing"
+
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/runconfig"
 )
 
 func TestParseNetworkOptsPrivateOnly(t *testing.T) {
@@ -192,6 +194,84 @@ func TestValidContainerNames(t *testing.T) {
 	for _, name := range validNames {
 		if !validContainerNamePattern.MatchString(name) {
 			t.Fatalf("%q is a valid container name and was returned as invalid.", name)
+		}
+	}
+}
+
+func TestHasHostConfigHostPort(t *testing.T) {
+	containers := []Container{
+		{},
+		{
+			hostConfig: &runconfig.HostConfig{},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				PortBindings: map[nat.Port][]nat.PortBinding{
+					"80/tcp": {},
+				},
+			},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				PortBindings: map[nat.Port][]nat.PortBinding{
+					"80/tcp": {{}},
+				},
+			},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				PortBindings: map[nat.Port][]nat.PortBinding{
+					"80/tcp": {{HostPort: ""}},
+				},
+			},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				PortBindings: map[nat.Port][]nat.PortBinding{
+					"80/tcp": {{HostPort: "1000"}},
+				},
+			},
+		},
+	}
+	expectedValues := []bool{false, false, false, false, false, true}
+	for i, c := range containers {
+		expected := expectedValues[i]
+		result := c.hasHostConfigHostPort()
+		if result != expected {
+			t.Fatalf("Expected container %#v to have hasHostConfigHostPort of %t, got: %t", c, expected, result)
+		}
+	}
+}
+
+func TestPolicyShouldRestart(t *testing.T) {
+	containers := []Container{
+		{
+			hostConfig: &runconfig.HostConfig{},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				RestartPolicy: runconfig.RestartPolicy{Name: "on-failure"},
+			},
+			State: &State{ExitCode: 0},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				RestartPolicy: runconfig.RestartPolicy{Name: "always"},
+			},
+		},
+		{
+			hostConfig: &runconfig.HostConfig{
+				RestartPolicy: runconfig.RestartPolicy{Name: "on-failure"},
+			},
+			State: &State{ExitCode: 1},
+		},
+	}
+	expectedValues := []bool{false, false, true, true}
+	for i, c := range containers {
+		expected := expectedValues[i]
+		result := c.policyShouldRestart()
+		if result != expected {
+			t.Fatalf("Expected container %#v to have policyShouldRestart of %t, got: %t", c, expected, result)
 		}
 	}
 }

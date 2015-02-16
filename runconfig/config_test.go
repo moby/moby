@@ -262,3 +262,12 @@ func TestMerge(t *testing.T) {
 	}
 
 }
+
+func TestParsePersistPorts(t *testing.T) {
+	if _, hostConfig := mustParse(t, ""); hostConfig.PersistPorts {
+		t.Fatalf("Error parsing PersistPorts. Expected default to be false, received: %t", hostConfig.PersistPorts)
+	}
+	if _, hostConfig := mustParse(t, "--persist-ports"); !hostConfig.PersistPorts {
+		t.Fatalf("Error parsing PersistPorts. Expected to be true, received: %t", hostConfig.PersistPorts)
+	}
+}

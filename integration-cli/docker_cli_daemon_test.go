@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/libtrust"
 )
 
@@ -479,4 +480,48 @@ func TestDaemonUpgradeWithVolumes(t *testing.T) {
 	}
 
 	logDone("daemon - volumes from old(pre 1.3) daemon work")
+}
+
+func TestDaemonRestartWithRunningContainersPortsInDynamicRange(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top1", "-p", "80", "--restart", "always", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top1: err=%v\n%s", err, out)
+	}
+
+	mapping := fmt.Sprintf("%d:80", portallocator.BeginPortRange)
+	if out, err := d.Cmd("create", "--name", "top2", "--link", "top1:top1", "-p", mapping, "--restart", "always", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not create top2: err=%v\n%s", err, out)
+	}
+
+	testContainerCount := func(expected int) {
+		out, err := d.Cmd("ps", "-q")
+		if err != nil {
+			t.Fatalf("Could not run ps: err=%v\n%q", err, out)
+		}
+		count := strings.Count(out, "\n")
+		if count != expected {
+			out, _ := d.Cmd("ps", "-a")
+			fmt.Printf("DAEMON: %#v\n", d)
+			d.logFile.Seek(0, os.SEEK_SET)
+			daemonLog, _ := ioutil.ReadAll(d.logFile)
+			t.Fatalf("Expected to have %d containers running, got %d:\n%s\nDaemon Log:\n%s", expected, count, out, string(daemonLog))
+		}
+	}
+
+	testContainerCount(1)
+
+	if err := d.Restart(); err != nil {
+		d.logFile.Seek(0, os.SEEK_SET)
+		daemonLog, _ := ioutil.ReadAll(d.logFile)
+		t.Fatalf("Could not restart daemon: %v\nDaemon Log:\n%s", err, daemonLog)
+	}
+
+	testContainerCount(2)
+
+	logDone("daemon - running containers on daemon restart with port in dynamic range")
 }
