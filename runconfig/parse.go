@@ -140,11 +140,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	var MemorySwap int64
 	if *flMemorySwap != "" {
-		parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
-		if err != nil {
-			return nil, nil, cmd, err
+		if *flMemorySwap == "-1" {
+			MemorySwap = -1
+		} else {
+			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
+			if err != nil {
+				return nil, nil, cmd, err
+			}
+			MemorySwap = parsedMemorySwap
 		}
-		MemorySwap = parsedMemorySwap
 	}
 
 	var binds []string
