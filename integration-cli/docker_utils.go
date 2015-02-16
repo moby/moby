@@ -895,6 +895,11 @@ func readContainerFile(containerId, filename string) ([]byte, error) {
 	return content, nil
 }
 
+func readContainerFileWithExec(containerId, filename string) ([]byte, error) {
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "exec", containerId, "cat", filename))
+	return []byte(out), err
+}
+
 func setupRegistry(t *testing.T) func() {
 	reg, err := newTestRegistryV2(t)
 	if err != nil {
