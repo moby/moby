@@ -2014,7 +2014,7 @@ more details on finding shared images from the command line.
 
 ## stats
 
-    Usage: docker stats [CONTAINERS]
+    Usage: docker stats CONTAINER [CONTAINER...]
 
     Display a live stream of one or more containers' resource usage statistics
 
