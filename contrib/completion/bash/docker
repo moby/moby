@@ -663,7 +663,7 @@ _docker_run() {
 			_filedir
 			return
 			;;
-		--device|-d|--volume)
+		--device|--volume|-v)
 			case "$cur" in
 				*:*)
 					# TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
