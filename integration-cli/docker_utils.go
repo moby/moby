@@ -273,6 +273,24 @@ func daemonHost() string {
 	return daemonUrlStr
 }
 
+func sockConn(timeout time.Duration) (net.Conn, error) {
+	daemon := daemonHost()
+	daemonUrl, err := url.Parse(daemon)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
+	}
+
+	var c net.Conn
+	switch daemonUrl.Scheme {
+	case "unix":
+		return net.DialTimeout(daemonUrl.Scheme, daemonUrl.Path, timeout)
+	case "tcp":
+		return net.DialTimeout(daemonUrl.Scheme, daemonUrl.Host, timeout)
+	default:
+		return c, fmt.Errorf("unknown scheme %v (%s)", daemonUrl.Scheme, daemon)
+	}
+}
+
 func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
 	jsonData := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
@@ -283,23 +301,9 @@ func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
 }
 
 func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte, error) {
-	daemon := daemonHost()
-	daemonUrl, err := url.Parse(daemon)
+	c, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
-		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
-	}
-
-	var c net.Conn
-	switch daemonUrl.Scheme {
-	case "unix":
-		c, err = net.DialTimeout(daemonUrl.Scheme, daemonUrl.Path, time.Duration(10*time.Second))
-	case "tcp":
-		c, err = net.DialTimeout(daemonUrl.Scheme, daemonUrl.Host, time.Duration(10*time.Second))
-	default:
-		err = fmt.Errorf("unknown scheme %v", daemonUrl.Scheme)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("could not dial docker daemon at %s: %v", daemon, err)
+		return nil, fmt.Errorf("could not dial docker daemon: %v", err)
 	}
 
 	client := httputil.NewClientConn(c, nil)

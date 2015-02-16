@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
-	"net"
 	"os/exec"
 	"testing"
+	"time"
 
 	"code.google.com/p/go.net/websocket"
 )
@@ -17,7 +17,7 @@ func TestGetContainersAttachWebsocket(t *testing.T) {
 	}
 	defer deleteAllContainers()
 
-	rwc, err := net.Dial("unix", "/var/run/docker.sock")
+	rwc, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
