@@ -343,7 +343,7 @@ made through a pull request.
 			"tibor",
 			"vbatts",
 			"vieux",
-			"vish"
+			"vishh"
 		]
 
 
@@ -584,7 +584,7 @@ made through a pull request.
 	Email = "cristian.staretu@gmail.com"
 	GitHub = "unclejack"
 
-	[people.vish]
+	[people.vishh]
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
