@@ -65,16 +65,27 @@ func TestLinksPingUnlinkedContainers(t *testing.T) {
 }
 
 func TestLinksPingLinkedContainers(t *testing.T) {
-	var out string
-	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
-	idA := stripTrailingCharacters(out)
-	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
-	idB := stripTrailingCharacters(out)
-	dockerCmd(t, "run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
-	dockerCmd(t, "kill", idA)
-	dockerCmd(t, "kill", idB)
-	deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "container1", "--hostname", "fred", "busybox", "top")
+	if _, err := runCommand(runCmd); err != nil {
+		t.Fatal(err)
+	}
+	runCmd = exec.Command(dockerBinary, "run", "-d", "--name", "container2", "--hostname", "wilma", "busybox", "top")
+	if _, err := runCommand(runCmd); err != nil {
+		t.Fatal(err)
+	}
 
+	runArgs := []string{"run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c"}
+	pingCmd := "ping -c 1 %s -W 1 && ping -c 1 %s -W 1"
+
+	// test ping by alias, ping by name, and ping by hostname
+	// 1. Ping by alias
+	dockerCmd(t, append(runArgs, fmt.Sprintf(pingCmd, "alias1", "alias2"))...)
+	// 2. Ping by container name
+	dockerCmd(t, append(runArgs, fmt.Sprintf(pingCmd, "container1", "container2"))...)
+	// 3. Ping by hostname
+	dockerCmd(t, append(runArgs, fmt.Sprintf(pingCmd, "fred", "wilma"))...)
+
+	deleteAllContainers()
 	logDone("links - ping linked container")
 }
 

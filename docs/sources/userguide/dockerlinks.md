@@ -252,20 +252,23 @@ In addition to the environment variables, Docker adds a host entry for the
 source container to the `/etc/hosts` file. Here's an entry for the `web`
 container:
 
-    $ sudo docker run -t -i --rm --link db:db training/webapp /bin/bash
+    $ sudo docker run -t -i --rm --link db:webdb training/webapp /bin/bash
     root@aed84ee21bde:/opt/webapp# cat /etc/hosts
     172.17.0.7  aed84ee21bde
     . . .
-    172.17.0.5  db
+    172.17.0.5  webdb 6e5cdeb2d300 db
 
 You can see two relevant host entries. The first is an entry for the `web`
 container that uses the Container ID as a host name. The second entry uses the
-link alias to reference the IP address of the `db` container. You can ping
-that host now via this host name.
+link alias to reference the IP address of the `db` container. In addition to 
+the alias you provide, the linked container's name--if unique from the alias
+provided to the `--link` parameter--and the linked container's hostname will
+also be added in `/etc/hosts` for the linked container's IP address. You can ping
+that host now via any of these entries:
 
     root@aed84ee21bde:/opt/webapp# apt-get install -yqq inetutils-ping
-    root@aed84ee21bde:/opt/webapp# ping db
-    PING db (172.17.0.5): 48 data bytes
+    root@aed84ee21bde:/opt/webapp# ping webdb
+    PING webdb (172.17.0.5): 48 data bytes
     56 bytes from 172.17.0.5: icmp_seq=0 ttl=64 time=0.267 ms
     56 bytes from 172.17.0.5: icmp_seq=1 ttl=64 time=0.250 ms
     56 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.256 ms

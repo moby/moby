@@ -457,7 +457,13 @@ func (container *Container) buildHostsFiles(IP string) error {
 
 	for linkAlias, child := range children {
 		_, alias := path.Split(linkAlias)
-		extraContent = append(extraContent, etchosts.Record{Hosts: alias, IP: child.NetworkSettings.IPAddress})
+		// allow access to the linked container via the alias, real name, and container hostname
+		aliasList := alias + " " + child.Config.Hostname
+		// only add the name if alias isn't equal to the name
+		if alias != child.Name[1:] {
+			aliasList = aliasList + " " + child.Name[1:]
+		}
+		extraContent = append(extraContent, etchosts.Record{Hosts: aliasList, IP: child.NetworkSettings.IPAddress})
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
