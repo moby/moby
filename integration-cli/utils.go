@@ -235,8 +235,9 @@ func makeRandomString(n int) string {
 	// make a really long string
 	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	b := make([]byte, n)
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[r.Intn(len(letters))]
 	}
 	return string(b)
 }
