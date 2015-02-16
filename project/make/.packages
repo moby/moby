@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# helper scripts for creating package bundles
+PACKAGE_URL="http://www.docker.com/"
+PACKAGE_MAINTAINER="support@docker.com"
+PACKAGE_DESCRIPTION="Linux container runtime
+Docker complements LXC with a high-level API which operates at the process
+level. It runs unix processes with strong guarantees of isolation and
+repeatability across servers.
+Docker is a great building block for automating distributed systems:
+large-scale web deployments, database clusters, continuous deployment systems,
+private PaaS, service-oriented architectures, etc."
+PACKAGE_LICENSE="Apache-2.0"
+
+# Include our udev rules
+bundle_udev() {
+	mkdir -p $DIR/etc/udev/rules.d
+	cp contrib/udev/80-docker.rules $DIR/etc/udev/rules.d/
+}
+
+# Include our init scripts
+bundle_init() {
+	mkdir -p $DIR/etc/init
+	cp contrib/init/upstart/docker.conf $DIR/etc/init/
+	mkdir -p $DIR/etc/init.d
+	cp contrib/init/sysvinit-debian/docker $DIR/etc/init.d/
+	mkdir -p $DIR/etc/default
+	cp contrib/init/sysvinit-debian/docker.default $DIR/etc/default/docker
+	mkdir -p $DIR/lib/systemd/system
+	cp contrib/init/systemd/docker.{service,socket} $DIR/lib/systemd/system/
+}
+
+# Include contributed completions
+bundle_completions() {
+	mkdir -p $DIR/etc/bash_completion.d
+	cp contrib/completion/bash/docker $DIR/etc/bash_completion.d/
+	mkdir -p $DIR/usr/share/zsh/vendor-completions
+	cp contrib/completion/zsh/_docker $DIR/usr/share/zsh/vendor-completions/
+	mkdir -p $DIR/etc/fish/completions
+	cp contrib/completion/fish/docker.fish $DIR/etc/fish/completions/
+}
+
+# Include contributed man pages
+bundle_manpages() {
+	docs/man/md2man-all.sh -q
+	manRoot="$DIR/usr/share/man"
+	mkdir -p "$manRoot"
+	for manDir in docs/man/man?; do
+		manBase="$(basename "$manDir")" # "man1"
+		for manFile in "$manDir"/*; do
+			manName="$(basename "$manFile")" # "docker-build.1"
+			mkdir -p "$manRoot/$manBase"
+			gzip -c "$manFile" > "$manRoot/$manBase/$manName.gz"
+		done
+	done
+}
