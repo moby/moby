@@ -110,7 +110,7 @@ Here is the list of supported options:
  *  `dm.loopmetadatasize`
 
     Specifies the size to use when creating the loopback file for the
-    "metadadata" device which is used for the thin pool. The default size is
+    "metadata" device which is used for the thin pool. The default size is
     2G. Note that the file is sparse, so it will not initially take
     up this much space.
 
@@ -216,3 +216,16 @@ Here is the list of supported options:
     Example use:
 
     ``docker -d --storage-opt dm.blkdiscard=false``
+
+ *  `dm.autoloopfile`
+
+    Instructs the devicemapper driver to allow automatic creation of loopback
+    attached files datadev and metadatadev. This provides the behavior that has
+    been default in the devicemapper prior, but now is an explicit flag. If
+    this flag is not provided, then the `dm.datadev` and `dm.metadata` options
+    must be provided.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.autoloopfile=true``
+

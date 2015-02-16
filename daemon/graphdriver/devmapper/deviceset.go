@@ -33,6 +33,7 @@ var (
 	DefaultThinpBlockSize       uint32 = 128      // 64K = 128 512b sectors
 	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
 	DeviceIdMapSz               int    = (MaxDeviceId + 1) / 8
+	DefaultAutoLoopFile         bool   = false
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -97,6 +98,7 @@ type DeviceSet struct {
 	thinpBlockSize       uint32
 	thinPoolDevice       string
 	Transaction          `json:"-"`
+	autoLoopfile         bool
 }
 
 type DiskUsage struct {
@@ -987,6 +989,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(sysSt.Dev), minor(sysSt.Dev), sysSt.Ino)
 	log.Debugf("Generated prefix: %s", devices.devicePrefix)
 
+	// default behavior now will be expecting block devices provided or `--storage-opt dm.autoloopfile=true`
+	if (devices.dataDevice == "" || devices.metadataDevice == "") && !devices.autoLoopfile {
+		return errors.New("devicemapper: no block device and dm.autoloopfile is disabled")
+	}
+
 	// Check for the existence of the thin-pool device
 	log.Debugf("Checking for existence of the pool '%s'", devices.getPoolName())
 	info, err := devicemapper.GetInfo(devices.getPoolName())
@@ -1006,7 +1013,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	createdLoopback := false
 
 	// If the pool doesn't exist, create it
-	if info.Exists == 0 && devices.thinPoolDevice == "" {
+	if info.Exists == 0 && devices.thinPoolDevice == "" && devices.autoLoopfile {
 		log.Debugf("Pool doesn't exist. Creating it.")
 
 		var (
@@ -1014,7 +1021,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 			metadataFile *os.File
 		)
 
-		if devices.dataDevice == "" {
+		if devices.dataDevice == "" && devices.autoLoopfile {
 			// Make sure the sparse images exist in <root>/devicemapper/data
 
 			hasData := devices.hasImage("data")
@@ -1047,7 +1054,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 		defer dataFile.Close()
 
-		if devices.metadataDevice == "" {
+		if devices.metadataDevice == "" && devices.autoLoopfile {
 			// Make sure the sparse images exist in <root>/devicemapper/metadata
 
 			hasMetadata := devices.hasImage("metadata")
@@ -1663,6 +1670,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		doBlkDiscard:         true,
 		thinpBlockSize:       DefaultThinpBlockSize,
 		deviceIdMap:          make([]byte, DeviceIdMapSz),
+		autoLoopfile:         DefaultAutoLoopFile,
 	}
 
 	foundBlkDiscard := false
@@ -1719,6 +1727,12 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			}
 			// convert to 512b sectors
 			devices.thinpBlockSize = uint32(size) >> 9
+		case "dm.autoloopfile":
+			b, err := strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+			devices.autoLoopfile = b
 		default:
 			return nil, fmt.Errorf("Unknown option %s\n", key)
 		}
