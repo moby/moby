@@ -132,6 +132,13 @@ func encodeAuth(authConfig *AuthConfig) string {
 
 // decode the auth string
 func decodeAuth(authStr string) (string, string, error) {
+	if strings.Contains(authStr, ":") {
+		var authData = strings.SplitN(authStr, ":", 2)
+		if len(authData) != 2 {
+			return "", "", fmt.Errorf("Invalid auth configuration file")
+		}
+		return authData[0], authData[1], nil
+	}
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)
 	authByte := []byte(authStr)
