@@ -64,6 +64,22 @@ func TestLinksPingUnlinkedContainers(t *testing.T) {
 	logDone("links - ping unlinked container")
 }
 
+// Test for appropriate error when calling --link with an invalid target container
+func TestLinksInvalidContainerTarget(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--link", "bogus:alias", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+
+	if err == nil {
+		t.Fatal("an invalid container target should produce an error")
+	}
+	if !strings.Contains(out, "Could not get container") {
+		t.Fatal("error output expected 'Could not get container', but got %q instead; err: %v", out, err)
+	}
+	deleteAllContainers()
+
+	logDone("links - linking to non-existent container should not work")
+}
+
 func TestLinksPingLinkedContainers(t *testing.T) {
 	var out string
 	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
