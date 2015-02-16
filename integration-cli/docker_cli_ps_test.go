@@ -566,3 +566,25 @@ func TestPsLinkedWithNoTrunc(t *testing.T) {
 		t.Fatalf("Expected array: %v, got: %v", expected, names)
 	}
 }
+
+func TestPsGroupPortRange(t *testing.T) {
+	defer deleteAllContainers()
+
+	portRange := "3300-3900"
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "ps"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	// check that the port range is in the output
+	if !strings.Contains(string(out), portRange) {
+		t.Fatalf("docker ps output should have had the port range %q: %s", portRange, string(out))
+	}
+
+	logDone("ps - port range")
+}

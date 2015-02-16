@@ -34,10 +34,10 @@ func DisplayablePorts(ports *engine.Table) string {
 	var (
 		result          = []string{}
 		hostMappings    = []string{}
-		startOfGroupMap map[string]int
+		firstInGroupMap map[string]int
 		lastInGroupMap  map[string]int
 	)
-	startOfGroupMap = make(map[string]int)
+	firstInGroupMap = make(map[string]int)
 	lastInGroupMap = make(map[string]int)
 	ports.SetKey("PrivatePort")
 	ports.Sort()
@@ -45,7 +45,7 @@ func DisplayablePorts(ports *engine.Table) string {
 		var (
 			current      = port.GetInt("PrivatePort")
 			portKey      = port.Get("Type")
-			startOfGroup int
+			firstInGroup int
 			lastInGroup  int
 		)
 		if port.Get("IP") != "" {
@@ -55,11 +55,11 @@ func DisplayablePorts(ports *engine.Table) string {
 			}
 			portKey = fmt.Sprintf("%s/%s", port.Get("IP"), port.Get("Type"))
 		}
-		startOfGroup = startOfGroupMap[portKey]
+		firstInGroup = firstInGroupMap[portKey]
 		lastInGroup = lastInGroupMap[portKey]
 
-		if startOfGroup == 0 {
-			startOfGroupMap[portKey] = current
+		if firstInGroup == 0 {
+			firstInGroupMap[portKey] = current
 			lastInGroupMap[portKey] = current
 			continue
 		}
@@ -68,12 +68,12 @@ func DisplayablePorts(ports *engine.Table) string {
 			lastInGroupMap[portKey] = current
 			continue
 		}
-		result = append(result, FormGroup(portKey, startOfGroup, lastInGroup))
-		startOfGroupMap[portKey] = current
+		result = append(result, FormGroup(portKey, firstInGroup, lastInGroup))
+		firstInGroupMap[portKey] = current
 		lastInGroupMap[portKey] = current
 	}
-	for portKey, startOfGroup := range startOfGroupMap {
-		result = append(result, FormGroup(portKey, startOfGroup, lastInGroupMap[portKey]))
+	for portKey, firstInGroup := range firstInGroupMap {
+		result = append(result, FormGroup(portKey, firstInGroup, lastInGroupMap[portKey]))
 	}
 	result = append(result, hostMappings...)
 	return strings.Join(result, ", ")
