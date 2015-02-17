@@ -114,9 +114,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			if err != nil {
 				return fmt.Errorf("failed to read Dockerfile from STDIN: %v", err)
 			}
-			if *dockerfileName == "" {
-				*dockerfileName = api.DefaultDockerfileName
-			}
+
+			// -f option has no meaning when we're reading it from stdin,
+			// so just use our default Dockerfile name
+			*dockerfileName = api.DefaultDockerfileName
 			context, err = archive.Generate(*dockerfileName, string(dockerfile))
 		} else {
 			context = ioutil.NopCloser(buf)
@@ -156,6 +157,16 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			// No -f/--file was specified so use the default
 			*dockerfileName = api.DefaultDockerfileName
 			filename = filepath.Join(absRoot, *dockerfileName)
+
+			// Just to be nice ;-) look for 'dockerfile' too but only
+			// use it if we found it, otherwise ignore this check
+			if _, err = os.Lstat(filename); os.IsNotExist(err) {
+				tmpFN := path.Join(absRoot, strings.ToLower(*dockerfileName))
+				if _, err = os.Lstat(tmpFN); err == nil {
+					*dockerfileName = strings.ToLower(*dockerfileName)
+					filename = tmpFN
+				}
+			}
 		}
 
 		origDockerfile := *dockerfileName // used for error msg

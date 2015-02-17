@@ -78,10 +78,6 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		}
 	}
 
-	if dockerfileName == "" {
-		dockerfileName = api.DefaultDockerfileName
-	}
-
 	if remoteURL == "" {
 		context = ioutil.NopCloser(job.Stdin)
 	} else if urlutil.IsGitURL(remoteURL) {
@@ -113,6 +109,11 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
+
+		// When we're downloading just a Dockerfile put it in
+		// the default name - don't allow the client to move/specify it
+		dockerfileName = api.DefaultDockerfileName
+
 		c, err := archive.Generate(dockerfileName, string(dockerFile))
 		if err != nil {
 			return job.Error(err)
