@@ -32,7 +32,7 @@ To install the latest Ubuntu package (this is **not** the most recent Docker rel
 
 Then, to enable tab-completion of Docker commands in BASH, either restart BASH or:
 
-    $ source /etc/bash_completion.d/docker.io
+    $ source /etc/bash_completion.d/docker*
 
 > **Note**:
 > Since the Ubuntu package is quite dated at this point, you may want to use
