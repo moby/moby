@@ -26,7 +26,7 @@ the machine on which the containers run.
 
 On a typical Linux installation, the Docker client, the Docker daemon, and any
 containers run directly on your localhost. This means you can address ports on a
-Docker container using the standard localhost addressing such as `localhost:8000` or
+Docker container using standard localhost addressing such as `localhost:8000` or
 `0.0.0.0:8376`.
 
 ![Linux Architecture Diagram](/installation/images/linux_docker_host.png)
@@ -37,7 +37,7 @@ machine provided by Boot2Docker.
 ![OSX Architecture Diagram](/installation/images/mac_docker_host.png)
 
 In OS X, the Docker host address is the address of the Linux VM.
-When you start the `boot2docker` process, it is assigned an IP address.  Under
+When you start the `boot2docker` process, the VM is assigned an IP address.  Under
 `boot2docker` ports on a container map to ports on the VM.  To see this in
 practice, work through the exercises on this page.
 
@@ -47,13 +47,12 @@ practice, work through the exercises on this page.
 1. Go to the [boo2docker/osx-installer ](
 https://github.com/boot2docker/osx-installer/releases/latest) release page.
 
-2. Click the `Boot2Docker-x.x.x.pkg` link in the "Downloads" section.
-
-	Your browser downloads the package to your folder.
+4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
+section.
 
 3. Install Boot2Docker by double-clicking the package.
 
-	The installer places a `Boot2Docker` app in your `Applications` folder.
+	The installer places Boot2Docker in your "Applications" folder.
 
 The installation places the `docker` and `boot2docker` binaries in your
 `/usr/local/bin` directory.
@@ -61,12 +60,12 @@ The installation places the `docker` and `boot2docker` binaries in your
 
 ## Start the Boot2Docker Application
 
-To run `docker` containers, you first start the `boot2docker` VM and then issue
+To run a Docker container, you first start the `boot2docker` VM and then issue
 `docker` commands to create, load, and manage containers. You can launch
 `boot2docker` from your Applications folder or from the command line.
 
 > **NOTE**: Boot2Docker is designed as a development tool. You should not use
->  it for any kind of production workloads.  
+>  it in production environments.  
 
 ### From the Applications folder
  
@@ -153,7 +152,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 ## Basic Boot2Docker Exercises
 
 At this point, you should have `boot2docker` running and the `docker` client
-environment initialized. To verify this, use the following commands:
+environment initialized. To verify this, run the following commands:
 
 	$ boot2docker status
 	$ docker version
@@ -168,7 +167,7 @@ Work through this section to try some practical container tasks using `boot2dock
 		
 	Normally, the `docker run` commands starts a container, runs it, and then
 	exits.  The `-d` flag keeps the container running in the background
-	after the `docker` command exits.  The `-P` flag publishes exposed ports from the
+	after the `docker run` command completes.  The `-P` flag publishes exposed ports from the
 	container to your local host; this lets you access them from your Mac.
 		
 2. Display your running container with `docker ps` command
@@ -214,7 +213,7 @@ Work through this section to try some practical container tasks using `boot2dock
 ### Mount a volume on the container
 
 When you start `boot2docker`, it automatically shares your `/Users` directory
-with the VM. You can use this share to mount directories onto your container.
+with the VM. You can use this share point to mount directories onto your container.
 The next exercise demonstrates how to do this.
 
 1.  Change to your user `$HOME` directory.
@@ -294,13 +293,12 @@ To upgrade any version of Boot2Docker, do this:
 3. Go to the [boo2docker/osx-installer ](
    https://github.com/boot2docker/osx-installer/releases/latest) release page.
    
-4. Click the`Boot2Docker-x.x.x.pkg` link in the "Downloads" section.
-
-	Your browser downloads the package.
+4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
+section.
 
 2. Install Boot2Docker by double-clicking the package. 
 
-	The installer places a `Boot2Docker` app in your `Applications` folder. 
+	The installer places Boot2Docker in your "Applications" folder. 
 
 
 ## Learning more and Acknowledgement
