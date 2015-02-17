@@ -140,13 +140,36 @@ func InitDriver(job *engine.Job) engine.Status {
 		// Bridge exists already. Getting info...
 		// validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
-			networkv4 = addrv4.(*net.IPNet)
 			bip, _, err := net.ParseCIDR(bridgeIP)
+			networkv4 = addrv4.(*net.IPNet)
 			if err != nil {
 				return job.Error(err)
 			}
 			if !networkv4.IP.Equal(bip) {
-				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", networkv4.IP, bip)
+				// Bridge exists already, and configured bridge IP is not the same with the existing config.
+				// Delete the origin Bridge and re-create it here!!
+				if err := netlink.DeleteBridge(bridgeIface); err != nil {
+					log.Fatalf("Could not delete the existing bridge interface:%s.", bridgeIface)
+					return job.Error(err)
+				}
+				if err := configureBridge(bridgeIP, bridgeIPv6, enableIPv6); err != nil {
+					return job.Error(err)
+				}
+				addrv4_new, addrsv6_new, err := networkdriver.GetIfaceAddr(bridgeIface)
+				if err != nil {
+					return job.Error(err)
+				}
+				if fixedCIDRv6 != "" {
+					// Setting route to global IPv6 subnet
+					log.Infof("Adding route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
+					if err := netlink.AddRoute(fixedCIDRv6, "", "", bridgeIface); err != nil {
+						log.Fatalf("Could not add route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
+					}
+				}
+
+				addrsv6 = addrsv6_new
+				addrv4 = addrv4_new
+				networkv4 = addrv4.(*net.IPNet)
 			}
 		}
 
