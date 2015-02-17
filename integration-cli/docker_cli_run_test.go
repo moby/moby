@@ -2921,6 +2921,10 @@ func TestRunPortFromDockerRangeInUse(t *testing.T) {
 		t.Fatal(out, err)
 	}
 	out = strings.TrimSpace(out)
+
+	if out == "" {
+		t.Fatal("docker port command output is empty")
+	}
 	out = strings.Split(out, ":")[1]
 	lastPort, err := strconv.Atoi(out)
 	if err != nil {
