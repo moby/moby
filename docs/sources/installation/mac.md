@@ -6,22 +6,28 @@ page_keywords: Docker, Docker documentation, requirements, boot2docker, VirtualB
 
 Because the Docker daemon uses Linux-specific kernel features, you can't run
 Docker natively in OS X.  Instead, you must install the Boot2Docker application.
-Boot2Docker includes a VirtualBox VM, Docker itself, and the Boot2Docker
-management tool.
+The application includes a VirtualBox Virtual Machine (VM), Docker itself, and the
+Boot2Docker management tool.
 
 The Boot2Docker management tool is a lightweight Linux virtual machine made
 specifically to run the Docker daemon on Mac OS X. The VirtualBox VM runs
 completely from RAM, is a small ~24MB download, and boots in approximately 5s.
+
+**Requirements**
 
 Your Mac must be running OS X 10.6 "Snow Leopard" or newer to run Boot2Docker.
 
 
 ## Learn the key concepts before installing
  
-In a Linux installation, your local machine is the Docker host. The Docker
-client, the Docker daemon, and any containers run directly on this host. This
-means you can address ports on a Docker container using standard addressing
-such as `localhost:8000` or `0.0.0.0:8376`.
+In a Docker installation on Linux, your machine is both the localhost and the
+Docker host. In networking, localhost means your computer. The Docker host is
+the machine on which the containers run.  
+
+On a typical Linux installation, the Docker client, the Docker daemon, and any
+containers run directly on your localhost. This means you can address ports on a
+Docker container using the standard localhost addressing such as `localhost:8000` or
+`0.0.0.0:8376`.
 
 ![Linux Architecture Diagram](/installation/images/linux_docker_host.png)
 
@@ -30,8 +36,10 @@ machine provided by Boot2Docker.
 
 ![OSX Architecture Diagram](/installation/images/mac_docker_host.png)
 
-When running on OS X, the Docker host address is that of the virtual Linux
-machine. Its IP address is assigned when you start the `boot2docker` process.
+When running on OS X, the Docker host address is the address of the Linux VM.
+When you start the `boot2docker` process, it is assigned an IP address.  Under
+`boot2docker` ports on a container map to ports on the VM.  To see this in
+practice, work through the exercises on this page.
 
 
 ## Install Boot2Docker
