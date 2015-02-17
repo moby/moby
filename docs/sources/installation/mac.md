@@ -36,7 +36,7 @@ machine provided by Boot2Docker.
 
 ![OSX Architecture Diagram](/installation/images/mac_docker_host.png)
 
-When running on OS X, the Docker host address is the address of the Linux VM.
+In OS X, the Docker host address is the address of the Linux VM.
 When you start the `boot2docker` process, it is assigned an IP address.  Under
 `boot2docker` ports on a container map to ports on the VM.  To see this in
 practice, work through the exercises on this page.
