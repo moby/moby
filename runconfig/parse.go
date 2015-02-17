@@ -206,21 +206,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
-		if strings.Contains(e, "-") {
-			proto, port := nat.SplitProtoPort(e)
-			//parse the start and end port and create a sequence of ports to expose
-			start, end, err := parsers.ParsePortRange(port)
-			if err != nil {
-				return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
-			}
-			for i := start; i <= end; i++ {
-				p := nat.NewPort(proto, strconv.FormatUint(i, 10))
-				if _, exists := ports[p]; !exists {
-					ports[p] = struct{}{}
-				}
-			}
-		} else {
-			p := nat.NewPort(nat.SplitProtoPort(e))
+		proto, port := nat.SplitProtoPort(e)
+		//parse the start and end port and create a sequence of ports to expose
+		//if expose a port, the start and end port are the same
+		start, end, err := parsers.ParsePortRange(port)
+		if err != nil {
+			return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+		}
+		for i := start; i <= end; i++ {
+			p := nat.NewPort(proto, strconv.FormatUint(i, 10))
 			if _, exists := ports[p]; !exists {
 				ports[p] = struct{}{}
 			}
