@@ -331,13 +331,23 @@ default specified in `CMD`.
 ## LABEL
    LABEL <key>=<value> <key>=<value> <key>=<value> ...
 
- --The `LABEL` instruction allows you to describe the image your `Dockerfile`
-is building. `LABEL` is specified as name value pairs. This data can
+The `LABEL` instruction allows you to add meta-data to the image your 
+`Dockerfile` is building. `LABEL` is specified as name value pairs. This data can
 be retrieved using the `docker inspect` command
 
+    LABEL com.example.label-without-value
+    LABEL com.example.label-with-value="foo"
+    LABEL version="1.0"
+    LABEL description="This my ACME image" vendor="ACME Products"
 
-    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products"
-    LABEL Version="1.0"
+As illustrated above, the `LABEL` instruction allows for multiple labels to be
+set at one time. Like command line parsing, quotes and backslashes can be used
+to include spaces within values.
+
+For example:
+
+    LABEL description="This text illustrates \
+    that label-values can span multiple lines."
 
 ## EXPOSE
 

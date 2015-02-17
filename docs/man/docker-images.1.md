@@ -34,7 +34,9 @@ versions.
    Show all images (by default filter out the intermediate image layers). The default is *false*.
 
 **-f**, **--filter**=[]
-   Provide filter values (i.e., 'dangling=true')
+   Provide filter values. Valid filters:
+                          dangling=true - unlabeled images with no children
+                          label=<key> or label=<key>=<value>
 
 **--help**
   Print usage statement

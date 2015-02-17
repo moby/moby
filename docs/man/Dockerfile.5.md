@@ -143,6 +143,18 @@ A Dockerfile is similar to a Makefile.
   **CMD** executes nothing at build time, but specifies the intended command for
   the image.
 
+**LABEL**
+ --**LABEL <key>[=<value>] [<key>[=<value>] ...]**
+
+ The **LABEL** instruction allows you to add meta-data to the image your 
+ Dockerfile is building. LABEL is specified as name value pairs. This data can
+ be retrieved using the `docker inspect` command.
+
+ The LABEL instruction allows for multiple labels to be set at one time. Like 
+ command line parsing, quotes and backslashes can be used to include spaces 
+ within values.
+
+
 **EXPOSE**
   -- `EXPOSE <port> [<port>...]`
   The **EXPOSE** instruction informs Docker that the container listens on the

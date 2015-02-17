@@ -25,6 +25,8 @@ docker-run - Run a command in a new container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
+[**-l**|**--label**[=*[]*]]
+[**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
@@ -196,6 +198,12 @@ ENTRYPOINT.
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
+
+**-l**, **--label**=[]
+   Set meta data on the container (e.g., --label=com.example.key=value)
+
+**--label-file**=[]
+   Read in a line delimited file of labels
 
 **--link**=[]
    Add link to another container in the form of <name or id>:alias
