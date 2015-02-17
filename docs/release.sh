@@ -108,8 +108,22 @@ upload_current_documentation() {
 
 invalidate_cache() {
 	if [ "" == "$DISTRIBUTION_ID" ]; then
-		echo "Skipping Cloudfront cache invalidation"
+		echo "Skipping Cloudfront cache invalidation, \$DISTRIBUTION_ID is not set."
 		return
+	fi
+
+	if [ ! -f changed-files ]; then
+		cat >&2 <<'EOF'
+In order to invalidate the cache you need a file "changed-files", which gets created on
+`make docs-release` IF you have a remote named "upstream".
+
+To add a git remote to your docker clone run:
+
+	git remote add upstream git@github.com:docker/docker.git
+
+You CANNOT invalidate the cache without this remote.
+EOF
+		exit 1
 	fi
 
 	dst=$1
