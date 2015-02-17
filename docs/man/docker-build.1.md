@@ -34,7 +34,7 @@ as context.
 
 # OPTIONS
 **-f**, **--file**=*Dockerfile*
-   Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile*.
+   Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile|dockerfile*.
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.

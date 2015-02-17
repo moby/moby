@@ -78,6 +78,40 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	return nil
 }
 
+func dockerfileCheck(root string, dockerfileName *string) (string, string, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", "", err
+	}
+
+	filename := *dockerfileName // path to Dockerfile
+
+	if *dockerfileName == "" {
+		// No -f/--file was specified so use the default
+		*dockerfileName = api.DefaultDockerfileName
+		filename = path.Join(absRoot, *dockerfileName)
+	}
+
+	origDockerfile := *dockerfileName // used for error msg
+
+	if filename, err = filepath.Abs(filename); err != nil {
+		return "", "", err
+	}
+
+	// Verify that 'filename' is within the build context
+	filename, err = symlink.FollowSymlinkInScope(filename, absRoot)
+	if err != nil {
+		return "", "", fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", origDockerfile, root)
+	}
+
+	// Now reset the dockerfileName to be relative to the build context
+	*dockerfileName, err = filepath.Rel(absRoot, filename)
+	if err != nil {
+		return "", "", err
+	}
+	return filename, origDockerfile, err
+}
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "PATH | URL | -", "Build a new image from the source code at PATH", true)
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) for the image")
@@ -144,39 +178,24 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 
-		absRoot, err := filepath.Abs(root)
+		filename, origDockerfile, err := dockerfileCheck(root, dockerfileName)
 		if err != nil {
 			return err
 		}
-
-		filename := *dockerfileName // path to Dockerfile
-
-		if *dockerfileName == "" {
-			// No -f/--file was specified so use the default
-			*dockerfileName = api.DefaultDockerfileName
-			filename = path.Join(absRoot, *dockerfileName)
-		}
-
-		origDockerfile := *dockerfileName // used for error msg
-
-		if filename, err = filepath.Abs(filename); err != nil {
-			return err
-		}
-
-		// Verify that 'filename' is within the build context
-		filename, err = symlink.FollowSymlinkInScope(filename, absRoot)
-		if err != nil {
-			return fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", origDockerfile, root)
-		}
-
-		// Now reset the dockerfileName to be relative to the build context
-		*dockerfileName, err = filepath.Rel(absRoot, filename)
-		if err != nil {
-			return err
-		}
-
 		if _, err = os.Lstat(filename); os.IsNotExist(err) {
-			return fmt.Errorf("Cannot locate Dockerfile: %s", origDockerfile)
+			// Try lowercase "dockerfile"
+			if *dockerfileName == api.DefaultDockerfileName {
+				*dockerfileName = api.DefaultDockerfileNameLower
+				filename, origDockerfile, err := dockerfileCheck(root, dockerfileName)
+				if err != nil {
+					return err
+				}
+				if _, err = os.Lstat(filename); os.IsNotExist(err) {
+					return fmt.Errorf("Cannot locate Dockerfile: %s", origDockerfile)
+				}
+			} else {
+				return fmt.Errorf("Cannot locate Dockerfile: %s", origDockerfile)
+			}
 		}
 		var includes = []string{"."}
 
