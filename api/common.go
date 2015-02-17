@@ -19,6 +19,7 @@ const (
 	DEFAULTHTTPHOST                       = "127.0.0.1"
 	DEFAULTUNIXSOCKET                     = "/var/run/docker.sock"
 	DefaultDockerfileName string          = "Dockerfile"
+	DefaultDockerfileNameLower string     = "dockerfile"
 )
 
 func ValidateHost(val string) (string, error) {
