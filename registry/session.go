@@ -33,6 +33,13 @@ type Session struct {
 }
 
 func NewSession(authConfig *AuthConfig, factory *requestdecorator.RequestFactory, endpoint *Endpoint, timeout bool) (r *Session, err error) {
+	if authConfig.ServerAddress != "" {
+		parsed, err := url.Parse(authConfig.ServerAddress)
+		if err == nil && parsed.Host != endpoint.URL.Host {
+			log.Infof("authConfig does not conform to given endpoint (%s != %s)", parsed.Host, endpoint.URL.Host)
+			*authConfig = AuthConfig{}
+		}
+	}
 	r = &Session{
 		authConfig:    authConfig,
 		indexEndpoint: endpoint,
