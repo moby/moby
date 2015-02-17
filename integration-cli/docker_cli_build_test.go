@@ -4688,14 +4688,15 @@ func TestBuildDockerfileOutsideContext(t *testing.T) {
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "outsideDockerfile"), []byte("FROM scratch\nENV x y"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink("../outsideDockerfile", filepath.Join(ctx, "dockerfile1")); err != nil {
+	if err := os.Symlink(filepath.Join("..", "outsideDockerfile"), filepath.Join(ctx, "dockerfile1")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(filepath.Join(tmpdir, "outsideDockerfile"), filepath.Join(ctx, "dockerfile2")); err != nil {
 		t.Fatal(err)
 	}
+
 	for _, dockerfilePath := range []string{
-		"../outsideDockerfile",
+		filepath.Join("..", "outsideDockerfile"),
 		filepath.Join(ctx, "dockerfile1"),
 		filepath.Join(ctx, "dockerfile2"),
 	} {
