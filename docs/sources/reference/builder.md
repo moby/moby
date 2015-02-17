@@ -328,6 +328,17 @@ default specified in `CMD`.
 > the result; `CMD` does not execute anything at build time, but specifies
 > the intended command for the image.
 
+## LABEL
+   LABEL <key>=<value> <key>=<value> <key>=<value> ...
+
+ --The `LABEL` instruction allows you to describe the image your `Dockerfile`
+is building. `LABEL` is specified as name value pairs. This data can
+be retrieved using the `docker inspect` command
+
+
+    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products"
+    LABEL Version="1.0"
+
 ## EXPOSE
 
     EXPOSE <port> [<port>...]
@@ -907,6 +918,7 @@ For example you might add something like this:
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
 
+    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
     RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC

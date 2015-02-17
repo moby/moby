@@ -85,6 +85,37 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
 }
 
+// LABEL some json data describing the image
+//
+// Sets the Label variable foo to bar,
+//
+func label(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("LABEL is missing arguments")
+	}
+	if len(args)%2 != 0 {
+		// should never get here, but just in case
+		return fmt.Errorf("Bad input to LABEL, too many args")
+	}
+
+	commitStr := "LABEL"
+
+	if b.Config.Labels == nil {
+		b.Config.Labels = map[string]string{}
+	}
+
+	for j := 0; j < len(args); j++ {
+		// name  ==> args[j]
+		// value ==> args[j+1]
+		newVar := args[j] + "=" + args[j+1] + ""
+		commitStr += " " + newVar
+
+		b.Config.Labels[args[j]] = args[j+1]
+		j++
+	}
+	return b.commit("", b.Config.Cmd, commitStr)
+}
+
 // ADD foo /path
 //
 // Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
