@@ -33,6 +33,8 @@ type Config struct {
 	NetworkDisabled bool
 	MacAddress      string
 	OnBuild         []string
+	SecurityOpt     []string
+	Labels          map[string]string
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
@@ -66,6 +68,9 @@ func ContainerConfigFromJob(job *engine.Job) *Config {
 	if Cmd := job.GetenvList("Cmd"); Cmd != nil {
 		config.Cmd = Cmd
 	}
+
+	job.GetenvJson("Labels", &config.Labels)
+
 	if Entrypoint := job.GetenvList("Entrypoint"); Entrypoint != nil {
 		config.Entrypoint = Entrypoint
 	}

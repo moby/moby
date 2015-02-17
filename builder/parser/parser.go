@@ -50,6 +50,7 @@ func init() {
 		command.Onbuild:    parseSubCommand,
 		command.Workdir:    parseString,
 		command.Env:        parseEnv,
+		command.Label:      parseLabel,
 		command.Maintainer: parseString,
 		command.From:       parseString,
 		command.Add:        parseMaybeJSONToList,
