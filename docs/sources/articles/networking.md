@@ -599,7 +599,8 @@ options are configurable at server startup:
 
  *  `--bip=CIDR` — supply a specific IP address and netmask for the
     `docker0` bridge, using standard CIDR notation like
-    `192.168.1.5/24`.
+    `192.168.1.5/24`. If the provided CIDR does not match the current,
+    docker will replace the current bridge IP with the provided CIDR.
 
  *  `--fixed-cidr=CIDR` — restrict the IP range from the `docker0` subnet,
     using the standard CIDR notation like `172.167.1.0/28`. This range must
