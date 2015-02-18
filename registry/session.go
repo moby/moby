@@ -216,7 +216,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 
 func isEndpointBlocked(endpoint string) bool {
 	if parsedURL, err := url.Parse(endpoint); err == nil {
-		if _, ok := BlockedRegistries[parsedURL.Host]; !ok {
+		if !IsIndexBlocked(parsedURL.Host) {
 			return false
 		}
 	}

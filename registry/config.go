@@ -31,7 +31,8 @@ const (
 )
 
 var (
-	// A set of blocked registries
+	// A set of blocked registries. A special entry "*" causes all registries
+	// but those present in RegistryList to be blocked.
 	BlockedRegistries map[string]struct{}
 	// List of registries to query.
 	RegistryList             = []string{INDEXNAME}
@@ -371,6 +372,21 @@ func splitReposName(reposName string, fixMissingIndex bool) (string, string) {
 	return indexName, remoteName
 }
 
+func IsIndexBlocked(indexName string) bool {
+	if _, ok := BlockedRegistries[indexName]; ok {
+		return true
+	}
+	if _, ok := BlockedRegistries["*"]; ok {
+		for _, name := range RegistryList {
+			if indexName == name {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
 func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInfo, error) {
 	if err := validateNoSchema(reposName); err != nil {
@@ -386,7 +402,7 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 		RemoteName: remoteName,
 	}
 
-	if _, ok := BlockedRegistries[indexName]; ok {
+	if IsIndexBlocked(indexName) {
 		return nil, fmt.Errorf("Blocked registry \"%s\"", indexName)
 	}
 

@@ -82,11 +82,13 @@ func mainDaemon() {
 	}
 
 	for _, r := range daemonCfg.BlockedRegistries.GetAll() {
-		if r == "public" {
+		if r == "all" {
+			r = "*"
+		} else if r == "public" {
 			r = registry.INDEXNAME
 		}
 		registry.BlockedRegistries[r] = struct{}{}
-		if r == registry.INDEXNAME {
+		if r == registry.INDEXNAME || r == "*" {
 			registry.RegistryList = []string{}
 		}
 	}

@@ -47,7 +47,7 @@ unix://[/path/to/socket] to use.
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
 
 **--block-registry**=[]
-  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. Special keyword "public" represents public Docker registry.
+  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. There are two special keywords recognized. The first is "public" and represents public Docker registry. The second is "all" which causes all registries but those added with **--add-registry** flag to be blocked.
 
 **-d**=*true*|*false*
   Enable daemon mode. Default is false.
