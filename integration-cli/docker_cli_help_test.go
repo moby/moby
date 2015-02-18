@@ -1,23 +1,19 @@
 package main
 
 import (
-	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/docker/docker/pkg/homedir"
 )
 
 func TestMainHelpWidth(t *testing.T) {
 	// Make sure main help text fits within 80 chars and that
 	// on non-windows system we use ~ when possible (to shorten things)
 
-	var home string
-	if runtime.GOOS != "windows" {
-		home = os.Getenv("HOME")
-	}
-
+	home := homedir.Get()
 	helpCmd := exec.Command(dockerBinary, "help")
 	out, ec, err := runCommandWithOutput(helpCmd)
 	if err != nil || ec != 0 {
@@ -27,9 +23,10 @@ func TestMainHelpWidth(t *testing.T) {
 	for _, line := range lines {
 		if len(line) > 80 {
 			t.Fatalf("Line is too long(%d chars):\n%s", len(line), line)
+
 		}
 		if home != "" && strings.Contains(line, home) {
-			t.Fatalf("Line should use ~ instead of %q:\n%s", home, line)
+			t.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
 		}
 	}
 	logDone("help - verify main width")
@@ -39,11 +36,7 @@ func TestCmdHelpWidth(t *testing.T) {
 	// Make sure main help text fits within 80 chars and that
 	// on non-windows system we use ~ when possible (to shorten things)
 
-	var home string
-	if runtime.GOOS != "windows" {
-		home = os.Getenv("HOME")
-	}
-
+	home := homedir.Get()
 	// Pull the list of commands from the "Commands:" section of docker help
 	helpCmd := exec.Command(dockerBinary, "help")
 	out, ec, err := runCommandWithOutput(helpCmd)
@@ -82,7 +75,7 @@ func TestCmdHelpWidth(t *testing.T) {
 				t.Fatalf("Help for %q is too long(%d chars):\n%s", command, len(line), line)
 			}
 			if home != "" && strings.Contains(line, home) {
-				t.Fatalf("Help for %q should use ~ instead of %q on:\n%s", command, home, line)
+				t.Fatalf("Help for %q should use home shortcut instead of %q on:\n%s", command, home, line)
 			}
 		}
 	}
