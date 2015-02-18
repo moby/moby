@@ -403,6 +403,8 @@ made through a pull request.
 				"fredlf",
 				"james",
 				"sven",
+				"spf13",
+				"mary"
 			]
 
 		[Org.Subsystems.libcontainer]
@@ -588,3 +590,7 @@ made through a pull request.
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+
+	[people.mary]
+	Name = "Mary Anthony"
+	Email = "mary.anthony@docker.com"
