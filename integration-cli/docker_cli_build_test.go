@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1568,7 +1569,21 @@ func TestBuildAddBadLinks(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	symlinkTarget := fmt.Sprintf("/../../../../../../../../../../../..%s", tempDir)
+	var symlinkTarget string
+	if runtime.GOOS == "windows" {
+		var driveLetter string
+		if abs, err := filepath.Abs(tempDir); err != nil {
+			t.Fatal(err)
+		} else {
+			driveLetter = abs[:1]
+		}
+		tempDirWithoutDrive := tempDir[2:]
+		symlinkTarget = fmt.Sprintf(`%s:\..\..\..\..\..\..\..\..\..\..\..\..%s`, driveLetter, tempDirWithoutDrive)
+	} else {
+		symlinkTarget = fmt.Sprintf("/../../../../../../../../../../../..%s", tempDir)
+	}
+
+	t.Logf("***=== %s", symlinkTarget)
 	tarPath := filepath.Join(ctx.Dir, "links.tar")
 	nonExistingFile := filepath.Join(tempDir, targetFile)
 	fooPath := filepath.Join(ctx.Dir, targetFile)
