@@ -97,7 +97,7 @@ func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 
 	imageListings := make([][]string, 5, 5)
 	for idx, filter := range filters {
-		cmd := exec.Command(dockerBinary, "images", "-f", filter)
+		cmd := exec.Command(dockerBinary, "images", "-q", "-f", filter)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
 			t.Fatal(err)
