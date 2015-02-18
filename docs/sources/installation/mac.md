@@ -5,7 +5,7 @@ page_keywords: Docker, Docker documentation, requirements, boot2docker, VirtualB
 # Install Docker on Mac OS X
 
 Because the Docker daemon uses Linux-specific kernel features, you can't run
-Docker natively in OS X.  Instead, you must install the Boot2Docker application.
+Docker natively in OS X. Instead, you must install the Boot2Docker application.
 The application includes a VirtualBox Virtual Machine (VM), Docker itself, and the
 Boot2Docker management tool.
 
@@ -22,7 +22,7 @@ Your Mac must be running OS X 10.6 "Snow Leopard" or newer to run Boot2Docker.
  
 In a Docker installation on Linux, your machine is both the localhost and the
 Docker host. In networking, localhost means your computer. The Docker host is
-the machine on which the containers run.  
+the machine on which the containers run. 
 
 On a typical Linux installation, the Docker client, the Docker daemon, and any
 containers run directly on your localhost. This means you can address ports on a
@@ -37,8 +37,8 @@ machine provided by Boot2Docker.
 ![OSX Architecture Diagram](/installation/images/mac_docker_host.png)
 
 In OS X, the Docker host address is the address of the Linux VM.
-When you start the `boot2docker` process, the VM is assigned an IP address.  Under
-`boot2docker` ports on a container map to ports on the VM.  To see this in
+When you start the `boot2docker` process, the VM is assigned an IP address. Under
+`boot2docker` ports on a container map to ports on the VM. To see this in
 practice, work through the exercises on this page.
 
 
@@ -65,7 +65,7 @@ To run a Docker container, you first start the `boot2docker` VM and then issue
 `boot2docker` from your Applications folder or from the command line.
 
 > **NOTE**: Boot2Docker is designed as a development tool. You should not use
->  it in production environments.  
+>  it in production environments. 
 
 ### From the Applications folder
  
@@ -166,8 +166,8 @@ Work through this section to try some practical container tasks using `boot2dock
 		$ docker run -d -P --name web nginx
 		
 	Normally, the `docker run` commands starts a container, runs it, and then
-	exits.  The `-d` flag keeps the container running in the background
-	after the `docker run` command completes.  The `-P` flag publishes exposed ports from the
+	exits. The `-d` flag keeps the container running in the background
+	after the `docker run` command completes. The `-P` flag publishes exposed ports from the
 	container to your local host; this lets you access them from your Mac.
 		
 2. Display your running container with `docker ps` command
@@ -190,7 +190,7 @@ Work through this section to try some practical container tasks using `boot2dock
 
 	   ![Bad Address](/installation/images/bad_host.png)
 
-	This didn't work.  The reason it doesn't work is your `DOCKER_HOST` address is
+	This didn't work. The reason it doesn't work is your `DOCKER_HOST` address is
 	not the localhost address (0.0.0.0) but is instead the address of the
 	`boot2docker` VM.
 
@@ -199,13 +199,13 @@ Work through this section to try some practical container tasks using `boot2dock
 		$ boot2docker ip
 		192.168.59.103
 		
-6.  Enter the `https://192.168.59.103:49157` address in your browser:
+6. Enter the `https://192.168.59.103:49157` address in your browser:
 
 	![Correct Addressing](/installation/images/good_host.png)
 
 	Success!
 
-7.  To stop and then remove your running `nginx` container, do the following:
+7. To stop and then remove your running `nginx` container, do the following:
 
 		$ docker stop web
 		$ docker rm web
@@ -216,15 +216,15 @@ When you start `boot2docker`, it automatically shares your `/Users` directory
 with the VM. You can use this share point to mount directories onto your container.
 The next exercise demonstrates how to do this.
 
-1.  Change to your user `$HOME` directory.
+1. Change to your user `$HOME` directory.
 
 		$ cd $HOME
 	
-2.  Make a new `site` directory.
+2. Make a new `site` directory.
 
 		$ mkdir site
 
-3.  Change into the `site` directory.
+3. Change into the `site` directory.
 
 		$ cd site
 
@@ -254,7 +254,7 @@ The next exercise demonstrates how to do this.
 
 	![Cool page](/installation/images/cool_view.png)
 
-9.  Stop and then remove your running `mysite` container.
+9. Stop and then remove your running `mysite` container.
 
 		$ docker stop mysite
 		$ docker rm mysite
@@ -262,7 +262,7 @@ The next exercise demonstrates how to do this.
 ## Upgrade Boot2Docker 
 
 If you running Boot2Docker 1.4.1 or greater, you can upgrade Boot2Docker from
-the command line.  If you are running an older version, you should use the
+the command line. If you are running an older version, you should use the
 package provided by the `boot2docker` repository.
 
 ### From the command line
@@ -304,7 +304,7 @@ section.
 ## Learning more and Acknowledgement
 
 
-Use `boot2docker help` to list the full command line reference.  For more
+Use `boot2docker help` to list the full command line reference. For more
 information about using SSH or SCP to access the Boot2Docker VM, see the README
 at  [Boot2Docker repository](https://github.com/boot2docker/boot2docker).
 
