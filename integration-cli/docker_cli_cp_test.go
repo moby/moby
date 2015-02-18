@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"testing"
 )
@@ -57,7 +58,7 @@ func TestCpGarbagePath(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := filepath.Join("../../../../../../../../../../../../", cpFullPath)
+	path := path.Join("../../../../../../../../../../../../", cpFullPath)
 
 	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 	if err != nil {
@@ -120,11 +121,18 @@ func TestCpRelativePath(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path, _ := filepath.Rel("/", cpFullPath)
+	var relPath string
+	if path.IsAbs(cpFullPath) {
+		// normally this is `filepath.Rel("/", cpFullPath)` but we cannot
+		// get this unix-path manipulation on windows with filepath.
+		relPath = cpFullPath[1:]
+	} else {
+		t.Fatalf("path %s was assumed to be an absolute path", cpFullPath)
+	}
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+relPath, tmpdir)
 	if err != nil {
-		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, path, err)
+		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, relPath, err)
 	}
 
 	file, _ := os.Open(tmpname)
@@ -247,7 +255,7 @@ func TestCpAbsoluteSymlink(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := filepath.Join("/", "container_path")
+	path := path.Join("/", "container_path")
 
 	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 	if err != nil {
@@ -311,7 +319,7 @@ func TestCpSymlinkComponent(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := filepath.Join("/", "container_path", cpTestName)
+	path := path.Join("/", "container_path", cpTestName)
 
 	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 	if err != nil {
