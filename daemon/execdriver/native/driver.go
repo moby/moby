@@ -4,6 +4,7 @@ package native
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -173,6 +174,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 }
 
 func (d *driver) Kill(p *execdriver.Command, sig int) error {
+	if p.ProcessConfig.Process == nil {
+		return errors.New("exec: not started")
+	}
 	return syscall.Kill(p.ProcessConfig.Process.Pid, syscall.Signal(sig))
 }
 
