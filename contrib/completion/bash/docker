@@ -552,6 +552,13 @@ _docker_push() {
 	fi
 }
 
+_docker_rename() {
+	local counter=$(__docker_pos_first_nonflag)
+	if [ $cword -eq $counter ]; then
+		__docker_containers_all
+	fi
+}
+
 _docker_restart() {
 	case "$prev" in
 		--time|-t)
@@ -914,6 +921,7 @@ _docker() {
 		ps
 		pull
 		push
+		rename
 		restart
 		rm
 		rmi
