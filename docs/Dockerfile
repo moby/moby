@@ -4,5 +4,40 @@
 FROM docs/base:latest
 MAINTAINER Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
-COPY . /docs
-RUN ./build.sh
+# TODO: need the full repo source to get the git version info
+COPY . /src
+
+# Reset the /docs dir so we can replace the theme meta with the new repo's git info
+RUN git reset --hard
+
+# Then copy the desired docs into the /docs/sources/ dir
+COPY ./docs/sources/ /docs/sources
+
+COPY ./VERSION VERSION
+
+COPY ./image/spec/v1.md /docs/sources/reference/image-spec-v1.md
+# TODO: don't do this - look at merging the yml file in build.sh
+COPY ./docs/mkdocs.yml mkdocs.yml
+COPY ./docs/s3_website.json s3_website.json
+
+# Docker Swarm
+ADD https://raw.githubusercontent.com/docker/swarm/master/docs/mkdocs.yml /docs/mkdocs-swarm.yml
+ADD https://raw.githubusercontent.com/docker/swarm/master/docs/index.md /docs/sources/swarm/index.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/discovery/README.md /docs/sources/swarm/discovery.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/api/README.md /docs/sources/swarm/API.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/scheduler/filter/README.md /docs/sources/swarm/scheduler/filter.md
+ADD https://raw.githubusercontent.com/docker/swarm/master/scheduler/strategy/README.md /docs/sources/swarm/scheduler/strategy.md
+
+# Docker Machine
+ADD https://raw.githubusercontent.com/docker/machine/master/docs/mkdocs.yml /docs/mkdocs-machine.yml
+ADD https://raw.githubusercontent.com/docker/machine/master/docs/index.md /docs/sources/machine/index.md
+
+# Docker Compose
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/mkdocs.yml /docs/mkdocs-compose.yml
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/index.md /docs/sources/compose/index.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/install.md /docs/sources/compose/install.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/cli.md /docs/sources/compose/cli.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/yml.md /docs/sources/compose/yml.md
+
+# Then build everything together, ready for mkdocs
+RUN /docs/build.sh
