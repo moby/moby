@@ -2303,17 +2303,18 @@ func TestRunNetworkNotInitializedNoneMode(t *testing.T) {
 
 func TestRunSetMacAddress(t *testing.T) {
 	mac := "12:34:56:78:9a:bc"
-	cmd := exec.Command("/bin/bash", "-c", dockerBinary+` run -i --rm --mac-address=`+mac+` busybox /bin/sh -c "ip link show eth0 | tail -1 | awk '{ print \$2 }'"`)
-	out, _, err := runCommandWithOutput(cmd)
+
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "/bin/sh", "-c", "ip link show eth0 | tail -1 | awk '{print $2}'")
+	out, ec, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("exec failed:\nexit code=%v\noutput=%s", ec, out)
 	}
 	actualMac := strings.TrimSpace(out)
 	if actualMac != mac {
 		t.Fatalf("Set MAC address with --mac-address failed. The container has an incorrect MAC address: %q, expected: %q", actualMac, mac)
 	}
 
-	deleteAllContainers()
 	logDone("run - setting MAC address with --mac-address")
 }
 
