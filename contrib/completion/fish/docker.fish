@@ -72,7 +72,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -l registry-mirror -d 'Sp
 complete -c docker -f -n '__fish_docker_no_subcommand' -s s -l storage-driver -d 'Force the Docker runtime to use a specific storage driver'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l selinux-enabled -d 'Enable selinux support. SELinux does not presently support the BTRFS storage driver'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l storage-opt -d 'Set storage driver options'
-complete -c docker -f -n '__fish_docker_no_subcommand' -l tls -d 'Use TLS; implied by --tlsverify flag'
+complete -c docker -f -n '__fish_docker_no_subcommand' -l tls -d 'Use TLS; implied by --tlsverify'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l tlscacert -d 'Trust only remotes providing a certificate signed by the CA given here'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l tlscert -d 'Path to TLS certificate file'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l tlskey -d 'Path to TLS key file'

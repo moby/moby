@@ -35,7 +35,7 @@ var (
 	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify flag")
+	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
 	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
 	flTlsVerify = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
 
@@ -65,7 +65,7 @@ func init() {
 	flCa = flag.String([]string{"-tlscacert"}, filepath.Join(dockerCertPath, defaultCaFile), "Trust certs signed only by this CA")
 	flCert = flag.String([]string{"-tlscert"}, filepath.Join(dockerCertPath, defaultCertFile), "Path to TLS certificate file")
 	flKey = flag.String([]string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
-	opts.HostListVar(&flHosts, []string{"H", "-host"}, "Daemon socket(s) to use or connect to")
+	opts.HostListVar(&flHosts, []string{"H", "-host"}, "Daemon socket(s) to connect to")
 
 	flag.Usage = func() {
 		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
