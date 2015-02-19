@@ -4879,3 +4879,20 @@ func TestBuildEmptyScratch(t *testing.T) {
 	}
 	logDone("build - empty scratch Dockerfile")
 }
+
+func TestBuildDotDotFile(t *testing.T) {
+	defer deleteImages("sc")
+	ctx, err := fakeContext("FROM busybox\n",
+		map[string]string{
+			"..gitme": "",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err = buildImageFromContext("sc", ctx, false); err != nil {
+		t.Fatalf("Build was supposed to work: %s", err)
+	}
+	logDone("build - ..file")
+}
