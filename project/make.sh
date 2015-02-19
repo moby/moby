@@ -178,8 +178,21 @@ go_test_dir() {
 		export DEST
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
-		go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
+		test_env go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
 	)
+}
+test_env() {
+	# use "env -i" to tightly control the environment variables that bleed into the tests
+	env -i \
+		DEST="$DEST" \
+		DOCKER_EXECDRIVER="$DOCKER_EXECDRIVER" \
+		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
+		DOCKER_HOST="$DOCKER_HOST" \
+		GOPATH="$GOPATH" \
+		HOME="$DEST/fake-HOME" \
+		PATH="$PATH" \
+		TEST_DOCKERINIT_PATH="$TEST_DOCKERINIT_PATH" \
+		"$@"
 }
 
 # a helper to provide ".exe" when it's appropriate
