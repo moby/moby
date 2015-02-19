@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path"
 	"reflect"
 	"strings"
 	"syscall"
@@ -275,6 +276,12 @@ func makeRandomString(n int) string {
 		b[i] = letters[r.Intn(len(letters))]
 	}
 	return string(b)
+}
+
+// randomUnixTmpDirPath provides a temporary unix path with rand string appended.
+// does not create or checks if it exists.
+func randomUnixTmpDirPath(s string) string {
+	return path.Join("/tmp", fmt.Sprintf("%s.%s", s, makeRandomString(10)))
 }
 
 // Reads chunkSize bytes from reader after every interval.
