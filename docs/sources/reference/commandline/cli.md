@@ -1966,13 +1966,21 @@ You can add other hosts into a container's `/etc/hosts` file by using one or mor
     round-trip min/avg/max/stddev = 7.600/19.152/30.705/11.553 ms
 ```
 
-> **Note:**
-> Sometimes you need to connect to the Docker host, which means getting the IP
-> address of the host. You can use the following shell commands to simplify this
-> process:
->
->      $ alias hostip="ip route show 0.0.0.0/0 | grep -Eo 'via \S+' | awk '{ print \$2 }'"
->      $ docker run  --add-host=docker:$(hostip) --rm -it debian
+Sometimes you need to connect to the Docker host from within your
+container.  To enable this, pass the Docker host's IP address to
+the container using the `--add-host` flag. To find the host's address,
+use the `ip addr show` command.
+
+The flags you pass to `ip addr show` depend on whether you are
+using IPv4 or IPv6 networking in your containers. Use the following
+flags for IPv4 address retrieval for a network device named `eth0`:
+
+    $ HOSTIP=`ip -4 addr show scope global dev eth0 | grep inet | awk '{print \$2}' | cut -d / -f 1`
+    $ docker run  --add-host=docker:${HOSTIP} --rm -it debian
+
+For IPv6 use the `-6` flag instead of the `-4` flag. For other network
+devices, replace `eth0` with the correct device name (for example `docker0`
+for the bridge device).
 
 ## save
 
