@@ -1361,6 +1361,7 @@ func TestRunAddingOptionalDevices(t *testing.T) {
 
 func TestRunModeHostname(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	cmd := exec.Command(dockerBinary, "run", "-h=testhostname", "busybox", "cat", "/etc/hostname")
 	out, _, err := runCommandWithOutput(cmd)
@@ -1429,6 +1430,7 @@ func TestRunDisallowBindMountingRootToRoot(t *testing.T) {
 // Verify that a container gets default DNS when only localhost resolvers exist
 func TestRunDnsDefaultOptions(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	// preserve original resolv.conf for restoring after test
 	origResolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
@@ -1500,8 +1502,7 @@ func TestRunDnsOptions(t *testing.T) {
 
 func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 	defer deleteAllContainers()
-
-	var out string
+	testRequires(t, SameHostDaemon)
 
 	origResolvConf, err := ioutil.ReadFile("/etc/resolv.conf")
 	if os.IsNotExist(err) {
@@ -1511,8 +1512,8 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 	hostNamservers := resolvconf.GetNameservers(origResolvConf)
 	hostSearch := resolvconf.GetSearchDomains(origResolvConf)
 
+	var out string
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
-
 	if out, _, err = runCommandWithOutput(cmd); err != nil {
 		t.Fatal(err, out)
 	}
@@ -1600,6 +1601,7 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 // stopped and have an unmodified copy of resolv.conf, as well as
 // marking running containers as requiring an update on next restart
 func TestRunResolvconfUpdater(t *testing.T) {
+	testRequires(t, SameHostDaemon)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
@@ -2355,6 +2357,7 @@ func TestRunInspectMacAddress(t *testing.T) {
 
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	cmd := exec.Command(dockerBinary, "run", "-d", "-p", "23:23", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
@@ -2386,6 +2389,7 @@ func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 
 func TestRunPortInUse(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	port := "1234"
 	l, err := net.Listen("tcp", ":"+port)
@@ -2407,6 +2411,8 @@ func TestRunPortInUse(t *testing.T) {
 
 // https://github.com/docker/docker/issues/8428
 func TestRunPortProxy(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	defer deleteAllContainers()
 
 	port := "12345"
@@ -2441,6 +2447,7 @@ func TestRunPortProxy(t *testing.T) {
 // Regression test for #7792
 func TestRunMountOrdering(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	tmpDir, err := ioutil.TempDir("", "docker_nested_mount_test")
 	if err != nil {
@@ -2484,6 +2491,7 @@ func TestRunMountOrdering(t *testing.T) {
 // Regression test for https://github.com/docker/docker/issues/8259
 func TestRunReuseBindVolumeThatIsSymlink(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "testlink")
 	if err != nil {
@@ -2579,6 +2587,8 @@ func TestVolumesNoCopyData(t *testing.T) {
 }
 
 func TestRunVolumesNotRecreatedOnStart(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	// Clear out any remnants from other tests
 	deleteAllContainers()
 	info, err := ioutil.ReadDir(volumesConfigPath)
@@ -2779,6 +2789,7 @@ func TestRunUnknownCommand(t *testing.T) {
 
 func TestRunModeIpcHost(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	hostIpc, err := os.Readlink("/proc/1/ns/ipc")
 	if err != nil {
@@ -2812,6 +2823,7 @@ func TestRunModeIpcHost(t *testing.T) {
 
 func TestRunModeIpcContainer(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
@@ -2851,6 +2863,7 @@ func TestRunModeIpcContainer(t *testing.T) {
 
 func TestContainerNetworkMode(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
@@ -2886,6 +2899,7 @@ func TestContainerNetworkMode(t *testing.T) {
 
 func TestRunModePidHost(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	if err != nil {
@@ -3029,6 +3043,8 @@ func TestRunNonLocalMacAddress(t *testing.T) {
 }
 
 func TestRunNetHost(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	defer deleteAllContainers()
 	hostNet, err := os.Readlink("/proc/1/ns/net")
 	if err != nil {
