@@ -86,7 +86,7 @@ expect an integer, and they can only be specified once.
       --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
       -G, --group="docker"                   Group for the unix socket
       -g, --graph="/var/lib/docker"          Root of the Docker runtime
-      -H, --host=[]                          Daemon socket(s) to use or connect to
+      -H, --host=[]                          Daemon socket(s) to connect to
       -h, --help=false                       Print usage
       --icc=true                             Enable inter-container communication
       --insecure-registry=[]                 Enable insecure registry communication
@@ -103,7 +103,7 @@ expect an integer, and they can only be specified once.
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled=false                Enable selinux support
       --storage-opt=[]                       Set storage driver options
-      --tls=false                            Use TLS; implied by --tlsverify flag
+      --tls=false                            Use TLS; implied by --tlsverify
       --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
       --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
       --tlskey="~/.docker/key.pem"           Path to TLS key file
