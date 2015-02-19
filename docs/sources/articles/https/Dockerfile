@@ -6,5 +6,5 @@ ADD make_certs.sh /
 
 
 WORKDIR /data
-VOLUMES ["/data"]
+VOLUME ["/data"]
 CMD /make_certs.sh
