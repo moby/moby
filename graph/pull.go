@@ -86,7 +86,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
 			}
 			return engine.StatusOK
-		} else if err != registry.ErrDoesNotExist {
+		} else if err != registry.ErrDoesNotExist && err != ErrV2RegistryUnavailable {
 			log.Errorf("Error from V2 registry: %s", err)
 		}
 
@@ -374,6 +374,10 @@ type downloadInfo struct {
 func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
 	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
 	if err != nil {
+		if repoInfo.Index.Official {
+			log.Debugf("Unable to pull from V2 registry, falling back to v1: %s", err)
+			return ErrV2RegistryUnavailable
+		}
 		return fmt.Errorf("error getting registry endpoint: %s", err)
 	}
 	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, true)
