@@ -1238,6 +1238,10 @@ straightforward manner.
 
     $ sudo docker inspect --format='{{.NetworkSettings.MacAddress}}' $INSTANCE_ID
 
+**Get an instance's log path:**
+
+    $ sudo docker inspect --format='{{.LogPath}}' $INSTANCE_ID
+
 **List All Port Bindings:**
 
 One can loop over arrays and maps in the results to produce simple text

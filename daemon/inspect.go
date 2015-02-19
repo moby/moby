@@ -44,6 +44,7 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 	out.Set("ResolvConfPath", container.ResolvConfPath)
 	out.Set("HostnamePath", container.HostnamePath)
 	out.Set("HostsPath", container.HostsPath)
+	out.Set("LogPath", container.LogPath)
 	out.SetJson("Name", container.Name)
 	out.SetInt("RestartCount", container.RestartCount)
 	out.Set("Driver", container.Driver)

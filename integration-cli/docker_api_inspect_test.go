@@ -34,7 +34,7 @@ func TestInspectApiContainerResponse(t *testing.T) {
 			t.Fatalf("unable to unmarshal body for %s version: %v", testVersion, err)
 		}
 
-		keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW"}
+		keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW"}
 
 		if testVersion == "v1.11" {
 			keys = append(keys, "ID")
