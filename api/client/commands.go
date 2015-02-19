@@ -2648,7 +2648,7 @@ func (s *containerStats) Collect(cli *DockerCli) {
 				cpuPercent = 0.0
 			)
 			if !start {
-				cpuPercent = calcuateCpuPercent(previousCpu, previousSystem, v)
+				cpuPercent = calculateCpuPercent(previousCpu, previousSystem, v)
 			}
 			start = false
 			s.mu.Lock()
@@ -2755,7 +2755,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	return nil
 }
 
-func calcuateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) float64 {
+func calculateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) float64 {
 	var (
 		cpuPercent = 0.0
 		// calculate the change for the cpu usage of the container in between readings
