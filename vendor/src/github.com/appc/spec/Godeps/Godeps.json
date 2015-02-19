@@ -1,0 +1,17 @@
+{
+	"ImportPath": "github.com/appc/spec",
+	"GoVersion": "go1.4.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/coreos/go-semver/semver",
+			"Rev": "6fe83ccda8fb9b7549c9ab4ba47f47858bc950aa"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "ccfcd82c7124abd517842acbacc3b8c1e390c73d"
+		}
+	]
+}

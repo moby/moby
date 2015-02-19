@@ -1008,12 +1008,14 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images", true)
 		force   = cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
+		format  = cmd.String([]string{"-format"}, "docker", "Image format to work on")
 	)
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
 
 	v := url.Values{}
+	v.Set("format", *format)
 	if *force {
 		v.Set("force", "1")
 	}
@@ -1251,15 +1253,8 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) CmdPull(args ...string) error {
-	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry", true)
-	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
-	cmd.Require(flag.Exact, 1)
-
-	utils.ParseFlags(cmd, args, true)
-
+func (cli *DockerCli) pullDocker(cmd *flag.FlagSet, v url.Values, allTags *bool) error {
 	var (
-		v         = url.Values{}
 		remote    = cmd.Arg(0)
 		newRemote = remote
 	)
@@ -1311,6 +1306,32 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	return nil
+}
+
+func (cli *DockerCli) pullACI(cmd *flag.FlagSet, v url.Values) error {
+	v.Set("url", cmd.Arg(0))
+
+	return cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{})
+}
+
+func (cli *DockerCli) CmdPull(args ...string) error {
+	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry", true)
+	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
+	format := cmd.String([]string{"f", "-format"}, "docker", "Image format to pull")
+	cmd.Require(flag.Exact, 1)
+
+	utils.ParseFlags(cmd, args, true)
+
+	v := url.Values{}
+	v.Set("format", *format)
+	switch *format {
+	case "docker":
+		return cli.pullDocker(cmd, v, allTags)
+	case "aci":
+		return cli.pullACI(cmd, v)
+	default:
+		return cli.pullDocker(cmd, v, allTags)
+	}
 }
 
 func (cli *DockerCli) CmdImages(args ...string) error {
@@ -2040,17 +2061,29 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) pullImage(image string) error {
-	return cli.pullImageCustomOut(image, cli.out)
+func (cli *DockerCli) pullImage(config *runconfig.Config) error {
+	return cli.pullImageCustomOut(config, cli.out)
 }
 
-func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
+func (cli *DockerCli) pullImageCustomOut(config *runconfig.Config, out io.Writer) error {
+	switch config.Format {
+	case "docker":
+		return cli.pullDockerImageCustomOut(config.Image, out)
+	case "aci":
+		return cli.pullACIImageCustomOut(config.Image, out)
+	default:
+		return fmt.Errorf("unknown format: %s", config.Format)
+	}
+}
+
+func (cli *DockerCli) pullDockerImageCustomOut(image string, out io.Writer) error {
 	v := url.Values{}
 	repos, tag := parsers.ParseRepositoryTag(image)
 	// pull only the image tagged 'latest' if no tag was specified
 	if tag == "" {
 		tag = graph.DEFAULTTAG
 	}
+	v.Set("format", "docker")
 	v.Set("fromImage", repos)
 	v.Set("tag", tag)
 
@@ -2074,6 +2107,17 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		base64.URLEncoding.EncodeToString(buf),
 	}
 	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, out, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cli *DockerCli) pullACIImageCustomOut(image string, out io.Writer) error {
+	v := url.Values{}
+	v.Set("format", "aci")
+	v.Set("url", image)
+
+	if err := cli.stream("POST", "/images/create?"+v.Encode(), nil, out, nil); err != nil {
 		return err
 	}
 	return nil
@@ -2139,16 +2183,27 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, false)
 	//if image not found try to pull it
 	if statusCode == 404 {
-		repo, tag := parsers.ParseRepositoryTag(config.Image)
-		if tag == "" {
-			tag = graph.DEFAULTTAG
+		switch config.Format {
+		case "docker":
+			repo, tag := parsers.ParseRepositoryTag(config.Image)
+			if tag == "" {
+				tag = graph.DEFAULTTAG
+			}
+			fmt.Fprintf(cli.err, "Unable to find image '%s:%s' locally\n", repo, tag)
+		case "aci":
+			fmt.Fprintf(cli.err, "Unable to find ACI image '%s' locally\n", config.Image)
 		}
-		fmt.Fprintf(cli.err, "Unable to find image '%s:%s' locally\n", repo, tag)
-
 		// we don't want to write to stdout anything apart from container.ID
-		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
+		if err = cli.pullImageCustomOut(config, cli.err); err != nil {
 			return nil, err
 		}
+
+		// FIXME(ACI): the name of the image as specified in the
+		// manifest might be unrelated to the URL specified above. So
+		// instead of retrying with the same parameters, we should
+		// retry with the id returned by the cli.pullImageCustomOut
+		// call above.
+
 		// Retry
 		if stream, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, false); err != nil {
 			return nil, err

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/appc/spec/schema"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -28,6 +29,7 @@ type TagStore struct {
 	path         string
 	graph        *Graph
 	Repositories map[string]Repository
+	ACIRepo      map[string]string
 	trustKey     libtrust.PrivateKey
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -67,6 +69,7 @@ func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey) (*TagStore,
 		graph:        graph,
 		trustKey:     key,
 		Repositories: make(map[string]Repository),
+		ACIRepo:      make(map[string]string),
 		pullingPool:  make(map[string]chan struct{}),
 		pushingPool:  make(map[string]chan struct{}),
 	}
@@ -102,6 +105,20 @@ func (store *TagStore) reload() error {
 		return err
 	}
 	return nil
+}
+
+func (store *TagStore) LookupACIImage(name string) (string, *schema.ImageManifest, error) {
+	id, img, err := store.GetACIImage(name)
+	store.Lock()
+	defer store.Unlock()
+	if err != nil {
+		return "", nil, err
+	} else if img == nil {
+		if id, img, err = store.graph.GetACI(name); err != nil {
+			return "", nil, err
+		}
+	}
+	return id, img, nil
 }
 
 func (store *TagStore) LookupImage(name string) (*image.Image, error) {
@@ -171,6 +188,19 @@ func (store *TagStore) DeleteAll(id string) error {
 	return nil
 }
 
+func (store *TagStore) DeleteACI(name string) (bool, error) {
+	store.Lock()
+	defer store.Unlock()
+	if err := store.reload(); err != nil {
+		return false, err
+	}
+	if _, exists := store.ACIRepo[name]; exists {
+		delete(store.ACIRepo, name)
+		return true, store.save()
+	}
+	return false, fmt.Errorf("ACI image not found: %s", name)
+}
+
 func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 	store.Lock()
 	defer store.Unlock()
@@ -198,6 +228,22 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 		return false, fmt.Errorf("No such repository: %s", repoName)
 	}
 	return deleted, store.save()
+}
+
+func (store *TagStore) SetACI(image *schema.ImageManifest, id string, force bool) error {
+	if _, _, err := store.LookupACIImage(id); err != nil {
+		return err
+	}
+	store.Lock()
+	defer store.Unlock()
+	if !force {
+		storedId, exists := store.ACIRepo[string(image.Name)]
+		if exists && storedId != id {
+			return fmt.Errorf("Image with name %s is already stored, but their ids differ: (stored)%s != (new)%s", image.Name, storedId, id)
+		}
+	}
+	store.ACIRepo[string(image.Name)] = id
+	return store.save()
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
@@ -245,6 +291,15 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 		return r, nil
 	}
 	return nil, nil
+}
+
+func (store *TagStore) GetACIImage(name string) (string, *schema.ImageManifest, error) {
+	store.Lock()
+	defer store.Unlock()
+	if id, exists := store.ACIRepo[name]; exists {
+		return store.graph.GetACI(id)
+	}
+	return "", nil, nil
 }
 
 func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) {

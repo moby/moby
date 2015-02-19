@@ -5,12 +5,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/appc/spec/discovery"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/tarsum"
@@ -19,6 +22,123 @@ import (
 )
 
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
+	format := job.Getenv("image_format")
+
+	switch format {
+	case "docker":
+		return s.pullDockerImage(job)
+	case "aci":
+		return s.pullACIImage(job)
+	default:
+		return s.pullDockerImage(job)
+	}
+}
+
+func (s *TagStore) pullACIImage(job *engine.Job) engine.Status {
+	if n := len(job.Args); n != 1 {
+		return job.Errorf("Usage: %s URL", job.Name)
+	}
+
+	var (
+		aci io.ReadCloser
+	)
+
+	img := job.Args[0]
+
+	// Maybe we already have the image
+	imgID, _, err := s.GetACIImage(img)
+	if err != nil {
+		return job.Error(err)
+	}
+	if imgID != "" {
+		return engine.StatusOK
+	}
+
+	u, err := url.Parse(img)
+	if err != nil {
+		return job.Error(err)
+	}
+	switch u.Scheme {
+	case "":
+		app, err := newDiscoveryApp(img)
+		if err != nil {
+			return job.Error(err)
+		}
+		ep, _, err := discovery.DiscoverEndpoints(*app, true)
+		if err != nil {
+			return job.Error(err)
+		}
+		image, err := fetchImageFromEndpoints(ep)
+		if err != nil {
+			return job.Error(err)
+		}
+		aci = image
+	case "http", "https":
+		image, err := downloadImage(img)
+		if err != nil {
+			return job.Error(err)
+		}
+		aci = image
+	case "file":
+		image, err := os.Open(u.Path)
+		if err != nil {
+			return job.Error(err)
+		}
+		aci = image
+	}
+	defer aci.Close()
+
+	if manifest, id, err := s.graph.RegisterACI(aci); err != nil {
+		return job.Error(err)
+	} else if err := s.SetACI(manifest, id, true); err != nil {
+		return job.Error(err)
+	}
+	return engine.StatusOK
+}
+
+func fetchImageFromEndpoints(ep *discovery.Endpoints) (io.ReadCloser, error) {
+	var (
+		aci io.ReadCloser
+		err error
+	)
+	for _, v := range ep.ACIEndpoints {
+		if aci, err = downloadImage(v.ACI); err == nil {
+			return aci, nil
+		}
+	}
+	return nil, err
+}
+
+func downloadImage(url string) (io.ReadCloser, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	return res.Body, nil
+}
+
+// newDiscoveryApp creates a discovery app if the given img is an app name and
+// has a URL-like structure, for example example.com/reduce-worker.
+// Or it returns nil.
+func newDiscoveryApp(img string) (*discovery.App, error) {
+	app, err := discovery.NewAppFromString(img)
+	if err != nil {
+		return nil, err
+	}
+	u, err := url.Parse(app.Name.String())
+	if err != nil || u.Scheme != "" {
+		return nil, err
+	}
+	if _, ok := app.Labels["arch"]; !ok {
+		app.Labels["arch"] = runtime.GOARCH
+	}
+	if _, ok := app.Labels["os"]; !ok {
+		app.Labels["os"] = runtime.GOOS
+	}
+	return app, nil
+}
+
+func (s *TagStore) pullDockerImage(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
 		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
 	}
