@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -93,6 +94,40 @@ func runCommand(cmd *exec.Cmd) (exitCode int, err error) {
 	err = cmd.Run()
 	exitCode = processExitCode(err)
 	return
+}
+
+func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode int, err error) {
+	if len(cmds) < 2 {
+		return "", 0, errors.New("pipeline does not have multiple cmds")
+	}
+
+	// connect stdin of each cmd to stdout pipe of previous cmd
+	for i, cmd := range cmds {
+		if i > 0 {
+			prevCmd := cmds[i-1]
+			cmd.Stdin, err = prevCmd.StdoutPipe()
+			if err != nil {
+				return "", 0, fmt.Errorf("cannot set stdout pipe for %s: %v", cmd.Path, err)
+			}
+		}
+	}
+
+	// start all cmds except the last
+	for _, cmd := range cmds[:len(cmds)-1] {
+		if err = cmd.Start(); err != nil {
+			return "", 0, fmt.Errorf("starting %s failed with error: %v", cmd.Path, err)
+		}
+	}
+
+	defer func() {
+		// wait all cmds except the last to release their resources
+		for _, cmd := range cmds[:len(cmds)-1] {
+			cmd.Wait()
+		}
+	}()
+
+	// wait on last cmd
+	return runCommandWithOutput(cmds[len(cmds)-1])
 }
 
 func logDone(message string) {
