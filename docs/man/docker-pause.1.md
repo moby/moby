@@ -6,7 +6,7 @@ docker-pause - Pause all processes within a container
 
 # SYNOPSIS
 **docker pause**
-CONTAINER
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 

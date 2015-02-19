@@ -786,8 +786,8 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 }
 
 func (cli *DockerCli) CmdUnpause(args ...string) error {
-	cmd := cli.Subcmd("unpause", "CONTAINER", "Unpause all processes within a container", true)
-	cmd.Require(flag.Exact, 1)
+	cmd := cli.Subcmd("unpause", "CONTAINER [CONTAINER...]", "Unpause all processes within a container", true)
+	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, false)
 
 	var encounteredError error
@@ -803,8 +803,8 @@ func (cli *DockerCli) CmdUnpause(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPause(args ...string) error {
-	cmd := cli.Subcmd("pause", "CONTAINER", "Pause all processes within a container", true)
-	cmd.Require(flag.Exact, 1)
+	cmd := cli.Subcmd("pause", "CONTAINER [CONTAINER...]", "Pause all processes within a container", true)
+	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, false)
 
 	var encounteredError error

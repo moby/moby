@@ -30,41 +30,6 @@ func TestEventsUntag(t *testing.T) {
 	logDone("events - untags are logged")
 }
 
-func TestEventsPause(t *testing.T) {
-	name := "testeventpause"
-	out, _, _ := dockerCmd(t, "images", "-q")
-	image := strings.Split(out, "\n")[0]
-	dockerCmd(t, "run", "-d", "--name", name, image, "sleep", "2")
-	dockerCmd(t, "pause", name)
-	dockerCmd(t, "unpause", name)
-
-	defer deleteAllContainers()
-
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
-	out, _, _ = runCommandWithOutput(eventsCmd)
-	events := strings.Split(out, "\n")
-	if len(events) <= 1 {
-		t.Fatalf("Missing expected event")
-	}
-
-	pauseEvent := strings.Fields(events[len(events)-3])
-	unpauseEvent := strings.Fields(events[len(events)-2])
-
-	if pauseEvent[len(pauseEvent)-1] != "pause" {
-		t.Fatalf("event should be pause, not %#v", pauseEvent)
-	}
-	if unpauseEvent[len(unpauseEvent)-1] != "unpause" {
-		t.Fatalf("event should be unpause, not %#v", unpauseEvent)
-	}
-
-	waitCmd := exec.Command(dockerBinary, "wait", name)
-	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
-		t.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
-	}
-
-	logDone("events - pause/unpause is logged")
-}
-
 func TestEventsContainerFailStartDie(t *testing.T) {
 	defer deleteAllContainers()
 

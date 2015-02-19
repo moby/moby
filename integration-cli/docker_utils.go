@@ -386,6 +386,16 @@ func getPausedContainers() (string, error) {
 	return out, err
 }
 
+func getSliceOfPausedContainers() ([]string, error) {
+	out, err := getPausedContainers()
+	if err == nil {
+		slice := strings.Split(strings.TrimSpace(out), "\n")
+		return slice, err
+	} else {
+		return []string{out}, err
+	}
+}
+
 func unpauseContainer(container string) error {
 	unpauseCmd := exec.Command(dockerBinary, "unpause", container)
 	exitCode, err := runCommand(unpauseCmd)
