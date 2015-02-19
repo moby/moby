@@ -1393,6 +1393,34 @@ just a specific mapping:
     $ sudo docker port test 7890
     0.0.0.0:4321
 
+## devices
+
+    Usage: docker devices ACTION CONTAINER ARGUMENTS
+
+    Change devices accessible from a running container.  At present this only supports adding and removing devices from the container.
+
+    The action can be one of:
+        **add** Adds new device(s) to the container.  The permissions and device information are gathered from the host filesystem.
+        **remove** Remove devices from the container.
+        **ls** List devices available in the container.
+
+    The arguments are a list of one or more devices, separated by a comma, that will be added or removed from the container.
+        <host device file>:[<container device file>]:[<cgroup permissions>]
+
+    Some examples of using this feature:
+
+        docker devices add happy_bell /dev/loop0
+
+        docker devices add happy_bell /dev/loop0:/dev/sd0
+
+        docker devices add happy_bell /dev/loop0:/dev/sd0:rwm
+
+        docker devices add happy_bell /dev/loop0:/dev/sd0:rwm,/dev/loop1:/dev/sd1:rwm
+
+        docker devices ls happy_bell
+
+        docker devices remove happy_bell f90e34656806
+
 ## pause
 
     Usage: docker pause CONTAINER
