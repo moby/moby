@@ -110,9 +110,6 @@ RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 # Get the "busybox" image source so we can build locally instead of pulling
 RUN git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
 
-# Get the "cirros" image source so we can import it instead of fetching it during tests
-RUN curl -sSL -o /cirros.tar.gz https://github.com/ewindisch/docker-cirros/raw/1cded459668e8b9dbf4ef976c94c05add9bbd8e9/cirros-0.3.0-x86_64-lxc.tar.gz
-
 # Install registry
 ENV REGISTRY_COMMIT c448e0416925a9876d5576e412703c9b8b865e19
 RUN set -x \

@@ -1,32 +1,43 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestImportDisplay(t *testing.T) {
-	server, err := fileServer(map[string]string{
-		"/cirros.tar.gz": "/cirros.tar.gz",
-	})
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("failed to create a container", out, err)
 	}
-	defer server.Close()
-	fileURL := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
-	importCmd := exec.Command(dockerBinary, "import", fileURL, "cirros")
-	out, _, err := runCommandWithOutput(importCmd)
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "export", cleanedContainerID),
+		exec.Command(dockerBinary, "import", "-"),
+	)
 	if err != nil {
 		t.Errorf("import failed with errors: %v, output: %q", err, out)
 	}
 
-	if n := strings.Count(out, "\n"); n != 2 {
-		t.Fatalf("display is messed up: %d '\\n' instead of 2", n)
+	if n := strings.Count(out, "\n"); n != 1 {
+		t.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
+	}
+	image := strings.TrimSpace(out)
+	defer deleteImages(image)
+
+	runCmd = exec.Command(dockerBinary, "run", "--rm", image, "true")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal("failed to create a container", out, err)
 	}
 
-	deleteImages("cirros")
+	if out != "" {
+		t.Fatalf("command output should've been nothing, was %q", out)
+	}
 
-	logDone("import - cirros was imported and display is fine")
+	logDone("import - display is fine, imported image runs")
 }

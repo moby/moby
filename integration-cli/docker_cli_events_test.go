@@ -206,18 +206,18 @@ func TestEventsImagePull(t *testing.T) {
 func TestEventsImageImport(t *testing.T) {
 	since := time.Now().Unix()
 
-	defer deleteImages("cirros")
-
-	server, err := fileServer(map[string]string{
-		"/cirros.tar.gz": "/cirros.tar.gz",
-	})
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("failed to create a container", out, err)
 	}
-	defer server.Close()
-	fileURL := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
-	importCmd := exec.Command(dockerBinary, "import", fileURL, "cirros")
-	out, _, err := runCommandWithOutput(importCmd)
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "export", cleanedContainerID),
+		exec.Command(dockerBinary, "import", "-"),
+	)
 	if err != nil {
 		t.Errorf("import failed with errors: %v, output: %q", err, out)
 	}
