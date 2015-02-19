@@ -63,13 +63,15 @@ public or private GitHub repositories with a `Dockerfile`.
 
 ### GitHub Submodules
 
-If your GitHub repository contains links to private submodules, you'll
-need to add a deploy key from your Docker Hub repository. 
+If your GitHub repository contains links to private submodules, you'll get an
+error message in your build.
 
-Your Docker Hub deploy key is located under the "Build Details"
-menu on the Automated Build's main page in the Hub. Add this key
-to your GitHub submodule by visiting the Settings page for the
-repository on GitHub and selecting "Deploy keys".
+Normally, the Docker Hub sets up a deploy key in your GitHub repository.
+Unfortunately, GitHub only allows a deploy key to access one single repository.
+
+To work around this, we will be creating a dedicated user account in GitHub to
+attach this key to. A key on a GitHub user account can be given read-only
+access to all your repositories.
 
 <table class="table table-bordered">
   <thead>
@@ -82,15 +84,33 @@ repository on GitHub and selecting "Deploy keys".
   <tbody>
     <tr>
       <td>1.</td>
-      <td><img src="/docker-hub/hub-images/deploy_key.png"></td>
-      <td>Your automated build's deploy key is in the "Build Details" menu 
-under "Deploy keys".</td>
+      <td><img src="/docker-hub/hub-images/gh_org_members.png"></td>
+      <td>First, create the new account in GitHub. It should be given read-only
+      access to the main repository and all submodules that are needed.</td>
     </tr>
     <tr>
       <td>2.</td>
-      <td><img src="/docker-hub/hub-images/github_deploy_key.png"></td>
-      <td>In your GitHub submodule's repository Settings page, add the 
-deploy key from your Docker Hub Automated Build.</td>
+      <td><img src="/docker-hub/hub-images/gh_team_members.png"></td>
+      <td>This can be accomplished by adding the account to a read-only team on
+      the organization(s) where the main GitHub repository and all submodule
+      repositories are kept.</td>
+    </tr>
+    <tr>
+      <td>3.</td>
+      <td><img src="/docker-hub/hub-images/gh_repo_deploy_key.png"></td>
+      <td>Next, remove the deploy key from the main GitHub repository. This can be done in the GitHub repository's "Deploy keys" Settings section.</td>
+    </tr>
+    <tr>
+      <td>4.</td>
+      <td><img src="/docker-hub/hub-images/deploy_key.png"></td>
+      <td>Your automated build's deploy key is in the "Build Details" menu
+      under "Deploy keys".</td>
+    </tr>
+    <tr>
+      <td>5.</td>
+      <td><img src="/docker-hub/hub-images/gh_add_ssh_user_key.png"></td>
+      <td>In your dedicated GitHub User account, add the deploy key from your
+      Docker Hub Automated Build.</td>
     </tr>
   </tbody>
 </table>
