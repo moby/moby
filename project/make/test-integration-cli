@@ -17,6 +17,7 @@ bundle_test_integration_cli() {
 	didFail=
 	if ! {
 		source "$(dirname "$BASH_SOURCE")/.ensure-busybox"
+		source "$(dirname "$BASH_SOURCE")/.ensure-httpserver"
 		source "$(dirname "$BASH_SOURCE")/.ensure-emptyfs"
 
 		bundle_test_integration_cli

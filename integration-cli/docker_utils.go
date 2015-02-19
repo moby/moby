@@ -581,17 +581,42 @@ func fakeContext(dockerfile string, files map[string]string) (*FakeContext, erro
 	return ctx, nil
 }
 
-type FakeStorage struct {
+// FakeStorage is a static file server. It might be running locally or remotely
+// on test host.
+type FakeStorage interface {
+	Close() error
+	URL() string
+	CtxDir() string
+}
+
+// fakeStorage returns either a local or remote (at daemon machine) file server
+func fakeStorage(files map[string]string) (FakeStorage, error) {
+	if isLocalDaemon {
+		return newLocalFakeStorage(files)
+	}
+	return newRemoteFileServer(files)
+}
+
+// localFileStorage is a file storage on the running machine
+type localFileStorage struct {
 	*FakeContext
 	*httptest.Server
 }
 
-func (f *FakeStorage) Close() error {
-	f.Server.Close()
-	return f.FakeContext.Close()
+func (s *localFileStorage) URL() string {
+	return s.Server.URL
 }
 
-func fakeStorage(files map[string]string) (*FakeStorage, error) {
+func (s *localFileStorage) CtxDir() string {
+	return s.FakeContext.Dir
+}
+
+func (s *localFileStorage) Close() error {
+	defer s.Server.Close()
+	return s.FakeContext.Close()
+}
+
+func newLocalFakeStorage(files map[string]string) (*localFileStorage, error) {
 	tmp, err := ioutil.TempDir("", "fake-storage")
 	if err != nil {
 		return nil, err
@@ -605,40 +630,99 @@ func fakeStorage(files map[string]string) (*FakeStorage, error) {
 	}
 	handler := http.FileServer(http.Dir(ctx.Dir))
 	server := httptest.NewServer(handler)
-	return &FakeStorage{
+	return &localFileStorage{
 		FakeContext: ctx,
 		Server:      server,
 	}, nil
 }
 
-func inspectField(name, field string) (string, error) {
-	format := fmt.Sprintf("{{.%s}}", field)
+// remoteFileServer is a containerized static file server started on the remote
+// testing machine to be used in URL-accepting docker build functionality.
+type remoteFileServer struct {
+	host      string // hostname/port web server is listening to on docker host e.g. 0.0.0.0:43712
+	container string
+	image     string
+	ctx       *FakeContext
+}
+
+func (f *remoteFileServer) URL() string {
+	u := url.URL{
+		Scheme: "http",
+		Host:   f.host}
+	return u.String()
+}
+
+func (f *remoteFileServer) CtxDir() string {
+	return f.ctx.Dir
+}
+
+func (f *remoteFileServer) Close() error {
+	defer func() {
+		if f.ctx != nil {
+			f.ctx.Close()
+		}
+		if f.image != "" {
+			deleteImages(f.image)
+		}
+	}()
+	if f.container == "" {
+		return nil
+	}
+	return deleteContainer(f.container)
+}
+
+func newRemoteFileServer(files map[string]string) (*remoteFileServer, error) {
+	var (
+		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(makeRandomString(10)))
+		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(makeRandomString(10)))
+	)
+
+	// Build the image
+	ctx, err := fakeContext(`FROM httpserver
+COPY . /static`, files)
+	if _, err := buildImageFromContext(image, ctx, false); err != nil {
+		return nil, fmt.Errorf("failed building file storage container image: %v", err)
+	}
+
+	// Start the container
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-P", "--name", container, image)
+	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
+		return nil, fmt.Errorf("failed to start file storage container. ec=%v\nout=%s\nerr=%v", ec, out, err)
+	}
+
+	// Find out the system assigned port
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "port", container, "80/tcp"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find container port: err=%v\nout=%s", err, out)
+	}
+
+	return &remoteFileServer{
+		container: container,
+		image:     image,
+		host:      strings.Trim(out, "\n"),
+		ctx:       ctx}, nil
+}
+
+func inspectFilter(name, filter string) (string, error) {
+	format := fmt.Sprintf("{{%s}}", filter)
 	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
 	out, exitCode, err := runCommandWithOutput(inspectCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+		return "", fmt.Errorf("failed to inspect container %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
+}
+
+func inspectField(name, field string) (string, error) {
+	return inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
 func inspectFieldJSON(name, field string) (string, error) {
-	format := fmt.Sprintf("{{json .%s}}", field)
-	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
-	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
-	}
-	return strings.TrimSpace(out), nil
+	return inspectFilter(name, fmt.Sprintf("json .%s", field))
 }
 
 func inspectFieldMap(name, path, field string) (string, error) {
-	format := fmt.Sprintf("{{index .%s %q}}", path, field)
-	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
-	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
-	}
-	return strings.TrimSpace(out), nil
+	return inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
 }
 
 func getIDByName(name string) (string, error) {

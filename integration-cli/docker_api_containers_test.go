@@ -364,7 +364,7 @@ RUN find /tmp/`,
 	}
 	defer server.Close()
 
-	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL+"/testD", nil, "application/json")
+	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
 	}
