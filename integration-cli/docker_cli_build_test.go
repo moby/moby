@@ -2140,6 +2140,8 @@ func TestBuildEnv(t *testing.T) {
 }
 
 func TestBuildContextCleanup(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	name := "testbuildcontextcleanup"
 	defer deleteImages(name)
 	entries, err := ioutil.ReadDir("/var/lib/docker/tmp")
@@ -2165,6 +2167,8 @@ func TestBuildContextCleanup(t *testing.T) {
 }
 
 func TestBuildContextCleanupFailedBuild(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	name := "testbuildcontextcleanup"
 	defer deleteImages(name)
 	defer deleteAllContainers()

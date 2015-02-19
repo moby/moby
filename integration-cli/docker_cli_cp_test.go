@@ -384,6 +384,8 @@ func TestCpUnprivilegedUser(t *testing.T) {
 }
 
 func TestCpVolumePath(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
 	if err != nil {
 		t.Fatal(err)
