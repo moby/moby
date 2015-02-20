@@ -78,6 +78,8 @@ func TestRmiTag(t *testing.T) {
 }
 
 func TestRmiTagWithExistingContainers(t *testing.T) {
+	defer deleteAllContainers()
+
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"
@@ -95,12 +97,12 @@ func TestRmiTagWithExistingContainers(t *testing.T) {
 		t.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
 	}
 
-	deleteAllContainers()
-
 	logDone("rmi - delete tag with existing containers")
 }
 
 func TestRmiForceWithExistingContainers(t *testing.T) {
+	defer deleteAllContainers()
+
 	image := "busybox-clone"
 
 	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
@@ -119,8 +121,6 @@ MAINTAINER foo`)
 	if err != nil {
 		t.Fatalf("Could not remove image %s:  %s, %v", image, out, err)
 	}
-
-	deleteAllContainers()
 
 	logDone("rmi - force delete with existing containers")
 }

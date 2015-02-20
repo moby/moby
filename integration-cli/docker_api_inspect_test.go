@@ -7,6 +7,8 @@ import (
 )
 
 func TestInspectApiContainerResponse(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -52,8 +54,6 @@ func TestInspectApiContainerResponse(t *testing.T) {
 			t.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
 		}
 	}
-
-	deleteAllContainers()
 
 	logDone("container json - check keys in container json response")
 }

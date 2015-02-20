@@ -137,6 +137,8 @@ func TestDaemonStartBridgeWithoutIPAssociation(t *testing.T) {
 }
 
 func TestDaemonIptablesClean(t *testing.T) {
+	defer deleteAllContainers()
+
 	d := NewDaemon(t)
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatalf("Could not start daemon with busybox: %v", err)
@@ -174,12 +176,12 @@ func TestDaemonIptablesClean(t *testing.T) {
 		t.Fatalf("iptables output should not have contained %q, but was %q", ipTablesSearchString, out)
 	}
 
-	deleteAllContainers()
-
 	logDone("daemon - run,iptables - iptables rules cleaned after daemon restart")
 }
 
 func TestDaemonIptablesCreate(t *testing.T) {
+	defer deleteAllContainers()
+
 	d := NewDaemon(t)
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatalf("Could not start daemon with busybox: %v", err)
@@ -225,8 +227,6 @@ func TestDaemonIptablesCreate(t *testing.T) {
 	if !strings.Contains(out, ipTablesSearchString) {
 		t.Fatalf("iptables output after restart should have contained %q, but was %q", ipTablesSearchString, out)
 	}
-
-	deleteAllContainers()
 
 	logDone("daemon - run,iptables - iptables rules for always restarted container created after daemon restart")
 }

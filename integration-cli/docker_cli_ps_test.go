@@ -11,6 +11,8 @@ import (
 )
 
 func TestPsListContainers(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -223,8 +225,6 @@ func TestPsListContainers(t *testing.T) {
 		t.Error("Container list is not in the correct order")
 	}
 
-	deleteAllContainers()
-
 	logDone("ps - test ps options")
 }
 
@@ -246,6 +246,8 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func TestPsListContainersSize(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
 	runCommandWithOutput(cmd)
 	cmd = exec.Command(dockerBinary, "ps", "-s", "-n=1")
@@ -296,14 +298,14 @@ func TestPsListContainersSize(t *testing.T) {
 		t.Fatalf("Expected size %q, got %q", expectedSize, foundSize)
 	}
 
-	deleteAllContainers()
 	logDone("ps - test ps size")
 }
 
 func TestPsListContainersFilterStatus(t *testing.T) {
 	// FIXME: this should test paused, but it makes things hang and its wonky
 	// this is because paused containers can't be controlled by signals
-	deleteAllContainers()
+	defer deleteAllContainers()
+
 	// start exited container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -347,12 +349,12 @@ func TestPsListContainersFilterStatus(t *testing.T) {
 		t.Fatalf("Expected id %s, got %s for running filter, output: %q", secondID[:12], containerOut, out)
 	}
 
-	deleteAllContainers()
-
 	logDone("ps - test ps filter status")
 }
 
 func TestPsListContainersFilterID(t *testing.T) {
+	defer deleteAllContainers()
+
 	// start container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -377,12 +379,12 @@ func TestPsListContainersFilterID(t *testing.T) {
 		t.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
 	}
 
-	deleteAllContainers()
-
 	logDone("ps - test ps filter id")
 }
 
 func TestPsListContainersFilterName(t *testing.T) {
+	defer deleteAllContainers()
+
 	// start container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name=a_name_to_match", "busybox")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -406,8 +408,6 @@ func TestPsListContainersFilterName(t *testing.T) {
 	if containerOut != firstID[:12] {
 		t.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
 	}
-
-	deleteAllContainers()
 
 	logDone("ps - test ps filter name")
 }

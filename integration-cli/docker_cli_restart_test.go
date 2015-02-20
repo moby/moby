@@ -8,6 +8,8 @@ import (
 )
 
 func TestRestartStoppedContainer(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "foobar")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -46,12 +48,12 @@ func TestRestartStoppedContainer(t *testing.T) {
 		t.Errorf("container should've printed 'foobar' twice")
 	}
 
-	deleteAllContainers()
-
 	logDone("restart - echo foobar for stopped container")
 }
 
 func TestRestartRunningContainer(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -89,13 +91,13 @@ func TestRestartRunningContainer(t *testing.T) {
 		t.Errorf("container should've printed 'foobar' twice")
 	}
 
-	deleteAllContainers()
-
 	logDone("restart - echo foobar for running container")
 }
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func TestRestartWithVolumes(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-v", "/test", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -146,8 +148,6 @@ func TestRestartWithVolumes(t *testing.T) {
 		volumesAfterRestart = strings.Trim(volumesAfterRestart, " \n\r")
 		t.Errorf("expected volume path: %s Actual path: %s", volumes, volumesAfterRestart)
 	}
-
-	deleteAllContainers()
 
 	logDone("restart - does not create a new volume on restart")
 }

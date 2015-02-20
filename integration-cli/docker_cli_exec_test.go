@@ -17,6 +17,8 @@ import (
 )
 
 func TestExec(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
 	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
 		t.Fatal(out, err)
@@ -33,8 +35,6 @@ func TestExec(t *testing.T) {
 	if expected := "test"; out != expected {
 		t.Errorf("container exec should've printed %q but printed %q", expected, out)
 	}
-
-	deleteAllContainers()
 
 	logDone("exec - basic test")
 }
@@ -80,6 +80,8 @@ func TestExecInteractiveStdinClose(t *testing.T) {
 }
 
 func TestExecInteractive(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
 	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
 		t.Fatal(out, err)
@@ -127,12 +129,12 @@ func TestExecInteractive(t *testing.T) {
 		t.Fatal("docker exec failed to exit on stdin close")
 	}
 
-	deleteAllContainers()
-
 	logDone("exec - Interactive test")
 }
 
 func TestExecAfterContainerRestart(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -157,12 +159,12 @@ func TestExecAfterContainerRestart(t *testing.T) {
 		t.Errorf("container should've printed hello, instead printed %q", outStr)
 	}
 
-	deleteAllContainers()
-
 	logDone("exec - exec running container after container restart")
 }
 
 func TestExecAfterDaemonRestart(t *testing.T) {
+	defer deleteAllContainers()
+
 	d := NewDaemon(t)
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatalf("Could not start daemon with busybox: %v", err)
@@ -222,6 +224,8 @@ func TestExecEnv(t *testing.T) {
 }
 
 func TestExecExitStatus(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
 	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
 		t.Fatal(out, err)
@@ -239,7 +243,6 @@ func TestExecExitStatus(t *testing.T) {
 }
 
 func TestExecPausedContainer(t *testing.T) {
-
 	defer deleteAllContainers()
 	defer unpauseAllContainers()
 
@@ -493,6 +496,8 @@ func TestInspectExecID(t *testing.T) {
 }
 
 func TestLinksPingLinkedContainersOnRename(t *testing.T) {
+	defer deleteAllContainers()
+
 	var out string
 	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
 	idA := stripTrailingCharacters(out)
@@ -518,8 +523,6 @@ func TestLinksPingLinkedContainersOnRename(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-
-	deleteAllContainers()
 
 	logDone("links - ping linked container upon rename")
 }
