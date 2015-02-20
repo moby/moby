@@ -28,15 +28,13 @@
 //    		return err
 //    	}
 //    }
+//
 package libnetwork
-
-import "fmt"
 
 // A Network represents a logical connectivity zone that containers may
 // ulteriorly join using the Link method. A Network is managed by a specific
 // driver.
 type Network interface {
-	Name() string
 	Type() string
 	Link(name string) ([]*Interface, error)
 }
@@ -63,10 +61,6 @@ type Namespace interface {
 	AddInterface(*Interface) error
 }
 
-// TODO Figure out the proper options type
 func NewNetwork(networkType string, options DriverParams) (Network, error) {
-	if ctor, ok := drivers[networkType]; ok {
-		return ctor(options)
-	}
-	return nil, fmt.Errorf("Unknown network type %q", networkType)
+	return createNetwork(networkType, options)
 }

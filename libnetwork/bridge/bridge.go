@@ -1,22 +1,27 @@
 package bridge
 
-import "github.com/docker/libnetwork"
+import (
+	"net"
+
+	"github.com/docker/libnetwork"
+)
 
 const networkType = "bridgednetwork"
 
-func init() {
-	libnetwork.RegisterNetworkType(networkType, Create)
+type bridgeConfiguration struct {
+	Subnet net.IPNet
 }
 
-func Create(options libnetwork.DriverParams) (libnetwork.Network, error) {
-	return &bridgeNetwork{}, nil
+func init() {
+	libnetwork.RegisterNetworkType(networkType, Create, bridgeConfiguration{})
+}
+
+func Create(config *bridgeConfiguration) (libnetwork.Network, error) {
+	return &bridgeNetwork{Config: *config}, nil
 }
 
 type bridgeNetwork struct {
-}
-
-func (b *bridgeNetwork) Name() string {
-	return ""
+	Config bridgeConfiguration
 }
 
 func (b *bridgeNetwork) Type() string {
