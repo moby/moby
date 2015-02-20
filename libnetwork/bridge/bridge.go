@@ -13,7 +13,7 @@ type bridgeConfiguration struct {
 }
 
 func init() {
-	libnetwork.RegisterNetworkType(networkType, Create, bridgeConfiguration{})
+	libnetwork.RegisterNetworkType(networkType, Create, &bridgeConfiguration{})
 }
 
 func Create(config *bridgeConfiguration) (libnetwork.Network, error) {

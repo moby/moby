@@ -32,7 +32,16 @@ func NewGeneric() Generic {
 }
 
 func GenerateFromModel(options Generic, model interface{}) (interface{}, error) {
-	res := reflect.New(reflect.TypeOf(model))
+	modType := reflect.TypeOf(model)
+
+	// If the model is of pointer type, we need to dereference for New.
+	resType := reflect.TypeOf(model)
+	if modType.Kind() == reflect.Ptr {
+		resType = resType.Elem()
+	}
+
+	// Populate the result structure with the generic layout content.
+	res := reflect.New(resType)
 	for name, value := range options {
 		field := res.Elem().FieldByName(name)
 		if !field.IsValid() {
@@ -43,5 +52,10 @@ func GenerateFromModel(options Generic, model interface{}) (interface{}, error) 
 		}
 		field.Set(reflect.ValueOf(value))
 	}
-	return res.Interface(), nil
+
+	// If the model is not of pointer type, return content of the result.
+	if modType.Kind() == reflect.Ptr {
+		return res.Interface(), nil
+	}
+	return res.Elem().Interface(), nil
 }
