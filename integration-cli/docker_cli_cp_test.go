@@ -347,6 +347,8 @@ func TestCpSymlinkComponent(t *testing.T) {
 
 // Check that cp with unprivileged user doesn't return any error
 func TestCpUnprivilegedUser(t *testing.T) {
+	testRequires(t, UnixCli) // uses chmod/su: not available on windows
+
 	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
 	if err != nil || exitCode != 0 {
 		t.Fatal("failed to create a container", out, err)

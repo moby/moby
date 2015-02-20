@@ -17,6 +17,10 @@ var (
 		func() bool { return isLocalDaemon },
 		"Test requires docker daemon to runs on the same machine as CLI",
 	}
+	UnixCli = TestRequirement{
+		func() bool { return isUnixCli },
+		"Test requires posix utilities or functionality to run.",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements
