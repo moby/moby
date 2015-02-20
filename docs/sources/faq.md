@@ -246,7 +246,8 @@ afterwards.
 Typically, this message is returned if the service is already bound to your
 localhost. As a result, requests coming to the container from outside are
 dropped. To correct this problem, change the service's configuration on your
-localhost so that the service accepts requests from all IPs.
+localhost so that the service accepts requests from all IPs.  If you aren't sure
+how to do this, check the documentation for your OS.
 
 
 ### Where can I find more answers?
