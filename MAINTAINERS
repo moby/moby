@@ -12,9 +12,9 @@
 
 	[Rules.maintainers]
 
-	title = "What is a maintainer?"
+		title = "What is a maintainer?"
 
-	text = """
+		text = """
 There are different types of maintainers, with different responsibilities, but
 all maintainers have 3 things in common:
 
@@ -531,6 +531,11 @@ made through a pull request.
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
 
+	[people.mary]
+	Name = "Mary Anthony"
+	Email = "mary.anthony@docker.com"
+	GitHub = "moxiegirl"
+
 	[people.shykes]
 	Name = "Solomon Hykes"
 	Email = "solomon@docker.com"
@@ -590,7 +595,3 @@ made through a pull request.
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
-
-	[people.mary]
-	Name = "Mary Anthony"
-	Email = "mary.anthony@docker.com"

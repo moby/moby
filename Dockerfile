@@ -151,8 +151,11 @@ RUN set -x \
 	&& go install -v github.com/cpuguy83/go-md2man
 
 # install toml validator
-RUN git clone -b v0.1.0 https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
-    && go install -v github.com/BurntSushi/toml/cmd/tomlv
+ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
+RUN set -x \
+	&& git clone https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
+	&& (cd /go/src/github.com/BurntSushi/toml && git checkout -q $TOMLV_COMMIT) \
+	&& go install -v github.com/BurntSushi/toml/cmd/tomlv
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
