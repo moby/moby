@@ -124,6 +124,9 @@ RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT
 
+# Install the python-behave library
+RUN pip install behave==1.2.5
+
 # Setup s3cmd config
 RUN { \
 		echo '[default]'; \
