@@ -5,14 +5,20 @@ import (
 	"runtime"
 )
 
+// Key returns the env var name for the user's home dir based on
+// the platform being run on
+func Key() string {
+	if runtime.GOOS == "windows" {
+		return "USERPROFILE"
+	}
+	return "HOME"
+}
+
 // Get returns the home directory of the current user with the help of
 // environment variables depending on the target operating system.
 // Returned path should be used with "path/filepath" to form new paths.
 func Get() string {
-	if runtime.GOOS == "windows" {
-		return os.Getenv("USERPROFILE")
-	}
-	return os.Getenv("HOME")
+	return os.Getenv(Key())
 }
 
 // GetShortcutString returns the string that is shortcut to user's home directory

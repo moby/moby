@@ -86,6 +86,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -505,7 +506,16 @@ func Set(name, value string) error {
 // otherwise, the default values of all defined flags in the set.
 func (f *FlagSet) PrintDefaults() {
 	writer := tabwriter.NewWriter(f.Out(), 20, 1, 3, ' ', 0)
-	home := homedir.Get()
+	var home string
+	if runtime.GOOS != "windows" {
+		// Only do this on non-windows systems
+		home = homedir.Get()
+
+		// Don't substitute when HOME is /
+		if home == "/" {
+			home = ""
+		}
+	}
 	f.VisitAll(func(flag *Flag) {
 		format := "  -%s=%s"
 		names := []string{}
