@@ -4836,7 +4836,7 @@ func TestBuildMissingArgs(t *testing.T) {
 
 	defer deleteAllContainers()
 
-	for _, cmd := range command.Commands {
+	for cmd := range command.Commands {
 		cmd = strings.ToUpper(cmd)
 		if _, ok := skipCmds[cmd]; ok {
 			continue
