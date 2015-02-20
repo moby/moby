@@ -4556,7 +4556,7 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 		t.Fatalf("test1 should have used Dockerfile, output:%s", out)
 	}
 
-	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-f", "files/Dockerfile", "-t", "test2", ".")
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "-f", filepath.Join("files", "Dockerfile"), "-t", "test2", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4564,7 +4564,7 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 		t.Fatalf("test2 should have used files/Dockerfile, output:%s", out)
 	}
 
-	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "--file=files/dFile", "-t", "test3", ".")
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", fmt.Sprintf("--file=%s", filepath.Join("files", "dFile")), "-t", "test3", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4580,15 +4580,22 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 		t.Fatalf("test4 should have used dFile, output:%s", out)
 	}
 
-	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", "--file=/etc/passwd", "-t", "test5", ".")
+	dirWithNoDockerfile, _ := ioutil.TempDir(os.TempDir(), "test5")
+	nonDockerfileFile := filepath.Join(dirWithNoDockerfile, "notDockerfile")
+	if _, err = os.Create(nonDockerfileFile); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err = dockerCmdInDir(t, ctx.Dir, "build", fmt.Sprintf("--file=%s", nonDockerfileFile), "-t", "test5", ".")
+
 	if err == nil {
 		t.Fatalf("test5 was supposed to fail to find passwd")
 	}
-	if !strings.Contains(out, "The Dockerfile (/etc/passwd) must be within the build context (.)") {
-		t.Fatalf("test5 - wrong error message for passwd:%v", out)
+
+	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", strings.Replace(nonDockerfileFile, `\`, `\\`, -1)); !strings.Contains(out, expected) {
+		t.Fatalf("wrong error messsage:%v\nexpected to contain=%v", out, expected)
 	}
 
-	out, _, err = dockerCmdInDir(t, ctx.Dir+"/files", "build", "-f", "../Dockerfile", "-t", "test6", "..")
+	out, _, err = dockerCmdInDir(t, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", "..")
 	if err != nil {
 		t.Fatalf("test6 failed: %s", err)
 	}
@@ -4596,7 +4603,7 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 		t.Fatalf("test6 should have used root Dockerfile, output:%s", out)
 	}
 
-	out, _, err = dockerCmdInDir(t, filepath.Join(ctx.Dir, "files"), "build", "-f", ctx.Dir+"/files/Dockerfile", "-t", "test7", "..")
+	out, _, err = dockerCmdInDir(t, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join(ctx.Dir, "files", "Dockerfile"), "-t", "test7", "..")
 	if err != nil {
 		t.Fatalf("test7 failed: %s", err)
 	}
@@ -4604,13 +4611,12 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 		t.Fatalf("test7 should have used files Dockerfile, output:%s", out)
 	}
 
-	out, _, err = dockerCmdInDir(t, ctx.Dir+"/files", "build", "-f", "../Dockerfile", "-t", "test8", ".")
+	out, _, err = dockerCmdInDir(t, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test8", ".")
 	if err == nil || !strings.Contains(out, "must be within the build context") {
 		t.Fatalf("test8 should have failed with Dockerfile out of context: %s", err)
 	}
 
 	tmpDir := os.TempDir()
-
 	out, _, err = dockerCmdInDir(t, tmpDir, "build", "-t", "test9", ctx.Dir)
 	if err != nil {
 		t.Fatalf("test9 - failed: %s", err)
