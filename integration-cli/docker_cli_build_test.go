@@ -1673,6 +1673,8 @@ func TestBuildAddBadLinksVolume(t *testing.T) {
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
+	testRequires(t, UnixCli) // test uses chown/chmod: not available on windows
+
 	{
 		name := "testbuildinaccessiblefiles"
 		defer deleteImages(name)
@@ -4387,6 +4389,8 @@ func TestBuildStderr(t *testing.T) {
 }
 
 func TestBuildChownSingleFile(t *testing.T) {
+	testRequires(t, UnixCli) // test uses chown: not available on windows
+
 	name := "testbuildchownsinglefile"
 	defer deleteImages(name)
 
@@ -4658,6 +4662,8 @@ func TestBuildFromOfficialNames(t *testing.T) {
 }
 
 func TestBuildDockerfileOutsideContext(t *testing.T) {
+	testRequires(t, UnixCli) // uses os.Symlink: not implemented in windows at the time of writing (go-1.4.2)
+
 	name := "testbuilddockerfileoutsidecontext"
 	tmpdir, err := ioutil.TempDir("", name)
 	if err != nil {
