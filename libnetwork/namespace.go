@@ -7,14 +7,14 @@ type networkNamespace struct {
 
 // Create a new network namespace mounted on the provided path.
 func NewNamespace(path string) (Namespace, error) {
-	if err := Reexec(ReexecCreateNamespace, path); err != nil {
+	if err := reexec(reexecCreateNamespace, path); err != nil {
 		return nil, err
 	}
 	return &networkNamespace{path: path}, nil
 }
 
 func (n *networkNamespace) AddInterface(i *Interface) error {
-	if err := Reexec(ReexecMoveInterface, i.SrcName, i.DstName); err != nil {
+	if err := reexec(reexecMoveInterface, i.SrcName, i.DstName); err != nil {
 		return err
 	}
 	n.interfaces = append(n.interfaces, i)
