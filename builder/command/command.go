@@ -19,19 +19,19 @@ const (
 )
 
 // Commands is list of all Dockerfile commands
-var Commands = []string{
-	Env,
-	Maintainer,
-	Add,
-	Copy,
-	From,
-	Onbuild,
-	Workdir,
-	Run,
-	Cmd,
-	Entrypoint,
-	Expose,
-	Volume,
-	User,
-	Insert,
+var Commands = map[string]struct{}{
+	Env:        {},
+	Maintainer: {},
+	Add:        {},
+	Copy:       {},
+	From:       {},
+	Onbuild:    {},
+	Workdir:    {},
+	Run:        {},
+	Cmd:        {},
+	Entrypoint: {},
+	Expose:     {},
+	Volume:     {},
+	User:       {},
+	Insert:     {},
 }
