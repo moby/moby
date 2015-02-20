@@ -104,6 +104,20 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 			log.Debugf("Error validating ID: %s", err)
 			return err
 		}
+
+		// ensure no two downloads of the same layer happen at the same time
+		if c, err := s.poolAdd("pull", "layer:"+img.ID); err != nil {
+			if c != nil {
+				log.Debugf("Image (id: %s) load is already running, waiting: %v", img.ID, err)
+				<-c
+				return nil
+			}
+
+			return err
+		}
+
+		defer s.poolRemove("pull", "layer:"+img.ID)
+
 		if img.Parent != "" {
 			if !s.graph.Exists(img.Parent) {
 				if err := s.recursiveLoad(eng, img.Parent, tmpImageDir); err != nil {
