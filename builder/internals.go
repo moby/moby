@@ -555,8 +555,11 @@ func (b *Builder) run(c *daemon.Container) error {
 		return err
 	}
 
-	if err := <-errCh; err != nil {
-		return err
+	if b.Verbose {
+		// Block on reading output from container, stop on err or chan closed
+		if err := <-errCh; err != nil {
+			return err
+		}
 	}
 
 	// Wait for it to finish
