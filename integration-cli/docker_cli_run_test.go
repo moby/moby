@@ -2548,13 +2548,7 @@ func TestVolumesNoCopyData(t *testing.T) {
 		t.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
 	}
 
-	tmpDir, err := ioutil.TempDir("", "docker_test_bind_mount_copy_data")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := randomUnixTmpDirPath("docker_test_bind_mount_copy_data")
 	cmd = exec.Command(dockerBinary, "run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar")
 	if out, _, err := runCommandWithOutput(cmd); err == nil || !strings.Contains(out, "No such file or directory") {
 		t.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
