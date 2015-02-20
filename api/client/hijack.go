@@ -15,7 +15,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"

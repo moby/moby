@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+IAMSTATIC="true"
+source "$(dirname "$BASH_SOURCE")/.dockerversion"
+
 # dockerinit still needs to be a static binary, even if docker is dynamic
 go build \
 	-o "$DEST/dockerinit-$VERSION" \
