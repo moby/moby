@@ -362,7 +362,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	} else {
 		// However, if they don't override the username use the
 		// password or email from the cmd line if specified. IOW, allow
-		// then to change/overide them.  And if not specified, just
+		// then to change/override them.  And if not specified, just
 		// use what's in the config file
 		if password == "" {
 			password = authconfig.Password
