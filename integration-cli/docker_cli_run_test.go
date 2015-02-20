@@ -2719,6 +2719,20 @@ func TestRunAllowPortRangeThroughExpose(t *testing.T) {
 	logDone("run - allow port range through --expose flag")
 }
 
+// test docker run expose a invalid port
+func TestRunExposePort(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--expose", "80000", "busybox")
+	out, _, err := runCommandWithOutput(runCmd)
+	//expose a invalid port should with a error out
+	if err == nil || !strings.Contains(out, "Invalid range format for --expose") {
+		t.Fatalf("run --expose a invalid port should with error out")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - can't expose a invalid port")
+}
+
 func TestRunUnknownCommand(t *testing.T) {
 	defer deleteAllContainers()
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "/bin/nada")
