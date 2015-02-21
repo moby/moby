@@ -1,7 +1,6 @@
 package chrootarchive
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 
 	"github.com/docker/docker/pkg/archive"
@@ -28,11 +26,14 @@ func chroot(path string) error {
 func untar() {
 	runtime.LockOSThread()
 	flag.Parse()
-	if err := chroot(flag.Arg(0)); err != nil {
+
+	var options *archive.TarOptions
+
+	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
 		fatal(err)
 	}
-	var options *archive.TarOptions
-	if err := json.NewDecoder(strings.NewReader(flag.Arg(1))).Decode(&options); err != nil {
+
+	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
 	if err := archive.Unpack(os.Stdin, "/", options); err != nil {
@@ -54,27 +55,32 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 		options.ExcludePatterns = []string{}
 	}
 
-	var (
-		buf bytes.Buffer
-		enc = json.NewEncoder(&buf)
-	)
-	if err := enc.Encode(options); err != nil {
-		return fmt.Errorf("Untar json encode: %v", err)
-	}
+	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
 		if err := os.MkdirAll(dest, 0777); err != nil {
 			return err
 		}
 	}
-	dest = filepath.Clean(dest)
+
+	// We can't pass the exclude list directly via cmd line
+	// because we easily overrun the shell max argument list length
+	// when the full image list is passed (e.g. when this is used
+	// by `docker load`). Instead we will add the JSON marshalled
+	// and placed in the env, which has significantly larger
+	// max size
+	data, err := json.Marshal(options)
+	if err != nil {
+		return fmt.Errorf("Untar json encode: %v", err)
+	}
 	decompressedArchive, err := archive.DecompressStream(tarArchive)
 	if err != nil {
 		return err
 	}
 	defer decompressedArchive.Close()
 
-	cmd := reexec.Command("docker-untar", dest, buf.String())
+	cmd := reexec.Command("docker-untar", dest)
 	cmd.Stdin = decompressedArchive
+	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Untar %s %s", err, out)
