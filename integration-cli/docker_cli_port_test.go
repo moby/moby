@@ -8,6 +8,8 @@ import (
 )
 
 func TestPortList(t *testing.T) {
+	defer deleteAllContainers()
+
 	// one port
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "9876:80", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -120,8 +122,6 @@ func TestPortList(t *testing.T) {
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}
-
-	deleteAllContainers()
 
 	logDone("port - test port list")
 }

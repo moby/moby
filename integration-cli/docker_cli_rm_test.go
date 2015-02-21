@@ -8,6 +8,8 @@ import (
 )
 
 func TestRmContainerWithRemovedVolume(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--name", "losemyvolumes", "-v", "/tmp/testing:/test", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -22,12 +24,12 @@ func TestRmContainerWithRemovedVolume(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	deleteAllContainers()
-
 	logDone("rm - removed volume")
 }
 
 func TestRmContainerWithVolume(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--name", "foo", "-v", "/srv", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -38,12 +40,12 @@ func TestRmContainerWithVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deleteAllContainers()
-
 	logDone("rm - volume")
 }
 
 func TestRmRunningContainer(t *testing.T) {
+	defer deleteAllContainers()
+
 	createRunningContainer(t, "foo")
 
 	// Test cannot remove running container
@@ -52,12 +54,12 @@ func TestRmRunningContainer(t *testing.T) {
 		t.Fatalf("Expected error, can't rm a running container")
 	}
 
-	deleteAllContainers()
-
 	logDone("rm - running container")
 }
 
 func TestRmRunningContainerCheckError409(t *testing.T) {
+	defer deleteAllContainers()
+
 	createRunningContainer(t, "foo")
 
 	endpoint := "/containers/foo"
@@ -70,12 +72,12 @@ func TestRmRunningContainerCheckError409(t *testing.T) {
 		t.Fatalf("Expected error to contain '409 Conflict' but found %s", err)
 	}
 
-	deleteAllContainers()
-
 	logDone("rm - running container")
 }
 
 func TestRmForceRemoveRunningContainer(t *testing.T) {
+	defer deleteAllContainers()
+
 	createRunningContainer(t, "foo")
 
 	// Stop then remove with -s
@@ -84,12 +86,12 @@ func TestRmForceRemoveRunningContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deleteAllContainers()
-
 	logDone("rm - running container with --force=true")
 }
 
 func TestRmContainerOrphaning(t *testing.T) {
+	defer deleteAllContainers()
+
 	dockerfile1 := `FROM busybox:latest
 	ENTRYPOINT ["/bin/true"]`
 	img := "test-container-orphaning"
@@ -99,6 +101,7 @@ func TestRmContainerOrphaning(t *testing.T) {
 
 	// build first dockerfile
 	img1, err := buildImage(img, dockerfile1, true)
+	defer deleteImages(img1)
 	if err != nil {
 		t.Fatalf("Could not build image %s: %v", img, err)
 	}
@@ -122,9 +125,6 @@ func TestRmContainerOrphaning(t *testing.T) {
 	if !strings.Contains(out, img1) {
 		t.Fatalf("Orphaned container (could not find %q in docker images): %s", img1, out)
 	}
-
-	deleteAllContainers()
-	deleteImages(img1)
 
 	logDone("rm - container orphaning")
 }

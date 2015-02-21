@@ -56,6 +56,8 @@ func TestRunRedirectStdout(t *testing.T) {
 
 // Test recursive bind mount works by default
 func TestRunWithVolumesIsRecursive(t *testing.T) {
+	defer deleteAllContainers()
+
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
 	if err != nil {
 		t.Fatal(err)
@@ -86,8 +88,6 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 	if !strings.Contains(out, filepath.Base(f.Name())) {
 		t.Fatal("Recursive bind mount test failed. Expected file not found")
 	}
-
-	deleteAllContainers()
 
 	logDone("run - volumes are bind mounted recursively")
 }

@@ -73,6 +73,8 @@ func TestCommitWithoutPause(t *testing.T) {
 }
 
 func TestCommitNewFile(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -84,6 +86,7 @@ func TestCommitNewFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	imageID = strings.Trim(imageID, "\r\n")
+	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", imageID, "cat", "/foo")
 
@@ -95,13 +98,12 @@ func TestCommitNewFile(t *testing.T) {
 		t.Fatalf("expected output koye received %q", actual)
 	}
 
-	deleteAllContainers()
-	deleteImages(imageID)
-
 	logDone("commit - commit file and read")
 }
 
 func TestCommitHardlink(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
 	firstOuput, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -127,6 +129,7 @@ func TestCommitHardlink(t *testing.T) {
 		t.Fatal(imageID, err)
 	}
 	imageID = strings.Trim(imageID, "\r\n")
+	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
 	secondOuput, _, err := runCommandWithOutput(cmd)
@@ -146,9 +149,6 @@ func TestCommitHardlink(t *testing.T) {
 	if !found {
 		t.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
 	}
-
-	deleteAllContainers()
-	deleteImages(imageID)
 
 	logDone("commit - commit hardlinks")
 }
@@ -178,6 +178,8 @@ func TestCommitTTY(t *testing.T) {
 }
 
 func TestCommitWithHostBindMount(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -190,15 +192,13 @@ func TestCommitWithHostBindMount(t *testing.T) {
 	}
 
 	imageID = strings.Trim(imageID, "\r\n")
+	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", "bindtest", "true")
 
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
-
-	deleteAllContainers()
-	deleteImages(imageID)
 
 	logDone("commit - commit bind mounted file")
 }

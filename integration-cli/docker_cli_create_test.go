@@ -11,6 +11,8 @@ import (
 
 // Make sure we can create a simple container with some args
 func TestCreateArgs(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -56,13 +58,13 @@ func TestCreateArgs(t *testing.T) {
 		t.Fatalf("Unexpected args. Expected %v, received: %v", expected, c.Args)
 	}
 
-	deleteAllContainers()
-
 	logDone("create - args")
 }
 
 // Make sure we can set hostconfig options too
 func TestCreateHostConfig(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "create", "-P", "busybox", "echo")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -98,12 +100,12 @@ func TestCreateHostConfig(t *testing.T) {
 		t.Fatalf("Expected PublishAllPorts, got false")
 	}
 
-	deleteAllContainers()
-
 	logDone("create - hostconfig")
 }
 
 func TestCreateWithPortRange(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -147,12 +149,12 @@ func TestCreateWithPortRange(t *testing.T) {
 		}
 	}
 
-	deleteAllContainers()
-
 	logDone("create - port range")
 }
 
 func TestCreateWithiLargePortRange(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -196,13 +198,13 @@ func TestCreateWithiLargePortRange(t *testing.T) {
 		}
 	}
 
-	deleteAllContainers()
-
 	logDone("create - large port range")
 }
 
 // "test123" should be printed by docker create + start
 func TestCreateEchoStdout(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "echo", "test123")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -221,12 +223,12 @@ func TestCreateEchoStdout(t *testing.T) {
 		t.Errorf("container should've printed 'test123', got %q", out)
 	}
 
-	deleteAllContainers()
-
 	logDone("create - echo test123")
 }
 
 func TestCreateVolumesCreated(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "test_create_volume"
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
 		t.Fatal(out, err)

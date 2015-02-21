@@ -7,6 +7,8 @@ import (
 )
 
 func TestRenameStoppedContainer(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "--name", "first_name", "-d", "busybox", "sh")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -36,12 +38,13 @@ func TestRenameStoppedContainer(t *testing.T) {
 	if name != "new_name" {
 		t.Fatal("Failed to rename container ", name)
 	}
-	deleteAllContainers()
 
 	logDone("rename - stopped container")
 }
 
 func TestRenameRunningContainer(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "--name", "first_name", "-d", "busybox", "sh")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -62,12 +65,13 @@ func TestRenameRunningContainer(t *testing.T) {
 	if name != "new_name" {
 		t.Fatal("Failed to rename container ")
 	}
-	deleteAllContainers()
 
 	logDone("rename - running container")
 }
 
 func TestRenameCheckNames(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "--name", "first_name", "-d", "busybox", "sh")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -92,8 +96,6 @@ func TestRenameCheckNames(t *testing.T) {
 	if err == nil && !strings.Contains(err.Error(), "No such image or container: first_name") {
 		t.Fatal(err)
 	}
-
-	deleteAllContainers()
 
 	logDone("rename - running container")
 }
