@@ -4,7 +4,7 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 
 # Repositories and Images on Docker Hub
 
-![repositories](/docker-hub/repos.png)
+![repositories](/docker-hub/hub-images/repos.png)
 
 ## Searching for repositories and images
 
