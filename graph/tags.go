@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
 
@@ -148,7 +148,7 @@ func (store *TagStore) ImageName(id string) string {
 	if names, exists := store.ByID()[id]; exists && len(names) > 0 {
 		return names[0]
 	}
-	return utils.TruncateID(id)
+	return common.TruncateID(id)
 }
 
 func (store *TagStore) DeleteAll(id string) error {
@@ -274,7 +274,7 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 
 	for name, repository := range store.Repositories {
 		for tag, id := range repository {
-			shortID := utils.TruncateID(id)
+			shortID := common.TruncateID(id)
 			reporefs[shortID] = append(reporefs[shortID], fmt.Sprintf("%s:%s", name, tag))
 		}
 	}

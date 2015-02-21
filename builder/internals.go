@@ -25,6 +25,7 @@ import (
 	imagepkg "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/symlink"
@@ -531,7 +532,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	}
 
 	b.TmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.OutStream, " ---> Running in %s\n", utils.TruncateID(c.ID))
+	fmt.Fprintf(b.OutStream, " ---> Running in %s\n", common.TruncateID(c.ID))
 
 	if len(config.Cmd) > 0 {
 		// override the entry point that may have been picked up from the base image
@@ -713,11 +714,11 @@ func (b *Builder) clearTmp() {
 		}
 
 		if err := b.Daemon.Rm(tmp); err != nil {
-			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
+			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", common.TruncateID(c), err.Error())
 			return
 		}
 		b.Daemon.DeleteVolumes(tmp.VolumePaths())
 		delete(b.TmpContainers, c)
-		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", utils.TruncateID(c))
+		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", common.TruncateID(c))
 	}
 }

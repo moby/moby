@@ -7,8 +7,8 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/utils"
 )
 
 func (daemon *Daemon) ImageDelete(job *engine.Job) engine.Status {
@@ -143,11 +143,11 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {
-						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", common.TruncateID(imgID), common.TruncateID(container.ID))
 					}
-					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", common.TruncateID(imgID), common.TruncateID(container.ID))
 				} else if !force {
-					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", common.TruncateID(imgID), common.TruncateID(container.ID))
 				}
 			}
 			return nil

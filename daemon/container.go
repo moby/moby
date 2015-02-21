@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -704,7 +705,7 @@ func (container *Container) Kill() error {
 	if _, err := container.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
 		if pid := container.GetPid(); pid != 0 {
-			log.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", utils.TruncateID(container.ID))
+			log.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", common.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				if err != syscall.ESRCH {
 					return err
