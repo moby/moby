@@ -172,6 +172,21 @@ type tarAppender struct {
 	SeenFiles map[uint64]string
 }
 
+// canonicalTarName provides a platform-independent and consistent posix-style
+//path for files and directories to be archived regardless of the platform.
+func canonicalTarName(name string, isDir bool) (string, error) {
+	name, err := canonicalTarNameForPath(name)
+	if err != nil {
+		return "", err
+	}
+
+	// suffix with '/' for directories
+	if isDir && !strings.HasSuffix(name, "/") {
+		name += "/"
+	}
+	return name, nil
+}
+
 func (ta *tarAppender) addTarFile(path, name string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
@@ -190,10 +205,10 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		return err
 	}
 
-	if fi.IsDir() && !strings.HasSuffix(name, "/") {
-		name = name + "/"
+	name, err = canonicalTarName(name, fi.IsDir())
+	if err != nil {
+		return fmt.Errorf("tar: cannot canonicalize path: %v", err)
 	}
-
 	hdr.Name = name
 
 	nlink, inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())

@@ -9,6 +9,13 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
+// canonicalTarNameForPath returns platform-specific filepath
+// to canonical posix-style path for tar archival. p is relative
+// path.
+func canonicalTarNameForPath(p string) (string, error) {
+	return p, nil // already unix-style
+}
+
 func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, stat interface{}) (nlink uint32, inode uint64, err error) {
 	s, ok := stat.(*syscall.Stat_t)
 
