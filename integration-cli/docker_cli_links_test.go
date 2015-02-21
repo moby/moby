@@ -231,7 +231,7 @@ func TestLinksNotStartedParentNotFail(t *testing.T) {
 }
 
 func TestLinksHostsFilesInject(t *testing.T) {
-	testRequires(t, SameHostDaemon)
+	testRequires(t, SameHostDaemon, ExecSupport)
 
 	defer deleteAllContainers()
 
@@ -285,7 +285,7 @@ func TestLinksNetworkHostContainer(t *testing.T) {
 }
 
 func TestLinksUpdateOnRestart(t *testing.T) {
-	testRequires(t, SameHostDaemon)
+	testRequires(t, SameHostDaemon, ExecSupport)
 
 	defer deleteAllContainers()
 
