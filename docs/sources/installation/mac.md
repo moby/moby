@@ -83,7 +83,7 @@ application:
 Once the launch completes, you can run `docker` commands. A good way to verify
 your setup succeeded is to run the `hello-world` container.
 
-		$ docker hello-world
+		$ docker run hello-world
 		Unable to find image 'hello-world:latest' locally
 		511136ea3c5a: Pull complete 
 		31cbccb51277: Pull complete 
