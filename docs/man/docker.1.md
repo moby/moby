@@ -296,7 +296,7 @@ for data and metadata:
 For specific client examples please see the man page for the specific Docker
 command. For example:
 
-    man docker run
+    man docker-run
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com) based on docker.com source material and internal work.
