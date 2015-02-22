@@ -46,6 +46,11 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /version`
+
+**New!**
+This endpoint now returns `Os`, `Arch` and `KernelVersion`.
+
 ## v1.17
 
 ### Full Documentation

@@ -1471,10 +1471,13 @@ Show the docker version information
         Content-Type: application/json
 
         {
-             "ApiVersion": "1.12",
-             "Version": "0.2.2",
-             "GitCommit": "5a2a5cc+CHANGES",
-             "GoVersion": "go1.0.3"
+             "Version": "1.5.0",
+             "Os": "linux",
+             "KernelVersion": "3.18.5-tinycore64",
+             "GoVersion": "go1.4.1",
+             "GitCommit": "a8a31ef",
+             "Arch": "amd64",
+             "ApiVersion": "1.18"
         }
 
 Status Codes:
