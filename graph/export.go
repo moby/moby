@@ -23,6 +23,9 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 	if len(job.Args) < 1 {
 		return job.Errorf("Usage: %s IMAGE [IMAGE...]\n", job.Name)
 	}
+
+	noparents := job.GetenvBool("noparents")
+
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
@@ -47,7 +50,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 			// this is a base repo name, like 'busybox'
 			for tag, id := range rootRepo {
 				addKey(name, tag, id)
-				if err := s.exportImage(job.Eng, id, tempdir); err != nil {
+				if err := s.exportImage(job.Eng, id, tempdir, noparents); err != nil {
 					return job.Error(err)
 				}
 			}
@@ -66,13 +69,13 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 				if len(repoTag) > 0 {
 					addKey(repoName, repoTag, img.ID)
 				}
-				if err := s.exportImage(job.Eng, img.ID, tempdir); err != nil {
+				if err := s.exportImage(job.Eng, img.ID, tempdir, noparents); err != nil {
 					return job.Error(err)
 				}
 
 			} else {
 				// this must be an ID that didn't get looked up just right?
-				if err := s.exportImage(job.Eng, name, tempdir); err != nil {
+				if err := s.exportImage(job.Eng, name, tempdir, noparents); err != nil {
 					return job.Error(err)
 				}
 			}
@@ -103,7 +106,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 }
 
 // FIXME: this should be a top-level function, not a class method
-func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
+func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string, noparents bool) error {
 	for n := name; n != ""; {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, n)
@@ -144,13 +147,18 @@ func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
 			return err
 		}
 
-		// find parent
-		job = eng.Job("image_get", n)
-		info, _ := job.Stdout.AddEnv()
-		if err := job.Run(); err != nil {
-			return err
+		if noparents {
+			// finished
+			n = ""
+		} else {
+			// find parent
+			job = eng.Job("image_get", n)
+			info, _ := job.Stdout.AddEnv()
+			if err := job.Run(); err != nil {
+				return err
+			}
+			n = info.Get("Parent")
 		}
-		n = info.Get("Parent")
 	}
 	return nil
 }

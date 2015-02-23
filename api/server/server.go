@@ -689,6 +689,7 @@ func getImagesGet(eng *engine.Engine, version version.Version, w http.ResponseWr
 	} else {
 		job = eng.Job("image_export", r.Form["names"]...)
 	}
+	job.Setenv("noparents", r.Form.Get("noparents"))
 	job.Stdout.Add(w)
 	return job.Run()
 }
