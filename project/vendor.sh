@@ -68,8 +68,7 @@ if [ "$1" = '--go' ]; then
 	mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 fi
 
-# this commit is from docker_1.5 branch in libcontainer, pls delete that branch when you'll update libcontainer again
-clone git github.com/docker/libcontainer 2d3b5af7486f1a4e80a5ed91859d309b4eebf80c
+clone git github.com/docker/libcontainer dd3cb8822352fd4acc0b8b426bd86e47e98f6853
 # see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
 rm -rf src/github.com/docker/libcontainer/vendor
 eval "$(grep '^clone ' src/github.com/docker/libcontainer/update-vendor.sh | grep -v 'github.com/codegangsta/cli')"

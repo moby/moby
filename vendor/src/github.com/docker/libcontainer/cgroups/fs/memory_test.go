@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/docker/libcontainer/cgroups"
@@ -13,6 +14,46 @@ rss 1024`
 	memoryMaxUsageContents = "4096\n"
 	memoryFailcnt          = "100\n"
 )
+
+func TestMemorySetMemory(t *testing.T) {
+	helper := NewCgroupTestUtil("memory", t)
+	defer helper.cleanup()
+
+	const (
+		memoryBefore      = 314572800 // 300M
+		memoryAfter       = 524288000 // 500M
+		reservationBefore = 209715200 // 200M
+		reservationAfter  = 314572800 // 300M
+	)
+
+	helper.writeFileContents(map[string]string{
+		"memory.limit_in_bytes":      strconv.Itoa(memoryBefore),
+		"memory.soft_limit_in_bytes": strconv.Itoa(reservationBefore),
+	})
+
+	helper.CgroupData.c.Memory = memoryAfter
+	helper.CgroupData.c.MemoryReservation = reservationAfter
+	memory := &MemoryGroup{}
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamUint(helper.CgroupPath, "memory.limit_in_bytes")
+	if err != nil {
+		t.Fatalf("Failed to parse memory.limit_in_bytes - %s", err)
+	}
+	if value != memoryAfter {
+		t.Fatal("Got the wrong value, set memory.limit_in_bytes failed.")
+	}
+
+	value, err = getCgroupParamUint(helper.CgroupPath, "memory.soft_limit_in_bytes")
+	if err != nil {
+		t.Fatalf("Failed to parse memory.soft_limit_in_bytes - %s", err)
+	}
+	if value != reservationAfter {
+		t.Fatal("Got the wrong value, set memory.soft_limit_in_bytes failed.")
+	}
+}
 
 func TestMemoryStats(t *testing.T) {
 	helper := NewCgroupTestUtil("memory", t)
@@ -130,5 +171,32 @@ func TestMemoryStatsBadMaxUsageFile(t *testing.T) {
 	err := memory.GetStats(helper.CgroupPath, &actualStats)
 	if err == nil {
 		t.Fatal("Expected failure")
+	}
+}
+
+func TestMemorySetOomControl(t *testing.T) {
+	helper := NewCgroupTestUtil("memory", t)
+	defer helper.cleanup()
+
+	const (
+		oom_kill_disable = 1 // disable oom killer, default is 0
+	)
+
+	helper.writeFileContents(map[string]string{
+		"memory.oom_control": strconv.Itoa(oom_kill_disable),
+	})
+
+	memory := &MemoryGroup{}
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamUint(helper.CgroupPath, "memory.oom_control")
+	if err != nil {
+		t.Fatalf("Failed to parse memory.oom_control - %s", err)
+	}
+
+	if value != oom_kill_disable {
+		t.Fatalf("Got the wrong value, set memory.oom_control failed.")
 	}
 }
