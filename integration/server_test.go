@@ -46,7 +46,7 @@ func TestMergeConfigOnCommit(t *testing.T) {
 	defer runtime.Nuke()
 
 	container1, _, _ := mkContainer(runtime, []string{"-e", "FOO=bar", unitTestImageID, "echo test > /tmp/foo"}, t)
-	defer runtime.Destroy(container1)
+	defer runtime.Rm(container1)
 
 	config, _, _, err := parseRun([]string{container1.ID, "cat /tmp/foo"})
 	if err != nil {
@@ -64,7 +64,7 @@ func TestMergeConfigOnCommit(t *testing.T) {
 	}
 
 	container2, _, _ := mkContainer(runtime, []string{engine.Tail(outputBuffer, 1)}, t)
-	defer runtime.Destroy(container2)
+	defer runtime.Rm(container2)
 
 	job = eng.Job("container_inspect", container1.Name)
 	baseContainer, _ := job.Stdout.AddEnv()
