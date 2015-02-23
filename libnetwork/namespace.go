@@ -14,6 +14,7 @@ func NewNamespace(path string) (Namespace, error) {
 }
 
 func (n *networkNamespace) AddInterface(i *Interface) error {
+	// TODO Open pipe, pass fd to child and write serialized Interface on it.
 	if err := reexec(reexecMoveInterface, i.SrcName, i.DstName); err != nil {
 		return err
 	}
