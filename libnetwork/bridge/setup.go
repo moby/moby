@@ -7,8 +7,8 @@ type BridgeSetup struct {
 	steps  []SetupStep
 }
 
-func NewBridgeSetup(b *Interface) *BridgeSetup {
-	return &BridgeSetup{bridge: b}
+func NewBridgeSetup(i *Interface) *BridgeSetup {
+	return &BridgeSetup{bridge: i}
 }
 
 func (b *BridgeSetup) Apply() error {
@@ -26,18 +26,18 @@ func (b *BridgeSetup) QueueStep(step SetupStep) {
 
 //---------------------------------------------------------------------------//
 
-func SetupFixedCIDRv4(b *Interface) error {
+func SetupFixedCIDRv4(i *Interface) error {
 	return nil
 }
 
-func SetupFixedCIDRv6(b *Interface) error {
+func SetupFixedCIDRv6(i *Interface) error {
 	return nil
 }
 
-func SetupIPTables(b *Interface) error {
+func SetupIPTables(i *Interface) error {
 	return nil
 }
 
-func SetupIPForwarding(b *Interface) error {
+func SetupIPForwarding(i *Interface) error {
 	return nil
 }

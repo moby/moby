@@ -5,6 +5,7 @@ import (
 	"net"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/vishvananda/netlink"
 )
 
@@ -56,12 +57,80 @@ func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
 		return config.AddressIPv4, nil
 	}
 
+	// We don't check for an error here, because we don't really care if we
+	// can't read /etc/resolv.conf. So instead we skip the append if resolvConf
+	// is nil. It either doesn't exist, or we can't read it for some reason.
+	nameservers := []string{}
+	if resolvConf, _ := resolvconf.Get(); resolvConf != nil {
+		nameservers = append(nameservers, resolvconf.GetNameserversAsCIDR(resolvConf)...)
+	}
+
 	// Try to automatically elect appropriate brige IPv4 settings.
 	for _, n := range bridgeNetworks {
-		// TODO CheckNameserverOverlaps
-		// TODO CheckRouteOverlaps
-		return n, nil
+		if err := checkNameserverOverlaps(nameservers, n); err == nil {
+			if err := checkRouteOverlaps(n); err == nil {
+				return n, nil
+			}
+		}
 	}
 
 	return nil, fmt.Errorf("Couldn't find an address range for interface %q", config.BridgeName)
+}
+
+func checkNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
+	for _, ns := range nameservers {
+		_, nsNetwork, err := net.ParseCIDR(ns)
+		if err != nil {
+			return err
+		}
+		if networkOverlaps(toCheck, nsNetwork) {
+			return fmt.Errorf("Requested network %s overlaps with name server")
+		}
+	}
+	return nil
+}
+
+func checkRouteOverlaps(toCheck *net.IPNet) error {
+	networks, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	if err != nil {
+		return err
+	}
+
+	for _, network := range networks {
+		// TODO Is that right?
+		if network.Dst != nil && networkOverlaps(toCheck, network.Dst) {
+			return fmt.Errorf("Requested network %s overlaps with an existing network")
+		}
+	}
+	return nil
+}
+
+func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
+	if len(netX.IP) == len(netY.IP) {
+		if firstIP, _ := networkRange(netX); netY.Contains(firstIP) {
+			return true
+		}
+		if firstIP, _ := networkRange(netY); netX.Contains(firstIP) {
+			return true
+		}
+	}
+	return false
+}
+
+func networkRange(network *net.IPNet) (net.IP, net.IP) {
+	var netIP net.IP
+	if network.IP.To4() != nil {
+		netIP = network.IP.To4()
+	} else if network.IP.To16() != nil {
+		netIP = network.IP.To16()
+	} else {
+		return nil, nil
+	}
+
+	lastIP := make([]byte, len(netIP), len(netIP))
+
+	for i := 0; i < len(netIP); i++ {
+		lastIP[i] = netIP[i] | ^network.Mask[i]
+	}
+	return netIP.Mask(network.Mask), net.IP(lastIP)
 }

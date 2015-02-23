@@ -212,46 +212,6 @@ func createBridge(config *Configuration) (netlink.Addr, []netlink.Addr, error) {
 
 	return getInterfaceAddrByName(config.BridgeName)
 }
-
-func checkBridgeConfig(iface netlink.Link, config *Configuration) (netlink.Addr, []netlink.Addr, error) {
-	addrv4, addrsv6, err := getInterfaceAddr(iface)
-	if err != nil {
-		return netlink.Addr{}, nil, err
-	}
-
-	// If config dictates a specific IP for the bridge, we have to check if it
-	// corresponds to reality.
-	if config.AddressIPv4 != "" {
-		bridgeIP, _, err := net.ParseCIDR(config.AddressIPv4)
-		if err != nil {
-			return netlink.Addr{}, nil, err
-		}
-		if !addrv4.IP.Equal(bridgeIP) {
-			return netlink.Addr{}, nil, fmt.Errorf("bridge ip (%s) does not match existing configuration %s", addrv4.IP, bridgeIP)
-		}
-	}
-
-	return addrv4, addrsv6, nil
-}
-
-func setupIPv6Bridge(iface netlink.Link, config *Configuration) error {
-	procFile := "/proc/sys/net/ipv6/conf/" + config.BridgeName + "/disable_ipv6"
-	if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
-		return fmt.Errorf("Unable to enable IPv6 addresses on bridge: %v", err)
-	}
-
-	ip, net, err := net.ParseCIDR(config.AddressIPv6)
-	if err != nil {
-		return fmt.Errorf("Invalid bridge IPv6 address %q: %v", config.AddressIPv6, err)
-	}
-
-	net.IP = ip
-	if err := netlink.AddrAdd(iface, &netlink.Addr{net, ""}); err != nil {
-		return fmt.Errorf("Failed to add address %s to bridge: %v", net, err)
-	}
-
-	return nil
-}
 */
 
 type bridgeNetwork struct {

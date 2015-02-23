@@ -10,7 +10,8 @@ import (
 )
 
 func main() {
-	_, net, _ := net.ParseCIDR("192.168.100.1/24")
+	ip, net, _ := net.ParseCIDR("192.168.100.1/24")
+	net.IP = ip
 
 	options := libnetwork.DriverParams{"AddressIPv4": net}
 	netw, err := libnetwork.NewNetwork("simplebridge", options)

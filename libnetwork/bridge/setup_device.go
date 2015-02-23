@@ -10,6 +10,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// SetupDevice create a new bridge interface/
 func SetupDevice(i *Interface) error {
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
@@ -32,9 +33,11 @@ func SetupDevice(i *Interface) error {
 		log.Debugf("Setting bridge mac address to %s", i.Link.Attrs().HardwareAddr)
 	}
 
+	// Call out to netlink to create the device.
 	return netlink.LinkAdd(i.Link)
 }
 
+// SetupDeviceUp ups the given bridge interface.
 func SetupDeviceUp(i *Interface) error {
 	return netlink.LinkSetUp(i.Link)
 }
