@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/runconfig"
@@ -305,7 +306,7 @@ func TestDaemonCreate(t *testing.T) {
 		&runconfig.HostConfig{},
 		"conflictname",
 	)
-	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: []string{"ls", "-al"}}, &runconfig.HostConfig{}, testContainer.Name); err == nil || !strings.Contains(err.Error(), utils.TruncateID(testContainer.ID)) {
+	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: []string{"ls", "-al"}}, &runconfig.HostConfig{}, testContainer.Name); err == nil || !strings.Contains(err.Error(), common.TruncateID(testContainer.ID)) {
 		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %s", err.Error())
 	}
 

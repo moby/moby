@@ -14,6 +14,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
@@ -129,7 +130,7 @@ func lookupImageOnEndpoint(wg *sync.WaitGroup, r *registry.Session, out io.Write
 			imagesToPush <- image.id
 			continue
 		}
-		out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", utils.TruncateID(image.id)))
+		out.Write(sf.FormatStatus("", "Image %s already pushed, skipping", common.TruncateID(image.id)))
 	}
 }
 
@@ -181,7 +182,7 @@ func (s *TagStore) pushImageToEndpoint(endpoint string, out io.Writer, remoteNam
 			}
 		}
 		for _, tag := range tags[id] {
-			out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", utils.TruncateID(id), endpoint+"repositories/"+remoteName+"/tags/"+tag))
+			out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", common.TruncateID(id), endpoint+"repositories/"+remoteName+"/tags/"+tag))
 			if err := r.PushRegistryTag(remoteName, id, tag, endpoint, repo.Tokens); err != nil {
 				return err
 			}
@@ -234,7 +235,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
-	out.Write(sf.FormatProgress(utils.TruncateID(imgID), "Pushing", nil))
+	out.Write(sf.FormatProgress(common.TruncateID(imgID), "Pushing", nil))
 
 	imgData := &registry.ImgData{
 		ID: imgID,
@@ -243,7 +244,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	// Send the json
 	if err := r.PushImageJSONRegistry(imgData, jsonRaw, ep, token); err != nil {
 		if err == registry.ErrAlreadyExists {
-			out.Write(sf.FormatProgress(utils.TruncateID(imgData.ID), "Image already pushed, skipping", nil))
+			out.Write(sf.FormatProgress(common.TruncateID(imgData.ID), "Image already pushed, skipping", nil))
 			return "", nil
 		}
 		return "", err
@@ -258,7 +259,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	// Send the layer
 	log.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
 
-	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, utils.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
+	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID, utils.ProgressReader(layerData, int(layerData.Size), out, sf, false, common.TruncateID(imgData.ID), "Pushing"), ep, token, jsonRaw)
 	if err != nil {
 		return "", err
 	}
@@ -269,7 +270,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 		return "", err
 	}
 
-	out.Write(sf.FormatProgress(utils.TruncateID(imgData.ID), "Image successfully pushed", nil))
+	out.Write(sf.FormatProgress(common.TruncateID(imgData.ID), "Image successfully pushed", nil))
 	return imgData.Checksum, nil
 }
 
@@ -359,7 +360,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 			// Call mount blob
 			exists, err := r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], manifestSum, auth)
 			if err != nil {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+				out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image push failed", nil))
 				return err
 			}
 
@@ -368,7 +369,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 					return err
 				}
 			} else {
-				out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image already exists", nil))
+				out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image already exists", nil))
 			}
 		}
 
@@ -382,7 +383,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, eng *engine.Engine, out
 
 // PushV2Image pushes the image content to the v2 registry, first buffering the contents to disk
 func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName, sumType, sumStr string, sf *utils.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) error {
-	out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Buffering to Disk", nil))
+	out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Buffering to Disk", nil))
 
 	image, err := s.graph.Get(img.ID)
 	if err != nil {
@@ -411,11 +412,11 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 	// Send the layer
 	log.Debugf("rendered layer for %s of [%d] size", img.ID, size)
 
-	if err := r.PutV2ImageBlob(endpoint, imageName, sumType, sumStr, utils.ProgressReader(tf, int(size), out, sf, false, utils.TruncateID(img.ID), "Pushing"), auth); err != nil {
-		out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image push failed", nil))
+	if err := r.PutV2ImageBlob(endpoint, imageName, sumType, sumStr, utils.ProgressReader(tf, int(size), out, sf, false, common.TruncateID(img.ID), "Pushing"), auth); err != nil {
+		out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image push failed", nil))
 		return err
 	}
-	out.Write(sf.FormatProgress(utils.TruncateID(img.ID), "Image successfully pushed", nil))
+	out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image successfully pushed", nil))
 	return nil
 }
 
