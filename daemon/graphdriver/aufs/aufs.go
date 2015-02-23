@@ -42,7 +42,6 @@ import (
 var (
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
 	incompatibleFsMagic = []graphdriver.FsMagic{
-		graphdriver.FsMagicBtrfs,
 		graphdriver.FsMagicAufs,
 	}
 	backingFs = "<unknown>"
