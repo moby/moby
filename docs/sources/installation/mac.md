@@ -234,7 +234,7 @@ The next exercise demonstrates how to do this.
 	
 5. Start a new `nginx` container and replace the `html` folder with your `site` directory.
 
-		$ docker run -d -P -v /Users/mary/site:/usr/share/nginx/html --name mysite nginx
+		$ docker run -d -P -v $HOME/site:/usr/share/nginx/html --name mysite nginx
 	
 6. Get the `mysite` container's port.
 
