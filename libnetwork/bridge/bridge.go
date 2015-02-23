@@ -79,15 +79,3 @@ func Create(config *Configuration) (libnetwork.Network, error) {
 
 	return &bridgeNetwork{*config}, nil
 }
-
-type bridgeNetwork struct {
-	Config Configuration
-}
-
-func (b *bridgeNetwork) Type() string {
-	return NetworkType
-}
-
-func (b *bridgeNetwork) Link(name string) ([]*libnetwork.Interface, error) {
-	return nil, nil
-}
