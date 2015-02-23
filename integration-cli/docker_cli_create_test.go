@@ -228,6 +228,7 @@ func TestCreateEchoStdout(t *testing.T) {
 
 func TestCreateVolumesCreated(t *testing.T) {
 	defer deleteAllContainers()
+	testRequires(t, SameHostDaemon)
 
 	name := "test_create_volume"
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
