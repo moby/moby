@@ -10,10 +10,11 @@ import (
 )
 
 func main() {
-	_, net, _ := net.ParseCIDR("192.168.100.1/24")
+	ip, net, _ := net.ParseCIDR("192.168.100.1/24")
+	net.IP = ip
 
-	options := libnetwork.DriverParams{"Subnet": *net}
-	netw, err := libnetwork.NewNetwork("bridgednetwork", options)
+	options := libnetwork.DriverParams{"AddressIPv4": net}
+	netw, err := libnetwork.NewNetwork("simplebridge", options)
 	if err != nil {
 		log.Fatal(err)
 	}
