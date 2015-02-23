@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/utils"
+	"strings"
 )
 
 const eventsLimit = 64
@@ -104,7 +105,7 @@ func (e *Events) SubscribersCount(job *engine.Job) engine.Status {
 }
 
 func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.Args) error {
-	isFiltered := func(field string, filter []string) bool {
+	isFiltered := func(field string, filter []string, partialMatch bool) bool {
 		if len(filter) == 0 {
 			return false
 		}
@@ -112,11 +113,15 @@ func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.
 			if v == field {
 				return false
 			}
+			if partialMatch && strings.HasPrefix(field, v) {
+				return false
+			}
 		}
 		return true
 	}
 
-	if isFiltered(event.Status, eventFilters["event"]) || isFiltered(event.From, eventFilters["image"]) || isFiltered(event.ID, eventFilters["container"]) {
+	if isFiltered(event.Status, eventFilters["event"], false) || isFiltered(event.From, eventFilters["image"], false) ||
+		isFiltered(event.ID, eventFilters["container"], true) {
 		return nil
 	}
 
