@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +21,20 @@ const (
 	cpContainerContents = "holla, i am the container"
 	cpHostContents      = "hello, i am the host"
 )
+
+// Ensure that an all-local path case returns an error.
+func TestCpLocalOnly(t *testing.T) {
+	err := runDockerCp(t, "foo", "bar")
+	if err == nil {
+		t.Fatal("expected failure, got success")
+	}
+
+	if !strings.Contains(err.Error(), "Wrong path format. Must specify a source and/or destination container") {
+		t.Fatalf("unexpected output: %s", err.Error())
+	}
+
+	logDone("cp - using only local paths for SRC and DST")
+}
 
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
@@ -375,15 +390,16 @@ func TestCpUnprivilegedUser(t *testing.T) {
 
 	path := cpTestName
 
-	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+cleanedContainerID+":"+path+" "+tmpdir))
+	out, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+cleanedContainerID+":"+path+" "+tmpdir))
 	if err != nil {
-		t.Fatalf("couldn't copy with unprivileged user: %s:%s %s", cleanedContainerID, path, err)
+		t.Fatalf("couldn't copy with unprivileged user: %s:%s %s: %s", cleanedContainerID, path, err, out)
 	}
 
 	logDone("cp - unprivileged user")
 }
 
 func TestCpVolumePath(t *testing.T) {
+	defer deleteAllContainers()
 	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
 	if err != nil {
 		t.Fatal(err)
@@ -405,7 +421,6 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	cleanedContainerID := stripTrailingCharacters(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
 	if err != nil || stripTrailingCharacters(out) != "0" {
@@ -487,6 +502,80 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	logDone("cp - volume path")
+}
+
+// #9787
+func TestCpVolumePathSimilar(t *testing.T) {
+	defer deleteAllContainers()
+	// path looks like a volume
+	pathLikeVolDir, err := ioutil.TempDir(os.TempDir(), "cp_path_like_volume")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(pathLikeVolDir)
+
+	// Test with normal volume
+	out, _, err := dockerCmd(t, "run", "-d", "--name", "test_cp_path_like_volume", "-v", "/foo", "busybox", "/bin/sh", "-c", "echo 'test' > /foo.")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "cp", "test_cp_path_like_volume:/foo.", pathLikeVolDir)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	b, err := ioutil.ReadFile(pathLikeVolDir + "/foo.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal([]byte("test"), b) {
+		t.Fatalf("couldn't cp path similar to volume path")
+	}
+	os.Remove(pathLikeVolDir + "/foo.")
+
+	// Test with bind-mount
+	bindTestPath, err := ioutil.TempDir(os.TempDir(), "cp_path_like_volume")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err = dockerCmd(t, "run", "-d", "--name", "test_cp_path_like_volume_binds", "-v", bindTestPath+":/foo", "busybox", "/bin/sh", "-c", "echo 'test' > /foo.")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "cp", "test_cp_path_like_volume_binds:/foo.", pathLikeVolDir)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	b, err = ioutil.ReadFile(pathLikeVolDir + "/foo.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal([]byte("test"), b) {
+		t.Fatalf("couldn't cp path similar to volume path")
+	}
+	os.Remove(pathLikeVolDir + "/foo.")
+
+	// with volumes-from
+	out, _, err = dockerCmd(t, "run", "-d", "--name", "test_cp_path_like_volume_from", "--volumes-from", "test_cp_path_like_volume", "busybox", "/bin/sh", "-c", "echo 'test' > /foo.")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "cp", "test_cp_path_like_volume_binds:/foo.", pathLikeVolDir)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	b, err = ioutil.ReadFile(pathLikeVolDir + "/foo.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal([]byte("test"), b) {
+		t.Fatalf("couldn't cp path similar to volume path")
+	}
+
+	logDone("cp - volume path similar")
 }
 
 func TestCpToDot(t *testing.T) {

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,14 +10,18 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volumes"
 	"github.com/docker/libcontainer/label"
 )
+
+var ErrMountReadonly = errors.New("mounted volume is marked read-only")
 
 type Mount struct {
 	MountToPath string
@@ -37,6 +42,121 @@ func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return mnt.volume.Export(path, name)
+}
+
+// hasResource checks whether the given absolute path for a container is in
+// this mount point. If the relative path starts with `../` then the resource
+// is outside of this mount point, but we can't simply check for this prefix
+// because it misses `..` which is also outside of the mount, so check both.
+func (mnt *Mount) hasResource(absolutePath string) bool {
+	relPath, err := filepath.Rel(mnt.MountToPath, absolutePath)
+
+	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
+}
+
+// relativePath returns the given container path relative to this mount's mount
+// point, preserving a trailing path separator. If the MountToPath is equal to
+// the container path and the volume is not a directory, an empty string is
+// returned.
+func (mnt *Mount) relativePath(containerPath string) (volPath string, err error) {
+	if mnt.MountToPath == containerPath {
+		isDir, err := mnt.volume.IsDir()
+		if !(err == nil && isDir) {
+			return "", err
+		}
+	}
+
+	if volPath, err = filepath.Rel(mnt.MountToPath, containerPath); err != nil {
+		return
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(volPath, containerPath), nil
+}
+
+// mountStat wraps an os.FileInfo and allows us to change the name that is
+// returned in case the path is the mountpoint with a different name.
+type mountStat struct {
+	fi   os.FileInfo
+	name string
+}
+
+func (ms mountStat) Name() string {
+	return ms.name
+}
+
+func (ms mountStat) Size() int64 {
+	return ms.fi.Size()
+}
+
+func (ms mountStat) Mode() os.FileMode {
+	return ms.fi.Mode()
+}
+
+func (ms mountStat) ModTime() time.Time {
+	return ms.fi.ModTime()
+}
+
+func (ms mountStat) IsDir() bool {
+	return ms.fi.IsDir()
+}
+
+func (ms mountStat) Sys() interface{} {
+	return ms.fi.Sys()
+}
+
+// StatPath performs a low-level Lstat operation on a file or
+// directory in this mount and returns the resulting FileInfo.
+func (mnt *Mount) StatPath(containerPath string) (stat os.FileInfo, err error) {
+	volPath, err := mnt.relativePath(containerPath)
+	if err != nil {
+		return
+	}
+
+	if stat, err = mnt.volume.StatPath(volPath); err != nil {
+		return
+	}
+
+	if containerPath == mnt.MountToPath {
+		stat = mountStat{
+			fi:   stat,
+			name: filepath.Base(containerPath),
+		}
+	}
+
+	return
+}
+
+// ArchivePath archives the resource at the
+// given containerPath into a Tar archive.
+func (mnt *Mount) ArchivePath(containerPath string) (archive.Archive, error) {
+	var baseName string
+
+	if containerPath == mnt.MountToPath {
+		baseName = filepath.Base(containerPath)
+	}
+
+	volPath, err := mnt.relativePath(containerPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return mnt.volume.ArchivePath(volPath, baseName)
+}
+
+// ExtractToDir extracts the given content archive
+// to a destination direcotry in this mounted volume.
+func (mnt *Mount) ExtractToDir(content archive.ArchiveReader, containerPath string) (err error) {
+	// Ensure this mounted volume is not read-only.
+	if !(mnt.Writable && mnt.volume.Writable) {
+		return ErrMountReadonly
+	}
+
+	volPath, err := mnt.relativePath(containerPath)
+	if err != nil {
+		return err
+	}
+
+	return mnt.volume.ExtractToDir(content, volPath)
 }
 
 func (container *Container) prepareVolumes() error {

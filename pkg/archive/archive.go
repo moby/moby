@@ -30,11 +30,13 @@ type (
 	ArchiveReader io.Reader
 	Compression   int
 	TarOptions    struct {
-		IncludeFiles    []string
-		ExcludePatterns []string
-		Compression     Compression
-		NoLchown        bool
-		Name            string
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		Name             string
+		Replace          [2]string
+		IncludeSourceDir bool
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -430,10 +432,14 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				relFilePath, err := filepath.Rel(srcPath, filePath)
-				if err != nil || (relFilePath == "." && f.IsDir()) {
+				if err != nil || (!options.IncludeSourceDir && relFilePath == "." && f.IsDir()) {
 					// Error getting relative path OR we are looking
-					// at the root path. Skip in both situations.
+					// at the source directory path. Skip in both situations.
 					return nil
+				}
+
+				if options.IncludeSourceDir && include == "." && relFilePath != "." {
+					relFilePath = fmt.Sprintf("./%s", relFilePath)
 				}
 
 				skip := false
@@ -470,6 +476,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				// Set this to make sure the items underneath also get renamed
 				if options.Name != "" {
 					relFilePath = strings.Replace(relFilePath, renamedRelFilePath, options.Name, 1)
+				} else if options.Replace[0] != "" {
+					relFilePath = strings.Replace(relFilePath, options.Replace[0], options.Replace[1], 1)
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
@@ -552,6 +560,7 @@ loop:
 			if fi.IsDir() && hdr.Name == "." {
 				continue
 			}
+
 			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
 				if err := os.RemoveAll(path); err != nil {
 					return err

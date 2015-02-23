@@ -969,6 +969,8 @@ Status Codes:
 
 Copy files or folders of container `id`
 
+**Deprecated** in favor of the `archive-path` endpoint below.
+
 **Example request**:
 
         POST /containers/4fa6e0f0c678/copy HTTP/1.1
@@ -990,6 +992,243 @@ Status Codes:
 -   **200** – no error
 -   **404** – no such container
 -   **500** – server error
+
+### Get an archive of a filesytem resource in a container
+
+`GET /containers/(id)/archive-path`
+
+Get an Tar archive of a resource in the filesystem of container `id`.
+
+Query Parameters:
+
+- **path** - resource in the container's filesystem to archive. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If path is inside the mount point of a volume, the volume's data
+    is archived. If the path specifies a directory and a volume is mounted
+    lower in that directory hierarchy, the volume's contents are not included
+    in the archive.
+
+    The resource specified by **path** must exist. To assert that the resource
+    is expected to be a directory, **path** should end in `/` or  `/.` (asuming
+    a path separator of `/`). If **path** ends in `/.` then this indicates that
+    only the contents of the **path** directory should be copied.
+
+    > It is not possible to copy certain system files such as resources under
+    > `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
+
+**Example request**:
+
+        GET /containers/8cce319429b2/archive-path?path=/foo/ HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/x-tar
+
+        {{ TAR STREAM }}
+
+Status Codes:
+
+- **200** - success, returns archive of copied resource
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify path parameter (**path** cannot be empty)
+    - not a directory (**path** was asserted to be a directory but exists as a
+      file)
+- **404** - client error, resource not found, one of:
+    – no such container (container `id` does not exist)
+    - no such file or directory (**path** does not exist)
+- **500** - server error
+
+### Extract an archive of files or folders to a directory in a container
+
+`PUT /containers/(id)/extract-to-dir`
+
+Upload a Tar archive to be extracted to
+a path in the filesystem of container `id`.
+
+Query Parameters:
+
+- **dstDir** - path to a directory in the container
+    to extract the archive's contents into. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If **dstDir** is in a volume mount point then the archive's
+    contents copied into the volume. If a volume is mounted lower in the
+    directory hierarchy then the contents will not be copied into that volume. 
+    
+    The **dstDir** resource must exist.
+
+**Example request**:
+
+        PUT /containers/8cce319429b2/extract-to-dir?dstDir=/vol1 HTTP/1.1
+        Content-Type: application/x-tar
+
+        {{ TAR STREAM }}
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+- **200** – the content was extracted successfully
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify dstDir parameter (**dstDir** cannot be empty)
+    - not a directory (**dstDir** should be a directory but exists as a file)
+- **403** - client error, permission denied, the volume
+    or container rootfs is marked as read-only.
+- **404** - client error, resource not found, one of:
+    – no such container (container `id` does not exist)
+    - no such file or directory (**dstDir** resource does not exist)
+- **500** – server error
+
+### Copy files or folders from one container to another.
+
+`POST /containers/(id)/copy-accross`
+
+Copy resources to a path in container `id` from a path in another container.
+
+Query Parameters:
+
+- **srcContainer** - The container from which contents should be copied. May
+  be the same container. Required.
+
+- **srcPath** - resource in **srcContainer**'s filesystem to copy. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If path is inside the mount point of a volume, the volume's data
+    is copied. If the path specifies a directory and a volume is mounted
+    lower in that directory hierarchy, the volume's contents are not included
+    in the copied content.
+
+    The resource specified by **srcPath** must exist. To assert that the
+    resource is expected to be a directory, **srcPath** should end in `/` or
+    `/.` (asuming a path separator of `/`). If **srcPath** ends in `/.` then
+    this indicates that only the contents of the **srcPath** directory should
+    be copied.
+
+    > It is not possible to copy certain system files such as resources under
+    > `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
+
+- **dstPath** - resource in the destination container's filesystem to copy the
+  source contents to. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. If **dstPath** is in a volume mount point then the content is
+    copied into the volume. If **dstPath** specifies a directory and a
+    volume is mounted lower in that directory hierarchy then the contents will
+    not be copied into that volume. 
+    
+    The parent directory of **dstPath** must exist. To assert that the resource
+    is expected to be a directory, **dstPath** should end in `/` or  `/.`
+    (asuming a path separator of `/`). The validity of this parameter is also
+    dependent upon the source content:
+
+    - **dstPath** exists as a directory
+
+        The source contents are simply copied into this directory.
+
+    - **dstPath** exists as a file
+
+        It is an error if **dstPath** is asserted to be a directory. It is also
+        an error if the source content is not a single file. Otherwise, the
+        file at **dstPath** is overwritten with the file.
+
+    - **dstPath** does not exist
+
+        If the source is a single file, then **dstPath** is created as a file
+        with the source file's content. In this case, it is an error if
+        **dstPath** is asserted to be a directory.
+
+        If the source content is a directory or the contents of a directory,
+        **dstPath** is created as a directory and the *contents* of the source
+        directory are copied into it.
+
+**Example request**:
+
+        POST /containers/8cce319429b2/copy-accross?srcContainer=4fa6e0f0c678&srcPath=hello.txt&dstPath=/vol1 HTTP/1.1
+
+        {{ EMPTY BODY }}
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+- **200** – the resource was successfully copied
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify srcContainer parameter (**srcContainer** cannot be empty)
+    - must specify srcPath parameter (**srcPath** cannot be empty)
+    - must specify dstPath parameter (**dstPath** cannot be empty)
+    - not a directory (**srcPath** or **dstPath** was asserted to be a
+      directory but exists as a file)
+    - cannot copy directory (**srcPath** is a directory but **dstPath** exists
+      and is a file)
+- **403** - client error, permission denied, the volume
+    or container rootfs is marked as read-only.
+- **404** - client error, resource not found, one of:
+    – no such container (container `id`, or **srcContainer** does not exist)
+    - no such directory (**srcPath** was a single file but **dstPath** was
+      asserted to be a directory and does not exist)
+    - no such file or directory (**srcPath** does not exist or **dstPath**
+      parents do not exist)
+- **500** – server error
+
+### Stat a file or directory in a container
+
+`GET /containers/(id)/stat-path`
+
+Perform a low-level stat operation ona file or directory in a container.
+
+Query Parameters:
+
+- **path** - resource in the container's filesystem to stat. Required.
+
+    If not an absolute path, it is relative to the container's working
+    directory. The resource specified by **path** must exist.
+
+    > It is not possible to stat certain system files such as resources under
+    > `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
+
+**Example request**:
+
+        GET /containers/8cce319429b2/stat-path?path=foo HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+            "name": "foo",
+            "absPath": "/workingDir/foo",
+            "size": 3094,
+            "mode": 436,
+            "mtime": "2015-01-19T13:32:27.814930"
+        }
+
+JSON Response Fields:
+
+- **name** - The basename of the specified resource.
+- **absPath** - The absolute path to the resource in the container's rootfs.
+- **size** - The size in bytes of the resource.
+- **mode** - 32-bit integer specifying file mode and permissions.
+- **mtime** - RFC 3339 formatted datetime string specifying the last modified
+    time of the resource.
+
+Status Codes:
+
+- **200** - success, returns stat info for resource
+- **400** - client error, bad parameter, details in JSON response body, one of:
+    - must specify path parameter (**path** cannot be empty)
+    - not a directory (**path** was asserted to be a directory but exists as a
+      file)
+- **404** - client error, resource not found, one of:
+    – no such container (container `id` does not exist)
+    - no such file or directory (**path** does not exist)
+- **500** - server error
 
 ## 2.2 Images
 

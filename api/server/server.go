@@ -6,6 +6,7 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"expvar"
 	"fmt"
 	"io"
@@ -131,6 +132,8 @@ func httpError(w http.ResponseWriter, err error) {
 	} else if strings.Contains(errStr, "wrong login/password") {
 		statusCode = http.StatusUnauthorized
 	} else if strings.Contains(errStr, "hasn't been activated") {
+		statusCode = http.StatusForbidden
+	} else if strings.Contains(errStr, "permission denied") {
 		statusCode = http.StatusForbidden
 	}
 
@@ -1123,6 +1126,138 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
+// handleArchiveError is a convenience function for the following Copy
+// handlers which makes a JSON error message but leaves writing the
+// header and response to the package's common error handler.
+func handleArchiveError(w http.ResponseWriter, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var errType, errMsg string
+
+	errMsg = err.Error()
+	detail := strings.ToLower(errMsg)
+
+	switch {
+	case strings.Contains(detail, "no such"):
+		errType = "resource not found"
+	case strings.Contains(detail, "must specify"):
+		fallthrough
+	case strings.Contains(detail, "not a directory"):
+		fallthrough
+	case strings.Contains(detail, "cannot copy directory"):
+		errType = "bad parameter"
+	case strings.Contains(detail, "marked read-only"):
+		errType = "permission denied"
+	default:
+		errType = "internal error"
+		// Don't expose the real error to the client.
+		log.Error(err)
+		errMsg = "see daemon logs for details"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	errInfo := map[string]string{
+		"error":  errType,
+		"detail": errMsg,
+	}
+
+	var jsonBuf bytes.Buffer
+	encoder := json.NewEncoder(&jsonBuf)
+	encoder.Encode(errInfo)
+
+	// The final error should be the JSON.
+	return errors.New(jsonBuf.String())
+}
+
+// getContainersStatPath returns file info for a resource in a container.
+func getContainersStatPath(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var path string
+
+	if path = r.FormValue("path"); path == "" {
+		return handleArchiveError(w, fmt.Errorf("must specify path parameter"))
+	}
+
+	job := eng.Job("container_stat_path", vars["name"], path)
+	job.Stdout.Add(w)
+
+	// Set the content type for the response. Should be JSON on success.
+	w.Header().Set("Content-Type", "application/json")
+
+	return handleArchiveError(w, job.Run())
+}
+
+// getContainersArchivePath archives a file or directory from a container.
+func getContainersArchivePath(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var path string
+
+	if path = r.FormValue("path"); path == "" {
+		return handleArchiveError(w, fmt.Errorf("must specify path parameter"))
+	}
+
+	job := eng.Job("container_archive_path", vars["name"], path)
+	job.Stdout.Add(w)
+
+	// Set the content type for the response. Should be a Tarball on success.
+	w.Header().Set("Content-Type", "application/x-tar")
+
+	return handleArchiveError(w, job.Run())
+}
+
+// putContainersExtractToDir extracts the request
+// payload archive to a directory in a container.
+func putContainersExtractToDir(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var dstDir string
+
+	if dstDir = r.FormValue("dstDir"); dstDir == "" {
+		return handleArchiveError(w, fmt.Errorf("must specify dstDir parameter"))
+	}
+
+	job := eng.Job("container_extract_to_dir", vars["name"], dstDir)
+	job.Stdin.Add(r.Body)
+
+	return handleArchiveError(w, job.Run())
+}
+
+// postContainersCopyAcross copies a file or directory from one container to another.
+func postContainersCopyAcross(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("missing parameter")
+	}
+
+	var srcContainer, srcPath, dstPath string
+
+	if srcContainer = r.FormValue("srcContainer"); srcContainer == "" {
+		return handleArchiveError(w, fmt.Errorf("must specify srcContainer parameter"))
+	}
+
+	if srcPath = r.FormValue("srcPath"); srcPath == "" {
+		return handleArchiveError(w, fmt.Errorf("must specify srcPath parameter"))
+	}
+
+	if dstPath = r.FormValue("dstPath"); dstPath == "" {
+		return handleArchiveError(w, fmt.Errorf("must specify dstPath parameter"))
+	}
+
+	job := eng.Job("container_copy_across", srcContainer, srcPath, vars["name"], dstPath)
+
+	return handleArchiveError(w, job.Run())
+}
+
 func postContainerExecCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return nil
@@ -1299,51 +1434,57 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
-			"/_ping":                          ping,
-			"/events":                         getEvents,
-			"/info":                           getInfo,
-			"/version":                        getVersion,
-			"/images/json":                    getImagesJSON,
-			"/images/viz":                     getImagesViz,
-			"/images/search":                  getImagesSearch,
-			"/images/get":                     getImagesGet,
-			"/images/{name:.*}/get":           getImagesGet,
-			"/images/{name:.*}/history":       getImagesHistory,
-			"/images/{name:.*}/json":          getImagesByName,
-			"/containers/ps":                  getContainersJSON,
-			"/containers/json":                getContainersJSON,
-			"/containers/{name:.*}/export":    getContainersExport,
-			"/containers/{name:.*}/changes":   getContainersChanges,
-			"/containers/{name:.*}/json":      getContainersByName,
-			"/containers/{name:.*}/top":       getContainersTop,
-			"/containers/{name:.*}/logs":      getContainersLogs,
-			"/containers/{name:.*}/stats":     getContainersStats,
-			"/containers/{name:.*}/attach/ws": wsContainersAttach,
-			"/exec/{id:.*}/json":              getExecByID,
+			"/_ping":                             ping,
+			"/events":                            getEvents,
+			"/info":                              getInfo,
+			"/version":                           getVersion,
+			"/images/json":                       getImagesJSON,
+			"/images/viz":                        getImagesViz,
+			"/images/search":                     getImagesSearch,
+			"/images/get":                        getImagesGet,
+			"/images/{name:.*}/get":              getImagesGet,
+			"/images/{name:.*}/history":          getImagesHistory,
+			"/images/{name:.*}/json":             getImagesByName,
+			"/containers/ps":                     getContainersJSON,
+			"/containers/json":                   getContainersJSON,
+			"/containers/{name:.*}/archive-path": getContainersArchivePath,
+			"/containers/{name:.*}/stat-path":    getContainersStatPath,
+			"/containers/{name:.*}/export":       getContainersExport,
+			"/containers/{name:.*}/changes":      getContainersChanges,
+			"/containers/{name:.*}/json":         getContainersByName,
+			"/containers/{name:.*}/top":          getContainersTop,
+			"/containers/{name:.*}/logs":         getContainersLogs,
+			"/containers/{name:.*}/stats":        getContainersStats,
+			"/containers/{name:.*}/attach/ws":    wsContainersAttach,
+			"/exec/{id:.*}/json":                 getExecByID,
 		},
 		"POST": {
-			"/auth":                         postAuth,
-			"/commit":                       postCommit,
-			"/build":                        postBuild,
-			"/images/create":                postImagesCreate,
-			"/images/load":                  postImagesLoad,
-			"/images/{name:.*}/push":        postImagesPush,
-			"/images/{name:.*}/tag":         postImagesTag,
-			"/containers/create":            postContainersCreate,
-			"/containers/{name:.*}/kill":    postContainersKill,
-			"/containers/{name:.*}/pause":   postContainersPause,
-			"/containers/{name:.*}/unpause": postContainersUnpause,
-			"/containers/{name:.*}/restart": postContainersRestart,
-			"/containers/{name:.*}/start":   postContainersStart,
-			"/containers/{name:.*}/stop":    postContainersStop,
-			"/containers/{name:.*}/wait":    postContainersWait,
-			"/containers/{name:.*}/resize":  postContainersResize,
-			"/containers/{name:.*}/attach":  postContainersAttach,
-			"/containers/{name:.*}/copy":    postContainersCopy,
-			"/containers/{name:.*}/exec":    postContainerExecCreate,
-			"/exec/{name:.*}/start":         postContainerExecStart,
-			"/exec/{name:.*}/resize":        postContainerExecResize,
-			"/containers/{name:.*}/rename":  postContainerRename,
+			"/auth":                             postAuth,
+			"/commit":                           postCommit,
+			"/build":                            postBuild,
+			"/images/create":                    postImagesCreate,
+			"/images/load":                      postImagesLoad,
+			"/images/{name:.*}/push":            postImagesPush,
+			"/images/{name:.*}/tag":             postImagesTag,
+			"/containers/create":                postContainersCreate,
+			"/containers/{name:.*}/kill":        postContainersKill,
+			"/containers/{name:.*}/pause":       postContainersPause,
+			"/containers/{name:.*}/unpause":     postContainersUnpause,
+			"/containers/{name:.*}/restart":     postContainersRestart,
+			"/containers/{name:.*}/start":       postContainersStart,
+			"/containers/{name:.*}/stop":        postContainersStop,
+			"/containers/{name:.*}/wait":        postContainersWait,
+			"/containers/{name:.*}/resize":      postContainersResize,
+			"/containers/{name:.*}/attach":      postContainersAttach,
+			"/containers/{name:.*}/copy":        postContainersCopy,
+			"/containers/{name:.*}/copy-across": postContainersCopyAcross,
+			"/containers/{name:.*}/exec":        postContainerExecCreate,
+			"/exec/{name:.*}/start":             postContainerExecStart,
+			"/exec/{name:.*}/resize":            postContainerExecResize,
+			"/containers/{name:.*}/rename":      postContainerRename,
+		},
+		"PUT": {
+			"/containers/{name:.*}/extract-to-dir": putContainersExtractToDir,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

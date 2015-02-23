@@ -46,6 +46,33 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /containers/(id)/archive-path`
+
+**New!**
+Get an archive of filesystem content from a container.
+
+`PUT /containers/(id)/extract-to-dir`
+
+**New!**
+Upload an archive of content to be extracted to an
+existing directory inside a container's filesystem.
+
+`POST /containers/(id)/copy-across`
+
+**New!**
+Copy files or directories from one container to another.
+
+`GET /containers/(id)/stat-path`
+
+**New!**
+Perform a low-level stat operation on a file or directory in a container.
+
+`POST /containers/(id)/copy`
+
+**Deprecated!**
+This copy endpoint has been deprecated in favor of the above `archive-path`
+endpoint which can be used to download files or directories from a container.
+
 ## v1.17
 
 ### Full Documentation

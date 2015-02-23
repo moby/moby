@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/networkfs/etchosts"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
@@ -37,10 +38,11 @@ import (
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 var (
-	ErrNotATTY               = errors.New("The PTY is not a file")
-	ErrNoTTY                 = errors.New("No PTY found")
-	ErrContainerStart        = errors.New("The container failed to start. Unknown error")
-	ErrContainerStartTimeout = errors.New("The container failed to start due to timed out.")
+	ErrNotATTY                 = errors.New("The PTY is not a file")
+	ErrNoTTY                   = errors.New("No PTY found")
+	ErrContainerStart          = errors.New("The container failed to start. Unknown error")
+	ErrContainerStartTimeout   = errors.New("The container failed to start due to timed out.")
+	ErrContainerRootfsReadonly = errors.New("container rootfs is marked read-only")
 )
 
 type StreamConfig struct {
@@ -904,7 +906,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	// Check if this is actually in a volume
 	for _, mnt := range container.VolumeMounts() {
-		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
+		if mnt.hasResource(filepath.Join("/", resource)) {
 			return mnt.Export(resource)
 		}
 	}
@@ -938,6 +940,162 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			return err
 		}),
 		nil
+}
+
+// AbsPath cleans and returns the given path if it is an absolute path,
+// otherwise it is joined with this container's working directory to yield an
+// absolute path. If the given path ends with a trailing path separator, or
+// ends with a current directory specifier, it is preserved.
+func (container *Container) AbsPath(resourcePath string) (absPath string) {
+	absPath = filepath.Clean(resourcePath)
+
+	if !filepath.IsAbs(absPath) {
+		// Make an absolute path with the container's working directory.
+		absPath = filepath.Join(string(filepath.Separator), container.Config.WorkingDir, absPath)
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(absPath, resourcePath)
+}
+
+// resolvePath returns the system's absolute path to the given path in this
+// container, preserving a trailing path separator.
+func (container *Container) resolvePath(containerPath string) (resolvedPath string, err error) {
+	if resolvedPath, err = container.getResourcePath(containerPath); err != nil {
+		return
+	}
+
+	return archive.PreserveTrailingDotOrSeparator(resolvedPath, containerPath), nil
+}
+
+func (container *Container) unmountOnError(errp *error) {
+	if *errp != nil {
+		container.Unmount()
+	}
+}
+
+// ContainerResourceStat describes a file or directory resource.
+type ContainerResourceStat struct {
+	Name    string      `json:"name"`
+	AbsPath string      `json:"absPath"`
+	Size    int64       `json:"size"`
+	Mode    os.FileMode `json:"mode"`
+	Mtime   time.Time   `json:"mtime"`
+}
+
+// StatPath performs a low-level Lstat operation on a file or
+// directory in this container and returns the resulting FileInfo.
+func (container *Container) StatPath(path string) (stat ContainerResourceStat, err error) {
+	if err = container.Mount(); err != nil {
+		return
+	}
+	defer container.Unmount()
+
+	absPath := container.AbsPath(path)
+
+	var fi os.FileInfo
+
+	// Check if this is actually in a volume
+	for _, mnt := range container.VolumeMounts() {
+		if mnt.hasResource(absPath) {
+			if fi, err = mnt.StatPath(absPath); err != nil {
+				return
+			}
+		}
+	}
+
+	if fi == nil {
+		// Wasn't in a volume, need to stat the resolved container path.
+		var resolvedPath string
+		if resolvedPath, err = container.resolvePath(absPath); err != nil {
+			return
+		}
+
+		if fi, err = os.Lstat(resolvedPath); err != nil {
+			return
+		}
+	}
+
+	return ContainerResourceStat{
+		Name:    fi.Name(),
+		AbsPath: absPath,
+		Size:    fi.Size(),
+		Mode:    fi.Mode(),
+		Mtime:   fi.ModTime(),
+	}, nil
+}
+
+// ArchivePath archives the resource at the
+// given sourcePath into a Tar archive.
+func (container *Container) ArchivePath(sourcePath string) (content archive.Archive, err error) {
+	if err = container.Mount(); err != nil {
+		return
+	}
+	defer container.unmountOnError(&err)
+
+	absPath := container.AbsPath(sourcePath)
+
+	// Check if this is actually in a volume
+	for _, mnt := range container.VolumeMounts() {
+		if mnt.hasResource(absPath) {
+			return mnt.ArchivePath(absPath)
+		}
+	}
+
+	var resolvedPath string
+	if resolvedPath, err = container.resolvePath(absPath); err != nil {
+		return
+	}
+
+	var contentArchive archive.Archive
+	if contentArchive, err = archive.TarResource(resolvedPath); err != nil {
+		return
+	}
+
+	return ioutils.NewReadCloserWrapper(contentArchive, func() error {
+		closeErr := contentArchive.Close()
+		container.Unmount()
+		return closeErr
+	}), nil
+}
+
+// ExtractToDir extracts the given content archive
+// to a destination direcotry in this container.
+func (container *Container) ExtractToDir(content archive.ArchiveReader, dstDir string) (err error) {
+	if err = container.Mount(); err != nil {
+		return
+	}
+	defer container.Unmount()
+
+	absPath := container.AbsPath(dstDir)
+
+	// Check if this is actually in a volume.
+	for _, mnt := range container.VolumeMounts() {
+		if mnt.hasResource(absPath) {
+			return mnt.ExtractToDir(content, absPath)
+		}
+	}
+
+	// Extracting to a location in the container rootfs.
+	// Ensure the container rootfs is not read-only.
+	if container.hostConfig.ReadonlyRootfs {
+		return ErrContainerRootfsReadonly
+	}
+
+	var resolvedPath string
+	if resolvedPath, err = container.resolvePath(absPath); err != nil {
+		return
+	}
+
+	// Ensure that the resolved path exists and is a directory.
+	var stat os.FileInfo
+	if stat, err = os.Lstat(resolvedPath); err != nil {
+		return
+	}
+	if !stat.IsDir() {
+		return archive.ErrNotDirectory
+	}
+
+	return chrootarchive.Untar(content, resolvedPath, &archive.TarOptions{NoLchown: true})
 }
 
 // Returns true if the container exposes a certain port
