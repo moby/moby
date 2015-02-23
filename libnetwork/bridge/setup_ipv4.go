@@ -52,7 +52,7 @@ func SetupBridgeIPv4(i *Interface) error {
 }
 
 func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
-	// Use the requested IPv4 IP and mark when available.
+	// Use the requested IPv4 CIDR when available.
 	if config.AddressIPv4 != nil {
 		return config.AddressIPv4, nil
 	}
@@ -128,7 +128,6 @@ func networkRange(network *net.IPNet) (net.IP, net.IP) {
 	}
 
 	lastIP := make([]byte, len(netIP), len(netIP))
-
 	for i := 0; i < len(netIP); i++ {
 		lastIP[i] = netIP[i] | ^network.Mask[i]
 	}

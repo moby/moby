@@ -30,3 +30,19 @@ func NewInterface(config *Configuration) *Interface {
 func (i *Interface) Exists() bool {
 	return i.Link != nil
 }
+
+// Addresses returns a single IPv4 address and all IPv6 addresses for the
+// bridge interface.
+func (i *Interface) Addresses() (netlink.Addr, []netlink.Addr, error) {
+	v4addr, err := netlink.AddrList(i.Link, netlink.FAMILY_V4)
+	if err != nil {
+		return netlink.Addr{}, nil, err
+	}
+
+	v6addr, err := netlink.AddrList(i.Link, netlink.FAMILY_V6)
+	if err != nil {
+		return netlink.Addr{}, nil, err
+	}
+
+	return v4addr[0], v6addr, nil
+}

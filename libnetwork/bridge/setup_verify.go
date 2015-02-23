@@ -1,14 +1,10 @@
 package bridge
 
-import (
-	"fmt"
-
-	"github.com/vishvananda/netlink"
-)
+import "fmt"
 
 func SetupVerifyConfiguredAddresses(i *Interface) error {
 	// Fetch a single IPv4 and a slice of IPv6 addresses from the bridge.
-	addrv4, addrsv6, err := getInterfaceAddresses(i.Link)
+	addrv4, addrsv6, err := i.Addresses()
 	if err != nil {
 		return err
 	}
@@ -27,20 +23,4 @@ func SetupVerifyConfiguredAddresses(i *Interface) error {
 	}
 
 	return fmt.Errorf("Bridge IPv6 addresses do not match the expected bridge configuration %s", BridgeIPv6)
-}
-
-func getInterfaceAddresses(iface netlink.Link) (netlink.Addr, []netlink.Addr, error) {
-	v4addr, err := netlink.AddrList(iface, netlink.FAMILY_V4)
-	if err != nil {
-		return netlink.Addr{}, nil, err
-	}
-
-	v6addr, err := netlink.AddrList(iface, netlink.FAMILY_V6)
-	if err != nil {
-		return netlink.Addr{}, nil, err
-	}
-
-	// We only return the first IPv4 address, and the complete slice of IPv6
-	// addresses.
-	return v4addr[0], v6addr, nil
 }

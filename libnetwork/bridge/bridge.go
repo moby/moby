@@ -14,8 +14,8 @@ const (
 type Configuration struct {
 	BridgeName         string
 	AddressIPv4        *net.IPNet
-	FixedCIDR          string
-	FixedCIDRv6        string
+	FixedCIDR          *net.IPNet
+	FixedCIDRv6        *net.IPNet
 	EnableIPv6         bool
 	EnableIPTables     bool
 	EnableIPForwarding bool
@@ -75,11 +75,11 @@ func Create(config *Configuration) (libnetwork.Network, error) {
 
 		// Setup the bridge to allocate containers IPv4 addresses in the
 		// specified subnet.
-		{config.FixedCIDR != "", SetupFixedCIDRv4},
+		{config.FixedCIDR != nil, SetupFixedCIDRv4},
 
 		// Setup the bridge to allocate containers global IPv6 addresses in the
 		// specified subnet.
-		{config.FixedCIDRv6 != "", SetupFixedCIDRv6},
+		{config.FixedCIDRv6 != nil, SetupFixedCIDRv6},
 
 		// Setup IPTables.
 		{config.EnableIPTables, SetupIPTables},
