@@ -3,6 +3,8 @@ set -e
 
 DEST=$1
 
+export LDFLAGS_STATIC_DOCKER="-X $DOCKER_PKG/dockerversion.INITPATH \"$DOCKER_INITPATH\""
+
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	source "$(dirname "$BASH_SOURCE")/.dockerinit"
 	

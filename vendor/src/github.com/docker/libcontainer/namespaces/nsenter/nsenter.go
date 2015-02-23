@@ -3,7 +3,8 @@
 package nsenter
 
 /*
-__attribute__((constructor)) init() {
+void nsenter();
+__attribute__((constructor)) int init() {
 	nsenter();
 }
 */
