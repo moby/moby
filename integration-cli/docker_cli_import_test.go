@@ -23,8 +23,15 @@ func TestImportDisplay(t *testing.T) {
 		t.Errorf("import failed with errors: %v, output: %q", err, out)
 	}
 
-	if n := strings.Count(out, "\n"); n != 1 {
-		t.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
+	// TODO: remove check after drop of go1.2 support
+	var expected int
+	if strings.HasPrefix(daemonGoVersion, "go1.2") {
+		expected = 2
+	} else {
+		expected = 1
+	}
+	if n := strings.Count(out, "\n"); n != expected {
+		t.Fatalf("display is messed up: %d '\\n' instead of %d, go version: %s", n, expected, daemonGoVersion)
 	}
 	image := strings.TrimSpace(out)
 	defer deleteImages(image)
