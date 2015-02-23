@@ -44,7 +44,7 @@ practice, work through the exercises on this page.
 
 ## Install Boot2Docker
  
-1. Go to the [boo2docker/osx-installer ](
+1. Go to the [boot2docker/osx-installer ](
 https://github.com/boot2docker/osx-installer/releases/latest) release page.
 
 4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
@@ -117,7 +117,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 
 1. Create a new Boot2Docker VM.
 
-		$ boo2docker init
+		$ boot2docker init
 
 	This creates a new virtual machine. You only need to run this command once.
 
@@ -290,7 +290,7 @@ To upgrade any version of Boot2Docker, do this:
 
 		$ boot2docker stop
 
-3. Go to the [boo2docker/osx-installer ](
+3. Go to the [boot2docker/osx-installer ](
    https://github.com/boot2docker/osx-installer/releases/latest) release page.
    
 4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
