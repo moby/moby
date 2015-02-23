@@ -2,6 +2,10 @@ package bridge
 
 import "github.com/vishvananda/netlink"
 
+const (
+	DefaultBridgeName = "docker0"
+)
+
 type Interface struct {
 	Config *Configuration
 	Link   netlink.Link
@@ -10,6 +14,11 @@ type Interface struct {
 func NewInterface(config *Configuration) *Interface {
 	i := &Interface{
 		Config: config,
+	}
+
+	// Initialize the bridge name to the default if unspecified.
+	if i.Config.BridgeName == "" {
+		i.Config.BridgeName = DefaultBridgeName
 	}
 
 	// Attempt to find an existing bridge named with the specified name.

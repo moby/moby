@@ -26,14 +26,6 @@ func (b *BridgeSetup) QueueStep(step SetupStep) {
 
 //---------------------------------------------------------------------------//
 
-func SetupBridgeIPv6(b *Interface) error {
-	return nil
-}
-
-func SetupVerifyConfiguredAddresses(b *Interface) error {
-	return nil
-}
-
 func SetupFixedCIDRv4(b *Interface) error {
 	return nil
 }

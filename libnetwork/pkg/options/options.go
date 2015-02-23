@@ -45,10 +45,10 @@ func GenerateFromModel(options Generic, model interface{}) (interface{}, error) 
 	for name, value := range options {
 		field := res.Elem().FieldByName(name)
 		if !field.IsValid() {
-			return nil, NoSuchFieldError{name, reflect.TypeOf(model).Name()}
+			return nil, NoSuchFieldError{name, resType.String()}
 		}
 		if !field.CanSet() {
-			return nil, CannotSetFieldError{name, reflect.TypeOf(model).Name()}
+			return nil, CannotSetFieldError{name, resType.String()}
 		}
 		field.Set(reflect.ValueOf(value))
 	}

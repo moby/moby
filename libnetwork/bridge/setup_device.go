@@ -10,21 +10,17 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const (
-	DefaultBridgeName = "docker0"
-)
-
-func SetupDevice(b *Interface) error {
+func SetupDevice(i *Interface) error {
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
-	if b.Config.BridgeName != DefaultBridgeName {
-		return fmt.Errorf("bridge device with non default name %q must be created manually", b.Config.BridgeName)
+	if i.Config.BridgeName != DefaultBridgeName {
+		return fmt.Errorf("bridge device with non default name %q must be created manually", i.Config.BridgeName)
 	}
 
 	// Set the Interface netlink.Bridge.
-	b.Link = &netlink.Bridge{
+	i.Link = &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
-			Name: b.Config.BridgeName,
+			Name: i.Config.BridgeName,
 		},
 	}
 
@@ -32,15 +28,15 @@ func SetupDevice(b *Interface) error {
 	// was not supported before that.
 	kv, err := kernel.GetKernelVersion()
 	if err == nil && (kv.Kernel >= 3 && kv.Major >= 3) {
-		b.Link.Attrs().HardwareAddr = generateRandomMAC()
-		log.Debugf("Setting bridge mac address to %s", b.Link.Attrs().HardwareAddr)
+		i.Link.Attrs().HardwareAddr = generateRandomMAC()
+		log.Debugf("Setting bridge mac address to %s", i.Link.Attrs().HardwareAddr)
 	}
 
-	return netlink.LinkAdd(b.Link)
+	return netlink.LinkAdd(i.Link)
 }
 
-func SetupDeviceUp(b *Interface) error {
-	return netlink.LinkSetUp(b.Link)
+func SetupDeviceUp(i *Interface) error {
+	return netlink.LinkSetUp(i.Link)
 }
 
 func generateRandomMAC() net.HardwareAddr {

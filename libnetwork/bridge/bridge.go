@@ -14,7 +14,6 @@ const (
 type Configuration struct {
 	BridgeName         string
 	AddressIPv4        *net.IPNet
-	AddressIPv6        *net.IPNet
 	FixedCIDR          string
 	FixedCIDRv6        string
 	EnableIPv6         bool
@@ -60,7 +59,7 @@ func Create(config *Configuration) (libnetwork.Network, error) {
 	}
 
 	// Conditionnally queue setup steps depending on configuration values.
-	optSteps := []struct {
+	for _, step := range []struct {
 		Condition bool
 		Fn        SetupStep
 	}{
@@ -87,9 +86,7 @@ func Create(config *Configuration) (libnetwork.Network, error) {
 
 		// Setup IP forwarding.
 		{config.EnableIPForwarding, SetupIPForwarding},
-	}
-
-	for _, step := range optSteps {
+	} {
 		if step.Condition {
 			bridgeSetup.QueueStep(step.Fn)
 		}

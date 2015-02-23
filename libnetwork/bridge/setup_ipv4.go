@@ -40,14 +40,14 @@ func init() {
 	}
 }
 
-func SetupBridgeIPv4(b *Interface) error {
-	bridgeIPv4, err := electBridgeIPv4(b.Config)
+func SetupBridgeIPv4(i *Interface) error {
+	bridgeIPv4, err := electBridgeIPv4(i.Config)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("Creating bridge interface %q with network %s", b.Config.BridgeName, bridgeIPv4)
-	return netlink.AddrAdd(b.Link, &netlink.Addr{bridgeIPv4, ""})
+	log.Debugf("Creating bridge interface %q with network %s", i.Config.BridgeName, bridgeIPv4)
+	return netlink.AddrAdd(i.Link, &netlink.Addr{bridgeIPv4, ""})
 }
 
 func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {

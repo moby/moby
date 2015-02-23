@@ -1,7 +1,5 @@
 package bridge
 
-import "github.com/vishvananda/netlink"
-
 /*
 func electBridgeNetwork(config *Configuration) (*net.IPNet, error) {
 	// Is a bridge IP is provided as part of the configuration, we only check
@@ -47,27 +45,3 @@ func createBridgeInterface(name string) (netlink.Link, error) {
 	return netlink.LinkByName(name)
 }
 */
-
-func getInterfaceAddr(iface netlink.Link) (netlink.Addr, []netlink.Addr, error) {
-	v4addr, err := netlink.AddrList(iface, netlink.FAMILY_V4)
-	if err != nil {
-		return netlink.Addr{}, nil, err
-	}
-
-	v6addr, err := netlink.AddrList(iface, netlink.FAMILY_V6)
-	if err != nil {
-		return netlink.Addr{}, nil, err
-	}
-
-	// We only return the first IPv4 address, and the complete slice of IPv6
-	// addresses.
-	return v4addr[0], v6addr, nil
-}
-
-func getInterfaceAddrByName(ifaceName string) (netlink.Addr, []netlink.Addr, error) {
-	iface, err := netlink.LinkByName(ifaceName)
-	if err != nil {
-		return netlink.Addr{}, nil, err
-	}
-	return getInterfaceAddr(iface)
-}
