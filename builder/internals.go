@@ -712,7 +712,7 @@ func (b *Builder) clearTmp() {
 			fmt.Fprint(b.OutStream, err.Error())
 		}
 
-		if err := b.Daemon.Destroy(tmp); err != nil {
+		if err := b.Daemon.Rm(tmp); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", utils.TruncateID(c), err.Error())
 			return
 		}

@@ -293,7 +293,7 @@ func runContainer(eng *engine.Engine, r *daemon.Daemon, args []string, t *testin
 	if err != nil {
 		return "", err
 	}
-	defer r.Destroy(container)
+	defer r.Rm(container)
 	stdout := container.StdoutPipe()
 	defer stdout.Close()
 

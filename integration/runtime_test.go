@@ -62,7 +62,7 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 	daemon := mkDaemonFromEngine(eng, t)
 	for _, container := range daemon.List() {
 		container.Kill()
-		daemon.Destroy(container)
+		daemon.Rm(container)
 	}
 	job := eng.Job("images")
 	images, err := job.Stdout.AddTable()
@@ -266,7 +266,7 @@ func TestDaemonCreate(t *testing.T) {
 	}
 
 	defer func() {
-		if err := daemon.Destroy(container); err != nil {
+		if err := daemon.Rm(container); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -368,7 +368,7 @@ func TestDestroy(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Destroy
-	if err := daemon.Destroy(container); err != nil {
+	if err := daemon.Rm(container); err != nil {
 		t.Error(err)
 	}
 
@@ -388,7 +388,7 @@ func TestDestroy(t *testing.T) {
 	}
 
 	// Test double destroy
-	if err := daemon.Destroy(container); err == nil {
+	if err := daemon.Rm(container); err == nil {
 		// It should have failed
 		t.Errorf("Double destroy did not fail")
 	}
@@ -399,13 +399,13 @@ func TestGet(t *testing.T) {
 	defer nuke(daemon)
 
 	container1, _, _ := mkContainer(daemon, []string{"_", "ls", "-al"}, t)
-	defer daemon.Destroy(container1)
+	defer daemon.Rm(container1)
 
 	container2, _, _ := mkContainer(daemon, []string{"_", "ls", "-al"}, t)
-	defer daemon.Destroy(container2)
+	defer daemon.Rm(container2)
 
 	container3, _, _ := mkContainer(daemon, []string{"_", "ls", "-al"}, t)
-	defer daemon.Destroy(container3)
+	defer daemon.Rm(container3)
 
 	if c, _ := daemon.Get(container1.ID); c != container1 {
 		t.Errorf("Get(test1) returned %v while expecting %v", c, container1)
@@ -594,11 +594,11 @@ func TestRestore(t *testing.T) {
 	defer daemon1.Nuke()
 	// Create a container with one instance of docker
 	container1, _, _ := mkContainer(daemon1, []string{"_", "ls", "-al"}, t)
-	defer daemon1.Destroy(container1)
+	defer daemon1.Rm(container1)
 
 	// Create a second container meant to be killed
 	container2, _, _ := mkContainer(daemon1, []string{"-i", "_", "/bin/cat"}, t)
-	defer daemon1.Destroy(container2)
+	defer daemon1.Rm(container2)
 
 	// Start the container non blocking
 	if err := container2.Start(); err != nil {
@@ -886,7 +886,7 @@ func TestDestroyWithInitLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Destroy
-	if err := daemon.Destroy(container); err != nil {
+	if err := daemon.Rm(container); err != nil {
 		t.Fatal(err)
 	}
 
