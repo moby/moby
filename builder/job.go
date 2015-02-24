@@ -1,12 +1,16 @@
 package builder
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -14,8 +18,21 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
+
+// whitelist of commands allowed for a commit/import
+var validCommitCommands = map[string]bool{
+	"entrypoint": true,
+	"cmd":        true,
+	"user":       true,
+	"workdir":    true,
+	"env":        true,
+	"volume":     true,
+	"expose":     true,
+	"onbuild":    true,
+}
 
 type BuilderJob struct {
 	Engine *engine.Engine
@@ -24,6 +41,7 @@ type BuilderJob struct {
 
 func (b *BuilderJob) Install() {
 	b.Engine.Register("build", b.CmdBuild)
+	b.Engine.Register("build_config", b.CmdBuildConfig)
 }
 
 func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
@@ -135,6 +153,53 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	if repoName != "" {
 		b.Daemon.Repositories().Set(repoName, tag, id, true)
+	}
+	return engine.StatusOK
+}
+
+func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
+	if len(job.Args) != 0 {
+		return job.Errorf("Usage: %s\n", job.Name)
+	}
+
+	var (
+		changes   = job.GetenvList("changes")
+		newConfig runconfig.Config
+	)
+
+	if err := job.GetenvJson("config", &newConfig); err != nil {
+		return job.Error(err)
+	}
+
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
+	if err != nil {
+		return job.Error(err)
+	}
+
+	// ensure that the commands are valid
+	for _, n := range ast.Children {
+		if !validCommitCommands[n.Value] {
+			return job.Errorf("%s is not a valid change command", n.Value)
+		}
+	}
+
+	builder := &Builder{
+		Daemon:        b.Daemon,
+		Engine:        b.Engine,
+		Config:        &newConfig,
+		OutStream:     ioutil.Discard,
+		ErrStream:     ioutil.Discard,
+		disableCommit: true,
+	}
+
+	for i, n := range ast.Children {
+		if err := builder.dispatch(i, n); err != nil {
+			return job.Error(err)
+		}
+	}
+
+	if err := json.NewEncoder(job.Stdout).Encode(builder.Config); err != nil {
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }

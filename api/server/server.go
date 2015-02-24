@@ -518,6 +518,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	job.Setenv("tag", r.Form.Get("tag"))
 	job.Setenv("author", r.Form.Get("author"))
 	job.Setenv("comment", r.Form.Get("comment"))
+	job.SetenvList("changes", r.Form["changes"])
 	job.SetenvSubEnv("config", &config)
 
 	job.Stdout.Add(stdoutBuffer)
@@ -570,6 +571,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		}
 		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
 		job.Stdin.Add(r.Body)
+		job.SetenvList("changes", r.Form["changes"])
 	}
 
 	if version.GreaterThan("1.0") {

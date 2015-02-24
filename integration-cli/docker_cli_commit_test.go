@@ -240,3 +240,41 @@ func TestCommitWithHostBindMount(t *testing.T) {
 
 	logDone("commit - commit bind mounted file")
 }
+
+func TestCommitChange(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit",
+		"--change", "EXPOSE 8080",
+		"--change", "ENV DEBUG true",
+		"--change", "ENV test 1",
+		"test", "test-commit")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(imageId, err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+	defer deleteImages(imageId)
+
+	expected := map[string]string{
+		"Config.ExposedPorts": "map[8080/tcp:map[]]",
+		"Config.Env":          "[DEBUG=true test=1]",
+	}
+
+	for conf, value := range expected {
+		res, err := inspectField(imageId, conf)
+		if err != nil {
+			t.Errorf("failed to get value %s, error: %s", conf, err)
+		}
+		if res != value {
+			t.Errorf("%s('%s'), expected %s", conf, res, value)
+		}
+	}
+
+	logDone("commit - commit --change")
+}
