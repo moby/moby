@@ -80,6 +80,27 @@ func mainDaemon() {
 		flag.Usage()
 		return
 	}
+
+	for _, r := range daemonCfg.BlockedRegistries.GetAll() {
+		if r == "all" {
+			r = "*"
+		} else if r == "public" {
+			r = registry.INDEXNAME
+		}
+		registry.BlockedRegistries[r] = struct{}{}
+		if r == registry.INDEXNAME || r == "*" {
+			registry.RegistryList = []string{}
+		}
+	}
+
+	newRegistryList := []string{}
+	for _, r := range daemonCfg.AdditionalRegistries.GetAll() {
+		if _, ok := registry.BlockedRegistries[r]; !ok {
+			newRegistryList = append(newRegistryList, r)
+		}
+	}
+	registry.RegistryList = append(newRegistryList, registry.RegistryList...)
+
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 

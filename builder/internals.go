@@ -435,12 +435,20 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	job.SetenvBool("json", b.StreamFormatter.Json())
 	job.SetenvBool("parallel", true)
 	job.SetenvJson("authConfig", pullRegistryAuth)
+	job.SetenvBool("protectOfficialRegistry", true)
 	job.Stdout.Add(ioutils.NopWriteCloser(b.OutOld))
 	if err := job.Run(); err != nil {
 		return nil, err
 	}
 	image, err := b.Daemon.Repositories().LookupImage(name)
 	if err != nil {
+		if !registry.RepositoryNameHasIndex(name) {
+			// repository has been probably renamed to docker.io/<name>
+			qualifiedName := registry.INDEXNAME + "/" + name
+			if image, err = b.Daemon.Repositories().LookupImage(qualifiedName); err == nil {
+				return image, nil
+			}
+		}
 		return nil, err
 	}
 

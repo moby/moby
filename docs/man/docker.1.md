@@ -34,6 +34,9 @@ unix://[/path/to/socket] to use.
    The socket(s) to bind to in daemon mode specified using one or more
    tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
+**--add-registry**=[]
+  **EXPERIMENTAL** Each given registry will be queried before a public Docker registry during image pulls or searches. They will be searched in the order given. Registry mirrors won't apply to them.
+
 **--api-enable-cors**=*true*|*false*
   Enable CORS headers in the remote API. Default is false.
 
@@ -42,6 +45,9 @@ unix://[/path/to/socket] to use.
 
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
+
+**--block-registry**=[]
+  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. There are two special keywords recognized. The first is "public" and represents public Docker registry. The second is "all" which causes all registries but those added with **--add-registry** flag to be blocked.
 
 **-d**=*true*|*false*
   Enable daemon mode. Default is false.
@@ -89,7 +95,7 @@ unix://[/path/to/socket] to use.
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
 **--registry-mirror**=<scheme>://<host>
-  Prepend a registry mirror to be used for image pulls. May be specified multiple times.
+  Prepend a registry mirror to be used for image pulls from public Docker registry. May be specified multiple times.
 
 **-s**=""
   Force the Docker runtime to use a specific storage driver.

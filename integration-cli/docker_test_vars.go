@@ -14,7 +14,7 @@ var (
 	registryImageName = "registry"
 
 	// the private registry to use for tests
-	privateRegistryURL = "127.0.0.1:5000"
+	privateRegistryURLs = []string{"127.0.0.1:5000", "127.0.0.1:5001"}
 
 	dockerBasePath       = "/var/lib/docker"
 	execDriverPath       = dockerBasePath + "/execdriver/native"
@@ -39,7 +39,7 @@ func init() {
 		registryImageName = registryImage
 	}
 	if registry := os.Getenv("REGISTRY_URL"); registry != "" {
-		privateRegistryURL = registry
+		privateRegistryURLs[0] = registry
 	}
 	workingDirectory, _ = os.Getwd()
 }

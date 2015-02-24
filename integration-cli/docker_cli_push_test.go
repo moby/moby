@@ -16,7 +16,7 @@ import (
 func TestPushBusyboxImage(t *testing.T) {
 	defer setupRegistry(t)()
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURLs[0])
 	// tag the image to upload it tot he private registry
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
@@ -43,7 +43,7 @@ func TestPushUnprefixedRepo(t *testing.T) {
 func TestPushUntagged(t *testing.T) {
 	defer setupRegistry(t)()
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURLs[0])
 
 	expected := "No tags to push"
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
@@ -58,7 +58,7 @@ func TestPushUntagged(t *testing.T) {
 func TestPushBadTag(t *testing.T) {
 	defer setupRegistry(t)()
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox:latest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox:latest", privateRegistryURLs[0])
 
 	expected := "does not exist"
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
@@ -73,9 +73,9 @@ func TestPushBadTag(t *testing.T) {
 func TestPushMultipleTags(t *testing.T) {
 	defer setupRegistry(t)()
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
-	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURLs[0])
+	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURLs[0])
+	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURLs[0])
 	// tag the image to upload it tot he private registry
 	tagCmd1 := exec.Command(dockerBinary, "tag", "busybox", repoTag1)
 	if out, _, err := runCommandWithOutput(tagCmd1); err != nil {
@@ -98,7 +98,7 @@ func TestPushMultipleTags(t *testing.T) {
 func TestPushInterrupt(t *testing.T) {
 	defer setupRegistry(t)()
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURLs[0])
 	// tag the image to upload it tot he private registry
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
@@ -127,7 +127,7 @@ func TestPushInterrupt(t *testing.T) {
 
 func TestPushEmptyLayer(t *testing.T) {
 	defer setupRegistry(t)()
-	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURLs[0])
 	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
 	if err != nil {
 		t.Fatalf("Unable to create test file: %v", err)

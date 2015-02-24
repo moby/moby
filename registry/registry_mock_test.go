@@ -164,7 +164,7 @@ func makeHttpsIndex(req string) *IndexInfo {
 
 func makePublicIndex() *IndexInfo {
 	index := &IndexInfo{
-		Name:     IndexServerAddress(),
+		Name:     IndexServerAddress(""),
 		Secure:   true,
 		Official: true,
 	}
@@ -350,6 +350,7 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 	}
 	repositoryName := mux.Vars(r)["repository"]
 	repositoryName = NormalizeLocalName(repositoryName)
+	repositoryName = strings.TrimPrefix(repositoryName, INDEXNAME+"/")
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
@@ -370,6 +371,7 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	repositoryName := vars["repository"]
 	repositoryName = NormalizeLocalName(repositoryName)
+	repositoryName = strings.TrimPrefix(repositoryName, INDEXNAME+"/")
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
@@ -391,6 +393,7 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	repositoryName := vars["repository"]
 	repositoryName = NormalizeLocalName(repositoryName)
+	repositoryName = strings.TrimPrefix(repositoryName, INDEXNAME+"/")
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName]
 	if !exists {

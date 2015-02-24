@@ -24,24 +24,62 @@ const (
 	// Only used for user auth + account creation
 	INDEXSERVER    = "https://index.docker.io/v1/"
 	REGISTRYSERVER = "https://registry-1.docker.io/v2/"
-	INDEXNAME      = "docker.io"
+	// The name of official index.
+	INDEXNAME = "docker.io"
 
 	// INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
 )
 
 var (
+	// A set of blocked registries. A special entry "*" causes all registries
+	// but those present in RegistryList to be blocked.
+	BlockedRegistries map[string]struct{}
+	// List of registries to query.
+	RegistryList             = []string{INDEXNAME}
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	emptyServiceConfig       = NewServiceConfig(nil)
 	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_]*)$`)
 	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 )
 
-func IndexServerAddress() string {
-	return INDEXSERVER
+func init() {
+	BlockedRegistries = make(map[string]struct{})
 }
 
+// IndexServerName returns the name of default index server.
 func IndexServerName() string {
-	return INDEXNAME
+	if len(RegistryList) < 1 {
+		return ""
+	}
+	return RegistryList[0]
+}
+
+// IndexServerAddress returns an index uri for given name. Empty string is
+// treated the same as a result of IndexServerName().
+func IndexServerAddress(indexName string) string {
+	if (indexName == "" && IndexServerName() == INDEXNAME) || indexName == INDEXNAME || indexName == INDEXSERVER {
+		return INDEXSERVER
+	} else if indexName != "" {
+		return fmt.Sprintf("http://%s/v1/", indexName)
+	} else if IndexServerName() == "" {
+		return ""
+	} else {
+		return fmt.Sprintf("http://%s/v1/", IndexServerName())
+	}
+}
+
+// RegistryServerAddress returns a registry uri for given index name. Empty string
+// is treated the same as a result of IndexServerName().
+func RegistryServerAddress(indexName string) string {
+	if (indexName == "" && IndexServerName() == INDEXNAME) || indexName == INDEXNAME {
+		return REGISTRYSERVER
+	} else if indexName != "" {
+		return fmt.Sprintf("http://%s/v2/", indexName)
+	} else if IndexServerName() == "" {
+		return ""
+	} else {
+		return fmt.Sprintf("http://%s/v2/", IndexServerName())
+	}
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -114,12 +152,22 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 		}
 	}
 
-	// Configure public registry.
-	config.IndexConfigs[IndexServerName()] = &IndexInfo{
-		Name:     IndexServerName(),
-		Mirrors:  options.Mirrors.GetAll(),
-		Secure:   true,
-		Official: true,
+	for _, r := range RegistryList {
+		var mirrors []string
+		if config.IndexConfigs[r] == nil {
+			// Use mirrors only with official index
+			if r == INDEXNAME {
+				mirrors = options.Mirrors.GetAll()
+			} else {
+				mirrors = make([]string, 0)
+			}
+			config.IndexConfigs[r] = &IndexInfo{
+				Name:     r,
+				Mirrors:  mirrors,
+				Secure:   r == INDEXNAME,
+				Official: r == INDEXNAME,
+			}
+		}
 	}
 
 	return config
@@ -195,8 +243,13 @@ func ValidateMirror(val string) (string, error) {
 // ValidateIndexName validates an index name.
 func ValidateIndexName(val string) (string, error) {
 	// 'index.docker.io' => 'docker.io'
-	if val == "index."+IndexServerName() {
-		val = IndexServerName()
+	if val == "index."+INDEXNAME {
+		val = INDEXNAME
+	}
+	for _, r := range RegistryList {
+		if val == "index."+r {
+			val = r
+		}
 	}
 	// *TODO: Check if valid hostname[:port]/ip[:port]?
 	return val, nil
@@ -252,11 +305,18 @@ func ValidateRepositoryName(reposName string) error {
 	if err = validateNoSchema(reposName); err != nil {
 		return err
 	}
-	indexName, remoteName := splitReposName(reposName)
+	indexName, remoteName := splitReposName(reposName, true)
 	if _, err = ValidateIndexName(indexName); err != nil {
 		return err
 	}
 	return validateRemoteName(remoteName)
+}
+
+// RepositoryNameHasIndex determines whether the given reposName has prepended
+// name of index.
+func RepositoryNameHasIndex(reposName string) bool {
+	indexName, _ := splitReposName(reposName, false)
+	return indexName != ""
 }
 
 // NewIndexInfo returns IndexInfo configuration from indexName
@@ -276,7 +336,7 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 	index := &IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
-		Official: false,
+		Official: indexName == INDEXNAME,
 	}
 	index.Secure = config.isSecureIndex(indexName)
 	return index, nil
@@ -286,20 +346,24 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 // index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
 func (index *IndexInfo) GetAuthConfigKey() string {
 	if index.Official {
-		return IndexServerAddress()
+		return INDEXSERVER
 	}
 	return index.Name
 }
 
 // splitReposName breaks a reposName into an index name and remote name
-func splitReposName(reposName string) (string, string) {
+// fixMissingIndex says to return current index server name if missing in
+// reposName
+func splitReposName(reposName string, fixMissingIndex bool) (string, string) {
 	nameParts := strings.SplitN(reposName, "/", 2)
 	var indexName, remoteName string
 	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
 		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		// 'docker.io'
-		indexName = IndexServerName()
+		if fixMissingIndex {
+			indexName = IndexServerName()
+		}
 		remoteName = reposName
 	} else {
 		indexName = nameParts[0]
@@ -308,19 +372,38 @@ func splitReposName(reposName string) (string, string) {
 	return indexName, remoteName
 }
 
+func IsIndexBlocked(indexName string) bool {
+	if _, ok := BlockedRegistries[indexName]; ok {
+		return true
+	}
+	if _, ok := BlockedRegistries["*"]; ok {
+		for _, name := range RegistryList {
+			if indexName == name {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
 func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInfo, error) {
 	if err := validateNoSchema(reposName); err != nil {
 		return nil, err
 	}
 
-	indexName, remoteName := splitReposName(reposName)
+	indexName, remoteName := splitReposName(reposName, true)
 	if err := validateRemoteName(remoteName); err != nil {
 		return nil, err
 	}
 
 	repoInfo := &RepositoryInfo{
 		RemoteName: remoteName,
+	}
+
+	if IsIndexBlocked(indexName) {
+		return nil, fmt.Errorf("Blocked registry \"%s\"", indexName)
 	}
 
 	var err error
@@ -336,7 +419,6 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
 		}
 
-		repoInfo.LocalName = normalizedName
 		repoInfo.RemoteName = normalizedName
 		// If the normalized name does not contain a '/' (e.g. "foo")
 		// then it is an official repo.
@@ -345,14 +427,16 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 			// Fix up remote name for official repos.
 			repoInfo.RemoteName = "library/" + normalizedName
 		}
-
-		// *TODO: Prefix this with 'docker.io/'.
-		repoInfo.CanonicalName = repoInfo.LocalName
+		repoInfo.LocalName = repoInfo.Index.Name + "/" + normalizedName
 	} else {
 		// *TODO: Decouple index name from hostname (via registry configuration?)
-		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
-		repoInfo.CanonicalName = repoInfo.LocalName
+		if repoInfo.Index.Name != "" {
+			repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
+		} else {
+			repoInfo.LocalName = repoInfo.RemoteName
+		}
 	}
+	repoInfo.CanonicalName = repoInfo.LocalName
 	return repoInfo, nil
 }
 
@@ -360,7 +444,7 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 // remote name for private indexes.
 func (repoInfo *RepositoryInfo) GetSearchTerm() string {
 	if repoInfo.Index.Official {
-		return repoInfo.LocalName
+		return strings.TrimPrefix(repoInfo.RemoteName, "library/")
 	}
 	return repoInfo.RemoteName
 }

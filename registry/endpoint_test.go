@@ -11,15 +11,17 @@ func TestEndpointParse(t *testing.T) {
 	testData := []struct {
 		str      string
 		expected string
+		secure   bool
 	}{
-		{IndexServerAddress(), IndexServerAddress()},
-		{"http://0.0.0.0:5000/v1/", "http://0.0.0.0:5000/v1/"},
-		{"http://0.0.0.0:5000/v2/", "http://0.0.0.0:5000/v2/"},
-		{"http://0.0.0.0:5000", "http://0.0.0.0:5000/v0/"},
-		{"0.0.0.0:5000", "https://0.0.0.0:5000/v0/"},
+		{IndexServerAddress(""), IndexServerAddress(""), true},
+		{"http://0.0.0.0:5000/v1/", "http://0.0.0.0:5000/v1/", false},
+		{"http://0.0.0.0:5000/v2/", "http://0.0.0.0:5000/v2/", false},
+		{"http://0.0.0.0:5000", "http://0.0.0.0:5000/v0/", false},
+		{"0.0.0.0:5000", "https://0.0.0.0:5000/v0/", true},
+		{"0.0.0.0:5000", "http://0.0.0.0:5000/v0/", false},
 	}
 	for _, td := range testData {
-		e, err := newEndpoint(td.str, false)
+		e, err := newEndpoint(td.str, td.secure)
 		if err != nil {
 			t.Errorf("%q: %s", td.str, err)
 		}

@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -35,6 +36,10 @@ type Daemon struct {
 	storageDriver  string
 	execDriver     string
 	wait           chan error
+}
+
+type LocalImageEntry struct {
+	name, tag, id string
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -265,6 +270,88 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	c := exec.Command(dockerBinary, args...)
 	b, err := c.CombinedOutput()
 	return string(b), err
+}
+
+func (d *Daemon) buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
+	args := []string{"--host", d.sock(), "build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, "-")
+	c := exec.Command(dockerBinary, args...)
+	c.Stdin = strings.NewReader(dockerfile)
+	out, err := c.CombinedOutput()
+	if err != nil {
+		return "", string(out), fmt.Errorf("failed to build the image: %s", out)
+	}
+	id, err := d.inspectField(name, "Id")
+	if err != nil {
+		return "", string(out), err
+	}
+	return id, string(out), nil
+}
+
+// List images of given Docker daemon and return it in a map[repoName]=*LocaleImageEntry.
+func (d *Daemon) getImages(t *testing.T) map[string]*LocalImageEntry {
+	reImageEntry := regexp.MustCompile(`(?m)^([[:alnum:]/.:_-]+)\s+(\w+)\s+([a-fA-F0-9]+)\s+`)
+	result := make(map[string]*LocalImageEntry)
+
+	out, err := d.Cmd("images")
+	if err != nil {
+		t.Fatalf("failed to list images: %v", err)
+	}
+	matches := reImageEntry.FindAllStringSubmatch(out, -1)
+	if matches != nil {
+		for i, match := range matches {
+			if i < 1 && match[1] == "REPOSITORY" {
+				continue // skip header
+			}
+			result[match[1]] = &LocalImageEntry{match[1], match[2], match[3]}
+		}
+	}
+	return result
+}
+
+// List images of given Docker daemon and assert expected values. Unless
+// expectedImageCount is negative, assert the number of images of Docker
+// daemon. Unless repoName is empty, assert it exists and return its matching
+// LocalImageEntry. Unless expectedImageId is empty, assert that image ID of
+// given repoName matches this one.
+func (d *Daemon) getAndTestImageEntry(t *testing.T, expectedImageCount int, repoName, expectedImageId string) *LocalImageEntry {
+	images := d.getImages(t)
+	if expectedImageCount >= 0 && len(images) != expectedImageCount {
+		switch expectedImageCount {
+		case 0:
+			t.Fatalf("expected empty local image database, got %d images", len(images))
+		case 1:
+			t.Fatalf("expected exactly 1 local image, got %d", len(images))
+		default:
+			t.Fatalf("expected exactly %d local images, got %d", expectedImageCount, len(images))
+		}
+	}
+	if repoName != "" {
+		if img, ok := images[repoName]; !ok {
+			keys := make([]string, 0, len(images))
+			for k := range images {
+				keys = append(keys, k)
+			}
+			t.Fatalf("%s missing in list of images: %v", repoName, keys)
+		} else if expectedImageId != "" && img.id != expectedImageId {
+			t.Fatalf("image ID of %s does not match expected (%s != %s)", repoName, img.id, expectedImageId)
+		} else {
+			return img
+		}
+	}
+	return nil
+}
+
+func (d *Daemon) inspectField(name, field string) (string, error) {
+	format := fmt.Sprintf("{{.%s}}", field)
+	out, err := d.Cmd("inspect", "-f", format, name)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
 }
 
 func daemonHost() string {
@@ -895,8 +982,8 @@ func readContainerFile(containerId, filename string) ([]byte, error) {
 	return content, nil
 }
 
-func setupRegistry(t *testing.T) func() {
-	reg, err := newTestRegistryV2(t)
+func setupAndGetRegistryAt(t *testing.T, url string) *testRegistryV2 {
+	reg, err := newTestRegistryV2At(t, url)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -913,6 +1000,11 @@ func setupRegistry(t *testing.T) func() {
 		t.Fatal("Timeout waiting for test registry to become available")
 	}
 
+	return reg
+}
+
+func setupRegistry(t *testing.T) func() {
+	reg := setupAndGetRegistryAt(t, privateRegistryURLs[0])
 	return func() { reg.Close() }
 }
 

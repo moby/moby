@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/registry"
 )
 
 // save a repo using gz compression and try to load it using stdout
@@ -71,7 +73,7 @@ func TestSaveXzAndLoadRepoStdout(t *testing.T) {
 
 // save a repo using xz+gz compression and try to load it using stdout
 func TestSaveXzGzAndLoadRepoStdout(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	runCmd := exec.Command(dockerBinary, "run", "-d", registry.INDEXNAME+"/busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("failed to create a container: %v %v", out, err)
@@ -164,7 +166,7 @@ func TestSaveImageId(t *testing.T) {
 		t.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
 
-	idLongCmd := exec.Command(dockerBinary, "images", "-q", "--no-trunc", repoName)
+	idLongCmd := exec.Command(dockerBinary, "images", "-q", "--no-trunc", registry.INDEXNAME+"/"+repoName)
 	out, _, err := runCommandWithOutput(idLongCmd)
 	if err != nil {
 		t.Fatalf("failed to get repo ID: %s, %v", out, err)
@@ -172,7 +174,7 @@ func TestSaveImageId(t *testing.T) {
 
 	cleanedLongImageID := stripTrailingCharacters(out)
 
-	idShortCmd := exec.Command(dockerBinary, "images", "-q", repoName)
+	idShortCmd := exec.Command(dockerBinary, "images", "-q", registry.INDEXNAME+"/"+repoName)
 	out, _, err = runCommandWithOutput(idShortCmd)
 	if err != nil {
 		t.Fatalf("failed to get repo short ID: %s, %v", out, err)

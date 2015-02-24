@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/registry"
 )
 
 // CmdImageExport exports all images with the given tag. All versions
@@ -40,7 +39,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) engine.Status {
 		}
 	}
 	for _, name := range job.Args {
-		name = registry.NormalizeLocalName(name)
+		name = s.NormalizeLocalName(name)
 		log.Debugf("Serializing %s", name)
 		rootRepo := s.Repositories[name]
 		if rootRepo != nil {
