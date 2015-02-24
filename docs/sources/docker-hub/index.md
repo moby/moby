@@ -4,7 +4,7 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 
 # Docker Hub
 
-![DockerHub](/docker-hub/hub.png)
+![DockerHub](/docker-hub/hub-images/hub.png)
 
 ## [Accounts](accounts/)
 
