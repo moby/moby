@@ -279,7 +279,7 @@ func (container *Container) applyVolumesFrom() error {
 
 		c, err := container.daemon.Get(id)
 		if err != nil {
-			return err
+			return fmt.Errorf("Could not apply volumes of non-existent container %q.", id)
 		}
 
 		var (
