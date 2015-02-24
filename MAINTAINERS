@@ -337,14 +337,14 @@ made through a pull request.
 			"unclejack",
 			"crosbymichael",
 			"erikh",
+			"estesp",
 			"icecrime",
 			"jfrazelle",
 			"lk4d4",
 			"tibor",
 			"vbatts",
 			"vieux",
-			"vishh",
-			"estesp"
+			"vishh"
 		]
 
 
@@ -517,6 +517,11 @@ made through a pull request.
 	Email = "eric@windisch.us"
 	GitHub = "ewindisch"
 
+	[people.estesp]
+	Name = "Phil Estes"
+	Email = "estesp@linux.vnet.ibm.com"
+	GitHub = "estesp"
+
 	[people.icecrime]
 	Name = "Arnaud Porterie"
 	Email = "arnaud@docker.com"
@@ -596,8 +601,3 @@ made through a pull request.
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
-
-	[people.estesp]
-	Name = "Phil Estes"
-	Email = "estesp@linux.vnet.ibm.com"
-	GitHub = "estesp"
