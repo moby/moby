@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/docker/docker/pkg/progressreader"
 	"io"
 )
 
@@ -54,7 +55,15 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 	}
 	return []byte("Error: " + err.Error() + streamNewline)
 }
-
+func (sf *StreamFormatter) FormatProg(id, action string, p interface{}) []byte {
+	switch progress := p.(type) {
+	case *JSONProgress:
+		return sf.FormatProgress(id, action, progress)
+	case progressreader.PR_JSONProgress:
+		return sf.FormatProgress(id, action, &JSONProgress{Current: progress.GetCurrent(), Total: progress.GetTotal()})
+	}
+	return nil
+}
 func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgress) []byte {
 	if progress == nil {
 		progress = &JSONProgress{}

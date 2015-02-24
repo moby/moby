@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
@@ -232,7 +233,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
 		sf := utils.NewStreamFormatter(false)
-		body = utils.ProgressReader(context, 0, cli.out, sf, true, "", "Sending build context to Docker daemon")
+		body = progressreader.New(progressreader.Config{
+			In:        context,
+			Out:       cli.out,
+			Formatter: sf,
+			NewLines:  true,
+			ID:        "",
+			Action:    "Sending build context to Docker daemon",
+		})
 	}
 	// Send the build context
 	v := &url.Values{}

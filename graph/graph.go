@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -210,9 +211,17 @@ func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, outpu
 	if err != nil {
 		return nil, err
 	}
-	progress := utils.ProgressReader(a, 0, output, sf, false, common.TruncateID(id), "Buffering to disk")
-	defer progress.Close()
-	return archive.NewTempArchive(progress, tmp)
+	progressReader := progressreader.New(progressreader.Config{
+		In:        a,
+		Out:       output,
+		Formatter: sf,
+		Size:      0,
+		NewLines:  false,
+		ID:        common.TruncateID(id),
+		Action:    "Buffering to disk",
+	})
+	defer progressReader.Close()
+	return archive.NewTempArchive(progressReader, tmp)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.

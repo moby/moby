@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -337,7 +338,15 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				defer layer.Close()
 
 				err = s.graph.Register(img,
-					utils.ProgressReader(layer, imgSize, out, sf, false, common.TruncateID(id), "Downloading"))
+					progressreader.New(progressreader.Config{
+						In:        layer,
+						Out:       out,
+						Formatter: sf,
+						Size:      imgSize,
+						NewLines:  false,
+						ID:        common.TruncateID(id),
+						Action:    "Downloading",
+					}))
 				if terr, ok := err.(net.Error); ok && terr.Timeout() && j < retries {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
@@ -496,7 +505,15 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return fmt.Errorf("unable to wrap image blob reader with TarSum: %s", err)
 				}
 
-				if _, err := io.Copy(tmpFile, utils.ProgressReader(ioutil.NopCloser(tarSumReader), int(l), out, sf, false, common.TruncateID(img.ID), "Downloading")); err != nil {
+				if _, err := io.Copy(tmpFile, progressreader.New(progressreader.Config{
+					In:        ioutil.NopCloser(tarSumReader),
+					Out:       out,
+					Formatter: sf,
+					Size:      int(l),
+					NewLines:  false,
+					ID:        common.TruncateID(img.ID),
+					Action:    "Downloading",
+				})); err != nil {
 					return fmt.Errorf("unable to copy v2 image blob data: %s", err)
 				}
 
@@ -548,7 +565,14 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 			d.tmpFile.Seek(0, 0)
 			if d.tmpFile != nil {
 				err = s.graph.Register(d.img,
-					utils.ProgressReader(d.tmpFile, int(d.length), out, sf, false, common.TruncateID(d.img.ID), "Extracting"))
+					progressreader.New(progressreader.Config{
+						In:        d.tmpFile,
+						Out:       out,
+						Formatter: sf,
+						Size:      int(d.length),
+						ID:        common.TruncateID(d.img.ID),
+						Action:    "Extracting",
+					}))
 				if err != nil {
 					return false, err
 				}
