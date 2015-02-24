@@ -65,7 +65,7 @@ uses. Be strategic and cautious about the number of layers you use.
 Whenever possible, ease later changes by sorting multi-line arguments
 alphanumerically. This will help you avoid duplication of packages and make the
 list much easier to update. This also makes PRs a lot easier to read and
-review. Adding a space before a backslash (`\`) helps as well. 
+review. Adding a space before a backslash (`\`) helps as well.
 
 Here’s an example from the [`buildpack-deps` image](https://github.com/docker-library/buildpack-deps):
 
@@ -291,32 +291,32 @@ auto-extraction capability, you should always use `COPY`.
 
 ### [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
 
-The best use for `ENTRYPOINT` is as a helper script. Using `ENTRYPOINT` for
-other tasks can make your code harder to understand. For example,
+The best use for `ENTRYPOINT` is to set the image's main command, allowing that
+image to be run as though it was that command (and then use `CMD` as the
+default flags).
 
-....docker run -it official-image bash
+Let's start with an example of an image for the command line tool `s3cmd`:
 
-is much easier to understand than
+    ENTRYPOINT ["s3cmd"]
+    CMD ["--help"]
 
-....docker run -it --entrypoint bash official-image -i
+Now the image can be run like this to show the command's help:
 
-This is especially true for new Docker users, who might naturally assume the
-above command will work fine. In cases where an image uses `ENTRYPOINT` for
-anything other than just a wrapper script, the command will fail and the
-beginning user will then be forced to learn about `ENTRYPOINT` and
-`--entrypoint`.
+    $ docker run s3cmd
 
-In order to avoid a situation where commands are run without clear visibility
-to the user, make sure your script ends with something like `exec "$@"` (see
-[the exec builtin command](http://wiki.bash-hackers.org/commands/builtin/exec)).
-After the entrypoint completes, the script will transparently bootstrap the command
-invoked by the user, making what has been run clear to the user (for example,
-`docker run -it mysql mysqld --some --flags` will transparently run
-`mysqld --some --flags` after `ENTRYPOINT` runs `initdb`).
+Or using the right parameters to execute a command:
 
-For example, let’s look at the `Dockerfile` for the
-[Postgres Official Image](https://github.com/docker-library/postgres).
-It refers to the following script: 
+    $ docker run s3cmd ls s3://mybucket
+
+This is useful because the image name can double as a reference to the binary as
+shown in the command above.
+
+The `ENTRYPOINT` instruction can also be used in combination with a helper
+script, allowing it to function in a similar way to the command above, even
+when starting the tool may require more than one step.
+
+For example, the [Postgres Official Image](https://registry.hub.docker.com/_/postgres/)
+uses the following script as its `ENTRYPOINT`:
 
 ```bash
 #!/bin/bash
@@ -335,11 +335,33 @@ fi
 exec "$@"
 ```
 
-That script then gets copied into the container and run via `ENTRYPOINT` on
-container startup:
+> **Note**:
+> This script uses [the `exec` Bash command](http://wiki.bash-hackers.org/commands/builtin/exec)
+> so that the final running application becomes the container's PID 1. This allows
+> the application to receive any Unix signals sent to the container.
+> See the [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#ENTRYPOINT)
+> help for more details.
+
+
+The helper script is copied into the container and run via `ENTRYPOINT` on
+container start:
 
     COPY ./docker-entrypoint.sh /
     ENTRYPOINT ["/docker-entrypoint.sh"]
+
+This script allows the user to interact with Postgres in several ways.
+
+It can simply start Postgres:
+
+    $ docker run postgres
+
+Or, it can be used to run Postgres and pass parameters to the server:
+
+    $ docker run postgres postres --help
+
+Lastly, it could also be used to start a totally different tool, such Bash:
+
+    $ docker run --rm -it postgres bash
 
 ### [`VOLUME`](https://docs.docker.com/reference/builder/#volume)
 
