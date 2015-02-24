@@ -1583,7 +1583,6 @@ func TestBuildAddBadLinks(t *testing.T) {
 		symlinkTarget = fmt.Sprintf("/../../../../../../../../../../../..%s", tempDir)
 	}
 
-	t.Logf("***=== %s", symlinkTarget)
 	tarPath := filepath.Join(ctx.Dir, "links.tar")
 	nonExistingFile := filepath.Join(tempDir, targetFile)
 	fooPath := filepath.Join(ctx.Dir, targetFile)
