@@ -21,6 +21,10 @@ var (
 		func() bool { return isUnixCli },
 		"Test requires posix utilities or functionality to run.",
 	}
+	ExecSupport = TestRequirement{
+		func() bool { return supportsExec },
+		"Test requires 'docker exec' capabilities on the tested daemon.",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements

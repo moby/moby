@@ -231,7 +231,7 @@ func TestLinksNotStartedParentNotFail(t *testing.T) {
 }
 
 func TestLinksHostsFilesInject(t *testing.T) {
-	testRequires(t, SameHostDaemon)
+	testRequires(t, SameHostDaemon, ExecSupport)
 
 	defer deleteAllContainers()
 
@@ -251,12 +251,12 @@ func TestLinksHostsFilesInject(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	contentOne, err := readContainerFile(idOne, "hosts")
+	contentOne, err := readContainerFileWithExec(idOne, "/etc/hosts")
 	if err != nil {
 		t.Fatal(err, string(contentOne))
 	}
 
-	contentTwo, err := readContainerFile(idTwo, "hosts")
+	contentTwo, err := readContainerFileWithExec(idTwo, "/etc/hosts")
 	if err != nil {
 		t.Fatal(err, string(contentTwo))
 	}
@@ -285,7 +285,7 @@ func TestLinksNetworkHostContainer(t *testing.T) {
 }
 
 func TestLinksUpdateOnRestart(t *testing.T) {
-	testRequires(t, SameHostDaemon)
+	testRequires(t, SameHostDaemon, ExecSupport)
 
 	defer deleteAllContainers()
 
@@ -302,7 +302,7 @@ func TestLinksUpdateOnRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	content, err := readContainerFile(id, "hosts")
+	content, err := readContainerFileWithExec(id, "/etc/hosts")
 	if err != nil {
 		t.Fatal(err, string(content))
 	}
@@ -327,7 +327,7 @@ func TestLinksUpdateOnRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	content, err = readContainerFile(id, "hosts")
+	content, err = readContainerFileWithExec(id, "/etc/hosts")
 	if err != nil {
 		t.Fatal(err, string(content))
 	}
