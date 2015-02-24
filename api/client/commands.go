@@ -2120,7 +2120,7 @@ func (cid *cidFile) Write(id string) error {
 	return nil
 }
 
-func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runconfig.HostConfig, cidfile, name string) (engine.Env, error) {
+func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runconfig.HostConfig, cidfile, name string) (*types.ContainerCreateResponse, error) {
 	containerValues := url.Values{}
 	if name != "" {
 		containerValues.Set("name", name)
@@ -2159,23 +2159,19 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 		return nil, err
 	}
 
-	var result engine.Env
-	if err := result.Decode(stream); err != nil {
+	var response types.ContainerCreateResponse
+	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return nil, err
 	}
-
-	for _, warning := range result.GetList("Warnings") {
+	for _, warning := range response.Warnings {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
-
 	if containerIDFile != nil {
-		if err = containerIDFile.Write(result.Get("Id")); err != nil {
+		if err = containerIDFile.Write(response.ID); err != nil {
 			return nil, err
 		}
 	}
-
-	return result, nil
-
+	return &response, nil
 }
 
 func (cli *DockerCli) CmdCreate(args ...string) error {
@@ -2194,14 +2190,11 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-
-	createResult, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
+	response, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintf(cli.out, "%s\n", createResult.Get("Id"))
-
+	fmt.Fprintf(cli.out, "%s\n", response.ID)
 	return nil
 }
 
@@ -2259,38 +2252,32 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		sigProxy = false
 	}
 
-	runResult, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
+	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
 	if err != nil {
 		return err
 	}
-
 	if sigProxy {
-		sigc := cli.forwardAllSignals(runResult.Get("Id"))
+		sigc := cli.forwardAllSignals(createResponse.ID)
 		defer signal.StopCatch(sigc)
 	}
-
 	var (
 		waitDisplayId chan struct{}
 		errCh         chan error
 	)
-
 	if !config.AttachStdout && !config.AttachStderr {
 		// Make this asynchronous to allow the client to write to stdin before having to read the ID
 		waitDisplayId = make(chan struct{})
 		go func() {
 			defer close(waitDisplayId)
-			fmt.Fprintf(cli.out, "%s\n", runResult.Get("Id"))
+			fmt.Fprintf(cli.out, "%s\n", createResponse.ID)
 		}()
 	}
-
 	if *flAutoRemove && (hostConfig.RestartPolicy.Name == "always" || hostConfig.RestartPolicy.Name == "on-failure") {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
-
 	// We need to instantiate the chan because the select needs it. It can
 	// be closed but can't be uninitialized.
 	hijacked := make(chan io.Closer)
-
 	// Block the return until the chan gets closed
 	defer func() {
 		log.Debugf("End of CmdRun(), Waiting for hijack to finish.")
@@ -2298,7 +2285,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			log.Errorf("Hijack did not finish (chan still open)")
 		}
 	}()
-
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		var (
 			out, stderr io.Writer
@@ -2306,7 +2292,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			v           = url.Values{}
 		)
 		v.Set("stream", "1")
-
 		if config.AttachStdin {
 			v.Set("stdin", "1")
 			in = cli.in
@@ -2323,14 +2308,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 				stderr = cli.err
 			}
 		}
-
 		errCh = promise.Go(func() error {
-			return cli.hijack("POST", "/containers/"+runResult.Get("Id")+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked, nil)
+			return cli.hijack("POST", "/containers/"+createResponse.ID+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked, nil)
 		})
 	} else {
 		close(hijacked)
 	}
-
 	// Acknowledge the hijack before starting
 	select {
 	case closer := <-hijacked:
@@ -2347,12 +2330,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/start", nil, false)); err != nil {
+	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, false)); err != nil {
 		return err
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
-		if err := cli.monitorTtySize(runResult.Get("Id"), false); err != nil {
+		if err := cli.monitorTtySize(createResponse.ID, false); err != nil {
 			log.Errorf("Error monitoring TTY size: %s", err)
 		}
 	}
@@ -2377,26 +2360,26 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if *flAutoRemove {
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
-		if _, _, err := readBody(cli.call("POST", "/containers/"+runResult.Get("Id")+"/wait", nil, false)); err != nil {
+		if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/wait", nil, false)); err != nil {
 			return err
 		}
-		if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
+		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
 			return err
 		}
-		if _, _, err := readBody(cli.call("DELETE", "/containers/"+runResult.Get("Id")+"?v=1", nil, false)); err != nil {
+		if _, _, err := readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, false)); err != nil {
 			return err
 		}
 	} else {
 		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = waitForExit(cli, runResult.Get("Id")); err != nil {
+			if status, err = waitForExit(cli, createResponse.ID); err != nil {
 				return err
 			}
 		} else {
 			// In TTY mode, there is a race: if the process dies too slowly, the state could
 			// be updated after the getExitCode call and result in the wrong exit code being reported
-			if _, status, err = getExitCode(cli, runResult.Get("Id")); err != nil {
+			if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
 				return err
 			}
 		}
