@@ -72,6 +72,44 @@ func TestCommitWithoutPause(t *testing.T) {
 	logDone("commit - echo foo and commit the image with --pause=false")
 }
 
+//test commit a paused container should not unpause it after commit
+func TestCommitPausedContainer(t *testing.T) {
+	defer deleteAllContainers()
+	defer unpauseAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox")
+	out, _, _, err := runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	cmd = exec.Command(dockerBinary, "pause", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatalf("failed to pause container: %v, output: %q", err, out)
+	}
+
+	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID)
+	out, _, err = runCommandWithOutput(commitCmd)
+	if err != nil {
+		t.Fatalf("failed to commit container to image: %s, %v", out, err)
+	}
+	cleanedImageID := stripTrailingCharacters(out)
+	defer deleteImages(cleanedImageID)
+
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Paused}}", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %v, output: %q", err, out)
+	}
+
+	if !strings.Contains(out, "true") {
+		t.Fatalf("commit should not unpause a paused container")
+	}
+
+	logDone("commit - commit a paused container will not unpause it")
+}
+
 func TestCommitNewFile(t *testing.T) {
 	defer deleteAllContainers()
 

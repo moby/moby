@@ -41,7 +41,7 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
 func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
-	if pause {
+	if pause && !container.IsPaused() {
 		container.Pause()
 		defer container.Unpause()
 	}
