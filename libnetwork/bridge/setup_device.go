@@ -39,7 +39,17 @@ func SetupDevice(i *Interface) error {
 
 // SetupDeviceUp ups the given bridge interface.
 func SetupDeviceUp(i *Interface) error {
-	return netlink.LinkSetUp(i.Link)
+	err := netlink.LinkSetUp(i.Link)
+	if err != nil {
+		return err
+	}
+
+	// Attempt to update the bridge interface to refresh the flags status,
+	// ignoring any failure to do so.
+	if lnk, err := netlink.LinkByName(i.Config.BridgeName); err == nil {
+		i.Link = lnk
+	}
+	return nil
 }
 
 func generateRandomMAC() net.HardwareAddr {

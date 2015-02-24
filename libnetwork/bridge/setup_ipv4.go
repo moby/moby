@@ -5,7 +5,6 @@ import (
 	"net"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/vishvananda/netlink"
 )
 
@@ -61,8 +60,8 @@ func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
 	// can't read /etc/resolv.conf. So instead we skip the append if resolvConf
 	// is nil. It either doesn't exist, or we can't read it for some reason.
 	nameservers := []string{}
-	if resolvConf, _ := resolvconf.Get(); resolvConf != nil {
-		nameservers = append(nameservers, resolvconf.GetNameserversAsCIDR(resolvConf)...)
+	if resolvConf, _ := readResolvConf(); resolvConf != nil {
+		nameservers = append(nameservers, getNameserversAsCIDR(resolvConf)...)
 	}
 
 	// Try to automatically elect appropriate brige IPv4 settings.

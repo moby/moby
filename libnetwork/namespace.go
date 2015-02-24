@@ -1,5 +1,7 @@
 package libnetwork
 
+import "syscall"
+
 type networkNamespace struct {
 	path       string
 	interfaces []*Interface
@@ -28,4 +30,10 @@ func (n *networkNamespace) Interfaces() []*Interface {
 
 func (n *networkNamespace) Path() string {
 	return n.path
+}
+
+func (n *networkNamespace) Destroy() error {
+	// Assuming no running process is executing in this network namespace,
+	// unmounting is sufficient to destroy it.
+	return syscall.Unmount(n.path, syscall.MNT_DETACH)
 }

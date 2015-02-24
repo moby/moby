@@ -1,11 +1,11 @@
 package libnetwork
 
 import (
-	"log"
 	"os"
 	"runtime"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
