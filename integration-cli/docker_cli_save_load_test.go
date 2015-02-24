@@ -131,8 +131,11 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 
 	c.Assert(tarCmd.Start(), checker.IsNil, check.Commentf("tar failed with error: %v", err))
 	c.Assert(saveCmd.Start(), checker.IsNil, check.Commentf("docker save failed with error: %v", err))
-	defer saveCmd.Wait()
-	defer tarCmd.Wait()
+	defer func() {
+		saveCmd.Wait()
+		tarCmd.Wait()
+		dockerCmd(c, "rmi", repoName)
+	}()
 
 	out, _, err = runCommandWithOutput(grepCmd)
 

@@ -1,0 +1,9 @@
+for image in `docker images | awk '{print $1}'`; do
+if ( [ -z "${image##$IMAGEREPO/busybox}" ] ); then
+	docker tag $image busybox:latest
+	docker rmi $image
+elif ( [ -z "${image##$IMAGEREPO/hello-world}" ] ); then
+	docker tag $image:frozen hello-world:frozen
+	docker rmi $image:frozen
+fi
+done

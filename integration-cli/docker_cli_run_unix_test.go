@@ -238,7 +238,7 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	select {
 	case err := <-errChan:
 		c.Assert(err, check.IsNil)
-	case <-time.After(30 * time.Second):
+	case <-time.After(600 * time.Second):
 		c.Fatal("Timeout waiting for container to die on OOM")
 	}
 }
@@ -260,7 +260,7 @@ func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
-	dockerCmd(c, "run", "-m", "16m", "--memory-swap", "-1", "busybox", "true")
+	dockerCmd(c, "run", "-m", "32m", "--memory-swap", "-1", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
