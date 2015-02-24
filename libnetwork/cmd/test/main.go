@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/docker/libnetwork"
-	_ "github.com/docker/libnetwork/bridge"
+	_ "github.com/docker/libnetwork/drivers/bridge"
 )
 
 func main() {
