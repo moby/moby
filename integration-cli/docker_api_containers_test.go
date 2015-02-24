@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/stats"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
@@ -311,7 +311,7 @@ func TestGetContainerStats(t *testing.T) {
 		}
 
 		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
-		var s *stats.Stats
+		var s *types.Stats
 		// decode only one object from the stream
 		if err := dec.Decode(&s); err != nil {
 			t.Fatal(err)

@@ -26,7 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/stats"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -2640,7 +2640,7 @@ func (s *containerStats) Collect(cli *DockerCli) {
 	)
 	go func() {
 		for {
-			var v *stats.Stats
+			var v *types.Stats
 			if err := dec.Decode(&v); err != nil {
 				u <- err
 				return
@@ -2757,7 +2757,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	return nil
 }
 
-func calculateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) float64 {
+func calculateCpuPercent(previousCpu, previousSystem uint64, v *types.Stats) float64 {
 	var (
 		cpuPercent = 0.0
 		// calculate the change for the cpu usage of the container in between readings
