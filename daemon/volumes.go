@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volumes"
@@ -25,18 +25,6 @@ type Mount struct {
 	copyData    bool
 	from        *Container
 	isBind      bool
-}
-
-func (mnt *Mount) Export(resource string) (io.ReadCloser, error) {
-	var name string
-	if resource == mnt.MountToPath[1:] {
-		name = filepath.Base(resource)
-	}
-	path, err := filepath.Rel(mnt.MountToPath[1:], resource)
-	if err != nil {
-		return nil, err
-	}
-	return mnt.volume.Export(path, name)
 }
 
 func (container *Container) prepareVolumes() error {
@@ -320,6 +308,20 @@ func validMountMode(mode string) bool {
 	return validModes[mode]
 }
 
+func (container *Container) specialMounts() []execdriver.Mount {
+	var mounts []execdriver.Mount
+	if container.ResolvConfPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true})
+	}
+	if container.HostnamePath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
+	}
+	if container.HostsPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
+	}
+	return mounts
+}
+
 func (container *Container) setupMounts() error {
 	mounts := []execdriver.Mount{}
 
@@ -336,17 +338,7 @@ func (container *Container) setupMounts() error {
 		})
 	}
 
-	if container.ResolvConfPath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true})
-	}
-
-	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
-	}
-
-	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
-	}
+	mounts = append(mounts, container.specialMounts()...)
 
 	container.command.Mounts = mounts
 	return nil
@@ -400,4 +392,58 @@ func copyOwnership(source, destination string) error {
 	}
 
 	return os.Chmod(destination, os.FileMode(stat.Mode()))
+}
+
+func (container *Container) mountVolumes() error {
+	for dest, source := range container.Volumes {
+		v := container.daemon.volumes.Get(source)
+		if v == nil {
+			return fmt.Errorf("could not find volume for %s:%s, impossible to mount", source, dest)
+		}
+
+		destPath, err := container.getResourcePath(dest)
+		if err != nil {
+			return err
+		}
+
+		if err := mount.Mount(source, destPath, "bind", "rbind,rw"); err != nil {
+			return fmt.Errorf("error while mounting volume %s: %v", source, err)
+		}
+	}
+
+	for _, mnt := range container.specialMounts() {
+		destPath, err := container.getResourcePath(mnt.Destination)
+		if err != nil {
+			return err
+		}
+		if err := mount.Mount(mnt.Source, destPath, "bind", "bind,rw"); err != nil {
+			return fmt.Errorf("error while mounting volume %s: %v", mnt.Source, err)
+		}
+	}
+	return nil
+}
+
+func (container *Container) unmountVolumes() {
+	for dest := range container.Volumes {
+		destPath, err := container.getResourcePath(dest)
+		if err != nil {
+			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
+			continue
+		}
+		if err := mount.ForceUnmount(destPath); err != nil {
+			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
+			continue
+		}
+	}
+
+	for _, mnt := range container.specialMounts() {
+		destPath, err := container.getResourcePath(mnt.Destination)
+		if err != nil {
+			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
+			continue
+		}
+		if err := mount.ForceUnmount(destPath); err != nil {
+			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
+		}
+	}
 }
