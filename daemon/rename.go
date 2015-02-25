@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
 
 	container.Lock()
 	defer container.Unlock()
-	if _, err := daemon.reserveName(container.ID, newName); err != nil {
+	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
 		return job.Errorf("Error when allocating new name: %s", err)
 	}
 

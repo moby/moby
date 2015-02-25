@@ -35,7 +35,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if name != "new_name" {
+	if name != "/new_name" {
 		t.Fatal("Failed to rename container ", name)
 	}
 
@@ -62,7 +62,7 @@ func TestRenameRunningContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if name != "new_name" {
+	if name != "/new_name" {
 		t.Fatal("Failed to rename container ")
 	}
 
@@ -88,7 +88,7 @@ func TestRenameCheckNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if name != "new_name" {
+	if name != "/new_name" {
 		t.Fatal("Failed to rename container ")
 	}
 
