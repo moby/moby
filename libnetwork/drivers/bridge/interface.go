@@ -44,5 +44,8 @@ func (i *Interface) Addresses() (netlink.Addr, []netlink.Addr, error) {
 		return netlink.Addr{}, nil, err
 	}
 
+	if len(v4addr) == 0 {
+		return netlink.Addr{}, v6addr, nil
+	}
 	return v4addr[0], v6addr, nil
 }

@@ -105,13 +105,11 @@ func checkRouteOverlaps(toCheck *net.IPNet) error {
 }
 
 func networkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	if len(netX.IP) == len(netY.IP) {
-		if firstIP, _ := networkRange(netX); netY.Contains(firstIP) {
-			return true
-		}
-		if firstIP, _ := networkRange(netY); netX.Contains(firstIP) {
-			return true
-		}
+	if firstIP, _ := networkRange(netX); netY.Contains(firstIP) {
+		return true
+	}
+	if firstIP, _ := networkRange(netY); netX.Contains(firstIP) {
+		return true
 	}
 	return false
 }

@@ -17,7 +17,7 @@
 //    // For each new container: allocate IP and interfaces. The returned network
 //    // settings will be used for container infos (inspect and such), as well as
 //    // iptables rules for port publishing.
-//    interfaces, err := network.CreateInterfaces(containerID)
+//    interfaces, err := network.Link(containerID)
 //    if err != nil {
 //    	return err
 //    }
