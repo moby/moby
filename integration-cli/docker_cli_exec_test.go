@@ -163,6 +163,7 @@ func TestExecAfterContainerRestart(t *testing.T) {
 }
 
 func TestExecAfterDaemonRestart(t *testing.T) {
+	testRequires(t, SameHostDaemon)
 	defer deleteAllContainers()
 
 	d := NewDaemon(t)
