@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os/exec"
 	"testing"
 )
 
@@ -24,6 +26,16 @@ var (
 	ExecSupport = TestRequirement{
 		func() bool { return supportsExec },
 		"Test requires 'docker exec' capabilities on the tested daemon.",
+	}
+	RegistryHosting = TestRequirement{
+		func() bool {
+			// for now registry binary is built only if we're running inside
+			// container through `make test`. Figure that out by testing if
+			// registry binary is in PATH.
+			_, err := exec.LookPath(v2binary)
+			return err == nil
+		},
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", v2binary),
 	}
 )
 
