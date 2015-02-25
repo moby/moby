@@ -175,7 +175,7 @@ type tarAppender struct {
 // canonicalTarName provides a platform-independent and consistent posix-style
 //path for files and directories to be archived regardless of the platform.
 func canonicalTarName(name string, isDir bool) (string, error) {
-	name, err := canonicalTarNameForPath(name)
+	name, err := CanonicalTarNameForPath(name)
 	if err != nil {
 		return "", err
 	}
