@@ -14,7 +14,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/timeout"
 )
 
 var (
@@ -71,7 +71,7 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate
 			if err != nil {
 				return nil, err
 			}
-			conn = utils.NewTimeoutConn(conn, 1*time.Minute)
+			conn = timeout.New(conn, 1*time.Minute)
 			return conn, nil
 		}
 	}
