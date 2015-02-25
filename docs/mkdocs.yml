@@ -88,6 +88,9 @@ pages:
 - ['examples/running_ssh_service.md', 'Examples', 'Dockerizing an SSH service']
 - ['examples/couchdb_data_volumes.md', 'Examples', 'Dockerizing a CouchDB service']
 - ['examples/apt-cacher-ng.md', 'Examples', 'Dockerizing an Apt-Cacher-ng service']
+- ['compose/django.md', 'Examples', 'Getting started with Compose and Django']
+- ['compose/rails.md', 'Examples', 'Getting started with Compose and Rails']
+- ['compose/wordpress.md', 'Examples', 'Getting started with Compose and Wordpress']
 
 # Articles
 - ['articles/index.md', '**HIDDEN**']
