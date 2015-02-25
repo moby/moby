@@ -17,7 +17,7 @@ func TestCanonicalTarNameForPath(t *testing.T) {
 		{`foo\bar`, "foo/bar/", false},
 	}
 	for _, v := range cases {
-		if out, err := canonicalTarNameForPath(v.in); err != nil && !v.shouldFail {
+		if out, err := CanonicalTarNameForPath(v.in); err != nil && !v.shouldFail {
 			t.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
 		} else if v.shouldFail && err == nil {
 			t.Fatalf("canonical path call should have pailed with error. in=%s out=%s", v.in, out)

@@ -12,7 +12,7 @@ import (
 // canonicalTarNameForPath returns platform-specific filepath
 // to canonical posix-style path for tar archival. p is relative
 // path.
-func canonicalTarNameForPath(p string) (string, error) {
+func CanonicalTarNameForPath(p string) (string, error) {
 	// windows: convert windows style relative path with backslashes
 	// into forward slashes. since windows does not allow '/' or '\'
 	// in file names, it is mostly safe to replace however we must

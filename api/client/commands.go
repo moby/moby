@@ -155,11 +155,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if *dockerfileName == "" {
 			// No -f/--file was specified so use the default
 			*dockerfileName = api.DefaultDockerfileName
-			filename = path.Join(absRoot, *dockerfileName)
+			filename = filepath.Join(absRoot, *dockerfileName)
 		}
 
 		origDockerfile := *dockerfileName // used for error msg
-
 		if filename, err = filepath.Abs(filename); err != nil {
 			return err
 		}
@@ -174,6 +173,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		*dockerfileName, err = filepath.Rel(absRoot, filename)
 		if err != nil {
 			return err
+		}
+		// And canonicalize dockerfile name to a platform-independent one
+		*dockerfileName, err = archive.CanonicalTarNameForPath(*dockerfileName)
+		if err != nil {
+			return fmt.Errorf("Cannot canonicalize dockerfile path %s: %v", dockerfileName, err)
 		}
 
 		if _, err = os.Lstat(filename); os.IsNotExist(err) {
