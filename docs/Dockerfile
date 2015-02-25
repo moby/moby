@@ -51,5 +51,12 @@ RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/cli.md
 ADD https://raw.githubusercontent.com/docker/fig/master/docs/yml.md /docs/sources/compose/yml.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/yml.md
 
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/django.md /docs/sources/compose/django.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/django.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/rails.md /docs/sources/compose/rails.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/rails.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/wordpress.md /docs/sources/compose/wordpress.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/wordpress.md
+
 # Then build everything together, ready for mkdocs
 RUN /docs/build.sh
