@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -203,68 +204,43 @@ func TestEventsImageImport(t *testing.T) {
 }
 
 func TestEventsFilters(t *testing.T) {
-	// we need a new daemon here
-	// otherwise events picks up the container from the previous
-	// function as a die event (some sort of race)
-	// I am not proud of this - jessfraz
-	d := NewDaemon(t)
-	if err := d.StartWithBusybox(); err != nil {
-		t.Fatalf("Could not start daemon with busybox: %v", err)
+	parseEvents := func(out, match string) {
+		events := strings.Split(out, "\n")
+		events = events[:len(events)-1]
+		for _, event := range events {
+			eventFields := strings.Fields(event)
+			eventName := eventFields[len(eventFields)-1]
+			if ok, err := regexp.MatchString(match, eventName); err != nil || !ok {
+				t.Fatalf("event should match %s, got %#v, err: %v", match, eventFields, err)
+			}
+		}
 	}
-	defer d.Stop()
 
 	since := time.Now().Unix()
-	out, err := d.Cmd("run", "--rm", "busybox", "true")
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	out, err = d.Cmd("run", "--rm", "busybox", "true")
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	out, err = d.Cmd("events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die")
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die"))
 	if err != nil {
 		t.Fatalf("Failed to get events: %s", err)
 	}
-	events := strings.Split(out, "\n")
-	events = events[:len(events)-1]
-	if len(events) != 2 {
-		t.Fatalf("Expected 2 events, got %d: %v", len(events), events)
-	}
-	dieEvent := strings.Fields(events[len(events)-1])
-	if dieEvent[len(dieEvent)-1] != "die" {
-		t.Fatalf("event should be die, not %#v", dieEvent)
-	}
+	parseEvents(out, "die")
 
-	dieEvent = strings.Fields(events[len(events)-2])
-	if dieEvent[len(dieEvent)-1] != "die" {
-		t.Fatalf("event should be die, not %#v", dieEvent)
-	}
-
-	out, err = d.Cmd("events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die", "--filter", "event=start")
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die", "--filter", "event=start"))
 	if err != nil {
 		t.Fatalf("Failed to get events: %s", err)
 	}
-	events = strings.Split(out, "\n")
-	events = events[:len(events)-1]
-	if len(events) != 4 {
-		t.Fatalf("Expected 4 events, got %d: %v", len(events), events)
-	}
-	startEvent := strings.Fields(events[len(events)-4])
-	if startEvent[len(startEvent)-1] != "start" {
-		t.Fatalf("event should be start, not %#v", startEvent)
-	}
-	dieEvent = strings.Fields(events[len(events)-3])
-	if dieEvent[len(dieEvent)-1] != "die" {
-		t.Fatalf("event should be die, not %#v", dieEvent)
-	}
-	startEvent = strings.Fields(events[len(events)-2])
-	if startEvent[len(startEvent)-1] != "start" {
-		t.Fatalf("event should be start, not %#v", startEvent)
-	}
-	dieEvent = strings.Fields(events[len(events)-1])
-	if dieEvent[len(dieEvent)-1] != "die" {
-		t.Fatalf("event should be die, not %#v", dieEvent)
+	parseEvents(out, "((die)|(start))")
+
+	// make sure we at least got 2 start events
+	count := strings.Count(out, "start")
+	if count != 2 {
+		t.Fatalf("should have had 2 start events but had %d, out: %s", count, out)
 	}
 
 	logDone("events - filters")
