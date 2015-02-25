@@ -253,6 +253,7 @@ func TestCommitChange(t *testing.T) {
 		"--change", "EXPOSE 8080",
 		"--change", "ENV DEBUG true",
 		"--change", "ENV test 1",
+		"--change", "ENV PATH /foo",
 		"test", "test-commit")
 	imageId, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -263,7 +264,7 @@ func TestCommitChange(t *testing.T) {
 
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:map[]]",
-		"Config.Env":          "[DEBUG=true test=1]",
+		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
 	}
 
 	for conf, value := range expected {
