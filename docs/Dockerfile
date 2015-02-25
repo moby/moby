@@ -11,14 +11,16 @@ COPY . /src
 RUN git reset --hard
 
 # Then copy the desired docs into the /docs/sources/ dir
-COPY ./docs/sources/ /docs/sources
+COPY ./sources/ /docs/sources
 
 COPY ./VERSION VERSION
 
-COPY ./image/spec/v1.md /docs/sources/reference/image-spec-v1.md
+# adding the image spec will require Docker 1.5 and `docker build -f docs/Dockerfile .`
+#COPY ./image/spec/v1.md /docs/sources/reference/image-spec-v1.md
+
 # TODO: don't do this - look at merging the yml file in build.sh
-COPY ./docs/mkdocs.yml mkdocs.yml
-COPY ./docs/s3_website.json s3_website.json
+COPY ./mkdocs.yml mkdocs.yml
+COPY ./s3_website.json s3_website.json
 
 # Docker Swarm
 ADD https://raw.githubusercontent.com/docker/swarm/master/docs/mkdocs.yml /docs/mkdocs-swarm.yml

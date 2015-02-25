@@ -33,6 +33,9 @@ DOCKER_RUN_DOCKER := docker run --rm -it --privileged $(DOCKER_ENVS) $(DOCKER_MO
 
 DOCKER_RUN_DOCS := docker run --rm -it $(DOCS_MOUNT) -e AWS_S3_BUCKET -e NOCACHE
 
+# for some docs workarounds (see below in "docs-build" target)
+GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
+
 default: binary
 
 all: build
@@ -84,7 +87,11 @@ build: bundles
 
 docs-build:
 	git fetch https://github.com/docker/docker.git docs && git diff --name-status FETCH_HEAD...HEAD -- docs > docs/changed-files
-	docker build -t "$(DOCKER_DOCS_IMAGE)" -f docs/Dockerfile .
+	cp ./VERSION docs/VERSION
+	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
+#	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
+	echo "$(GITCOMMIT)" > docs/GITCOMMIT
+	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
 	mkdir bundles
