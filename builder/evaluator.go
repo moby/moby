@@ -90,6 +90,7 @@ type Builder struct {
 
 	Verbose      bool
 	UtilizeCache bool
+	cacheBusted  bool
 
 	// controls how images and containers are handled between steps.
 	Remove      bool
