@@ -2190,6 +2190,7 @@ func TestRunEntrypoint(t *testing.T) {
 }
 
 func TestRunBindMounts(t *testing.T) {
+	testRequires(t, SameHostDaemon)
 	defer deleteAllContainers()
 
 	tmpDir, err := ioutil.TempDir("", "docker-test-container")
