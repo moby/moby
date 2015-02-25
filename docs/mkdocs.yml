@@ -49,6 +49,7 @@ pages:
 - ['installation/cruxlinux.md', 'Installation', 'CRUX Linux']
 - ['installation/windows.md', 'Installation', 'Microsoft Windows']
 - ['installation/binaries.md', 'Installation', 'Binaries']
+- ['compose/install.md', 'Installation', 'Docker Compose']
 
 # User Guide:
 - ['userguide/index.md', 'User Guide', 'The Docker User Guide' ]
@@ -61,6 +62,9 @@ pages:
 - ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
 - ['userguide/level1.md', '**HIDDEN**' ]
 - ['userguide/level2.md', '**HIDDEN**' ]
+- ['compose/index.md', 'User Guide', 'Docker Compose' ]
+- ['machine/index.md', 'User Guide', 'Docker Machine' ]
+- ['swarm/index.md', 'User Guide', 'Docker Swarm' ]
 
 # Docker Hub docs:
 - ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
@@ -113,6 +117,14 @@ pages:
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['faq.md', 'Reference', 'FAQ']
 - ['reference/run.md', 'Reference', 'Run Reference']
+- ['compose/cli.md', 'Reference', 'Compose command line']
+- ['compose/yml.md', 'Reference', 'Compose yml']
+- ['compose/env.md', 'Reference', 'Compose ENV variables']
+- ['compose/completion.md', 'Reference', 'Compose commandline completion']
+- ['swarm/discovery.md', 'Reference', 'Swarm discovery']
+- ['swarm/scheduler/strategy.md', 'Reference', 'Swarm strategies']
+- ['swarm/scheduler/filter.md', 'Reference', 'Swarm filters']
+- ['swarm/API.md', 'Reference', 'Swarm API']
 - ['reference/api/index.md', '**HIDDEN**']
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
 - ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
