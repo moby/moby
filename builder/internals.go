@@ -512,6 +512,8 @@ func (b *Builder) probeCache() (bool, error) {
 			return true, nil
 		} else {
 			log.Debugf("[BUILDER] Cache miss")
+			// after a miss we no longer need to probe
+			b.UtilizeCache = false
 		}
 	}
 	return false, nil
