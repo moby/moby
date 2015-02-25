@@ -389,8 +389,8 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 	}
 
 	found := false
-	var entriesSansDev []string
 	for _, entry := range dirs {
+		var entriesSansDev []string
 		if entry.IsDir() {
 			layerPath := filepath.Join(extractionDirectory, entry.Name(), "layer.tar")
 
