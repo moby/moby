@@ -511,20 +511,8 @@ func TestVolumesFromGetsProperMode(t *testing.T) {
 func TestRunNoDupVolumes(t *testing.T) {
 	defer deleteAllContainers()
 
-	bindPath1, err := ioutil.TempDir("", "test1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(bindPath1)
-
-	bindPath2, err := ioutil.TempDir("", "test2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(bindPath2)
-
-	mountstr1 := bindPath1 + ":/someplace"
-	mountstr2 := bindPath2 + ":/someplace"
+	mountstr1 := randomUnixTmpDirPath("test1") + ":/someplace"
+	mountstr2 := randomUnixTmpDirPath("test2") + ":/someplace"
 
 	cmd := exec.Command(dockerBinary, "run", "-v", mountstr1, "-v", mountstr2, "busybox", "true")
 	if out, _, err := runCommandWithOutput(cmd); err == nil {
