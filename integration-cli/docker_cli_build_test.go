@@ -2563,6 +2563,10 @@ func TestBuildConditionalCache(t *testing.T) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
 
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
@@ -3453,6 +3457,8 @@ func TestBuildDockerignoringDockerfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err = buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatalf("Didn't ignore Dockerfile correctly:%s", err)
 	}
@@ -3483,6 +3489,8 @@ func TestBuildDockerignoringRenamedDockerfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	if _, err = buildImageFromContext(name, ctx, true); err != nil {
 		t.Fatalf("Didn't ignore MyDockerfile correctly:%s", err)
 	}
@@ -3803,6 +3811,8 @@ RUN    [ "$abc" = "\\\"foo\\\"" ]
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctx.Close()
+
 	_, err = buildImageFromContext(name, ctx, true)
 	if err != nil {
 		t.Fatal(err)
