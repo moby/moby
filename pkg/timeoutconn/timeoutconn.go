@@ -1,4 +1,4 @@
-package timeout
+package timeoutconn
 
 import (
 	"net"
