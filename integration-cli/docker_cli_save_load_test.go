@@ -376,9 +376,10 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	saveCmdFinal := fmt.Sprintf("%s save %s | tar -xf - -C %s", dockerBinary, name, extractionDirectory)
-	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
-	if out, _, err := runCommandWithOutput(saveCmd); err != nil {
+	if out, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", name),
+		exec.Command("tar", "-xf", "-", "-C", extractionDirectory),
+	); err != nil {
 		t.Errorf("failed to save and extract image: %s", out)
 	}
 
