@@ -2,13 +2,14 @@ package execdriver
 
 import (
 	"errors"
+	"github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/devices"
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
-
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/devices"
 )
 
 // Context is a generic key value pair that allows
@@ -155,4 +156,72 @@ type Command struct {
 	MountLabel         string            `json:"mount_label"`
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
+}
+
+func InitContainer(c *Command) *libcontainer.Config {
+	container := template.New()
+
+	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
+	container.Tty = c.ProcessConfig.Tty
+	container.User = c.ProcessConfig.User
+	container.WorkingDir = c.WorkingDir
+	container.Env = c.ProcessConfig.Env
+	container.Cgroups.Name = c.ID
+	container.Cgroups.AllowedDevices = c.AllowedDevices
+	container.MountConfig.DeviceNodes = c.AutoCreatedDevices
+	container.RootFs = c.Rootfs
+	container.MountConfig.ReadonlyFs = c.ReadonlyRootfs
+
+	// check to see if we are running in ramdisk to disable pivot root
+	container.MountConfig.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
+	container.RestrictSys = true
+	return container
+}
+
+func getEnv(key string, env []string) string {
+	for _, pair := range env {
+		parts := strings.Split(pair, "=")
+		if parts[0] == key {
+			return parts[1]
+		}
+	}
+	return ""
+}
+
+func SetupCgroups(container *libcontainer.Config, c *Command) error {
+	if c.Resources != nil {
+		container.Cgroups.CpuShares = c.Resources.CpuShares
+		container.Cgroups.Memory = c.Resources.Memory
+		container.Cgroups.MemoryReservation = c.Resources.Memory
+		container.Cgroups.MemorySwap = c.Resources.MemorySwap
+		container.Cgroups.CpusetCpus = c.Resources.Cpuset
+	}
+
+	return nil
+}
+
+func Stats(stateFile string, containerMemoryLimit int64, machineMemory int64) (*ResourceStats, error) {
+	state, err := libcontainer.GetState(stateFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotRunning
+		}
+		return nil, err
+	}
+	now := time.Now()
+	stats, err := libcontainer.GetStats(nil, state)
+	if err != nil {
+		return nil, err
+	}
+	// if the container does not have any memory limit specified set the
+	// limit to the machines memory
+	memoryLimit := containerMemoryLimit
+	if memoryLimit == 0 {
+		memoryLimit = machineMemory
+	}
+	return &ResourceStats{
+		Read:           now,
+		ContainerStats: stats,
+		MemoryLimit:    memoryLimit,
+	}, nil
 }

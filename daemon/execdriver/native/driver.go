@@ -11,10 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -291,40 +289,7 @@ func (d *driver) Clean(id string) error {
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
-	c := d.activeContainers[id]
-	state, err := libcontainer.GetState(filepath.Join(d.root, id))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, execdriver.ErrNotRunning
-		}
-		return nil, err
-	}
-	now := time.Now()
-	stats, err := libcontainer.GetStats(nil, state)
-	if err != nil {
-		return nil, err
-	}
-	memoryLimit := c.container.Cgroups.Memory
-	// if the container does not have any memory limit specified set the
-	// limit to the machines memory
-	if memoryLimit == 0 {
-		memoryLimit = d.machineMemory
-	}
-	return &execdriver.ResourceStats{
-		Read:           now,
-		ContainerStats: stats,
-		MemoryLimit:    memoryLimit,
-	}, nil
-}
-
-func getEnv(key string, env []string) string {
-	for _, pair := range env {
-		parts := strings.Split(pair, "=")
-		if parts[0] == key {
-			return parts[1]
-		}
-	}
-	return ""
+	return execdriver.Stats(filepath.Join(d.root, id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
 }
 
 type TtyConsole struct {

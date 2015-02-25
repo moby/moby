@@ -35,7 +35,7 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 
 	out, _, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	eventsCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testeventdie", image, "blerg")
+	eventsCmd := exec.Command(dockerBinary, "run", "--name", "testeventdie", image, "blerg")
 	_, _, err := runCommandWithOutput(eventsCmd)
 	if err == nil {
 		t.Fatalf("Container run with command blerg should have failed, but it did not")
