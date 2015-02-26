@@ -164,6 +164,9 @@ RUN set -x \
 	&& (cd /go/src/github.com/BurntSushi/toml && git checkout -q $TOMLV_COMMIT) \
 	&& go install -v github.com/BurntSushi/toml/cmd/tomlv
 
+COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
+RUN ./contrib/download-frozen-image.sh ./integration-cli/registry registry
+
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
