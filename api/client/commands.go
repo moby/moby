@@ -529,6 +529,18 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
 		}
 	}
+	if remoteInfo.Exists("VolumeDriver") {
+		fmt.Fprintf(cli.out, "Volume Driver: %s\n", remoteInfo.Get("VolumeDriver"))
+	}
+	if remoteInfo.Exists("VolumeDriverStatus") {
+		var driverStatus [][2]string
+		if err := remoteInfo.GetJson("VolumeDriverStatus", &driverStatus); err != nil {
+			return err
+		}
+		for _, pair := range driverStatus {
+			fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
+		}
+	}
 	if remoteInfo.Exists("ExecutionDriver") {
 		fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 	}

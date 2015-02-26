@@ -35,6 +35,8 @@ type Config struct {
 	InterContainerCommunication bool
 	GraphDriver                 string
 	GraphOptions                []string
+	VolumeGraphDriver           string
+	VolumeGraphOptions          []string
 	ExecDriver                  string
 	Mtu                         int
 	SocketGroup                 string
@@ -64,6 +66,7 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.FixedCIDRv6, []string{"-fixed-cidr-v6"}, "", "IPv6 subnet for fixed IPs")
 	flag.BoolVar(&config.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Enable inter-container communication")
 	flag.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", "Storage driver to use")
+	flag.StringVar(&config.VolumeGraphDriver, []string{"-volume-driver"}, "", "Volume driver to use")
 	flag.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, "native", "Exec driver to use")
 	flag.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support")
 	flag.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, "Set the containers network MTU")
@@ -71,6 +74,7 @@ func (config *Config) InstallFlags() {
 	flag.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "-api-enable-cors"}, false, "Enable CORS headers in the remote API")
 	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP when binding container ports")
 	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
+	opts.ListVar(&config.VolumeGraphOptions, []string{"-volume-driver-opt"}, "Set volume driver options")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "DNS server to use")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "DNS search domains to use")

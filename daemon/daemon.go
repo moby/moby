@@ -103,6 +103,7 @@ type Daemon struct {
 	config         *Config
 	containerGraph *graphdb.Database
 	driver         graphdriver.Driver
+	volumeDriver   graphdriver.Driver
 	execDriver     execdriver.Driver
 	trustStore     *trust.TrustStore
 	statsCollector *statsCollector
@@ -900,12 +901,22 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
+	volumeRoot := filepath.Join(config.Root, "volumes")
+	volumeDriverRoot := volumeRoot
+
+	vDriver := config.VolumeGraphDriver
+	// Backward compatiablity for VFS
+	if vDriver == "" {
+		vDriver = "vfs"
+		volumeDriverRoot = config.Root
+	}
+
+	volumesDriver, err := graphdriver.GetDriver(vDriver, volumeDriverRoot, config.VolumeGraphOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	volumes, err := volumes.NewRepository(filepath.Join(config.Root, "volumes"), volumesDriver)
+	volumes, err := volumes.NewRepository(volumeRoot, volumesDriver)
 	if err != nil {
 		return nil, err
 	}
@@ -994,6 +1005,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		config:         config,
 		containerGraph: graph,
 		driver:         driver,
+		volumeDriver:   volumesDriver,
 		sysInitPath:    sysInitPath,
 		execDriver:     ed,
 		eng:            eng,
@@ -1019,6 +1031,9 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		}
 		if err := portallocator.ReleaseAll(); err != nil {
 			log.Errorf("portallocator.ReleaseAll(): %s", err)
+		}
+		if err := daemon.volumeDriver.Cleanup(); err != nil {
+			log.Errorf("daemon.volumeDriver.Cleanup(): %s", err.Error())
 		}
 		if err := daemon.driver.Cleanup(); err != nil {
 			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
@@ -1177,6 +1192,10 @@ func (daemon *Daemon) SystemInitPath() string {
 
 func (daemon *Daemon) GraphDriver() graphdriver.Driver {
 	return daemon.driver
+}
+
+func (daemon *Daemon) VolumeDriver() graphdriver.Driver {
+	return daemon.volumeDriver
 }
 
 func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
