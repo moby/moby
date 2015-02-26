@@ -18,6 +18,7 @@ type SysInfo struct {
 	CpuCfsQuota            bool
 	IPv4ForwardingDisabled bool
 	AppArmor               bool
+	OomKillDisable         bool
 }
 
 // New returns a new SysInfo, using the filesystem to detect which features the kernel supports.
@@ -35,6 +36,12 @@ func New(quiet bool) *SysInfo {
 		sysInfo.SwapLimit = err1 == nil
 		if !sysInfo.SwapLimit && !quiet {
 			logrus.Warn("Your kernel does not support swap memory limit.")
+		}
+
+		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.oom_control"))
+		sysInfo.OomKillDisable = err == nil
+		if !sysInfo.OomKillDisable && !quiet {
+			logrus.Warnf("Your kernel does not support oom control.")
 		}
 	}
 

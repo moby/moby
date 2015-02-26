@@ -377,13 +377,14 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	resources := &execdriver.Resources{
-		Memory:     c.hostConfig.Memory,
-		MemorySwap: c.hostConfig.MemorySwap,
-		CpuShares:  c.hostConfig.CpuShares,
-		CpusetCpus: c.hostConfig.CpusetCpus,
-		CpusetMems: c.hostConfig.CpusetMems,
-		CpuQuota:   c.hostConfig.CpuQuota,
-		Rlimits:    rlimits,
+		Memory:         c.hostConfig.Memory,
+		MemorySwap:     c.hostConfig.MemorySwap,
+		CpuShares:      c.hostConfig.CpuShares,
+		CpusetCpus:     c.hostConfig.CpusetCpus,
+		CpusetMems:     c.hostConfig.CpusetMems,
+		CpuQuota:       c.hostConfig.CpuQuota,
+		Rlimits:        rlimits,
+		OomKillDisable: c.hostConfig.OomKillDisable,
 	}
 
 	processConfig := execdriver.ProcessConfig{
