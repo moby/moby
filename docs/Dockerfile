@@ -50,6 +50,10 @@ ADD https://raw.githubusercontent.com/docker/fig/master/docs/cli.md /docs/source
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/cli.md
 ADD https://raw.githubusercontent.com/docker/fig/master/docs/yml.md /docs/sources/compose/yml.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/yml.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/env.md /docs/sources/compose/env.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/env.md
+ADD https://raw.githubusercontent.com/docker/fig/master/docs/completion.md /docs/sources/compose/completion.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/completion.md
 
 ADD https://raw.githubusercontent.com/docker/fig/master/docs/django.md /docs/sources/compose/django.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/django.md
