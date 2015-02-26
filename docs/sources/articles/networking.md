@@ -772,10 +772,11 @@ The steps with which Docker configures a container are:
 
 5.  Give the container's `eth0` a new IP address from within the
     bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge. If available
-    the IP address is generated from the MAC address. This prevents ARP
-    cache invalidation problems, when a new container comes up with an
-    IP used in the past by another container with another MAC.
+    the IP address that the Docker host owns on the bridge. The MAC
+    address is generated from the IP address unless otherwise specified.
+    This prevents ARP cache invalidation problems, when a new container
+    comes up with an IP used in the past by another container with another
+    MAC.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with
