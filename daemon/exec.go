@@ -74,7 +74,7 @@ func (execConfig *execConfig) Resize(h, w int) error {
 }
 
 func (d *Daemon) registerExecCommand(execConfig *execConfig) {
-	// Storing execs in container inorder to kill them gracefully whenever the container is stopped or removed.
+	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	execConfig.Container.execCommands.Add(execConfig.ID, execConfig)
 	// Storing execs in daemon for easy access via remote API.
 	d.execCommands.Add(execConfig.ID, execConfig)
