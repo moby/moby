@@ -41,25 +41,25 @@ ADD https://raw.githubusercontent.com/docker/machine/master/docs/index.md /docs/
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/machine/index.md
 
 # Docker Compose
-#ADD https://raw.githubusercontent.com/docker/fig/master/docs/mkdocs.yml /docs/mkdocs-compose.yml
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/index.md /docs/sources/compose/index.md
+#ADD https://raw.githubusercontent.com/docker/compose/master/docs/mkdocs.yml /docs/mkdocs-compose.yml
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/index.md /docs/sources/compose/index.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/index.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/install.md /docs/sources/compose/install.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/install.md /docs/sources/compose/install.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/install.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/cli.md /docs/sources/compose/cli.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/cli.md /docs/sources/compose/cli.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/cli.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/yml.md /docs/sources/compose/yml.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/yml.md /docs/sources/compose/yml.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/yml.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/env.md /docs/sources/compose/env.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/env.md /docs/sources/compose/env.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/env.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/completion.md /docs/sources/compose/completion.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/completion.md /docs/sources/compose/completion.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/completion.md
 
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/django.md /docs/sources/compose/django.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/django.md /docs/sources/compose/django.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/django.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/rails.md /docs/sources/compose/rails.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/rails.md /docs/sources/compose/rails.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/rails.md
-ADD https://raw.githubusercontent.com/docker/fig/master/docs/wordpress.md /docs/sources/compose/wordpress.md
+ADD https://raw.githubusercontent.com/docker/compose/master/docs/wordpress.md /docs/sources/compose/wordpress.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/wordpress.md
 
 # Then build everything together, ready for mkdocs
