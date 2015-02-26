@@ -1348,8 +1348,8 @@ func TestRunAddingOptionalDevices(t *testing.T) {
 }
 
 func TestRunModeHostname(t *testing.T) {
-	defer deleteAllContainers()
 	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-h=testhostname", "busybox", "cat", "/etc/hostname")
 	out, _, err := runCommandWithOutput(cmd)
@@ -2764,6 +2764,7 @@ func TestRunExposePort(t *testing.T) {
 }
 
 func TestRunUnknownCommand(t *testing.T) {
+	testRequires(t, NativeExecDriver)
 	defer deleteAllContainers()
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "/bin/nada")
 	cID, _, _, err := runCommandWithStdoutStderr(runCmd)
@@ -2791,8 +2792,8 @@ func TestRunUnknownCommand(t *testing.T) {
 }
 
 func TestRunModeIpcHost(t *testing.T) {
-	defer deleteAllContainers()
 	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
 
 	hostIpc, err := os.Readlink("/proc/1/ns/ipc")
 	if err != nil {
@@ -2901,8 +2902,8 @@ func TestContainerNetworkMode(t *testing.T) {
 }
 
 func TestRunModePidHost(t *testing.T) {
+	testRequires(t, NativeExecDriver, SameHostDaemon)
 	defer deleteAllContainers()
-	testRequires(t, SameHostDaemon)
 
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	if err != nil {
@@ -3047,8 +3048,8 @@ func TestRunNonLocalMacAddress(t *testing.T) {
 
 func TestRunNetHost(t *testing.T) {
 	testRequires(t, SameHostDaemon)
-
 	defer deleteAllContainers()
+
 	hostNet, err := os.Readlink("/proc/1/ns/net")
 	if err != nil {
 		t.Fatal(err)
@@ -3157,7 +3158,9 @@ func TestRunContainerWithWritableRootfs(t *testing.T) {
 }
 
 func TestRunContainerWithReadonlyRootfs(t *testing.T) {
+	testRequires(t, NativeExecDriver)
 	defer deleteAllContainers()
+
 	out, err := exec.Command(dockerBinary, "run", "--read-only", "--rm", "busybox", "touch", "/file").CombinedOutput()
 	if err == nil {
 		t.Fatal("expected container to error on run with read only error")

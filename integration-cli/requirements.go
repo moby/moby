@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -15,6 +18,8 @@ type TestRequirement struct {
 
 // List test requirements
 var (
+	daemonExecDriver string
+
 	SameHostDaemon = TestRequirement{
 		func() bool { return isLocalDaemon },
 		"Test requires docker daemon to runs on the same machine as CLI",
@@ -36,6 +41,30 @@ var (
 			return err == nil
 		},
 		fmt.Sprintf("Test requires an environment that can host %s in the same host", v2binary),
+	}
+	NativeExecDriver = TestRequirement{
+		func() bool {
+			if daemonExecDriver == "" {
+				// get daemon info
+				body, err := sockRequest("GET", "/info", nil)
+				if err != nil {
+					log.Fatalf("sockRequest failed for /info: %v", err)
+				}
+
+				type infoJSON struct {
+					ExecutionDriver string
+				}
+				var info infoJSON
+				if err = json.Unmarshal(body, &info); err != nil {
+					log.Fatalf("unable to unmarshal body: %v", err)
+				}
+
+				daemonExecDriver = info.ExecutionDriver
+			}
+
+			return strings.HasPrefix(daemonExecDriver, "native")
+		},
+		"Test requires the native (libcontainer) exec driver.",
 	}
 )
 

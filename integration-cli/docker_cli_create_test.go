@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/docker/docker/nat"
 	"os"
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/nat"
 )
 
 // Make sure we can create a simple container with some args
@@ -227,8 +228,8 @@ func TestCreateEchoStdout(t *testing.T) {
 }
 
 func TestCreateVolumesCreated(t *testing.T) {
-	defer deleteAllContainers()
 	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
 
 	name := "test_create_volume"
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
