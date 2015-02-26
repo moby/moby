@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+if ! docker inspect registry > /dev/null; then
+	if [ -d /docker-registry ]; then
+		( set -x; docker build -t registry /docker-registry )
+	else
+		( set -x; tar -cC integration-cli/registry . | docker load & )
+	fi
+fi

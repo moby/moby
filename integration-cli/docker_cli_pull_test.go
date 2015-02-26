@@ -85,6 +85,8 @@ func TestPullVerified(t *testing.T) {
 
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
+	testRequires(t, Network)
+
 	defer deleteImages("hello-world")
 
 	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
@@ -92,6 +94,33 @@ func TestPullImageFromCentralRegistry(t *testing.T) {
 		t.Fatalf("pulling the hello-world image from the registry has failed: %s, %v", out, err)
 	}
 	logDone("pull - pull hello-world")
+}
+
+// pulling an image from the local registry should work
+func TestPullImageFromlocalRegistry(t *testing.T) {
+	defer deleteAllContainers()
+
+	if err := startRegistryV1(); err != nil {
+		t.Fatal(err)
+	}
+	repoName := privateV1RegistryURL
+	defer deleteImages(repoName)
+
+	repo := fmt.Sprintf("%v/%v:%v", repoName, "busybox", "latest")
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repo)); err != nil {
+		t.Fatalf("Failed to tag image %v: error %v, output %q", repo, err, out)
+	}
+	defer deleteImages(repo)
+
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repo)); err != nil {
+		t.Fatalf("Failed to push image %v: error %v, output %q", repo, err, string(out))
+	}
+
+	pullCmd := exec.Command(dockerBinary, "pull", repo)
+	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
+		t.Fatalf("pulling the hello-world image from the registry has failed: %s, %v", out, err)
+	}
+	logDone("pull - pull local hello-world")
 }
 
 // pulling a non-existing image from the central registry should return a non-zero exit code
