@@ -239,6 +239,6 @@ server for Docker (hosting/delivering of repositories and images)
 for a container-centric world 
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
 system 
-* [Docker Compose, aka Fig](https://github.com/docker/fig): 
-Multi-container application management
+* [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
+Define and run multi-container apps
 
