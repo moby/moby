@@ -126,10 +126,12 @@ something like this
     PASS
     ok      github.com/docker/docker/utils        0.017s
 
-If $TESTFLAGS is set in the environment, it is passed as extra arguments
+If `$TESTFLAGS` is set in the environment, it will pass extra arguments
 to `go test`. You can use this to select certain tests to run, e.g.,
 
     $ TESTFLAGS='-test.run \^TestBuild\$' make test
+
+Only those test cases matching the regular expression inside quotation marks will be tested.
 
 If the output indicates "FAIL" and you see errors like this:
 

@@ -157,7 +157,7 @@ Print the output of your app:
 
 ## Test
 
-To test your app, get the the port of your app that Docker mapped:
+To test your app, get the port of your app that Docker mapped:
 
     $ sudo docker ps
 

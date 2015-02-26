@@ -80,6 +80,31 @@ Trusted Builds and private repositories.
 
 Go to [Working with Docker Hub](/userguide/dockerrepos).
 
+## Docker Compose
+
+Docker Compose allows you to define a application's components -- their containers,
+configuration, links and volumes -- in a single file. Then a single command
+will set everything up and start your application running.
+
+Go to [Docker Compose user guide](/compose/).
+
+## Docker Machine
+
+Docker Machine helps you get Docker Engines up and running quickly. Machine
+can set up hosts for Docker Engines on your computer, on cloud providers,
+and/or in your data center, and then configure your Docker client to securely
+talk to them.
+
+Go to [Docker Machine user guide](/machine/).
+
+## Docker Swarm
+
+Docker Swarm pools several Docker Engines together and exposes them as a single
+virtual Docker Engine. It serves the standard Docker API, so any tool that already
+works with Docker can now transparently scale up to multiple hosts.
+
+Go to [Docker Swarm user guide](/swarm/).
+
 ## Getting help
 
 * [Docker homepage](http://www.docker.com/)

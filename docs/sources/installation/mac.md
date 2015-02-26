@@ -36,7 +36,7 @@ machine. Its IP address is assigned when you start the `boot2docker` process.
 
 ## Install Boot2Docker
  
-1. Go to the [boo2docker/osx-installer ](
+1. Go to the [boot2docker/osx-installer ](
 https://github.com/boot2docker/osx-installer/releases/latest) release page.
 
 2. Click the `Boot2Docker-x.x.x.pkg` link in the "Downloads" section.
@@ -76,7 +76,7 @@ application:
 Once the launch completes, you can run `docker` commands. A good way to verify
 your setup succeeded is to run the `hello-world` container.
 
-		$ docker hello-world
+		$ docker run hello-world
 		Unable to find image 'hello-world:latest' locally
 		511136ea3c5a: Pull complete 
 		31cbccb51277: Pull complete 
@@ -110,7 +110,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 
 1. Create a new Boot2Docker VM.
 
-		$ boo2docker init
+		$ boot2docker init
 
 	This creates a new virtual machine. You only need to run this command once.
 
@@ -139,7 +139,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 
 5. Run the `hello-world` container to verify your setup.
 
-		$ docker hello-world		
+		$ docker run hello-world		
 
 
 ## Basic Boot2Docker Exercises
@@ -227,7 +227,7 @@ The next exercise demonstrates how to do this.
 	
 5. Start a new `nginx` container and replace the `html` folder with your `site` directory.
 
-		$ docker run -d -P -v /Users/mary/site:/usr/share/nginx/html --name mysite nginx
+		$ docker run -d -P -v $HOME/site:/usr/share/nginx/html --name mysite nginx
 	
 6. Get the `mysite` container's port.
 
@@ -283,7 +283,7 @@ To upgrade any version of Boot2Docker, do this:
 
 		$ boot2docker stop
 
-3. Go to the [boo2docker/osx-installer ](
+3. Go to the [boot2docker/osx-installer ](
    https://github.com/boot2docker/osx-installer/releases/latest) release page.
    
 4. Click the`Boot2Docker-x.x.x.pkg` link in the "Downloads" section.

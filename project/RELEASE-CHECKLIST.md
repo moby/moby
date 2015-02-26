@@ -126,8 +126,12 @@ a count, add a simple `| wc -l`.
 
 ### 3. Change the contents of the VERSION file
 
+Before the big thing, you'll want to make successive release candidates and get
+people to test. The release candidate number `N` should be part of the version:
+
 ```bash
-echo ${VERSION#v} > VERSION
+export RC_VERSION=${VERSION}-rcN
+echo ${RC_VERSION#v} > VERSION
 ```
 
 ### 4. Test the docs
@@ -162,11 +166,10 @@ That last command will give you the proper link to visit to ensure that you
 open the PR against the "release" branch instead of accidentally against
 "master" (like so many brave souls before you already have).
 
-### 6. Get 2 other maintainers to validate the pull request
+### 6. Publish release candidate binaries
 
-### 7. Publish binaries
-
-To run this you will need access to the release credentials. Get them from the Core maintainers.
+To run this you will need access to the release credentials. Get them from the
+Core maintainers.
 
 Replace "..." with the respective credentials:
 
@@ -182,17 +185,23 @@ docker run \
        hack/release.sh
 ```
 
-It will run the test suite, build the binaries and packages,
-and upload to the specified bucket (you should use test.docker.com for
-general testing, and once everything is fine, switch to get.docker.com as
-noted below).
+It will run the test suite, build the binaries and packages, and upload to the
+specified bucket, so this is a good time to verify that you're running against
+**test**.docker.com.
 
 After the binaries and packages are uploaded to test.docker.com, make sure
 they get tested in both Ubuntu and Debian for any obvious installation
 issues or runtime issues.
 
-Announcing on IRC in both `#docker` and `#docker-dev` is a great way to get
-help testing!  An easy way to get some useful links for sharing:
+If everything looks good, it's time to create a git tag for this candidate:
+
+```bash
+git tag -a $RC_VERSION -m $RC_VERSION bump_$VERSION
+git push origin $RC_VERSION
+```
+
+Announcing on multiple medias is the best way to get some help testing! An easy
+way to get some useful links for sharing:
 
 ```bash
 echo "Ubuntu/Debian: https://test.docker.com/ubuntu or curl -sSL https://test.docker.com/ | sh"
@@ -202,21 +211,15 @@ echo "Darwin/OSX 32bit client binary: https://test.docker.com/builds/Darwin/i386
 echo "Linux 64bit tgz: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
 ```
 
-Once they're tested and reasonably believed to be working, run against
-get.docker.com:
+We recommend announcing the release candidate on:
 
-```bash
-docker run \
-       -e AWS_S3_BUCKET=get.docker.com \
-       -e AWS_ACCESS_KEY="..." \
-       -e AWS_SECRET_KEY="..." \
-       -e GPG_PASSPHRASE="..." \
-       -i -t --privileged \
-       docker \
-       hack/release.sh
-```
+- IRC on #docker, #docker-dev, #docker-maintainers
+- In a comment on the pull request to notify subscribed people on GitHub
+- The [docker-dev](https://groups.google.com/forum/#!forum/docker-dev) group
+- The [docker-maintainers](https://groups.google.com/a/dockerproject.org/forum/#!forum/maintainers) group
+- Any social media that can get bring some attention to the release cabdidate
 
-### 8. Breakathon
+### 7. Iterate on successive release candidates
 
 Spend several days along with the community explicitly investing time and
 resources to try and break Docker in every possible way, documenting any
@@ -231,6 +234,74 @@ by the book.
 
 Any issues found may still remain issues for this release, but they should be
 documented and give appropriate warnings.
+
+During this phase, the `bump_$VERSION` branch will keep evolving as you will
+produce new release candidates. The frequency of new candidates is up to the
+release manager: use your best judgement taking into account the severity of
+reported issues, testers availability, and time to scheduled release date.
+
+Each time you'll want to produce a new release candidate, you will start by
+adding commits to the branch, usually by cherry-picking from master:
+
+```bash
+git cherry-pick -x -m0 <commit_id>
+```
+
+You want your "bump commit" (the one that updates the CHANGELOG and VERSION
+files) to remain on top, so you'll have to `git rebase -i` to bring it back up.
+
+Now that your bump commit is back on top, you will need to update the CHANGELOG
+file (if appropriate for this particular release candidate), and update the
+VERSION file to increment the RC number:
+
+```bash
+export RC_VERSION=$VERSION-rcN
+echo $RC_VERSION > VERSION
+```
+
+You can now amend your last commit and update the bump branch:
+
+```bash
+git commit --amend
+git push -f $GITHUBUSER bump_$VERSION
+```
+
+Repeat step 6 to tag the code, publish new binaries, announce availability, and
+get help testing.
+
+### 8. Finalize the bump branch
+
+When you're happy with the quality of a release candidate, you can move on and
+create the real thing.
+
+You will first have to amend the "bump commit" to drop the release candidate
+suffix in the VERSION file:
+
+```bash
+echo $VERSION > VERSION
+git add VERSION
+git commit --amend
+```
+
+You will then repeat step 6 to publish the binaries to test
+
+### 9. Get 2 other maintainers to validate the pull request
+
+### 10. Publish final binaries
+
+Once they're tested and reasonably believed to be working, run against
+get.docker.com:
+
+```bash
+docker run \
+       -e AWS_S3_BUCKET=get.docker.com \
+       -e AWS_ACCESS_KEY="..." \
+       -e AWS_SECRET_KEY="..." \
+       -e GPG_PASSPHRASE="..." \
+       -i -t --privileged \
+       docker \
+       hack/release.sh
+```
 
 ### 9. Apply tag
 
@@ -279,17 +350,13 @@ distributed CDN system) is flushed. The `make docs-release` command will do this
 _if_ the `DISTRIBUTION_ID` is set correctly - this will take at least 15 minutes to run
 and you can check its progress with the CDN Cloudfront Chrome addin.
 
-### 12. Create a new pull request to merge release back into master
+### 12. Create a new pull request to merge your bump commit back into master
 
 ```bash
 git checkout master
 git fetch
 git reset --hard origin/master
-git checkout -b merge_release_$VERSION
-git merge origin/release
-echo ${VERSION#v}-dev > VERSION
-git add VERSION
-git commit -m "Change version to $(cat VERSION)"
+git cherry-pick $VERSION
 git push $GITHUBUSER merge_release_$VERSION
 echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:merge_release_$VERSION?expand=1"
 ```
