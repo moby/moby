@@ -6,8 +6,9 @@ page_keywords: API, Docker, index, registry, REST, documentation, clients, C#, E
 
 These libraries have not been tested by the Docker maintainers for
 compatibility. Please file issues with the library owners. If you find
-more library implementations, please list them in Docker doc bugs and we
-will add the libraries here.
+more library implementations, please submit a PR with an update to this page
+or open an issue in the [Docker](https://github.com/docker/docker/issues) 
+project and we will add the libraries here.
 
 
 <table border="1" class="docutils">
@@ -29,6 +30,12 @@ will add the libraries here.
       <td>JavaScript (AngularJS) <strong>WebUI</strong></td>
       <td>docker-registry-frontend</td>
       <td><a class="reference external" href="https://github.com/kwk/docker-registry-frontend">https://github.com/kwk/docker-registry-frontend</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
+      <td>Go</td>
+      <td>docker-reg-client</td>
+      <td><a class="reference external" href="https://github.com/CenturyLinkLabs/docker-reg-client">https://github.com/CenturyLinkLabs/docker-reg-client</a></td>
       <td>Active</td>
     </tr>
   </tbody>
