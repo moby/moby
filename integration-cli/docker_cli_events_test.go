@@ -149,6 +149,7 @@ func TestEventsImageUntagDelete(t *testing.T) {
 
 func TestEventsImagePull(t *testing.T) {
 	since := daemonTime(t).Unix()
+	testRequires(t, Network)
 
 	defer deleteImages("hello-world")
 
