@@ -33,8 +33,8 @@ To list the help on any command just execute the command, followed by the `--hel
 ## Option types
 
 Single character command line options can be combined, so rather than
-typing `docker run -t -i --name test busybox sh`,
-you can write `docker run -ti --name test busybox sh`.
+typing `docker run -i -t --name test busybox sh`,
+you can write `docker run -it --name test busybox sh`.
 
 ### Boolean
 
