@@ -9,8 +9,8 @@ import (
 )
 
 func TestPause(t *testing.T) {
-	defer deleteAllContainers()
 	defer unpauseAllContainers()
+	defer deleteAllContainers()
 
 	name := "testeventpause"
 	out, _, _ := dockerCmd(t, "images", "-q")
@@ -54,8 +54,8 @@ func TestPause(t *testing.T) {
 }
 
 func TestPauseMultipleContainers(t *testing.T) {
-	defer deleteAllContainers()
 	defer unpauseAllContainers()
+	defer deleteAllContainers()
 
 	containers := []string{
 		"testpausewithmorecontainers1",
