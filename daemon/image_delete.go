@@ -70,7 +70,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 				if parsedTag != "" {
 					tags = append(tags, parsedTag)
 				}
-			} else if repoName != parsedRepo && !force {
+			} else if repoName != parsedRepo && !force && first {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
 				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
