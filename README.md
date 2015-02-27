@@ -2,7 +2,7 @@ Docker: the Linux container engine
 ==================================
 
 Docker is an open source project to pack, ship and run any application
-as a lightweight container
+as a lightweight container.
 
 Docker containers are both *hardware-agnostic* and *platform-agnostic*.
 This means they can run anywhere, from your laptop to the largest
