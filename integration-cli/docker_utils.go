@@ -851,14 +851,11 @@ func writeFile(dst, content string, t *testing.T) {
 // Return the contents of file at path `src`.
 // Call t.Fatal() at the first error (including if the file doesn't exist)
 func readFile(src string, t *testing.T) (content string) {
-	f, err := os.Open(src)
+	data, err := ioutil.ReadFile(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	return string(data)
 }
 
