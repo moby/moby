@@ -167,8 +167,8 @@ func TestStartVolumesFromFailsCleanly(t *testing.T) {
 }
 
 func TestStartPausedContainer(t *testing.T) {
-	defer deleteAllContainers()
 	defer unpauseAllContainers()
+	defer deleteAllContainers()
 
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {

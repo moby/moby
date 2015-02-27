@@ -244,8 +244,8 @@ func TestExecExitStatus(t *testing.T) {
 }
 
 func TestExecPausedContainer(t *testing.T) {
-	defer deleteAllContainers()
 	defer unpauseAllContainers()
+	defer deleteAllContainers()
 
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)

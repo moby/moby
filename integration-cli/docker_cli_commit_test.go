@@ -74,8 +74,8 @@ func TestCommitWithoutPause(t *testing.T) {
 
 //test commit a paused container should not unpause it after commit
 func TestCommitPausedContainer(t *testing.T) {
-	defer deleteAllContainers()
 	defer unpauseAllContainers()
+	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox")
 	out, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
