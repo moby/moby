@@ -94,6 +94,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, ErrInvalidWorkingDirectory
 	}
 
+	// Validate the input mac address
+	if *flMacAddress != "" {
+		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
+			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
+		}
+	}
 	var (
 		attachStdin  = flAttach.Get("stdin")
 		attachStdout = flAttach.Get("stdout")
