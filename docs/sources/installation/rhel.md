@@ -44,13 +44,13 @@ Please continue with the [Starting the Docker daemon](#starting-the-docker-daemo
 ## Red Hat Enterprise Linux 6.5 Installation
 
 You will need **64 bit** [RHEL
-6.5](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
+6.5](http://access.redhat.com/site/articles/3078#RHEL6) or later, with
 a RHEL 6 kernel version 2.6.32-431 or higher as this has specific kernel
 fixes to allow Docker to work.
 
 Docker is available for **RHEL6.5** on EPEL. Please note that
 this package is part of [Extra Packages for Enterprise Linux
-(EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
+(EPEL)](http://fedoraproject.org/wiki/EPEL), a community effort to
 create and maintain additional packages for the RHEL distribution.
 
 ### Kernel support
