@@ -239,7 +239,7 @@ func TestEventsFilters(t *testing.T) {
 
 	// make sure we at least got 2 start events
 	count := strings.Count(out, "start")
-	if count != 2 {
+	if count < 2 {
 		t.Fatalf("should have had 2 start events but had %d, out: %s", count, out)
 	}
 
