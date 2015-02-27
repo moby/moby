@@ -24,7 +24,7 @@ other `docker` command.
 
 The basic `docker run` command takes this form:
 
-    $ sudo docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ sudo docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
 see [*Option types*](/reference/commandline/cli/#option-types).
@@ -139,6 +139,12 @@ PID files):
 While not strictly a means of identifying a container, you can specify a version of an
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
+
+### Image[@digest]
+
+Images using the v2 or later image format have a content-addressable identifier
+called a digest. As long as the input used to generate the image is unchanged,
+the digest value is predictable and referenceable.
 
 ## PID Settings (--pid)
     --pid=""  : Set the PID (Process) Namespace mode for the container,
@@ -661,7 +667,7 @@ Dockerfile instruction and how the operator can override that setting.
 Recall the optional `COMMAND` in the Docker
 commandline:
 
-    $ sudo docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ sudo docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
 This command is optional because the person who created the `IMAGE` may
 have already provided a default `COMMAND` using the Dockerfile `CMD`

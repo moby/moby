@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+const DockerDigestHeader = "Docker-Content-Digest"
+
 func getV2Builder(e *Endpoint) *v2.URLBuilder {
 	if e.URLBuilder == nil {
 		e.URLBuilder = v2.NewURLBuilder(e.URL)
@@ -63,10 +65,10 @@ func (r *Session) GetV2Authorization(ep *Endpoint, imageName string, readOnly bo
 //  1.c) if anything else, err
 // 2) PUT the created/signed manifest
 //
-func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, auth *RequestAuthorization) ([]byte, error) {
+func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, auth *RequestAuthorization) ([]byte, string, error) {
 	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	method := "GET"
@@ -74,30 +76,30 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 
 	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := auth.Authorize(req); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		if res.StatusCode == 401 {
-			return nil, errLoginRequired
+			return nil, "", errLoginRequired
 		} else if res.StatusCode == 404 {
-			return nil, ErrDoesNotExist
+			return nil, "", ErrDoesNotExist
 		}
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
+		return nil, "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
 	}
 
 	buf, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error while reading the http response: %s", err)
+		return nil, "", fmt.Errorf("Error while reading the http response: %s", err)
 	}
-	return buf, nil
+	return buf, res.Header.Get(DockerDigestHeader), nil
 }
 
 // - Succeeded to head image blob (already exists)
@@ -261,41 +263,41 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 }
 
 // Finally Push the (signed) manifest of the blobs we've just pushed
-func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, manifestRdr io.Reader, auth *RequestAuthorization) error {
+func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, manifestRdr io.Reader, auth *RequestAuthorization) (string, error) {
 	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	method := "PUT"
 	log.Debugf("[registry] Calling %q %s", method, routeURL)
 	req, err := r.reqFactory.NewRequest(method, routeURL, manifestRdr)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := auth.Authorize(req); err != nil {
-		return err
+		return "", err
 	}
 	res, _, err := r.doRequest(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer res.Body.Close()
 
 	// All 2xx and 3xx responses can be accepted for a put.
 	if res.StatusCode >= 400 {
 		if res.StatusCode == 401 {
-			return errLoginRequired
+			return "", errLoginRequired
 		}
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return err
+			return "", err
 		}
 		log.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
-		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
+		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
 	}
 
-	return nil
+	return res.Header.Get(DockerDigestHeader), nil
 }
 
 type remoteTags struct {

@@ -17,3 +17,6 @@ var RepositoryNameRegexp = regexp.MustCompile(`(?:` + RepositoryNameComponentReg
 
 // TagNameRegexp matches valid tag names. From docker/docker:graph/tags.go.
 var TagNameRegexp = regexp.MustCompile(`[\w][\w.-]{0,127}`)
+
+// DigestRegexp matches valid digest types.
+var DigestRegexp = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-zA-Z0-9-_+.=]+`)
