@@ -183,6 +183,15 @@ func ValidateIPAddress(val string) (string, error) {
 	return "", fmt.Errorf("%s is not an ip address", val)
 }
 
+func ValidateMACAddress(val string) (string, error) {
+	_, err := net.ParseMAC(strings.TrimSpace(val))
+	if err != nil {
+		return "", err
+	} else {
+		return val, nil
+	}
+}
+
 // Validates domain for resolvconf search configuration.
 // A zero length domain is represented by .
 func ValidateDnsSearch(val string) (string, error) {
