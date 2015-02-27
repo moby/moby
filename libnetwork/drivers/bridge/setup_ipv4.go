@@ -47,7 +47,11 @@ func SetupBridgeIPv4(i *Interface) error {
 	}
 
 	log.Debugf("Creating bridge interface %q with network %s", i.Config.BridgeName, bridgeIPv4)
-	return netlink.AddrAdd(i.Link, &netlink.Addr{bridgeIPv4, ""})
+	if err := netlink.AddrAdd(i.Link, &netlink.Addr{bridgeIPv4, ""}); err != nil {
+		return fmt.Errorf("Failed to add IPv4 address %s to bridge: %v", bridgeIPv4, err)
+	}
+
+	return nil
 }
 
 func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
