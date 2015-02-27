@@ -28,6 +28,7 @@ type TagStore struct {
 	path         string
 	graph        *Graph
 	Repositories map[string]Repository
+	Digests      map[string]DigestRepository
 	trustKey     libtrust.PrivateKey
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -37,6 +38,7 @@ type TagStore struct {
 }
 
 type Repository map[string]string
+type DigestRepository map[string]string
 
 // update Repository mapping with content of u
 func (r Repository) Update(u Repository) {
@@ -67,6 +69,7 @@ func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey) (*TagStore,
 		graph:        graph,
 		trustKey:     key,
 		Repositories: make(map[string]Repository),
+		Digests:      make(map[string]DigestRepository),
 		pullingPool:  make(map[string]chan struct{}),
 		pushingPool:  make(map[string]chan struct{}),
 	}
@@ -111,7 +114,15 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	if tag == "" {
 		tag = DEFAULTTAG
 	}
-	img, err := store.GetImage(repos, tag)
+	var (
+		err error
+		img *image.Image
+	)
+	if strings.Contains(tag, ":") {
+		img, err = store.GetImageByDigest(repos, tag)
+	} else {
+		img, err = store.GetImage(repos, tag)
+	}
 	store.Lock()
 	defer store.Unlock()
 	if err != nil {
@@ -178,24 +189,42 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 	if err := store.reload(); err != nil {
 		return false, err
 	}
+
 	repoName = registry.NormalizeLocalName(repoName)
-	if r, exists := store.Repositories[repoName]; exists {
-		if tag != "" {
-			if _, exists2 := r[tag]; exists2 {
+
+	if strings.Contains(tag, ":") {
+		// if the tag has : in it, it's a digest, e.g. sha256:<digest>
+		if r, exists := store.Digests[repoName]; exists {
+			if _, digestExists := r[tag]; digestExists {
 				delete(r, tag)
 				if len(r) == 0 {
-					delete(store.Repositories, repoName)
+					delete(store.Digests, repoName)
 				}
 				deleted = true
 			} else {
-				return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
+				return false, fmt.Errorf("No such image: %s:%s", repoName, tag)
 			}
-		} else {
-			delete(store.Repositories, repoName)
-			deleted = true
 		}
 	} else {
-		return false, fmt.Errorf("No such repository: %s", repoName)
+		if r, exists := store.Repositories[repoName]; exists {
+			if tag != "" {
+				if _, exists2 := r[tag]; exists2 {
+					delete(r, tag)
+					if len(r) == 0 {
+						delete(store.Repositories, repoName)
+					}
+					deleted = true
+				} else {
+					return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
+				}
+			} else {
+				delete(store.Repositories, repoName)
+				// TODO should this delete from store.Digests?
+				deleted = true
+			}
+		} else {
+			return false, fmt.Errorf("No such repository: %s", repoName)
+		}
 	}
 	return deleted, store.save()
 }
@@ -234,6 +263,35 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	return store.save()
 }
 
+func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
+	img, err := store.LookupImage(imageName)
+	store.Lock()
+	defer store.Unlock()
+	if err != nil {
+		return err
+	}
+	if err := validateRepoName(repoName); err != nil {
+		return err
+	}
+	// TODO validate digest
+	if err := store.reload(); err != nil {
+		return err
+	}
+	var repo DigestRepository
+	repoName = registry.NormalizeLocalName(repoName)
+	if r, exists := store.Digests[repoName]; exists {
+		repo = r
+		if old, exists := store.Digests[repoName][digest]; exists && imageName != old {
+			return fmt.Errorf("Conflict: Digest %s is already set to image %s", digest, old)
+		}
+	} else {
+		repo = DigestRepository{}
+		store.Digests[repoName] = repo
+	}
+	repo[digest] = img.ID
+	return store.save()
+}
+
 func (store *TagStore) Get(repoName string) (Repository, error) {
 	store.Lock()
 	defer store.Unlock()
@@ -264,6 +322,34 @@ func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) 
 		if strings.HasPrefix(revision, tagOrID) {
 			return store.graph.Get(revision)
 		}
+	}
+	return nil, nil
+}
+
+func (store *TagStore) GetDigest(repoName string) (DigestRepository, error) {
+	store.Lock()
+	defer store.Unlock()
+	if err := store.reload(); err != nil {
+		return nil, err
+	}
+	repoName = registry.NormalizeLocalName(repoName)
+	if r, exists := store.Digests[repoName]; exists {
+		return r, nil
+	}
+	return nil, nil
+}
+
+func (store *TagStore) GetImageByDigest(repoName, digest string) (*image.Image, error) {
+	repo, err := store.GetDigest(repoName)
+	store.Lock()
+	defer store.Unlock()
+	if err != nil {
+		return nil, err
+	} else if repo == nil {
+		return nil, nil
+	}
+	if revision, exists := repo[digest]; exists {
+		return store.graph.Get(revision)
 	}
 	return nil, nil
 }

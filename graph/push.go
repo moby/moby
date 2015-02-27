@@ -320,6 +320,8 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 			metadata = *layer.Config
 		}
 
+		digestImageID := layer.ID
+
 		layersSeen := make(map[string]bool)
 		layers := []*image.Image{layer}
 		for ; layer != nil; layer, err = layer.GetParent() {
@@ -412,7 +414,12 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 		log.Infof("Signed manifest for %s:%s using daemon's key: %s", repoInfo.LocalName, tag, s.trustKey.KeyID())
 
 		// push the manifest
-		if err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader(signedBody), auth); err != nil {
+		digest, err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader(signedBody), auth)
+		if err != nil {
+			return err
+		}
+
+		if err := s.SetDigest(repoInfo.LocalName, digest, digestImageID); err != nil {
 			return err
 		}
 	}

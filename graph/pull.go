@@ -420,7 +420,7 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 
 func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
-	manifestBytes, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
+	manifestBytes, digest, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
@@ -567,8 +567,20 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
-	if err = s.Set(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
-		return false, err
+	if !strings.Contains(tag, ":") {
+		// only set the repository/tag -> image ID mapping when pulling by tag (i.e. not by digest)
+		if err = s.Set(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
+			return false, err
+		}
+	}
+
+	// the Hub doesn't currently include the digest in its response headers, and it's possible
+	// other v2 registries won't initially include it, so only update the digest info if we
+	// actually have a digest
+	if len(digest) > 0 {
+		if err = s.SetDigest(repoInfo.LocalName, digest, downloads[0].img.ID); err != nil {
+			return false, err
+		}
 	}
 
 	return layersDownloaded, nil
