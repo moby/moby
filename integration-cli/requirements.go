@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
@@ -31,6 +32,16 @@ var (
 	ExecSupport = TestRequirement{
 		func() bool { return supportsExec },
 		"Test requires 'docker exec' capabilities on the tested daemon.",
+	}
+	Network = TestRequirement{
+		func() bool {
+			resp, err := http.Get("http://hub.docker.com")
+			if resp != nil {
+				resp.Body.Close()
+			}
+			return err == nil
+		},
+		"Test requires network availability, environment variable set to none to run in a non-network enabled mode.",
 	}
 	RegistryHosting = TestRequirement{
 		func() bool {
