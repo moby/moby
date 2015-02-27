@@ -1,21 +1,21 @@
-package utils
+package timeoutconn
 
 import (
 	"net"
 	"time"
 )
 
-func NewTimeoutConn(conn net.Conn, timeout time.Duration) net.Conn {
-	return &TimeoutConn{conn, timeout}
+func New(netConn net.Conn, timeout time.Duration) net.Conn {
+	return &conn{netConn, timeout}
 }
 
 // A net.Conn that sets a deadline for every Read or Write operation
-type TimeoutConn struct {
+type conn struct {
 	net.Conn
 	timeout time.Duration
 }
 
-func (c *TimeoutConn) Read(b []byte) (int, error) {
+func (c *conn) Read(b []byte) (int, error) {
 	if c.timeout > 0 {
 		err := c.Conn.SetReadDeadline(time.Now().Add(c.timeout))
 		if err != nil {
