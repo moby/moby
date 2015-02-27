@@ -9,7 +9,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func createNetworkNamespace() {
+func reexecCreateNamespace() {
 	runtime.LockOSThread()
 
 	if len(os.Args) < 2 {

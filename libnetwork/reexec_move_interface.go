@@ -19,7 +19,7 @@ func (s setupError) Error() string {
 	return s.Message
 }
 
-func namespaceMoveInterface() {
+func reexecMoveInterface() {
 	runtime.LockOSThread()
 
 	var (

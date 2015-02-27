@@ -11,16 +11,16 @@ import (
 type reexecCommand int
 
 const (
-	reexecCreateNamespace reexecCommand = iota
-	reexecMoveInterface
+	cmdReexecCreateNamespace reexecCommand = iota
+	cmdReexecMoveInterface
 )
 
 var reexecCommands = map[reexecCommand]struct {
 	Key        string
 	Entrypoint func()
 }{
-	reexecCreateNamespace: {"netns-create", createNetworkNamespace},
-	reexecMoveInterface:   {"netns-moveif", namespaceMoveInterface},
+	cmdReexecCreateNamespace: {"netns-create", reexecCreateNamespace},
+	cmdReexecMoveInterface:   {"netns-moveif", reexecMoveInterface},
 }
 
 func init() {

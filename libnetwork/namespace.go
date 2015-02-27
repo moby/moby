@@ -2,14 +2,16 @@ package libnetwork
 
 import "syscall"
 
+// The networkNamespace type is the default implementation of the Namespace
+// interface. It simply creates a new network namespace, and moves an interface
+// into it when called on method AddInterface.
 type networkNamespace struct {
 	path       string
 	interfaces []*Interface
 }
 
-// Create a new network namespace mounted on the provided path.
-func NewNamespace(path string) (Namespace, error) {
-	if err := reexec(reexecCreateNamespace, path); err != nil {
+func createNetworkNamespace(path string) (Namespace, error) {
+	if err := reexec(cmdReexecCreateNamespace, path); err != nil {
 		return nil, err
 	}
 	return &networkNamespace{path: path}, nil
@@ -17,7 +19,7 @@ func NewNamespace(path string) (Namespace, error) {
 
 func (n *networkNamespace) AddInterface(i *Interface) error {
 	// TODO Open pipe, pass fd to child and write serialized Interface on it.
-	if err := reexec(reexecMoveInterface, i.SrcName, i.DstName); err != nil {
+	if err := reexec(cmdReexecMoveInterface, i.SrcName, i.DstName); err != nil {
 		return err
 	}
 	n.interfaces = append(n.interfaces, i)

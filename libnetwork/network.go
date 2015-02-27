@@ -9,7 +9,7 @@
 //
 //    // For a new container: create network namespace (providing the path).
 //    networkPath := "/var/lib/docker/.../4d23e"
-//    networkNamespace, err := libnetwork.NewNamespace(networkPath)
+//    networkNamespace, err := libnetwork.NewNetworkNamespace(networkPath)
 //    if err != nil {
 //    	return err
 //    }
@@ -35,10 +35,19 @@ package libnetwork
 // ulteriorly join using the Link method. A Network is managed by a specific
 // driver.
 type Network interface {
+	// The type of network, which corresponds to its managing driver.
 	Type() string
+
+	// Create a new link to this network symbolically identified by the
+	// specified unique name.
 	Link(name string) ([]*Interface, error)
 }
 
+// Interface represents the settings and identity of a network device. It is
+// used as a return type for Network.Link, and it is common practice for the
+// caller to use this information when moving interface SrcName from host
+// namespace to DstName in a different net namespace with the appropriate
+// network settings.
 type Interface struct {
 	// The name of the interface in the origin network namespace.
 	SrcName string
@@ -47,20 +56,50 @@ type Interface struct {
 	// network namespace.
 	DstName string
 
-	MacAddress  string
-	Address     string
+	// MAC address for the interface.
+	MacAddress string
+
+	// IPv4 address for the interface.
+	Address string
+
+	// IPv6 address for the interface.
 	AddressIPv6 string
-	Gateway     string
+
+	// IPv4 gateway for the interface.
+	Gateway string
+
+	// IPv6 gateway for the interface.
 	GatewayIPv6 string
-	MTU         int
+
+	// Network MTU.
+	MTU int
 }
 
+// Namespace represents a network namespace, mounted on a specific Path.  It
+// holds a list of Interface, and more can be added dynamically.
 type Namespace interface {
+	// The path where the network namespace is mounted.
 	Path() string
+
+	// The collection of Interface previously added with the AddInterface
+	// method. Note that this doesn't incude network interfaces added in any
+	// other way (such as the default loopback interface existing in any newly
+	// created network namespace).
 	Interfaces() []*Interface
+
+	// Add an existing Interface to this namespace. The operation will rename
+	// from the Interface SrcName to DstName as it moves, and reconfigure the
+	// interface according to the specified settings.
 	AddInterface(*Interface) error
 }
 
+// Create a new network of the specified networkType. The options are driver
+// specific and modeled in a generic way.
 func NewNetwork(networkType string, options DriverParams) (Network, error) {
 	return createNetwork(networkType, options)
+}
+
+// Create a new network namespace mounted on the specified path.
+func NewNetworkNamespace(path string) (Namespace, error) {
+	return createNetworkNamespace(path)
 }
