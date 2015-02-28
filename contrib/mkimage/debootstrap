@@ -15,6 +15,16 @@ done
 suite="$1"
 shift
 
+# get path to "chroot" in our current PATH
+chrootPath="$(type -P chroot)"
+rootfs_chroot() {
+	# "chroot" doesn't set PATH, so we need to set it explicitly to something our new debootstrap chroot can use appropriately!
+	
+	# set PATH and chroot away!
+	PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
+		"$chrootPath" "$rootfsDir" "$@"
+}
+
 # allow for DEBOOTSTRAP=qemu-debootstrap ./mkimage.sh ...
 : ${DEBOOTSTRAP:=debootstrap}
 
@@ -41,13 +51,13 @@ chmod +x "$rootfsDir/usr/sbin/policy-rc.d"
 # prevent upstart scripts from running during install/update
 (
 	set -x
-	chroot "$rootfsDir" dpkg-divert --local --rename --add /sbin/initctl
+	rootfs_chroot dpkg-divert --local --rename --add /sbin/initctl
 	cp -a "$rootfsDir/usr/sbin/policy-rc.d" "$rootfsDir/sbin/initctl"
 	sed -i 's/^exit.*/exit 0/' "$rootfsDir/sbin/initctl"
 )
 
 # shrink a little, since apt makes us cache-fat (wheezy: ~157.5MB vs ~120MB)
-( set -x; chroot "$rootfsDir" apt-get clean )
+( set -x; rootfs_chroot apt-get clean )
 
 # this file is one APT creates to make sure we don't "autoremove" our currently
 # in-use kernel, which doesn't really apply to debootstraps/Docker images that
@@ -189,10 +199,9 @@ fi
 
 (
 	set -x
-	export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 	
 	# make sure we're fully up-to-date
-	chroot "$rootfsDir" bash -c 'apt-get update && apt-get dist-upgrade -y'
+	rootfs_chroot sh -xc 'apt-get update && apt-get dist-upgrade -y'
 	
 	# delete all the apt list files since they're big and get stale quickly
 	rm -rf "$rootfsDir/var/lib/apt/lists"/*
