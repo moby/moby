@@ -534,10 +534,6 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 	}
 
-	if name[0] != '/' {
-		name = "/" + name
-	}
-
 	if _, err := daemon.containerGraph.Set(name, id); err != nil {
 		if !graphdb.IsNonUniqueNameError(err) {
 			return "", err
@@ -567,9 +563,6 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 	var name string
 	for i := 0; i < 6; i++ {
 		name = namesgenerator.GetRandomName(i)
-		if name[0] != '/' {
-			name = "/" + name
-		}
 
 		if _, err := daemon.containerGraph.Set(name, id); err != nil {
 			if !graphdb.IsNonUniqueNameError(err) {
