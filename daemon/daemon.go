@@ -44,6 +44,8 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volumes"
+	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/cgroups/fs"
 
 	"github.com/go-fsnotify/fsnotify"
 )
@@ -802,6 +804,15 @@ func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
 }
 
 func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
+	log.Infof("cpu shares for daemon and all containers are %d", config.CpuShares)
+	cg := &cgroups.Cgroup{
+		Name:            "docker",
+		Parent:          "/",
+		CpuShares:       config.CpuShares,
+		AllowAllDevices: true,
+	}
+	fs.Apply(cg, os.Getpid())
+
 	if config.Mtu == 0 {
 		config.Mtu = getDefaultNetworkMtu()
 	}
