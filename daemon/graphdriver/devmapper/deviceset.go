@@ -392,7 +392,7 @@ func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
 	devices.devicesLock.Unlock()
 
 	if err := devices.removeMetadata(info); err != nil {
-		log.Debugf("Error removing meta data: %s", err)
+		log.Debugf("Error removing metadata: %s", err)
 		return err
 	}
 
@@ -857,7 +857,7 @@ func (devices *DeviceSet) rollbackTransaction() error {
 
 	dinfo := &DevInfo{Hash: devices.DeviceIdHash}
 	if err := devices.removeMetadata(dinfo); err != nil {
-		log.Errorf("Warning: Unable to remove meta data: %s", err)
+		log.Errorf("Warning: Unable to remove metadata: %s", err)
 	} else {
 		devices.markDeviceIdFree(devices.DeviceId)
 	}
@@ -925,7 +925,7 @@ func (devices *DeviceSet) openTransaction(hash string, DeviceId int) error {
 	devices.DeviceIdHash = hash
 	devices.DeviceId = DeviceId
 	if err := devices.saveTransactionMetaData(); err != nil {
-		return fmt.Errorf("Error saving transaction meta data: %s", err)
+		return fmt.Errorf("Error saving transaction metadata: %s", err)
 	}
 	return nil
 }
@@ -933,7 +933,7 @@ func (devices *DeviceSet) openTransaction(hash string, DeviceId int) error {
 func (devices *DeviceSet) refreshTransaction(DeviceId int) error {
 	devices.DeviceId = DeviceId
 	if err := devices.saveTransactionMetaData(); err != nil {
-		return fmt.Errorf("Error saving transaction meta data: %s", err)
+		return fmt.Errorf("Error saving transaction metadata: %s", err)
 	}
 	return nil
 }
