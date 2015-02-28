@@ -13,11 +13,19 @@ DOCKER_ENVS := \
 	-e TIMEOUT
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 
+# to allow pull docker-dev image from registry.hub.docker.com and avoid building every time
+# allow `make DOCKER_COMMAND=build` to build image from Dockerfile
+DOCKER_COMMAND := pull
+
+DOCKER_VERSION := $(shell cat VERSION)
+
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
 # (default to no bind mount if DOCKER_HOST is set)
 # note: BINDDIR is supported for backwards-compatibility here
 BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,bundles))
-DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
+
+DOCKER_BUILD_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
+DOCKER_PULL_MOUNT := -v "$(CURDIR):/go/src/github.com/docker/docker"
 
 # to allow `make DOCSDIR=docs docs-shell` (to create a bind mount in docs)
 DOCS_MOUNT := $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR))
@@ -26,7 +34,22 @@ DOCS_MOUNT := $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR))
 DOCSPORT := 8000
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-DOCKER_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
+
+# to allow you miss .git directory
+DOCKER_ENVS += $(if $(GIT_BRANCH),,-e DOCKER_GITCOMMIT=$(DOCKER_VERSION))
+
+DOCKER_BUILD_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
+DOCKER_PULL_IMAGE := docker-dev:$(if $(DOCKER_VERSION),$(DOCKER_VERSION))
+
+# to allow `make DOCKER_IMAGE=docker-dev:v1.2`(to use some other image if needed)
+ifeq ($(DOCKER_COMMAND),pull)
+	DOCKER_IMAGE := $(DOCKER_PULL_IMAGE)
+	DOCKER_MOUNT := $(DOCKER_PULL_MOUNT)
+else
+	DOCKER_IMAGE := $(DOCKER_BUILD_IMAGE)
+	DOCKER_MOUNT := $(DOCKER_BUILD_MOUNT)
+endif
+
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 
 DOCKER_RUN_DOCKER := docker run --rm -it --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
@@ -38,13 +61,13 @@ GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
 
 default: binary
 
-all: build
+all: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh
 
-binary: build
+binary: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
-cross: build
+cross: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
 docs: docs-build
@@ -61,26 +84,29 @@ docs-release: docs-build
 docs-test: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./test.sh
 
-test: build
+test: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration test-integration-cli test-docker-py
 
-test-unit: build
+test-unit: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
-test-integration: build
+test-integration: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-integration
 
-test-integration-cli: build
+test-integration-cli: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-integration-cli
 
-test-docker-py: build
+test-docker-py: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-docker-py
 
-validate: build
+validate: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-gofmt validate-dco validate-toml
 
-shell: build
+shell: $(DOCKER_COMMAND)
 	$(DOCKER_RUN_DOCKER) bash
+
+pull:
+	docker pull "$(DOCKER_IMAGE)"
 
 build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
