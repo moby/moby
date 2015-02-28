@@ -1235,7 +1235,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		container.activeLinks = make(map[string]*links.Link, len(children))
 
 		// If we encounter an error make sure that we rollback any network
-		// config and ip table changes
+		// config and iptables changes
 		rollback := func() {
 			for _, link := range container.activeLinks {
 				link.Disable()
