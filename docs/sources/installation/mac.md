@@ -186,7 +186,7 @@ Work through this section to try some practical container tasks using `boot2dock
 	This tells you that the `web` container's port `80` is mapped to port
 	`49157` on your Docker host.
 
-4. Enter the `https://localhost:49157` address (`localhost` is `0.0.0.0`) in your browser:
+4. Enter the `http://localhost:49157` address (`localhost` is `0.0.0.0`) in your browser:
 
 	   ![Bad Address](/installation/images/bad_host.png)
 
@@ -199,7 +199,7 @@ Work through this section to try some practical container tasks using `boot2dock
 		$ boot2docker ip
 		192.168.59.103
 		
-6. Enter the `https://192.168.59.103:49157` address in your browser:
+6. Enter the `http://192.168.59.103:49157` address in your browser:
 
 	![Correct Addressing](/installation/images/good_host.png)
 
