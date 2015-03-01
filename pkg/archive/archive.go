@@ -349,7 +349,13 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 
 	// There is no LChmod, so ignore mode for symlink. Also, this
 	// must happen after chown, as that can modify the file mode
-	if hdr.Typeflag != tar.TypeSymlink {
+	if hdr.Typeflag == tar.TypeLink {
+		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
+			if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+				return err
+			}
+		}
+	} else if hdr.Typeflag != tar.TypeSymlink {
 		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
 			return err
 		}
@@ -357,7 +363,13 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 
 	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
-	if hdr.Typeflag != tar.TypeSymlink {
+	if hdr.Typeflag == tar.TypeLink {
+		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
+			if err := system.UtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
+				return err
+			}
+		}
+	} else if hdr.Typeflag != tar.TypeSymlink {
 		if err := system.UtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
 			return err
 		}

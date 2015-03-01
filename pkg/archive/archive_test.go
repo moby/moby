@@ -435,6 +435,34 @@ func TestUntarInvalidFilenames(t *testing.T) {
 	}
 }
 
+func TestUntarHardlinkToSymlink(t *testing.T) {
+	for i, headers := range [][]*tar.Header{
+		{
+			{
+				Name:     "symlink1",
+				Typeflag: tar.TypeSymlink,
+				Linkname: "regfile",
+				Mode:     0644,
+			},
+			{
+				Name:     "symlink2",
+				Typeflag: tar.TypeLink,
+				Linkname: "symlink1",
+				Mode:     0644,
+			},
+			{
+				Name:     "regfile",
+				Typeflag: tar.TypeReg,
+				Mode:     0644,
+			},
+		},
+	} {
+		if err := testBreakout("untar", "docker-TestUntarHardlinkToSymlink", headers); err != nil {
+			t.Fatalf("i=%d. %v", i, err)
+		}
+	}
+}
+
 func TestUntarInvalidHardlink(t *testing.T) {
 	for i, headers := range [][]*tar.Header{
 		{ // try reading victim/hello (../)
