@@ -469,7 +469,7 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 }
 
 func (devices *DeviceSet) migrateOldMetaData() error {
-	// Migrate old metadatafile
+	// Migrate old metadata file
 	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -1093,7 +1093,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 	}
 
-	// Right now this loads only NextDeviceId. If there is more metatadata
+	// Right now this loads only NextDeviceId. If there is more metadata
 	// down the line, we might have to move it earlier.
 	if err = devices.loadDeviceSetMetaData(); err != nil {
 		return err
@@ -1568,7 +1568,7 @@ func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionId, dataU
 	return
 }
 
-// MetadataDevicePath returns the path to the metadata storage for this deviceset,
+// DataDevicePath returns the path to the data storage for this deviceset,
 // regardless of loopback or block device
 func (devices *DeviceSet) DataDevicePath() string {
 	return devices.dataDevice
