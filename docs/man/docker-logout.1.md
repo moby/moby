@@ -22,6 +22,9 @@ There are no available options.
 
     # docker logout localhost:8080
 
+# See also
+**docker-login(1)** to register or log in to a Docker registry server.
+
 # HISTORY
 June 2014, Originally compiled by Daniel, Dao Quang Minh (daniel at nitrous dot io)
 July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
