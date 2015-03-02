@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/listenbuffer"
@@ -140,10 +141,20 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 }
 
-func writeJSON(w http.ResponseWriter, code int, v engine.Env) error {
+// writeJSONEnv writes the engine.Env values to the http response stream as a
+// json encoded body.
+func writeJSONEnv(w http.ResponseWriter, code int, v engine.Env) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	return v.Encode(w)
+}
+
+// writeJSON writes the value v to the http response stream as json with standard
+// json encoding.
+func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	return json.NewEncoder(w).Encode(v)
 }
 
 func streamJSON(job *engine.Job, w http.ResponseWriter, flush bool) {
@@ -183,7 +194,7 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 	if status := engine.Tail(stdoutBuffer, 1); status != "" {
 		var env engine.Env
 		env.Set("Status", status)
-		return writeJSON(w, http.StatusOK, env)
+		return writeJSONEnv(w, http.StatusOK, env)
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
@@ -526,7 +537,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 		return err
 	}
 	env.Set("Id", engine.Tail(stdoutBuffer, 1))
-	return writeJSON(w, http.StatusCreated, env)
+	return writeJSONEnv(w, http.StatusCreated, env)
 }
 
 // Creates an image from Pull or from Import
@@ -705,17 +716,15 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	if err := parseForm(r); err != nil {
 		return nil
 	}
+	if err := checkForJson(r); err != nil {
+		return err
+	}
 	var (
-		out          engine.Env
 		job          = eng.Job("create", r.Form.Get("name"))
 		outWarnings  []string
 		stdoutBuffer = bytes.NewBuffer(nil)
 		warnings     = bytes.NewBuffer(nil)
 	)
-
-	if err := checkForJson(r); err != nil {
-		return err
-	}
 
 	if err := job.DecodeEnv(r.Body); err != nil {
 		return err
@@ -732,10 +741,10 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	for scanner.Scan() {
 		outWarnings = append(outWarnings, scanner.Text())
 	}
-	out.Set("Id", engine.Tail(stdoutBuffer, 1))
-	out.SetList("Warnings", outWarnings)
-
-	return writeJSON(w, http.StatusCreated, out)
+	return writeJSON(w, http.StatusCreated, &types.ContainerCreateResponse{
+		ID:       engine.Tail(stdoutBuffer, 1),
+		Warnings: outWarnings,
+	})
 }
 
 func postContainersRestart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -878,7 +887,7 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 	}
 
 	env.Set("StatusCode", engine.Tail(stdoutBuffer, 1))
-	return writeJSON(w, http.StatusOK, env)
+	return writeJSONEnv(w, http.StatusOK, env)
 }
 
 func postContainersResize(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1149,7 +1158,7 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 	// Return the ID
 	out.Set("Id", engine.Tail(stdoutBuffer, 1))
 
-	return writeJSON(w, http.StatusCreated, out)
+	return writeJSONEnv(w, http.StatusCreated, out)
 }
 
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.

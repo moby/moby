@@ -3,7 +3,7 @@ package daemon
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/api/stats"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
 	"github.com/docker/libcontainer"
@@ -33,10 +33,10 @@ func (daemon *Daemon) ContainerStats(job *engine.Job) engine.Status {
 
 // convertToAPITypes converts the libcontainer.ContainerStats to the api specific
 // structs.  This is done to preserve API compatibility and versioning.
-func convertToAPITypes(ls *libcontainer.ContainerStats) *stats.Stats {
-	s := &stats.Stats{}
+func convertToAPITypes(ls *libcontainer.ContainerStats) *types.Stats {
+	s := &types.Stats{}
 	if ls.NetworkStats != nil {
-		s.Network = stats.Network{
+		s.Network = types.Network{
 			RxBytes:   ls.NetworkStats.RxBytes,
 			RxPackets: ls.NetworkStats.RxPackets,
 			RxErrors:  ls.NetworkStats.RxErrors,
@@ -49,7 +49,7 @@ func convertToAPITypes(ls *libcontainer.ContainerStats) *stats.Stats {
 	}
 	cs := ls.CgroupStats
 	if cs != nil {
-		s.BlkioStats = stats.BlkioStats{
+		s.BlkioStats = types.BlkioStats{
 			IoServiceBytesRecursive: copyBlkioEntry(cs.BlkioStats.IoServiceBytesRecursive),
 			IoServicedRecursive:     copyBlkioEntry(cs.BlkioStats.IoServicedRecursive),
 			IoQueuedRecursive:       copyBlkioEntry(cs.BlkioStats.IoQueuedRecursive),
@@ -60,21 +60,21 @@ func convertToAPITypes(ls *libcontainer.ContainerStats) *stats.Stats {
 			SectorsRecursive:        copyBlkioEntry(cs.BlkioStats.SectorsRecursive),
 		}
 		cpu := cs.CpuStats
-		s.CpuStats = stats.CpuStats{
-			CpuUsage: stats.CpuUsage{
+		s.CpuStats = types.CpuStats{
+			CpuUsage: types.CpuUsage{
 				TotalUsage:        cpu.CpuUsage.TotalUsage,
 				PercpuUsage:       cpu.CpuUsage.PercpuUsage,
 				UsageInKernelmode: cpu.CpuUsage.UsageInKernelmode,
 				UsageInUsermode:   cpu.CpuUsage.UsageInUsermode,
 			},
-			ThrottlingData: stats.ThrottlingData{
+			ThrottlingData: types.ThrottlingData{
 				Periods:          cpu.ThrottlingData.Periods,
 				ThrottledPeriods: cpu.ThrottlingData.ThrottledPeriods,
 				ThrottledTime:    cpu.ThrottlingData.ThrottledTime,
 			},
 		}
 		mem := cs.MemoryStats
-		s.MemoryStats = stats.MemoryStats{
+		s.MemoryStats = types.MemoryStats{
 			Usage:    mem.Usage,
 			MaxUsage: mem.MaxUsage,
 			Stats:    mem.Stats,
@@ -84,10 +84,10 @@ func convertToAPITypes(ls *libcontainer.ContainerStats) *stats.Stats {
 	return s
 }
 
-func copyBlkioEntry(entries []cgroups.BlkioStatEntry) []stats.BlkioStatEntry {
-	out := make([]stats.BlkioStatEntry, len(entries))
+func copyBlkioEntry(entries []cgroups.BlkioStatEntry) []types.BlkioStatEntry {
+	out := make([]types.BlkioStatEntry, len(entries))
 	for i, re := range entries {
-		out[i] = stats.BlkioStatEntry{
+		out[i] = types.BlkioStatEntry{
 			Major: re.Major,
 			Minor: re.Minor,
 			Op:    re.Op,
