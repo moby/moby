@@ -3,6 +3,7 @@ package command
 
 const (
 	Env        = "env"
+	Label      = "label"
 	Maintainer = "maintainer"
 	Add        = "add"
 	Copy       = "copy"

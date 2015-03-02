@@ -59,6 +59,13 @@ This endpoint now returns `Os`, `Arch` and `KernelVersion`.
 
 ### What's new
 
+**New!**
+Build now has support for `LABEL` command which can be used to add user data
+to an image.  For example you could add data describing the content of an image.
+
+`LABEL "Vendor"="ACME Incorporated"`
+
+**New!**
 `POST /containers/(id)/attach` and `POST /exec/(id)/start`
 
 **New!**
