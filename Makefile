@@ -82,8 +82,17 @@ validate: build
 shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
-build: bundles
+build: preproc
 	docker build -t "$(DOCKER_IMAGE)" .
+
+preproc: bundles
+	(export GCCGO=$(gccgo);export ARCH=$(arch);project/preprocess_dockerfile.sh | bash) > ./Dockerfile
+ifeq ("$(arch)","IBMPOWER")
+	cd hack/gccgo-image && docker build -t gccgo_image_14 .
+endif
+ifeq ("$(arch)$(gccgo)","X86true")
+	cd hack/gccgo-image && docker build -t gccgo_image_14 .
+endif
 
 docs-build:
 	git fetch https://github.com/docker/docker.git docs && git diff --name-status FETCH_HEAD...HEAD -- docs > docs/changed-files

@@ -32,7 +32,7 @@ bundle_test_unit() {
 			export BUILDFLAGS_FILE="buildflags_file"
 			( IFS=$'\n'; echo "${BUILDFLAGS[*]}" ) > "$BUILDFLAGS_FILE"
 
-			if command -v parallel &> /dev/null; then
+			if [ -z "$USE_GCCGO" ] && command -v parallel &> /dev/null; then
 				# accomodate parallel to be able to access variables
 				export SHELL="$BASH"
 				export HOME="$(mktemp -d)"

@@ -11,6 +11,7 @@ INIT=$DEST/../dynbinary/dockerinit-$VERSION
 export TEST_DOCKERINIT_PATH="$INIT"
 
 bundle_test_integration() {
+	export PATH=$PATH:/go/bin
 	LDFLAGS="
 		$LDFLAGS
 		-X $DOCKER_PKG/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"

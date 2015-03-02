@@ -4,6 +4,7 @@ set -e
 DEST=$1
 
 bundle_test_integration_cli() {
+	export PATH=$PATH:/go/bin
 	go_test_dir ./integration-cli
 }
 
