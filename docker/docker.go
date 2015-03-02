@@ -70,6 +70,10 @@ func main() {
 	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
 
 	if *flDaemon {
+		if *flHelp {
+			flag.Usage()
+			return
+		}
 		mainDaemon()
 		return
 	}
