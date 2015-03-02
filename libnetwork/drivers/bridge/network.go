@@ -3,7 +3,12 @@ package bridge
 import "github.com/docker/libnetwork"
 
 type bridgeNetwork struct {
-	Config Configuration
+	Config      Configuration
+	NetworkName string
+}
+
+func (b *bridgeNetwork) Name() string {
+	return b.NetworkName
 }
 
 func (b *bridgeNetwork) Type() string {

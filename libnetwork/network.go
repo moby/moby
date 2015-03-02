@@ -31,18 +31,6 @@
 //
 package libnetwork
 
-// A Network represents a logical connectivity zone that containers may
-// ulteriorly join using the Link method. A Network is managed by a specific
-// driver.
-type Network interface {
-	// The type of network, which corresponds to its managing driver.
-	Type() string
-
-	// Create a new link to this network symbolically identified by the
-	// specified unique name.
-	Link(name string) ([]*Interface, error)
-}
-
 // Interface represents the settings and identity of a network device. It is
 // used as a return type for Network.Link, and it is common practice for the
 // caller to use this information when moving interface SrcName from host
@@ -75,6 +63,21 @@ type Interface struct {
 	MTU int
 }
 
+// A Network represents a logical connectivity zone that containers may
+// ulteriorly join using the Link method. A Network is managed by a specific
+// driver.
+type Network interface {
+	// A user chosen name for this network.
+	Name() string
+
+	// The type of network, which corresponds to its managing driver.
+	Type() string
+
+	// Create a new link to this network symbolically identified by the
+	// specified unique name.
+	Link(name string) ([]*Interface, error)
+}
+
 // Namespace represents a network namespace, mounted on a specific Path.  It
 // holds a list of Interface, and more can be added dynamically.
 type Namespace interface {
@@ -95,8 +98,8 @@ type Namespace interface {
 
 // Create a new network of the specified networkType. The options are driver
 // specific and modeled in a generic way.
-func NewNetwork(networkType string, options DriverParams) (Network, error) {
-	return createNetwork(networkType, options)
+func NewNetwork(networkType, name string, options DriverParams) (Network, error) {
+	return createNetwork(networkType, name, options)
 }
 
 // Create a new network namespace mounted on the specified path.

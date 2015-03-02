@@ -23,7 +23,7 @@ var drivers = map[string]struct {
 //
 // For example:
 //
-//    func CreateTestNetwork(config *TestNetworkConfig()) (Network, error) {
+//    func CreateTestNetwork(name string, config *TestNetworkConfig()) (Network, error) {
 //    }
 //
 //    func init() {
@@ -32,7 +32,7 @@ var drivers = map[string]struct {
 //
 func RegisterNetworkType(name string, creatorFn interface{}, creatorArg interface{}) error {
 	// Validate the creator function signature.
-	ctorArg := []reflect.Type{reflect.TypeOf(creatorArg)}
+	ctorArg := []reflect.Type{reflect.TypeOf((*string)(nil)), reflect.TypeOf(creatorArg)}
 	ctorRet := []reflect.Type{reflect.TypeOf((*Network)(nil)).Elem(), reflect.TypeOf((*error)(nil)).Elem()}
 	if err := validateFunctionSignature(creatorFn, ctorArg, ctorRet); err != nil {
 		sig := fmt.Sprintf("func (%s) (Network, error)", ctorArg[0].Name)
@@ -50,10 +50,10 @@ func RegisterNetworkType(name string, creatorFn interface{}, creatorArg interfac
 	return nil
 }
 
-func createNetwork(name string, generic DriverParams) (Network, error) {
-	d, ok := drivers[name]
+func createNetwork(networkType, name string, generic DriverParams) (Network, error) {
+	d, ok := drivers[networkType]
 	if !ok {
-		return nil, fmt.Errorf("unknown driver %q", name)
+		return nil, fmt.Errorf("unknown driver %q", networkType)
 	}
 
 	config, err := options.GenerateFromModel(options.Generic(generic), d.creatorArg)
@@ -61,7 +61,7 @@ func createNetwork(name string, generic DriverParams) (Network, error) {
 		return nil, fmt.Errorf("failed to generate driver config: %v", err)
 	}
 
-	arg := []reflect.Value{reflect.ValueOf(config)}
+	arg := []reflect.Value{reflect.ValueOf(name), reflect.ValueOf(config)}
 	res := reflect.ValueOf(d.creatorFn).Call(arg)
 	return makeCreateResult(res)
 }

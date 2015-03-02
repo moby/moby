@@ -25,7 +25,7 @@ func init() {
 	libnetwork.RegisterNetworkType(NetworkType, Create, &Configuration{})
 }
 
-func Create(config *Configuration) (libnetwork.Network, error) {
+func Create(name string, config *Configuration) (libnetwork.Network, error) {
 	bridgeIntfc := NewInterface(config)
 	bridgeSetup := NewBridgeSetup(bridgeIntfc)
 
@@ -77,5 +77,5 @@ func Create(config *Configuration) (libnetwork.Network, error) {
 		return nil, err
 	}
 
-	return &bridgeNetwork{*config}, nil
+	return &bridgeNetwork{NetworkName: name, Config: *config}, nil
 }

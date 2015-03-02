@@ -14,7 +14,7 @@ func main() {
 	net.IP = ip
 
 	options := libnetwork.DriverParams{"AddressIPv4": net}
-	netw, err := libnetwork.NewNetwork("simplebridge", options)
+	netw, err := libnetwork.NewNetwork("simplebridge", "dummy", options)
 	if err != nil {
 		log.Fatal(err)
 	}

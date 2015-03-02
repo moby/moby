@@ -11,7 +11,7 @@ func TestCreate(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
 	config := &Configuration{BridgeName: DefaultBridgeName}
-	netw, err := Create(config)
+	netw, err := Create("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -25,7 +25,7 @@ func TestCreateFail(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
 	config := &Configuration{BridgeName: "dummy0"}
-	if _, err := Create(config); err == nil {
+	if _, err := Create("dummy", config); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
 	}
 }
@@ -42,7 +42,7 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 	_, config.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 
-	netw, err := Create(config)
+	netw, err := Create("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
