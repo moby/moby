@@ -32,7 +32,7 @@ const (
 var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	emptyServiceConfig       = NewServiceConfig(nil)
-	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_]*)$`)
+	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_/]*)$`)
 	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 )
 
@@ -207,21 +207,23 @@ func validateRemoteName(remoteName string) error {
 		namespace string
 		name      string
 	)
-	nameParts := strings.SplitN(remoteName, "/", 2)
-	if len(nameParts) < 2 {
+
+	lastIndex := strings.LastIndex(remoteName, "/")
+
+	if lastIndex == -1 {
 		namespace = "library"
-		name = nameParts[0]
+		name = remoteName
 
 		// the repository name must not be a valid image ID
 		if err := utils.ValidateID(name); err == nil {
 			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
 		}
 	} else {
-		namespace = nameParts[0]
-		name = nameParts[1]
+		namespace = remoteName[:lastIndex]
+		name = remoteName[lastIndex+1:]
 	}
 	if !validNamespaceChars.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
+		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_/] are allowed.", namespace)
 	}
 	if len(namespace) < 2 || len(namespace) > 255 {
 		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 2 or more than 255 characters.", namespace)
@@ -231,6 +233,9 @@ func validateRemoteName(remoteName string) error {
 	}
 	if strings.Contains(namespace, "--") {
 		return fmt.Errorf("Invalid namespace name (%s). Cannot contain consecutive hyphens.", namespace)
+	}
+	if strings.Contains(namespace, "//") {
+		return fmt.Errorf("Invalid namespace name (%s). Cannot contain consecutive slashes.", namespace)
 	}
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
