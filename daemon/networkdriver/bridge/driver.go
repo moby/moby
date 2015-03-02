@@ -113,7 +113,7 @@ func InitDriver(job *engine.Job) engine.Status {
 	addrv4, addrsv6, err := networkdriver.GetIfaceAddr(bridgeIface)
 
 	if err != nil {
-		// No Bridge existent. Create one
+		// No Bridge existent, create one
 		// If we're not using the default bridge, fail without trying to create it
 		if !usingDefaultBridge {
 			return job.Error(err)
@@ -137,7 +137,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			}
 		}
 	} else {
-		// Bridge exists already. Getting info...
+		// Bridge exists already, getting info...
 		// validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
 			networkv4 = addrv4.(*net.IPNet)
