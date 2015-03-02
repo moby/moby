@@ -2344,6 +2344,20 @@ func TestRunInspectMacAddress(t *testing.T) {
 	logDone("run - inspecting MAC address")
 }
 
+// test docker run use a invalid mac address
+func TestRunWithInvalidMacAddress(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "--mac-address", "92:d0:c6:0a:29", "busybox")
+	out, _, err := runCommandWithOutput(runCmd)
+	//use a invalid mac address should with a error out
+	if err == nil || !strings.Contains(out, "is not a valid mac address") {
+		t.Fatalf("run with an invalid --mac-address should with error out")
+	}
+
+	logDone("run - can't use an invalid mac address")
+}
+
 func TestRunDeallocatePortOnMissingIptablesRule(t *testing.T) {
 	defer deleteAllContainers()
 	testRequires(t, SameHostDaemon)

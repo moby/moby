@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/utils"
 )
 
 // Installer is a standard interface for objects which can "install" themselves
@@ -77,7 +77,7 @@ func (eng *Engine) RegisterCatchall(catchall Handler) {
 func New() *Engine {
 	eng := &Engine{
 		handlers: make(map[string]Handler),
-		id:       utils.RandomString(),
+		id:       common.RandomString(),
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,
 		Stdin:    os.Stdin,

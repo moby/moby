@@ -36,3 +36,12 @@ func GenerateRandomID() string {
 		return value
 	}
 }
+
+func RandomString() string {
+	id := make([]byte, 32)
+
+	if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		panic(err) // This shouldn't happen
+	}
+	return hex.EncodeToString(id)
+}

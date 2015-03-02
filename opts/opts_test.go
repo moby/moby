@@ -28,6 +28,20 @@ func TestValidateIPAddress(t *testing.T) {
 
 }
 
+func TestValidateMACAddress(t *testing.T) {
+	if _, err := ValidateMACAddress(`92:d0:c6:0a:29:33`); err != nil {
+		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:29:33`) got %s", err)
+	}
+
+	if _, err := ValidateMACAddress(`92:d0:c6:0a:33`); err == nil {
+		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:33`) succeeded; expected failure on invalid MAC")
+	}
+
+	if _, err := ValidateMACAddress(`random invalid string`); err == nil {
+		t.Fatalf("ValidateMACAddress(`random invalid string`) succeeded; expected failure on invalid MAC")
+	}
+}
+
 func TestListOpts(t *testing.T) {
 	o := NewListOpts(nil)
 	o.Set("foo")
