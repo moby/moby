@@ -931,7 +931,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	if !config.DisableNetwork {
-		job := eng.Job("init_networkdriver")
+		job := eng.Job("initNetworkdriver")
 
 		job.SetenvBool("EnableIptables", config.EnableIptables)
 		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
