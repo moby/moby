@@ -142,6 +142,9 @@ VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
 ENV DOCKER_BUILDTAGS apparmor selinux btrfs_noversion
 
+# Let us use a .bashrc file
+RUN ln -sfv $PWD/.bashrc ~/.bashrc
+
 # Install man page generator
 COPY vendor /go/src/github.com/docker/docker/vendor
 # (copy vendor/ because go-md2man needs golang.org/x/net)
