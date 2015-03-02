@@ -898,6 +898,7 @@ func readContainerFileWithExec(containerId, filename string) ([]byte, error) {
 }
 
 func setupRegistry(t *testing.T) func() {
+	testRequires(t, RegistryHosting)
 	reg, err := newTestRegistryV2(t)
 	if err != nil {
 		t.Fatal(err)
