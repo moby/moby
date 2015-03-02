@@ -2458,6 +2458,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 func (cli *DockerCli) CmdSave(args ...string) error {
 	cmd := cli.Subcmd("save", "IMAGE [IMAGE...]", "Save an image(s) to a tar archive (streamed to STDOUT by default)", true)
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
+	noparents := cmd.Bool([]string{"-no-parents"}, false, "Only include specified images, do not include parents")
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -2475,13 +2476,17 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 
+	v := url.Values{}
+	if *noparents {
+		v.Add("noparents", "1")
+	}
+
 	if len(cmd.Args()) == 1 {
 		image := cmd.Arg(0)
-		if err := cli.stream("GET", "/images/"+image+"/get", nil, output, nil); err != nil {
+		if err := cli.stream("GET", "/images/"+image+"/get?"+v.Encode(), nil, output, nil); err != nil {
 			return err
 		}
 	} else {
-		v := url.Values{}
 		for _, arg := range cmd.Args() {
 			v.Add("names", arg)
 		}
