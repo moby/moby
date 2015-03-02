@@ -1111,7 +1111,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 }
 
 func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
-	log.Debugf("[deviceset] AddDevice() hash=%s basehash=%s", hash, baseHash)
+	log.Debugf("[deviceset] AddDevice(hash=%s basehash=%s)", hash, baseHash)
 	defer log.Debugf("[deviceset] AddDevice(hash=%s basehash=%s) END", hash, baseHash)
 
 	baseInfo, err := devices.lookupDevice(baseHash)
@@ -1325,9 +1325,9 @@ func (devices *DeviceSet) waitClose(info *DevInfo) error {
 }
 
 func (devices *DeviceSet) Shutdown() error {
-	log.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
+	log.Debugf("[deviceset %s] Shutdown()", devices.devicePrefix)
 	log.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
-	defer log.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
+	defer log.Debugf("[deviceset %s] Shutdown() END", devices.devicePrefix)
 
 	var devs []*DevInfo
 
@@ -1394,7 +1394,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if info.mountCount > 0 {
 		if path != info.mountPath {
-			return fmt.Errorf("Trying to mount devmapper device in multple places (%s, %s)", info.mountPath, path)
+			return fmt.Errorf("Trying to mount devmapper device in multiple places (%s, %s)", info.mountPath, path)
 		}
 
 		info.mountCount++
