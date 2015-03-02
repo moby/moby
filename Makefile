@@ -1,7 +1,7 @@
 .PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration test-integration-cli test-docker-py validate
 
 # env vars passed through directly to Docker's build scripts
-# to allow things like `make DOCKER_CLIENTONLY=1 binary` easily
+# to allow things like `DOCKER_CLIENTONLY=1 make binary` easily
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
