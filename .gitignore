@@ -30,3 +30,4 @@ docs/VERSION
 docs/GITCOMMIT
 docs/changed-files
 autogen/
+.bashrc
