@@ -21,7 +21,7 @@ import (
 
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	if n := len(job.Args); n != 1 && n != 2 {
-		return job.Errorf("Usage: %s IMAGE [TAG]", job.Name)
+		return job.Errorf("Usage: %s IMAGE [TAG|DIGEST]", job.Name)
 	}
 
 	var (

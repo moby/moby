@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -21,7 +22,9 @@ import (
 const DEFAULTTAG = "latest"
 
 var (
+	//FIXME these 2 regexes also exist in registry/v2/regexp.go
 	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
+	validDigest  = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-zA-Z0-9-_+.=]+`)
 )
 
 type TagStore struct {
@@ -273,7 +276,9 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	if err := validateRepoName(repoName); err != nil {
 		return err
 	}
-	// TODO validate digest
+	if err := validateDigest(digest); err != nil {
+		return err
+	}
 	if err := store.reload(); err != nil {
 		return err
 	}
@@ -386,6 +391,16 @@ func ValidateTagName(name string) error {
 	}
 	if !validTagName.MatchString(name) {
 		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 1, maximum 128 in length", name)
+	}
+	return nil
+}
+
+func validateDigest(dgst string) error {
+	if dgst == "" {
+		return errors.New("Digest can't be empty")
+	}
+	if !validDigest.MatchString(dgst) {
+		return fmt.Errorf("Illegal digest (%s): must be of the form [a-zA-Z0-9-_+.]+:[a-zA-Z0-9-_+.=]+", dgst)
 	}
 	return nil
 }

@@ -192,3 +192,24 @@ func TestInvalidTagName(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateDigest(t *testing.T) {
+	tests := []struct {
+		input       string
+		expectError bool
+	}{
+		{"", true},
+		{"latest", true},
+		{"a:b", false},
+		{"aZ0124-.+:bY852-_.+=", false},
+		{"#$%#$^:$%^#$%", true},
+	}
+
+	for i, test := range tests {
+		err := validateDigest(test.input)
+		gotError := err != nil
+		if e, a := test.expectError, gotError; e != a {
+			t.Errorf("%d: with input %s, expected error=%t, got %t: %s", i, test.input, test.expectError, gotError, err)
+		}
+	}
+}
