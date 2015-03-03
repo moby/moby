@@ -2,7 +2,7 @@
 set -e
 
 IAMSTATIC="true"
-source "$(dirname "$BASH_SOURCE")/.dockerversion"
+source "$(dirname "$BASH_SOURCE")/.go-autogen"
 
 # dockerinit still needs to be a static binary, even if docker is dynamic
 go build \
