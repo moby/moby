@@ -590,7 +590,15 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, "Docker Root Dir: %s\n", root)
 		}
 	}
-
+	if remoteInfo.Exists("HttpProxy") {
+		fmt.Fprintf(cli.out, "Http Proxy: %s\n", remoteInfo.Get("HttpProxy"))
+	}
+	if remoteInfo.Exists("HttpsProxy") {
+		fmt.Fprintf(cli.out, "Https Proxy: %s\n", remoteInfo.Get("HttpsProxy"))
+	}
+	if remoteInfo.Exists("NoProxy") {
+		fmt.Fprintf(cli.out, "No Proxy: %s\n", remoteInfo.Get("NoProxy"))
+	}
 	if len(remoteInfo.GetList("IndexServerAddress")) != 0 {
 		cli.LoadConfigFile()
 		u := cli.configFile.Configs[remoteInfo.Get("IndexServerAddress")].Username

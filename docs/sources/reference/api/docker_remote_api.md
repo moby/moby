@@ -57,6 +57,12 @@ This endpoint now returns `Os`, `Arch` and `KernelVersion`.
 **New!**
 You can set ulimit settings to be used within the container.
 
+`Get /info`
+
+**New!**
+Add return value `HttpProxy`,`HttpsProxy` and `NoProxy` to this entrypoint.
+
+
 ## v1.17
 
 ### Full Documentation
