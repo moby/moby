@@ -1877,7 +1877,7 @@ flag:
 	fdisk: unable to open /dev/xvdc: Operation not permitted
 ```
 
-**Note:**
+> **Note:**
 > `--device` cannot be safely used with ephemeral devices. Block devices that
 > may be removed should not be added to untrusted containers with `--device`.
 
