@@ -609,7 +609,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 func (cli *DockerCli) CmdStop(args ...string) error {
 	cmd := cli.Subcmd("stop", "CONTAINER [CONTAINER...]", "Stop a running container by sending SIGTERM and then SIGKILL after a\ngrace period", true)
-	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing it.")
+	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing it")
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -632,7 +632,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := cli.Subcmd("restart", "CONTAINER [CONTAINER...]", "Restart a running container", true)
-	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container.")
+	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container")
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -847,7 +847,7 @@ func (cli *DockerCli) CmdRename(args ...string) error {
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := cli.Subcmd("inspect", "CONTAINER|IMAGE [CONTAINER|IMAGE...]", "Return low-level information on a container or image", true)
-	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template.")
+	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1161,7 +1161,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
 	flChanges := opts.NewListOpts(nil)
-	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image.")
+	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1333,7 +1333,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
 
 	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e., 'dangling=true')")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 	cmd.Require(flag.Max, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1561,15 +1561,15 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
 		noTrunc  = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container, include non-running.")
-		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running.")
-		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name.")
-		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running.")
+		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container, include non-running")
+		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
+		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
+		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
 
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values. Valid filters:\nexited=<int> - containers with exit code of <int>\nstatus=(restarting|running|paused|exited)")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 
 	utils.ParseFlags(cmd, args, true)
 	if *last == -1 && *nLatest {
@@ -1711,7 +1711,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
 	flChanges := opts.NewListOpts(nil)
-	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image.")
+	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	cmd.Require(flag.Max, 2)
@@ -1771,7 +1771,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")
 	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
 	flFilter := opts.NewListOpts(nil)
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e., 'event=stop')")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 	cmd.Require(flag.Exact, 0)
 
 	utils.ParseFlags(cmd, args, true)
