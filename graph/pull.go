@@ -581,6 +581,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		if err = s.SetDigest(repoInfo.LocalName, digest, downloads[0].img.ID); err != nil {
 			return false, err
 		}
+		out.Write(sf.FormatStatus("", "Digest: %s", digest))
 	}
 
 	return layersDownloaded, nil
