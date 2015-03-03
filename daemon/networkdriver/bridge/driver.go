@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -73,6 +74,7 @@ var (
 		"192.168.44.1/24",
 	}
 
+	enableIPv4        bool
 	bridgeIface       string
 	bridgeIPv4Network *net.IPNet
 	bridgeIPv6Addr    net.IP
@@ -103,6 +105,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		defaultBindingIP = net.ParseIP(defaultIP)
 	}
 
+	enableIPv4 = !job.GetenvBool("DisableIPv4")
 	bridgeIface = job.Getenv("BridgeIface")
 	usingDefaultBridge := false
 	if bridgeIface == "" {
@@ -110,7 +113,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		bridgeIface = DefaultNetworkBridge
 	}
 
-	addrv4, addrsv6, err := networkdriver.GetIfaceAddr(bridgeIface)
+	addrv4, addrsv6, err := networkdriver.GetIfaceAddr(bridgeIface, enableIPv4)
 
 	if err != nil {
 		// No Bridge existent, create one
@@ -120,11 +123,11 @@ func InitDriver(job *engine.Job) engine.Status {
 		}
 
 		// If the iface is not found, try to create it
-		if err := configureBridge(bridgeIP, bridgeIPv6, enableIPv6); err != nil {
+		if err := configureBridge(bridgeIP, bridgeIPv6, enableIPv6, enableIPv4); err != nil {
 			return job.Error(err)
 		}
 
-		addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)
+		addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface, enableIPv4)
 		if err != nil {
 			return job.Error(err)
 		}
@@ -139,7 +142,7 @@ func InitDriver(job *engine.Job) engine.Status {
 	} else {
 		// Bridge exists already, getting info...
 		// validate that the bridge ip matches the ip specified by BridgeIP
-		if bridgeIP != "" {
+		if enableIPv4 && bridgeIP != "" {
 			networkv4 = addrv4.(*net.IPNet)
 			bip, _, err := net.ParseCIDR(bridgeIP)
 			if err != nil {
@@ -159,7 +162,7 @@ func InitDriver(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 			// recheck addresses now that IPv6 is setup on the bridge
-			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)
+			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface, enableIPv4)
 			if err != nil {
 				return job.Error(err)
 			}
@@ -186,7 +189,9 @@ func InitDriver(job *engine.Job) engine.Status {
 		}
 	}
 
-	networkv4 = addrv4.(*net.IPNet)
+	if enableIPv4 {
+		networkv4 = addrv4.(*net.IPNet)
+	}
 
 	if enableIPv6 {
 		if len(addrsv6) == 0 {
@@ -204,9 +209,10 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	if ipForward {
-		// Enable IPv4 forwarding
-		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
-			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+		if enableIPv4 {
+			if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+				job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+			}
 		}
 
 		if fixedCIDRv6 != "" {
@@ -261,11 +267,13 @@ func InitDriver(job *engine.Job) engine.Status {
 		globalIPv6Network = subnet
 	}
 
-	// Block BridgeIP in IP allocator
-	ipallocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
+	if enableIPv4 {
+		// Block BridgeIP in IP allocator
+		ipallocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
 
-	// https://github.com/docker/docker/issues/2768
-	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeIPv4Network.IP)
+		// https://github.com/docker/docker/issues/2768
+		job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeIPv4Network.IP)
+	}
 
 	for name, f := range map[string]engine.Handler{
 		"allocate_interface": Allocate,
@@ -353,7 +361,38 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 // If the bridge `bridgeIface` already exists, it will only perform the IP address association with the existing
 // bridge (fixes issue #8444)
 // If an address which doesn't conflict with existing interfaces can't be found, an error is returned.
-func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error {
+func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool, enableIPv4 bool) error {
+	if err := createBridgeIface(bridgeIface); err != nil {
+		// the bridge may already exist, therefore we can ignore an "exists" error
+		if !os.IsExist(err) {
+			return err
+		}
+	}
+
+	if enableIPv4 {
+		if err := setupIPv4Bridge(bridgeIP); err != nil {
+			return err
+		}
+	}
+
+	if enableIPv6 {
+		if err := setupIPv6Bridge(bridgeIPv6); err != nil {
+			return err
+		}
+	}
+
+	iface, err := net.InterfaceByName(bridgeIface)
+	if err != nil {
+		return err
+	}
+
+	if err := netlink.NetworkLinkUp(iface); err != nil {
+		return fmt.Errorf("Unable to start network bridge: %s", err)
+	}
+	return nil
+}
+
+func setupIPv4Bridge(bridgeIP string) error {
 	nameservers := []string{}
 	resolvConf, _ := resolvconf.Get()
 	// we don't check for an error here, because we don't really care
@@ -414,15 +453,6 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 		return fmt.Errorf("Unable to add private network: %s", err)
 	}
 
-	if enableIPv6 {
-		if err := setupIPv6Bridge(bridgeIPv6); err != nil {
-			return err
-		}
-	}
-
-	if err := netlink.NetworkLinkUp(iface); err != nil {
-		return fmt.Errorf("Unable to start network bridge: %s", err)
-	}
 	return nil
 }
 
@@ -477,9 +507,16 @@ func generateMacAddr(ip net.IP) net.HardwareAddr {
 	// it doesn't conflict with other addresses.
 	hw[1] = 0x42
 
-	// Insert the IP address into the last 32 bits of the MAC address.
-	// This is a simple way to guarantee the address will be consistent and unique.
-	copy(hw[2:], ip.To4())
+	if ip == nil {
+		// TODO: do we need to make this consistent with something?
+		if _, err := rand.Read(hw[2:]); err != nil {
+			panic(err)
+		}
+	} else {
+		// Insert the IP address into the last 32 bits of the MAC address.
+		// This is a simple way to guarantee the address will be consistent and unique.
+		copy(hw[2:], ip.To4())
+	}
 
 	return hw
 }
@@ -506,21 +543,33 @@ func Allocate(job *engine.Job) engine.Status {
 		requestedIP   = net.ParseIP(job.Getenv("RequestedIP"))
 		requestedIPv6 = net.ParseIP(job.Getenv("RequestedIPv6"))
 		globalIPv6    net.IP
+		out           = engine.Env{}
 	)
 
-	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
-	} else {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, nil)
-	}
-	if err != nil {
-		return job.Error(err)
+	if enableIPv4 {
+		if requestedIP != nil {
+			ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
+		} else {
+			ip, err = ipallocator.RequestIP(bridgeIPv4Network, nil)
+		}
+		if err != nil {
+			return job.Error(err)
+		}
+
+		out.Set("IP", ip.String())
+		out.Set("Mask", bridgeIPv4Network.Mask.String())
+		out.Set("Gateway", bridgeIPv4Network.IP.String())
+
+		size, _ := bridgeIPv4Network.Mask.Size()
+		out.SetInt("IPPrefixLen", size)
 	}
 
 	// If no explicit mac address was given, generate a random one.
 	if mac, err = net.ParseMAC(job.Getenv("RequestedMac")); err != nil {
 		mac = generateMacAddr(ip)
 	}
+	out.Set("MacAddress", mac.String())
+	out.Set("Bridge", bridgeIface)
 
 	if globalIPv6Network != nil {
 		// if globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
@@ -539,16 +588,6 @@ func Allocate(job *engine.Job) engine.Status {
 		}
 		log.Infof("Allocated IPv6 %s", globalIPv6)
 	}
-
-	out := engine.Env{}
-	out.Set("IP", ip.String())
-	out.Set("Mask", bridgeIPv4Network.Mask.String())
-	out.Set("Gateway", bridgeIPv4Network.IP.String())
-	out.Set("MacAddress", mac.String())
-	out.Set("Bridge", bridgeIface)
-
-	size, _ := bridgeIPv4Network.Mask.Size()
-	out.SetInt("IPPrefixLen", size)
 
 	// if linklocal IPv6
 	localIPv6Net, err := linkLocalIPv6FromMac(mac.String())
@@ -593,8 +632,10 @@ func Release(job *engine.Job) engine.Status {
 		}
 	}
 
-	if err := ipallocator.ReleaseIP(bridgeIPv4Network, containerInterface.IP); err != nil {
-		log.Infof("Unable to release IPv4 %s", err)
+	if containerInterface.IP != nil {
+		if err := ipallocator.ReleaseIP(bridgeIPv4Network, containerInterface.IP); err != nil {
+			log.Infof("Unable to release IPv4 %s", err)
+		}
 	}
 	if globalIPv6Network != nil {
 		if err := ipallocator.ReleaseIP(globalIPv6Network, containerInterface.IPv6); err != nil {

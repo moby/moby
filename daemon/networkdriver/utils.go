@@ -75,7 +75,7 @@ func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 }
 
 // Return the first IPv4 address and slice of IPv6 addresses for the specified network interface
-func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
+func GetIfaceAddr(name string, enableIPv4 bool) (net.Addr, []net.Addr, error) {
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
 		return nil, nil, err
@@ -96,7 +96,10 @@ func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
 	}
 	switch {
 	case len(addrs4) == 0:
-		return nil, nil, fmt.Errorf("Interface %v has no IPv4 addresses", name)
+		if enableIPv4 {
+			return nil, nil, fmt.Errorf("Interface %v has no IPv4 addresses", name)
+		}
+		return nil, addrs6, nil
 	case len(addrs4) > 1:
 		fmt.Printf("Interface %v has more than 1 IPv4 address. Defaulting to using %v\n",
 			name, (addrs4[0].(*net.IPNet)).IP)

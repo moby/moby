@@ -32,6 +32,7 @@ type Config struct {
 	BridgeIP                    string
 	FixedCIDR                   string
 	FixedCIDRv6                 string
+	DisableIPv4                 bool
 	InterContainerCommunication bool
 	GraphDriver                 string
 	GraphOptions                []string
@@ -58,6 +59,7 @@ func (config *Config) InstallFlags() {
 	flag.BoolVar(&config.EnableIpForward, []string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward")
 	flag.BoolVar(&config.EnableIpMasq, []string{"-ip-masq"}, true, "Enable IP masquerading")
 	flag.BoolVar(&config.EnableIPv6, []string{"-ipv6"}, false, "Enable IPv6 networking")
+	flag.BoolVar(&config.DisableIPv4, []string{"-disable-ipv4"}, false, "Disable IPv4 networking")
 	flag.StringVar(&config.BridgeIP, []string{"#bip", "-bip"}, "", "Specify network bridge IP")
 	flag.StringVar(&config.BridgeIface, []string{"b", "-bridge"}, "", "Attach containers to a network bridge")
 	flag.StringVar(&config.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs")

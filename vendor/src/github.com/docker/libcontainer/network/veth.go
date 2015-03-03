@@ -67,8 +67,11 @@ func (v *Veth) Initialize(config *Network, networkState *NetworkState) error {
 			return fmt.Errorf("set %s mac %s", defaultDevice, err)
 		}
 	}
-	if err := SetInterfaceIp(defaultDevice, config.Address); err != nil {
-		return fmt.Errorf("set %s ip %s", defaultDevice, err)
+	// TODO: fixme
+	if config.Address != "/0" {
+		if err := SetInterfaceIp(defaultDevice, config.Address); err != nil {
+			return fmt.Errorf("set %s ip %s", defaultDevice, err)
+		}
 	}
 	if config.IPv6Address != "" {
 		if err := SetInterfaceIp(defaultDevice, config.IPv6Address); err != nil {
