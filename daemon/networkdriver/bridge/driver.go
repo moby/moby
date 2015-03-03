@@ -31,7 +31,7 @@ const (
 type networkInterface struct {
 	IP           net.IP
 	IPv6         net.IP
-	PortMappings []net.Addr // there are mappings to the host interfaces
+	PortMappings []net.Addr // There are mappings to the host interfaces
 }
 
 type ifaces struct {
@@ -138,7 +138,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		}
 	} else {
 		// Bridge exists already, getting info...
-		// validate that the bridge ip matches the ip specified by BridgeIP
+		// Validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
 			networkv4 = addrv4.(*net.IPNet)
 			bip, _, err := net.ParseCIDR(bridgeIP)
@@ -146,11 +146,11 @@ func InitDriver(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 			if !networkv4.IP.Equal(bip) {
-				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", networkv4.IP, bip)
+				return job.Errorf("Bridge ip (%s) does not match existing bridge configuration %s", networkv4.IP, bip)
 			}
 		}
 
-		// a bridge might exist but not have any IPv6 addr associated with it yet
+		// A bridge might exist but not have any IPv6 addr associated with it yet
 		// (for example, an existing Docker installation that has only been used
 		// with IPv4 and docker0 already is set up) In that case, we can perform
 		// the bridge init for IPv6 here, else we will error out below if --ipv6=true
@@ -158,7 +158,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			if err := setupIPv6Bridge(bridgeIPv6); err != nil {
 				return job.Error(err)
 			}
-			// recheck addresses now that IPv6 is setup on the bridge
+			// Recheck addresses now that IPv6 is setup on the bridge
 			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)
 			if err != nil {
 				return job.Error(err)
@@ -182,7 +182,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			}
 		}
 		if !found {
-			return job.Errorf("bridge IPv6 does not match existing bridge configuration %s", bip6)
+			return job.Errorf("Bridge IPv6 does not match existing bridge configuration %s", bip6)
 		}
 	}
 
@@ -356,7 +356,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error {
 	nameservers := []string{}
 	resolvConf, _ := resolvconf.Get()
-	// we don't check for an error here, because we don't really care
+	// We don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
@@ -394,7 +394,7 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 	log.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
 
 	if err := createBridgeIface(bridgeIface); err != nil {
-		// the bridge may already exist, therefore we can ignore an "exists" error
+		// The bridge may already exist, therefore we can ignore an "exists" error
 		if !os.IsExist(err) {
 			return err
 		}
@@ -452,7 +452,7 @@ func setupIPv6Bridge(bridgeIPv6 string) error {
 
 func createBridgeIface(name string) error {
 	kv, err := kernel.GetKernelVersion()
-	// only set the bridge's mac address if the kernel version is > 3.3
+	// Only set the bridge's mac address if the kernel version is > 3.3
 	// before that it was not supported
 	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
 	log.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
@@ -523,7 +523,7 @@ func Allocate(job *engine.Job) engine.Status {
 	}
 
 	if globalIPv6Network != nil {
-		// if globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
+		// If globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
 		netmask_ones, _ := globalIPv6Network.Mask.Size()
 		if requestedIPv6 == nil && netmask_ones <= 80 {
 			requestedIPv6 = globalIPv6Network.IP
@@ -550,7 +550,7 @@ func Allocate(job *engine.Job) engine.Status {
 	size, _ := bridgeIPv4Network.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
 
-	// if linklocal IPv6
+	// If linklocal IPv6
 	localIPv6Net, err := linkLocalIPv6FromMac(mac.String())
 	if err != nil {
 		return job.Error(err)
@@ -576,7 +576,7 @@ func Allocate(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-// release an interface for a select ip
+// Release an interface for a select ip
 func Release(job *engine.Job) engine.Status {
 	var (
 		id                 = job.Args[0]
@@ -702,11 +702,11 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 	ip1 := net.ParseIP(parentIP)
 	if ip1 == nil {
-		return job.Errorf("parent IP '%s' is invalid", parentIP)
+		return job.Errorf("Parent IP '%s' is invalid", parentIP)
 	}
 	ip2 := net.ParseIP(childIP)
 	if ip2 == nil {
-		return job.Errorf("child IP '%s' is invalid", childIP)
+		return job.Errorf("Child IP '%s' is invalid", childIP)
 	}
 
 	chain := iptables.Chain{Name: "DOCKER", Bridge: bridgeIface}
