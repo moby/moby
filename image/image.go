@@ -1,8 +1,11 @@
 package image
 
 import (
+	"compress/gzip"
+	"crypto"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -18,6 +21,9 @@ import (
 // kernels are compiled with
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
 const MaxImageDepth = 127
+
+// The media type used for a compressed rootfs diff, a.k.a. "layer".
+const RootfsDiffMediaType = "application/vnd.docker.container.image.rootfs.diff+x-gtar"
 
 type Image struct {
 	ID              string            `json:"id"`
@@ -118,6 +124,57 @@ func (img *Image) SaveCheckSum(root, checksum string) error {
 		return fmt.Errorf("Error storing checksum in %s/checksum: %s", root, err)
 	}
 	return nil
+}
+
+// DiffDigest returns the digest of the diff between the rootfs of this image
+// and its parent's. If the image graph's blobstore does not yet have a diff
+// blob for this image, one will be created, compressed, and stored before the
+// digest is returned.
+func (img *Image) DiffDigest() (digest string, err error) {
+	digest, ok := img.graph.DiffDigest(img.ID)
+	if ok {
+		return digest, nil
+	}
+
+	// Diff digest is not found, need to store it now!
+	driver := img.graph.Driver()
+	diffArchive, err := driver.Diff(img.ID, img.Parent)
+	if err != nil {
+		return "", fmt.Errorf("unable to get rootfs diff archive reader: %s", err)
+	}
+	defer diffArchive.Close()
+
+	blobStore := img.graph.BlobStore()
+
+	diffWriter, err := blobStore.NewWriter(crypto.SHA256)
+	if err != nil {
+		return "", fmt.Errorf("unable to get new blob writer for image rootfs diff: %s", err)
+	}
+	defer func() {
+		if err != nil {
+			diffWriter.Cancel()
+		}
+	}()
+
+	// Write to a compressor which in turn writes to the image diff store.
+	compressor := gzip.NewWriter(diffWriter)
+
+	if _, err := io.Copy(compressor, diffArchive); err != nil {
+		return "", fmt.Errorf("unable to copy image rootfs diff to blob store: %s", err)
+	}
+
+	if err := compressor.Close(); err != nil {
+		return "", fmt.Errorf("unable to close rootfs diff gzip compressor: %s", err)
+	}
+
+	desc, err := diffWriter.Commit(RootfsDiffMediaType, img.ID)
+	if err != nil {
+		return "", fmt.Errorf("unable to commit compressed image rootfs diff blob: %s", err)
+	}
+
+	img.graph.SetDiffDigest(img.ID, desc.Digest())
+
+	return desc.Digest(), nil
 }
 
 func (img *Image) GetCheckSum(root string) (string, error) {

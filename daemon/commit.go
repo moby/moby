@@ -2,7 +2,11 @@ package daemon
 
 import (
 	"bytes"
+	"compress/gzip"
+	"crypto"
 	"encoding/json"
+	"fmt"
+	"io"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
@@ -53,7 +57,7 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
+func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (img *image.Image, err error) {
 	if pause && !container.IsPaused() {
 		container.Pause()
 		defer container.Unpause()
@@ -70,6 +74,21 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 	}
 	defer rwTar.Close()
 
+	blobStore := daemon.graph.BlobStore()
+	diffWriter, err := blobStore.NewWriter(crypto.SHA256)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get new writer for rootfs diff: %s", err)
+	}
+	defer func() {
+		if err != nil {
+			diffWriter.Cancel()
+		}
+	}()
+
+	// Write to a compressor which in turn writes to the image diff store.
+	compressor := gzip.NewWriter(diffWriter)
+	wrappedReader := io.TeeReader(rwTar, compressor)
+
 	// Create a new image from the container's base layers + a new layer from container changes
 	var (
 		containerID, parentImageID string
@@ -82,10 +101,21 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 		containerConfig = container.Config
 	}
 
-	img, err := daemon.graph.Create(rwTar, containerID, parentImageID, comment, author, containerConfig, config)
+	img, err = daemon.graph.Create(wrappedReader, containerID, parentImageID, comment, author, containerConfig, config)
 	if err != nil {
 		return nil, err
 	}
+
+	if err := compressor.Close(); err != nil {
+		return nil, fmt.Errorf("unable to close rootfs diff gzip compressor: %s", err)
+	}
+
+	desc, err := diffWriter.Commit(image.RootfsDiffMediaType, img.ID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to commit compressed image rootfs diff blob: %s", err)
+	}
+
+	daemon.graph.SetDiffDigest(img.ID, desc.Digest())
 
 	// Register the image if needed
 	if repository != "" {
