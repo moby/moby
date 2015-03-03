@@ -215,6 +215,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 					delete(r, tag)
 					if len(r) == 0 {
 						delete(store.Repositories, repoName)
+						delete(store.Digests, repoName)
 					}
 					deleted = true
 				} else {
@@ -222,7 +223,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 				}
 			} else {
 				delete(store.Repositories, repoName)
-				// TODO should this delete from store.Digests?
+				delete(store.Digests, repoName)
 				deleted = true
 			}
 		} else {
