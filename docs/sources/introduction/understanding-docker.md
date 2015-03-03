@@ -72,7 +72,7 @@ Docker has two major components:
   platform for sharing and managing Docker containers.
 
 
-**Note:** Docker is licensed under the open source Apache 2.0 license.
+> **Note:** Docker is licensed under the open source Apache 2.0 license.
 
 ## What is Docker's architecture?
 Docker uses a client-server architecture. The Docker *client* talks to the
