@@ -118,6 +118,27 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 		Acquire::GzipIndexes "true";
 		Acquire::CompressionTypes::Order:: "gz";
 	EOF
+
+	# update "autoremove" configuration to be aggressive about removing suggests deps that weren't manually installed
+	echo >&2 "+ echo Apt::AutoRemove::SuggestsImportant 'false' > '$rootfsDir/etc/apt/apt.conf.d/docker-autoremove-suggests'"
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-autoremove-suggests" <<-'EOF'
+		# Since Docker users are looking for the smallest possible final images, the
+		# following emerges as a very common pattern:
+
+		#   RUN apt-get update \
+		#       && apt-get install -y <packages> \
+		#       && <do some compilation work> \
+		#       && apt-get purge -y --auto-remove <packages>
+
+		# By default, APT will actually _keep_ packages installed via Recommends or
+		# Depends if another package Suggests them, even and including if the package
+		# that originally caused them to be installed is removed.  Setting this to
+		# "false" ensures that APT is appropriately aggressive about removing the
+		# packages it added.
+
+		# https://aptitude.alioth.debian.org/doc/en/ch02s05s05.html#configApt-AutoRemove-SuggestsImportant
+		Apt::AutoRemove::SuggestsImportant "false";
+	EOF
 fi
 
 if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
