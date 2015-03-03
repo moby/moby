@@ -29,6 +29,41 @@ func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	}
 }
 
+// Parser an IP address return an IP, a port and protocal
+// The input IP address could be: ip:port/mask/proto
+func ParseNet(val string) (string, string, string) {
+	var (
+		ip    = val
+		port  string
+		mask  string
+		proto string
+	)
+	if strings.Contains(val, "/") {
+		parts := strings.SplitN(val, "/", 2)
+		ip = parts[0]
+		mask = parts[1]
+		if strings.Contains(mask, "/") {
+			parts := strings.Split(mask, "/")
+			mask = parts[0]
+			proto = parts[1]
+		} else {
+			if mask == "tcp" || mask == "udp" || mask == "icmp" || mask == "all" {
+				proto = mask
+				mask = ""
+			}
+		}
+	}
+	if strings.Contains(ip, ":") {
+		parts := strings.Split(ip, ":")
+		ip = parts[0]
+		port = parts[1]
+	}
+	if mask != "" {
+		ip = ip + "/" + mask
+	}
+	return ip, port, proto
+}
+
 func ParseUnixAddr(addr string, defaultAddr string) (string, error) {
 	addr = strings.TrimPrefix(addr, "unix://")
 	if strings.Contains(addr, "://") {

@@ -107,6 +107,7 @@ type HostConfig struct {
 	Links           []string
 	PublishAllPorts bool
 	Dns             []string
+	Netout          []string
 	DnsSearch       []string
 	ExtraHosts      []string
 	VolumesFrom     []string
@@ -165,6 +166,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	}
 	if Dns := job.GetenvList("Dns"); Dns != nil {
 		hostConfig.Dns = Dns
+	}
+	if Netout := job.GetenvList("Netout"); Netout != nil {
+		hostConfig.Netout = Netout
 	}
 	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
 		hostConfig.DnsSearch = DnsSearch

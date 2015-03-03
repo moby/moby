@@ -120,6 +120,24 @@ func TestValidateDnsSearch(t *testing.T) {
 	}
 }
 
+func TestValidatenetout(t *testing.T) {
+	if _, err := ValidateNetout("192.168.1.3:5000/16/udp"); err != nil {
+		t.Fatalf("ValidateNetout(192.168.1.3:5000/16/udp) failed, expect success")
+	}
+	if _, err := ValidateNetout("192.168.1"); err == nil {
+		t.Fatalf("ValidateNetout(192.168.1) with invalid ip successed, expect failure")
+	}
+	if _, err := ValidateNetout("192.168.1.2:80000"); err == nil {
+		t.Fatalf("ValidateNetout(192.168.1.2:80000) with invalid port successed, expect failure")
+	}
+	if _, err := ValidateNetout("192.168.1.2:5000/33"); err == nil {
+		t.Fatalf("ValidateNetout(192.168.1.2/33) with invalid netmask successed, expect failure")
+	}
+	if _, err := ValidateNetout("192.168.1.2:5000/16/abc"); err == nil {
+		t.Fatalf("ValidateNetout(192.168.1.2:5000/16/abc) with invalid protocol successed, expect failure")
+	}
+}
+
 func TestValidateExtraHosts(t *testing.T) {
 	valid := []string{
 		`myhost:192.168.0.1`,

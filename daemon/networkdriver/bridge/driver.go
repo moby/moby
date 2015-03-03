@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libcontainer/netlink"
 )
@@ -272,6 +273,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		"release_interface":  Release,
 		"allocate_port":      AllocatePort,
 		"link":               LinkContainers,
+		"setupNetout":        SetupNetout,
 	} {
 		if err := job.Eng.Register(name, f); err != nil {
 			return job.Error(err)
@@ -494,6 +496,76 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 	hw[0] ^= 0x2
 
 	return fmt.Sprintf("fe80::%x%x:%xff:fe%x:%x%x/64", hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]), nil
+}
+
+func SetupNetoutIptables(cmd string, net string, container_ip string, resolvepath string) error {
+	var (
+		protos   = []string{}
+		tmp_port string
+		content  []byte
+		er       error
+	)
+
+	ip, port, proto := parsers.ParseNet(net)
+	protos = append(protos, proto)
+	// Drop all the package from the container
+	if err := iptables.SetupFilter(cmd, "FORWARD", container_ip, "", "", "", "", "DROP"); err != nil {
+		return err
+	}
+	// The package destination could be localhost, so we also need to set the INPUT chain
+	if err := iptables.SetupFilter(cmd, "INPUT", container_ip, "", "", "", "", "DROP"); err != nil {
+		return err
+	}
+	// Allow the nameserver in /etc/resolv can be accessed to
+	if content, er = ioutil.ReadFile(resolvepath); er != nil {
+		return er
+	}
+	nameservers := resolvconf.GetNameservers(content)
+	for _, nameserver := range nameservers {
+		if err := iptables.SetupFilter(cmd, "FORWARD", container_ip, nameserver, "", "", "", "ACCEPT"); err != nil {
+			return err
+		}
+		// The nameserver could be localhost
+		if err := iptables.SetupFilter(cmd, "INPUT", container_ip, nameserver, "", "", "", "ACCEPT"); err != nil {
+			return err
+		}
+	}
+
+	// If port is specified and no protocol is specified, we should set the protocol to tcp and udp
+	if port != "" && proto == "" {
+		protos = append(protos, "tcp")
+		protos = append(protos, "udp")
+	}
+	for _, proto = range protos {
+		if proto == "" {
+			tmp_port = ""
+		} else {
+			tmp_port = port
+		}
+		if err := iptables.SetupFilter(cmd, "FORWARD", container_ip, ip, proto, "", tmp_port, "ACCEPT"); err != nil {
+			return err
+		}
+		if err := iptables.SetupFilter(cmd, "INPUT", container_ip, ip, proto, "", tmp_port, "ACCEPT"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+func SetupNetout(job *engine.Job) engine.Status {
+	var (
+		net            = job.Getenv("net")
+		container_ip   = job.Getenv("container_ip")
+		ResolvConfPath = job.Getenv("resolv_conf_path")
+	)
+
+	if err := SetupNetoutIptables("-I", net, container_ip, ResolvConfPath); err != nil {
+		return job.Error(err)
+	}
+
+	return engine.StatusOK
 }
 
 // Allocate a network interface

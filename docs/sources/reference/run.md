@@ -179,6 +179,7 @@ of the containers.
                                   'host': use the host network stack inside the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
+    --netout         : Specify net that can access to
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -255,6 +256,19 @@ container itself as well as `localhost` and a few other common things.  The
     127.0.0.1       localhost
     ::1	            localhost ip6-localhost ip6-loopback
     86.75.30.9      db-static
+
+### netout
+
+By default, the container can access to all the outside available net, you can 
+set `--netout` to specific net the container can access to.
+  
+   $sudo docker run -ti --netout=192.168.1.3:5000/tcp ubuntu:14.04
+This will allow the container only can access the host 192.168.1.3:5000 through
+tcp protocol.
+   
+   $sudo docker run -ti --netour=192.168.1.3/16 ubuntu:14.04
+This will allow the container only can access to he subnet 192.168.1.3/16
+
 
 ## Clean up (--rm)
 

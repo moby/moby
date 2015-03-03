@@ -19,6 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
@@ -360,6 +361,9 @@ func (container *Container) Start() (err error) {
 	if err != nil {
 		return err
 	}
+	if err := container.setupNetout(); err != nil {
+		return err
+	}
 	if err := container.setupWorkingDirectory(); err != nil {
 		return err
 	}
@@ -612,9 +616,22 @@ func (container *Container) RestoreNetwork() error {
 	return nil
 }
 
+func (container *Container) cleanupiptables() {
+	var (
+		container_ip     = container.NetworkSettings.IPAddress
+		resolv_conf_path = container.ResolvConfPath
+	)
+	for _, net := range container.hostConfig.Netout {
+		bridge.SetupNetoutIptables("-D", net, container_ip, resolv_conf_path)
+	}
+}
+
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
+	// clean up iptables set by netout
+	container.cleanupiptables()
+
 	container.ReleaseNetwork()
 
 	// Disable all active links
@@ -1325,6 +1342,21 @@ func (container *Container) setupWorkingDirectory() error {
 			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 	}
+	return nil
+}
+
+func (container *Container) setupNetout() error {
+	eng := container.daemon.eng
+	for _, net := range container.hostConfig.Netout {
+		job := eng.Job("setupNetout", container.ID)
+		job.Setenv("net", net)
+		job.Setenv("container_ip", container.NetworkSettings.IPAddress)
+		job.Setenv("resolv_conf_path", container.ResolvConfPath)
+		if err := job.Run(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

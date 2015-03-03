@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api"
@@ -199,6 +200,63 @@ func ValidateDnsSearch(val string) (string, error) {
 		return val, nil
 	}
 	return validateDomain(val)
+}
+
+// Validate if the input ip, port, netmask, procotal is valid
+func ValidateNetout(val string) (string, error) {
+	var (
+		addr  = val
+		port  string
+		mask  string
+		proto string
+	)
+
+	if strings.Contains(val, "/") {
+		parts := strings.SplitN(val, "/", 2)
+		addr = parts[0]
+		mask = parts[1]
+		if strings.Contains(mask, "/") {
+			parts := strings.Split(mask, "/")
+			mask = parts[0]
+			proto = parts[1]
+		} else {
+			if mask == "tcp" || mask == "udp" || mask == "icmp" || mask == "all" {
+				proto = mask
+				mask = ""
+			}
+		}
+	}
+	if strings.Contains(addr, ":") {
+		parts := strings.Split(addr, ":")
+		addr = parts[0]
+		port = parts[1]
+	}
+	if ip := net.ParseIP(strings.TrimSpace(addr)); ip == nil {
+		return "", fmt.Errorf("%s is not a valid ip address", addr)
+	}
+
+	if port != "" {
+		if p, err := strconv.ParseUint(port, 10, 16); err != nil || (p < 0 || p > 65536) {
+			return "", fmt.Errorf("%s is not a valid port", port)
+		}
+	}
+
+	if mask != "" {
+		if m, err := strconv.Atoi(mask); err != nil || (m > 32 || m < 0) {
+			return "", fmt.Errorf("%s is not a valid netmask", mask)
+		}
+	}
+
+	if proto != "" {
+		proto = strings.ToLower(proto)
+		if proto != "tcp" && proto != "udp" && proto != "icmp" {
+			return "", fmt.Errorf("%s is not a valid protocal", proto)
+		}
+		if proto == "icmp" && port != "" {
+			return "", fmt.Errorf("Conflict: can't specific port use icmp prorocol")
+		}
+	}
+	return val, nil
 }
 
 func validateDomain(val string) (string, error) {

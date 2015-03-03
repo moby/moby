@@ -266,6 +266,50 @@ func Exists(args ...string) bool {
 	)
 }
 
+// Setup iptables filter table
+func SetupFilter(cmd string, chain string, src string, dst string, proto string, sport string, dport string, action string) error {
+	var rule = []string{}
+	if cmd == "" {
+		return fmt.Errorf("cmd can't be nil")
+	}
+
+	if chain == "" {
+		return fmt.Errorf("chain can't be nil")
+	}
+	rule = append(rule, chain)
+
+	if src != "" {
+		rule = append(rule, "-s", src)
+	}
+
+	if dst != "" {
+		rule = append(rule, "-d", dst)
+	}
+
+	if proto != "" {
+		rule = append(rule, "-p", proto)
+	}
+
+	if sport != "" {
+		rule = append(rule, "--sport", sport)
+	}
+
+	if dport != "" {
+		rule = append(rule, "--dport", dport)
+	}
+
+	if action == "" {
+		return fmt.Errorf("action can't be nil")
+	}
+	rule = append(rule, "-j", action)
+	if (cmd != "-D" && !Exists(rule...)) || (cmd == "-D" && Exists(rule...)) {
+		if _, err := Raw(append([]string{cmd}, rule...)...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Call 'iptables' system command, passing supplied arguments
 func Raw(args ...string) ([]byte, error) {
 
