@@ -28,13 +28,13 @@ shift
 # prevent init scripts from running during install/update
 echo >&2 "+ echo exit 101 > '$rootfsDir/usr/sbin/policy-rc.d'"
 cat > "$rootfsDir/usr/sbin/policy-rc.d" <<'EOF'
-#!/bin/sh
+	#!/bin/sh
 
-# For most Docker users, "apt-get install" only happens during "docker build",
-# where starting services doesn't work and often fails in humorous ways. This
-# prevents those failures by stopping the services from attempting to start.
+	# For most Docker users, "apt-get install" only happens during "docker build",
+	# where starting services doesn't work and often fails in humorous ways. This
+	# prevents those failures by stopping the services from attempting to start.
 
-exit 101
+	exit 101
 EOF
 chmod +x "$rootfsDir/usr/sbin/policy-rc.d"
 
@@ -59,12 +59,12 @@ if strings "$rootfsDir/usr/bin/dpkg" | grep -q unsafe-io; then
 	# force dpkg not to call sync() after package extraction (speeding up installs)
 	echo >&2 "+ echo force-unsafe-io > '$rootfsDir/etc/dpkg/dpkg.cfg.d/docker-apt-speedup'"
 	cat > "$rootfsDir/etc/dpkg/dpkg.cfg.d/docker-apt-speedup" <<-'EOF'
-	# For most Docker users, package installs happen during "docker build", which
-	# doesn't survive power loss and gets restarted clean afterwards anyhow, so
-	# this minor tweak gives us a nice speedup (much nicer on spinning disks,
-	# obviously).
+		# For most Docker users, package installs happen during "docker build", which
+		# doesn't survive power loss and gets restarted clean afterwards anyhow, so
+		# this minor tweak gives us a nice speedup (much nicer on spinning disks,
+		# obviously).
 
-	force-unsafe-io
+		force-unsafe-io
 	EOF
 fi
 
@@ -97,26 +97,26 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 	# remove apt-cache translations for fast "apt-get update"
 	echo >&2 "+ echo Acquire::Languages 'none' > '$rootfsDir/etc/apt/apt.conf.d/docker-no-languages'"
 	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-no-languages" <<-'EOF'
-	# In Docker, we don't often need the "Translations" files, so we're just wasting
-	# time and space by downloading them, and this inhibits that.  For users that do
-	# need them, it's a simple matter to delete this file and "apt-get update". :)
+		# In Docker, we don't often need the "Translations" files, so we're just wasting
+		# time and space by downloading them, and this inhibits that.  For users that do
+		# need them, it's a simple matter to delete this file and "apt-get update". :)
 
-	Acquire::Languages "none";
+		Acquire::Languages "none";
 	EOF
 
 	echo >&2 "+ echo Acquire::GzipIndexes 'true' > '$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes'"
 	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-gzip-indexes" <<-'EOF'
-	# Since Docker users using "RUN apt-get update && apt-get install -y ..." in
-	# their Dockerfiles don't go delete the lists files afterwards, we want them to
-	# be as small as possible on-disk, so we explicitly request "gz" versions and
-	# tell Apt to keep them gzipped on-disk.
+		# Since Docker users using "RUN apt-get update && apt-get install -y ..." in
+		# their Dockerfiles don't go delete the lists files afterwards, we want them to
+		# be as small as possible on-disk, so we explicitly request "gz" versions and
+		# tell Apt to keep them gzipped on-disk.
 
-	# For comparison, an "apt-get update" layer without this on a pristine
-	# "debian:wheezy" base image was "29.88 MB", where with this it was only
-	# "8.273 MB".
+		# For comparison, an "apt-get update" layer without this on a pristine
+		# "debian:wheezy" base image was "29.88 MB", where with this it was only
+		# "8.273 MB".
 
-	Acquire::GzipIndexes "true";
-	Acquire::CompressionTypes::Order:: "gz";
+		Acquire::GzipIndexes "true";
+		Acquire::CompressionTypes::Order:: "gz";
 	EOF
 fi
 
