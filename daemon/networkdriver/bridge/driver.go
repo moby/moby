@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libcontainer/netlink"
+	"github.com/docker/libcontainer/network"
 )
 
 const (
@@ -140,13 +141,37 @@ func InitDriver(job *engine.Job) engine.Status {
 		// Bridge exists already, getting info...
 		// validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
-			networkv4 = addrv4.(*net.IPNet)
 			bip, _, err := net.ParseCIDR(bridgeIP)
+			networkv4 = addrv4.(*net.IPNet)
 			if err != nil {
 				return job.Error(err)
 			}
 			if !networkv4.IP.Equal(bip) {
-				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", networkv4.IP, bip)
+				// Configured bridge IP (by --bip="xxxx/x") is not the same with the real bridge IP.
+				// Add a new bridge IP here and remove the old one.
+				log.Infof("Overriding bridge(%s) IP address from %s to %s, as '--bip' is used.", bridgeIface, networkv4.String(), bridgeIP)
+				if err := network.DeleteInterfaceIp(bridgeIface, networkv4.String()); err != nil {
+					job.Error(err)
+				}
+				if err := network.SetInterfaceIp(bridgeIface, bridgeIP); err != nil {
+					job.Error(err)
+				}
+
+				addrv4_new, addrsv6_new, err := networkdriver.GetIfaceAddr(bridgeIface)
+				if err != nil {
+					return job.Error(err)
+				}
+				if fixedCIDRv6 != "" {
+					// Setting route to global IPv6 subnet
+					log.Infof("Adding route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
+					if err := netlink.AddRoute(fixedCIDRv6, "", "", bridgeIface); err != nil {
+						log.Fatalf("Could not add route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
+					}
+				}
+
+				addrsv6 = addrsv6_new
+				addrv4 = addrv4_new
+				networkv4 = addrv4.(*net.IPNet)
 			}
 		}
 
