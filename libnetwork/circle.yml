@@ -1,6 +1,6 @@
 test:
     pre:
-        - $(which go) > .gopath
+        - which go > .gopath
     override:
         - sudo -E $(cat .gopath) test ./...
 
