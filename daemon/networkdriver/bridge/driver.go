@@ -508,11 +508,7 @@ func Allocate(job *engine.Job) engine.Status {
 		globalIPv6    net.IP
 	)
 
-	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
-	} else {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, nil)
-	}
+	ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
 	if err != nil {
 		return job.Error(err)
 	}
