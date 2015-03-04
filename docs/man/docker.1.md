@@ -37,6 +37,9 @@ unix://[/path/to/socket] to use.
 **--api-enable-cors**=*true*|*false*
   Enable CORS headers in the remote API. Default is false.
 
+**--api-cors-header**=""
+  Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
+
 **-b**=""
   Attach containers to a pre\-existing network bridge; use 'none' to disable container networking
 
