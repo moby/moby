@@ -189,9 +189,10 @@ fi
 
 (
 	set -x
+	export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 	
 	# make sure we're fully up-to-date
-	chroot "$rootfsDir" bash -c 'apt-get update && apt-get dist-upgrade -y'
+	chroot "$rootfsDir" /bin/bash -c 'apt-get update && apt-get dist-upgrade -y'
 	
 	# delete all the apt list files since they're big and get stale quickly
 	rm -rf "$rootfsDir/var/lib/apt/lists"/*
