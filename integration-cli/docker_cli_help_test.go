@@ -116,6 +116,11 @@ func TestHelpWidth(t *testing.T) {
 				if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
 					t.Fatalf("Help for %q should not have used ~:\n%s", cmd, line)
 				}
+				
+				// Options should not end with a space
+				if strings.HasSuffix(line, " ") {
+					t.Fatalf("Help for %q should not end with a space: %s", cmd, line)
+				}
 			}
 		}
 
