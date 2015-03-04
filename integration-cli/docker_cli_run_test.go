@@ -1600,6 +1600,14 @@ func TestRunResolvconfUpdater(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// This test case is meant to test monitoring resolv.conf when it is
+	// a regular file not a bind mount. So we unmount resolv.conf and replace
+	// it with a file containing the original settings.
+	cmd := exec.Command("umount", "/etc/resolv.conf")
+	if _, err = runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
 	//cleanup
 	defer func() {
 		deleteAllContainers()
@@ -1609,7 +1617,7 @@ func TestRunResolvconfUpdater(t *testing.T) {
 	}()
 
 	//1. test that a non-running container gets an updated resolv.conf
-	cmd := exec.Command(dockerBinary, "run", "--name='first'", "busybox", "true")
+	cmd = exec.Command(dockerBinary, "run", "--name='first'", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
@@ -1730,6 +1738,45 @@ func TestRunResolvconfUpdater(t *testing.T) {
 	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
 	if !bytes.Equal(containerResolv, []byte(expected)) {
 		t.Fatalf("Container does not have cleaned/replaced DNS in resolv.conf; expected %q, got %q", expected, string(containerResolv))
+	}
+
+	//6. Test that replacing (as opposed to modifying) resolv.conf triggers an update
+	//   of containers' resolv.conf.
+
+	// Restore the original resolv.conf
+	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Run the container so it picks up the old settings
+	cmd = exec.Command(dockerBinary, "run", "--name='third'", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+	containerID3, err := getIDByName("third")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a modified resolv.conf.aside and override resolv.conf with it
+	bytesResolvConf = []byte(tmpResolvConf)
+	if err := ioutil.WriteFile("/etc/resolv.conf.aside", bytesResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Rename("/etc/resolv.conf.aside", "/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+	// check for update in container
+	containerResolv, err = readContainerFile(containerID3, "resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(containerResolv, bytesResolvConf) {
+		t.Fatalf("Stopped container does not have updated resolv.conf; expected\n%q\n got\n%q", tmpResolvConf, string(containerResolv))
 	}
 
 	//cleanup, restore original resolv.conf happens in defer func()
