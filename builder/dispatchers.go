@@ -253,10 +253,19 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	c.Mount()
 	defer c.Unmount()
 
+	// Unset the volumes
+	volumeConfig := c.Config.Volumes
+	c.Config.Volumes = nil
+	volumes := c.Volumes
+	c.Volumes = nil
+
 	err = b.run(c)
 	if err != nil {
 		return err
 	}
+	c.Volumes = volumes
+	c.Config.Volumes = volumeConfig
+
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}

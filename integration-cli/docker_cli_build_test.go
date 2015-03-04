@@ -4345,7 +4345,7 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-		
+
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]
@@ -5114,4 +5114,51 @@ func TestBuildNotVerbose(t *testing.T) {
 	}
 
 	logDone("build - not verbose")
+}
+
+func TestBuildVolumesFiltered(t *testing.T) {
+	defer func() {
+		deleteAllContainers()
+		deleteImages("test")
+	}()
+
+	ctx, err := fakeContext(`
+	FROM busybox
+	VOLUME /foo
+	RUN [ -d /foo ]
+	RUN touch /foo/bar
+	RUN [ -f /foo/bar ]
+	ADD baz /foo/baz
+	RUN [ -f /foo/baz ]
+	`,
+		map[string]string{"baz": "qux"})
+	defer ctx.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = buildImageFromContext("test", ctx, false); err != nil {
+		t.Fatalf("expected build to succeed:\n%v", err)
+	}
+
+	out, _, err := dockerCmd(t, "run", "--name=voltest", "test", "/bin/sh", "-c", "cat /foo/baz")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if out != "qux" {
+		t.Fatal("unexpected output from container:\n%s", out)
+	}
+
+	volPath, err := inspectFieldMap("voltest", "Volumes", "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if volPath == "<no value>" || !strings.HasPrefix(volPath, "/") {
+		t.Fatalf("expected volume at /foo, got: %s", volPath)
+	}
+
+	logDone("build - volumes are filtered on run")
 }
