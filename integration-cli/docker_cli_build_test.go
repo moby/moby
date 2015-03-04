@@ -669,6 +669,73 @@ func TestBuildCacheADD(t *testing.T) {
 	logDone("build - build two images with remote ADD")
 }
 
+func TestBuildLastModified(t *testing.T) {
+	name := "testbuildlastmodified"
+	defer deleteImages(name)
+
+	server, err := fakeStorage(map[string]string{
+		"file": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	var out, out2 string
+
+	dFmt := `FROM busybox
+ADD %s/file /
+RUN ls -le /file`
+
+	dockerfile := fmt.Sprintf(dFmt, server.URL)
+
+	if _, out, err = buildImageWithOut(name, dockerfile, false); err != nil {
+		t.Fatal(err)
+	}
+
+	originMTime := regexp.MustCompile(`root.*/file.*\n`).FindString(out)
+	// Make sure our regexp is correct
+	if strings.Index(originMTime, "/file") < 0 {
+		t.Fatalf("Missing ls info on 'file':\n%s", out)
+	}
+
+	// Build it again and make sure the mtime of the file didn't change.
+	// Wait a few seconds to make sure the time changed enough to notice
+	time.Sleep(2 * time.Second)
+
+	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
+		t.Fatal(err)
+	}
+
+	newMTime := regexp.MustCompile(`root.*/file.*\n`).FindString(out2)
+	if newMTime != originMTime {
+		t.Fatalf("MTime changed:\nOrigin:%s\nNew:%s", originMTime, newMTime)
+	}
+
+	// Now 'touch' the file and make sure the timestamp DID change this time
+	// Create a new fakeStorage instead of just using Add() to help windows
+	server, err = fakeStorage(map[string]string{
+		"file": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	dockerfile = fmt.Sprintf(dFmt, server.URL)
+
+	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
+		t.Fatal(err)
+	}
+
+	newMTime = regexp.MustCompile(`root.*/file.*\n`).FindString(out2)
+	if newMTime == originMTime {
+		t.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", originMTime, newMTime)
+	}
+
+	logDone("build - use Last-Modified header")
+}
+
 func TestBuildSixtySteps(t *testing.T) {
 	name := "foobuildsixtysteps"
 	defer deleteImages(name)
