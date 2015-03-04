@@ -93,6 +93,7 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 }
 
 func TestRunWithUlimits(t *testing.T) {
+	testRequires(t, NativeExecDriver)
 	defer deleteAllContainers()
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name=testulimits", "--ulimit", "nofile=42", "busybox", "/bin/sh", "-c", "ulimit -n"))
 	if err != nil {
