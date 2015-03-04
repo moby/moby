@@ -91,3 +91,18 @@ func TestRunWithVolumesIsRecursive(t *testing.T) {
 
 	logDone("run - volumes are bind mounted recursively")
 }
+
+func TestRunWithUlimits(t *testing.T) {
+	defer deleteAllContainers()
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name=testulimits", "--ulimit", "nofile=42", "busybox", "/bin/sh", "-c", "ulimit -n"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	ul := strings.TrimSpace(out)
+	if ul != "42" {
+		t.Fatalf("expected `ulimit -n` to be 42, got %s", ul)
+	}
+
+	logDone("run - ulimits are set")
+}

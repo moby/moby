@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -276,11 +277,34 @@ func populateCommand(c *Container, env []string) error {
 		return err
 	}
 
+	var rlimits []*ulimit.Rlimit
+	ulimits := c.hostConfig.Ulimits
+
+	// Merge ulimits with daemon defaults
+	ulIdx := make(map[string]*ulimit.Ulimit)
+	for _, ul := range ulimits {
+		ulIdx[ul.Name] = ul
+	}
+	for name, ul := range c.daemon.config.Ulimits {
+		if _, exists := ulIdx[name]; !exists {
+			ulimits = append(ulimits, ul)
+		}
+	}
+
+	for _, limit := range ulimits {
+		rl, err := limit.GetRlimit()
+		if err != nil {
+			return err
+		}
+		rlimits = append(rlimits, rl)
+	}
+
 	resources := &execdriver.Resources{
 		Memory:     c.Config.Memory,
 		MemorySwap: c.Config.MemorySwap,
 		CpuShares:  c.Config.CpuShares,
 		Cpuset:     c.Config.Cpuset,
+		Rlimits:    rlimits,
 	}
 
 	processConfig := execdriver.ProcessConfig{

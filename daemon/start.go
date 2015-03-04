@@ -74,6 +74,7 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
 		return err
 	}
+
 	container.hostConfig = hostConfig
 	container.toDisk()
 

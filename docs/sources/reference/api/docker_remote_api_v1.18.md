@@ -155,7 +155,8 @@ Create a container
                "CapDrop": ["MKNOD"],
                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
                "NetworkMode": "bridge",
-               "Devices": []
+               "Devices": [],
+               "Ulimits": [{}]
             }
         }
 
@@ -244,6 +245,9 @@ Json Parameters:
   -   **Devices** - A list of devices to add to the container specified in the
         form
         `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
+  -   **Ulimits** - A list of ulimits to be set in the container, specified as
+        `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
+        `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
 
 Query Parameters:
 
@@ -337,7 +341,8 @@ Return low-level information on the container `id`
 				"Name": "on-failure"
 			},
 			"SecurityOpt": null,
-			"VolumesFrom": null
+			"VolumesFrom": null,
+			"Ulimits": [{}]
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",

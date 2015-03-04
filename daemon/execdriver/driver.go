@@ -2,14 +2,16 @@ package execdriver
 
 import (
 	"errors"
-	"github.com/docker/docker/daemon/execdriver/native/template"
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/devices"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/devices"
 )
 
 // Context is a generic key value pair that allows
@@ -99,10 +101,11 @@ type NetworkInterface struct {
 }
 
 type Resources struct {
-	Memory     int64  `json:"memory"`
-	MemorySwap int64  `json:"memory_swap"`
-	CpuShares  int64  `json:"cpu_shares"`
-	Cpuset     string `json:"cpuset"`
+	Memory     int64            `json:"memory"`
+	MemorySwap int64            `json:"memory_swap"`
+	CpuShares  int64            `json:"cpu_shares"`
+	Cpuset     string           `json:"cpuset"`
+	Rlimits    []*ulimit.Rlimit `json:"rlimits"`
 }
 
 type ResourceStats struct {

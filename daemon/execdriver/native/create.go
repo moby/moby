@@ -58,6 +58,8 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		return nil, err
 	}
 
+	d.setupRlimits(container, c)
+
 	cmds := make(map[string]*exec.Cmd)
 	d.Lock()
 	for k, v := range d.activeContainers {
@@ -170,6 +172,16 @@ func (d *driver) setPrivileged(container *libcontainer.Config) (err error) {
 func (d *driver) setCapabilities(container *libcontainer.Config, c *execdriver.Command) (err error) {
 	container.Capabilities, err = execdriver.TweakCapabilities(container.Capabilities, c.CapAdd, c.CapDrop)
 	return err
+}
+
+func (d *driver) setupRlimits(container *libcontainer.Config, c *execdriver.Command) {
+	if c.Resources == nil {
+		return
+	}
+
+	for _, rlimit := range c.Resources.Rlimits {
+		container.Rlimits = append(container.Rlimits, libcontainer.Rlimit((*rlimit)))
+	}
 }
 
 func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Command) error {

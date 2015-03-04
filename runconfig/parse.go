@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/utils"
 )
@@ -31,6 +32,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 		flDevices = opts.NewListOpts(opts.ValidatePath)
+
+		ulimits   = make(map[string]*ulimit.Ulimit)
+		flUlimits = opts.NewUlimitOpt(ulimits)
 
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)
@@ -82,6 +86,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
+	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 
 	cmd.Require(flag.Min, 1)
 
@@ -315,6 +320,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		RestartPolicy:   restartPolicy,
 		SecurityOpt:     flSecurityOpt.GetAll(),
 		ReadonlyRootfs:  *flReadonlyRootfs,
+		Ulimits:         flUlimits.GetList(),
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

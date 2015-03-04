@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/utils"
 )
 
@@ -119,6 +120,7 @@ type HostConfig struct {
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
 	ReadonlyRootfs  bool
+	Ulimits         []*ulimit.Ulimit
 }
 
 // This is used by the create command when you want to set both the
@@ -156,6 +158,9 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
 	job.GetenvJson("Devices", &hostConfig.Devices)
 	job.GetenvJson("RestartPolicy", &hostConfig.RestartPolicy)
+
+	job.GetenvJson("Ulimits", &hostConfig.Ulimits)
+
 	hostConfig.SecurityOpt = job.GetenvList("SecurityOpt")
 	if Binds := job.GetenvList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds

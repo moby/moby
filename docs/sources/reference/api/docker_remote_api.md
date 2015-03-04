@@ -51,6 +51,12 @@ You can still call an old version of the API using
 **New!**
 This endpoint now returns `Os`, `Arch` and `KernelVersion`.
 
+`POST /containers/create`
+`POST /containers/(id)/start`
+
+**New!**
+You can set ulimit settings to be used within the container.
+
 ## v1.17
 
 ### Full Documentation
@@ -85,7 +91,6 @@ root filesystem as read only.
 
 **New!**
 This endpoint returns a live stream of a container's resource usage statistics.
-
 
 ## v1.16
 
