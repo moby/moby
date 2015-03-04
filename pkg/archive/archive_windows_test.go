@@ -14,7 +14,6 @@ func TestCanonicalTarNameForPath(t *testing.T) {
 		{"foo", "foo", false},
 		{"foo/bar", "___", true}, // unix-styled windows path must fail
 		{`foo\bar`, "foo/bar", false},
-		{`foo\bar`, "foo/bar/", false},
 	}
 	for _, v := range cases {
 		if out, err := CanonicalTarNameForPath(v.in); err != nil && !v.shouldFail {
