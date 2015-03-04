@@ -7,6 +7,7 @@ import (
 	"github.com/docker/libnetwork/pkg/options"
 )
 
+// DriverParams are a generic structure to hold driver specific settings.
 type DriverParams options.Generic
 
 var drivers = map[string]struct {

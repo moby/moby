@@ -40,7 +40,7 @@ func init() {
 	}
 }
 
-func SetupBridgeIPv4(i *Interface) error {
+func setupBridgeIPv4(i *bridgeInterface) error {
 	bridgeIPv4, err := electBridgeIPv4(i.Config)
 	if err != nil {
 		return err

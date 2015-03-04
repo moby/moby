@@ -14,7 +14,7 @@ func TestSetupIPv6(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
 	br := setupTestInterface(t)
-	if err := SetupBridgeIPv6(br); err != nil {
+	if err := setupBridgeIPv6(br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv6: %v", err)
 	}
 
@@ -34,14 +34,14 @@ func TestSetupIPv6(t *testing.T) {
 
 	var found bool
 	for _, addr := range addrsv6 {
-		if BridgeIPv6Str == addr.IPNet.String() {
+		if bridgeIPv6Str == addr.IPNet.String() {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("Bridge device does not have requested IPv6 address %v", BridgeIPv6Str)
+		t.Fatalf("Bridge device does not have requested IPv6 address %v", bridgeIPv6Str)
 	}
 
 }

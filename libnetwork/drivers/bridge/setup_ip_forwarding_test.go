@@ -18,7 +18,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	}
 
 	// Create test interface with ip forwarding setting enabled
-	br := &Interface{
+	br := &bridgeInterface{
 		Config: &Configuration{
 			BridgeName:         DefaultBridgeName,
 			EnableIPForwarding: true,
@@ -26,7 +26,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	}
 
 	// Set IP Forwarding
-	if err := SetupIPForwarding(br); err != nil {
+	if err := setupIPForwarding(br); err != nil {
 		t.Fatalf("Failed to setup IP forwarding: %v", err)
 	}
 
@@ -43,7 +43,7 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 	defer reconcileIPForwardingSetting(t, procSetting)
 
 	// Create test interface without ip forwarding setting enabled
-	br := &Interface{
+	br := &bridgeInterface{
 		Config: &Configuration{
 			BridgeName:         DefaultBridgeName,
 			EnableIPForwarding: false,
@@ -51,7 +51,7 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 	}
 
 	// Attempt Set IP Forwarding
-	if err := SetupIPForwarding(br); err == nil {
+	if err := setupIPForwarding(br); err == nil {
 		t.Fatal("Setup IP forwarding was expected to fail")
 	} else if !strings.Contains(err.Error(), "Unexpected request") {
 		t.Fatalf("Setup IP forwarding failed with unexpected error: %v", err)
@@ -59,7 +59,7 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 }
 
 func readCurrentIPForwardingSetting(t *testing.T) []byte {
-	procSetting, err := ioutil.ReadFile(IPV4_FORW_CONF_FILE)
+	procSetting, err := ioutil.ReadFile(ipv4ForwardConf)
 	if err != nil {
 		t.Fatalf("Can't execute test: Failed to read current IP forwarding setting: %v", err)
 	}
@@ -67,7 +67,7 @@ func readCurrentIPForwardingSetting(t *testing.T) []byte {
 }
 
 func writeIPForwardingSetting(t *testing.T, chars []byte) {
-	err := ioutil.WriteFile(IPV4_FORW_CONF_FILE, chars, PERM)
+	err := ioutil.WriteFile(ipv4ForwardConf, chars, ipv4ForwardConfPerm)
 	if err != nil {
 		t.Fatalf("Can't execute or cleanup after test: Failed to reset IP forwarding: %v", err)
 	}

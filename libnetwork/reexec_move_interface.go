@@ -64,7 +64,7 @@ func setupInNS(nsPath string, settings *Interface) error {
 
 	// Move the executing code to the destination namespace so we can start
 	// configure the interface.
-	if err := Setns(nsFD, syscall.CLONE_NEWNET); err != nil {
+	if err := setns(nsFD, syscall.CLONE_NEWNET); err != nil {
 		return err
 	}
 

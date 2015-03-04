@@ -3,16 +3,23 @@ package bridge
 import "github.com/vishvananda/netlink"
 
 const (
+	// DefaultBridgeName is the default name for the bridge interface managed
+	// by the driver when unspecified by the caller.
 	DefaultBridgeName = "docker0"
 )
 
-type Interface struct {
+// Interface models the bridge network device.
+type bridgeInterface struct {
 	Config *Configuration
 	Link   netlink.Link
 }
 
-func NewInterface(config *Configuration) *Interface {
-	i := &Interface{
+// NewInterface creates a new bridge interface structure. It attempts to find
+// an already existing device identified by the Configuration BridgeName field,
+// or the default bridge name when unspecified), but doesn't attempt to create
+// on when missing
+func newInterface(config *Configuration) *bridgeInterface {
+	i := &bridgeInterface{
 		Config: config,
 	}
 
@@ -27,13 +34,13 @@ func NewInterface(config *Configuration) *Interface {
 }
 
 // Exists indicates if the existing bridge interface exists on the system.
-func (i *Interface) Exists() bool {
+func (i *bridgeInterface) exists() bool {
 	return i.Link != nil
 }
 
 // Addresses returns a single IPv4 address and all IPv6 addresses for the
 // bridge interface.
-func (i *Interface) Addresses() (netlink.Addr, []netlink.Addr, error) {
+func (i *bridgeInterface) addresses() (netlink.Addr, []netlink.Addr, error) {
 	v4addr, err := netlink.AddrList(i.Link, netlink.FAMILY_V4)
 	if err != nil {
 		return netlink.Addr{}, nil, err
