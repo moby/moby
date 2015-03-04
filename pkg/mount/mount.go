@@ -66,5 +66,5 @@ func ForceUnmount(target string) (err error) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return
+	return err
 }
