@@ -15,6 +15,11 @@ func SetupIPForwarding(i *Interface) error {
 	if i.Config.EnableIPForwarding == false {
 		return fmt.Errorf("Unexpected request to enable IP Forwarding for: %v", *i)
 	}
+
 	// Enable IPv4 forwarding
-	return ioutil.WriteFile(IPV4_FORW_CONF_FILE, []byte{'1', '\n'}, PERM)
+	if err := ioutil.WriteFile(IPV4_FORW_CONF_FILE, []byte{'1', '\n'}, PERM); err != nil {
+		return fmt.Errorf("Setup IP forwarding failed: %v", err)
+	}
+
+	return nil
 }
