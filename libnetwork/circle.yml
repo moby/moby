@@ -1,6 +1,18 @@
+machine:
+    # sudo -E doesn't preserve $PATH, so go isn't found anymore.
+    environment:
+        GO_BIN: $(which go)
+
+dependencies:
+    post:
+        - go get github.com/axw/gocov/gocov
+        - go get github.com/golang/lint/golint
+        - go get golang.org/x/tools/cmd/goimports
+
 test:
-    pre:
-        - which go > .gopath
     override:
-        - sudo -E $(cat .gopath) test ./...
+        - test -z "$(goimports -d . | tee /dev/stderr)"
+        - go vet ./...
+        - test -z "$(golint ./... | tee /dev/stderr)"
+        - sudo -E $GO_BIN test -test.v ./...
 
