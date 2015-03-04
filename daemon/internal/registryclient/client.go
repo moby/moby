@@ -283,7 +283,6 @@ func (r *clientImpl) BlobLength(name string, dgst digest.Digest) (int, error) {
 		}
 		return -1, &errs
 	default:
-		response.Body.Close()
 		return -1, &UnexpectedHTTPStatusError{Status: response.Status}
 	}
 }
