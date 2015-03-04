@@ -187,8 +187,8 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	if err != nil {
 		return err
 	}
-	// If we do not have at least one hash, never use the cache
-	if hit && b.UtilizeCache {
+
+	if hit {
 		return nil
 	}
 
@@ -502,19 +502,24 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
 func (b *Builder) probeCache() (bool, error) {
-	if b.UtilizeCache {
-		if cache, err := b.Daemon.ImageGetCached(b.image, b.Config); err != nil {
-			return false, err
-		} else if cache != nil {
-			fmt.Fprintf(b.OutStream, " ---> Using cache\n")
-			log.Debugf("[BUILDER] Use cached version")
-			b.image = cache.ID
-			return true, nil
-		} else {
-			log.Debugf("[BUILDER] Cache miss")
-		}
+	if !b.UtilizeCache || b.cacheBusted {
+		return false, nil
 	}
-	return false, nil
+
+	cache, err := b.Daemon.ImageGetCached(b.image, b.Config)
+	if err != nil {
+		return false, err
+	}
+	if cache == nil {
+		log.Debugf("[BUILDER] Cache miss")
+		b.cacheBusted = true
+		return false, nil
+	}
+
+	fmt.Fprintf(b.OutStream, " ---> Using cache\n")
+	log.Debugf("[BUILDER] Use cached version")
+	b.image = cache.ID
+	return true, nil
 }
 
 func (b *Builder) create() (*daemon.Container, error) {
