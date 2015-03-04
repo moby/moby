@@ -9,7 +9,7 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
-	testRequires(t, SameHostDaemon)
+	testRequires(t, SameHostDaemon, NativeExecDriver)
 	defer deleteAllContainers()
 
 	iface, err := net.InterfaceByName("eth0")
