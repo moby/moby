@@ -29,7 +29,3 @@ func (b *BridgeSetup) QueueStep(step SetupStep) {
 func SetupIPTables(i *Interface) error {
 	return nil
 }
-
-func SetupIPForwarding(i *Interface) error {
-	return nil
-}
