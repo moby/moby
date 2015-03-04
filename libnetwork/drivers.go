@@ -36,7 +36,7 @@ func RegisterNetworkType(name string, creatorFn interface{}, creatorArg interfac
 	ctorArg := []reflect.Type{reflect.TypeOf((*string)(nil)), reflect.TypeOf(creatorArg)}
 	ctorRet := []reflect.Type{reflect.TypeOf((*Network)(nil)).Elem(), reflect.TypeOf((*error)(nil)).Elem()}
 	if err := validateFunctionSignature(creatorFn, ctorArg, ctorRet); err != nil {
-		sig := fmt.Sprintf("func (%s) (Network, error)", ctorArg[0].Name)
+		sig := fmt.Sprintf("func (%s) (Network, error)", ctorArg[0].Name())
 		return fmt.Errorf("invalid signature for %q creator function (expected %s)", name, sig)
 	}
 
@@ -81,7 +81,7 @@ func validateFunctionSignature(fn interface{}, params []reflect.Type, returns []
 	// Valid that argument is a function.
 	fnType := reflect.TypeOf(fn)
 	if fnType.Kind() != reflect.Func {
-		return fmt.Errorf("argument is %s, not function", fnType.Name)
+		return fmt.Errorf("argument is %s, not function", fnType.Name())
 	}
 
 	// Vaidate arguments numbers and types.
@@ -90,7 +90,7 @@ func validateFunctionSignature(fn interface{}, params []reflect.Type, returns []
 	}
 	for i, argType := range params {
 		if argType != fnType.In(i) {
-			return fmt.Errorf("argument %d type should be %s, got %s", i, argType.Name, fnType.In(i).Name)
+			return fmt.Errorf("argument %d type should be %s, got %s", i, argType.Name(), fnType.In(i).Name())
 		}
 	}
 
@@ -100,7 +100,7 @@ func validateFunctionSignature(fn interface{}, params []reflect.Type, returns []
 	}
 	for i, retType := range returns {
 		if retType != fnType.Out(i) {
-			return fmt.Errorf("return value %d type should be %s, got %s", i, retType.Name, fnType.Out(i).Name)
+			return fmt.Errorf("return value %d type should be %s, got %s", i, retType.Name(), fnType.Out(i).Name())
 		}
 	}
 

@@ -29,7 +29,7 @@ func setupBridgeIPv6(i *bridgeInterface) error {
 		return fmt.Errorf("Unable to enable IPv6 addresses on bridge: %v", err)
 	}
 
-	if err := netlink.AddrAdd(i.Link, &netlink.Addr{bridgeIPv6, ""}); err != nil {
+	if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: bridgeIPv6}); err != nil {
 		return fmt.Errorf("Failed to add IPv6 address %s to bridge: %v", bridgeIPv6, err)
 	}
 
