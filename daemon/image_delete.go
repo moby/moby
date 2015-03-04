@@ -41,6 +41,10 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		tag = graph.DEFAULTTAG
 	}
 
+	if name == "" {
+		return fmt.Errorf("Image name can not be blank")
+	}
+
 	img, err := daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if r, _ := daemon.Repositories().Get(repoName); r != nil {

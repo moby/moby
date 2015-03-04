@@ -155,5 +155,19 @@ func TestRmiWithMultipleRepositories(t *testing.T) {
 	}
 
 	logDone("rmi - delete a image which its dependency tagged to multiple repositories success")
+}
 
+func TestRmiBlank(t *testing.T) {
+	// try to delete a blank image name
+	runCmd := exec.Command(dockerBinary, "rmi", "")
+	out, _, err := runCommandWithOutput(runCmd)
+
+	if err == nil {
+		t.Fatal("Should have failed to delete '' image")
+	}
+
+	if strings.Contains(out, "No such image") {
+		t.Fatalf("Wrong error message generated: %s", out)
+	}
+	logDone("rmi- blank image name")
 }
