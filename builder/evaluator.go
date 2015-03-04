@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
@@ -146,7 +147,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		}
 	}()
 
-	if err := b.readDockerfile(b.dockerfileName); err != nil {
+	if err := b.readDockerfile(); err != nil {
 		return "", err
 	}
 
@@ -177,7 +178,23 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 // Reads a Dockerfile from the current context. It assumes that the
 // 'filename' is a relative path from the root of the context
-func (b *Builder) readDockerfile(origFile string) error {
+func (b *Builder) readDockerfile() error {
+	// If no -f was specified then look for 'Dockerfile'. If we can't find
+	// that then look for 'dockerfile'.  If neither are found then default
+	// back to 'Dockerfile' and use that in the error message.
+	if b.dockerfileName == "" {
+		b.dockerfileName = api.DefaultDockerfileName
+		tmpFN := filepath.Join(b.contextPath, api.DefaultDockerfileName)
+		if _, err := os.Lstat(tmpFN); err != nil {
+			tmpFN = filepath.Join(b.contextPath, strings.ToLower(api.DefaultDockerfileName))
+			if _, err := os.Lstat(tmpFN); err == nil {
+				b.dockerfileName = strings.ToLower(api.DefaultDockerfileName)
+			}
+		}
+	}
+
+	origFile := b.dockerfileName
+
 	filename, err := symlink.FollowSymlinkInScope(filepath.Join(b.contextPath, origFile), b.contextPath)
 	if err != nil {
 		return fmt.Errorf("The Dockerfile (%s) must be within the build context", origFile)

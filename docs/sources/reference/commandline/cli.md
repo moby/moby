@@ -506,21 +506,27 @@ is returned by the `docker attach` command to its caller too:
       --rm=true                Remove intermediate containers after a successful build
       -t, --tag=""             Repository name (and optionally a tag) for the image
 
-Use this command to build Docker images from a Dockerfile and a
-"context".
+Builds Docker images from a Dockerfile and a "context". A build's context is
+the files located in the specified `PATH` or `URL`.  The build process can
+refer to any of the files in the context. For example, your build can use
+an [*ADD*](/reference/builder/#add) instruction to reference a file in the
+context.
 
-The files at `PATH` or `URL` are called the "context" of the build. The
-build process may refer to any of the files in the context, for example
-when using an [*ADD*](/reference/builder/#add) instruction.
-When a single Dockerfile is given as `URL` or is piped through `STDIN`
-(`docker build - < Dockerfile`), then no context is set.
+The `URL` parameter can specify the location of a Git repository; in this
+case,  the repository is the context. The Git repository is recursively
+cloned with its submodules.  The system does a fresh `git clone -recursive`
+in a temporary directory on your local host. Then, this clone is sent to
+the Docker daemon as the context. Local clones give you the ability to
+access private repositories using local user credentials, VPN's, and so forth.
 
-When a Git repository is set as `URL`, then the repository is used as
-the context. The Git repository is cloned with its submodules
-(`git clone -recursive`). A fresh `git clone` occurs in a temporary directory
-on your local host, and then this is sent to the Docker daemon as the
-context.  This way, your local user credentials and VPN's etc can be
-used to access private repositories.
+Instead of specifying a context, you can pass a single Dockerfile in the
+`URL` or pipe the file in via `STDIN`.  To pipe a Dockerfile from `STDIN`:
+
+	docker build - < Dockerfile
+
+If you use STDIN or specify a `URL`, the system places the contents into a
+file called `Dockerfile`, and any `-f`, `--file` option is ignored. In this 
+scenario, there is no context.
 
 If a file named `.dockerignore` exists in the root of `PATH` then it
 is interpreted as a newline-separated list of exclusion patterns.
@@ -529,7 +535,7 @@ will be excluded from the context. Globbing is done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
 
 Please note that `.dockerignore` files in other subdirectories are
-considered as normal files. Filepaths in .dockerignore are absolute with
+considered as normal files. Filepaths in `.dockerignore` are absolute with
 the current directory as the root. Wildcards are allowed but the search
 is not recursive.
 

@@ -353,6 +353,106 @@ func TestBuildApiDockerfilePath(t *testing.T) {
 	logDone("container REST API - check build w/bad Dockerfile path")
 }
 
+func TestBuildApiDockerFileRemote(t *testing.T) {
+	server, err := fakeStorage(map[string]string{
+		"testD": `FROM busybox
+COPY * /tmp/
+RUN find /tmp/`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL+"/testD", nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s", err)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "/tmp/Dockerfile") ||
+		strings.Contains(out, "/tmp/baz") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build with -f from remote")
+}
+
+func TestBuildApiLowerDockerfile(t *testing.T) {
+	git, err := fakeGIT("repo", map[string]string{
+		"dockerfile": `FROM busybox
+RUN echo from dockerfile`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "from dockerfile") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build with lower dockerfile")
+}
+
+func TestBuildApiBuildGitWithF(t *testing.T) {
+	git, err := fakeGIT("repo", map[string]string{
+		"baz": `FROM busybox
+RUN echo from baz`,
+		"Dockerfile": `FROM busybox
+RUN echo from Dockerfile`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	// Make sure it tries to 'dockerfile' query param value
+	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "from baz") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build from git w/F")
+}
+
+func TestBuildApiDoubleDockerfile(t *testing.T) {
+	git, err := fakeGIT("repo", map[string]string{
+		"Dockerfile": `FROM busybox
+RUN echo from Dockerfile`,
+		"dockerfile": `FROM busybox
+RUN echo from dockerfile`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	// Make sure it tries to 'dockerfile' query param value
+	buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s", err)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "from Dockerfile") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build with two dockerfiles")
+}
+
 func TestBuildApiDockerfileSymlink(t *testing.T) {
 	// Test to make sure we stop people from trying to leave the
 	// build context when specifying a symlink as the path to the dockerfile

@@ -4699,6 +4699,125 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 	logDone("build - rename dockerfile")
 }
 
+func TestBuildFromMixedcaseDockerfile(t *testing.T) {
+	defer deleteImages("test1")
+
+	ctx, err := fakeContext(`FROM busybox
+	RUN echo from dockerfile`,
+		map[string]string{
+			"dockerfile": "FROM busybox\nRUN echo from dockerfile",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", "test1", ".")
+	if err != nil {
+		t.Fatalf("Failed to build: %s\n%s", out, err)
+	}
+
+	if !strings.Contains(out, "from dockerfile") {
+		t.Fatalf("Missing proper output: %s", out)
+	}
+
+	logDone("build - mixedcase Dockerfile")
+}
+
+func TestBuildWithTwoDockerfiles(t *testing.T) {
+	defer deleteImages("test1")
+
+	ctx, err := fakeContext(`FROM busybox
+RUN echo from Dockerfile`,
+		map[string]string{
+			"dockerfile": "FROM busybox\nRUN echo from dockerfile",
+		})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-t", "test1", ".")
+	if err != nil {
+		t.Fatalf("Failed to build: %s\n%s", out, err)
+	}
+
+	if !strings.Contains(out, "from Dockerfile") {
+		t.Fatalf("Missing proper output: %s", out)
+	}
+
+	logDone("build - two Dockerfiles")
+}
+
+func TestBuildFromURLWithF(t *testing.T) {
+	defer deleteImages("test1")
+
+	server, err := fakeStorage(map[string]string{"baz": `FROM busybox
+RUN echo from baz
+COPY * /tmp/
+RUN find /tmp/`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	ctx, err := fakeContext(`FROM busybox
+RUN echo from Dockerfile`,
+		map[string]string{})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure that -f is ignored and that we don't use the Dockerfile
+	// that's in the current dir
+	out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-f", "baz", "-t", "test1", server.URL+"/baz")
+	if err != nil {
+		t.Fatalf("Failed to build: %s\n%s", out, err)
+	}
+
+	if !strings.Contains(out, "from baz") ||
+		strings.Contains(out, "/tmp/baz") ||
+		!strings.Contains(out, "/tmp/Dockerfile") {
+		t.Fatalf("Missing proper output: %s", out)
+	}
+
+	logDone("build - from URL with -f")
+}
+
+func TestBuildFromStdinWithF(t *testing.T) {
+	defer deleteImages("test1")
+
+	ctx, err := fakeContext(`FROM busybox
+RUN echo from Dockerfile`,
+		map[string]string{})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure that -f is ignored and that we don't use the Dockerfile
+	// that's in the current dir
+	dockerCommand := exec.Command(dockerBinary, "build", "-f", "baz", "-t", "test1", "-")
+	dockerCommand.Dir = ctx.Dir
+	dockerCommand.Stdin = strings.NewReader(`FROM busybox
+RUN echo from baz
+COPY * /tmp/
+RUN find /tmp/`)
+	out, status, err := runCommandWithOutput(dockerCommand)
+	if err != nil || status != 0 {
+		t.Fatalf("Error building: %s", err)
+	}
+
+	if !strings.Contains(out, "from baz") ||
+		strings.Contains(out, "/tmp/baz") ||
+		!strings.Contains(out, "/tmp/Dockerfile") {
+		t.Fatalf("Missing proper output: %s", out)
+	}
+
+	logDone("build - from stdin with -f")
+}
+
 func TestBuildFromOfficialNames(t *testing.T) {
 	name := "testbuildfromofficial"
 	fromNames := []string{
