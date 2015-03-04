@@ -389,33 +389,41 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 	if err != nil {
 		return err
 	}
-	arch, err := image.TarLayer()
-	if err != nil {
-		return err
-	}
-	defer arch.Close()
 
-	tf, err := s.graph.newTempFile()
+	diffDigest, err := image.DiffDigest()
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get image rootfs diff digest: %s", err)
 	}
-	defer func() {
-		tf.Close()
-		os.Remove(tf.Name())
-	}()
 
-	size, err := bufferToFile(tf, arch)
-	if err != nil {
-		return err
+	manifestBlobDigest := fmt.Sprintf("%s:%s", sumType, sumStr)
+	if diffDigest != manifestBlobDigest {
+		return fmt.Errorf("manifest blob digest %q does not match image rootfs diff digest %q", manifestBlobDigest, diffDigest)
 	}
+
+	diffBlob, err := s.graph.blobStore.Get(diffDigest)
+	if err != nil {
+		return fmt.Errorf("unable to get image rootfs diff blob: %s", err)
+	}
+
+	rawBlob, err := diffBlob.Open()
+	if err != nil {
+		return fmt.Errorf("unable to open image rootfs diff blob: %s", err)
+	}
+	defer rawBlob.Close()
+
+	size := diffBlob.Size()
+	progressReader := utils.ProgressReader(
+		ioutil.NopCloser(rawBlob), int(size), out,
+		sf, false, common.TruncateID(img.ID), "Pushing",
+	)
 
 	// Send the layer
 	log.Debugf("rendered layer for %s of [%d] size", img.ID, size)
-
-	if err := r.PutV2ImageBlob(endpoint, imageName, sumType, sumStr, utils.ProgressReader(tf, int(size), out, sf, false, common.TruncateID(img.ID), "Pushing"), auth); err != nil {
+	if err := r.PutV2ImageBlob(endpoint, imageName, sumType, sumStr, progressReader, auth); err != nil {
 		out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image push failed", nil))
 		return err
 	}
+	progressReader.Close()
 	out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image successfully pushed", nil))
 	return nil
 }

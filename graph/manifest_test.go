@@ -38,19 +38,8 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cs, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID)); err != nil {
-		t.Fatal(err)
-	} else if cs != "" {
-		t.Fatalf("Non-empty checksum file after register")
-	}
-
 	// Generate manifest
 	payload, err := store.newManifest(testManifestImageName, testManifestImageName, testManifestTag)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	manifestChecksum, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,8 +53,15 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatalf("Unexpected number of layers, expecting 1: %d", len(manifest.FSLayers))
 	}
 
-	if manifest.FSLayers[0].BlobSum != manifestChecksum {
-		t.Fatalf("Unexpected blob sum, expecting %q, got %q", manifestChecksum, manifest.FSLayers[0].BlobSum)
+	digest, err := img.DiffDigest()
+	if err != nil {
+		t.Fatal(err)
+	} else if digest == "" {
+		t.Fatalf("empty image rootfs diff digest")
+	}
+
+	if manifest.FSLayers[0].BlobSum != digest {
+		t.Fatalf("Unexpected blob sum, expecting %q, got %q", digest, manifest.FSLayers[0].BlobSum)
 	}
 
 	if len(manifest.History) != 1 {
