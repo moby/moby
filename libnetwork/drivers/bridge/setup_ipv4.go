@@ -87,7 +87,7 @@ func checkNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
 			return err
 		}
 		if networkOverlaps(toCheck, nsNetwork) {
-			return fmt.Errorf("Requested network %s overlaps with name server")
+			return fmt.Errorf("Requested network %s overlaps with name server", toCheck.String())
 		}
 	}
 	return nil
@@ -102,7 +102,7 @@ func checkRouteOverlaps(toCheck *net.IPNet) error {
 	for _, network := range networks {
 		// TODO Is that right?
 		if network.Dst != nil && networkOverlaps(toCheck, network.Dst) {
-			return fmt.Errorf("Requested network %s overlaps with an existing network")
+			return fmt.Errorf("Requested network %s overlaps with an existing network", toCheck.String())
 		}
 	}
 	return nil
