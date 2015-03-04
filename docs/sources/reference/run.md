@@ -311,7 +311,9 @@ container:
 
     -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
     -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
-    -c=0 : CPU shares (relative weight)
+    -c, --cpu-shares=0         CPU shares (relative weight)
+
+### Memory constraints
 
 We have four ways to set memory usage:
  - memory=inf, memory-swap=inf (not specify any of them)
@@ -329,35 +331,40 @@ We have four ways to set memory usage:
    It is not allowed to use more than L bytes of memory, swap *plus* memory
    usage is limited by S.
 
-The operator can modify the priority of this container with
-the `-c` option. By default, all containers run at the same priority
-and get the same proportion of CPU cycles, the value specified must be 2
-or higher, if you are not setting `-c` or `--cpu-shares`, the default
-shares of CPU time would be 1024.
+### CPU share constraint
 
-CPU shares is kind of CPU bandwidth weight, the proportion will only
-reflect when CPU-intensive processes are running. When tasks in one
-container are idle, other containers are allowed to borrow the left-over
-CPU time.
+By default, all containers get the same proportion of CPU cycles. This proportion
+can be modified by changing the container's CPU share weighting relative
+to the weighting of all other running containers.
 
-The actual amount of CPU time can very depending on the number of containers
-running on the system. If a container have a share of 1024 and two other
-containers have share of 512, when processes in all containers attempt to
-use 100% of CPU, the first container would receive 50% of all CPU time, if
-another container with share of 1024 is added, the first container would
-only get 33% of the CPU (the rest receive 16.5%, 16.5% and 33% of CPU).
+To modify the proportion from the default of 1024, use the `-c` or `--cpu-shares`
+flag to set the weighting to 2 or higher.
 
-Note that shares of CPU time are distributed per all CPU cores on multi-core
-systems. Even if a container is limited to less than 100% of CPU time, it
-may use 100% of each individual CPU core. E.g., if we start {C0} container
-with (`-c` = 512) and {C1} with (`-c` = 1024), we start three CPU-intensive
-processes (one in {C0} and two in {C1}) on a system with more than three
-cores, might results in the following division of CPU shares:
+The proportion will only apply when CPU-intensive processes are running.
+When tasks in one container are idle, other containers can use the
+left-over CPU time. The actual amount of CPU time will vary depending on
+the number of containers running on the system.
 
-PID	container	CPU	CPU share
-100	{C0}		0	100% of CPU0
-101	{C1}		1	100% of CPU1
-102	{C1}		2	100% of CPU2
+For example, consider three containers, one has a cpu-share of 1024 and
+two others have a cpu-share setting of 512. When processes in all three
+containers attempt to use 100% of CPU, the first container would receive
+50% of the total CPU time. If you add a fouth container with a cpu-share
+of 1024, the first container only gets 33% of the CPU. The remaining containers
+receive 16.5%, 16.5% and 33% of the CPU.
+
+On a multi-core system, the shares of CPU time are distributed over all CPU
+cores. Even if a container is limited to less than 100% of CPU time, it can
+use 100% of each individual CPU core.
+
+For example, consider a system with more than three cores. If you start one
+container `{C0}` with `-c=512` running one process, and another container
+`{C1}` with `-c=1024` running two processes, this can result in the following
+division of CPU shares:
+
+    PID    container	CPU	CPU share
+    100    {C0}		0	100% of CPU0
+    101    {C1}		1	100% of CPU1
+    102    {C1}		2	100% of CPU2
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 
