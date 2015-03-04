@@ -84,6 +84,35 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	}
 	s.Unlock()
 
+	showDigests := job.GetenvBool("digests")
+	for name, repository := range s.Digests {
+		for digest, id := range repository {
+			image, err := s.graph.Get(id)
+			if err != nil {
+				log.Printf("Warning: couldn't load %s from %s@%s: %s", id, name, digest, err)
+				continue
+			}
+
+			// remove from allImages so it doesn't show up as dangling
+			delete(allImages, id)
+
+			if showDigests && filt_tagged {
+				if out, exists := lookup[id]; exists {
+					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s@%s", name, digest)))
+				} else {
+					out := &engine.Env{}
+					out.SetJson("ParentId", image.Parent)
+					out.SetList("RepoTags", []string{fmt.Sprintf("%s@%s", name, digest)})
+					out.SetJson("Id", image.ID)
+					out.SetInt64("Created", image.Created.Unix())
+					out.SetInt64("Size", image.Size)
+					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+					lookup[id] = out
+				}
+			}
+		}
+	}
+
 	outs := engine.NewTable("Created", len(lookup))
 	for _, value := range lookup {
 		outs.Add(value)

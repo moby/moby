@@ -1368,6 +1368,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (default hides intermediate images)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
+	showDigests := cmd.Bool([]string{"d", "-digests"}, false, "Show digests")
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
@@ -1479,6 +1480,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 		if *all {
 			v.Set("all", "1")
+		}
+		if *showDigests {
+			v.Set("digests", "1")
 		}
 
 		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
