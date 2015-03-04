@@ -1,0 +1,4 @@
+test:
+    override:
+        - sudo -E go test ./...
+
