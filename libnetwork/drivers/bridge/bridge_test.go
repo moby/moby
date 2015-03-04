@@ -16,7 +16,7 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	if expected := NetworkType; netw.Type() != NetworkType {
+	if expected := networkType; netw.Type() != expected {
 		t.Fatalf("Expected networkType %q, got %q", expected, netw.Type())
 	}
 }
@@ -47,7 +47,7 @@ func TestCreateFullOptions(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	if expected := NetworkType; netw.Type() != NetworkType {
+	if expected := networkType; netw.Type() != expected {
 		t.Fatalf("Expected networkType %q, got %q", expected, netw.Type())
 	}
 }

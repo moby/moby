@@ -19,7 +19,7 @@ var setNsMap = map[string]uintptr{
 	"linux/s390x":   339,
 }
 
-func Setns(fd uintptr, flags uintptr) error {
+func setns(fd uintptr, flags uintptr) error {
 	ns, exists := setNsMap[fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)]
 	if !exists {
 		return fmt.Errorf("unsupported platform %s/%s", runtime.GOOS, runtime.GOARCH)

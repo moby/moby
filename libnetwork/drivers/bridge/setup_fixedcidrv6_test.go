@@ -11,21 +11,21 @@ import (
 func TestSetupFixedCIDRv6(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
-	br := NewInterface(&Configuration{})
+	br := newInterface(&Configuration{})
 
 	_, br.Config.FixedCIDRv6, _ = net.ParseCIDR("2002:db8::/48")
-	if err := SetupDevice(br); err != nil {
+	if err := setupDevice(br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
-	if err := SetupBridgeIPv4(br); err != nil {
+	if err := setupBridgeIPv4(br); err != nil {
 		t.Fatalf("Assign IPv4 to bridge failed: %v", err)
 	}
 
-	if err := SetupBridgeIPv6(br); err != nil {
+	if err := setupBridgeIPv6(br); err != nil {
 		t.Fatalf("Assign IPv4 to bridge failed: %v", err)
 	}
 
-	if err := SetupFixedCIDRv6(br); err != nil {
+	if err := setupFixedCIDRv6(br); err != nil {
 		t.Fatalf("Failed to setup bridge FixedCIDRv6: %v", err)
 	}
 

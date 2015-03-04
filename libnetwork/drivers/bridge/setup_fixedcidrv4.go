@@ -7,8 +7,8 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/ipallocator"
 )
 
-func SetupFixedCIDRv4(i *Interface) error {
-	addrv4, _, err := i.Addresses()
+func setupFixedCIDRv4(i *bridgeInterface) error {
+	addrv4, _, err := i.addresses()
 	if err != nil {
 		return err
 	}
