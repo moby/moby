@@ -26,7 +26,7 @@ To list the help on any command just execute the command, followed by the `--hel
 
     Run a command in a new container
 
-      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
+      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       -c, --cpu-shares=0         CPU shares (relative weight)
     ...
 
@@ -771,7 +771,7 @@ Creates a new container.
 
     Create a new container
 
-      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
+      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
@@ -890,7 +890,7 @@ For example:
 
     Get real time events from the server
 
-      -f, --filter=[]    Provide filter values (i.e., 'event=stop')
+      -f, --filter=[]    Filter output based on conditions provided
       --since=""         Show all events created since timestamp
       --until=""         Stream events until this timestamp
 
@@ -1075,7 +1075,7 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false      Show all images (default hides intermediate images)
-      -f, --filter=[]      Provide filter values (i.e., 'dangling=true')
+      -f, --filter=[]      Filter output based on conditions provided
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -1256,7 +1256,7 @@ ensure we know how your setup is configured.
 
     Return low-level information on a container or image
 
-      -f, --format=""    Format the output using the given go template.
+      -f, --format=""    Format the output using the given go template
 
 By default, this will render all results in a JSON array. If a format is
 specified, the given template will be executed for each result.
@@ -1454,16 +1454,14 @@ The `docker rename` command allows the container to be renamed to a different na
     List containers
 
       -a, --all=false       Show all containers (default shows just running)
-      --before=""           Show only container created before Id or Name.
-      -f, --filter=[]       Provide filter values. Valid filters:
-                              exited=<int> - containers with exit code of <int>
-                              status=(restarting|running|paused|exited)
-      -l, --latest=false    Show the latest created container, include non-running.
-      -n=-1                 Show n last created containers, include non-running .
+      --before=""           Show only container created before Id or Name
+      -f, --filter=[]       Filter output based on conditions provided
+      -l, --latest=false    Show the latest created container, include non-running
+      -n=-1                 Show n last created containers, include non-running 
       --no-trunc=false      Don't truncate output
       -q, --quiet=false     Only display numeric IDs
       -s, --size=false      Display total file sizes
-      --since=""            Show created since Id or Name, include non-running.
+      --since=""            Show created since Id or Name, include non-running
 
 Running `docker ps --no-trunc` showing 2 linked containers.
 
@@ -1546,7 +1544,7 @@ registry or to a self-hosted one.
 
     Restart a running container
 
-      -t, --time=10      Seconds to wait for stop before killing the container.
+      -t, --time=10      Seconds to wait for stop before killing the container
 
 ## rm
 
@@ -1626,7 +1624,7 @@ removed before the image is removed.
 
     Run a command in a new container
 
-      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR.
+      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
@@ -2098,7 +2096,7 @@ containers. Stopped containers will not return any data.
     Stop a running container by sending SIGTERM and then SIGKILL after a
 	grace period
 
-      -t, --time=10      Seconds to wait for stop before killing it.
+      -t, --time=10      Seconds to wait for stop before killing it
 
 The main process inside the container will receive `SIGTERM`, and after a
 grace period, `SIGKILL`.

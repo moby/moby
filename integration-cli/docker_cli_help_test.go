@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/homedir"
 )
 
-func TestHelpWidth(t *testing.T) {
+func TestHelpTextVerify(t *testing.T) {
 	// Make sure main help text fits within 80 chars and that
 	// on non-windows system we use ~ when possible (to shorten things).
 	// Test for HOME set to its default value and set to "/" on linux
@@ -58,6 +58,7 @@ func TestHelpWidth(t *testing.T) {
 			if len(line) > 80 {
 				t.Fatalf("Line is too long(%d chars):\n%s", len(line), line)
 			}
+
 			if scanForHome && strings.Contains(line, `=`+home) {
 				t.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
 			}
@@ -108,6 +109,7 @@ func TestHelpWidth(t *testing.T) {
 					t.Fatalf("Help for %q is too long(%d chars):\n%s", cmd,
 						len(line), line)
 				}
+
 				if scanForHome && strings.Contains(line, `"`+home) {
 					t.Fatalf("Help for %q should use ~ instead of %q on:\n%s",
 						cmd, home, line)
@@ -115,6 +117,18 @@ func TestHelpWidth(t *testing.T) {
 				i := strings.Index(line, "~")
 				if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
 					t.Fatalf("Help for %q should not have used ~:\n%s", cmd, line)
+				}
+
+				// If a line starts with 4 spaces then assume someone
+				// added a multi-line description for an option and we need
+				// to flag it
+				if strings.HasPrefix(line, "    ") {
+					t.Fatalf("Help for %q should not have a multi-line option: %s", cmd, line)
+				}
+
+				// Options should NOT end with a period
+				if strings.HasPrefix(line, "  -") && strings.HasSuffix(line, ".") {
+					t.Fatalf("Help for %q should not end with a period: %s", cmd, line)
 				}
 			}
 		}
@@ -126,5 +140,5 @@ func TestHelpWidth(t *testing.T) {
 		}
 	}
 
-	logDone("help - widths")
+	logDone("help - verify text")
 }
