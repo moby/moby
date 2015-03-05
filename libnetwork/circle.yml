@@ -2,8 +2,11 @@ machine:
     # sudo -E doesn't preserve $PATH, so go isn't found anymore.
     environment:
         GO_BIN: $(which go)
+        GO_PATH: /home/ubuntu/.go_workspace/bin/
 
 dependencies:
+    override:
+        - go get github.com/tools/godep
     post:
         - go get github.com/axw/gocov/gocov
         - go get github.com/golang/lint/golint
@@ -11,7 +14,7 @@ dependencies:
 
 test:
     override:
-        - test -z "$(goimports -d . | tee /dev/stderr)"
+        - test -z "$(goimports -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
         - go vet ./...
         - test -z "$(golint ./... | tee /dev/stderr)"
         - sudo -E $GO_BIN test -test.v ./...
