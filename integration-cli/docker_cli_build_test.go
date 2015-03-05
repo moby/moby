@@ -2343,6 +2343,33 @@ func TestBuildExposeUpperCaseProto(t *testing.T) {
 	logDone("build - expose port with upper case proto")
 }
 
+func TestBuildExposeHostPort(t *testing.T) {
+	// start building docker file with ip:hostPort:containerPort
+	name := "testbuildexpose"
+	expected := "map[5678/tcp:map[]]"
+	defer deleteImages(name)
+	_, out, err := buildImageWithOut(name,
+		`FROM scratch
+        EXPOSE 192.168.1.2:2375:5678`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "to map host ports to container ports (ip:hostPort:containerPort) is deprecated.") {
+		t.Fatal("Missing warning message")
+	}
+
+	res, err := inspectField(name, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Exposed ports %s, expected %s", res, expected)
+	}
+	logDone("build - ignore exposing host's port")
+}
+
 func TestBuildEmptyEntrypointInheritance(t *testing.T) {
 	name := "testbuildentrypointinheritance"
 	name2 := "testbuildentrypointinheritance2"
