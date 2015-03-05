@@ -86,6 +86,11 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 	showDigests := job.GetenvBool("digests")
 	for name, repository := range s.Digests {
+		if job.Getenv("filter") != "" {
+			if match, _ := path.Match(job.Getenv("filter"), name); !match {
+				continue
+			}
+		}
 		for digest, id := range repository {
 			image, err := s.graph.Get(id)
 			if err != nil {
@@ -98,11 +103,12 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 			if showDigests && filt_tagged {
 				if out, exists := lookup[id]; exists {
-					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s@%s", name, digest)))
+					out.SetJson("Digest", digest)
 				} else {
 					out := &engine.Env{}
 					out.SetJson("ParentId", image.Parent)
-					out.SetList("RepoTags", []string{fmt.Sprintf("%s@%s", name, digest)})
+					out.SetJson("Repo", name)
+					out.SetJson("Digest", digest)
 					out.SetJson("Id", image.ID)
 					out.SetInt64("Created", image.Created.Unix())
 					out.SetInt64("Size", image.Size)

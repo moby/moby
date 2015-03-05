@@ -1498,23 +1498,38 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			if *showDigests {
+				fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			} else {
+				fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			}
 		}
 
 		for _, out := range outs.Data {
+			haveTags := false
+			outID := out.Get("Id")
+			if !*noTrunc {
+				outID = common.TruncateID(outID)
+			}
+
 			for _, repotag := range out.GetList("RepoTags") {
+				haveTags = true
 
 				repo, tag := parsers.ParseRepositoryTag(repotag)
-				outID := out.Get("Id")
-				if !*noTrunc {
-					outID = common.TruncateID(outID)
-				}
 
 				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					if *showDigests {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, out.Get("Digest"), outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					} else {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					}
 				} else {
 					fmt.Fprintln(w, outID)
 				}
+			}
+
+			if !haveTags && *showDigests {
+				fmt.Fprintf(w, "%s\t<none>\t%s\t%s\t%s ago\t%s\n", out.Get("Repo"), out.Get("Digest"), outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 			}
 		}
 

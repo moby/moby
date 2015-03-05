@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-const DockerDigestHeader = "Docker-Digest"
+const DockerDigestHeader = "Docker-Content-Digest"
 
 func getV2Builder(e *Endpoint) *v2.URLBuilder {
 	if e.URLBuilder == nil {

@@ -109,7 +109,7 @@ RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install registry
 # FIXME update registry commit when https://github.com/docker/distribution/pull/211 is merged
-ENV REGISTRY_COMMIT b4dd565774e076166dc5134976a7ec4682a8a253
+ENV REGISTRY_COMMIT 40273b1d367c3d54997b00faf7ecb1f0a8a4e666
 # FIXME change clone url back to github.com/docker/distribution when https://github.com/docker/distribution/pull/211 is merged
 RUN set -x \
 	&& git clone https://github.com/stevvooe/distribution.git /go/src/github.com/docker/distribution \
