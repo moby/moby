@@ -4,6 +4,8 @@ machine:
         GO_BIN: $(which go)
 
 dependencies:
+    oerride:
+        - go get github.com/tools/godep
     post:
         - go get github.com/axw/gocov/gocov
         - go get github.com/golang/lint/golint
@@ -14,5 +16,5 @@ test:
         - test -z "$(goimports -d . | tee /dev/stderr)"
         - go vet ./...
         - test -z "$(golint ./... | tee /dev/stderr)"
-        - sudo -E $GO_BIN test -test.v ./...
+        - sudo -E $GOPATH/bin/godep go test -test.v ./...
 
