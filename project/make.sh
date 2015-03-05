@@ -101,7 +101,7 @@ fi
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
-source "$(dirname "$BASH_SOURCE")/make/.dockerversion"
+source "$(dirname "$BASH_SOURCE")/make/.go-autogen"
 LDFLAGS='-w'
 
 LDFLAGS_STATIC='-linkmode external'
