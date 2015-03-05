@@ -11,7 +11,7 @@ applications running inside Docker containers. In this section, we'll briefly re
 connecting via a network port and then we'll introduce you to another method of access:
 container linking.
 
-## Network port mapping refresher
+## Connect using Network port mapping
 
 In [the Using Docker section](/userguide/usingdocker), you created a
 container that ran a Python Flask application:
@@ -72,7 +72,7 @@ configurations. For example, if you've bound the container port to the
 > **Note:** 
 > The `-p` flag can be used multiple times to configure multiple ports.
 
-## Docker Container Linking
+## Connect with the linking system
 
 Network port mappings are not the only way Docker containers can connect
 to one another. Docker also has a linking system that allows you to link
@@ -81,7 +81,7 @@ When containers are linked, information about a source container can be sent to 
 recipient container. This allows the recipient to see selected data describing
 aspects of the source container.
 
-## Container naming
+### The importance of naming
 
 To establish links, Docker relies on the names of your containers.
 You've already seen that each container you create has an automatically
@@ -121,7 +121,7 @@ You can also use `docker inspect` to return the container's name.
 > flag with the `docker run` command. This will delete the container
 > immediately after it is stopped.
 
-## Container Linking
+## Communication across links
 
 Links allow containers to discover each other and securely transfer information about one
 container to another container. When you set up a link, you create a conduit between a
@@ -176,41 +176,64 @@ recipient container in two ways:
 
 ### Environment Variables
 
-When two containers are linked, Docker will set some environment variables
-in the target container to enable programmatic discovery of information
-related to the source container.
+Docker creates several environment variables when you link containers. Docker
+automatically creates environment variables in the target container based on
+the `--link` parameters.  It will also expose all environment variables 
+originating from Docker from the source container. These include variables from:
 
-First, Docker will set an `<alias>_NAME` environment variable specifying the
-alias of each target container that was given in a `--link` parameter. So,
-for example, if a new container called `web` is being linked to a database
-container called `db` via `--link db:webdb` then in the `web` container
-would be `WEBDB_NAME=/web/webdb`.
+* the `ENV` commands in the source container's Dockerfile
+* the `-e`, `--env` and `--env-file` options on the `docker run`
+command when the source container is started
 
-Docker will then also define a set of environment variables for each
-port that is exposed by the source container. The pattern followed is:
+These environment variables enable programmatic discovery from within the
+target container of information related to the source container.
 
-* `<name>_PORT_<port>_<protocol>` will contain a URL reference to the
-port. Where `<name>` is the alias name specified in the `--link` parameter
-(e.g. `webdb`), `<port>` is the port number being exposed, and `<protocol>`
-is either `TCP` or `UDP`. The format of the URL will be: 
-`<protocol>://<container_ip_address>:<port>`
-(e.g. `tcp://172.17.0.82:8080`).  This URL will then be
-split into the following 3 environment variables for convenience:
-* `<name>_PORT_<port>_<protocol>_ADDR` will contain just the IP address 
-from the URL (e.g. `WEBDB_PORT_8080_TCP_ADDR=172.17.0.82`).
-* `<name>_PORT_<port>_<protocol>_PORT` will contain just the port number
-from the URL (e.g. `WEBDB_PORT_8080_TCP_PORT=8080`).
-* `<name>_PORT_<port>_<protocol>_PROTO` will contain just the protocol
-from the URL (e.g. `WEBDB_PORT_8080_TCP_PROTO=tcp`).
+> **Warning**:
+> It is important to understand that *all* environment variables originating
+> from Docker within a container are made available to *any* container
+> that links to it. This could have serious security implications if sensitive
+> data is stored in them.
 
-If there are multiple ports exposed then the above set of environment
-variables will be defined for each one.
+Docker sets an `<alias>_NAME` environment variable for each target container
+listed in the `--link` parameter. For example, if a new container called
+`web` is linked to a database container called `db` via `--link db:webdb`,
+then Docker creates a `WEBDB_NAME=/web/webdb` variable in the `web` container.
 
-Finally, there will be an environment variable called `<alias>_PORT` that will
-contain the URL of the first exposed port of the source container.
-For example, `WEBDB_PORT=tcp://172.17.0.82:8080`. In this case, 'first'
-is defined as the lowest numbered port that is exposed. If that port is
-used for both tcp and udp, then the tcp one will be specified.
+Docker also defines a set of environment variables for each port exposed by the
+source container.  Each variable has a unique prefix in the form:
+
+`<name>_PORT_<port>_<protocol>`
+
+The components in this prefix are:
+
+* the alias `<name>` specified in the `--link` parameter (for example, `webdb`)
+* the `<port>` number exposed
+* a `<protocol>` which is either TCP or UDP
+
+Docker uses this prefix format to define three distinct environment variables:
+
+* The `prefix_ADDR` variable contains the IP Address from the URL, for
+example `WEBDB_PORT_8080_TCP_ADDR=172.17.0.82`.
+* The `prefix_PORT` variable contains just the port number from the URL for
+example `WEBDB_PORT_8080_TCP_PORT=8080`.
+* The `prefix_PROTO` variable contains just the protocol from the URL for
+example `WEBDB_PORT_8080_TCP_PROTO=tcp`.
+
+If the container exposes multiple ports, an environment variable set is
+defined for each one. This means, for example, if a container exposes 4 ports
+that Docker creates 12 environment variables, 3 for each port.
+
+Additionally, Docker creates an environment variable called `<alias>_PORT`.
+This variable contains the URL of the source container's first exposed port.
+The  'first' port is defined as the exposed port with the lowest number.
+For example, consider the `WEBDB_PORT=tcp://172.17.0.82:8080` variable.  If
+that port is used for both tcp and udp, then the tcp one is specified.
+
+Finally, Docker also exposes each Docker originated environment variable
+from the source container as an environment variable in the target. For each
+variable Docker creates an `<alias>_ENV_<name>` variable in the target 
+container. The variable's value is set to the value Docker used when it 
+started the source container.
 
 Returning back to our database example, you can run the `env`
 command to list the specified container's environment variables.
@@ -227,24 +250,25 @@ command to list the specified container's environment variables.
     . . .
 ```
 
-> **Note**:
-> These Environment variables are only set for the first process in the
-> container. Similarly, some daemons (such as `sshd`)
-> will scrub them when spawning shells for connection.
-
-> **Note**:
-> Unlike host entries in the [`/etc/hosts` file](#updating-the-etchosts-file),
-> IP addresses stored in the environment variables are not automatically updated
-> if the source container is restarted. We recommend using the host entries in
-> `/etc/hosts` to resolve the IP address of linked containers.
-
 You can see that Docker has created a series of environment variables with
-useful information about the source `db` container. Each variable is prefixed with
+useful information about the source `db` container. Each variable is prefixed
+with
 `DB_`, which is populated from the `alias` you specified above. If the `alias`
 were `db1`, the variables would be prefixed with `DB1_`. You can use these
 environment variables to configure your applications to connect to the database
 on the `db` container. The connection will be secure and private; only the
 linked `web` container will be able to talk to the `db` container.
+
+### Important notes on Docker environment variables
+
+Unlike host entries in the [`/etc/hosts` file](#updating-the-etchosts-file),
+IP addresses stored in the environment variables are not automatically updated
+if the source container is restarted. We recommend using the host entries in
+`/etc/hosts` to resolve the IP address of linked containers.
+
+These environment variables are only set for the first process in the
+container. Some daemons, such as `sshd`, will scrub them when spawning shells
+for connection.
 
 ### Updating the `/etc/hosts` file
 
