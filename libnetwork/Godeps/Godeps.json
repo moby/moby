@@ -1,6 +1,9 @@
 {
 	"ImportPath": "github.com/docker/libnetwork",
 	"GoVersion": "go1.4.2",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -8,9 +11,24 @@
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/daemon/networkdriver",
+			"Comment": "v1.4.1-1379-g8e107a9",
+			"Rev": "8e107a93210c54f22ec1354d969c771b1abfbe05"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/parsers/kernel",
+			"Comment": "v1.4.1-1379-g8e107a9",
+			"Rev": "8e107a93210c54f22ec1354d969c771b1abfbe05"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/reexec",
 			"Comment": "v1.4.1-1379-g8e107a9",
 			"Rev": "8e107a93210c54f22ec1354d969c771b1abfbe05"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/netlink",
+			"Comment": "v1.4.0-324-g88989e6",
+			"Rev": "88989e66d3a1ab960deb37f3dd7f824d85e1b9bc"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
