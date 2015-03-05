@@ -66,6 +66,17 @@ var (
 		},
 		"Test requires the native (libcontainer) exec driver.",
 	}
+
+	NotOverlay = TestRequirement{
+		func() bool {
+			cmd := exec.Command("grep", "^overlay / overlay", "/proc/mounts")
+			if err := cmd.Run(); err != nil {
+				return true
+			}
+			return false
+		},
+		"Test requires underlying root filesystem not be backed by overlay.",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements
