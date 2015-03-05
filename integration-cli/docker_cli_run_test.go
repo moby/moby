@@ -2573,7 +2573,7 @@ func TestRunReuseBindVolumeThatIsSymlink(t *testing.T) {
 	logDone("run - can remount old bindmount volume")
 }
 
-//test create /etc volume
+//GH#10604: Test an "/etc" volume doesn't overlay special bind mounts in container
 func TestRunCreateVolumeEtc(t *testing.T) {
 	defer deleteAllContainers()
 
@@ -2583,7 +2583,7 @@ func TestRunCreateVolumeEtc(t *testing.T) {
 		t.Fatal("failed to run container: %v, output: %q", err, out)
 	}
 	if !strings.Contains(out, "nameserver 127.0.0.1") {
-		t.Fatal("failed: create /etc volume cover /etc/resolv.conf")
+		t.Fatal("/etc volume mount hides /etc/resolv.conf")
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "-h=test123", "-v", "/etc", "busybox", "cat", "/etc/hostname")
@@ -2592,7 +2592,7 @@ func TestRunCreateVolumeEtc(t *testing.T) {
 		t.Fatal("failed to run container: %v, output: %q", err, out)
 	}
 	if !strings.Contains(out, "test123") {
-		t.Fatal("failed: create /etc volume cover /etc/hostname")
+		t.Fatal("/etc volume mount hides /etc/hostname")
 	}
 
 	cmd = exec.Command(dockerBinary, "run", "--add-host=test:192.168.0.1", "-v", "/etc", "busybox", "cat", "/etc/hosts")
@@ -2601,11 +2601,11 @@ func TestRunCreateVolumeEtc(t *testing.T) {
 		t.Fatal("failed to run container: %v, output: %q", err, out)
 	}
 	out = strings.Replace(out, "\n", " ", -1)
-	if !strings.Contains(out, "192.168.0.1"+"\t"+"test") || !strings.Contains(out, "127.0.0.1"+"\t"+"localhost") {
-		t.Fatal("failed: create /etc volume cover /etc/hosts", out)
+	if !strings.Contains(out, "192.168.0.1\ttest") || !strings.Contains(out, "127.0.0.1\tlocalhost") {
+		t.Fatal("/etc volume mount hides /etc/hosts")
 	}
 
-	logDone("run - create /etc volume success")
+	logDone("run - verify /etc volume doesn't hide special bind mounts")
 }
 
 func TestVolumesNoCopyData(t *testing.T) {
