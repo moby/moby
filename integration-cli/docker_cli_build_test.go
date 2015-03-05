@@ -4700,6 +4700,7 @@ func TestBuildRenamedDockerfile(t *testing.T) {
 }
 
 func TestBuildFromMixedcaseDockerfile(t *testing.T) {
+	testRequires(t, UnixCli) // Dockerfile overwrites dockerfile on windows
 	defer deleteImages("test1")
 
 	ctx, err := fakeContext(`FROM busybox
@@ -4725,6 +4726,7 @@ func TestBuildFromMixedcaseDockerfile(t *testing.T) {
 }
 
 func TestBuildWithTwoDockerfiles(t *testing.T) {
+	testRequires(t, UnixCli) // Dockerfile overwrites dockerfile on windows
 	defer deleteImages("test1")
 
 	ctx, err := fakeContext(`FROM busybox
