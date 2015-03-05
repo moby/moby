@@ -26,6 +26,10 @@ called test.tar:
     # ls *.tar
     test.tar
 
+# See also
+**docker-import(1)** to create an empty filesystem image
+and import the contents of the tarball into it, then optionally tag it.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
