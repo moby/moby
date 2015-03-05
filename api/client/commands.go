@@ -2415,7 +2415,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH", "Copy files/folders from the PATH to the HOSTPATH", true)
+	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH|-", "Copy files/folders from the PATH to the HOSTPATH. Use '-' to write the data\nas a tar file to STDOUT.", true)
 	cmd.Require(flag.Exact, 2)
 
 	utils.ParseFlags(cmd, args, true)
@@ -2442,7 +2442,14 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 
 	if statusCode == 200 {
-		if err := archive.Untar(stream, copyData.Get("HostPath"), &archive.TarOptions{NoLchown: true}); err != nil {
+		dest := copyData.Get("HostPath")
+
+		if dest == "-" {
+			_, err = io.Copy(cli.out, stream)
+		} else {
+			err = archive.Untar(stream, dest, &archive.TarOptions{NoLchown: true})
+		}
+		if err != nil {
 			return err
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -527,4 +528,31 @@ func TestCpToDot(t *testing.T) {
 		t.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")
 	}
 	logDone("cp - to dot path")
+}
+
+func TestCpToStdout(t *testing.T) {
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to create a container:%s\n%s", out, err)
+	}
+
+	cID := stripTrailingCharacters(out)
+	defer deleteContainer(cID)
+
+	out, _, err = dockerCmd(t, "wait", cID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatalf("failed to set up container:%s\n%s", out, err)
+	}
+
+	out, _, err = runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "cp", cID+":/test", "-"),
+		exec.Command("tar", "-vtf", "-"))
+	if err != nil {
+		t.Fatalf("Failed to run commands: %s", err)
+	}
+
+	if !strings.Contains(out, "test") || !strings.Contains(out, "-rw") {
+		t.Fatalf("Missing file from tar TOC:\n%s", out)
+	}
+	logDone("cp - to stdout")
 }

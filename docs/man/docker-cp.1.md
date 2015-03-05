@@ -2,16 +2,17 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-cp - Copy files/folders from the PATH to the HOSTPATH
+docker-cp - Copy files/folders from the PATH to the HOSTPATH, or STDOUT
 
 # SYNOPSIS
 **docker cp**
 [**--help**]
-CONTAINER:PATH HOSTPATH
+CONTAINER:PATH HOSTPATH|-
 
 # DESCRIPTION
-Copy files/folders from a container's filesystem to the host
-path. Paths are relative to the root of the filesystem. Files
+Copy files/folders from a container's filesystem to the
+path. Use '-' to write the data as a tar file to STDOUT.
+Paths are relative to the root of the filesystem. Files
 can be copied from a running or stopped container.
 
 # OPTIONS

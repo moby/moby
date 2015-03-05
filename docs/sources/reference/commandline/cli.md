@@ -757,12 +757,15 @@ Supported `Dockerfile` instructions: `CMD`, `ENTRYPOINT`, `ENV`, `EXPOSE`,
 
 ## cp
 
-Copy files/folders from a container's filesystem to the host
-path.  Paths are relative to the root of the filesystem.
+Copy files/folders from a container's filesystem to the
+path.  Use '-' to write the data as a tar file to STDOUT.
+Paths are relative to the root of the filesystem.
 
-    Usage: docker cp CONTAINER:PATH HOSTPATH
+    Usage: docker cp CONTAINER:PATH HOSTPATH|-
 
-    Copy files/folders from the PATH to the HOSTPATH
+    Copy files/folders from the PATH to the HOSTPATH. Use '-' to write the data
+	as a tar file to STDOUT.
+
 
 ## create
 
