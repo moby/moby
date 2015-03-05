@@ -482,6 +482,7 @@ func TestDaemonUpgradeWithVolumes(t *testing.T) {
 }
 
 func TestDaemonUlimitDefaults(t *testing.T) {
+	testRequires(t, NativeExecDriver)
 	d := NewDaemon(t)
 
 	if err := d.StartWithBusybox("--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024"); err != nil {
