@@ -47,7 +47,7 @@ func (d *Driver) Create(id, parent string) error {
 	}
 	opts := []string{"level:s0"}
 	if _, mountLabel, err := label.InitLabels(opts); err == nil {
-		label.Relabel(dir, mountLabel, "")
+		label.SetFileLabel(dir, mountLabel)
 	}
 	if parent == "" {
 		return nil
