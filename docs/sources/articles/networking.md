@@ -189,6 +189,13 @@ the `/etc/resolv.conf` of the host machine where the `docker` daemon is
 running.  You might wonder what happens when the host machine's
 `/etc/resolv.conf` file changes.  The `docker` daemon has a file change
 notifier active which will watch for changes to the host DNS configuration.
+
+> **Note**:
+> The file change notifier relies on the Linux kernel's inotify feature.
+> Because this feature is currently incompatible with the overlay filesystem 
+> driver, a Docker daemon using "overlay" will not be able to take advantage
+> of the `/etc/resolv.conf` auto-update feature.
+
 When the host file changes, all stopped containers which have a matching
 `resolv.conf` to the host will be updated immediately to this newest host
 configuration.  Containers which are running when the host configuration

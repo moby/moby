@@ -1589,7 +1589,9 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 // stopped and have an unmodified copy of resolv.conf, as well as
 // marking running containers as requiring an update on next restart
 func TestRunResolvconfUpdater(t *testing.T) {
-	testRequires(t, SameHostDaemon)
+	// Because overlay doesn't support inotify properly, we need to skip
+	// this test if the docker daemon has Storage Driver == overlay
+	testRequires(t, SameHostDaemon, NotOverlay)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
