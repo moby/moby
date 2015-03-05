@@ -1,14 +1,17 @@
 package template
 
 import (
-	"github.com/docker/libcontainer"
+	"syscall"
+
 	"github.com/docker/libcontainer/apparmor"
-	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/configs"
 )
 
+const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+
 // New returns the docker default configuration for libcontainer
-func New() *libcontainer.Config {
-	container := &libcontainer.Config{
+func New() *configs.Config {
+	container := &configs.Config{
 		Capabilities: []string{
 			"CHOWN",
 			"DAC_OVERRIDE",
@@ -25,18 +28,51 @@ func New() *libcontainer.Config {
 			"KILL",
 			"AUDIT_WRITE",
 		},
-		Namespaces: libcontainer.Namespaces([]libcontainer.Namespace{
+		Namespaces: configs.Namespaces([]configs.Namespace{
 			{Type: "NEWNS"},
 			{Type: "NEWUTS"},
 			{Type: "NEWIPC"},
 			{Type: "NEWPID"},
 			{Type: "NEWNET"},
 		}),
-		Cgroups: &cgroups.Cgroup{
+		Cgroups: &configs.Cgroup{
 			Parent:          "docker",
 			AllowAllDevices: false,
 		},
-		MountConfig: &libcontainer.MountConfig{},
+		Mounts: []*configs.Mount{
+			{
+				Device:      "tmpfs",
+				Source:      "shm",
+				Destination: "/dev/shm",
+				Data:        "mode=1777,size=65536k",
+				Flags:       defaultMountFlags,
+			},
+			{
+				Source:      "mqueue",
+				Destination: "/dev/mqueue",
+				Device:      "mqueue",
+				Flags:       defaultMountFlags,
+			},
+			{
+				Source:      "sysfs",
+				Destination: "/sys",
+				Device:      "sysfs",
+				Flags:       defaultMountFlags | syscall.MS_RDONLY,
+			},
+		},
+		MaskPaths: []string{
+			"/proc/kcore",
+		},
+		ReadonlyPaths: []string{
+			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
+		},
+		Rlimits: []configs.Rlimit{
+			{
+				Type: syscall.RLIMIT_NOFILE,
+				Hard: 1024,
+				Soft: 1024,
+			},
+		},
 	}
 
 	if apparmor.IsEnabled() {

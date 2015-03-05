@@ -4,28 +4,28 @@ package native
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/apparmor"
-	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
-	consolepkg "github.com/docker/libcontainer/console"
-	"github.com/docker/libcontainer/namespaces"
-	_ "github.com/docker/libcontainer/namespaces/nsenter"
+	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/system"
+	"github.com/docker/libcontainer/utils"
 )
 
 const (
@@ -33,16 +33,12 @@ const (
 	Version    = "0.2"
 )
 
-type activeContainer struct {
-	container *libcontainer.Config
-	cmd       *exec.Cmd
-}
-
 type driver struct {
 	root             string
 	initPath         string
-	activeContainers map[string]*activeContainer
+	activeContainers map[string]libcontainer.Container
 	machineMemory    int64
+	factory          libcontainer.Factory
 	sync.Mutex
 }
 
@@ -59,11 +55,22 @@ func NewDriver(root, initPath string) (*driver, error) {
 	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
+	cgm := libcontainer.Cgroupfs
+	if systemd.UseSystemd() {
+		cgm = libcontainer.SystemdCgroups
+	}
+
+	f, err := libcontainer.New(root, cgm, libcontainer.InitPath(reexec.Self(), DriverName))
+	if err != nil {
+		return nil, err
+	}
+
 	return &driver{
 		root:             root,
 		initPath:         initPath,
-		activeContainers: make(map[string]*activeContainer),
+		activeContainers: make(map[string]libcontainer.Container),
 		machineMemory:    meminfo.MemTotal,
+		factory:          f,
 	}, nil
 }
 
@@ -81,101 +88,141 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	var term execdriver.Terminal
 
+	p := &libcontainer.Process{
+		Args: append([]string{c.ProcessConfig.Entrypoint}, c.ProcessConfig.Arguments...),
+		Env:  c.ProcessConfig.Env,
+		Cwd:  c.WorkingDir,
+		User: c.ProcessConfig.User,
+	}
+
 	if c.ProcessConfig.Tty {
-		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
+		rootuid, err := container.HostUID()
+		if err != nil {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		cons, err := p.NewConsole(rootuid)
+		if err != nil {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		term, err = NewTtyConsole(cons, pipes, rootuid)
 	} else {
-		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
+		p.Stdout = pipes.Stdout
+		p.Stderr = pipes.Stderr
+		r, w, err := os.Pipe()
+		if err != nil {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		if pipes.Stdin != nil {
+			go func() {
+				io.Copy(w, pipes.Stdin)
+				w.Close()
+			}()
+			p.Stdin = r
+		}
+		term = &execdriver.StdConsole{}
 	}
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	c.ProcessConfig.Terminal = term
 
+	cont, err := d.factory.Create(c.ID, container)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
 	d.Lock()
-	d.activeContainers[c.ID] = &activeContainer{
-		container: container,
-		cmd:       &c.ProcessConfig.Cmd,
-	}
+	d.activeContainers[c.ID] = cont
 	d.Unlock()
-
-	var (
-		dataPath = filepath.Join(d.root, c.ID)
-		args     = append([]string{c.ProcessConfig.Entrypoint}, c.ProcessConfig.Arguments...)
-	)
-
-	if err := d.createContainerRoot(c.ID); err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
-	}
-	defer d.cleanContainer(c.ID)
-
-	if err := d.writeContainerFile(container, c.ID); err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
-	}
-
-	execOutputChan := make(chan execOutput, 1)
-	waitForStart := make(chan struct{})
-
-	go func() {
-		exitCode, err := namespaces.Exec(container, c.ProcessConfig.Stdin, c.ProcessConfig.Stdout, c.ProcessConfig.Stderr, c.ProcessConfig.Console, dataPath, args, func(container *libcontainer.Config, console, dataPath, init string, child *os.File, args []string) *exec.Cmd {
-			c.ProcessConfig.Path = d.initPath
-			c.ProcessConfig.Args = append([]string{
-				DriverName,
-				"-console", console,
-				"-pipe", "3",
-				"-root", filepath.Join(d.root, c.ID),
-				"--",
-			}, args...)
-
-			// set this to nil so that when we set the clone flags anything else is reset
-			c.ProcessConfig.SysProcAttr = &syscall.SysProcAttr{
-				Cloneflags: uintptr(namespaces.GetNamespaceFlags(container.Namespaces)),
-			}
-			c.ProcessConfig.ExtraFiles = []*os.File{child}
-
-			c.ProcessConfig.Env = container.Env
-			c.ProcessConfig.Dir = container.RootFs
-
-			return &c.ProcessConfig.Cmd
-		}, func() {
-			close(waitForStart)
-			if startCallback != nil {
-				c.ContainerPid = c.ProcessConfig.Process.Pid
-				startCallback(&c.ProcessConfig, c.ContainerPid)
-			}
-		})
-		execOutputChan <- execOutput{exitCode, err}
+	defer func() {
+		cont.Destroy()
+		d.cleanContainer(c.ID)
 	}()
 
-	select {
-	case execOutput := <-execOutputChan:
-		return execdriver.ExitStatus{ExitCode: execOutput.exitCode}, execOutput.err
-	case <-waitForStart:
-		break
+	if err := cont.Start(p); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	oomKill := false
-	state, err := libcontainer.GetState(filepath.Join(d.root, c.ID))
-	if err == nil {
-		oomKillNotification, err := libcontainer.NotifyOnOOM(state)
-		if err == nil {
-			_, oomKill = <-oomKillNotification
-		} else {
-			log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+	if startCallback != nil {
+		pid, err := p.Pid()
+		if err != nil {
+			p.Signal(os.Kill)
+			p.Wait()
+			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
-	} else {
-		log.Warnf("Failed to get container state, oom notify will not work: %s", err)
+		startCallback(&c.ProcessConfig, pid)
 	}
-	// wait for the container to exit.
-	execOutput := <-execOutputChan
 
-	return execdriver.ExitStatus{ExitCode: execOutput.exitCode, OOMKilled: oomKill}, execOutput.err
+	oomKillNotification, err := cont.NotifyOOM()
+	if err != nil {
+		oomKillNotification = nil
+		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+	}
+	waitF := p.Wait
+	if nss := cont.Config().Namespaces; nss.Contains(configs.NEWPID) {
+		// we need such hack for tracking processes with inerited fds,
+		// because cmd.Wait() waiting for all streams to be copied
+		waitF = waitInPIDHost(p, cont)
+	}
+	ps, err := waitF()
+	if err != nil {
+		if err, ok := err.(*exec.ExitError); !ok {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		} else {
+			ps = err.ProcessState
+		}
+	}
+	cont.Destroy()
+
+	_, oomKill := <-oomKillNotification
+
+	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
 }
 
-func (d *driver) Kill(p *execdriver.Command, sig int) error {
-	if p.ProcessConfig.Process == nil {
-		return errors.New("exec: not started")
+func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*os.ProcessState, error) {
+	return func() (*os.ProcessState, error) {
+		pid, err := p.Pid()
+		if err != nil {
+			return nil, err
+		}
+
+		process, err := os.FindProcess(pid)
+		s, err := process.Wait()
+		if err != nil {
+			if err, ok := err.(*exec.ExitError); !ok {
+				return s, err
+			} else {
+				s = err.ProcessState
+			}
+		}
+		processes, err := c.Processes()
+		if err != nil {
+			return s, err
+		}
+
+		for _, pid := range processes {
+			process, err := os.FindProcess(pid)
+			if err != nil {
+				log.Errorf("Failed to kill process: %d", pid)
+				continue
+			}
+			process.Kill()
+		}
+
+		p.Wait()
+		return s, err
 	}
-	return syscall.Kill(p.ProcessConfig.Process.Pid, syscall.Signal(sig))
+}
+
+func (d *driver) Kill(c *execdriver.Command, sig int) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+	state, err := active.State()
+	if err != nil {
+		return err
+	}
+	return syscall.Kill(state.InitProcessPid, syscall.Signal(sig))
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
@@ -183,11 +230,7 @@ func (d *driver) Pause(c *execdriver.Command) error {
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
-	active.container.Cgroups.Freezer = "FROZEN"
-	if systemd.UseSystemd() {
-		return systemd.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
-	}
-	return fs.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
+	return active.Pause()
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
@@ -195,44 +238,31 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
-	active.container.Cgroups.Freezer = "THAWED"
-	if systemd.UseSystemd() {
-		return systemd.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
-	}
-	return fs.Freeze(active.container.Cgroups, active.container.Cgroups.Freezer)
+	return active.Resume()
 }
 
-func (d *driver) Terminate(p *execdriver.Command) error {
+func (d *driver) Terminate(c *execdriver.Command) error {
 	// lets check the start time for the process
-	state, err := libcontainer.GetState(filepath.Join(d.root, p.ID))
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		// TODO: Remove this part for version 1.2.0
-		// This is added only to ensure smooth upgrades from pre 1.1.0 to 1.1.0
-		data, err := ioutil.ReadFile(filepath.Join(d.root, p.ID, "start"))
-		if err != nil {
-			// if we don't have the data on disk then we can assume the process is gone
-			// because this is only removed after we know the process has stopped
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
-		}
-		state = &libcontainer.State{InitStartTime: string(data)}
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
+	state, err := active.State()
+	if err != nil {
+		return err
+	}
+	pid := state.InitProcessPid
 
-	currentStartTime, err := system.GetProcessStartTime(p.ProcessConfig.Process.Pid)
+	currentStartTime, err := system.GetProcessStartTime(pid)
 	if err != nil {
 		return err
 	}
 
-	if state.InitStartTime == currentStartTime {
-		err = syscall.Kill(p.ProcessConfig.Process.Pid, 9)
-		syscall.Wait4(p.ProcessConfig.Process.Pid, nil, 0, nil)
+	if state.InitProcessStartTime == currentStartTime {
+		err = syscall.Kill(pid, 9)
+		syscall.Wait4(pid, nil, 0, nil)
 	}
-	d.cleanContainer(p.ID)
+	d.cleanContainer(c.ID)
 
 	return err
 
@@ -257,15 +287,10 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	if active == nil {
 		return nil, fmt.Errorf("active container for %s does not exist", id)
 	}
-	c := active.container.Cgroups
-
-	if systemd.UseSystemd() {
-		return systemd.GetPids(c)
-	}
-	return fs.GetPids(c)
+	return active.Processes()
 }
 
-func (d *driver) writeContainerFile(container *libcontainer.Config, id string) error {
+func (d *driver) writeContainerFile(container *configs.Config, id string) error {
 	data, err := json.Marshal(container)
 	if err != nil {
 		return err
@@ -289,42 +314,61 @@ func (d *driver) Clean(id string) error {
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
-	return execdriver.Stats(filepath.Join(d.root, id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
-}
-
-type TtyConsole struct {
-	MasterPty *os.File
-}
-
-func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes) (*TtyConsole, error) {
-	ptyMaster, console, err := consolepkg.CreateMasterAndConsole()
+	c := d.activeContainers[id]
+	now := time.Now()
+	stats, err := c.Stats()
 	if err != nil {
 		return nil, err
 	}
+	memoryLimit := c.Config().Cgroups.Memory
+	// if the container does not have any memory limit specified set the
+	// limit to the machines memory
+	if memoryLimit == 0 {
+		memoryLimit = d.machineMemory
+	}
+	return &execdriver.ResourceStats{
+		Stats:       stats,
+		Read:        now,
+		MemoryLimit: memoryLimit,
+	}, nil
+}
 
+func getEnv(key string, env []string) string {
+	for _, pair := range env {
+		parts := strings.Split(pair, "=")
+		if parts[0] == key {
+			return parts[1]
+		}
+	}
+	return ""
+}
+
+type TtyConsole struct {
+	console libcontainer.Console
+}
+
+func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, rootuid int) (*TtyConsole, error) {
 	tty := &TtyConsole{
-		MasterPty: ptyMaster,
+		console: console,
 	}
 
-	if err := tty.AttachPipes(&processConfig.Cmd, pipes); err != nil {
+	if err := tty.AttachPipes(pipes); err != nil {
 		tty.Close()
 		return nil, err
 	}
 
-	processConfig.Console = console
-
 	return tty, nil
 }
 
-func (t *TtyConsole) Master() *os.File {
-	return t.MasterPty
+func (t *TtyConsole) Master() libcontainer.Console {
+	return t.console
 }
 
 func (t *TtyConsole) Resize(h, w int) error {
-	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+	return term.SetWinsize(t.console.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
-func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
+func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
 	go func() {
 		if wb, ok := pipes.Stdout.(interface {
 			CloseWriters() error
@@ -332,12 +376,12 @@ func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) err
 			defer wb.CloseWriters()
 		}
 
-		io.Copy(pipes.Stdout, t.MasterPty)
+		io.Copy(pipes.Stdout, t.console)
 	}()
 
 	if pipes.Stdin != nil {
 		go func() {
-			io.Copy(t.MasterPty, pipes.Stdin)
+			io.Copy(t.console, pipes.Stdin)
 
 			pipes.Stdin.Close()
 		}()
@@ -347,5 +391,5 @@ func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) err
 }
 
 func (t *TtyConsole) Close() error {
-	return t.MasterPty.Close()
+	return t.console.Close()
 }

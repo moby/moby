@@ -60,7 +60,7 @@ func TestExecInteractiveStdinClose(t *testing.T) {
 
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatal(err, out)
+			t.Fatal(err, string(out))
 		}
 
 		if string(out) == "" {
@@ -538,7 +538,6 @@ func TestRunExecDir(t *testing.T) {
 	id := strings.TrimSpace(out)
 	execDir := filepath.Join(execDriverPath, id)
 	stateFile := filepath.Join(execDir, "state.json")
-	contFile := filepath.Join(execDir, "container.json")
 
 	{
 		fi, err := os.Stat(execDir)
@@ -549,10 +548,6 @@ func TestRunExecDir(t *testing.T) {
 			t.Fatalf("%q must be a directory", execDir)
 		}
 		fi, err = os.Stat(stateFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-		fi, err = os.Stat(contFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -564,23 +559,12 @@ func TestRunExecDir(t *testing.T) {
 		t.Fatal(err, out)
 	}
 	{
-		fi, err := os.Stat(execDir)
-		if err != nil {
+		_, err := os.Stat(execDir)
+		if err == nil {
 			t.Fatal(err)
 		}
-		if !fi.IsDir() {
-			t.Fatalf("%q must be a directory", execDir)
-		}
-		fi, err = os.Stat(stateFile)
 		if err == nil {
-			t.Fatalf("Statefile %q is exists for stopped container!", stateFile)
-		}
-		if !os.IsNotExist(err) {
-			t.Fatalf("Error should be about non-existing, got %s", err)
-		}
-		fi, err = os.Stat(contFile)
-		if err == nil {
-			t.Fatalf("Container file %q is exists for stopped container!", contFile)
+			t.Fatalf("Exec directory %q exists for removed container!", execDir)
 		}
 		if !os.IsNotExist(err) {
 			t.Fatalf("Error should be about non-existing, got %s", err)
@@ -600,10 +584,6 @@ func TestRunExecDir(t *testing.T) {
 			t.Fatalf("%q must be a directory", execDir)
 		}
 		fi, err = os.Stat(stateFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-		fi, err = os.Stat(contFile)
 		if err != nil {
 			t.Fatal(err)
 		}
