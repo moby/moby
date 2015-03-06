@@ -169,23 +169,10 @@ pages:
 - ['terms/filesystem.md', '**HIDDEN**']
 - ['terms/image.md', '**HIDDEN**']
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 # Project:
 - ['project/index.md', '**HIDDEN**']
 - ['project/who-written-for.md', 'Project', 'README first']
-=======
-# Contribute:
-- ['project/index.md', '**HIDDEN**']
-- ['project/project.md', 'Contribute', 'Contributing']
-# Birthday Tree
-- ['project/who-written-for.md', 'Project', 'README for contributors']
->>>>>>> a252b2f... Renaming and removing old files
-=======
-# Project:
-- ['project/index.md', '**HIDDEN**']
-- ['project/who-written-for.md', 'Project', 'README first']
->>>>>>> 6f40419... Tweaking from last run thru
 - ['project/set-up-prereqs.md', 'Project', 'Set up prerequisites'] 
 - ['project/set-up-dev-env.md', 'Project', 'Work with a development container'] 
 - ['project/test-and-docs.md', 'Project', 'Run tests and test documentation']

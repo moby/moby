@@ -11,15 +11,7 @@ In this section, you will create a new branch and work on some Docker code that 
 
 ## The basic contribution workflow
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 You are about to work through our basic contribution workflow by fixing a single *white-belt* issue in the `docker/docker` repository. The workflow for fixing simple issues looks like this:
-=======
-You about to work through our basic contribution workflow by fixing a single *white-belt* issue in the `docker/docker` repository. The workflow for fixing simple issues looks like this:
->>>>>>> 6f40419... Tweaking from last run thru
-=======
-You are about to work through our basic contribution workflow by fixing a single *white-belt* issue in the `docker/docker` repository. The workflow for fixing simple issues looks like this:
->>>>>>> 2834bbe... Last minut check pass; fixes
 
 ![Simple process](/project/images/existing_issue.png)
 
@@ -35,17 +27,9 @@ Triaged issues have either a **white-belt** or **black-belt** label.   A **white
 
 In the next procedure, you find and claim an open white-belt issue.
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 1. Go to the `docker/docker` <a
 	href="https://github.com/docker/docker" target="_blank">repository</a>.
-=======
-1. Go to the `docker/docker` repository.
->>>>>>> 6f40419... Tweaking from last run thru
-=======
-1. Go to the `docker/docker` <a
-	href="https://github.com/docker/docker" target="_blank">repository</a>.
->>>>>>> 2834bbe... Last minut check pass; fixes
 
 2. Click on the "Issues" link.
 
@@ -206,15 +190,8 @@ Follow this workflow as you work:
 	alone, you can work on your local host. 
 	
 	Review <a href="../set-up-dev-env" target="_blank">if you forgot the details
-<<<<<<< HEAD
-<<<<<<< HEAD
 	of working with a container</a>.
-=======
-	of working with a container.</a>.
->>>>>>> 6f40419... Tweaking from last run thru
-=======
-	of working with a container</a>.
->>>>>>> 2834bbe... Last minut check pass; fixes
+
 
 3. Test your changes as you work.
 
