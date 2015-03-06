@@ -777,13 +777,27 @@ If you then run `docker stop test`, the container will not exit cleanly - the
 
     VOLUME ["/data"]
 
-The `VOLUME` instruction will create a mount point with the specified name
-and mark it as holding externally mounted volumes from native host or other
+The `VOLUME` instruction creates a mount point with the specified name
+and marks it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`.  For more information/examples and mounting instructions via the
-Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
+Docker client, refer to 
+[*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
 documentation.
+
+The `docker run` command initializes the newly created volume with any data 
+that exists at the specified location within the base image. For example, 
+consider the following Dockerfile snippet:
+
+    FROM ubuntu
+    RUN mkdir /myvol
+    RUN echo "hello world" > /myvol/greating
+    VOLUME /myvol
+
+This Dockerfile results in an image that causes `docker run`, to
+create a new mount point at `/myvol` and copy the  `greating` file 
+into the newly created volume.
 
 > **Note**:
 > The list is parsed as a JSON array, which means that
