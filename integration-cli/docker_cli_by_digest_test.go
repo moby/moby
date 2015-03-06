@@ -14,6 +14,10 @@ var (
 )
 
 func setupImage() (string, error) {
+	return setupImageWithTag("latest")
+}
+
+func setupImageWithTag(tag string) (string, error) {
 	containerName := "busyboxbydigest"
 
 	c := exec.Command(dockerBinary, "run", "-d", "-e", "digest=1", "--name", containerName, "busybox")
@@ -22,11 +26,12 @@ func setupImage() (string, error) {
 	}
 
 	// tag the image to upload it to the private registry
-	c = exec.Command(dockerBinary, "commit", containerName, repoName)
+	repoAndTag := repoName + ":" + tag
+	c = exec.Command(dockerBinary, "commit", containerName, repoAndTag)
 	if out, _, err := runCommandWithOutput(c); err != nil {
 		return "", fmt.Errorf("image tagging failed: %s, %v", out, err)
 	}
-	defer deleteImages(repoName)
+	defer deleteImages(repoAndTag)
 
 	// delete the container as we don't need it any more
 	if err := deleteContainer(containerName); err != nil {
@@ -34,15 +39,14 @@ func setupImage() (string, error) {
 	}
 
 	// push the image
-	c = exec.Command(dockerBinary, "push", repoName)
+	c = exec.Command(dockerBinary, "push", repoAndTag)
 	out, _, err := runCommandWithOutput(c)
 	if err != nil {
 		return "", fmt.Errorf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 
 	// delete busybox and our local repo that we previously tagged
-	//if err := deleteImages(repoName, "busybox"); err != nil {
-	c = exec.Command(dockerBinary, "rmi", repoName, "busybox")
+	c = exec.Command(dockerBinary, "rmi", repoAndTag, "busybox")
 	if out, _, err := runCommandWithOutput(c); err != nil {
 		return "", fmt.Errorf("error deleting images prior to real test: %s, %v", out, err)
 	}
@@ -279,4 +283,187 @@ func TestTagByDigest(t *testing.T) {
 	}
 
 	logDone("by_digest - tag by digest")
+}
+
+func TestListImagesWithoutDigests(t *testing.T) {
+	defer setupRegistry(t)()
+
+	digest, err := setupImage()
+	if err != nil {
+		t.Fatalf("error setting up image: %v", err)
+	}
+
+	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+
+	// pull from the registry using the <name>@<digest> reference
+	c := exec.Command(dockerBinary, "pull", imageReference)
+	out, _, err := runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling by digest: %s, %v", out, err)
+	}
+
+	c = exec.Command(dockerBinary, "images")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error listing images: %s, %v", out, err)
+	}
+
+	if strings.Contains(out, "DIGEST") {
+		t.Fatalf("list output should not have contained DIGEST header: %s", out)
+	}
+
+	logDone("by_digest - list images - digest header not displayed by default")
+}
+
+func TestListImagesWithDigests(t *testing.T) {
+	defer setupRegistry(t)()
+	defer deleteImages(repoName+":tag1", repoName+":tag2")
+
+	// setup image1
+	digest1, err := setupImageWithTag("tag1")
+	if err != nil {
+		t.Fatalf("error setting up image: %v", err)
+	}
+	imageReference1 := fmt.Sprintf("%s@%s", repoName, digest1)
+	defer deleteImages(imageReference1)
+	t.Logf("imageReference1 = %s", imageReference1)
+
+	// pull image1 by digest
+	c := exec.Command(dockerBinary, "pull", imageReference1)
+	out, _, err := runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling by digest: %s, %v", out, err)
+	}
+
+	// list images
+	c = exec.Command(dockerBinary, "images", "-d")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error listing images: %s, %v", out, err)
+	}
+
+	// make sure repo shown, tag=<none>, digest = $digest1
+	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1 + `\s`)
+	if !re1.MatchString(out) {
+		t.Fatalf("expected %q: %s", re1.String(), out)
+	}
+
+	// setup image2
+	digest2, err := setupImageWithTag("tag2")
+	if err != nil {
+		t.Fatalf("error setting up image: %v", err)
+	}
+	imageReference2 := fmt.Sprintf("%s@%s", repoName, digest2)
+	defer deleteImages(imageReference2)
+	t.Logf("imageReference2 = %s", imageReference2)
+
+	// pull image1 by digest
+	c = exec.Command(dockerBinary, "pull", imageReference1)
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling by digest: %s, %v", out, err)
+	}
+
+	// pull image2 by digest
+	c = exec.Command(dockerBinary, "pull", imageReference2)
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling by digest: %s, %v", out, err)
+	}
+
+	// list images
+	c = exec.Command(dockerBinary, "images", "-d")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error listing images: %s, %v", out, err)
+	}
+
+	// make sure repo shown, tag=<none>, digest = $digest1
+	if !re1.MatchString(out) {
+		t.Fatalf("expected %q: %s", re1.String(), out)
+	}
+
+	// make sure repo shown, tag=<none>, digest = $digest2
+	re2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2 + `\s`)
+	if !re2.MatchString(out) {
+		t.Fatalf("expected %q: %s", re2.String(), out)
+	}
+
+	// pull tag1
+	c = exec.Command(dockerBinary, "pull", repoName+":tag1")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling tag1: %s, %v", out, err)
+	}
+
+	// list images
+	c = exec.Command(dockerBinary, "images", "-d")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error listing images: %s, %v", out, err)
+	}
+
+	// make sure image 1 has repo, tag, digest
+	reWithTag1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*` + digest1 + `\s`)
+	if !reWithTag1.MatchString(out) {
+		t.Fatalf("expected %q: %s", re1.String(), out)
+	}
+	// make sure image 2 has repo, <none>, digest
+	if !re2.MatchString(out) {
+		t.Fatalf("expected %q: %s", re2.String(), out)
+	}
+
+	// pull tag 2
+	c = exec.Command(dockerBinary, "pull", repoName+":tag2")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling tag2: %s, %v", out, err)
+	}
+
+	// list images
+	c = exec.Command(dockerBinary, "images", "-d")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error listing images: %s, %v", out, err)
+	}
+
+	// make sure image 1 has repo, tag, digest
+	if !reWithTag1.MatchString(out) {
+		t.Fatalf("expected %q: %s", re1.String(), out)
+	}
+
+	// make sure image 2 has repo, tag, digest
+	reWithTag2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*` + digest2 + `\s`)
+	if !reWithTag2.MatchString(out) {
+		t.Fatalf("expected %q: %s", re2.String(), out)
+	}
+
+	// pull busybox
+	c = exec.Command(dockerBinary, "pull", "busybox:latest")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error pulling busybox: %s, %v", out, err)
+	}
+	defer deleteImages("busybox:latest")
+
+	// list images
+	c = exec.Command(dockerBinary, "images", "-d")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error listing images: %s, %v", out, err)
+	}
+
+	// make sure image 1 has repo, tag, digest
+	if !reWithTag1.MatchString(out) {
+		t.Fatalf("expected %q: %s", re1.String(), out)
+	}
+	// make sure image 2 has repo, tag, digest
+	if !reWithTag2.MatchString(out) {
+		t.Fatalf("expected %q: %s", re2.String(), out)
+	}
+	// make sure busybox doesn't has tag, but not digest
+	busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
+	if !busyboxRe.MatchString(out) {
+		t.Fatalf("expected %q: %s", busyboxRe.String(), out)
+	}
 }
