@@ -47,7 +47,7 @@ func (container *Container) createVolumes() error {
 			continue
 		}
 
-		realPath, err := container.getResourcePath(path)
+		realPath, err := container.GetResourcePath(path)
 		if err != nil {
 			return err
 		}
@@ -336,7 +336,7 @@ func (container *Container) mountVolumes() error {
 			return fmt.Errorf("could not find volume for %s:%s, impossible to mount", source, dest)
 		}
 
-		destPath, err := container.getResourcePath(dest)
+		destPath, err := container.GetResourcePath(dest)
 		if err != nil {
 			return err
 		}
@@ -347,7 +347,7 @@ func (container *Container) mountVolumes() error {
 	}
 
 	for _, mnt := range container.specialMounts() {
-		destPath, err := container.getResourcePath(mnt.Destination)
+		destPath, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
 			return err
 		}
@@ -360,7 +360,7 @@ func (container *Container) mountVolumes() error {
 
 func (container *Container) unmountVolumes() {
 	for dest := range container.Volumes {
-		destPath, err := container.getResourcePath(dest)
+		destPath, err := container.GetResourcePath(dest)
 		if err != nil {
 			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
 			continue
@@ -372,7 +372,7 @@ func (container *Container) unmountVolumes() {
 	}
 
 	for _, mnt := range container.specialMounts() {
-		destPath, err := container.getResourcePath(mnt.Destination)
+		destPath, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
 			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
 			continue
