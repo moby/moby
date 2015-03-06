@@ -96,13 +96,14 @@ type Namespace interface {
 	AddInterface(*Interface) error
 }
 
-// Create a new network of the specified networkType. The options are driver
-// specific and modeled in a generic way.
+// NewNetwork creates a new network of the specified networkType. The options
+// are driver specific and modeled in a generic way.
 func NewNetwork(networkType, name string, options DriverParams) (Network, error) {
 	return createNetwork(networkType, name, options)
 }
 
-// Create a new network namespace mounted on the specified path.
+// NewNetworkNamespace creates a new network namespace mounted on the specified
+// path.
 func NewNetworkNamespace(path string) (Namespace, error) {
 	return createNetworkNamespace(path)
 }

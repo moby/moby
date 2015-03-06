@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	NetworkType = "simplebridge"
-	VethPrefix  = "veth"
+	networkType = "simplebridge"
+	vethPrefix  = "veth"
 )
 
+// Configuration info for the "simplebridge" driver.
 type Configuration struct {
 	BridgeName         string
 	AddressIPv4        *net.IPNet
@@ -30,54 +31,54 @@ func init() {
 // Create a new network using simplebridge plugin
 func (d *driver) CreateNetwork(name string, opaqueConfig interface{}) (libnetwork.Network, error) {
 	config := opaqueConfig.(*Configuration)
-	bridgeIntfc := NewInterface(config)
-	bridgeSetup := NewBridgeSetup(bridgeIntfc)
+	bridgeIntfc := newInterface(config)
+	bridgeSetup := newBridgeSetup(bridgeIntfc)
 
 	// If the bridge interface doesn't exist, we need to start the setup steps
 	// by creating a new device and assigning it an IPv4 address.
-	bridgeAlreadyExists := bridgeIntfc.Exists()
+	bridgeAlreadyExists := bridgeIntfc.exists()
 	if !bridgeAlreadyExists {
-		bridgeSetup.QueueStep(SetupDevice)
-		bridgeSetup.QueueStep(SetupBridgeIPv4)
+		bridgeSetup.queueStep(setupDevice)
+		bridgeSetup.queueStep(setupBridgeIPv4)
 	}
 
 	// Conditionnally queue setup steps depending on configuration values.
 	for _, step := range []struct {
 		Condition bool
-		Fn        SetupStep
+		Fn        setupStep
 	}{
 		// Enable IPv6 on the bridge if required. We do this even for a
 		// previously  existing bridge, as it may be here from a previous
 		// installation where IPv6 wasn't supported yet and needs to be
 		// assigned an IPv6 link-local address.
-		{config.EnableIPv6, SetupBridgeIPv6},
+		{config.EnableIPv6, setupBridgeIPv6},
 
 		// We ensure that the bridge has the expectedIPv4 and IPv6 addresses in
 		// the case of a previously existing device.
-		{bridgeAlreadyExists, SetupVerifyConfiguredAddresses},
+		{bridgeAlreadyExists, setupVerifyConfiguredAddresses},
 
 		// Setup the bridge to allocate containers IPv4 addresses in the
 		// specified subnet.
-		{config.FixedCIDR != nil, SetupFixedCIDRv4},
+		{config.FixedCIDR != nil, setupFixedCIDRv4},
 
 		// Setup the bridge to allocate containers global IPv6 addresses in the
 		// specified subnet.
-		{config.FixedCIDRv6 != nil, SetupFixedCIDRv6},
+		{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
 
 		// Setup IPTables.
-		{config.EnableIPTables, SetupIPTables},
+		{config.EnableIPTables, setupIPTables},
 
 		// Setup IP forwarding.
-		{config.EnableIPForwarding, SetupIPForwarding},
+		{config.EnableIPForwarding, setupIPForwarding},
 	} {
 		if step.Condition {
-			bridgeSetup.QueueStep(step.Fn)
+			bridgeSetup.queueStep(step.Fn)
 		}
 	}
 
 	// Apply the prepared list of steps, and abort at the first error.
-	bridgeSetup.QueueStep(SetupDeviceUp)
-	if err := bridgeSetup.Apply(); err != nil {
+	bridgeSetup.queueStep(setupDeviceUp)
+	if err := bridgeSetup.apply(); err != nil {
 		return nil, err
 	}
 

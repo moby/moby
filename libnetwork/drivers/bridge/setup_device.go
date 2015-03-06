@@ -11,14 +11,14 @@ import (
 )
 
 // SetupDevice create a new bridge interface/
-func SetupDevice(i *Interface) error {
+func setupDevice(i *bridgeInterface) error {
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
 	if i.Config.BridgeName != DefaultBridgeName {
 		return fmt.Errorf("bridge device with non default name %q must be created manually", i.Config.BridgeName)
 	}
 
-	// Set the Interface netlink.Bridge.
+	// Set the bridgeInterface netlink.Bridge.
 	i.Link = &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
 			Name: i.Config.BridgeName,
@@ -38,7 +38,7 @@ func SetupDevice(i *Interface) error {
 }
 
 // SetupDeviceUp ups the given bridge interface.
-func SetupDeviceUp(i *Interface) error {
+func setupDeviceUp(i *bridgeInterface) error {
 	err := netlink.LinkSetUp(i.Link)
 	if err != nil {
 		return err

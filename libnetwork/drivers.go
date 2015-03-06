@@ -6,6 +6,7 @@ import (
 	"github.com/docker/libnetwork/pkg/options"
 )
 
+// DriverParams are a generic structure to hold driver specific settings.
 type DriverParams options.Generic
 
 // DriverInterface is an interface that every plugin driver needs to implement.

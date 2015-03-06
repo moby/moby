@@ -12,7 +12,7 @@ func (b *bridgeNetwork) Name() string {
 }
 
 func (b *bridgeNetwork) Type() string {
-	return NetworkType
+	return networkType
 }
 
 func (b *bridgeNetwork) Link(name string) ([]*libnetwork.Interface, error) {

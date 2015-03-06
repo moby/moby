@@ -8,13 +8,13 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func setupTestInterface(t *testing.T) *Interface {
-	br := &Interface{
+func setupTestInterface(t *testing.T) *bridgeInterface {
+	br := &bridgeInterface{
 		Config: &Configuration{
 			BridgeName: DefaultBridgeName,
 		},
 	}
-	if err := SetupDevice(br); err != nil {
+	if err := setupDevice(br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
 	return br
@@ -30,7 +30,7 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 
 	br := setupTestInterface(t)
 	br.Config.AddressIPv4 = &net.IPNet{IP: ip, Mask: netw.Mask}
-	if err := SetupBridgeIPv4(br); err != nil {
+	if err := setupBridgeIPv4(br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv4: %v", err)
 	}
 
@@ -56,7 +56,7 @@ func TestSetupBridgeIPv4Auto(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
 	br := setupTestInterface(t)
-	if err := SetupBridgeIPv4(br); err != nil {
+	if err := setupBridgeIPv4(br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv4: %v", err)
 	}
 

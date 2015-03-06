@@ -11,21 +11,21 @@ import (
 func TestSetupFixedCIDRv4(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
-	br := &Interface{
+	br := &bridgeInterface{
 		Config: &Configuration{
 			BridgeName:  DefaultBridgeName,
 			AddressIPv4: &net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(16, 32)},
 			FixedCIDR:   &net.IPNet{IP: net.ParseIP("192.168.2.0"), Mask: net.CIDRMask(24, 32)},
 		},
 	}
-	if err := SetupDevice(br); err != nil {
+	if err := setupDevice(br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
-	if err := SetupBridgeIPv4(br); err != nil {
+	if err := setupBridgeIPv4(br); err != nil {
 		t.Fatalf("Assign IPv4 to bridge failed: %v", err)
 	}
 
-	if err := SetupFixedCIDRv4(br); err != nil {
+	if err := setupFixedCIDRv4(br); err != nil {
 		t.Fatalf("Failed to setup bridge FixedCIDRv4: %v", err)
 	}
 
@@ -39,21 +39,21 @@ func TestSetupFixedCIDRv4(t *testing.T) {
 func TestSetupBadFixedCIDRv4(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
-	br := &Interface{
+	br := &bridgeInterface{
 		Config: &Configuration{
 			BridgeName:  DefaultBridgeName,
 			AddressIPv4: &net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)},
 			FixedCIDR:   &net.IPNet{IP: net.ParseIP("192.168.2.0"), Mask: net.CIDRMask(24, 32)},
 		},
 	}
-	if err := SetupDevice(br); err != nil {
+	if err := setupDevice(br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
-	if err := SetupBridgeIPv4(br); err != nil {
+	if err := setupBridgeIPv4(br); err != nil {
 		t.Fatalf("Assign IPv4 to bridge failed: %v", err)
 	}
 
-	if err := SetupFixedCIDRv4(br); err == nil {
+	if err := setupFixedCIDRv4(br); err == nil {
 		t.Fatal("Setup bridge FixedCIDRv4 should have failed")
 	}
 }

@@ -1,17 +1,17 @@
 package bridge
 
-type SetupStep func(*Interface) error
+type setupStep func(*bridgeInterface) error
 
-type BridgeSetup struct {
-	bridge *Interface
-	steps  []SetupStep
+type bridgeSetup struct {
+	bridge *bridgeInterface
+	steps  []setupStep
 }
 
-func NewBridgeSetup(i *Interface) *BridgeSetup {
-	return &BridgeSetup{bridge: i}
+func newBridgeSetup(i *bridgeInterface) *bridgeSetup {
+	return &bridgeSetup{bridge: i}
 }
 
-func (b *BridgeSetup) Apply() error {
+func (b *bridgeSetup) apply() error {
 	for _, fn := range b.steps {
 		if err := fn(b.bridge); err != nil {
 			return err
@@ -20,12 +20,12 @@ func (b *BridgeSetup) Apply() error {
 	return nil
 }
 
-func (b *BridgeSetup) QueueStep(step SetupStep) {
+func (b *bridgeSetup) queueStep(step setupStep) {
 	b.steps = append(b.steps, step)
 }
 
 //---------------------------------------------------------------------------//
 
-func SetupIPTables(i *Interface) error {
+func setupIPTables(i *bridgeInterface) error {
 	return nil
 }

@@ -1,4 +1,4 @@
-// The options package provides a way to pass unstructured sets of options to a
+// Package options provides a way to pass unstructured sets of options to a
 // component expecting a strongly-typed configuration structure.
 package options
 
@@ -7,6 +7,8 @@ import (
 	"reflect"
 )
 
+// NoSuchFieldError is the error returned when the generic parameters hold a
+// value for a field absent from the destination structure.
 type NoSuchFieldError struct {
 	Field string
 	Type  string
@@ -16,6 +18,8 @@ func (e NoSuchFieldError) Error() string {
 	return fmt.Sprintf("no field %q in type %q", e.Field, e.Type)
 }
 
+// CannotSetFieldError is the error returned when the generic parameters hold a
+// value for a field that cannot be set in the destination structure.
 type CannotSetFieldError struct {
 	Field string
 	Type  string
@@ -25,12 +29,20 @@ func (e CannotSetFieldError) Error() string {
 	return fmt.Sprintf("cannot set field %q of type %q", e.Field, e.Type)
 }
 
+// Generic is an basic type to store arbitrary settings.
 type Generic map[string]interface{}
 
+// NewGeneric returns a new Generic instance.
 func NewGeneric() Generic {
 	return make(Generic)
 }
 
+// GenerateFromModel takes the generic options, and tries to build a new
+// instance of the model's type by matching keys from the generic options to
+// fields in the model.
+//
+// The return value is of the same type than the model (including a potential
+// pointer qualifier).
 func GenerateFromModel(options Generic, model interface{}) (interface{}, error) {
 	modType := reflect.TypeOf(model)
 
