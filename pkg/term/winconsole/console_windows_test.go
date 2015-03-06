@@ -1,6 +1,6 @@
 // +build windows
 
-package term
+package winconsole
 
 import (
 	"fmt"

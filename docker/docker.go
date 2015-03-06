@@ -26,6 +26,11 @@ const (
 )
 
 func main() {
+	// Set terminal emulation based on platform as required.
+	stdout, stderr, stdin := term.StdStreams()
+
+	initLogging(stderr)
+
 	if reexec.Init() {
 		return
 	}
@@ -43,20 +48,16 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unable to parse logging level: %s", *flLogLevel)
 		}
-		initLogging(lvl)
+		setLogLevel(lvl)
 	} else {
-		initLogging(log.InfoLevel)
+		setLogLevel(log.InfoLevel)
 	}
-
-	// Set terminal emulation based on platform as required.
-	stdout, stderr, stdin := term.StdStreams()
-	log.SetOutput(stderr)
 
 	// -D, --debug, -l/--log-level=debug processing
 	// When/if -D is removed this block can be deleted
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
-		initLogging(log.DebugLevel)
+		setLogLevel(log.DebugLevel)
 	}
 
 	if len(flHosts) == 0 {

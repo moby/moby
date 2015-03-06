@@ -1,6 +1,6 @@
 // +build windows
 
-package term
+package winconsole
 
 import (
 	"bytes"
@@ -415,7 +415,7 @@ func getNumberOfChars(fromCoord COORD, toCoord COORD, screenSize COORD) uint32 {
 	return 0
 }
 
-func clearDisplayRect(fileDesc uintptr, fillChar byte, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
+func clearDisplayRect(fileDesc uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
 	var writeRegion SMALL_RECT
 	writeRegion.Top = fromCoord.Y
 	writeRegion.Left = fromCoord.X
@@ -429,7 +429,7 @@ func clearDisplayRect(fileDesc uintptr, fillChar byte, attributes WORD, fromCoor
 	if size > 0 {
 		buffer := make([]CHAR_INFO, size)
 		for i := 0; i < len(buffer); i++ {
-			buffer[i].UnicodeChar = WCHAR(string(fillChar)[0])
+			buffer[i].UnicodeChar = WCHAR(fillChar)
 			buffer[i].Attributes = attributes
 		}
 
@@ -445,7 +445,7 @@ func clearDisplayRect(fileDesc uintptr, fillChar byte, attributes WORD, fromCoor
 	return true, uint32(size), nil
 }
 
-func clearDisplayRange(fileDesc uintptr, fillChar byte, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
+func clearDisplayRange(fileDesc uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
 	nw := uint32(0)
 	// start and end on same line
 	if fromCoord.Y == toCoord.Y {
@@ -531,7 +531,6 @@ func getNumberOfConsoleInputEvents(fileDesc uintptr) (uint16, error) {
 	r, _, err := getNumberOfConsoleInputEventsProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&n)))
 	//If the function succeeds, the return value is nonzero
 	if r != 0 {
-		//fmt.Printf("################%d #################\n", n)
 		return uint16(n), nil
 	}
 	return 0, err
@@ -1102,4 +1101,10 @@ func (term *WindowsTerminal) HandleInputSequence(command []byte) (n int, err err
 func marshal(c COORD) uint32 {
 	// works only on intel-endian machines
 	return uint32(uint32(uint16(c.Y))<<16 | uint32(uint16(c.X)))
+}
+
+// IsTerminal returns true if the given file descriptor is a terminal.
+func IsTerminal(fd uintptr) bool {
+	_, e := GetConsoleMode(fd)
+	return e == nil
 }
