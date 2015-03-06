@@ -255,11 +255,15 @@ _docker_build() {
 			__docker_image_repos_and_tags
 			return
 			;;
+		--file|-f)
+			_filedir
+			return	
+			;;	
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--force-rm --no-cache --quiet -q --rm --tag -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--file -f --force-rm --no-cache --quiet -q --rm --tag -t" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag '--tag|-t')"
@@ -623,8 +627,10 @@ _docker_run() {
 		--lxc-conf
 		--mac-address
 		--memory -m
+		--memory-swap
 		--name
 		--net
+		--pid
 		--publish -p
 		--restart
 		--security-opt
@@ -635,9 +641,11 @@ _docker_run() {
 	"
 
 	local all_options="$options_with_args
+		--help
 		--interactive -i
 		--privileged
 		--publish-all -P
+		--read-only
 		--tty -t
 	"
 
