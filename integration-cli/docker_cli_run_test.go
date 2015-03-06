@@ -2289,11 +2289,12 @@ func TestRunCidFileCleanupIfEmpty(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 	tmpCidFile := path.Join(tmpDir, "cid")
-	cmd := exec.Command(dockerBinary, "run", "--cidfile", tmpCidFile, "scratch")
+	cmd := exec.Command(dockerBinary, "run", "--cidfile", tmpCidFile, "emptyfs")
 	out, _, err := runCommandWithOutput(cmd)
-	t.Log(out)
 	if err == nil {
-		t.Fatal("Run without command must fail")
+		t.Fatalf("Run without command must fail. out=%s", out)
+	} else if !strings.Contains(out, "No command specified") {
+		t.Fatalf("Run without command failed with wrong output. out=%s\nerr=%v", out, err)
 	}
 
 	if _, err := os.Stat(tmpCidFile); err == nil {
