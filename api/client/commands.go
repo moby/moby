@@ -712,6 +712,16 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	utils.ParseFlags(cmd, args, true)
 
 	hijacked := make(chan io.Closer)
+	// Block the return until the chan gets closed
+	defer func() {
+		log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
+		if _, ok := <-hijacked; ok {
+			log.Errorf("Hijack did not finish (chan still open)")
+		}
+		if *openStdin || *attach {
+			cli.in.Close()
+		}
+	}()
 
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
@@ -769,25 +779,18 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 	}
 
-	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, false))
 		if err != nil {
 			if !*attach && !*openStdin {
 				fmt.Fprintf(cli.err, "%s\n", err)
 			}
-			encounteredError = fmt.Errorf("Error: failed to start one or more containers")
+			return fmt.Errorf("Error: failed to start one or more containers")
 		} else {
 			if !*attach && !*openStdin {
 				fmt.Fprintf(cli.out, "%s\n", name)
 			}
 		}
-	}
-	if encounteredError != nil {
-		if *openStdin || *attach {
-			cli.in.Close()
-		}
-		return encounteredError
 	}
 
 	if *openStdin || *attach {
