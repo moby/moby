@@ -495,6 +495,12 @@ Inspect changes on container `id`'s filesystem
              }
         ]
 
+Values for `Kind`:
+
+- `0`: Modify
+- `1`: Add
+- `2`: Delete
+
 Status Codes:
 
 -   **200** – no error
