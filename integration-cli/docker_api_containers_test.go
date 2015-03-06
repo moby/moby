@@ -379,6 +379,8 @@ RUN find /tmp/`,
 }
 
 func TestBuildApiLowerDockerfile(t *testing.T) {
+	testRequires(t, UnixCli) // Dockerfile overwrites dockerfile on windows
+
 	git, err := fakeGIT("repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
@@ -428,6 +430,8 @@ RUN echo from Dockerfile`,
 }
 
 func TestBuildApiDoubleDockerfile(t *testing.T) {
+	testRequires(t, UnixCli) // Dockerfile overwrites dockerfile on windows
+
 	git, err := fakeGIT("repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
