@@ -22,6 +22,7 @@ const (
 	testPrivateImageID       = "5bc255f8699e4ee89ac4469266c3d11515da88fdcbde45d7b069b636ff4efd81"
 	testPrivateImageIDShort  = "5bc255f8699e"
 	testPrivateImageDigest   = "sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb"
+	testPrivateImageTag      = "sometag"
 )
 
 func fakeTar() (io.Reader, error) {
@@ -84,7 +85,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err := store.Set(testPrivateImageName, "", testPrivateImageID, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.SetDigest(testPrivateImageName, testPrivateImageDigest, testPrivateImageID); err != nil {
+	if err := store.SetDigest(testPrivateImageName, testPrivateImageDigest, testPrivateImageTag, testPrivateImageID); err != nil {
 		t.Fatal(err)
 	}
 	return store

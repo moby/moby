@@ -41,7 +41,12 @@ type TagStore struct {
 }
 
 type Repository map[string]string
-type DigestRepository map[string]string
+type DigestRepository map[string]DigestMapping
+
+type DigestMapping struct {
+	V1ImageID string
+	Tag       string
+}
 
 // update Repository mapping with content of u
 func (r Repository) Update(u Repository) {
@@ -267,7 +272,8 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	return store.save()
 }
 
-func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
+// TODO remove tag once the manifest no longer includes it
+func (store *TagStore) SetDigest(repoName, digest, tag, imageName string) error {
 	img, err := store.LookupImage(imageName)
 	store.Lock()
 	defer store.Unlock()
@@ -287,14 +293,17 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Digests[repoName]; exists {
 		repo = r
-		if old, exists := store.Digests[repoName][digest]; exists && imageName != old {
+		if old, exists := store.Digests[repoName][digest]; exists && imageName != old.V1ImageID {
 			return fmt.Errorf("Conflict: Digest %s is already set to image %s", digest, old)
 		}
 	} else {
 		repo = DigestRepository{}
 		store.Digests[repoName] = repo
 	}
-	repo[digest] = img.ID
+	mapping := repo[digest]
+	mapping.V1ImageID = img.ID
+	mapping.Tag = tag
+	repo[digest] = mapping
 	return store.save()
 }
 
@@ -354,8 +363,8 @@ func (store *TagStore) GetImageByDigest(repoName, digest string) (*image.Image, 
 	} else if repo == nil {
 		return nil, nil
 	}
-	if revision, exists := repo[digest]; exists {
-		return store.graph.Get(revision)
+	if mapping, exists := repo[digest]; exists {
+		return store.graph.Get(mapping.V1ImageID)
 	}
 	return nil, nil
 }

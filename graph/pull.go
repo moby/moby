@@ -578,7 +578,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	// other v2 registries won't initially include it, so only update the digest info if we
 	// actually have a digest
 	if len(digest) > 0 {
-		if err = s.SetDigest(repoInfo.LocalName, digest, downloads[0].img.ID); err != nil {
+		if err = s.SetDigest(repoInfo.LocalName, digest, manifest.Tag, downloads[0].img.ID); err != nil {
 			return false, err
 		}
 		out.Write(sf.FormatStatus("", "Digest: %s", digest))

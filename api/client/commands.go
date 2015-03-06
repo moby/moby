@@ -1506,20 +1506,22 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		for _, out := range outs.Data {
-			haveTags := false
 			outID := out.Get("Id")
 			if !*noTrunc {
 				outID = common.TruncateID(outID)
 			}
+			repoDigests := make(map[string]string)
+			out.GetJson("RepoDigests", &repoDigests)
 
 			for _, repotag := range out.GetList("RepoTags") {
-				haveTags = true
+				digest := repoDigests[repotag]
+				delete(repoDigests, repotag)
 
 				repo, tag := parsers.ParseRepositoryTag(repotag)
 
 				if !*quiet {
 					if *showDigests {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, out.Get("Digest"), outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 					} else {
 						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 					}
@@ -1528,8 +1530,14 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 			}
 
-			if !haveTags && *showDigests {
-				fmt.Fprintf(w, "%s\t<none>\t%s\t%s\t%s ago\t%s\n", out.Get("Repo"), out.Get("Digest"), outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+			if *showDigests && len(repoDigests) > 0 {
+				for repotag, digest := range repoDigests {
+					repo, _ := parsers.ParseRepositoryTag(repotag)
+					// we technically have the tag here, for the moment, but once manifest schema version 2 lands,
+					// you'll be able to pull by digest and the returned manifest won't have a tag in it, so it's
+					// probably safest to show <none> for the tag in this case.
+					fmt.Fprintf(w, "%s\t<none>\t%s\t%s\t%s ago\t%s\n", repo, digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+				}
 			}
 		}
 

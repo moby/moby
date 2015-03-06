@@ -108,11 +108,9 @@ RUN go get golang.org/x/tools/cmd/cover
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install registry
-# FIXME update registry commit when https://github.com/docker/distribution/pull/211 is merged
-ENV REGISTRY_COMMIT 40273b1d367c3d54997b00faf7ecb1f0a8a4e666
-# FIXME change clone url back to github.com/docker/distribution when https://github.com/docker/distribution/pull/211 is merged
+ENV REGISTRY_COMMIT b4cc5e3ecc2e9f4fa0e95d94c389e1d79e902486
 RUN set -x \
-	&& git clone https://github.com/stevvooe/distribution.git /go/src/github.com/docker/distribution \
+	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
 	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
 	&& GOPATH=/go/src/github.com/docker/distribution/Godeps/_workspace:/go \
 		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry

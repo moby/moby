@@ -91,7 +91,8 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 				continue
 			}
 		}
-		for digest, id := range repository {
+		for digest, mapping := range repository {
+			id := mapping.V1ImageID
 			image, err := s.graph.Get(id)
 			if err != nil {
 				log.Printf("Warning: couldn't load %s from %s@%s: %s", id, name, digest, err)
@@ -101,14 +102,17 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			// remove from allImages so it doesn't show up as dangling
 			delete(allImages, id)
 
+			repoDigestsKey := fmt.Sprintf("%s:%s", name, mapping.Tag)
 			if showDigests && filt_tagged {
 				if out, exists := lookup[id]; exists {
-					out.SetJson("Digest", digest)
+					repoDigests := make(map[string]string)
+					out.GetJson("RepoDigests", &repoDigests)
+					repoDigests[repoDigestsKey] = digest
+					out.SetJson("RepoDigests", repoDigests)
 				} else {
 					out := &engine.Env{}
 					out.SetJson("ParentId", image.Parent)
-					out.SetJson("Repo", name)
-					out.SetJson("Digest", digest)
+					out.SetJson("RepoDigests", map[string]string{repoDigestsKey: digest})
 					out.SetJson("Id", image.ID)
 					out.SetInt64("Created", image.Created.Unix())
 					out.SetInt64("Size", image.Size)
