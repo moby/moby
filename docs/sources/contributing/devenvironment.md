@@ -91,6 +91,7 @@ on ubuntu:
     $ sudo service docker stop ; sudo cp $(which docker) $(which docker)_ ; sudo cp ./bundles/<version>-dev/binary/docker-<version>-dev $(which docker);sudo service docker start
 
 > **Note**: 
+> The '<Version>' should be the real version of your own docker.
 > Its safer to run the tests below before swapping your hosts docker binary.
 
 ## Run the Tests
