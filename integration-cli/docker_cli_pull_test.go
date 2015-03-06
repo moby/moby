@@ -53,36 +53,6 @@ func TestPullImageWithAliases(t *testing.T) {
 	logDone("pull - image with aliases")
 }
 
-// pulling library/hello-world should show verified message
-func TestPullVerified(t *testing.T) {
-	// Image must be pulled from central repository to get verified message
-	// unless keychain is manually updated to contain the daemon's sign key.
-
-	verifiedName := "hello-world"
-	defer deleteImages(verifiedName)
-
-	// pull it
-	expected := "The image you are pulling has been verified"
-	pullCmd := exec.Command(dockerBinary, "pull", verifiedName)
-	if out, exitCode, err := runCommandWithOutput(pullCmd); err != nil || !strings.Contains(out, expected) {
-		if err != nil || exitCode != 0 {
-			t.Skipf("pulling the '%s' image from the registry has failed: %s", verifiedName, err)
-		}
-		t.Fatalf("pulling a verified image failed. expected: %s\ngot: %s, %v", expected, out, err)
-	}
-
-	// pull it again
-	pullCmd = exec.Command(dockerBinary, "pull", verifiedName)
-	if out, exitCode, err := runCommandWithOutput(pullCmd); err != nil || strings.Contains(out, expected) {
-		if err != nil || exitCode != 0 {
-			t.Skipf("pulling the '%s' image from the registry has failed: %s", verifiedName, err)
-		}
-		t.Fatalf("pulling a verified image failed. unexpected verify message\ngot: %s, %v", out, err)
-	}
-
-	logDone("pull - pull verified")
-}
-
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
 	defer deleteImages("hello-world")
