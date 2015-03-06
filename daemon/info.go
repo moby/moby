@@ -87,6 +87,16 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.SetInt("NCPU", runtime.NumCPU())
 	v.SetInt64("MemTotal", meminfo.MemTotal)
 	v.Set("DockerRootDir", daemon.Config().Root)
+	if http_proxy := os.Getenv("http_proxy"); http_proxy != "" {
+		v.Set("HttpProxy", http_proxy)
+	}
+	if https_proxy := os.Getenv("https_proxy"); https_proxy != "" {
+		v.Set("HttpsProxy", https_proxy)
+	}
+	if no_proxy := os.Getenv("no_proxy"); no_proxy != "" {
+		v.Set("NoProxy", no_proxy)
+	}
+
 	if hostname, err := os.Hostname(); err == nil {
 		v.SetJson("Name", hostname)
 	}

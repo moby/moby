@@ -1241,6 +1241,9 @@ For example:
     EventsListeners: 0
     Init Path: /usr/bin/docker
     Docker Root Dir: /var/lib/docker
+    Http Proxy: http://test:test@localhost:8080
+    Https Proxy: https://test:test@localhost:8080
+    No Proxy: 9.81.1.160
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
     Labels:
