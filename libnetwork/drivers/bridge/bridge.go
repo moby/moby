@@ -19,6 +19,8 @@ type Configuration struct {
 	FixedCIDRv6        *net.IPNet
 	EnableIPv6         bool
 	EnableIPTables     bool
+	EnableIPMasquerade bool
+	EnableICC          bool
 	EnableIPForwarding bool
 }
 
