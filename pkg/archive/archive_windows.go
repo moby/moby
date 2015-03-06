@@ -25,6 +25,17 @@ func CanonicalTarNameForPath(p string) (string, error) {
 
 }
 
+// chmodTarEntry is used to adjust the file permissions used in tar header based
+// on the platform the archival is done.
+func chmodTarEntry(perm os.FileMode) os.FileMode {
+	// Clear r/w on grp/others: no precise equivalen of group/others on NTFS.
+	perm &= 0711
+	// Add the x bit: make everything +x from windows
+	perm |= 0100
+
+	return perm
+}
+
 func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, stat interface{}) (nlink uint32, inode uint64, err error) {
 	// do nothing. no notion of Rdev, Inode, Nlink in stat on Windows
 	return
