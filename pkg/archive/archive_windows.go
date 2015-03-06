@@ -4,6 +4,7 @@ package archive
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
@@ -20,7 +21,8 @@ func CanonicalTarNameForPath(p string) (string, error) {
 	if strings.Contains(p, "/") {
 		return "", fmt.Errorf("windows path contains forward slash: %s", p)
 	}
-	return strings.Replace(p, "\\", "/", -1), nil
+	return strings.Replace(p, string(os.PathSeparator), "/", -1), nil
+
 }
 
 func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, stat interface{}) (nlink uint32, inode uint64, err error) {
