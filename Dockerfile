@@ -107,9 +107,6 @@ RUN go get golang.org/x/tools/cmd/cover
 # TODO replace FPM with some very minimal debhelper stuff
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
-# Get the "busybox" image source so we can build locally instead of pulling
-RUN git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
-
 # Install registry
 ENV REGISTRY_COMMIT c448e0416925a9876d5576e412703c9b8b865e19
 RUN set -x \
@@ -144,6 +141,10 @@ ENV DOCKER_BUILDTAGS apparmor selinux btrfs_noversion
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
+
+# Get the "busybox" image so we can "docker load" locally instead of pulling
+COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
+RUN ./contrib/download-frozen-image.sh /docker-busybox busybox@4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125
 
 # Install man page generator
 COPY vendor /go/src/github.com/docker/docker/vendor
