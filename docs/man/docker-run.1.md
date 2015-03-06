@@ -325,16 +325,20 @@ read-write. See examples.
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
 
-   Will mount volumes from the specified container identified by container-id.
-Once a volume is mounted in a one container it can be shared with other
-containers using the **--volumes-from** option when running those other
-containers. The volumes can be shared even if the original container with the
-mount is not running.
+   Mounts already mounted volumes from a source container onto another
+   container. You must supply the source's container-id. To share 
+   a volume, use the **--volumes-from** option when running
+   the target container. You can share volumes even if the source container 
+   is not running.
 
-   The container ID may be optionally suffixed with :ro or
-:rw to mount the volumes in read-only or read-write mode, respectively. By
-default, the volumes are mounted in the same mode (read write or read only) as
-the reference container.
+   By default, Docker mounts the volumes in the same mode (read-write or 
+   read-only) as it is mounted in the source container. Optionally, you 
+   can change this by suffixing the container-id with either the `:ro` or 
+   `:rw ` keyword.
+
+   If the location of the volume from the source container overlaps with
+   data residing on a target container, then the volume hides
+   that data on the target.
 
 **-w**, **--workdir**=""
    Working directory inside the container
