@@ -169,8 +169,15 @@ pages:
 - ['terms/filesystem.md', '**HIDDEN**']
 - ['terms/image.md', '**HIDDEN**']
 
-# Contribute:
-- ['contributing/index.md', '**HIDDEN**']
-- ['contributing/contributing.md', 'Contribute', 'Contributing']
-- ['contributing/devenvironment.md', 'Contribute', 'Development environment']
-- ['contributing/docs_style-guide.md', 'Contribute', 'Documentation style guide']
+
+# Project:
+- ['project/index.md', '**HIDDEN**']
+- ['project/who-written-for.md', 'Project', 'README first']
+- ['project/set-up-prereqs.md', 'Project', 'Set up prerequisites'] 
+- ['project/set-up-dev-env.md', 'Project', 'Work with a development container'] 
+- ['project/test-and-docs.md', 'Project', 'Run tests and test documentation']
+- ['project/make-a-contribution.md', 'Project', 'Make a project contribution'] 
+- ['project/advanced-contributing.md', 'Project', 'Advanced contributing']
+- ['project/get-help.md', 'Project', 'Where to get help']
+- ['project/coding-style.md', 'Project', 'Coding style guide']
+- ['project/doc-style.md', 'Project', 'Documentation style guide']
