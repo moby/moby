@@ -97,6 +97,9 @@ A Dockerfile is similar to a Makefile.
   exec form makes it possible to avoid shell string munging. The exec form makes
   it possible to **RUN** commands using a base image that does not contain `/bin/sh`.
 
+  Note that the exec form is parsed as a JSON array, which means that you must
+  use double-quotes (") around words not single-quotes (').
+
 **CMD**
   -- **CMD** has three forms:
 
@@ -119,6 +122,9 @@ A Dockerfile is similar to a Makefile.
   When used in the shell or exec formats, the **CMD** instruction sets the command to
   be executed when running the image.
   If you use the shell form of the **CMD**, the `<command>` executes in `/bin/sh -c`:
+
+  Note that the exec form is parsed as a JSON array, which means that you must
+  use double-quotes (") around words not single-quotes (').
 
   ```
   FROM ubuntu
