@@ -424,7 +424,10 @@ made through a pull request.
 				"dmp42",
 				"vbatts",
 				"joffrey",
-				"samalba"
+				"samalba",
+				"sday",
+				"jlhawn",
+				"dmcg"
 			]
 
 		[Org.Subsystems."build tools"]
@@ -502,6 +505,16 @@ made through a pull request.
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
 
+	[people.dmcg]
+	Name = "Derek McGowan"
+	Email = "derek@docker.com"
+	Github = "dmcgowan"
+
+	[people.dmp42]
+	Name = "Olivier Gambier"
+	Email = "olivier@docker.com"
+	Github = "dmp42"
+
 	[people.ehazlett]
 	Name = "Evan Hazlett"
 	Email = "ejhazlett@gmail.com"
@@ -532,6 +545,16 @@ made through a pull request.
 	Email = "jess@docker.com"
 	GitHub = "jfrazelle"
 
+	[people.jlhawn]
+	Name = "Josh Hawn"
+	Email = "josh.hawn@docker.com"
+	Github = "jlhawn"
+
+	[people.joffrey]
+	Name = "Joffrey Fuhrer"
+	Email = "joffrey@docker.com"
+	Github = "shin-"
+
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
@@ -541,6 +564,11 @@ made through a pull request.
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.sday]
+	Name = "Stephen Day"
+	Email = "stephen.day@docker.com"
+	Github = "stevvooe"
 
 	[people.shykes]
 	Name = "Solomon Hykes"
