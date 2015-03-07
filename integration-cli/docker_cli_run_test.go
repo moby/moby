@@ -869,7 +869,7 @@ func TestRunEnvironmentErase(t *testing.T) {
 	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env")
-	cmd.Env = appendDockerHostEnv([]string{})
+	cmd.Env = appendBaseEnv([]string{})
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -908,7 +908,7 @@ func TestRunEnvironmentOverride(t *testing.T) {
 	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env")
-	cmd.Env = appendDockerHostEnv([]string{"HOSTNAME=bar"})
+	cmd.Env = appendBaseEnv([]string{"HOSTNAME=bar"})
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {

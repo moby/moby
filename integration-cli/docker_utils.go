@@ -919,12 +919,23 @@ func setupRegistry(t *testing.T) func() {
 	return func() { reg.Close() }
 }
 
-// appendDockerHostEnv adds given env slice DOCKER_HOST value if set in the
-// environment. Useful when environment is cleared but we want to preserve DOCKER_HOST
-// to execute tests against a remote daemon.
-func appendDockerHostEnv(env []string) []string {
-	if dockerHost := os.Getenv("DOCKER_HOST"); dockerHost != "" {
-		env = append(env, fmt.Sprintf("DOCKER_HOST=%s", dockerHost))
+// appendBaseEnv appends the minimum set of environment variables to exec the
+// docker cli binary for testing with correct configuration to the given env
+// list.
+func appendBaseEnv(env []string) []string {
+	preserveList := []string{
+		// preserve remote test host
+		"DOCKER_HOST",
+
+		// windows: requires preserving SystemRoot, otherwise dial tcp fails
+		// with "GetAddrInfoW: A non-recoverable error occurred during a database lookup."
+		"SystemRoot",
+	}
+
+	for _, key := range preserveList {
+		if val := os.Getenv(key); val != "" {
+			env = append(env, fmt.Sprintf("%s=%s", key, val))
+		}
 	}
 	return env
 }
