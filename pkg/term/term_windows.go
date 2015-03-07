@@ -107,8 +107,8 @@ func MakeRaw(fd uintptr) (*State, error) {
 	return state, nil
 }
 
-// GetHandleInfo returns file descriptor and bool indicating whether the file is a terminal
-func GetHandleInfo(in interface{}) (uintptr, bool) {
+// GetFdInfo returns file descriptor and bool indicating whether the file is a terminal
+func GetFdInfo(in interface{}) (uintptr, bool) {
 	return winconsole.GetHandleInfo(in)
 }
 

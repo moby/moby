@@ -71,21 +71,21 @@ func (mt *mockTerminal) record(operation int, data []byte) {
 	mt.OutputCommandSequence = append(mt.OutputCommandSequence, op)
 }
 
-func (mt *mockTerminal) HandleOutputCommand(command []byte) (n int, err error) {
+func (mt *mockTerminal) HandleOutputCommand(fd uintptr, command []byte) (n int, err error) {
 	mt.record(COMMAND_OPERATION, command)
 	return len(command), nil
 }
 
-func (mt *mockTerminal) HandleInputSequence(command []byte) (n int, err error) {
+func (mt *mockTerminal) HandleInputSequence(fd uintptr, command []byte) (n int, err error) {
 	return 0, nil
 }
 
-func (mt *mockTerminal) WriteChars(w io.Writer, p []byte) (n int, err error) {
+func (mt *mockTerminal) WriteChars(fd uintptr, w io.Writer, p []byte) (n int, err error) {
 	mt.record(WRITE_OPERATION, p)
 	return len(p), nil
 }
 
-func (mt *mockTerminal) ReadChars(w io.Reader, p []byte) (n int, err error) {
+func (mt *mockTerminal) ReadChars(fd uintptr, w io.Reader, p []byte) (n int, err error) {
 	return len(p), nil
 }
 

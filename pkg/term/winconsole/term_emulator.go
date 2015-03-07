@@ -27,10 +27,10 @@ const (
 
 // Interface that implements terminal handling
 type terminalEmulator interface {
-	HandleOutputCommand(command []byte) (n int, err error)
-	HandleInputSequence(command []byte) (n int, err error)
-	WriteChars(w io.Writer, p []byte) (n int, err error)
-	ReadChars(w io.Reader, p []byte) (n int, err error)
+	HandleOutputCommand(fd uintptr, command []byte) (n int, err error)
+	HandleInputSequence(fd uintptr, command []byte) (n int, err error)
+	WriteChars(fd uintptr, w io.Writer, p []byte) (n int, err error)
+	ReadChars(fd uintptr, w io.Reader, p []byte) (n int, err error)
 }
 
 type terminalWriter struct {
@@ -38,6 +38,7 @@ type terminalWriter struct {
 	emulator      terminalEmulator
 	command       []byte
 	inSequence    bool
+	fd            uintptr
 }
 
 type terminalReader struct {
@@ -45,6 +46,7 @@ type terminalReader struct {
 	emulator      terminalEmulator
 	command       []byte
 	inSequence    bool
+	fd            uintptr
 }
 
 // http://manpages.ubuntu.com/manpages/intrepid/man4/console_codes.4.html
@@ -91,7 +93,7 @@ func (tw *terminalWriter) Write(p []byte) (n int, err error) {
 				if !isXtermOscSequence(tw.command, p[current]) {
 					// found the last command character.
 					// Now we have a complete command.
-					nchar, err := tw.emulator.HandleOutputCommand(tw.command)
+					nchar, err := tw.emulator.HandleOutputCommand(tw.fd, tw.command)
 					totalWritten += nchar
 					if err != nil {
 						return totalWritten, err
@@ -110,7 +112,7 @@ func (tw *terminalWriter) Write(p []byte) (n int, err error) {
 				tw.inSequence = true
 				// indicates end of "normal sequence", write whatever you have so far
 				if len(p[start:current]) > 0 {
-					nw, err := tw.emulator.WriteChars(tw.wrappedWriter, p[start:current])
+					nw, err := tw.emulator.WriteChars(tw.fd, tw.wrappedWriter, p[start:current])
 					totalWritten += nw
 					if err != nil {
 						return totalWritten, err
@@ -126,7 +128,7 @@ func (tw *terminalWriter) Write(p []byte) (n int, err error) {
 	if !tw.inSequence {
 		// assumption is that we can't be inside sequence and therefore command should be empty
 		if len(p[start:]) > 0 {
-			nw, err := tw.emulator.WriteChars(tw.wrappedWriter, p[start:])
+			nw, err := tw.emulator.WriteChars(tw.fd, tw.wrappedWriter, p[start:])
 			totalWritten += nw
 			if err != nil {
 				return totalWritten, err
@@ -148,7 +150,7 @@ func (tr *terminalReader) Read(p []byte) (n int, err error) {
 	if nil == tr.emulator {
 		return tr.readFromWrappedReader(p)
 	}
-	return tr.emulator.ReadChars(tr.wrappedReader, p)
+	return tr.emulator.ReadChars(tr.fd, tr.wrappedReader, p)
 }
 
 // Close the underlying stream

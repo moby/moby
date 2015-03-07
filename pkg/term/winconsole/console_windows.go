@@ -83,11 +83,6 @@ const (
 
 	ANSI_MAX_CMD_LENGTH = 256
 
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms683231(v=vs.85).aspx
-	STD_INPUT_HANDLE  = -10
-	STD_OUTPUT_HANDLE = -11
-	STD_ERROR_HANDLE  = -12
-
 	MAX_INPUT_BUFFER = 1024
 	DEFAULT_WIDTH    = 80
 	DEFAULT_HEIGHT   = 24
@@ -212,7 +207,10 @@ func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
 	}
 
 	// Save current screen buffer info
-	handle, _ := syscall.GetStdHandle(STD_OUTPUT_HANDLE)
+	handle, err := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
+	if nil != err {
+		panic("This should never happen as it is predefined handle.")
+	}
 	screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
 	if err == nil {
 		handler.screenBufferInfo = screenBufferInfo
@@ -225,26 +223,36 @@ func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
 			wrappedWriter: os.Stdout,
 			emulator:      handler,
 			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
+			fd:            uintptr(handle),
 		}
 	} else {
 		stdOut = os.Stdout
 
 	}
 	if IsTerminal(os.Stderr.Fd()) {
+		handle, err := syscall.GetStdHandle(syscall.STD_ERROR_HANDLE)
+		if nil != err {
+			panic("This should never happen as it is predefined handle.")
+		}
 		stdErr = &terminalWriter{
 			wrappedWriter: os.Stderr,
 			emulator:      handler,
 			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
+			fd:            uintptr(handle),
 		}
 	} else {
 		stdErr = os.Stderr
-
 	}
 	if IsTerminal(os.Stdin.Fd()) {
+		handle, err := syscall.GetStdHandle(syscall.STD_INPUT_HANDLE)
+		if nil != err {
+			panic("This should never happen as it is predefined handle.")
+		}
 		stdIn = &terminalReader{
 			wrappedReader: os.Stdin,
 			emulator:      handler,
 			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
+			fd:            uintptr(handle),
 		}
 	} else {
 		stdIn = os.Stdin
@@ -626,7 +634,7 @@ func getWindowsTextAttributeForAnsiValue(originalFlag WORD, defaultValue WORD, a
 }
 
 // HandleOutputCommand interpretes the Ansi commands and then makes appropriate Win32 calls
-func (term *WindowsTerminal) HandleOutputCommand(command []byte) (n int, err error) {
+func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n int, err error) {
 	// console settings changes need to happen in atomic way
 	term.outMutex.Lock()
 	defer term.outMutex.Unlock()
@@ -636,7 +644,7 @@ func (term *WindowsTerminal) HandleOutputCommand(command []byte) (n int, err err
 	parsedCommand := parseAnsiCommand(command)
 
 	// use appropriate handle
-	handle, _ := syscall.GetStdHandle(STD_OUTPUT_HANDLE)
+	handle := syscall.Handle(fd)
 
 	switch parsedCommand.Command {
 	case "m":
@@ -891,7 +899,7 @@ func (term *WindowsTerminal) HandleOutputCommand(command []byte) (n int, err err
 }
 
 // WriteChars writes the bytes to given writer.
-func (term *WindowsTerminal) WriteChars(w io.Writer, p []byte) (n int, err error) {
+func (term *WindowsTerminal) WriteChars(fd uintptr, w io.Writer, p []byte) (n int, err error) {
 	return w.Write(p)
 }
 
@@ -1027,8 +1035,8 @@ func mapKeystokeToTerminalString(keyEvent *KEY_EVENT_RECORD, escapeSequence []by
 
 // getAvailableInputEvents polls the console for availble events
 // The function does not return until at least one input record has been read.
-func getAvailableInputEvents() (inputEvents []INPUT_RECORD, err error) {
-	handle, _ := syscall.GetStdHandle(STD_INPUT_HANDLE)
+func getAvailableInputEvents(fd uintptr) (inputEvents []INPUT_RECORD, err error) {
+	handle := syscall.Handle(fd)
 	if nil != err {
 		return nil, err
 	}
@@ -1064,7 +1072,7 @@ func getTranslatedKeyCodes(inputEvents []INPUT_RECORD, escapeSequence []byte) st
 }
 
 // ReadChars reads the characters from the given reader
-func (term *WindowsTerminal) ReadChars(w io.Reader, p []byte) (n int, err error) {
+func (term *WindowsTerminal) ReadChars(fd uintptr, w io.Reader, p []byte) (n int, err error) {
 	n = 0
 	for n < len(p) {
 		select {
@@ -1076,7 +1084,7 @@ func (term *WindowsTerminal) ReadChars(w io.Reader, p []byte) (n int, err error)
 			if n > 0 {
 				return n, nil
 			}
-			inputEvents, _ := getAvailableInputEvents()
+			inputEvents, _ := getAvailableInputEvents(fd)
 			if inputEvents != nil {
 				if len(inputEvents) == 0 && nil != err {
 					return n, err
@@ -1094,7 +1102,7 @@ func (term *WindowsTerminal) ReadChars(w io.Reader, p []byte) (n int, err error)
 }
 
 // HandleInputSequence interprets the input sequence command
-func (term *WindowsTerminal) HandleInputSequence(command []byte) (n int, err error) {
+func (term *WindowsTerminal) HandleInputSequence(fd uintptr, command []byte) (n int, err error) {
 	return 0, nil
 }
 

@@ -30,7 +30,7 @@ func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
 	return os.Stdout, os.Stderr, os.Stdin
 }
 
-func GetHandleInfo(in interface{}) (uintptr, bool) {
+func GetFdInfo(in interface{}) (uintptr, bool) {
 	var inFd uintptr
 	var isTerminalIn bool
 	if file, ok := in.(*os.File); ok {
