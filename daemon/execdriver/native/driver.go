@@ -289,7 +289,11 @@ func (d *driver) Clean(id string) error {
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
-	return execdriver.Stats(filepath.Join(d.root, id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
+	c, exists := d.activeContainers[id]
+	if !exists {
+		return nil, execdriver.ErrNotRunning
+	}
+	return execdriver.Stats(filepath.Join(d.root, id), c.container.Cgroups.Memory, d.machineMemory)
 }
 
 type TtyConsole struct {
