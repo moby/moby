@@ -52,6 +52,7 @@ following options.
      - [PID Equivalent](#pid-equivalent)
  - [IPC Settings](#ipc-settings)
  - [Network Settings](#network-settings)
+ - [Restart Policies<br />(--restart)](#restart-policies-restart)
  - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
@@ -256,6 +257,99 @@ container itself as well as `localhost` and a few other common things.  The
     ::1	            localhost ip6-localhost ip6-loopback
     86.75.30.9      db-static
 
+## Restart policies (--restart)
+
+Using the `--restart` flag on Docker run you can specify a restart policy for
+how a container should or should not be restarted on exit.
+
+When a restart policy is active on a container, it will be shown as either `Up`
+or `Restarting` in [`docker ps`](/reference/commandline/cli/#ps). It can also be
+useful to use [`docker events`](/reference/commandline/cli/#events) to see the
+restart policy in effect.
+
+Docker supports the following restart policies:
+
+<table>
+  <thead>
+    <tr>
+      <th>Policy</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>no</strong></td>
+      <td>
+        Do not automatically restart the container when it exits. This is the 
+        default.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span style="white-space: nowrap">
+          <strong>on-failure</strong>[:max-retries]
+        </span>
+      </td>
+      <td>
+        Restart only if the container exits with a non-zero exit status.
+        Optionally, limit the number of restart retries the Docker 
+        daemon attempts.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>always</strong></td>
+      <td>
+        Always restart the container regardless of the exit status.
+        When you specify always, the Docker daemon will try to restart
+        the container indefinitely.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+An ever increasing delay (double the previous delay, starting at 100
+milliseconds) is added before each restart to prevent flooding the server.
+This means the daemon will wait for 100 ms, then 200 ms, 400, 800, 1600,
+and so on until either the `on-failure` limit is hit, or when you `docker stop`
+or `docker rm -f` the container.
+
+If a container is succesfully restarted (the container is started and runs
+for at least 10 seconds), the delay is reset to its default value of 100 ms.
+
+You can specify the maximum amount of times Docker will try to restart the
+container when using the **on-failure** policy.  The default is that Docker
+will try forever to restart the container. The number of (attempted) restarts
+for a container can be obtained via [`docker inspect`](
+/reference/commandline/cli/#inspect). For example, to get the number of restarts
+for container "my-container";
+
+    $ sudo docker inspect -f "{{ .RestartCount }}" my-container
+    # 2
+
+Or, to get the last time the container was (re)started;
+
+    $ docker inspect -f "{{ .State.StartedAt }}" my-container
+    # 2015-03-04T23:47:07.691840179Z
+
+You cannot set any restart policy in combination with 
+["clean up (--rm)"](#clean-up-rm). Setting both `--restart` and `--rm`
+results in an error.
+
+###Examples
+
+    $ sudo docker run --restart=always redis
+
+This will run the `redis` container with a restart policy of **always**
+so that if the container exits, Docker will restart it.
+
+    $ sudo docker run --restart=on-failure:10 redis
+
+This will run the `redis` container with a restart policy of **on-failure** 
+and a maximum restart count of 10.  If the `redis` container exits with a
+non-zero exit status more than 10 times in a row Docker will abort trying to
+restart the container. Providing a maximum restart limit is only valid for the
+**on-failure** policy.
+
 ## Clean up (--rm)
 
 By default a container's file system persists even after the container
@@ -317,15 +411,15 @@ We have four ways to set memory usage:
  - memory=inf, memory-swap=inf (not specify any of them)
    There is no memory limit, you can use as much as you want.
 
- - memory=L<inf, memory-swap=inf (specify memory and set memory-swap as `-1`)
+ - memory=L&lt;inf, memory-swap=inf (specify memory and set memory-swap as `-1`)
    It is not allowed to use more than L bytes of memory, but use as much swap
    as you want (only if the host supports swap memory).
 
- - memory=L<inf, memory-swap=2*L (specify memory without memory-swap)
+ - memory=L&lt;inf, memory-swap=2*L (specify memory without memory-swap)
    It is not allowed to use more than L bytes of memory, swap *plus* memory
    usage is double of that.
 
- - memory=L<inf, memory-swap=S<inf, L<=S (specify both memory and memory-swap)
+ - memory=L&lt;inf, memory-swap=S&lt;inf, L&lt;=S (specify both memory and memory-swap)
    It is not allowed to use more than L bytes of memory, swap *plus* memory
    usage is limited by S.
 
@@ -556,34 +650,32 @@ client container to help indicate which interface and port to use.
 When a new container is created, Docker will set the following environment
 variables automatically:
 
-<table width=100%>
- <tr style="background-color:#C0C0C0">
-  <td> <b>Variable</b> </td>
-  <td style="padding-left:10px"> <b>Value</b> </td>
+<table>
+ <tr>
+  <th>Variable</th>
+  <th>Value</th>
  </tr>
  <tr>
-  <td> <code>HOME</code> </td>
-  <td style="padding-left:10px">
+  <td><code>HOME</code></td>
+  <td>
     Set based on the value of <code>USER</code>
   </td>
  </tr>
- <tr style="background-color:#E8E8E8">
-  <td valign=top> <code>HOSTNAME</code> </td>
-  <td style="padding-left:10px"> 
+ <tr>
+  <td><code>HOSTNAME</code></td>
+  <td> 
     The hostname associated with the container
   </td>
  </tr>
  <tr>
-  <td valign=top> <code>PATH</code> </td>
-  <td style="padding-left:10px"> 
+  <td><code>PATH</code></td>
+  <td> 
     Includes popular directories, such as :<br>
     <code>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code>
   </td>
- <tr style="background-color:#E8E8E8">
-  <td valign=top> <code>TERM</code> </td>
-  <td style="padding-left:10px"> 
-    <code>xterm</code> if the container is allocated a psuedo-TTY 
-  </td>
+ <tr>
+  <td><code>TERM</code></td>
+  <td><code>xterm</code> if the container is allocated a psuedo-TTY</td>
  </tr>
 </table>
 
@@ -619,7 +711,7 @@ container running Redis:
 
     # The redis-name container exposed port 6379
     $ sudo docker ps
-    CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
+    CONTAINER ID        IMAGE                        COMMAND                CREATED             STATUS              PORTS               NAMES
     4241164edf6f        $ dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
     # Note that there are no public ports exposed since we didn᾿t use -p or -P
