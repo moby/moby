@@ -60,7 +60,7 @@ while [ $# -gt 0 ]; do
 		mkdir -p "$dir/$imageId"
 		echo '1.0' > "$dir/$imageId/VERSION"
 		
-		curl -sSL -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/json" -o "$dir/$imageId/json" -C -
+		curl -sSL -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/json" -o "$dir/$imageId/json"
 		
 		# TODO figure out why "-C -" doesn't work here
 		# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
