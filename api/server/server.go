@@ -1463,7 +1463,10 @@ func lookupGidByName(nameOrGid string) (int, error) {
 func setupTls(cert, key, ca string, l net.Listener) (net.Listener, error) {
 	tlsCert, err := tls.LoadX509KeyPair(cert, key)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?",
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("Could not load X509 key pair (%s, %s): %v", cert, key, err)
+		}
+		return nil, fmt.Errorf("Error reading X509 key pair (%s, %s): %q. Make sure the key is encrypted.",
 			cert, key, err)
 	}
 	tlsConfig := &tls.Config{
@@ -1477,7 +1480,7 @@ func setupTls(cert, key, ca string, l net.Listener) (net.Listener, error) {
 		certPool := x509.NewCertPool()
 		file, err := ioutil.ReadFile(ca)
 		if err != nil {
-			return nil, fmt.Errorf("Couldn't read CA certificate: %s", err)
+			return nil, fmt.Errorf("Could not read CA certificate: %v", err)
 		}
 		certPool.AppendCertsFromPEM(file)
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
