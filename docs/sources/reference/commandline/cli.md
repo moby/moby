@@ -1954,10 +1954,15 @@ You can also specify the maximum amount of times Docker will try to
 restart the container when using the ** on-failure ** policy.  The
 default is that Docker will try forever to restart the container.
 
-    $ sudo docker run --restart=always redis
+    $ sudo docker run --restart=always:2s redis
 
 This will run the `redis` container with a restart policy of ** always ** so that if
-the container exits, Docker will restart it.
+the container exits, Docker will restart it waiting 2 seconds each time.  If you do
+not specify a time it will sleep two times the amount it slept the last time starting
+with 100 milliseconds.  If your container is restarted 4 times that means the first
+time it will sleep 100 milliseconds, then 200, 400, and finally 800 milliseconds.  If
+your container runs successfully for 10 seconds, the sleep time will go back to 100
+milliseconds.
 
     $ sudo docker run --restart=on-failure:10 redis
 
