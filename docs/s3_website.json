@@ -36,7 +36,10 @@
     { "Condition": { "KeyPrefixEquals": "examples/using_supervisord/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "articles/using_supervisord/" } },
     { "Condition": { "KeyPrefixEquals": "reference/api/registry_index_spec/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "reference/api/hub_registry_spec/" } },
     { "Condition": { "KeyPrefixEquals": "use/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "examples/" } },
-    { "Condition": { "KeyPrefixEquals": "installation/openSUSE/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "installation/SUSE/" } }
+    { "Condition": { "KeyPrefixEquals": "installation/openSUSE/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "installation/SUSE/" } },
+    { "Condition": { "KeyPrefixEquals": "contributing/contributing/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/who-written-for/" } },
+    { "Condition": { "KeyPrefixEquals": "contributing/devenvironment/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/set-up-prereqs/" } },
+    { "Condition": { "KeyPrefixEquals": "contributing/docs_style-guide/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/doc-style/" } }
   ]
 }
 
