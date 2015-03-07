@@ -106,6 +106,32 @@ func TestRunEchoStdoutWithCPUAndMemoryLimit(t *testing.T) {
 }
 
 // "test" should be printed
+func TestRunEchoStdoutWithNetout(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "--netout", "192.168.1.3:5000/16/tcp", "--name", "test", "busybox", "echo", "test")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	if out != "test\n" {
+		t.Errorf("container should've printed 'test'")
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.Netout}}", "test")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+	if out != "[192.168.1.3:5000/16/tcp]\n" {
+		t.Errorf("failed to set netout to a container")
+	}
+
+	deleteAllContainers()
+
+	logDone("run - echo with netout")
+}
+
+// "test" should be printed
 func TestRunEchoNamedContainer(t *testing.T) {
 	defer deleteAllContainers()
 

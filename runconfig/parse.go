@@ -22,6 +22,7 @@ var (
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 	ErrConflictHostNetworkAndDns        = fmt.Errorf("Conflicting options: --net=host can't be used with --dns. This configuration is invalid.")
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
+	ErrConflictHostNetworkAndNetout     = fmt.Errorf("Conflicting options: only --net=bridge can be used with --netout.")
 )
 
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -39,6 +40,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
+		flNetout      = opts.NewListOpts(opts.ValidateNetout)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
 		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
@@ -73,6 +75,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
+	cmd.Var(&flNetout, []string{"#netout", "-netout"}, "Specify net that container can access to")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
@@ -131,6 +134,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
 	}
 
+	if *flNetMode != "bridge" && flNetout.Len() > 0 {
+		return nil, nil, cmd, ErrConflictHostNetworkAndNetout
+	}
 	// If neither -d or -a are set, attach to everything by default
 	if flAttach.Len() == 0 {
 		attachStdout = true
@@ -306,6 +312,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
+		Netout:          flNetout.GetAll(),
 		PublishAllPorts: *flPublishAll,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),

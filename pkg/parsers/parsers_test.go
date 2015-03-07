@@ -83,6 +83,30 @@ func TestParsePortMapping(t *testing.T) {
 	}
 }
 
+func TestParseNet(t *testing.T) {
+	ip, port, proto := ParseNet("192.168.1.3:5000/16/tcp")
+	if ip != "192.168.1.3/16" || port != "5000" || proto != "tcp" {
+		t.Fatalf("PaseNet(192.168.1.3:5000/16/tcp) failed, expect success")
+	}
+	ip, port, proto = ParseNet("192.168.1.3")
+	if ip != "192.168.1.3" || port != "" || proto != "" {
+		t.Fatalf("PaseNet(192.168.1.3) failed, expect success")
+	}
+	ip, port, proto = ParseNet("192.168.1.3:5000")
+	if ip != "192.168.1.3" || port != "5000" || proto != "" {
+		t.Fatalf("PaseNet(192.168.1.3:5000) failed, expect success")
+	}
+	ip, port, proto = ParseNet("192.168.1.3/16")
+	if ip != "192.168.1.3/16" || port != "" || proto != "" {
+		t.Fatalf("PaseNet(192.168.1.3/16) failed, expect success")
+	}
+	ip, port, proto = ParseNet("192.168.1.3:5000/tcp")
+	if ip != "192.168.1.3" || port != "5000" || proto != "tcp" {
+		t.Fatalf("PaseNet(192.168.1.3:5000/tcp) failed, expect success")
+	}
+
+}
+
 func TestParsePortRange(t *testing.T) {
 	if start, end, err := ParsePortRange("8000-8080"); err != nil || start != 8000 || end != 8080 {
 		t.Fatalf("Error: %s or Expecting {start,end} values {8000,8080} but found {%d,%d}.", err, start, end)
