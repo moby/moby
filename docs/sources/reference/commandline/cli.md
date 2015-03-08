@@ -758,11 +758,12 @@ Supported `Dockerfile` instructions: `CMD`, `ENTRYPOINT`, `ENV`, `EXPOSE`,
 ## cp
 
 Copy files/folders from a container's filesystem to the host
-path.  Paths are relative to the root of the filesystem.
+path. Paths are relative to the root of the filesystem.
 
     Usage: docker cp CONTAINER:PATH HOSTPATH
 
-    Copy files/folders from the PATH to the HOSTPATH
+    Copy files/folders from the PATH of the container to the HOSTPATH of the host
+    running the command.
 
 ## create
 
