@@ -2,13 +2,6 @@ page_title: Run tests and test documentation
 page_description: Describes Docker's testing infrastructure
 page_keywords: make test, make docs, Go tests, gofmt, contributing, running tests
 
-<!-- TODO (@thaJeztah) remove after docs/base is updated -->
-<style type="text/css">
-.tg  {border-collapse:collapse;border-spacing:0;margin-bottom:15px;}
-.tg td{padding:5px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
-.tg th{padding:5px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;text-align:left;}
-</style>
-
 # Run tests and test documentation
 
 Contributing includes testing your changes. If you change the Docker code, you
@@ -59,35 +52,35 @@ The `Makefile` contains a target for the entire test suite. The target's name
 is simply `test`. The make file contains several targets for testing:
 
 <style type="text/css">
-.make-target {font-family:"Courier New", Courier, monospace !important;}
+.monospaced {font-family: Monaco, Consolas, "Lucida Console", monospace !important;}
 </style>
-<table class="tg">
+<table>
   <tr>
     <th>Target</th>
     <th>What this target does</th>
   </tr>
   <tr>
-    <td class="make-target">test</td>
+    <td class="monospaced">test</td>
     <td>Run all the tests.</td>
   </tr>
   <tr>
-    <td class="make-target">test-unit</td>
+    <td class="monospaced">test-unit</td>
     <td>Run just the unit tests.</td>
   </tr>
   <tr>
-    <td class="make-target">test-integration</td>
+    <td class="monospaced">test-integration</td>
     <td>Run just integration tests.</td>
   </tr>
   <tr>
-    <td class="make-target">test-integration-cli</td>
+    <td class="monospaced">test-integration-cli</td>
     <td>Run the test for the integration command line interface.</td>
   </tr>
   <tr>
-    <td class="make-target">test-docker-py</td>
+    <td class="monospaced">test-docker-py</td>
     <td>Run the tests for Docker API client.</td>
   </tr>
   <tr>
-    <td class="make-target">docs-test</td>
+    <td class="monospaced">docs-test</td>
     <td>Runs the documentation test build.</td>
   </tr>
 </table>
@@ -170,11 +163,11 @@ You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from
 your local host you can run the `TestBuild` test with this command:
 
-        $ TESTFLAGS='-test.run ^TestBuild$' make test
+    $ TESTFLAGS='-test.run ^TestBuild$' make test
 
 To run the same test inside your Docker development container, you do this:
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-run ^TestBuild$' hack/make.sh
+    root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-run ^TestBuild$' hack/make.sh
 
 ## If test under Boot2Docker fail do to space errors
 

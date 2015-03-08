@@ -2,7 +2,7 @@ page_title: Where to chat or get help
 page_description: Describes Docker's communication channels
 page_keywords: IRC, Google group, Twitter, blog, Stackoverflow
 
-<style>
+<style type="text/css">
 /* @TODO add 'no-zebra' table-style to the docs-base stylesheet */
 /* Table without "zebra" striping */
 .content-body table.no-zebra tr {
@@ -15,13 +15,7 @@ page_keywords: IRC, Google group, Twitter, blog, Stackoverflow
 There are several communications channels you can use to chat with Docker
 community members and developers.
 
-<!-- TODO (@thaJeztah) remove after docs/base is updated -->
-<style type="text/css">
-.tg  {border-collapse:collapse;border-spacing:0;text-align: left;}
-.tg td{padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;vertical-align:top;}
-.tg th{font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
-</style>
-<table class="tg">
+<table>
   <col width="25%">
   <col width="75%">
   <tr>
@@ -79,13 +73,7 @@ the easiest way to connect to IRC.
 
 2. Fill out the form.
 
-    <!-- TODO (@thaJeztah) remove after docs/base is updated -->
-    <style type="text/css">
-    .tg   {border-collapse:collapse;border-spacing:0;}
-    .tg td{padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
-    .tg th{font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
-    </style>
-    <table class="tg no-zebra" style="width: auto">
+    <table class="no-zebra" style="width: auto">
       <tr>
         <td><b>Nickname</b></td>
         <td>The short name you want to be known as in IRC.</td>
