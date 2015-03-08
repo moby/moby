@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -373,6 +374,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 			email = readInput(cli.in, cli.out)
 			if email == "" {
 				email = authconfig.Email
+			} else {
+				reg := regexp.MustCompile(`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$`)
+				if !reg.Match([]byte(email)) {
+					return fmt.Errorf("Error : Bad Email Format")
+				}
 			}
 		}
 	} else {
