@@ -36,6 +36,9 @@ login to a private registry you can specify this by adding the server name.
 
     # docker login localhost:8080
 
+# See also
+**docker-logout(1)** to log out from a Docker registry.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.

@@ -21,19 +21,21 @@ Docker.
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/terms/layer/#union-file-system) to provide several useful features for
-persistent or shared data:
+System*](/terms/layer/#union-file-system). Data volumes provide several 
+useful features for persistent or shared data:
 
-- Volumes are initialized when a container is created
-- Data volumes can be shared and reused between containers
-- Changes to a data volume are made directly
-- Changes to a data volume will not be included when you update an image
-- Data volumes persist even if the container itself is deleted
+- Volumes are initialized when a container is created. If the container's
+  base image contains data at the specified mount point, that data is 
+  copied into the new volume.
+- Data volumes can be shared and reused among containers.
+- Changes to a data volume are made directly.
+- Changes to a data volume will not be included when you update an image.
+- Data volumes persist even if the container itself is deleted.
 
 Data volumes are designed to persist data, independent of the container's life 
-cycle. Docker will therefore *never* automatically delete volumes when you remove 
-a container, nor will it "garbage collect" volumes that are no longer referenced 
-by a container.
+cycle. Docker therefore *never* automatically delete volumes when you remove 
+a container, nor will it "garbage collect" volumes that are no longer 
+referenced by a container.
 
 ### Adding a data volume
 
@@ -131,6 +133,11 @@ You can then use the `--volumes-from` flag to mount the `/dbdata` volume in anot
 And another:
 
     $ sudo docker run -d --volumes-from dbdata --name db2 training/postgres
+
+In this case, if the `postgres` image contained a directory called `/dbdata`
+then mounting the volumes from the `dbdata` container hides the
+`/dbdata` files from the `postgres` image. The result is only the files
+from the `dbdata` container are visible.
 
 You can use multiple `--volumes-from` parameters to bring together multiple data
 volumes from multiple containers.

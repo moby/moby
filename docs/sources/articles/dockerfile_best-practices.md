@@ -357,7 +357,7 @@ It can simply start Postgres:
 
 Or, it can be used to run Postgres and pass parameters to the server:
 
-    $ docker run postgres postres --help
+    $ docker run postgres postgres --help
 
 Lastly, it could also be used to start a totally different tool, such Bash:
 

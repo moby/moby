@@ -36,6 +36,9 @@ Restores both images and tags.
     fedora              heisenbug           58394af37342        7 weeks ago         385.5 MB
     fedora              latest              58394af37342        7 weeks ago         385.5 MB
 
+# See also
+**docker-save(1)** to save an image(s) to a tar archive (streamed to STDOUT by default).
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.

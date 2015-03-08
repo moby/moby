@@ -39,6 +39,15 @@ Import to docker via pipe and stdin:
 
     # tar -c . | docker import - exampleimagedir
 
+
+## Apply specified Dockerfile instructions while importing the image
+This example sets the docker image ENV variable DEBUG to true by default.
+
+    # tar -c . | docker import -c="ENV DEBUG true" - exampleimagedir
+
+# See also
+**docker-export(1)** to export the contents of a filesystem as a tar archive to STDOUT.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
