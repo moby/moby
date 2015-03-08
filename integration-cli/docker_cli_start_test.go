@@ -187,3 +187,56 @@ func TestStartPausedContainer(t *testing.T) {
 
 	logDone("start - error should show if trying to start paused container")
 }
+
+func TestStartMultipleContainers(t *testing.T) {
+	defer deleteAllContainers()
+	// run a container named 'parent' and create two container link to `parent`
+	cmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "busybox", "top")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+	for _, container := range []string{"child_first", "child_second"} {
+		cmd = exec.Command(dockerBinary, "create", "--name", container, "--link", "parent:parent", "busybox", "top")
+		if out, _, err := runCommandWithOutput(cmd); err != nil {
+			t.Fatal(out, err)
+		}
+	}
+
+	// stop 'parent' container
+	cmd = exec.Command(dockerBinary, "stop", "parent")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", "parent")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.Trim(out, "\r\n")
+	if out != "false" {
+		t.Fatal("Container should be stopped")
+	}
+
+	// start all the three containers, container `child_first` start first which should be faild
+	// container 'parent' start second and then start container 'child_second'
+	cmd = exec.Command(dockerBinary, "start", "child_first", "parent", "child_second")
+	out, _, err = runCommandWithOutput(cmd)
+	if !strings.Contains(out, "Cannot start container child_first") || err == nil {
+		t.Fatal("Expected error but got none")
+	}
+
+	for container, expected := range map[string]string{"parent": "true", "child_first": "false", "child_second": "true"} {
+		cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", container)
+		out, _, err = runCommandWithOutput(cmd)
+		if err != nil {
+			t.Fatal(out, err)
+		}
+		out = strings.Trim(out, "\r\n")
+		if out != expected {
+			t.Fatal("Container running state wrong")
+		}
+
+	}
+
+	logDone("start - start multiple containers continue on one failed")
+}
