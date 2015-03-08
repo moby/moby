@@ -2,14 +2,6 @@ page_title: Work with a development container
 page_description: How to use Docker's development environment
 page_keywords: development, inception, container, image Dockerfile, dependencies, Go, artifacts
 
-
-<!-- TODO (@thaJeztah) remove after docs/base is updated -->
-<style type="text/css">
-.tg   {border-collapse:collapse;border-spacing:0;}
-.tg td{font-family:monospace, serif;font-size:11px;padding:10px 5px;border-style:solid;border-width:0px;overflow:hidden;word-break:normal;}
-.tg th{font-family:monospace, sans-serif;font-size:11px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:0px;overflow:hidden;word-break:normal;}
-</style>
-
 # Work with a development container
 
 In this section, you learn to develop like a member of Docker's core team.
@@ -44,7 +36,7 @@ To remove unnecessary artifacts.
 
     You should see something similar to the following:
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>CONTAINER ID</th>
         <th>IMAGE</th>
@@ -66,7 +58,7 @@ To remove unnecessary artifacts.
 
     You should see something similar to the following:
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>REPOSITORY</th>
         <th>TAG</th>
@@ -128,7 +120,7 @@ environment.
 
     You should see something similar to this:
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>REPOSTITORY</th>
         <th>TAG</th>
@@ -292,7 +284,7 @@ build and run a `docker` binary in your container.
 
         $ docker ps
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>CONTAINER ID</th>
         <th>IMAGE</th>

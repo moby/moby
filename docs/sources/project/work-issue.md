@@ -51,31 +51,31 @@ Follow this workflow as you work:
 	
 5. Format your source files correctly.
 
-    <table class="tg">
+    <table>
       <thead>
       <tr>
-        <th class="tg-e3zv">File type</th>
+        <th>File type</th>
         <th>How to format</th>
       </tr>
       </thead>
       <tbody>
       <tr>
-        <td class="tg-e3zv"><code>.go</code></td>
+        <td><code>.go</code></td>
         <td>
             <p>
             Format <code>.go</code> files using the <code>gofmt</code> command.
             For example, if you edited the `docker.go` file you would format the file
-        like this:
-        </p>
-        <p><code>$ gofmt -s -w file.go</code></p>
-        <p>
-        Most file editors have a plugin to format for you. Check your editor's
-        documentation.
-        </p>
+            like this:
+            </p>
+            <p><code>$ gofmt -s -w file.go</code></p>
+            <p>
+            Most file editors have a plugin to format for you. Check your editor's
+            documentation.
+            </p>
         </td>
       </tr>
       <tr>
-        <td  class="tg-e3zv" style="white-space: nowrap"><code>.md</code> and non-<code>.go</code> files</td>
+        <td style="white-space: nowrap"><code>.md</code> and non-<code>.go</code> files</td>
         <td>Wrap lines to 80 characters.</td>
       </tr>
       </tbody>
