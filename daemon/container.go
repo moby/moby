@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
+	"github.com/docker/docker/daemon/logger/syslog"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
@@ -1376,6 +1377,12 @@ func (container *Container) startLogging() error {
 		}
 
 		dl, err := jsonfilelog.New(pth)
+		if err != nil {
+			return err
+		}
+		l = dl
+	case "syslog":
+		dl, err := syslog.New(container.ID[:12])
 		if err != nil {
 			return err
 		}
