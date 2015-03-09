@@ -101,6 +101,7 @@ expect an integer, and they can only be specified once.
       --mtu=0                                Set the containers network MTU
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
+      --root=""                              Set root user/uid remap option
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled=false                Enable selinux support
       --storage-opt=[]                       Set storage driver options
@@ -349,6 +350,31 @@ https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
 not where the primary development of new functionality is taking place.
 Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
 
+### Daemon user namespace support
+
+The Docker daemon can be configured to use Linux user namespace support to
+remap the root user inside the container to an unprivileged user on the host.
+Due to the requirement that the filesystem layers need to have user/group
+ownership modification to make this remapping useful, this is a daemon-level
+option and not selectable on a per-container basis.
+
+To enable user namespace support provide a username or Linux uid:gid to the
+`--root` flag.  If you would like the daemon to create and use a default user
+managed by the Docker installation you can specify `default` and a user and
+group named `dockroot` will be created (if it does not already exist) and
+used as the root remapped ID inside all containers for that daemon instance.
+
+Example relying on default Docker username management:
+
+    $ sudo docker -d --root default
+
+Example using pre-existing username/group combination:
+
+    $ sudo docker -d ---root=cntrroot
+
+Example using a Linux uid:gid combination:
+
+    $ sudo docker -d --root 1001:1001
 
 ### Daemon DNS options
 
