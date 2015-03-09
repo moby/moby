@@ -23,9 +23,3 @@ func (b *bridgeSetup) apply() error {
 func (b *bridgeSetup) queueStep(step setupStep) {
 	b.steps = append(b.steps, step)
 }
-
-//---------------------------------------------------------------------------//
-
-func setupIPTables(i *bridgeInterface) error {
-	return nil
-}
