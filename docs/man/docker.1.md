@@ -117,7 +117,7 @@ unix://[/path/to/socket] to use.
   Create a new image from a container's changes
 
 **docker-cp(1)**
-  Copy files/folders from a container's filesystem to the host at path
+  Copy files/folders from a container's filesystem to the host
 
 **docker-create(1)**
   Create a new container
