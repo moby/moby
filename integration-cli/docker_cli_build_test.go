@@ -8,14 +8,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"text/template"
 	"time"
@@ -645,9 +643,10 @@ func TestBuildCacheADD(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	if _, err := buildImage(name,
 		fmt.Sprintf(`FROM scratch
-		ADD %s/robots.txt /`, server.URL),
+		ADD %s/robots.txt /`, server.URL()),
 		true); err != nil {
 		t.Fatal(err)
 	}
@@ -657,7 +656,7 @@ func TestBuildCacheADD(t *testing.T) {
 	deleteImages(name)
 	_, out, err := buildImageWithOut(name,
 		fmt.Sprintf(`FROM scratch
-		ADD %s/index.html /`, server.URL),
+		ADD %s/index.html /`, server.URL()),
 		true)
 	if err != nil {
 		t.Fatal(err)
@@ -797,7 +796,7 @@ RUN [ $(ls -l /exists/test_file4 | awk '{print $3":"$4}') = 'root:root' ]
 RUN [ $(ls -l /exists/robots.txt | awk '{print $3":"$4}') = 'root:root' ]
 
 RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio' ]
-`, server.URL),
+`, server.URL()),
 		map[string]string{
 			"test_file1": "test1",
 			"test_file2": "test2",
@@ -1084,6 +1083,7 @@ func TestBuildCopyWildcard(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	ctx, err := fakeContext(fmt.Sprintf(`FROM busybox
 	COPY file*.txt /tmp/
 	RUN ls /tmp/file1.txt /tmp/file2.txt
@@ -1093,7 +1093,7 @@ func TestBuildCopyWildcard(t *testing.T) {
 	RUN mkdir /tmp2
         ADD dir/*dir %s/robots.txt /tmp2/
 	RUN ls /tmp2/nest_nest_file /tmp2/robots.txt
-	`, server.URL),
+	`, server.URL()),
 		map[string]string{
 			"file1.txt":                     "test1",
 			"file2.txt":                     "test2",
@@ -2858,10 +2858,11 @@ func TestBuildADDRemoteFileWithCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	id1, err := buildImage(name,
 		fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
-        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		true)
 	if err != nil {
 		t.Fatal(err)
@@ -2869,7 +2870,7 @@ func TestBuildADDRemoteFileWithCache(t *testing.T) {
 	id2, err := buildImage(name,
 		fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
-        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		true)
 	if err != nil {
 		t.Fatal(err)
@@ -2891,10 +2892,11 @@ func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	id1, err := buildImage(name,
 		fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
-        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		true)
 	if err != nil {
 		t.Fatal(err)
@@ -2902,7 +2904,7 @@ func TestBuildADDRemoteFileWithoutCache(t *testing.T) {
 	id2, err := buildImage(name2,
 		fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
-        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		false)
 	if err != nil {
 		t.Fatal(err)
@@ -2921,7 +2923,8 @@ func TestBuildADDRemoteFileMTime(t *testing.T) {
 
 	defer deleteImages(name, name2, name3, name4)
 
-	server, err := fakeStorage(map[string]string{"baz": "hello"})
+	files := map[string]string{"baz": "hello"}
+	server, err := fakeStorage(files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2929,7 +2932,7 @@ func TestBuildADDRemoteFileMTime(t *testing.T) {
 
 	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
-        ADD %s/baz /usr/lib/baz/quux`, server.URL), nil)
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2948,15 +2951,26 @@ func TestBuildADDRemoteFileMTime(t *testing.T) {
 		t.Fatal("The cache should have been used but wasn't - #1")
 	}
 
-	// Now set baz's times to anything else and redo the build
+	// Now create a different server withsame contents (causes different mtim)
 	// This time the cache should not be used
-	bazPath := path.Join(server.FakeContext.Dir, "baz")
-	err = syscall.UtimesNano(bazPath, make([]syscall.Timespec, 2))
-	if err != nil {
-		t.Fatalf("Error setting mtime on %q: %v", bazPath, err)
-	}
 
-	id3, err := buildImageFromContext(name3, ctx, true)
+	// allow some time for clock to pass as mtime precision is only 1s
+	time.Sleep(2 * time.Second)
+
+	server2, err := fakeStorage(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server2.Close()
+
+	ctx2, err := fakeContext(fmt.Sprintf(`FROM scratch
+        MAINTAINER dockerio
+        ADD %s/baz /usr/lib/baz/quux`, server2.URL()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx2.Close()
+	id3, err := buildImageFromContext(name3, ctx2, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2965,7 +2979,7 @@ func TestBuildADDRemoteFileMTime(t *testing.T) {
 	}
 
 	// And for good measure do it again and make sure cache is used this time
-	id4, err := buildImageFromContext(name4, ctx, true)
+	id4, err := buildImageFromContext(name4, ctx2, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2985,10 +2999,11 @@ func TestBuildADDLocalAndRemoteFilesWithCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
         ADD foo /usr/lib/bla/bar
-        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		map[string]string{
 			"foo": "hello world",
 		})
@@ -3074,10 +3089,11 @@ func TestBuildADDLocalAndRemoteFilesWithoutCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
         MAINTAINER dockerio
         ADD foo /usr/lib/bla/bar
-        ADD %s/baz /usr/lib/baz/quux`, server.URL),
+        ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		map[string]string{
 			"foo": "hello world",
 		})
@@ -4800,7 +4816,7 @@ RUN echo from Dockerfile`,
 
 	// Make sure that -f is ignored and that we don't use the Dockerfile
 	// that's in the current dir
-	out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-f", "baz", "-t", "test1", server.URL+"/baz")
+	out, _, err := dockerCmdInDir(t, ctx.Dir, "build", "-f", "baz", "-t", "test1", server.URL()+"/baz")
 	if err != nil {
 		t.Fatalf("Failed to build: %s\n%s", out, err)
 	}
