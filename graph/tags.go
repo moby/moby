@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
 
@@ -210,7 +211,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 				}
 				deleted = true
 			} else {
-				return false, fmt.Errorf("No such image: %s:%s", repoName, tag)
+				return false, fmt.Errorf("No such image: %s", utils.ImageReference(repoName, tag))
 			}
 		}
 	} else {
@@ -224,7 +225,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 					}
 					deleted = true
 				} else {
-					return false, fmt.Errorf("No such tag: %s:%s", repoName, tag)
+					return false, fmt.Errorf("No such tag: %s", utils.ImageReference(repoName, tag))
 				}
 			} else {
 				delete(store.Repositories, repoName)
@@ -376,7 +377,7 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 	for name, repository := range store.Repositories {
 		for tag, id := range repository {
 			shortID := common.TruncateID(id)
-			reporefs[shortID] = append(reporefs[shortID], fmt.Sprintf("%s:%s", name, tag))
+			reporefs[shortID] = append(reporefs[shortID], utils.ImageReference(name, tag))
 		}
 	}
 	store.Unlock()

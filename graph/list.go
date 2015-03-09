@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"fmt"
 	"log"
 	"path"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/utils"
 )
 
 var acceptedImageFilterTags = map[string]struct{}{"dangling": {}}
@@ -63,7 +63,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 			if out, exists := lookup[id]; exists {
 				if filt_tagged {
-					out.SetList("RepoTags", append(out.GetList("RepoTags"), fmt.Sprintf("%s:%s", name, tag)))
+					out.SetList("RepoTags", append(out.GetList("RepoTags"), utils.ImageReference(name, tag)))
 				}
 			} else {
 				// get the boolean list for if only the untagged images are requested
@@ -71,7 +71,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 				if filt_tagged {
 					out := &engine.Env{}
 					out.SetJson("ParentId", image.Parent)
-					out.SetList("RepoTags", []string{fmt.Sprintf("%s:%s", name, tag)})
+					out.SetList("RepoTags", []string{utils.ImageReference(name, tag)})
 					out.SetJson("Id", image.ID)
 					out.SetInt64("Created", image.Created.Unix())
 					out.SetInt64("Size", image.Size)
@@ -102,7 +102,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			// remove from allImages so it doesn't show up as dangling
 			delete(allImages, id)
 
-			repoDigestsKey := fmt.Sprintf("%s:%s", name, mapping.Tag)
+			repoDigestsKey := utils.ImageReference(name, mapping.Tag)
 			if showDigests && filt_tagged {
 				if out, exists := lookup[id]; exists {
 					repoDigests := make(map[string]string)

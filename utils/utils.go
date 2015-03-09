@@ -535,3 +535,14 @@ func (wc *WriteCounter) Write(p []byte) (count int, err error) {
 	wc.Count += int64(count)
 	return
 }
+
+// ImageReference combines `repo` and `ref` and returns a string representing
+// the combination. If `ref` is a digest (meaning it's of the form
+// <algorithm>:<digest>, the returned string is <repo>@<ref>. Otherwise,
+// ref is assumed to be a tag, and the returned string is <repo>:<tag>.
+func ImageReference(repo, ref string) string {
+	if strings.Contains(ref, ":") {
+		return repo + "@" + ref
+	}
+	return repo + ":" + ref
+}

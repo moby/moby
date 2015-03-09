@@ -45,7 +45,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", &metaHeaders)
 
-	c, err := s.poolAdd("pull", repoInfo.LocalName+":"+tag)
+	c, err := s.poolAdd("pull", utils.ImageReference(repoInfo.LocalName, tag))
 	if err != nil {
 		if c != nil {
 			// Another pull of the same repository is already taking place; just wait for it to finish
@@ -55,7 +55,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		}
 		return job.Error(err)
 	}
-	defer s.poolRemove("pull", repoInfo.LocalName+":"+tag)
+	defer s.poolRemove("pull", utils.ImageReference(repoInfo.LocalName, tag))
 
 	log.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 	endpoint, err := repoInfo.GetEndpoint()
@@ -112,7 +112,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	repoData, err := r.GetRepositoryData(repoInfo.RemoteName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
-			return fmt.Errorf("Error: image %s:%s not found", repoInfo.RemoteName, askedTag)
+			return fmt.Errorf("Error: image %s not found", utils.ImageReference(repoInfo.RemoteName, askedTag))
 		}
 		// Unexpected HTTP error
 		return err
@@ -258,7 +258,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 
 	requestedTag := repoInfo.CanonicalName
 	if len(askedTag) > 0 {
-		requestedTag = repoInfo.CanonicalName + ":" + askedTag
+		requestedTag = utils.ImageReference(repoInfo.CanonicalName, askedTag)
 	}
 	WriteStatus(requestedTag, out, sf, layers_downloaded)
 	return nil
@@ -412,7 +412,7 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 
 	requestedTag := repoInfo.CanonicalName
 	if len(tag) > 0 {
-		requestedTag = repoInfo.CanonicalName + ":" + tag
+		requestedTag = utils.ImageReference(repoInfo.CanonicalName, tag)
 	}
 	WriteStatus(requestedTag, out, sf, layersDownloaded)
 	return nil
@@ -435,7 +435,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 
 	if verified {
-		log.Printf("Image manifest for %s:%s has been verified", repoInfo.CanonicalName, tag)
+		log.Printf("Image manifest for %s has been verified", utils.ImageReference(repoInfo.CanonicalName, tag))
 	}
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
@@ -564,7 +564,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 
 	if verified && layersDownloaded {
-		out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
+		out.Write(sf.FormatStatus(utils.ImageReference(repoInfo.CanonicalName, tag), "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
 	if !strings.Contains(tag, ":") {

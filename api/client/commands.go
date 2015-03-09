@@ -2228,7 +2228,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 		if tag == "" {
 			tag = graph.DEFAULTTAG
 		}
-		fmt.Fprintf(cli.err, "Unable to find image '%s:%s' locally\n", repo, tag)
+		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", utils.ImageReference(repo, tag))
 
 		// we don't want to write to stdout anything apart from container.ID
 		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
