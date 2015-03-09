@@ -496,7 +496,9 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return fmt.Errorf("unable to wrap image blob reader with TarSum: %s", err)
 				}
 
-				io.Copy(tmpFile, utils.ProgressReader(ioutil.NopCloser(tarSumReader), int(l), out, sf, false, common.TruncateID(img.ID), "Downloading"))
+				if _, err := io.Copy(tmpFile, utils.ProgressReader(ioutil.NopCloser(tarSumReader), int(l), out, sf, false, common.TruncateID(img.ID), "Downloading")); err != nil {
+					return fmt.Errorf("unable to copy v2 image blob data: %s", err)
+				}
 
 				out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Verifying Checksum", nil))
 
