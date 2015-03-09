@@ -2085,7 +2085,7 @@ more details on finding shared images from the command line.
 
     Usage: docker start [OPTIONS] CONTAINER [CONTAINER...]
 
-    Restart a stopped container
+    Start one or more stopped containers
 
       -a, --attach=false         Attach STDOUT/STDERR and forward signals
       -i, --interactive=false    Attach container's STDIN
