@@ -140,3 +140,15 @@ func TestImageReference(t *testing.T) {
 		}
 	}
 }
+
+func TestDigestReference(t *testing.T) {
+	input := "sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64"
+	if !DigestReference(input) {
+		t.Errorf("Expected DigestReference=true for input %q", input)
+	}
+
+	input = "latest"
+	if DigestReference(input) {
+		t.Errorf("Unexpected DigestReference=true for input %q", input)
+	}
+}

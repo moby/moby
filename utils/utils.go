@@ -541,8 +541,14 @@ func (wc *WriteCounter) Write(p []byte) (count int, err error) {
 // <algorithm>:<digest>, the returned string is <repo>@<ref>. Otherwise,
 // ref is assumed to be a tag, and the returned string is <repo>:<tag>.
 func ImageReference(repo, ref string) string {
-	if strings.Contains(ref, ":") {
+	if DigestReference(ref) {
 		return repo + "@" + ref
 	}
 	return repo + ":" + ref
+}
+
+// DigestReference returns true if ref is a digest reference; i.e. if it
+// is of the form <algorithm>:<digest>.
+func DigestReference(ref string) bool {
+	return strings.Contains(ref, ":")
 }

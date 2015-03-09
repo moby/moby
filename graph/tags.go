@@ -127,7 +127,7 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 		err error
 		img *image.Image
 	)
-	if strings.Contains(tag, ":") {
+	if utils.DigestReference(tag) {
 		img, err = store.GetImageByDigest(repos, tag)
 	} else {
 		img, err = store.GetImage(repos, tag)
@@ -201,8 +201,7 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 
 	repoName = registry.NormalizeLocalName(repoName)
 
-	if strings.Contains(tag, ":") {
-		// if the tag has : in it, it's a digest, e.g. sha256:<digest>
+	if utils.DigestReference(tag) {
 		if r, exists := store.Digests[repoName]; exists {
 			if _, digestExists := r[tag]; digestExists {
 				delete(r, tag)
