@@ -7,7 +7,7 @@ import (
 
 func init() {
 	beginPortRange = DefaultPortRangeStart
-	endPortRange = DefaultPortRangeStart + 500
+	endPortRange = DefaultPortRangeEnd
 }
 
 func reset() {
