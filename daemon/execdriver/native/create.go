@@ -185,6 +185,14 @@ func (d *driver) setupRlimits(container *libcontainer.Config, c *execdriver.Comm
 }
 
 func (d *driver) setupMounts(container *libcontainer.Config, c *execdriver.Command) error {
+
+	exec, done := mount.GetChannels()
+	go func(exec chan bool, done chan bool) {
+		<-exec
+		fmt.Println("HELLO WORLD: REACHED DOCKER")
+		done <- true
+	}(exec, done)
+
 	for _, m := range c.Mounts {
 		container.MountConfig.Mounts = append(container.MountConfig.Mounts, &mount.Mount{
 			Type:        "bind",
