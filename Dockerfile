@@ -145,7 +145,8 @@ RUN ln -sfv $PWD/.bashrc ~/.bashrc
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
-	busybox:latest@4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125
+	busybox:latest@4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125 \
+	hello-world:latest@e45a5af57b00862e5ef5782a9925979a02ba2b12dff832fd0991335f4a11e5c5
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
 # Install man page generator
