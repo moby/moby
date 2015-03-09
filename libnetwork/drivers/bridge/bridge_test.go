@@ -9,9 +9,10 @@ import (
 
 func TestCreate(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
+	d := &driver{}
 
 	config := &Configuration{BridgeName: DefaultBridgeName}
-	netw, err := Create("dummy", config)
+	netw, err := d.CreateNetwork("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -23,15 +24,17 @@ func TestCreate(t *testing.T) {
 
 func TestCreateFail(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
+	d := &driver{}
 
 	config := &Configuration{BridgeName: "dummy0"}
-	if _, err := Create("dummy", config); err == nil {
+	if _, err := d.CreateNetwork("dummy", config); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
 	}
 }
 
 func TestCreateFullOptions(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
+	d := &driver{}
 
 	config := &Configuration{
 		BridgeName:         DefaultBridgeName,
@@ -42,7 +45,7 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 	_, config.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 
-	netw, err := Create("dummy", config)
+	netw, err := d.CreateNetwork("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

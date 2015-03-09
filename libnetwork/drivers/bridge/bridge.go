@@ -22,12 +22,15 @@ type Configuration struct {
 	EnableIPForwarding bool
 }
 
+type driver struct{}
+
 func init() {
-	libnetwork.RegisterNetworkType(networkType, Create, &Configuration{})
+	libnetwork.RegisterNetworkType(networkType, &driver{}, &Configuration{})
 }
 
-// Create a new Network managed by the "simplebridge" driver.
-func Create(name string, config *Configuration) (libnetwork.Network, error) {
+// Create a new network using simplebridge plugin
+func (d *driver) CreateNetwork(name string, opaqueConfig interface{}) (libnetwork.Network, error) {
+	config := opaqueConfig.(*Configuration)
 	bridgeIntfc := newInterface(config)
 	bridgeSetup := newBridgeSetup(bridgeIntfc)
 
