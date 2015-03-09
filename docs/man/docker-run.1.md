@@ -82,24 +82,38 @@ option can be set multiple times.
 **-c**, **--cpu-shares**=0
    CPU shares (relative weight)
 
-   You can increase the priority of a container
-with the -c option. By default, all containers run at the same priority and get
-the same proportion of CPU cycles, but you can tell the kernel to give more
-shares of CPU time to one or more containers when you start them via **docker
-run**.
+   By default, all containers get the same proportion of CPU cycles. This proportion
+can be modified by changing the container's CPU share weighting relative
+to the weighting of all other running containers.
 
-The flag `-c` or `--cpu-shares` with value 0 indicates that the running
-container has access to all 1024 (default) CPU shares. However, this value
-can be modified to run a container with a different priority or different
-proportion of CPU cycles.
+To modify the proportion from the default of 1024, use the **-c** or **--cpu-shares**
+flag to set the weighting to 2 or higher.
 
-E.g., If we start three {C0, C1, C2} containers with default values
-(`-c` OR `--cpu-shares` = 0) and one {C3} with (`-c` or `--cpu-shares`=512)
-then C0, C1, and C2 would have access to 100% CPU shares (1024) and C3 would
-only have access to 50% CPU shares (512). In the context of a time-sliced OS
-with time quantum set as 100 milliseconds, containers C0, C1, and C2 will run
-for full-time quantum, and container C3 will run for half-time quantum i.e 50
-milliseconds.
+The proportion will only apply when CPU-intensive processes are running.
+When tasks in one container are idle, other containers can use the
+left-over CPU time. The actual amount of CPU time will vary depending on
+the number of containers running on the system.
+
+For example, consider three containers, one has a cpu-share of 1024 and
+two others have a cpu-share setting of 512. When processes in all three
+containers attempt to use 100% of CPU, the first container would receive
+50% of the total CPU time. If you add a fouth container with a cpu-share
+of 1024, the first container only gets 33% of the CPU. The remaining containers
+receive 16.5%, 16.5% and 33% of the CPU.
+
+On a multi-core system, the shares of CPU time are distributed over all CPU
+cores. Even if a container is limited to less than 100% of CPU time, it can
+use 100% of each individual CPU core.
+
+For example, consider a system with more than three cores. If you start one
+container **{C0}** with **-c=512** running one process, and another container
+**{C1}** with **-c=1024** running two processes, this can result in the following
+division of CPU shares:
+
+    PID    container	CPU	CPU share
+    100    {C0}		0	100% of CPU0
+    101    {C1}		1	100% of CPU1
+    102    {C1}		2	100% of CPU2
 
 **--cap-add**=[]
    Add Linux capabilities
