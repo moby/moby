@@ -24,6 +24,34 @@ func TestEncodeAuth(t *testing.T) {
 	if authStr != "a2VuOnRlc3Q=" {
 		t.Fatal("AuthString encoding isn't correct.")
 	}
+	username0, password0, err0 := decodeAuth("dXNlcm5hbWU6cGFzc3dvcmQ=")
+	if err0 != nil {
+		t.Fatal(err0)
+	}
+	if username0 != "username" || password0 != "password" {
+		t.Fatal("AuthString decoding failed for base64 encoded auth string (validity).")
+	}
+	username1, password1, err1 := decodeAuth("username:password")
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+	if username1 != "username" || password1 != "password" {
+		t.Fatal("AuthString decoding failed for clear text auth string (validity).")
+	}
+	username2, password2, err2 := decodeAuth("cGFzc3dvcmQ6dXNlcm5hbWU=")
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	if username2 == "username" && password2 == "password" {
+		t.Fatal("AuthString decoding failed for base64 encoded auth string (invalidity).")
+	}
+	username3, password3, err3 := decodeAuth("password:username")
+	if err3 != nil {
+		t.Fatal(err3)
+	}
+	if username3 == "username" && password3 == "password" {
+		t.Fatal("AuthString decoding failed for clear text auth string (invalidity).")
+	}
 }
 
 func setupTempConfigFile() (*ConfigFile, error) {
