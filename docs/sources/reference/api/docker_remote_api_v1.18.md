@@ -258,7 +258,7 @@ Json Parameters:
         `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
   -   **LogConfig** - Logging configuration to container, format
         `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}
-        Available types: `json-file`, `none`.
+        Available types: `json-file`, `syslog`, `none`.
         `json-file` logging driver.
 
 Query Parameters:
