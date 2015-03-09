@@ -338,14 +338,38 @@ _docker_diff() {
 
 _docker_events() {
 	case "$prev" in
-		--since)
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "container event image" -- "$cur" ) )
+			compopt -o nospace
+			return
+			;;
+		--since|--until)
+			return
+			;;
+	esac
+
+	# "=" gets parsed to a word and assigned to either $cur or $prev depending on whether
+	# it is the last character or not. So we search for "xxx=" in the the last two words.
+	case "${words[$cword-2]}$prev=" in
+		*container=*)
+			cur="${cur#=}"
+			__docker_containers_all
+			return
+			;;
+		*event=*)
+			COMPREPLY=( $( compgen -W "create destroy die export kill pause restart start stop unpause" -- "${cur#=}" ) )
+			return
+			;;
+		*image=*)
+			cur="${cur#=}"
+			__docker_image_repos_and_tags_and_ids
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--since" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --since --until" -- "$cur" ) )
 			;;
 	esac
 }
