@@ -183,10 +183,27 @@ Four different options affect container domain name services.
     only look up `host` but also `host.example.com`.
     Use `--dns-search=.` if you don't wish to set the search domain.
 
-Note that Docker, in the absence of either of the last two options
-above, will make `/etc/resolv.conf` inside of each container look like
-the `/etc/resolv.conf` of the host machine where the `docker` daemon is
-running.  You might wonder what happens when the host machine's
+Regarding DNS settings, in the absence of either the `--dns=IP_ADDRESS...`
+or the `--dns-search=DOMAIN...` option, Docker makes each container's
+`/etc/resolv.conf` look like the `/etc/resolv.conf` of the host machine (where
+the `docker` daemon runs).  When creating the container's `/etc/resolv.conf`,
+the daemon filters out all localhost IP address `nameserver` entries from
+the host's original file.
+
+Filtering is necessary because all localhost addresses on the host are
+unreachable from the container's network.  After this filtering, if there 
+are no more `nameserver` entries left in the container's `/etc/resolv.conf`
+file, the daemon adds public Google DNS nameservers
+(8.8.8.8 and 8.8.4.4) to the container's DNS configuration.  If IPv6 is
+enabled on the daemon, the public IPv6 Google DNS nameservers will also
+be added (2001:4860:4860::8888 and 2001:4860:4860::8844).
+
+> **Note**:
+> If you need access to a host's localhost resolver, you must modify your
+> DNS service on the host to listen on a non-localhost address that is
+> reachable from within the container.
+
+You might wonder what happens when the host machine's
 `/etc/resolv.conf` file changes.  The `docker` daemon has a file change
 notifier active which will watch for changes to the host DNS configuration.
 
