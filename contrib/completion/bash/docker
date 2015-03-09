@@ -635,6 +635,7 @@ _docker_run() {
 		--restart
 		--security-opt
 		--user -u
+		--ulimit
 		--volumes-from
 		--volume -v
 		--workdir -w
@@ -949,6 +950,7 @@ _docker() {
 	local main_options_with_args="
 		--bip
 		--bridge -b
+		--default-ulimit
 		--dns
 		--dns-search
 		--exec-driver -e
