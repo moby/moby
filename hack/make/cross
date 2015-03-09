@@ -9,6 +9,13 @@ daemonSupporting=(
 	[linux/amd64]=1
 )
 
+if [ -n "$BUILD_CROSS" ]; then
+
+	daemonSupporting[linux/arm]=1
+	daemonSupporting[linux/386]=1
+
+fi
+
 # if we have our linux/amd64 version compiled, let's symlink it in
 if [ -x "$DEST/../binary/docker-$VERSION" ]; then
 	mkdir -p "$DEST/linux/amd64"
@@ -27,6 +34,23 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		if [ -z "${daemonSupporting[$platform]}" ]; then
 			export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
 			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
+		fi
+		if [ -n "$BUILD_CROSS" ]; then
+			if [ $GOARCH = "arm" ] && [ $GOOS = "linux" ]
+			then
+				export CC=arm-linux-gnueabi-gcc
+				export LD_FLAGS="-extld=arm-linux-gnueabi-gcc"
+				export CGO_ENABLED=1
+				export LIBRARY_PATH=$LIBRARY_PATH:/usr/arm-linux-gnueabi/lib
+			fi
+			if [ $GOARCH = "386" ] && [ $GOOS = "linux" ]
+			then
+				export CFLAGS="-m32"
+				export CXXFLAGS="-m32"
+				export LD_FLAGS="-m32"
+				export CGO_ENABLED=1
+				export LIBRARY_PATH=$LIBRARY_PATH:/usr/lib32/lib
+			fi
 		fi
 		source "$(dirname "$BASH_SOURCE")/binary" "$DEST/$platform"
 	)
