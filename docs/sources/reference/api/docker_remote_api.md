@@ -62,6 +62,10 @@ You can set ulimit settings to be used within the container.
 **New!**
 This endpoint now returns `SystemTime`, `HttpProxy`,`HttpsProxy` and `NoProxy`. 
 
+`GET /images/json`
+
+**New!**
+Added a `digests` parameter (default `false`) to include image digest information.
 
 ## v1.17
 
