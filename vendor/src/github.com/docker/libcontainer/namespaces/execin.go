@@ -49,7 +49,7 @@ func ExecIn(container *libcontainer.Config, state *libcontainer.State, userArgs 
 
 	// Note: these are only used in non-tty mode
 	// if there is a tty for the container it will be opened within the namespace and the
-	// fds will be duped to stdin, stdiout, and stderr
+	// fds will be duped to stdin, stdout, and stderr
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
