@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libtrust"
@@ -63,32 +60,9 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			}
 		}
 
-		checksum, err := layer.GetCheckSum(s.graph.ImageRoot(layer.ID))
+		digest, err := layer.DiffDigest()
 		if err != nil {
-			return nil, fmt.Errorf("Error getting image checksum: %s", err)
-		}
-		if tarsum.VersionLabelForChecksum(checksum) != tarsum.Version1.String() {
-			archive, err := layer.TarLayer()
-			if err != nil {
-				return nil, err
-			}
-
-			defer archive.Close()
-
-			tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version1)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
-				return nil, err
-			}
-
-			checksum = tarSum.Sum(nil)
-
-			// Save checksum value
-			if err := layer.SaveCheckSum(s.graph.ImageRoot(layer.ID), checksum); err != nil {
-				return nil, err
-			}
+			return nil, fmt.Errorf("unable to get image rootfs diff digest: %s", err)
 		}
 
 		jsonData, err := layer.RawJson()
@@ -96,7 +70,7 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			return nil, fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err)
 		}
 
-		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: checksum})
+		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: digest})
 
 		layersSeen[layer.ID] = true
 

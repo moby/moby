@@ -1,12 +1,12 @@
 package graph
 
 import (
+	"crypto"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/common"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/jlhawn/blobstore"
 )
 
 func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
@@ -364,12 +364,15 @@ func WriteStatus(requestedTag string, out io.Writer, sf *utils.StreamFormatter, 
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	imgJSON    []byte
-	img        *image.Image
-	tmpFile    *os.File
-	length     int64
-	downloaded bool
-	err        chan error
+	imgJSON        []byte
+	img            *image.Image
+	sumType        string
+	hexSum         string
+	verified       bool
+	diffBlobWriter blobstore.BlobWriter
+	length         int64
+	downloaded     bool
+	err            chan error
 }
 
 func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool) error {
@@ -418,7 +421,7 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 	return nil
 }
 
-func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
+func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (layersDownloaded bool, err error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
 	manifestBytes, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
@@ -463,76 +466,39 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		if len(chunks) < 2 {
 			return false, fmt.Errorf("expected 2 parts in the sumStr, got %#v", chunks)
 		}
-		sumType, checksum := chunks[0], chunks[1]
+		sumType, hexSum := chunks[0], chunks[1]
+
+		downloads[i].imgJSON = imgJSON
+		downloads[i].sumType = sumType
+		downloads[i].hexSum = hexSum
+
 		out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Pulling fs layer", nil))
-
-		downloadFunc := func(di *downloadInfo) error {
-			log.Debugf("pulling blob %q to V1 img %s", sumStr, img.ID)
-
-			if c, err := s.poolAdd("pull", "img:"+img.ID); err != nil {
-				if c != nil {
-					out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil))
-					<-c
-					out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Download complete", nil))
-				} else {
-					log.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
-				}
-			} else {
-				defer s.poolRemove("pull", "img:"+img.ID)
-				tmpFile, err := ioutil.TempFile("", "GetV2ImageBlob")
-				if err != nil {
-					return err
-				}
-
-				r, l, err := r.GetV2ImageBlobReader(endpoint, repoInfo.RemoteName, sumType, checksum, auth)
-				if err != nil {
-					return err
-				}
-				defer r.Close()
-
-				// Wrap the reader with the appropriate TarSum reader.
-				tarSumReader, err := tarsum.NewTarSumForLabel(r, true, sumType)
-				if err != nil {
-					return fmt.Errorf("unable to wrap image blob reader with TarSum: %s", err)
-				}
-
-				io.Copy(tmpFile, utils.ProgressReader(ioutil.NopCloser(tarSumReader), int(l), out, sf, false, common.TruncateID(img.ID), "Downloading"))
-
-				out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Verifying Checksum", nil))
-
-				if finalChecksum := tarSumReader.Sum(nil); !strings.EqualFold(finalChecksum, sumStr) {
-					log.Infof("Image verification failed: checksum mismatch - expected %q but got %q", sumStr, finalChecksum)
-					verified = false
-				}
-
-				out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Download complete", nil))
-
-				log.Debugf("Downloaded %s to tempfile %s", img.ID, tmpFile.Name())
-				di.tmpFile = tmpFile
-				di.length = l
-				di.downloaded = true
-			}
-			di.imgJSON = imgJSON
-
-			return nil
-		}
 
 		if parallel {
 			downloads[i].err = make(chan error)
-			go func(di *downloadInfo) {
-				di.err <- downloadFunc(di)
+			go func(d *downloadInfo) {
+				d.err <- s.downloadImageBlob(d, r, out, endpoint, repoInfo, sf, auth)
 			}(&downloads[i])
 		} else {
-			err := downloadFunc(&downloads[i])
+			err := s.downloadImageBlob(&downloads[i], r, out, endpoint, repoInfo, sf, auth)
 			if err != nil {
 				return false, err
 			}
 		}
 	}
 
-	var layersDownloaded bool
+	// Loop through pending diffBlobWriters to cancel them in case any error.
+	for _, d := range downloads {
+		defer func(d *downloadInfo) {
+			if err != nil && d.diffBlobWriter != nil {
+				d.diffBlobWriter.Cancel()
+			}
+		}(&d)
+	}
+
 	for i := len(downloads) - 1; i >= 0; i-- {
 		d := &downloads[i]
+
 		if d.err != nil {
 			err := <-d.err
 			if err != nil {
@@ -540,21 +506,12 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 			}
 		}
 		if d.downloaded {
-			// if tmpFile is empty assume download and extracted elsewhere
-			defer os.Remove(d.tmpFile.Name())
-			defer d.tmpFile.Close()
-			d.tmpFile.Seek(0, 0)
-			if d.tmpFile != nil {
-				err = s.graph.Register(d.img,
-					utils.ProgressReader(d.tmpFile, int(d.length), out, sf, false, common.TruncateID(d.img.ID), "Extracting"))
-				if err != nil {
-					return false, err
-				}
-
-				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
+			if err := s.registerPulledImage(d, out, sf); err != nil {
+				return false, fmt.Errorf("unable to register pulled image: %s", err)
 			}
-			out.Write(sf.FormatProgress(common.TruncateID(d.img.ID), "Pull complete", nil))
+
 			layersDownloaded = true
+			verified = verified && d.verified
 		} else {
 			out.Write(sf.FormatProgress(common.TruncateID(d.img.ID), "Already exists", nil))
 		}
@@ -570,4 +527,121 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 	}
 
 	return layersDownloaded, nil
+}
+
+func (s *TagStore) downloadImageBlob(d *downloadInfo, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, sf *utils.StreamFormatter, auth *registry.RequestAuthorization) (err error) {
+	img := d.img
+	expectedChecksum := fmt.Sprintf("%s:%s", d.sumType, d.hexSum)
+
+	log.Debugf("pulling blob %q to V1 img %s", expectedChecksum, img.ID)
+
+	if c, err := s.poolAdd("pull", "img:"+img.ID); err != nil {
+		if c != nil {
+			out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil))
+			<-c
+			out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Download complete", nil))
+		} else {
+			log.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
+		}
+
+		return nil
+	}
+
+	defer s.poolRemove("pull", "img:"+img.ID)
+
+	blobReader, blobLen, err := r.GetV2ImageBlobReader(endpoint, repoInfo.RemoteName, d.sumType, d.hexSum, auth)
+	if err != nil {
+		return err
+	}
+	defer blobReader.Close()
+
+	labeledHash := blobstore.HashForLabel(d.sumType)
+	if labeledHash == crypto.Hash(0) {
+		log.Errorf("unable to get hasher for sum type %q", d.sumType)
+		// Fallback to using sha256.
+		labeledHash = crypto.SHA256
+	}
+
+	blobWriter, err := s.graph.BlobStore().NewWriter(labeledHash)
+	if err != nil {
+		return fmt.Errorf("unable to get new blob store writer: %s", err)
+	}
+	defer func() {
+		if err != nil {
+			blobWriter.Cancel()
+		}
+	}()
+
+	progressReader := utils.ProgressReader(
+		ioutil.NopCloser(blobReader), int(blobLen), out, sf,
+		false, common.TruncateID(img.ID), "Downloading",
+	)
+	defer progressReader.Close()
+
+	// Assume that the diff blob being read is already compressed.
+	if _, err := io.Copy(blobWriter, progressReader); err != nil {
+		return fmt.Errorf("unable to copy image rootfs diff blob: %s", err)
+	}
+
+	out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Verifying Checksum", nil))
+
+	finalChecksum := blobWriter.Digest()
+	d.verified = strings.EqualFold(finalChecksum, expectedChecksum)
+
+	if !d.verified {
+		log.Infof("Image verification failed: checksum mismatch - expected %q but got %q", expectedChecksum, finalChecksum)
+	}
+
+	out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Download complete", nil))
+
+	log.Debugf("Downloaded %s to temp blob storage %s", img.ID, blobWriter.Digest())
+	d.diffBlobWriter = blobWriter
+	d.length = blobLen
+	d.downloaded = true
+
+	return nil
+}
+
+func (s *TagStore) registerPulledImage(d *downloadInfo, out io.Writer, sf *utils.StreamFormatter) (err error) {
+	// Commit the blob writer.
+	blobDesc, err := d.diffBlobWriter.Commit(image.RootfsDiffMediaType, d.img.ID)
+	if err != nil {
+		return fmt.Errorf("unable to commit pulled image rootfs diff blob: %s", err)
+	}
+
+	// Deref this blob if we can't register the image in the graph.
+	defer func(d *downloadInfo) {
+		if err != nil {
+			s.graph.blobStore.Deref(blobDesc.Digest(), d.img.ID)
+		}
+	}(d)
+
+	diffBlob, err := s.graph.blobStore.Get(blobDesc.Digest())
+	if err != nil {
+		return fmt.Errorf("unable to get just-pulled image rootfs diff blob: %s", err)
+	}
+
+	rawDiffBlob, err := diffBlob.Open()
+	if err != nil {
+		return fmt.Errorf("unable to open just-pulled image rootfs diff blob: %s", err)
+	}
+	defer rawDiffBlob.Close()
+
+	progressReader := utils.ProgressReader(
+		ioutil.NopCloser(rawDiffBlob), int(diffBlob.Size()), out,
+		sf, false, common.TruncateID(d.img.ID), "Extracting",
+	)
+	defer progressReader.Close()
+
+	if err := s.graph.Register(d.img, progressReader); err != nil {
+		return fmt.Errorf("unable to register pulled image: %s", err)
+	}
+
+	s.graph.SetDiffDigest(d.img.ID, blobDesc.Digest())
+
+	out.Write(sf.FormatProgress(common.TruncateID(d.img.ID), "Pull complete", nil))
+
+	// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
+
+	return nil
 }

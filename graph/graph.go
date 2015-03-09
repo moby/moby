@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/jlhawn/blobstore"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
@@ -28,6 +30,14 @@ type Graph struct {
 	Root    string
 	idIndex *truncindex.TruncIndex
 	driver  graphdriver.Driver
+
+	// A blobstore for storing compressed image rootfs diffs, a.k.a. "layers".
+	blobStore blobstore.Store
+	// A mapping of image ID to rootfs diff digest. An image ID may map to only
+	// one diff digest but a diff blob may be used by multiple images.
+	idDiffDigests map[string]string
+	// A lock is needed to protect access to the above mapping.
+	sync.Mutex
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -42,10 +52,17 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		return nil, err
 	}
 
+	// Use a local blob store for rootfs diffs.
+	diffStore, err := blobstore.NewLocalStore(filepath.Join(root, "blobstore"))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create new local blob store: %s", err)
+	}
+
 	graph := &Graph{
-		Root:    abspath,
-		idIndex: truncindex.NewTruncIndex([]string{}),
-		driver:  driver,
+		Root:      abspath,
+		idIndex:   truncindex.NewTruncIndex([]string{}),
+		driver:    driver,
+		blobStore: diffStore,
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -65,9 +82,72 @@ func (graph *Graph) restore() error {
 			ids = append(ids, id)
 		}
 	}
+
 	graph.idIndex = truncindex.NewTruncIndex(ids)
-	log.Debugf("Restored %d elements", len(dir))
+
+	allDigests, err := graph.blobStore.List()
+	if err != nil {
+		return fmt.Errorf("unable to list image blob store digests: %s", err)
+	}
+
+	graph.idDiffDigests = make(map[string]string, len(ids))
+
+	for _, digest := range allDigests {
+		blob, err := graph.blobStore.Get(digest)
+		if err != nil {
+			return fmt.Errorf("unable to get blob with digest %q: %s", digest, err)
+		}
+
+		// All diff blobs should be referenced by image IDs and an image ID
+		// should reference at most one diff blob.
+		references := blob.References()
+
+		for _, imgID := range references {
+			if idMatch, err := graph.idIndex.Get(imgID); err != nil || idMatch != imgID {
+				// This reference shouldn't exist.
+				log.Infof("diff blob %q has reference to image ID %q that doesn't exist. Dereferencing.", digest, imgID)
+				graph.blobStore.Deref(digest, imgID) // ignore error.
+				continue
+			}
+
+			if digestMatch, ok := graph.idDiffDigests[imgID]; ok {
+				// An image ID should not map to more than one diff blob.
+				log.Infof("image ID %q already maps to blob %q. Dereferencing from %q.", imgID, digestMatch, digest)
+				graph.blobStore.Deref(digest, imgID)
+				continue
+			}
+
+			graph.idDiffDigests[imgID] = digest
+		}
+	}
+
+	log.Debugf("Restored %d elements", len(ids))
 	return nil
+}
+
+// BlobStore returns the blob store which this graph uses to store compressed
+// image rootfs diffs.
+func (graph *Graph) BlobStore() blobstore.Store {
+	return graph.blobStore
+}
+
+// SetDiffDigest sets the diff digest value for the given image ID.
+func (graph *Graph) SetDiffDigest(id, digest string) {
+	graph.Lock()
+	defer graph.Unlock()
+
+	graph.idDiffDigests[id] = digest
+}
+
+// DiffDigest returns the digest of the rootfs diff for the specified image ID.
+// The returned bool is false if there is no known digest for this image ID.
+func (graph *Graph) DiffDigest(id string) (digest string, ok bool) {
+	graph.Lock()
+	defer graph.Unlock()
+
+	digest, ok = graph.idDiffDigests[id]
+
+	return
 }
 
 // FIXME: Implement error subclass instead of looking at the error text
@@ -325,6 +405,15 @@ func (graph *Graph) Delete(name string) error {
 		return err
 	}
 	tmp, err := graph.Mktemp("")
+
+	if digest, ok := graph.idDiffDigests[id]; ok {
+		graph.blobStore.Deref(digest, id)
+
+		graph.Lock()
+		delete(graph.idDiffDigests, id)
+		graph.Unlock()
+	}
+
 	graph.idIndex.Delete(id)
 	if err == nil {
 		err = os.Rename(graph.ImageRoot(id), tmp)
