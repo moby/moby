@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -333,4 +334,14 @@ func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, err
 		return nil, -1, err
 	}
 	return body, statusCode, nil
+}
+
+func readInput(in io.Reader, out io.Writer) string {
+	reader := bufio.NewReader(in)
+	line, _, err := reader.ReadLine()
+	if err != nil {
+		fmt.Fprintln(out, err.Error())
+		os.Exit(1)
+	}
+	return string(line)
 }

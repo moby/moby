@@ -6,6 +6,7 @@ docker-push - Push an image or a repository to the registry
 
 # SYNOPSIS
 **docker push**
+[**-f**|**--force**[=*false*]]
 [**--help**]
 NAME[:TAG]
 
@@ -15,7 +16,13 @@ Hub located at [hub.docker.com](https://hub.docker.com/). However the
 image can be pushed to another, perhaps private, registry as demonstrated in 
 the example below.
 
+If an image is about to be pushed to Docker registry without *force* flag
+supplied, Docker will ask for confirmation.
+
 # OPTIONS
+**-f**, **--force**=*true*|*false*
+  Force a push to public registry
+
 **--help**
   Print usage statement
 
