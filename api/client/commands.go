@@ -578,6 +578,14 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if remoteInfo.Exists("NGoroutines") {
 			fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
 		}
+		if remoteInfo.Exists("SystemTime") {
+			t, err := remoteInfo.GetTime("SystemTime")
+			if err != nil {
+				log.Errorf("Error reading system time: %v", err)
+			} else {
+				fmt.Fprintf(cli.out, "System Time: %s\n", t.Format(time.UnixDate))
+			}
+		}
 		if remoteInfo.Exists("NEventsListener") {
 			fmt.Fprintf(cli.out, "EventsListeners: %d\n", remoteInfo.GetInt("NEventsListener"))
 		}
