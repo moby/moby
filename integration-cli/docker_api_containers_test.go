@@ -357,6 +357,7 @@ func TestBuildApiDockerFileRemote(t *testing.T) {
 	server, err := fakeStorage(map[string]string{
 		"testD": `FROM busybox
 COPY * /tmp/
+RUN find / -name ba*
 RUN find /tmp/`,
 	})
 	if err != nil {
@@ -369,9 +370,11 @@ RUN find /tmp/`,
 		t.Fatalf("Build failed: %s", err)
 	}
 
+	// Make sure Dockerfile exists.
+	// Make sure 'baz' doesn't exist ANYWHERE despite being mentioned in the URL
 	out := string(buf)
 	if !strings.Contains(out, "/tmp/Dockerfile") ||
-		strings.Contains(out, "/tmp/baz") {
+		strings.Contains(out, "baz") {
 		t.Fatalf("Incorrect output: %s", out)
 	}
 
