@@ -686,7 +686,7 @@ func TestBuildLastModified(t *testing.T) {
 ADD %s/file /
 RUN ls -le /file`
 
-	dockerfile := fmt.Sprintf(dFmt, server.URL)
+	dockerfile := fmt.Sprintf(dFmt, server.URL())
 
 	if _, out, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		t.Fatal(err)
@@ -721,7 +721,7 @@ RUN ls -le /file`
 	}
 	defer server.Close()
 
-	dockerfile = fmt.Sprintf(dFmt, server.URL)
+	dockerfile = fmt.Sprintf(dFmt, server.URL())
 
 	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		t.Fatal(err)
