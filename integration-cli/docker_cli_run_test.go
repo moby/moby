@@ -1463,9 +1463,14 @@ func TestRunDnsOptions(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
-	out, _, err := runCommandWithOutput(cmd)
+	out, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
 		t.Fatal(err, out)
+	}
+
+	// The client will get a warning on stderr when setting DNS to a localhost address; verify this:
+	if !strings.Contains(stderr, "Localhost DNS setting") {
+		t.Fatalf("Expected warning on stderr about localhost resolver, but got %q", stderr)
 	}
 
 	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
@@ -1475,7 +1480,7 @@ func TestRunDnsOptions(t *testing.T) {
 
 	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
 
-	out, _, err = runCommandWithOutput(cmd)
+	out, _, _, err = runCommandWithStdoutStderr(cmd)
 	if err != nil {
 		t.Fatal(err, out)
 	}
@@ -1502,7 +1507,7 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 
 	var out string
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
-	if out, _, err = runCommandWithOutput(cmd); err != nil {
+	if out, _, _, err = runCommandWithStdoutStderr(cmd); err != nil {
 		t.Fatal(err, out)
 	}
 
