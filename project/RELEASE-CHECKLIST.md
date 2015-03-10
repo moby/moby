@@ -217,7 +217,7 @@ We recommend announcing the release candidate on:
 - In a comment on the pull request to notify subscribed people on GitHub
 - The [docker-dev](https://groups.google.com/forum/#!forum/docker-dev) group
 - The [docker-maintainers](https://groups.google.com/a/dockerproject.org/forum/#!forum/maintainers) group
-- Any social media that can get bring some attention to the release cabdidate
+- Any social media that can bring some attention to the release candidate
 
 ### 7. Iterate on successive release candidates
 
