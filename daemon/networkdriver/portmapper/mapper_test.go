@@ -129,7 +129,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	}()
 
 	for i := 0; i < 10; i++ {
-		start, end := portallocator.GetPortRange()
+		start, end := portallocator.PortRange()
 		for i := start; i < end; i++ {
 			if host, err = Map(srcAddr1, dstIp1, 0); err != nil {
 				t.Fatal(err)

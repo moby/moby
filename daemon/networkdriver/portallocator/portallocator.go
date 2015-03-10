@@ -71,23 +71,25 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 func init() {
 	const param = "/proc/sys/net/ipv4/ip_local_port_range"
 
-	if line, err := ioutil.ReadFile(param); err != nil {
+	line, err := ioutil.ReadFile(param)
+	if err != nil {
 		log.Errorf("Failed to read %s kernel parameter: %s", param, err.Error())
-	} else {
-		var start, end int
-		if n, err := fmt.Fscanf(strings.NewReader(string(line)), "%d\t%d", &start, &end); n != 2 || err != nil {
-			if err == nil {
-				err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
-			}
-			log.Errorf("Failed to parse port range from %s: %v", param, err)
-		} else {
-			beginPortRange = start
-			endPortRange = end
-		}
+		return
 	}
+	var start, end int
+	n, err := fmt.Fscanf(strings.NewReader(string(line)), "%d\t%d", &start, &end)
+	if n != 2 || err != nil {
+		if err == nil {
+			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
+		}
+		log.Errorf("Failed to parse port range from %s: %v", param, err)
+		return
+	}
+	beginPortRange = start
+	endPortRange = end
 }
 
-func GetPortRange() (int, int) {
+func PortRange() (int, int) {
 	return beginPortRange, endPortRange
 }
 
@@ -169,11 +171,10 @@ func ReleaseAll() error {
 
 func (pm *portMap) findPort() (int, error) {
 	port := pm.last
-	start, end := GetPortRange()
-	for i := 0; i <= end-start; i++ {
+	for i := 0; i <= endPortRange-beginPortRange; i++ {
 		port++
-		if port > end {
-			port = start
+		if port > endPortRange {
+			port = beginPortRange
 		}
 
 		if _, ok := pm.p[port]; !ok {
