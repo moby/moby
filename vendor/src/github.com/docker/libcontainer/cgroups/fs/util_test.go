@@ -10,6 +10,8 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/docker/libcontainer/configs"
 )
 
 type cgroupTestUtil struct {
@@ -26,7 +28,9 @@ type cgroupTestUtil struct {
 
 // Creates a new test util for the specified subsystem
 func NewCgroupTestUtil(subsystem string, t *testing.T) *cgroupTestUtil {
-	d := &data{}
+	d := &data{
+		c: &configs.Cgroup{},
+	}
 	tempDir, err := ioutil.TempDir("", fmt.Sprintf("%s_cgroup_test", subsystem))
 	if err != nil {
 		t.Fatal(err)

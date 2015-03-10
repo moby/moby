@@ -3,55 +3,40 @@
 package native
 
 import (
-	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/namespaces"
 )
 
 func init() {
 	reexec.Register(DriverName, initializer)
 }
 
+func fatal(err error) {
+	if lerr, ok := err.(libcontainer.Error); ok {
+		lerr.Detail(os.Stderr)
+		os.Exit(1)
+	}
+
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
+}
+
 func initializer() {
+	runtime.GOMAXPROCS(1)
 	runtime.LockOSThread()
-
-	var (
-		pipe    = flag.Int("pipe", 0, "sync pipe fd")
-		console = flag.String("console", "", "console (pty slave) path")
-		root    = flag.String("root", ".", "root path for configuration files")
-	)
-
-	flag.Parse()
-
-	var container *libcontainer.Config
-	f, err := os.Open(filepath.Join(*root, "container.json"))
+	factory, err := libcontainer.New("")
 	if err != nil {
-		writeError(err)
+		fatal(err)
+	}
+	if err := factory.StartInitialization(3); err != nil {
+		fatal(err)
 	}
 
-	if err := json.NewDecoder(f).Decode(&container); err != nil {
-		f.Close()
-		writeError(err)
-	}
-	f.Close()
-
-	rootfs, err := os.Getwd()
-	if err != nil {
-		writeError(err)
-	}
-
-	if err := namespaces.Init(container, rootfs, *console, os.NewFile(uintptr(*pipe), "child"), flag.Args()); err != nil {
-		writeError(err)
-	}
-
-	panic("Unreachable")
+	panic("unreachable")
 }
 
 func writeError(err error) {

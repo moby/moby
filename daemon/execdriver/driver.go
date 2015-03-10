@@ -1,17 +1,22 @@
 package execdriver
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/devices"
+	"github.com/docker/libcontainer/cgroups/fs"
+	"github.com/docker/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows
@@ -42,7 +47,7 @@ type Terminal interface {
 }
 
 type TtyTerminal interface {
-	Master() *os.File
+	Master() libcontainer.Console
 }
 
 // ExitStatus provides exit reasons for a container.
@@ -109,7 +114,7 @@ type Resources struct {
 }
 
 type ResourceStats struct {
-	*libcontainer.ContainerStats
+	*libcontainer.Stats
 	Read        time.Time `json:"read"`
 	MemoryLimit int64     `json:"memory_limit"`
 	SystemUsage uint64    `json:"system_usage"`
@@ -149,8 +154,8 @@ type Command struct {
 	Pid                *Pid              `json:"pid"`
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
-	AllowedDevices     []*devices.Device `json:"allowed_devices"`
-	AutoCreatedDevices []*devices.Device `json:"autocreated_devices"`
+	AllowedDevices     []*configs.Device `json:"allowed_devices"`
+	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`
 	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
@@ -161,23 +166,19 @@ type Command struct {
 	AppArmorProfile    string            `json:"apparmor_profile"`
 }
 
-func InitContainer(c *Command) *libcontainer.Config {
+func InitContainer(c *Command) *configs.Config {
 	container := template.New()
 
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
-	container.Tty = c.ProcessConfig.Tty
-	container.User = c.ProcessConfig.User
-	container.WorkingDir = c.WorkingDir
-	container.Env = c.ProcessConfig.Env
 	container.Cgroups.Name = c.ID
 	container.Cgroups.AllowedDevices = c.AllowedDevices
-	container.MountConfig.DeviceNodes = c.AutoCreatedDevices
-	container.RootFs = c.Rootfs
-	container.MountConfig.ReadonlyFs = c.ReadonlyRootfs
+	container.Readonlyfs = c.ReadonlyRootfs
+	container.Devices = c.AutoCreatedDevices
+	container.Rootfs = c.Rootfs
+	container.Readonlyfs = c.ReadonlyRootfs
 
 	// check to see if we are running in ramdisk to disable pivot root
-	container.MountConfig.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
-	container.RestrictSys = true
+	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 	return container
 }
 
@@ -191,7 +192,7 @@ func getEnv(key string, env []string) string {
 	return ""
 }
 
-func SetupCgroups(container *libcontainer.Config, c *Command) error {
+func SetupCgroups(container *configs.Config, c *Command) error {
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CpuShares
 		container.Cgroups.Memory = c.Resources.Memory
@@ -203,28 +204,98 @@ func SetupCgroups(container *libcontainer.Config, c *Command) error {
 	return nil
 }
 
-func Stats(stateFile string, containerMemoryLimit int64, machineMemory int64) (*ResourceStats, error) {
-	state, err := libcontainer.GetState(stateFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrNotRunning
+// Returns the network statistics for the network interfaces represented by the NetworkRuntimeInfo.
+func getNetworkInterfaceStats(interfaceName string) (*libcontainer.NetworkInterface, error) {
+	out := &libcontainer.NetworkInterface{Name: interfaceName}
+	// This can happen if the network runtime information is missing - possible if the
+	// container was created by an old version of libcontainer.
+	if interfaceName == "" {
+		return out, nil
+	}
+	type netStatsPair struct {
+		// Where to write the output.
+		Out *uint64
+		// The network stats file to read.
+		File string
+	}
+	// Ingress for host veth is from the container. Hence tx_bytes stat on the host veth is actually number of bytes received by the container.
+	netStats := []netStatsPair{
+		{Out: &out.RxBytes, File: "tx_bytes"},
+		{Out: &out.RxPackets, File: "tx_packets"},
+		{Out: &out.RxErrors, File: "tx_errors"},
+		{Out: &out.RxDropped, File: "tx_dropped"},
+
+		{Out: &out.TxBytes, File: "rx_bytes"},
+		{Out: &out.TxPackets, File: "rx_packets"},
+		{Out: &out.TxErrors, File: "rx_errors"},
+		{Out: &out.TxDropped, File: "rx_dropped"},
+	}
+	for _, netStat := range netStats {
+		data, err := readSysfsNetworkStats(interfaceName, netStat.File)
+		if err != nil {
+			return nil, err
 		}
+		*(netStat.Out) = data
+	}
+	return out, nil
+}
+
+// Reads the specified statistics available under /sys/class/net/<EthInterface>/statistics
+func readSysfsNetworkStats(ethInterface, statsFile string) (uint64, error) {
+	data, err := ioutil.ReadFile(filepath.Join("/sys/class/net", ethInterface, "statistics", statsFile))
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+}
+
+func Stats(containerDir string, containerMemoryLimit int64, machineMemory int64) (*ResourceStats, error) {
+	f, err := os.Open(filepath.Join(containerDir, "state.json"))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	type network struct {
+		Type              string
+		HostInterfaceName string
+	}
+
+	state := struct {
+		CgroupPaths map[string]string `json:"cgroup_paths"`
+		Networks    []network
+	}{}
+
+	if err := json.NewDecoder(f).Decode(&state); err != nil {
 		return nil, err
 	}
 	now := time.Now()
-	stats, err := libcontainer.GetStats(nil, state)
+
+	mgr := fs.Manager{Paths: state.CgroupPaths}
+	cstats, err := mgr.GetStats()
 	if err != nil {
 		return nil, err
 	}
+	stats := &libcontainer.Stats{CgroupStats: cstats}
 	// if the container does not have any memory limit specified set the
 	// limit to the machines memory
 	memoryLimit := containerMemoryLimit
 	if memoryLimit == 0 {
 		memoryLimit = machineMemory
 	}
+	for _, iface := range state.Networks {
+		switch iface.Type {
+		case "veth":
+			istats, err := getNetworkInterfaceStats(iface.HostInterfaceName)
+			if err != nil {
+				return nil, err
+			}
+			stats.Interfaces = append(stats.Interfaces, istats)
+		}
+	}
 	return &ResourceStats{
-		Read:           now,
-		ContainerStats: stats,
-		MemoryLimit:    memoryLimit,
+		Stats:       stats,
+		Read:        now,
+		MemoryLimit: memoryLimit,
 	}, nil
 }

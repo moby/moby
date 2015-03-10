@@ -23,7 +23,9 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/cgroups"
-	"github.com/docker/libcontainer/mount/nodes"
+	"github.com/docker/libcontainer/configs"
+	"github.com/docker/libcontainer/system"
+	"github.com/docker/libcontainer/user"
 	"github.com/kr/pty"
 )
 
@@ -42,7 +44,7 @@ type driver struct {
 }
 
 type activeContainer struct {
-	container *libcontainer.Config
+	container *configs.Config
 	cmd       *exec.Cmd
 }
 
@@ -190,7 +192,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ProcessConfig.Path = aname
 	c.ProcessConfig.Args = append([]string{name}, arg...)
 
-	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
+	if err := createDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
@@ -231,11 +233,17 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	state := &libcontainer.State{
-		InitPid:     pid,
-		CgroupPaths: cgroupPaths,
+		InitProcessPid: pid,
+		CgroupPaths:    cgroupPaths,
 	}
 
-	if err := libcontainer.SaveState(dataPath, state); err != nil {
+	f, err := os.Create(filepath.Join(dataPath, "state.json"))
+	if err != nil {
+		return terminate(err)
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(state); err != nil {
 		return terminate(err)
 	}
 
@@ -245,8 +253,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		log.Debugf("Invoking startCallback")
 		startCallback(&c.ProcessConfig, pid)
 	}
+
 	oomKill := false
-	oomKillNotification, err := libcontainer.NotifyOnOOM(state)
+	oomKillNotification, err := notifyOnOOM(cgroupPaths)
 	if err == nil {
 		_, oomKill = <-oomKillNotification
 		log.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
@@ -265,9 +274,57 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: oomKill}, waitErr
 }
 
+// copy from libcontainer
+func notifyOnOOM(paths map[string]string) (<-chan struct{}, error) {
+	dir := paths["memory"]
+	if dir == "" {
+		return nil, fmt.Errorf("There is no path for %q in state", "memory")
+	}
+	oomControl, err := os.Open(filepath.Join(dir, "memory.oom_control"))
+	if err != nil {
+		return nil, err
+	}
+	fd, _, syserr := syscall.RawSyscall(syscall.SYS_EVENTFD2, 0, syscall.FD_CLOEXEC, 0)
+	if syserr != 0 {
+		oomControl.Close()
+		return nil, syserr
+	}
+
+	eventfd := os.NewFile(fd, "eventfd")
+
+	eventControlPath := filepath.Join(dir, "cgroup.event_control")
+	data := fmt.Sprintf("%d %d", eventfd.Fd(), oomControl.Fd())
+	if err := ioutil.WriteFile(eventControlPath, []byte(data), 0700); err != nil {
+		eventfd.Close()
+		oomControl.Close()
+		return nil, err
+	}
+	ch := make(chan struct{})
+	go func() {
+		defer func() {
+			close(ch)
+			eventfd.Close()
+			oomControl.Close()
+		}()
+		buf := make([]byte, 8)
+		for {
+			if _, err := eventfd.Read(buf); err != nil {
+				return
+			}
+			// When a cgroup is destroyed, an event is sent to eventfd.
+			// So if the control path is gone, return instead of notifying.
+			if _, err := os.Lstat(eventControlPath); os.IsNotExist(err) {
+				return
+			}
+			ch <- struct{}{}
+		}
+	}()
+	return ch, nil
+}
+
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, error) {
+func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error) {
 	container := execdriver.InitContainer(c)
 	if err := execdriver.SetupCgroups(container, c); err != nil {
 		return nil, err
@@ -295,6 +352,87 @@ func cgroupPaths(containerId string) (map[string]string, error) {
 	}
 
 	return paths, nil
+}
+
+// this is copy from old libcontainer nodes.go
+func createDeviceNodes(rootfs string, nodesToCreate []*configs.Device) error {
+	oldMask := syscall.Umask(0000)
+	defer syscall.Umask(oldMask)
+
+	for _, node := range nodesToCreate {
+		if err := createDeviceNode(rootfs, node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Creates the device node in the rootfs of the container.
+func createDeviceNode(rootfs string, node *configs.Device) error {
+	var (
+		dest   = filepath.Join(rootfs, node.Path)
+		parent = filepath.Dir(dest)
+	)
+
+	if err := os.MkdirAll(parent, 0755); err != nil {
+		return err
+	}
+
+	fileMode := node.FileMode
+	switch node.Type {
+	case 'c':
+		fileMode |= syscall.S_IFCHR
+	case 'b':
+		fileMode |= syscall.S_IFBLK
+	default:
+		return fmt.Errorf("%c is not a valid device type for device %s", node.Type, node.Path)
+	}
+
+	if err := syscall.Mknod(dest, uint32(fileMode), node.Mkdev()); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("mknod %s %s", node.Path, err)
+	}
+
+	if err := syscall.Chown(dest, int(node.Uid), int(node.Gid)); err != nil {
+		return fmt.Errorf("chown %s to %d:%d", node.Path, node.Uid, node.Gid)
+	}
+
+	return nil
+}
+
+// setupUser changes the groups, gid, and uid for the user inside the container
+// copy from libcontainer, cause not it's private
+func setupUser(userSpec string) error {
+	// Set up defaults.
+	defaultExecUser := user.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return err
+	}
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return err
+	}
+	execUser, err := user.GetExecUserPath(userSpec, &defaultExecUser, passwdPath, groupPath)
+	if err != nil {
+		return err
+	}
+	if err := system.Setgid(execUser.Gid); err != nil {
+		return err
+	}
+	if err := system.Setuid(execUser.Uid); err != nil {
+		return err
+	}
+	// if we didn't get HOME already, set it based on the user's HOME
+	if envHome := os.Getenv("HOME"); envHome == "" {
+		if err := os.Setenv("HOME", execUser.Home); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /// Return the exit code of the process

@@ -5,11 +5,6 @@ package lxc
 import (
 	"bufio"
 	"fmt"
-	"github.com/docker/docker/daemon/execdriver"
-	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
-	"github.com/docker/libcontainer/devices"
-	"github.com/docker/libcontainer/security/capabilities"
-	"github.com/syndtr/gocapability/capability"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -17,6 +12,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/daemon/execdriver"
+	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/libcontainer/configs"
+	"github.com/syndtr/gocapability/capability"
 )
 
 func TestLXCConfig(t *testing.T) {
@@ -53,7 +53,7 @@ func TestLXCConfig(t *testing.T) {
 			Mtu:       1500,
 			Interface: nil,
 		},
-		AllowedDevices: make([]*devices.Device, 0),
+		AllowedDevices: make([]*configs.Device, 0),
 		ProcessConfig:  execdriver.ProcessConfig{},
 	}
 	p, err := driver.generateLXCConfig(command)
@@ -295,7 +295,7 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
 	container := nativeTemplate.New()
 	for _, cap := range container.Capabilities {
-		realCap := capabilities.GetCapability(cap)
+		realCap := execdriver.GetCapability(cap)
 		numCap := fmt.Sprintf("%d", realCap.Value)
 		if cap != "MKNOD" && cap != "KILL" {
 			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", numCap))
@@ -359,7 +359,7 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
 	container := nativeTemplate.New()
 	for _, cap := range container.Capabilities {
-		realCap := capabilities.GetCapability(cap)
+		realCap := execdriver.GetCapability(cap)
 		numCap := fmt.Sprintf("%d", realCap.Value)
 		if cap != "MKNOD" && cap != "KILL" {
 			grepFile(t, p, fmt.Sprintf("lxc.cap.keep = %s", numCap))
