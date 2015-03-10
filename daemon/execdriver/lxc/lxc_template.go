@@ -51,7 +51,7 @@ lxc.cgroup.devices.allow = a
 lxc.cgroup.devices.deny = a
 #Allow the devices passed to us in the AllowedDevices list.
 {{range $allowedDevice := .AllowedDevices}}
-lxc.cgroup.devices.allow = {{$allowedDevice.GetCgroupAllowString}}
+lxc.cgroup.devices.allow = {{$allowedDevice.CgroupString}}
 {{end}}
 {{end}}
 
