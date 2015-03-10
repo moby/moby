@@ -190,4 +190,5 @@ pages:
 - ['project/get-help.md', 'Contributor Guide', 'Where to get help']
 - ['project/coding-style.md', 'Contributor Guide', 'Coding style guide']
 - ['project/doc-style.md', 'Contributor Guide', 'Documentation style guide']
+- ['project/testing-windows-docker-client.md', 'Contributor Guide', 'Building and testing the Windows Docker client']
 
