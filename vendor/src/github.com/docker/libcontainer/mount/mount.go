@@ -20,7 +20,26 @@ type Mount struct {
 	Slave       bool   `json:"slave,omitempty"`
 }
 
+var (
+	exec chan bool
+	done chan bool
+)
+
+func init() {
+	exec = make(chan bool)
+	done = make(chan bool)
+}
+
+func GetChannels() (chan bool, chan bool) {
+	return exec, done
+}
+
 func (m *Mount) Mount(rootfs, mountLabel string) error {
+
+	exec <- true
+	fmt.Println("HELLO WORLD: REACHED LIBCONTAINER")
+	<-done
+
 	switch m.Type {
 	case "bind":
 		return m.bindMount(rootfs, mountLabel)
