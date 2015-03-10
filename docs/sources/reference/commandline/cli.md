@@ -599,6 +599,12 @@ in cases where the same set of files are used for multiple builds. The path
 must be to a file within the build context. If a relative path is specified
 then it must to be relative to the current directory.
 
+If the Docker client loses connection to the daemon, the build is canceled.
+This happens if you interrupt the Docker client with `ctrl-c` or if the Docker
+client is killed for any reason.
+
+> **Note:** Currently only the "run" phase of the build can be canceled until
+> pull cancelation is implemented).
 
 See also:
 

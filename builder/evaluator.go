@@ -131,6 +131,8 @@ type Builder struct {
 	cpuShares  int64
 	memory     int64
 	memorySwap int64
+
+	cancelled <-chan struct{} // When closed, job was cancelled.
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -166,6 +168,14 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {
+		select {
+		case <-b.cancelled:
+			log.Debug("Builder: build cancelled!")
+			fmt.Fprintf(b.OutStream, "Build cancelled")
+			return "", fmt.Errorf("Build cancelled")
+		default:
+			// Not cancelled yet, keep going...
+		}
 		if err := b.dispatch(i, n); err != nil {
 			if b.ForceRemove {
 				b.clearTmp()

@@ -123,6 +123,8 @@ func (eng *Engine) Job(name string, args ...string) *Job {
 		Stderr:  NewOutput(),
 		env:     &Env{},
 		closeIO: true,
+
+		cancelled: make(chan struct{}),
 	}
 	if eng.Logging {
 		job.Stderr.Add(ioutils.NopWriteCloser(eng.Stderr))

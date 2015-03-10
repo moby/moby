@@ -76,6 +76,11 @@ Builds can now set resource constraints for all containers created for the build
 (`CgroupParent`) can be passed in the host config to setup container cgroups under a specific cgroup.
 
 
+`POST /build`
+
+**New!**
+Closing the HTTP request will now cause the build to be canceled.
+
 ## v1.17
 
 ### Full Documentation
