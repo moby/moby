@@ -158,7 +158,17 @@ func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		date_start := strings.Index(out, "CREATED")
+		date_end := strings.Index(out, "VIRTUAL SIZE")
 		listing := strings.Split(out, "\n")
+		for _, str := range listing {
+			lenth := len(str)
+			if lenth == 0 {
+				continue
+			}
+			str = (str[0:date_start] + str[date_end:lenth])
+		}
+
 		sort.Strings(listing)
 		imageListings[idx] = listing
 	}
