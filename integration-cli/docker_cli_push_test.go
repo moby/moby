@@ -45,7 +45,7 @@ func TestPushUntagged(t *testing.T) {
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
-	expected := "No tags to push"
+	expected := "Repository does not exist"
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
 		t.Fatalf("pushing the image to the private registry should have failed: outuput %q", out)
