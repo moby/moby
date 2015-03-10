@@ -101,11 +101,17 @@ func mainDaemon() {
 	// load the daemon in the background so we can immediately start
 	// the http api so that connections don't fail while the daemon
 	// is booting
+	daemonWait := make(chan struct{})
 	go func() {
+		defer func() {
+			close(daemonWait)
+		}()
 		d, err := daemon.NewDaemon(daemonCfg, eng)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
+			return
 		}
+
 		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
 			dockerversion.VERSION,
 			dockerversion.GITCOMMIT,
@@ -114,7 +120,8 @@ func mainDaemon() {
 		)
 
 		if err := d.Install(eng); err != nil {
-			log.Fatal(err)
+			log.Error(err)
+			return
 		}
 
 		b := &builder.BuilderJob{eng, d}
@@ -123,8 +130,11 @@ func mainDaemon() {
 		// after the daemon is done setting up we can tell the api to start
 		// accepting connections
 		if err := eng.Job("acceptconnections").Run(); err != nil {
-			log.Fatal(err)
+			log.Error(err)
+			return
 		}
+
+		log.Debugf("daemon finished")
 	}()
 
 	// Serve api
@@ -141,7 +151,16 @@ func mainDaemon() {
 	job.Setenv("TlsCert", *flCert)
 	job.Setenv("TlsKey", *flKey)
 	job.SetenvBool("BufferRequests", true)
-	if err := job.Run(); err != nil {
-		log.Fatal(err)
+	err := job.Run()
+
+	// Wait for the daemon startup goroutine to finish
+	// This makes sure we can actually cleanly shutdown the daemon
+	log.Infof("waiting for daemon to initialize")
+	<-daemonWait
+	eng.Shutdown()
+	if err != nil {
+		// log errors here so the log output looks more consistent
+		log.Fatalf("shutting down daemon due to errors: %v", err)
 	}
+
 }

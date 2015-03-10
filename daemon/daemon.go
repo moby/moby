@@ -1002,14 +1002,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		trustStore:     t,
 		statsCollector: newStatsCollector(1 * time.Second),
 	}
-	if err := daemon.restore(); err != nil {
-		return nil, err
-	}
-
-	// set up filesystem watch on resolv.conf for network changes
-	if err := daemon.setupResolvconfWatcher(); err != nil {
-		return nil, err
-	}
 
 	// Setup shutdown handlers
 	// FIXME: can these shutdown handlers be registered closer to their source?
@@ -1029,6 +1021,15 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
 		}
 	})
+
+	if err := daemon.restore(); err != nil {
+		return nil, err
+	}
+
+	// set up filesystem watch on resolv.conf for network changes
+	if err := daemon.setupResolvconfWatcher(); err != nil {
+		return nil, err
+	}
 
 	return daemon, nil
 }
