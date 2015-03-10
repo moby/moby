@@ -3940,7 +3940,7 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			t.Fatalf("failed to open destination dockerfile: %v", err)
 		}
-		return &FakeContext{Dir: tmpDir}
+		return fakeContextFromDir(tmpDir)
 	}()
 	defer ctx.Close()
 
@@ -3991,7 +3991,7 @@ func TestBuildAddTarXz(t *testing.T) {
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			t.Fatalf("failed to open destination dockerfile: %v", err)
 		}
-		return &FakeContext{Dir: tmpDir}
+		return fakeContextFromDir(tmpDir)
 	}()
 
 	defer ctx.Close()
@@ -4051,7 +4051,7 @@ func TestBuildAddTarXzGz(t *testing.T) {
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			t.Fatalf("failed to open destination dockerfile: %v", err)
 		}
-		return &FakeContext{Dir: tmpDir}
+		return fakeContextFromDir(tmpDir)
 	}()
 
 	defer ctx.Close()
@@ -4072,7 +4072,7 @@ func TestBuildFromGIT(t *testing.T) {
 					RUN [ -f /first ]
 					MAINTAINER docker`,
 		"first": "test git data",
-	})
+	}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4563,7 +4563,7 @@ func TestBuildSymlinkBreakout(t *testing.T) {
 	})
 	w.Close()
 	f.Close()
-	if _, err := buildImageFromContext(name, &FakeContext{Dir: ctx}, false); err != nil {
+	if _, err := buildImageFromContext(name, fakeContextFromDir(ctx), false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Lstat(filepath.Join(tmpdir, "inject")); err == nil {

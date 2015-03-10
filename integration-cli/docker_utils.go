@@ -559,7 +559,11 @@ func (f *FakeContext) Close() error {
 	return os.RemoveAll(f.Dir)
 }
 
-func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
+func fakeContextFromDir(dir string) *FakeContext {
+	return &FakeContext{dir}
+}
+
+func fakeContextWithFiles(files map[string]string) (*FakeContext, error) {
 	tmp, err := ioutil.TempDir("", "fake-context")
 	if err != nil {
 		return nil, err
@@ -567,15 +571,32 @@ func fakeContext(dockerfile string, files map[string]string) (*FakeContext, erro
 	if err := os.Chmod(tmp, 0755); err != nil {
 		return nil, err
 	}
-	ctx := &FakeContext{tmp}
+
+	ctx := fakeContextFromDir(tmp)
 	for file, content := range files {
 		if err := ctx.Add(file, content); err != nil {
 			ctx.Close()
 			return nil, err
 		}
 	}
+	return ctx, nil
+}
+
+func fakeContextAddDockerfile(ctx *FakeContext, dockerfile string) error {
 	if err := ctx.Add("Dockerfile", dockerfile); err != nil {
 		ctx.Close()
+		return err
+	}
+	return nil
+}
+
+func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
+	ctx, err := fakeContextWithFiles(files)
+	if err != nil {
+		ctx.Close()
+		return nil, err
+	}
+	if err := fakeContextAddDockerfile(ctx, dockerfile); err != nil {
 		return nil, err
 	}
 	return ctx, nil
@@ -591,10 +612,19 @@ type FakeStorage interface {
 
 // fakeStorage returns either a local or remote (at daemon machine) file server
 func fakeStorage(files map[string]string) (FakeStorage, error) {
-	if isLocalDaemon {
-		return newLocalFakeStorage(files)
+	ctx, err := fakeContextWithFiles(files)
+	if err != nil {
+		return nil, err
 	}
-	return newRemoteFileServer(files)
+	return fakeStorageWithContext(ctx)
+}
+
+// fakeStorageWithContext returns either a local or remote (at daemon machine) file server
+func fakeStorageWithContext(ctx *FakeContext) (FakeStorage, error) {
+	if isLocalDaemon {
+		return newLocalFakeStorage(ctx)
+	}
+	return newRemoteFileServer(ctx)
 }
 
 // localFileStorage is a file storage on the running machine
@@ -616,18 +646,7 @@ func (s *localFileStorage) Close() error {
 	return s.FakeContext.Close()
 }
 
-func newLocalFakeStorage(files map[string]string) (*localFileStorage, error) {
-	tmp, err := ioutil.TempDir("", "fake-storage")
-	if err != nil {
-		return nil, err
-	}
-	ctx := &FakeContext{tmp}
-	for file, content := range files {
-		if err := ctx.Add(file, content); err != nil {
-			ctx.Close()
-			return nil, err
-		}
-	}
+func newLocalFakeStorage(ctx *FakeContext) (*localFileStorage, error) {
 	handler := http.FileServer(http.Dir(ctx.Dir))
 	server := httptest.NewServer(handler)
 	return &localFileStorage{
@@ -671,15 +690,17 @@ func (f *remoteFileServer) Close() error {
 	return deleteContainer(f.container)
 }
 
-func newRemoteFileServer(files map[string]string) (*remoteFileServer, error) {
+func newRemoteFileServer(ctx *FakeContext) (*remoteFileServer, error) {
 	var (
 		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(makeRandomString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(makeRandomString(10)))
 	)
 
 	// Build the image
-	ctx, err := fakeContext(`FROM httpserver
-COPY . /static`, files)
+	if err := fakeContextAddDockerfile(ctx, `FROM httpserver
+COPY . /static`); err != nil {
+		return nil, fmt.Errorf("Cannot add Dockerfile to context: %v", err)
+	}
 	if _, err := buildImageFromContext(image, ctx, false); err != nil {
 		return nil, fmt.Errorf("failed building file storage container image: %v", err)
 	}
@@ -831,28 +852,39 @@ func buildImageFromPath(name, path string, useCache bool) (string, error) {
 	return getIDByName(name)
 }
 
-type FakeGIT struct {
+type GitServer interface {
+	URL() string
+	Close() error
+}
+
+type localGitServer struct {
 	*httptest.Server
-	Root    string
+}
+
+func (r *localGitServer) Close() error {
+	r.Server.Close()
+	return nil
+}
+
+func (r *localGitServer) URL() string {
+	return r.Server.URL
+}
+
+type FakeGIT struct {
+	root    string
+	server  GitServer
 	RepoURL string
 }
 
 func (g *FakeGIT) Close() {
-	g.Server.Close()
-	os.RemoveAll(g.Root)
+	g.server.Close()
+	os.RemoveAll(g.root)
 }
 
-func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
-	tmp, err := ioutil.TempDir("", "fake-git-repo")
+func fakeGIT(name string, files map[string]string, enforceLocalServer bool) (*FakeGIT, error) {
+	ctx, err := fakeContextWithFiles(files)
 	if err != nil {
 		return nil, err
-	}
-	ctx := &FakeContext{tmp}
-	for file, content := range files {
-		if err := ctx.Add(file, content); err != nil {
-			ctx.Close()
-			return nil, err
-		}
 	}
 	defer ctx.Close()
 	curdir, err := os.Getwd()
@@ -904,12 +936,23 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 		os.RemoveAll(root)
 		return nil, err
 	}
-	handler := http.FileServer(http.Dir(root))
-	server := httptest.NewServer(handler)
+
+	var server GitServer
+	if !enforceLocalServer {
+		// use fakeStorage server, which might be local or remote (at test daemon)
+		server, err = fakeStorageWithContext(fakeContextFromDir(root))
+		if err != nil {
+			return nil, fmt.Errorf("cannot start fake storage: %v", err)
+		}
+	} else {
+		// always start a local http server on CLI test machin
+		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))
+		server = &localGitServer{httpServer}
+	}
 	return &FakeGIT{
-		Server:  server,
-		Root:    root,
-		RepoURL: fmt.Sprintf("%s/%s.git", server.URL, name),
+		root:    root,
+		server:  server,
+		RepoURL: fmt.Sprintf("%s/%s.git", server.URL(), name),
 	}, nil
 }
 

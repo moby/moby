@@ -382,7 +382,7 @@ func TestBuildApiLowerDockerfile(t *testing.T) {
 	git, err := fakeGIT("repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
-	})
+	}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +407,7 @@ func TestBuildApiBuildGitWithF(t *testing.T) {
 RUN echo from baz`,
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
-	})
+	}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,12 +428,13 @@ RUN echo from Dockerfile`,
 }
 
 func TestBuildApiDoubleDockerfile(t *testing.T) {
+	testRequires(t, UnixCli) // dockerfile overwrites Dockerfile on Windows
 	git, err := fakeGIT("repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
-	})
+	}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
