@@ -103,9 +103,8 @@ func mainDaemon() {
 	// is booting
 	daemonWait := make(chan struct{})
 	go func() {
-		defer func() {
-			close(daemonWait)
-		}()
+		defer close(daemonWait)
+
 		d, err := daemon.NewDaemon(daemonCfg, eng)
 		if err != nil {
 			log.Error(err)
