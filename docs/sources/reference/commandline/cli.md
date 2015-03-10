@@ -802,7 +802,7 @@ Creates a new container.
       -p, --publish=[]           Publish a container's port(s) to the host
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
-      --restart=""               Restart policy to apply when a container exits
+      --restart="no"             Restart policy to apply when a container exits
       --security-opt=[]          Security Options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
