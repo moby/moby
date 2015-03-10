@@ -157,7 +157,7 @@ This value should always larger than **-m**, so you should alway use this with *
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.
 
-**--restart**=""
+**--restart**="no"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
 
 **--security-opt**=[]

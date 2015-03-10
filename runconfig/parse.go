@@ -66,7 +66,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits")
+		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
 		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
 	)
 

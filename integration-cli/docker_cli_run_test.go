@@ -3178,6 +3178,25 @@ func TestRunOOMExitCode(t *testing.T) {
 	logDone("run - exit code on oom")
 }
 
+func TestRunSetDefaultRestartPolicy(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "test", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.RestartPolicy.Name}}", "test")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %v, output: %q", err, out)
+	}
+	out = strings.Trim(out, "\r\n")
+	if out != "no" {
+		t.Fatalf("Set default restart policy failed")
+	}
+
+	logDone("run - set default restart policy success")
+}
+
 func TestRunRestartMaxRetries(t *testing.T) {
 	defer deleteAllContainers()
 	out, err := exec.Command(dockerBinary, "run", "-d", "--restart=on-failure:3", "busybox", "false").CombinedOutput()
