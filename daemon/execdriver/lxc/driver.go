@@ -420,6 +420,9 @@ func setupUser(userSpec string) error {
 	if err != nil {
 		return err
 	}
+	if err := syscall.Setgroups(execUser.Sgids); err != nil {
+		return err
+	}
 	if err := system.Setgid(execUser.Gid); err != nil {
 		return err
 	}
