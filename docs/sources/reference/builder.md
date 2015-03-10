@@ -550,6 +550,28 @@ The copy obeys the following rules:
 - If `<dest>` doesn't exist, it is created along with all missing directories
   in its path.
 
+### Set ownership of content added by COPY
+
+By default, all new files and directories added by the `COPY` instruction are
+created with a UID and GID of 0. To copy files with a different owner, specify
+a user or uid using this form;
+
+    user=<uid_or_username> COPY <src>... <dest>
+
+All files and directories copied to the container will be owned by the
+specified `<uid_or_username>`. After completing the `COPY`, the user that was
+active *before* the instruction will be restored for subsequent instructions.
+
+For example, the following will copy all files and folders from the `/proj/app`
+directory on the host to `/app` in the container. All files copied to the
+container will be owned by user "foobar":
+
+    user=foobar COPY /projects/app /app
+
+> **Note**:
+> The specified user or uid must *exist* inside the container before running
+> the `COPY` command. Docker does not automatically create the user.
+
 ## ENTRYPOINT
 
 ENTRYPOINT has two forms:
@@ -810,6 +832,12 @@ into the newly created volume.
 The `USER` instruction sets the user name or UID to use when running the image
 and for any `RUN`, `CMD` and `ENTRYPOINT` instructions that follow it in the
 `Dockerfile`.
+
+> **Note**:
+> The `USER` instruction does not affect `ADD` and `COPY` instructions. 
+> Files copied using those instructions are always created with a UID and GID
+> of 0. For more information on setting the ownership of copied files, refer to
+> [*Set ownership of content added by COPY*](#set-ownership-of-content-added-by-copy)
 
 ## WORKDIR
 
