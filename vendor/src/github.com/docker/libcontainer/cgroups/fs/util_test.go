@@ -6,9 +6,9 @@ Creates a mock of the cgroup filesystem for the duration of the test.
 package fs
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/libcontainer/configs"
@@ -31,12 +31,12 @@ func NewCgroupTestUtil(subsystem string, t *testing.T) *cgroupTestUtil {
 	d := &data{
 		c: &configs.Cgroup{},
 	}
-	tempDir, err := ioutil.TempDir("", fmt.Sprintf("%s_cgroup_test", subsystem))
+	tempDir, err := ioutil.TempDir("", "cgroup_test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	d.root = tempDir
-	testCgroupPath, err := d.path(subsystem)
+	testCgroupPath := filepath.Join(d.root, subsystem)
 	if err != nil {
 		t.Fatal(err)
 	}
