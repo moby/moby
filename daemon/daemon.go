@@ -276,21 +276,21 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 			var err error
 			cmd.ProcessConfig.Process, err = os.FindProcess(existingPid)
 			if err != nil {
-				log.Debugf("cannot find existing process for %d", existingPid)
+				log.Debugf("Cannot find existing process for %d", existingPid)
 			}
 			daemon.execDriver.Terminate(cmd)
 		}
 
 		if err := container.Unmount(); err != nil {
-			log.Debugf("unmount error %s", err)
+			log.Debugf("Unmount error %s", err)
 		}
 		if err := container.ToDisk(); err != nil {
-			log.Debugf("saving stopped state to disk %s", err)
+			log.Debugf("Saving stopped state to disk %s", err)
 		}
 
 		info := daemon.execDriver.Info(container.ID)
 		if !info.IsRunning() {
-			log.Debugf("Container %s was supposed to be running but is not.", container.ID)
+			log.Debugf("Container %s was supposed to be running but is not", container.ID)
 
 			log.Debugf("Marking as stopped")
 
@@ -335,7 +335,7 @@ func (daemon *Daemon) restore() error {
 	)
 
 	if !debug {
-		log.Infof("Loading containers: start.")
+		log.Infof("Loading containers: start")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
 	if err != nil {
@@ -359,7 +359,7 @@ func (daemon *Daemon) restore() error {
 
 			containers[container.ID] = container
 		} else {
-			log.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+			log.Debugf("Cannot load container %s because it was created with another graph driver", container.ID)
 		}
 	}
 
@@ -420,7 +420,7 @@ func (daemon *Daemon) restore() error {
 
 	if !debug {
 		fmt.Println()
-		log.Infof("Loading containers: done.")
+		log.Infof("Loading containers: done")
 	}
 
 	return nil
@@ -461,7 +461,7 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 								newResolvConfHash = newHash
 							}
 						}
-						log.Debugf("host network resolv.conf changed--walking container list for updates")
+						log.Debugf("Host network resolv.conf changed--walking container list for updates")
 						contList := daemon.containers.List()
 						for _, container := range contList {
 							if err := container.updateResolvConf(updatedResolvConf, newResolvConfHash); err != nil {
@@ -471,7 +471,7 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 					}
 				}
 			case err := <-watcher.Errors:
-				log.Debugf("host resolv.conf notify error: %v", err)
+				log.Debugf("Host resolv.conf notify error: %v", err)
 			}
 		}
 	}()
@@ -498,7 +498,7 @@ func (daemon *Daemon) checkDeprecatedExpose(config *runconfig.Config) bool {
 func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) ([]string, error) {
 	warnings := []string{}
 	if (img != nil && daemon.checkDeprecatedExpose(img.Config)) || daemon.checkDeprecatedExpose(config) {
-		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
+		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports")
 	}
 	if img != nil && img.Config != nil {
 		if err := runconfig.Merge(config, img.Config); err != nil {
@@ -558,7 +558,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 		} else {
 			nameAsKnownByUser := strings.TrimPrefix(name, "/")
 			return "", fmt.Errorf(
-				"Conflict. The name %q is already in use by container %s. You have to delete (or rename) that container to be able to reuse that name.", nameAsKnownByUser,
+				"Conflict. The name %q is already in use by container %s. You have to delete (or rename) that container to be able to reuse that name", nameAsKnownByUser,
 				common.TruncateID(conflictingContainer.ID))
 		}
 	}
@@ -807,10 +807,10 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 	// Check for mutually incompatible config options
 	if config.BridgeIface != "" && config.BridgeIP != "" {
-		return nil, fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
+		return nil, fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
 	if !config.EnableIptables && !config.InterContainerCommunication {
-		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true")
 	}
 	if !config.EnableIptables && config.EnableIpMasq {
 		config.EnableIpMasq = false
@@ -929,7 +929,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 	t, err := trust.NewTrustStore(trustDir)
 	if err != nil {
-		return nil, fmt.Errorf("could not create trust store: %s", err)
+		return nil, fmt.Errorf("Could not create trust store: %s", err)
 	}
 
 	if !config.DisableNetwork {
@@ -960,7 +960,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
-		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.com/contributing/devenvironment for official build instructions.")
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.com/contributing/devenvironment for official build instructions")
 	}
 
 	if sysInitPath != localCopy {
@@ -1036,20 +1036,20 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 
 func (daemon *Daemon) shutdown() error {
 	group := sync.WaitGroup{}
-	log.Debugf("starting clean shutdown of all containers...")
+	log.Debugf("Starting clean shutdown of all containers...")
 	for _, container := range daemon.List() {
 		c := container
 		if c.IsRunning() {
-			log.Debugf("stopping %s", c.ID)
+			log.Debugf("Stopping %s", c.ID)
 			group.Add(1)
 
 			go func() {
 				defer group.Done()
 				if err := c.KillSig(15); err != nil {
-					log.Debugf("kill 15 error for %s - %s", c.ID, err)
+					log.Debugf("Kill 15 error for %s - %s", c.ID, err)
 				}
 				c.WaitStop(-1 * time.Second)
-				log.Debugf("container stopped %s", c.ID)
+				log.Debugf("Container stopped %s", c.ID)
 			}()
 		}
 	}
@@ -1211,7 +1211,7 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 	for elem := range imageMap[imgID] {
 		img, ok := images[elem]
 		if !ok {
-			return nil, fmt.Errorf("unable to find image %q", elem)
+			return nil, fmt.Errorf("Unable to find image %q", elem)
 		}
 		if runconfig.Compare(&img.ContainerConfig, config) {
 			if match == nil || match.Created.Before(img.Created) {
