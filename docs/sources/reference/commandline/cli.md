@@ -921,9 +921,11 @@ Using multiple filters will be handled as a *AND*; for example
 container 588a23dac085 *AND* the event type is *start*
 
 Current filters:
- * event
- * image
- * container
+
+* container
+* event
+* image
+* name
 
 #### Examples
 
