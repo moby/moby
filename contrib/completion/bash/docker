@@ -131,6 +131,7 @@ __docker_capabilities() {
 		ALL
 		AUDIT_CONTROL
 		AUDIT_WRITE
+		AUDIT_READ
 		BLOCK_SUSPEND
 		CHOWN
 		DAC_OVERRIDE
