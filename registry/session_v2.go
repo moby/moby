@@ -299,8 +299,8 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 }
 
 type remoteTags struct {
-	name string
-	tags []string
+	Name string
+	Tags []string
 }
 
 // Given a repository name, returns a json array of string tags
@@ -340,5 +340,5 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 	if err != nil {
 		return nil, fmt.Errorf("Error while decoding the http response: %s", err)
 	}
-	return remote.tags, nil
+	return remote.Tags, nil
 }
