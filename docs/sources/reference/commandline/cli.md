@@ -2,7 +2,7 @@ page_title: Command Line Interface
 page_description: Docker's CLI command description and usage
 page_keywords: Docker, Docker documentation, CLI, command line
 
-# Command Line
+# Docker Command Line
 
 {{ include "no-remote-sudo.md" }}
 
