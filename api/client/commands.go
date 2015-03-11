@@ -88,7 +88,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	rm := cmd.Bool([]string{"#rm", "-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers")
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
-	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile(Default is 'Dockerfile')")
+	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 
 	cmd.Require(flag.Exact, 1)
 
