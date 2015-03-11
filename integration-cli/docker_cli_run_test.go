@@ -144,18 +144,17 @@ func TestRunLeakyFileDescriptors(t *testing.T) {
 	logDone("run - check file descriptor leakage")
 }
 
-// it should be possible to ping Google DNS resolver
+// it should be possible to lookup Google DNS
 // this will fail when Internet access is unavailable
-func TestRunPingGoogle(t *testing.T) {
+func TestRunLookupGoogleDns(t *testing.T) {
 	defer deleteAllContainers()
 
-	runCmd := exec.Command(dockerBinary, "run", "busybox", "ping", "-c", "1", "8.8.8.8")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	out, _, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "run", "busybox", "nslookup", "google.com"))
 	if err != nil {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	logDone("run - ping 8.8.8.8")
+	logDone("run - nslookup google.com")
 }
 
 // the exit code should be 0
