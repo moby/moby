@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
@@ -101,13 +102,11 @@ func mainDaemon() {
 	// load the daemon in the background so we can immediately start
 	// the http api so that connections don't fail while the daemon
 	// is booting
-	daemonWait := make(chan struct{})
+	daemonInitWait := make(chan error)
 	go func() {
-		defer close(daemonWait)
-
 		d, err := daemon.NewDaemon(daemonCfg, eng)
 		if err != nil {
-			log.Error(err)
+			daemonInitWait <- err
 			return
 		}
 
@@ -119,7 +118,7 @@ func mainDaemon() {
 		)
 
 		if err := d.Install(eng); err != nil {
-			log.Error(err)
+			daemonInitWait <- err
 			return
 		}
 
@@ -129,11 +128,10 @@ func mainDaemon() {
 		// after the daemon is done setting up we can tell the api to start
 		// accepting connections
 		if err := eng.Job("acceptconnections").Run(); err != nil {
-			log.Error(err)
+			daemonInitWait <- err
 			return
 		}
-
-		log.Debugf("daemon finished")
+		daemonInitWait <- nil
 	}()
 
 	// Serve api
@@ -150,16 +148,46 @@ func mainDaemon() {
 	job.Setenv("TlsCert", *flCert)
 	job.Setenv("TlsKey", *flKey)
 	job.SetenvBool("BufferRequests", true)
-	err := job.Run()
+
+	// The serve API job never exits unless an error occurs
+	// We need to start it as a goroutine and wait on it so
+	// daemon doesn't exit
+	serveAPIWait := make(chan error)
+	go func() {
+		if err := job.Run(); err != nil {
+			log.Errorf("ServeAPI error: %v", err)
+			serveAPIWait <- err
+			return
+		}
+		serveAPIWait <- nil
+	}()
 
 	// Wait for the daemon startup goroutine to finish
 	// This makes sure we can actually cleanly shutdown the daemon
-	log.Infof("waiting for daemon to initialize")
-	<-daemonWait
-	eng.Shutdown()
-	if err != nil {
-		// log errors here so the log output looks more consistent
-		log.Fatalf("shutting down daemon due to errors: %v", err)
+	log.Debug("waiting for daemon to initialize")
+	errDaemon := <-daemonInitWait
+	if errDaemon != nil {
+		eng.Shutdown()
+		outStr := fmt.Sprintf("Shutting down daemon due to errors: %v", errDaemon)
+		if strings.Contains(errDaemon.Error(), "engine is shutdown") {
+			// if the error is "engine is shutdown", we've already reported (or
+			// will report below in API server errors) the error
+			outStr = "Shutting down daemon due to reported errors"
+		}
+		// we must "fatal" exit here as the API server may be happy to
+		// continue listening forever if the error had no impact to API
+		log.Fatal(outStr)
+	} else {
+		log.Info("Daemon has completed initialization")
 	}
 
+	// Daemon is fully initialized and handling API traffic
+	// Wait for serve API job to complete
+	errAPI := <-serveAPIWait
+	// If we have an error here it is unique to API (as daemonErr would have
+	// exited the daemon process above)
+	if errAPI != nil {
+		log.Errorf("Shutting down due to ServeAPI error: %v", errAPI)
+	}
+	eng.Shutdown()
 }
