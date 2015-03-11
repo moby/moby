@@ -65,6 +65,11 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
+	if len(userConf.UnsetPorts) > 0 {
+		for port := range userConf.UnsetPorts {
+			delete(userConf.ExposedPorts, port)
+		}
+	}
 
 	if len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env

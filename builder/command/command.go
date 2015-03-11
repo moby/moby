@@ -14,6 +14,7 @@ const (
 	Cmd        = "cmd"
 	Entrypoint = "entrypoint"
 	Expose     = "expose"
+	Unexpose   = "unexpose"
 	Volume     = "volume"
 	User       = "user"
 	Insert     = "insert"
@@ -33,6 +34,7 @@ var Commands = map[string]struct{}{
 	Cmd:        {},
 	Entrypoint: {},
 	Expose:     {},
+	Unexpose:   {},
 	Volume:     {},
 	User:       {},
 	Insert:     {},

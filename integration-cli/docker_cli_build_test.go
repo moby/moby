@@ -5301,3 +5301,85 @@ UNSETENV ${replaceBaz} ${replaceHello}`, parent), true)
 
 	logDone("build - unsetenv environment replacement")
 }
+
+func TestBuildUnexposePorts(t *testing.T) {
+	var (
+		result   map[string]map[string]struct{}
+		emptyMap = make(map[string]struct{})
+		expected = map[string]map[string]struct{}{"2375/tcp": emptyMap, "8080/tcp": emptyMap}
+	)
+	parent := "testbuild_unexpose_parent"
+	defer deleteImages(parent)
+	_, err := buildImage(parent, `
+From scratch
+EXPOSE 3000 8080`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child := "testbuild_unexpose_child"
+	defer deleteImages(child)
+	_, err = buildImage(child, fmt.Sprintf(`
+From %s
+UNEXPOSE 3000
+EXPOSE 2375`, parent), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(child, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expose ports %s, expected %s", result, expected)
+	}
+
+	logDone("build - unexpose")
+}
+
+func TestBuildEnvironmentReplacementUnexpose(t *testing.T) {
+	var (
+		result   map[string]map[string]struct{}
+		emptyMap = make(map[string]struct{})
+		expected = map[string]map[string]struct{}{"2375/tcp": emptyMap, "8080/tcp": emptyMap}
+	)
+	parent := "testbuild_unexpose_parent"
+	defer deleteImages(parent)
+	_, err := buildImage(parent, `
+From scratch
+EXPOSE 3000 5000 6000 8080`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child := "testbuild_unexpose_child"
+	defer deleteImages(child)
+	_, err = buildImage(child, fmt.Sprintf(`
+From %s
+ENV removePort1 3000
+ENV removePort2 5000
+ENV removePort3 6000
+UNEXPOSE ${removePort1}
+UNEXPOSE ${removePort2} ${removePort3}
+EXPOSE 2375`, parent), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(child, "Config.ExposedPorts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expose ports %s, expected %s", result, expected)
+	}
+
+	logDone("build - unexpose environment replacement")
+}

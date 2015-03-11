@@ -36,6 +36,7 @@ type Config struct {
 	// properties that should be removed from the parent image
 	// we dont want these to appear in the config's serialized output
 	UnsetEnv     []string              `json:"-"`
+	UnsetPorts   map[nat.Port]struct{} `json:"-"`
 }
 
 func ContainerConfigFromJob(job *engine.Job) *Config {
