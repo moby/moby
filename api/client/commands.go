@@ -410,6 +410,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		cli.configFile, _ = registry.LoadConfig(homedir.Get())
 		return err
 	}
+	log.Warnf("Warning: Your login credentials are being saved to disk at %s", cli.configFile.ConfigPath())
 	registry.SaveConfig(cli.configFile)
 	if out2.Get("Status") != "" {
 		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
