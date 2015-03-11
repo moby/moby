@@ -83,6 +83,22 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
+	if len(userConf.UnsetEnv) > 0 {
+		userEnvs := []string{}
+		for _, env := range userConf.Env {
+			found := false
+			envKey := strings.Split(env, "=")[0]
+			for _, rmEnv := range userConf.UnsetEnv {
+				if envKey == rmEnv {
+					found = true
+				}
+			}
+			if !found {
+				userEnvs = append(userEnvs, env)
+			}
+		}
+		userConf.Env = userEnvs
+	}
 
 	if len(userConf.Entrypoint) == 0 {
 		if len(userConf.Cmd) == 0 {

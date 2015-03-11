@@ -4455,7 +4455,7 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-		
+
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]
@@ -5226,4 +5226,78 @@ func TestBuildNotVerbose(t *testing.T) {
 	}
 
 	logDone("build - not verbose")
+}
+
+func TestBuildUnsetEnv(t *testing.T) {
+	parent := "testbuild_unsetenv_parent"
+	defer deleteImages(parent)
+	_, err := buildImage(parent, `
+From scratch
+ENV DEBUG true`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child := "testbuild_unsetenv_child"
+	defer deleteImages(child)
+	_, err = buildImage(child, fmt.Sprintf(`
+From %s
+UNSETENV DEBUG
+ENV ENV production`, parent), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectField(child, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(res, "DEBUG=true") || !strings.Contains(res, "ENV=production") {
+		t.Errorf("Env %q, expected to not contain %q and contain %q", "DEBUG=true", "ENV=production")
+	}
+
+	// do not save UnsetEnv
+	res, err = inspectField(child, "Config.UnsetEnv")
+	if expected := "<no value>"; res != expected {
+		t.Errorf("UnsetEnv %q, expected %q", res, expected)
+	}
+
+	logDone("build - unsetenv")
+}
+
+func TestBuildEnvironmentReplacementUnsetEnv(t *testing.T) {
+	parent := "testbuild_unsetenv_parent"
+	defer deleteImages(parent)
+	_, err := buildImage(parent, `
+From scratch
+ENV baz foo
+ENV quux bar
+ENV hello world`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child := "testbuild_unsetenv_child"
+	defer deleteImages(child)
+	_, err = buildImage(child, fmt.Sprintf(`
+From %s
+ENV replaceBaz baz
+ENV replaceHello hello
+UNSETENV ${replaceBaz} ${replaceHello}`, parent), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectField(child, "Config.Env")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(res, "baz=foo") ||
+		strings.Contains(res, "hello=world") ||
+		!strings.Contains(res, "quux=bar") {
+		t.Errorf("Env %q, expect to remove %s %s", "baz", "hello")
+	}
+
+	logDone("build - unsetenv environment replacement")
 }

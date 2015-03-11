@@ -73,6 +73,18 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	return b.commit("", b.Config.Cmd, commitStr)
 }
 
+// UNSETENV env1 env2
+//
+// Unsets the environment variable env1 and env2.
+//
+func unsetEnv(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("UNSETENV requires at least one argument")
+	}
+	b.Config.UnsetEnv = append(b.Config.UnsetEnv, args...)
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("UNSETENV %v", args))
+}
+
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.

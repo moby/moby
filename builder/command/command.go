@@ -3,6 +3,7 @@ package command
 
 const (
 	Env        = "env"
+	Unsetenv   = "unsetenv"
 	Maintainer = "maintainer"
 	Add        = "add"
 	Copy       = "copy"
@@ -21,6 +22,7 @@ const (
 // Commands is list of all Dockerfile commands
 var Commands = map[string]struct{}{
 	Env:        {},
+	Unsetenv:   {},
 	Maintainer: {},
 	Add:        {},
 	Copy:       {},
