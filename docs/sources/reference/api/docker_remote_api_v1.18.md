@@ -1452,6 +1452,7 @@ Display system-wide information
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
+             "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
              "NEventsListener":0,
              "InitPath":"/usr/bin/docker",
              "InitSha1":"",

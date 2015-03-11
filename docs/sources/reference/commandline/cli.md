@@ -1248,6 +1248,7 @@ For example:
     Debug mode (client): true
     Fds: 10
     Goroutines: 9
+    System Time: Tue Mar 10 18:38:57 UTC 2015
     EventsListeners: 0
     Init Path: /usr/bin/docker
     Docker Root Dir: /var/lib/docker
