@@ -25,6 +25,9 @@ Start a stopped container.
 **-i**, **--interactive**=*true*|*false*
    Attach container's STDIN. The default is *false*.
 
+# See also
+**docker-stop(1)** to stop a running container.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.

@@ -214,7 +214,7 @@ exactly what they see in their shell:
 
 * Indent shell examples by 4 spaces so they get rendered as code blocks.
 * Start typed commands with `$ ` (dollar space), so that they are easily
-differentiated from program output.
+  differentiated from program output.
 * Program output has no prefix.
 * Comments begin with # (hash space).
 * In-container shell commands, begin with `$$ ` (dollar dollar space).
@@ -232,7 +232,7 @@ following:
 * Point out potential issues or questions
 * Ask for help from experts in the company or the community
 * Encourage feedback from core developers and others involved in creating the
-software being documented.
+  software being documented.
 
 Writing a PR that is singular in focus and has clear objectives will encourage
 all of the above. Done correctly, the process allows reviewers (maintainers and
