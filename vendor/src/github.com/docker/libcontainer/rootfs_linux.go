@@ -104,6 +104,10 @@ func mount(m *configs.Mount, rootfs, mountLabel string) error {
 		if err := os.MkdirAll(dest, 0755); err != nil && !os.IsExist(err) {
 			return err
 		}
+		if m.Device == "mqueue" {
+			// mqueue should not be labeled, otherwise the mount will fail
+			data = ""
+		}
 		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data)
 	case "bind":
 		stat, err := os.Stat(m.Source)

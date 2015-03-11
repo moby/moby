@@ -18,7 +18,11 @@ func (s *CpuGroup) Apply(d *data) error {
 	// on a container basis
 	dir, err := d.join("cpu")
 	if err != nil {
-		return err
+		if cgroups.IsNotFound(err) {
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	if err := s.Set(dir, d.c); err != nil {

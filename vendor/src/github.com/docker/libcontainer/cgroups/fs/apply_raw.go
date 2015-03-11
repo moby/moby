@@ -54,12 +54,10 @@ func getCgroupRoot() (string, error) {
 		return cgroupRoot, nil
 	}
 
-	// we can pick any subsystem to find the root
-	cpuRoot, err := cgroups.FindCgroupMountpoint("cpu")
+	root, err := cgroups.FindCgroupMountpointDir()
 	if err != nil {
 		return "", err
 	}
-	root := filepath.Dir(cpuRoot)
 
 	if _, err := os.Stat(root); err != nil {
 		return "", err
@@ -231,6 +229,12 @@ func (raw *data) parent(subsystem string) (string, error) {
 }
 
 func (raw *data) path(subsystem string) (string, error) {
+	_, err := cgroups.FindCgroupMountpoint(subsystem)
+	// If we didn't mount the subsystem, there is no point we make the path.
+	if err != nil {
+		return "", err
+	}
+
 	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
 	if filepath.IsAbs(raw.cgroup) {
 		path := filepath.Join(raw.root, subsystem, raw.cgroup)
