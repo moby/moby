@@ -26,19 +26,19 @@ type Formatter interface {
 //
 // It's not exported because it's still using Data in an opinionated way. It's to
 // avoid code duplication between the two default formatters.
-func prefixFieldClashes(entry *Entry) {
-	_, ok := entry.Data["time"]
+func prefixFieldClashes(data Fields) {
+	_, ok := data["time"]
 	if ok {
-		entry.Data["fields.time"] = entry.Data["time"]
+		data["fields.time"] = data["time"]
 	}
 
-	_, ok = entry.Data["msg"]
+	_, ok = data["msg"]
 	if ok {
-		entry.Data["fields.msg"] = entry.Data["msg"]
+		data["fields.msg"] = data["msg"]
 	}
 
-	_, ok = entry.Data["level"]
+	_, ok = data["level"]
 	if ok {
-		entry.Data["fields.level"] = entry.Data["level"]
+		data["fields.level"] = data["level"]
 	}
 }

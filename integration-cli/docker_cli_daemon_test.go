@@ -244,7 +244,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ := ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file:\n%s`, string(content))
 	}
 
@@ -254,7 +254,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if strings.Contains(string(content), `level="debug"`) {
+	if strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Should not have level="debug" in log file:\n%s`, string(content))
 	}
 
@@ -264,7 +264,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file using -D:\n%s`, string(content))
 	}
 
@@ -274,7 +274,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file using --debug:\n%s`, string(content))
 	}
 
@@ -284,7 +284,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
 	}
 

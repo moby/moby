@@ -5042,8 +5042,8 @@ func TestBuildSpaces(t *testing.T) {
 	}
 
 	// Skip over the times
-	e1 := err1.Error()[strings.Index(err1.Error(), `level="`):]
-	e2 := err2.Error()[strings.Index(err1.Error(), `level="`):]
+	e1 := err1.Error()[strings.Index(err1.Error(), `level=`):]
+	e2 := err2.Error()[strings.Index(err1.Error(), `level=`):]
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
 	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
@@ -5056,8 +5056,8 @@ func TestBuildSpaces(t *testing.T) {
 	}
 
 	// Skip over the times
-	e1 = err1.Error()[strings.Index(err1.Error(), `level="`):]
-	e2 = err2.Error()[strings.Index(err1.Error(), `level="`):]
+	e1 = err1.Error()[strings.Index(err1.Error(), `level=`):]
+	e2 = err2.Error()[strings.Index(err1.Error(), `level=`):]
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
 	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
@@ -5070,8 +5070,8 @@ func TestBuildSpaces(t *testing.T) {
 	}
 
 	// Skip over the times
-	e1 = err1.Error()[strings.Index(err1.Error(), `level="`):]
-	e2 = err2.Error()[strings.Index(err1.Error(), `level="`):]
+	e1 = err1.Error()[strings.Index(err1.Error(), `level=`):]
+	e2 = err2.Error()[strings.Index(err1.Error(), `level=`):]
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
 	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
