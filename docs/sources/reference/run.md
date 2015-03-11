@@ -493,7 +493,6 @@ By default, the container will be able to `read`, `write`, and `mknod` these dev
 This can be overridden using a third `:rwm` set of options to each `--device` flag:
 
 
-```
 	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
 	Command (m for help): q
@@ -507,7 +506,6 @@ This can be overridden using a third `:rwm` set of options to each `--device` fl
 
 	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
 	fdisk: unable to open /dev/xvdc: Operation not permitted
-```
 
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
