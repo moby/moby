@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -59,6 +60,10 @@ func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint,
 		scope:            scope,
 		actions:          actions,
 	}
+}
+
+func (f *ConfigFile) ConfigPath() string {
+	return filepath.Join(f.rootPath, CONFIGFILE)
 }
 
 func (auth *RequestAuthorization) getToken() (string, error) {
@@ -201,7 +206,7 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 
 // save the auth config
 func SaveConfig(configFile *ConfigFile) error {
-	confFile := path.Join(configFile.rootPath, CONFIGFILE)
+	confFile := configFile.ConfigPath()
 	if len(configFile.Configs) == 0 {
 		os.Remove(confFile)
 		return nil
