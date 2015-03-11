@@ -992,6 +992,12 @@ You'll need two shells for this example.
     $ sudo docker events --filter 'container=7805c1d35632' --filter 'event=stop'
     2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
 
+    $ sudo docker events --filter 'container=container_1' --filter 'container=container_2'
+    2014-09-03T15:49:29.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
+    2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
+    2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
 ## exec
 
     Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
