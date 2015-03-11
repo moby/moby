@@ -164,7 +164,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 func (d *Driver) Put(id string) error {
 	err := d.DeviceSet.UnmountDevice(id)
 	if err != nil {
-		log.Errorf("Warning: error unmounting device %s: %s", id, err)
+		log.Errorf("Error unmounting device %s: %s", id, err)
 	}
 	return err
 }

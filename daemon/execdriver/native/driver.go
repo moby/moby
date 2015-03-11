@@ -155,7 +155,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	oomKillNotification, err := cont.NotifyOOM()
 	if err != nil {
 		oomKillNotification = nil
-		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+		log.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 	waitF := p.Wait
 	if nss := cont.Config().Namespaces; nss.Contains(configs.NEWPID) {

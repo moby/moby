@@ -261,7 +261,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		log.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
 
 	} else {
-		log.Warnf("WARNING: Your kernel does not support OOM notifications: %s", err)
+		log.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 
 	<-waitLock

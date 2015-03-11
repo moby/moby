@@ -58,7 +58,7 @@ func TestJobStderrString(t *testing.T) {
 	eng := New()
 	// FIXME: test multiple combinations of output and status
 	eng.Register("say_something_in_stderr", func(job *Job) Status {
-		job.Errorf("Warning, something might happen\nHere it comes!\nOh no...\nSomething happened\n")
+		job.Errorf("Something might happen\nHere it comes!\nOh no...\nSomething happened\n")
 		return StatusOK
 	})
 
