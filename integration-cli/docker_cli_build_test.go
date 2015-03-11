@@ -5383,3 +5383,95 @@ EXPOSE 2375`, parent), true)
 
 	logDone("build - unexpose environment replacement")
 }
+
+func TestBuildNoVolume(t *testing.T) {
+	var (
+		result   map[string]map[string]struct{}
+		emptyMap = make(map[string]struct{})
+		expected = map[string]map[string]struct{}{"/test2": emptyMap, "/test3": emptyMap}
+	)
+	parent := "testbuild_novolume_parent"
+	defer deleteImages(parent)
+	_, err := buildImage(parent, `
+From scratch
+VOLUME [/test7 /test8]
+VOLUME ["/test6", "/test7"]
+VOLUME /test4 /test5
+VOLUME /test1
+VOLUME /test2`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child := "testbuild_novolume_child"
+	defer deleteImages(child)
+	_, err = buildImage(child,
+		fmt.Sprintf(`
+From %s
+NOVOLUME /test1
+NOVOLUME /test4 /test5
+NOVOLUME ["/test6", "/test7"]
+NOVOLUME [/test7 /test8]
+VOLUME /test3`, parent), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(child, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Volumes %s, expected %s", result, expected)
+	}
+
+	logDone("build - novolume")
+}
+
+func TestBuildEnvironmentReplacementNoVolume(t *testing.T) {
+	var (
+		result   map[string]map[string]struct{}
+		emptyMap = make(map[string]struct{})
+		expected = map[string]map[string]struct{}{"/test2": emptyMap}
+	)
+	parent := "testbuild_novolume_parent"
+	defer deleteImages(parent)
+	_, err := buildImage(parent, `
+From scratch
+VOLUME /test4 /test5
+VOLUME /test1
+VOLUME /test2`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child := "testbuild_novolume_child"
+	defer deleteImages(child)
+	_, err = buildImage(child,
+		fmt.Sprintf(`
+From %s
+ENV remove1 /test1
+ENV remove4 /test4
+ENV remove5 /test5
+NOVOLUME ${remove1}
+NOVOLUME ${remove4} ${remove5}`, parent), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := inspectFieldJSON(child, "Config.Volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := unmarshalJSON([]byte(res), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Volumes %s, expected %s", result, expected)
+	}
+
+	logDone("build - novolume environment replacement")
+}

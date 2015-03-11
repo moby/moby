@@ -57,6 +57,7 @@ var replaceEnvAllowed = map[string]struct{}{
 	command.User:     {},
 	command.Unsetenv: {},
 	command.Unexpose: {},
+	command.Novolume: {},
 }
 
 var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
@@ -79,6 +80,7 @@ func init() {
 		command.Insert:     insert,
 		command.Unsetenv:   unsetEnv,
 		command.Unexpose:   unexpose,
+		command.Novolume:   noVolume,
 	}
 }
 

@@ -124,5 +124,11 @@ func Merge(userConf, imageConf *Config) error {
 			userConf.Volumes[k] = v
 		}
 	}
+	if len(userConf.UnsetVolumes) > 0 {
+		for k := range userConf.UnsetVolumes {
+			delete(userConf.Volumes, k)
+		}
+	}
+
 	return nil
 }

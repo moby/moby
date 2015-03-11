@@ -443,6 +443,22 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	return nil
 }
 
+// NOVOLUME /foo
+//
+// Remove volume /foo. Will also accept the JSON array form.
+//
+func noVolume(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("NOVOLUME requires at least one argument")
+	}
+
+	b.Config.UnsetVolumes = map[string]struct{}{}
+	for _, v := range args {
+		b.Config.UnsetVolumes[v] = struct{}{}
+	}
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("NOVOLUME %s", args))
+}
+
 // INSERT is no longer accepted, but we still parse it.
 func insert(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")

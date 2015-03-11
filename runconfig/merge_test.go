@@ -45,3 +45,22 @@ func TestMergeUnsetPorts(t *testing.T) {
 		t.Errorf("ExposedPorts(%v) should not have %s", conf.ExposedPorts, "3000/tcp")
 	}
 }
+
+func TestMergeUnsetVolumes(t *testing.T) {
+	conf := &Config{UnsetVolumes: map[string]struct{}{
+		"/test1": {},
+	}}
+	imgConf := &Config{Volumes: map[string]struct{}{
+		"/test1": {},
+		"/test2": {},
+	}}
+
+	err := Merge(conf, imgConf)
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+
+	if _, exists := conf.Volumes["/test1"]; exists {
+		t.Errorf("Volumes(%v) should not have %s", conf.Volumes, "/test1")
+	}
+}
