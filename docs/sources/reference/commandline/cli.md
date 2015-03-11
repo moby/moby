@@ -508,7 +508,7 @@ is returned by the `docker attach` command to its caller too:
 
     Build a new image from the source code at PATH
 
-      -f, --file=""            Name of the Dockerfile(Default is 'Dockerfile')
+      -f, --file=""            Name of the Dockerfile (Default is 'PATH/Dockerfile')
       --force-rm=false         Always remove intermediate containers
       --no-cache=false         Do not use cache when building the image
       --pull=false             Always attempt to pull a newer version of the image
