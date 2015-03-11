@@ -6,7 +6,7 @@
 import (
   "log/syslog"
   "github.com/Sirupsen/logrus"
-  "github.com/Sirupsen/logrus/hooks/syslog"
+  logrus_syslog "github.com/Sirupsen/logrus/hooks/syslog"
 )
 
 func main() {

@@ -38,7 +38,7 @@ type Logger struct {
 //      Out: os.Stderr,
 //      Formatter: new(JSONFormatter),
 //      Hooks: make(levelHooks),
-//      Level: logrus.Debug,
+//      Level: logrus.DebugLevel,
 //    }
 //
 // It's recommended to make this a global instance called `log`.
