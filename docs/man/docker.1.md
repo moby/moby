@@ -34,9 +34,6 @@ unix://[/path/to/socket] to use.
    The socket(s) to bind to in daemon mode specified using one or more
    tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
 
-**--api-enable-cors**=*true*|*false*
-  Enable CORS headers in the remote API. Default is false.
-
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
 

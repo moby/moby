@@ -189,7 +189,6 @@ __docker_signals() {
 
 _docker_docker() {
 	local boolean_options="
-		--api-enable-cors
 		--daemon -d
 		--debug -D
 		--help -h
@@ -973,6 +972,7 @@ _docker() {
 	)
 
 	local main_options_with_args="
+		--api-cors-header
 		--bip
 		--bridge -b
 		--default-ulimit
