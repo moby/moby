@@ -228,11 +228,11 @@ Whether a container can talk to the world is governed by two factors.
     Docker will go set `ip_forward` to `1` for you when the server
     starts up. To check the setting or turn it on manually:
 
-        $ cat /proc/sys/net/ipv4/ip_forward
-        0
-        $ echo 1 > /proc/sys/net/ipv4/ip_forward
-        $ cat /proc/sys/net/ipv4/ip_forward
-        1
+        $ sysctl net.ipv4.conf.all.forwarding
+        net.ipv4.conf.all.forwarding = 0
+        $ sysctl net.ipv4.conf.all.forwarding=1
+        $ sysctl net.ipv4.conf.all.forwarding
+        net.ipv4.conf.all.forwarding = 1
 
     Many using Docker will want `ip_forward` to be on, to at
     least make communication *possible* between containers and
