@@ -130,6 +130,11 @@ func TestHelpTextVerify(t *testing.T) {
 				if strings.HasPrefix(line, "  -") && strings.HasSuffix(line, ".") {
 					t.Fatalf("Help for %q should not end with a period: %s", cmd, line)
 				}
+				
+				// Options should not end with a space
+				if strings.HasSuffix(line, " ") {
+					t.Fatalf("Help for %q should not end with a space: %s", cmd, line)
+				}
 			}
 		}
 
