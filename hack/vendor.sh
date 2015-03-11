@@ -68,6 +68,13 @@ if [ "$1" = '--go' ]; then
 	mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 fi
 
+# get digest package from distribution
+clone git github.com/docker/distribution 0c130dff5baf3168f2c85630c6d2344b81261269
+mv src/github.com/docker/distribution/digest tmp-digest
+rm -rf src/github.com/docker/distribution
+mkdir -p src/github.com/docker/distribution
+mv tmp-digest src/github.com/docker/distribution/digest
+
 clone git github.com/docker/libcontainer 52a8c004ca94cf98f6866536de828c71eb42d1ec
 # see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
 rm -rf src/github.com/docker/libcontainer/vendor
