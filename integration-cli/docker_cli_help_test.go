@@ -59,6 +59,11 @@ func TestHelpTextVerify(t *testing.T) {
 				t.Fatalf("Line is too long(%d chars):\n%s", len(line), line)
 			}
 
+			// All lines should not end with a space
+			if strings.HasSuffix(line, " ") {
+				t.Fatalf("Line should not end with a space: %s", line)
+			}
+
 			if scanForHome && strings.Contains(line, `=`+home) {
 				t.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
 			}
@@ -130,6 +135,12 @@ func TestHelpTextVerify(t *testing.T) {
 				if strings.HasPrefix(line, "  -") && strings.HasSuffix(line, ".") {
 					t.Fatalf("Help for %q should not end with a period: %s", cmd, line)
 				}
+
+				// Options should NOT end with a space
+				if strings.HasSuffix(line, " ") {
+					t.Fatalf("Help for %q should not end with a space: %s", cmd, line)
+				}
+
 			}
 		}
 

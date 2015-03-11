@@ -93,10 +93,13 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 	flags := flag.NewFlagSet(name, errorHandling)
 	flags.Usage = func() {
 		options := ""
-		if flags.FlagCountUndeprecated() > 0 {
-			options = "[OPTIONS] "
+		if signature != "" {
+			signature = " " + signature
 		}
-		fmt.Fprintf(cli.out, "\nUsage: docker %s %s%s\n\n%s\n\n", name, options, signature, description)
+		if flags.FlagCountUndeprecated() > 0 {
+			options = " [OPTIONS]"
+		}
+		fmt.Fprintf(cli.out, "\nUsage: docker %s%s%s\n\n%s\n\n", name, options, signature, description)
 		flags.SetOutput(cli.out)
 		flags.PrintDefaults()
 		os.Exit(0)
