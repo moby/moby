@@ -534,3 +534,29 @@ func TestDaemonUlimitDefaults(t *testing.T) {
 
 	logDone("daemon - default ulimits are applied")
 }
+
+// #11315
+func TestDaemonRestartRenameContainer(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+
+	if out, err := d.Cmd("run", "--name=test", "busybox"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if out, err := d.Cmd("rename", "test", "test2"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if err := d.Restart(); err != nil {
+		t.Fatal(err)
+	}
+
+	if out, err := d.Cmd("start", "test2"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("daemon - rename persists through daemon restart")
+}
