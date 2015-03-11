@@ -109,7 +109,7 @@ type Resources struct {
 	Memory     int64            `json:"memory"`
 	MemorySwap int64            `json:"memory_swap"`
 	CpuShares  int64            `json:"cpu_shares"`
-	Cpuset     string           `json:"cpuset"`
+	CpusetCpus string           `json:"cpuset_cpus"`
 	Rlimits    []*ulimit.Rlimit `json:"rlimits"`
 }
 
@@ -198,7 +198,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.Memory = c.Resources.Memory
 		container.Cgroups.MemoryReservation = c.Resources.Memory
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
-		container.Cgroups.CpusetCpus = c.Resources.Cpuset
+		container.Cgroups.CpusetCpus = c.Resources.CpusetCpus
 	}
 
 	return nil
