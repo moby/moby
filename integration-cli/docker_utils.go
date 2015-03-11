@@ -981,6 +981,32 @@ func readContainerFileWithExec(containerId, filename string) ([]byte, error) {
 	return []byte(out), err
 }
 
+// daemonTime provides the current time on the daemon host
+func daemonTime(t *testing.T) time.Time {
+	if isLocalDaemon {
+		return time.Now()
+	}
+
+	body, err := sockRequest("GET", "/info", nil)
+	if err != nil {
+		t.Fatal("daemonTime: failed to get /info: %v", err)
+	}
+
+	type infoJSON struct {
+		SystemTime string
+	}
+	var info infoJSON
+	if err = json.Unmarshal(body, &info); err != nil {
+		t.Fatalf("unable to unmarshal /info response: %v", err)
+	}
+
+	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dt
+}
+
 func setupRegistry(t *testing.T) func() {
 	testRequires(t, RegistryHosting)
 	reg, err := newTestRegistryV2(t)
