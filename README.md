@@ -183,11 +183,13 @@ Contributing to Docker
 [![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
-started](CONTRIBUTING.md). If you'd like to contribute to the
-documentation, please take a look at this [README.md](https://github.com/docker/docker/blob/master/docs/README.md).
+started contributing code or documentation.](https://docs.docker.com/project/who-written-for/).
 
 These instructions are probably not perfect, please let us know if anything
 feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
+
+Getting the development builds
+==============================
 
 Want to run Docker from a master build? You can download 
 master builds at [master.dockerproject.com](https://master.dockerproject.com). 
