@@ -4,8 +4,7 @@ Want to hack on Docker? Awesome!  We have a contributor's guide that explains
 [setting up a Docker development environment and the contribution
 process](https://docs.docker.com/project/who-written-for/). 
 
-[![Foo](docs/sources/static_files/contributors.png)](https://docs.docker.com/
-project/who-written-for/)
+![Contributors guide](docs/sources/static_files/contributors.png)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
