@@ -170,7 +170,7 @@ You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from
 your local host you can run the `TestBuild` test with this command:
 
-        $ TESTFLAGS='-test.run \^TestBuild\$' make test
+        $ TESTFLAGS='-test.run ^TestBuild$' make test
 
 To run the same test inside your Docker development container, you do this:
 
