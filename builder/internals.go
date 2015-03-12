@@ -90,6 +90,16 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 			return err
 		}
 		defer container.Unmount()
+
+		// Make sure all resources are setup, but we can ignore errors
+		// Supress output from this
+		errStream := b.ErrStream
+		outStream := b.OutStream
+		b.ErrStream = nil
+		b.OutStream = nil
+		b.run(container)
+		b.ErrStream = errStream
+		b.OutStream = outStream
 	}
 	container, err := b.Daemon.Get(id)
 	if err != nil {
