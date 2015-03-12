@@ -111,6 +111,11 @@ func TestTail(t *testing.T) {
 		"Two\nThree",
 		"One\nTwo\nThree",
 	}
+	tests["One\nTwo\n\n\n"] = []string{
+		"",
+		"Two",
+		"One\nTwo",
+	}
 	for input, outputs := range tests {
 		for n, expectedOutput := range outputs {
 			output := Tail(bytes.NewBufferString(input), n)
