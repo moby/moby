@@ -192,6 +192,10 @@ Or
 
     FROM <image>:<tag>
 
+Or
+
+    FROM <image>@<digest>
+
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
@@ -204,8 +208,8 @@ to start by **pulling an image** from the [*Public Repositories*](
 multiple images. Simply make a note of the last image ID output by the commit
 before each new `FROM` command.
 
-If no `tag` is given to the `FROM` instruction, `latest` is assumed. If the
-used tag does not exist, an error will be returned.
+If no `tag` or `digest` is given to the `FROM` instruction, the tag `latest` is
+assumed. If the used tag does not exist, an error will be returned.
 
 ## MAINTAINER
 

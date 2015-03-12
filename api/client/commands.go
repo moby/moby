@@ -1302,7 +1302,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPull(args ...string) error {
-	cmd := cli.Subcmd("pull", "NAME[:TAG]", "Pull an image or a repository from the registry", true)
+	cmd := cli.Subcmd("pull", "NAME[:TAG|@DIGEST]", "Pull an image or a repository from the registry", true)
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
 	cmd.Require(flag.Exact, 1)
 
@@ -1368,6 +1368,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (default hides intermediate images)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
+	showDigests := cmd.Bool([]string{"-digests"}, false, "Show digests")
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
@@ -1494,20 +1495,43 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 		if !*quiet {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			if *showDigests {
+				fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			} else {
+				fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			}
 		}
 
 		for _, out := range outs.Data {
-			for _, repotag := range out.GetList("RepoTags") {
+			outID := out.Get("Id")
+			if !*noTrunc {
+				outID = common.TruncateID(outID)
+			}
 
+			// Tags referring to this image ID.
+			for _, repotag := range out.GetList("RepoTags") {
 				repo, tag := parsers.ParseRepositoryTag(repotag)
-				outID := out.Get("Id")
-				if !*noTrunc {
-					outID = common.TruncateID(outID)
-				}
 
 				if !*quiet {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					if *showDigests {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, "<none>", outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					} else {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					}
+				} else {
+					fmt.Fprintln(w, outID)
+				}
+			}
+
+			// Digests referring to this image ID.
+			for _, repoDigest := range out.GetList("RepoDigests") {
+				repo, digest := parsers.ParseRepositoryTag(repoDigest)
+				if !*quiet {
+					if *showDigests {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, "<none>", digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					} else {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, "<none>", outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					}
 				} else {
 					fmt.Fprintln(w, outID)
 				}
@@ -2198,7 +2222,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 		if tag == "" {
 			tag = graph.DEFAULTTAG
 		}
-		fmt.Fprintf(cli.err, "Unable to find image '%s:%s' locally\n", repo, tag)
+		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", utils.ImageReference(repo, tag))
 
 		// we don't want to write to stdout anything apart from container.ID
 		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
@@ -2792,7 +2816,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
-	for _ = range time.Tick(500 * time.Millisecond) {
+	for range time.Tick(500 * time.Millisecond) {
 		printHeader()
 		toRemove := []int{}
 		for i, s := range cStats {

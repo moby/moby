@@ -1087,7 +1087,9 @@ To see how the `docker:latest` image was built:
     List images
 
       -a, --all=false      Show all images (default hides intermediate images)
+      --digests=false      Show digests
       -f, --filter=[]      Filter output based on conditions provided
+      --help=false         Print usage
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -1135,6 +1137,18 @@ uses up the `VIRTUAL SIZE` listed only once.
     <none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
     tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
     <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
+
+#### Listing image digests
+
+Images using the v2 or later image format have content-addressable identifiers,
+referred to as a digest. Digests are repeatedly and consistently deterministic
+as long as the input used to generate the image doesn't change. Images pushed
+to or pulled from a 2.0 registry have a digest, and that digest can be seen by
+passing `--digests` to the `docker images` command.
+
+    $ sudo docker images --digests | head
+    REPOSITORY                         TAG                 DIGEST                                                                    IMAGE ID            CREATED             VIRTUAL SIZE
+    localhost:5000/test/busybox        <none>              sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536        9 weeks ago         2.43 MB
 
 #### Filtering
 
@@ -1537,6 +1551,10 @@ use `docker pull`:
     $ sudo docker pull debian:testing
     # will pull the image named debian:testing and any intermediate
     # layers it is based on.
+    $ sudo docker pull debian@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
+    # will pull the image from the debian repository with the digest
+    # sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
+    # and any intermediate layers it is based on.
     # (Typically the empty `scratch` image, a MAINTAINER layer,
     # and the un-tarred base).
     $ sudo docker pull --all-tags centos
@@ -1608,8 +1626,8 @@ deleted.
 
 #### Removing tagged images
 
-Images can be removed either by their short or long IDs, or their image
-names. If an image has more than one name, each of them needs to be
+An image can be removed by its short or long ID, its tag, or its digest. If an
+image has more than one tag or digest reference, each of them needs to be
 removed before the image is removed.
 
     $ sudo docker images
@@ -1633,6 +1651,21 @@ removed before the image is removed.
     $ sudo docker rmi test
     Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+
+An image pulled by digest has no tag associated with it (unless it is later
+pulled by the tag that refers to the same digest).
+
+    $ sudo docker images --digests
+    REPOSITORY                     TAG       DIGEST                                                                    IMAGE ID        CREATED         VIRTUAL SIZE
+    localhost:5000/test/busybox    <none>    sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536    9 weeks ago     2.43 MB
+
+To remove an image using its digest:
+
+    $ sudo docker rmi localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
+    Untagged: localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
+    Deleted: 4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125
+    Deleted: ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2
+    Deleted: df7546f9f060a2268024c8a230d8639878585defcc1bc6f79d2728a13957871b
 
 ## run
 

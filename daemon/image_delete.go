@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/utils"
 )
 
 func (daemon *Daemon) ImageDelete(job *engine.Job) engine.Status {
@@ -48,7 +49,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 	img, err := daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if r, _ := daemon.Repositories().Get(repoName); r != nil {
-			return fmt.Errorf("No such image: %s:%s", repoName, tag)
+			return fmt.Errorf("No such image: %s", utils.ImageReference(repoName, tag))
 		}
 		return fmt.Errorf("No such image: %s", name)
 	}
@@ -102,7 +103,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		}
 		if tagDeleted {
 			out := &engine.Env{}
-			out.Set("Untagged", repoName+":"+tag)
+			out.Set("Untagged", utils.ImageReference(repoName, tag))
 			imgs.Add(out)
 			eng.Job("log", "untag", img.ID, "").Run()
 		}
