@@ -469,7 +469,7 @@ func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	return out, status, err
 }
 
-// execute a docker ocmmand with a timeout
+// execute a docker command with a timeout
 func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
 	if err != nil {
