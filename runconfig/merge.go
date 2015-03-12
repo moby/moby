@@ -65,6 +65,11 @@ func Merge(userConf, imageConf *Config) error {
 			}
 		}
 	}
+	if len(userConf.UnsetPorts) > 0 {
+		for port := range userConf.UnsetPorts {
+			delete(userConf.ExposedPorts, port)
+		}
+	}
 
 	if len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
@@ -82,6 +87,22 @@ func Merge(userConf, imageConf *Config) error {
 				userConf.Env = append(userConf.Env, imageEnv)
 			}
 		}
+	}
+	if len(userConf.UnsetEnv) > 0 {
+		userEnvs := []string{}
+		for _, env := range userConf.Env {
+			found := false
+			envKey := strings.Split(env, "=")[0]
+			for _, rmEnv := range userConf.UnsetEnv {
+				if envKey == rmEnv {
+					found = true
+				}
+			}
+			if !found {
+				userEnvs = append(userEnvs, env)
+			}
+		}
+		userConf.Env = userEnvs
 	}
 
 	if len(userConf.Entrypoint) == 0 {
@@ -103,5 +124,11 @@ func Merge(userConf, imageConf *Config) error {
 			userConf.Volumes[k] = v
 		}
 	}
+	if len(userConf.UnsetVolumes) > 0 {
+		for k := range userConf.UnsetVolumes {
+			delete(userConf.Volumes, k)
+		}
+	}
+
 	return nil
 }

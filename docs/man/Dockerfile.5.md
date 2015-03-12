@@ -150,6 +150,11 @@ A Dockerfile is similar to a Makefile.
   interconnect containers using links, and to set up port redirection on the host
   system.
 
+**UNEXPOSE**
+ --**UNEXPOSE <port> [<port>...]**
+ The **UNEXPOSE** instruction informs Docker that the container will no longer
+ listen on the specified network ports at runtime.
+
 **ENV**
   -- `ENV <key> <value>`
   The **ENV** instruction sets the environment variable <key> to
@@ -163,6 +168,12 @@ A Dockerfile is similar to a Makefile.
   Note that setting "`ENV DEBIAN_FRONTEND noninteractive`" may cause
   unintended consequences, because it will persist when the container is run
   interactively, as with the following command: `docker run -t -i image bash`
+
+**UNSETENV**
+ --**UNSETENV <key> [<key>...]**
+ The **UNSETENV** instruction removes the specified environment variables from
+ the list of available environment variables of the image and future build
+ instructions.
 
 **ADD**
   -- **ADD** has two forms:
@@ -245,6 +256,11 @@ A Dockerfile is similar to a Makefile.
   The **VOLUME** instruction creates a mount point with the specified name and marks
   it as holding externally-mounted volumes from the native host or from other
   containers.
+
+**NOVOLUME**
+ --**NOVOLUME ["/data"]**
+ The **NOVOLUME** instruction informs Docker that the image will not
+ create externally mounted volumes at the specified mount points.
 
 **USER**
   -- `USER daemon`

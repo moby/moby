@@ -142,6 +142,9 @@ The instructions that handle environment variables in the `Dockerfile` are:
 * `EXPOSE`
 * `VOLUME`
 * `USER`
+* `UNSETENV`
+* `UNEXPOSE`
+* `NOVOLUME`
 
 `ONBUILD` instructions are **NOT** supported for environment replacement, even
 the instructions above.
@@ -344,6 +347,27 @@ host when [using the -P flag](/reference/run/#expose-incoming-ports).
 > [use the `-p` flag](/userguide/dockerlinks) or
 > [the -P flag](/reference/run/#expose-incoming-ports).
 
+## UNEXPOSE
+
+    UNEXPOSE <port> [<port>...]
+
+The `UNEXPOSE` instruction informs Docker that the container will no longer
+listen on the specified network ports at runtime.
+
+For example, given an image named `debug-app` defined with the following
+`Dockerfile`:
+
+    # docker build -t debug-app .
+    FROM debian:wheezy
+    EXPOSE 3000 8080
+
+You want to create a new image which exposes only port 3000. The
+`Dockerfile` for new image can be written as:
+
+    # docker build -t prod-app .
+    FROM debug-app
+    UNEXPOSE 8080
+
 ## ENV
 
     ENV <key> <value>
@@ -386,6 +410,28 @@ change them using `docker run --env <key>=<value>`.
 > setting `ENV DEBIAN_FRONTEND noninteractive` may confuse apt-get
 > users on a Debian-based image. To set a value for a single command, use
 > `RUN <key>=<value> <command>`.
+
+## UNSETENV
+
+    UNSETENV <key> [<key>...]
+
+The `UNSETENV` instruction removes the specified environment variables from
+the list of available environment variables of the image and future build
+instructions.
+
+For example, given an image named `debug-app` defined with the following
+`Dockerfile`:
+
+    # docker build -t debug-app .
+    FROM debian:wheezy
+    ENV DEBUG true
+
+You want to create a new image without the `DEBUG` environment variable. The
+`Dockerfile` for the new image can be written as:
+
+    # docker build -t prod-app .
+    FROM debug-app
+    UNSETENV DEBUG
 
 ## ADD
 
@@ -802,6 +848,33 @@ into the newly created volume.
 > **Note**:
 > The list is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
+
+## NOVOLUME
+
+    NOVOLUME ["/data"]
+
+The `NOVOLUME` instruction informs Docker that the image will not create
+externally mounted volumes at the specified mount points. The value can
+be a JSON array, `NOVOLUME ["/var/log"]`, or a plain string with multiple
+arguments, such as `NOVOLUME /var/log` or `NOVOLUME /var/log /var/db`.
+
+> **Note**:
+> The list is parsed as a JSON array, which means that
+> you must use double-quotes (") around words not single-quotes (').
+
+For example, given an image named `debug-app` defined with the following
+`Dockerfile`:
+
+    # docker build -t debug-app .
+    FROM debian:wheezy
+    VOLUME ["/data", "/var/log"]
+
+You want to create a new image without the `/var/log` volume. The
+`Dockerfile` for the new image can be written as:
+
+    # docker build -t prod-app .
+    FROM debug-app
+    NOVOLUME ["/var/log"]
 
 ## USER
 

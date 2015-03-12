@@ -3,6 +3,7 @@ package command
 
 const (
 	Env        = "env"
+	Unsetenv   = "unsetenv"
 	Maintainer = "maintainer"
 	Add        = "add"
 	Copy       = "copy"
@@ -13,7 +14,9 @@ const (
 	Cmd        = "cmd"
 	Entrypoint = "entrypoint"
 	Expose     = "expose"
+	Unexpose   = "unexpose"
 	Volume     = "volume"
+	Novolume   = "novolume"
 	User       = "user"
 	Insert     = "insert"
 )
@@ -21,6 +24,7 @@ const (
 // Commands is list of all Dockerfile commands
 var Commands = map[string]struct{}{
 	Env:        {},
+	Unsetenv:   {},
 	Maintainer: {},
 	Add:        {},
 	Copy:       {},
@@ -31,7 +35,9 @@ var Commands = map[string]struct{}{
 	Cmd:        {},
 	Entrypoint: {},
 	Expose:     {},
+	Unexpose:   {},
 	Volume:     {},
+	Novolume:   {},
 	User:       {},
 	Insert:     {},
 }

@@ -73,6 +73,18 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	return b.commit("", b.Config.Cmd, commitStr)
 }
 
+// UNSETENV env1 env2
+//
+// Unsets the environment variable env1 and env2.
+//
+func unsetEnv(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("UNSETENV requires at least one argument")
+	}
+	b.Config.UnsetEnv = append(b.Config.UnsetEnv, args...)
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("UNSETENV %v", args))
+}
+
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.
@@ -369,6 +381,33 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
 }
 
+// UNEXPOSE 6666/tcp 7000/tcp
+//
+// Remove exposed ports 6666/tcp and 7000/tcp
+//
+func unexpose(b *Builder, args []string, attributes map[string]bool, original string) error {
+	portsTab := args
+	if len(args) == 0 {
+		return fmt.Errorf("UNEXPOSE requires at least one argument")
+	}
+	if b.Config.UnsetPorts == nil {
+		b.Config.UnsetPorts = make(nat.PortSet)
+	}
+
+	ports, _, err := nat.ParsePortSpecs(portsTab)
+	if err != nil {
+		return err
+	}
+
+	for port := range ports {
+		if _, exists := b.Config.UnsetPorts[port]; !exists {
+			b.Config.UnsetPorts[port] = struct{}{}
+		}
+	}
+
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("UNEXPOSE %v", ports))
+}
+
 // USER foo
 //
 // Set the user to 'foo' for future commands and when running the
@@ -402,6 +441,22 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 		return err
 	}
 	return nil
+}
+
+// NOVOLUME /foo
+//
+// Remove volume /foo. Will also accept the JSON array form.
+//
+func noVolume(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("NOVOLUME requires at least one argument")
+	}
+
+	b.Config.UnsetVolumes = map[string]struct{}{}
+	for _, v := range args {
+		b.Config.UnsetVolumes[v] = struct{}{}
+	}
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("NOVOLUME %s", args))
 }
 
 // INSERT is no longer accepted, but we still parse it.
