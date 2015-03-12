@@ -1368,7 +1368,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (default hides intermediate images)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-	showDigests := cmd.Bool([]string{"d", "-digests"}, false, "Show digests")
+	showDigests := cmd.Bool([]string{"-digests"}, false, "Show digests")
 	// FIXME: --viz and --tree are deprecated. Remove them in a future version.
 	flViz := cmd.Bool([]string{"#v", "#viz", "#-viz"}, false, "Output graph in graphviz format")
 	flTree := cmd.Bool([]string{"#t", "#tree", "#-tree"}, false, "Output graph in tree format")
@@ -1481,9 +1481,6 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		if *all {
 			v.Set("all", "1")
 		}
-		if *showDigests {
-			v.Set("digests", "1")
-		}
 
 		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
 
@@ -1510,21 +1507,14 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			if !*noTrunc {
 				outID = common.TruncateID(outID)
 			}
-			repoDigests := make(map[string]string)
-			out.GetJson("RepoDigests", &repoDigests)
 
+			// Tags referring to this image ID.
 			for _, repotag := range out.GetList("RepoTags") {
-				digest := repoDigests[repotag]
-				delete(repoDigests, repotag)
-				if len(digest) == 0 {
-					digest = "<none>"
-				}
-
 				repo, tag := parsers.ParseRepositoryTag(repotag)
 
 				if !*quiet {
 					if *showDigests {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, "<none>", outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 					} else {
 						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 					}
@@ -1533,13 +1523,17 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				}
 			}
 
-			if *showDigests && len(repoDigests) > 0 {
-				for repotag, digest := range repoDigests {
-					repo, _ := parsers.ParseRepositoryTag(repotag)
-					// we technically have the tag here, for the moment, but once manifest schema version 2 lands,
-					// you'll be able to pull by digest and the returned manifest won't have a tag in it, so it's
-					// probably safest to show <none> for the tag in this case.
-					fmt.Fprintf(w, "%s\t<none>\t%s\t%s\t%s ago\t%s\n", repo, digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+			// Digests referring to this image ID.
+			for _, repoDigest := range out.GetList("RepoDigests") {
+				repo, digest := parsers.ParseRepositoryTag(repoDigest)
+				if !*quiet {
+					if *showDigests {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, "<none>", digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					} else {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, "<none>", outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+					}
+				} else {
+					fmt.Fprintln(w, outID)
 				}
 			}
 		}
@@ -2822,7 +2816,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
-	for _ = range time.Tick(500 * time.Millisecond) {
+	for range time.Tick(500 * time.Millisecond) {
 		printHeader()
 		toRemove := []int{}
 		for i, s := range cStats {

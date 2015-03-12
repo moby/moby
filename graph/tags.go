@@ -25,14 +25,13 @@ const DEFAULTTAG = "latest"
 var (
 	//FIXME these 2 regexes also exist in registry/v2/regexp.go
 	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
-	validDigest  = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-zA-Z0-9-_+.=]+`)
+	validDigest  = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-fA-F0-9]+`)
 )
 
 type TagStore struct {
 	path         string
 	graph        *Graph
 	Repositories map[string]Repository
-	Digests      map[string]DigestRepository
 	trustKey     libtrust.PrivateKey
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -42,12 +41,6 @@ type TagStore struct {
 }
 
 type Repository map[string]string
-type DigestRepository map[string]DigestMapping
-
-type DigestMapping struct {
-	V1ImageID string
-	Tag       string
-}
 
 // update Repository mapping with content of u
 func (r Repository) Update(u Repository) {
@@ -78,7 +71,6 @@ func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey) (*TagStore,
 		graph:        graph,
 		trustKey:     key,
 		Repositories: make(map[string]Repository),
-		Digests:      make(map[string]DigestRepository),
 		pullingPool:  make(map[string]chan struct{}),
 		pushingPool:  make(map[string]chan struct{}),
 	}
@@ -119,28 +111,31 @@ func (store *TagStore) reload() error {
 func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 	// (so we can pass all errors here)
-	repos, tag := parsers.ParseRepositoryTag(name)
-	if tag == "" {
-		tag = DEFAULTTAG
+	repoName, ref := parsers.ParseRepositoryTag(name)
+	if ref == "" {
+		ref = DEFAULTTAG
 	}
 	var (
 		err error
 		img *image.Image
 	)
-	if utils.DigestReference(tag) {
-		img, err = store.GetImageByDigest(repos, tag)
-	} else {
-		img, err = store.GetImage(repos, tag)
-	}
-	store.Lock()
-	defer store.Unlock()
+
+	img, err = store.GetImage(repoName, ref)
 	if err != nil {
 		return nil, err
-	} else if img == nil {
-		if img, err = store.graph.Get(name); err != nil {
-			return nil, err
-		}
 	}
+
+	if img != nil {
+		return img, err
+	}
+
+	// name must be an image ID.
+	store.Lock()
+	defer store.Unlock()
+	if img, err = store.graph.Get(name); err != nil {
+		return nil, err
+	}
+
 	return img, nil
 }
 
@@ -191,7 +186,7 @@ func (store *TagStore) DeleteAll(id string) error {
 	return nil
 }
 
-func (store *TagStore) Delete(repoName, tag string) (bool, error) {
+func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	store.Lock()
 	defer store.Unlock()
 	deleted := false
@@ -201,40 +196,25 @@ func (store *TagStore) Delete(repoName, tag string) (bool, error) {
 
 	repoName = registry.NormalizeLocalName(repoName)
 
-	if utils.DigestReference(tag) {
-		if r, exists := store.Digests[repoName]; exists {
-			if _, digestExists := r[tag]; digestExists {
-				delete(r, tag)
-				if len(r) == 0 {
-					delete(store.Digests, repoName)
-				}
-				deleted = true
-			} else {
-				return false, fmt.Errorf("No such image: %s", utils.ImageReference(repoName, tag))
-			}
-		}
-	} else {
-		if r, exists := store.Repositories[repoName]; exists {
-			if tag != "" {
-				if _, exists2 := r[tag]; exists2 {
-					delete(r, tag)
-					if len(r) == 0 {
-						delete(store.Repositories, repoName)
-						delete(store.Digests, repoName)
-					}
-					deleted = true
-				} else {
-					return false, fmt.Errorf("No such tag: %s", utils.ImageReference(repoName, tag))
-				}
-			} else {
-				delete(store.Repositories, repoName)
-				delete(store.Digests, repoName)
-				deleted = true
-			}
-		} else {
-			return false, fmt.Errorf("No such repository: %s", repoName)
-		}
+	if ref == "" {
+		// Delete the whole repository.
+		delete(store.Repositories, repoName)
+		return true, store.save()
 	}
+
+	repoRefs, exists := store.Repositories[repoName]
+	if !exists {
+		return false, fmt.Errorf("No such repository: %s", repoName)
+	}
+
+	if _, exists := repoRefs[ref]; exists {
+		delete(repoRefs, ref)
+		if len(repoRefs) == 0 {
+			delete(store.Repositories, repoName)
+		}
+		deleted = true
+	}
+
 	return deleted, store.save()
 }
 
@@ -272,38 +252,37 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	return store.save()
 }
 
-// TODO remove tag once the manifest no longer includes it
-func (store *TagStore) SetDigest(repoName, digest, tag, imageName string) error {
+// SetDigest creates a digest reference to an image ID.
+func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	img, err := store.LookupImage(imageName)
-	store.Lock()
-	defer store.Unlock()
 	if err != nil {
 		return err
 	}
+
 	if err := validateRepoName(repoName); err != nil {
 		return err
 	}
+
 	if err := validateDigest(digest); err != nil {
 		return err
 	}
+
+	store.Lock()
+	defer store.Unlock()
 	if err := store.reload(); err != nil {
 		return err
 	}
-	var repo DigestRepository
+
 	repoName = registry.NormalizeLocalName(repoName)
-	if r, exists := store.Digests[repoName]; exists {
-		repo = r
-		if old, exists := store.Digests[repoName][digest]; exists && imageName != old.V1ImageID {
-			return fmt.Errorf("Conflict: Digest %s is already set to image %s", digest, old)
-		}
-	} else {
-		repo = DigestRepository{}
-		store.Digests[repoName] = repo
+	repoRefs, exists := store.Repositories[repoName]
+	if !exists {
+		repoRefs = Repository{}
+		store.Repositories[repoName] = repoRefs
+	} else if oldID, exists := repoRefs[digest]; exists && oldID != img.ID {
+		return fmt.Errorf("Conflict: Digest %s is already set to image %s", digest, oldID)
 	}
-	mapping := repo[digest]
-	mapping.V1ImageID = img.ID
-	mapping.Tag = tag
-	repo[digest] = mapping
+
+	repoRefs[digest] = img.ID
 	return store.save()
 }
 
@@ -320,52 +299,29 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
-func (store *TagStore) GetImage(repoName, tagOrID string) (*image.Image, error) {
+func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) {
 	repo, err := store.Get(repoName)
-	store.Lock()
-	defer store.Unlock()
+
 	if err != nil {
 		return nil, err
-	} else if repo == nil {
+	}
+	if repo == nil {
 		return nil, nil
 	}
-	if revision, exists := repo[tagOrID]; exists {
-		return store.graph.Get(revision)
+
+	store.Lock()
+	defer store.Unlock()
+	if imgID, exists := repo[refOrID]; exists {
+		return store.graph.Get(imgID)
 	}
+
 	// If no matching tag is found, search through images for a matching image id
 	for _, revision := range repo {
-		if strings.HasPrefix(revision, tagOrID) {
+		if strings.HasPrefix(revision, refOrID) {
 			return store.graph.Get(revision)
 		}
 	}
-	return nil, nil
-}
 
-func (store *TagStore) GetDigest(repoName string) (DigestRepository, error) {
-	store.Lock()
-	defer store.Unlock()
-	if err := store.reload(); err != nil {
-		return nil, err
-	}
-	repoName = registry.NormalizeLocalName(repoName)
-	if r, exists := store.Digests[repoName]; exists {
-		return r, nil
-	}
-	return nil, nil
-}
-
-func (store *TagStore) GetImageByDigest(repoName, digest string) (*image.Image, error) {
-	repo, err := store.GetDigest(repoName)
-	store.Lock()
-	defer store.Unlock()
-	if err != nil {
-		return nil, err
-	} else if repo == nil {
-		return nil, nil
-	}
-	if mapping, exists := repo[digest]; exists {
-		return store.graph.Get(mapping.V1ImageID)
-	}
 	return nil, nil
 }
 
@@ -394,10 +350,10 @@ func validateRepoName(name string) error {
 	return nil
 }
 
-// Validate the name of a tag
+// ValidateTagName validates the name of a tag
 func ValidateTagName(name string) error {
 	if name == "" {
-		return fmt.Errorf("Tag name can't be empty")
+		return fmt.Errorf("tag name can't be empty")
 	}
 	if !validTagName.MatchString(name) {
 		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 1, maximum 128 in length", name)
@@ -407,10 +363,10 @@ func ValidateTagName(name string) error {
 
 func validateDigest(dgst string) error {
 	if dgst == "" {
-		return errors.New("Digest can't be empty")
+		return errors.New("digest can't be empty")
 	}
 	if !validDigest.MatchString(dgst) {
-		return fmt.Errorf("Illegal digest (%s): must be of the form [a-zA-Z0-9-_+.]+:[a-zA-Z0-9-_+.=]+", dgst)
+		return fmt.Errorf("illegal digest (%s): must be of the form [a-zA-Z0-9-_+.]+:[a-fA-F0-9]+", dgst)
 	}
 	return nil
 }

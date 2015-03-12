@@ -1056,9 +1056,9 @@ Status Codes:
             "Created": 1420064636,
             "Id": "4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125",
             "ParentId": "ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2",
-            "RepoDigests": {
-              "localhost:5000/test/busybox:latest": "sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
-            },
+            "RepoDigests": [
+              "localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
+            ],
             "RepoTags": [
               "localhost:5000/test/busybox:latest",
               "busybox:latest",
@@ -1068,15 +1068,16 @@ Status Codes:
           }
         ]
 
-In the example above, this image ID is associated with 1 digest for `localhost:5000/test/busybox:latest`, meaning that
-it can be referenced as `localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf`.
-The image ID is also associated with the tag `busybox:latest`, but the `busybox` repository is not associated with the
-digest, so the image cannot be referenced as `busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf`.
+In the example above, this image ID is associated with 1 digest for the
+repository `localhost:5000/test/busybox`, meaning that it can be referenced as
+`localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf`.
+The image ID is also associated with the tag `busybox:latest`, but the
+`busybox` repository is not associated with the digest, so the image cannot be
+referenced as `busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf`.
 
 Query Parameters:
 
 -   **all** – 1/True/true or 0/False/false, default false
--   **digests** - 1/True/true or or 0/False/false, default false. Show image digest information
 -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   dangling=true
 

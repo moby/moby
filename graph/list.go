@@ -48,22 +48,27 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 	}
 	lookup := make(map[string]*engine.Env)
 	s.Lock()
-	for name, repository := range s.Repositories {
+	for repoName, repository := range s.Repositories {
 		if job.Getenv("filter") != "" {
-			if match, _ := path.Match(job.Getenv("filter"), name); !match {
+			if match, _ := path.Match(job.Getenv("filter"), repoName); !match {
 				continue
 			}
 		}
-		for tag, id := range repository {
+		for ref, id := range repository {
+			imgRef := utils.ImageReference(repoName, ref)
 			image, err := s.graph.Get(id)
 			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s/%s: %s", id, name, tag, err)
+				log.Printf("Warning: couldn't load %s from %s: %s", id, imgRef, err)
 				continue
 			}
 
 			if out, exists := lookup[id]; exists {
 				if filt_tagged {
-					out.SetList("RepoTags", append(out.GetList("RepoTags"), utils.ImageReference(name, tag)))
+					if utils.DigestReference(ref) {
+						out.SetList("RepoDigests", append(out.GetList("RepoDigests"), imgRef))
+					} else { // Tag Ref.
+						out.SetList("RepoTags", append(out.GetList("RepoTags"), imgRef))
+					}
 				}
 			} else {
 				// get the boolean list for if only the untagged images are requested
@@ -71,11 +76,19 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 				if filt_tagged {
 					out := &engine.Env{}
 					out.SetJson("ParentId", image.Parent)
-					out.SetList("RepoTags", []string{utils.ImageReference(name, tag)})
 					out.SetJson("Id", image.ID)
 					out.SetInt64("Created", image.Created.Unix())
 					out.SetInt64("Size", image.Size)
 					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
+
+					if utils.DigestReference(ref) {
+						out.SetList("RepoTags", []string{})
+						out.SetList("RepoDigests", []string{imgRef})
+					} else {
+						out.SetList("RepoTags", []string{imgRef})
+						out.SetList("RepoDigests", []string{})
+					}
+
 					lookup[id] = out
 				}
 			}
@@ -83,45 +96,6 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 		}
 	}
 	s.Unlock()
-
-	showDigests := job.GetenvBool("digests")
-	for name, repository := range s.Digests {
-		if job.Getenv("filter") != "" {
-			if match, _ := path.Match(job.Getenv("filter"), name); !match {
-				continue
-			}
-		}
-		for digest, mapping := range repository {
-			id := mapping.V1ImageID
-			image, err := s.graph.Get(id)
-			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s@%s: %s", id, name, digest, err)
-				continue
-			}
-
-			// remove from allImages so it doesn't show up as dangling
-			delete(allImages, id)
-
-			repoDigestsKey := utils.ImageReference(name, mapping.Tag)
-			if showDigests && filt_tagged {
-				if out, exists := lookup[id]; exists {
-					repoDigests := make(map[string]string)
-					out.GetJson("RepoDigests", &repoDigests)
-					repoDigests[repoDigestsKey] = digest
-					out.SetJson("RepoDigests", repoDigests)
-				} else {
-					out := &engine.Env{}
-					out.SetJson("ParentId", image.Parent)
-					out.SetJson("RepoDigests", map[string]string{repoDigestsKey: digest})
-					out.SetJson("Id", image.ID)
-					out.SetInt64("Created", image.Created.Unix())
-					out.SetInt64("Size", image.Size)
-					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-					lookup[id] = out
-				}
-			}
-		}
-	}
 
 	outs := engine.NewTable("Created", len(lookup))
 	for _, value := range lookup {
@@ -134,6 +108,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 			out := &engine.Env{}
 			out.SetJson("ParentId", image.Parent)
 			out.SetList("RepoTags", []string{"<none>:<none>"})
+			out.SetList("RepoDigests", []string{"<none>@<none>"})
 			out.SetJson("Id", image.ID)
 			out.SetInt64("Created", image.Created.Unix())
 			out.SetInt64("Size", image.Size)

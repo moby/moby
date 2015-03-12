@@ -8,7 +8,7 @@ docker-images - List images
 **docker images**
 [**--help**]
 [**-a**|**--all**[=*false*]]
-[**-d**|**--digests**[=*false*]]
+[**--digests**[=*false*]]
 [**-f**|**--filter**[=*[]*]]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
@@ -34,7 +34,7 @@ versions.
 **-a**, **--all**=*true*|*false*
    Show all images (by default filter out the intermediate image layers). The default is *false*.
 
-**-d**, **--digests**=*true*|*false*
+**--digests**=*true*|*false*
    Show image digests. The default is *false*.
 
 **-f**, **--filter**=[]

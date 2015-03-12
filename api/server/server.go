@@ -280,7 +280,6 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 	// FIXME this parameter could just be a match filter
 	job.Setenv("filter", r.Form.Get("filter"))
 	job.Setenv("all", r.Form.Get("all"))
-	job.Setenv("digests", r.Form.Get("digests"))
 
 	if version.GreaterThanOrEqualTo("1.7") {
 		streamJSON(job, w, false)

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	repoName    = fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoName    = fmt.Sprintf("%v/dockercli/busybox-by-dgst", privateRegistryURL)
 	digestRegex = regexp.MustCompile("Digest: ([^\n]+)")
 )
 
@@ -45,8 +45,8 @@ func setupImageWithTag(tag string) (string, error) {
 		return "", fmt.Errorf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 
-	// delete busybox and our local repo that we previously tagged
-	c = exec.Command(dockerBinary, "rmi", repoAndTag, "busybox")
+	// delete our local repo that we previously tagged
+	c = exec.Command(dockerBinary, "rmi", repoAndTag)
 	if out, _, err := runCommandWithOutput(c); err != nil {
 		return "", fmt.Errorf("error deleting images prior to real test: %s, %v", out, err)
 	}
@@ -336,7 +336,7 @@ func TestListImagesWithDigests(t *testing.T) {
 	}
 
 	// list images
-	c = exec.Command(dockerBinary, "images", "-d")
+	c = exec.Command(dockerBinary, "images", "--digests")
 	out, _, err = runCommandWithOutput(c)
 	if err != nil {
 		t.Fatalf("error listing images: %s, %v", out, err)
@@ -372,7 +372,7 @@ func TestListImagesWithDigests(t *testing.T) {
 	}
 
 	// list images
-	c = exec.Command(dockerBinary, "images", "-d")
+	c = exec.Command(dockerBinary, "images", "--digests")
 	out, _, err = runCommandWithOutput(c)
 	if err != nil {
 		t.Fatalf("error listing images: %s, %v", out, err)
@@ -397,16 +397,20 @@ func TestListImagesWithDigests(t *testing.T) {
 	}
 
 	// list images
-	c = exec.Command(dockerBinary, "images", "-d")
+	c = exec.Command(dockerBinary, "images", "--digests")
 	out, _, err = runCommandWithOutput(c)
 	if err != nil {
 		t.Fatalf("error listing images: %s, %v", out, err)
 	}
 
-	// make sure image 1 has repo, tag, digest
-	reWithTag1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*` + digest1 + `\s`)
+	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
+	reWithTag1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*<none>\s`)
+	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1 + `\s`)
 	if !reWithTag1.MatchString(out) {
-		t.Fatalf("expected %q: %s", re1.String(), out)
+		t.Fatalf("expected %q: %s", reWithTag1.String(), out)
+	}
+	if !reWithDigest1.MatchString(out) {
+		t.Fatalf("expected %q: %s", reWithDigest1.String(), out)
 	}
 	// make sure image 2 has repo, <none>, digest
 	if !re2.MatchString(out) {
@@ -421,7 +425,7 @@ func TestListImagesWithDigests(t *testing.T) {
 	}
 
 	// list images
-	c = exec.Command(dockerBinary, "images", "-d")
+	c = exec.Command(dockerBinary, "images", "--digests")
 	out, _, err = runCommandWithOutput(c)
 	if err != nil {
 		t.Fatalf("error listing images: %s, %v", out, err)
@@ -433,21 +437,17 @@ func TestListImagesWithDigests(t *testing.T) {
 	}
 
 	// make sure image 2 has repo, tag, digest
-	reWithTag2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*` + digest2 + `\s`)
+	reWithTag2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*<none>\s`)
+	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2 + `\s`)
 	if !reWithTag2.MatchString(out) {
-		t.Fatalf("expected %q: %s", re2.String(), out)
+		t.Fatalf("expected %q: %s", reWithTag2.String(), out)
 	}
-
-	// pull busybox
-	c = exec.Command(dockerBinary, "pull", "busybox:latest")
-	out, _, err = runCommandWithOutput(c)
-	if err != nil {
-		t.Fatalf("error pulling busybox: %s, %v", out, err)
+	if !reWithDigest2.MatchString(out) {
+		t.Fatalf("expected %q: %s", reWithDigest2.String(), out)
 	}
-	defer deleteImages("busybox:latest")
 
 	// list images
-	c = exec.Command(dockerBinary, "images", "-d")
+	c = exec.Command(dockerBinary, "images", "--digests")
 	out, _, err = runCommandWithOutput(c)
 	if err != nil {
 		t.Fatalf("error listing images: %s, %v", out, err)
@@ -461,7 +461,7 @@ func TestListImagesWithDigests(t *testing.T) {
 	if !reWithTag2.MatchString(out) {
 		t.Fatalf("expected %q: %s", re2.String(), out)
 	}
-	// make sure busybox doesn't has tag, but not digest
+	// make sure busybox has tag, but not digest
 	busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
 	if !busyboxRe.MatchString(out) {
 		t.Fatalf("expected %q: %s", busyboxRe.String(), out)
