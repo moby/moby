@@ -54,4 +54,4 @@ Please feel free to skim past information you find obvious or boring.
 
 ## How to get started
 
-Start by [setting up the prerequisites for contributing](/project/set-up-prereqs/).
+Start by [getting the software you need to contribute](/project/software-required/).
