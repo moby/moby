@@ -1,7 +1,7 @@
 # docker build -t docker:simple -f Dockerfile.simple .
 # docker run --rm docker:simple hack/make.sh dynbinary
-# docker run --rm --privileged docker:simple hack/make.sh test-unit
-# docker run --rm --privileged docker:simple hack/dind hack/make.sh dynbinary test-integration-cli
+# docker run --rm --privileged docker:simple hack/dind hack/make.sh test-unit
+# docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration-cli
 
 # This represents the bare minimum required to build and test Docker.
 
@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		procps \
 		xz-utils \
 		\
+		aufs-tools \
 		lxc \
 	&& rm -rf /var/lib/apt/lists/*
 
