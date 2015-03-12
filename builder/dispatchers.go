@@ -213,8 +213,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	args = handleJsonArgs(args, attributes)
 
-	if len(args) == 1 {
-		args = append([]string{"/bin/sh", "-c"}, args[0])
+	if !attributes["json"] {
+		args = append([]string{"/bin/sh", "-c"}, args...)
 	}
 
 	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)

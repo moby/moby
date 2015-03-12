@@ -4,6 +4,7 @@ set -e
 # this list should match roughly what's in the Dockerfile (minus the explicit image IDs, of course)
 images=(
 	busybox:latest
+	hello-world:latest
 )
 
 if ! docker inspect "${images[@]}" &> /dev/null; then

@@ -5227,3 +5227,30 @@ func TestBuildNotVerbose(t *testing.T) {
 
 	logDone("build - not verbose")
 }
+
+func TestBuildRUNoneJSON(t *testing.T) {
+	name := "testbuildrunonejson"
+
+	defer deleteAllContainers()
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(`FROM hello-world:latest
+RUN [ "/hello" ]`, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	buildCmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", name, ".")
+	buildCmd.Dir = ctx.Dir
+	out, _, err := runCommandWithOutput(buildCmd)
+	if err != nil {
+		t.Fatalf("failed to build the image: %s, %v", out, err)
+	}
+
+	if !strings.Contains(out, "Hello from Docker") {
+		t.Fatalf("bad output: %s", out)
+	}
+
+	logDone("build - RUN with one JSON arg")
+}
