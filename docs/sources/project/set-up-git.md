@@ -1,99 +1,16 @@
-page_title: Set up the prerequisites
+page_title: Configure Git for contributing
 page_description: Describes how to set up your local machine and repository
 page_keywords: GitHub account, repository, clone, fork, branch, upstream, Git, Go, make, 
 
-# Set up the prerequisites
+# Configure Git for contributing
 
-Work through this page to set up the software and host environment you need to
-contribute. You'll find instructions for configuring your `git` repository and
-creating a fork you'll use later in the guide.
-
-## Get the Required Software
-
-Before you begin contributing you must have:
-
-*  a GitHub account
-* `git`
-* `make` 
-* `docker`
-
-You'll notice that `go`, the language that Docker is written in, is not listed.
-That's because you don't need it installed; Docker's development environment
-provides it for you. You'll learn more about the development environment later.
-
-### Get a GitHub account
-
-To contribute to the Docker project, you will need a <a
-href="https://github.com" target="_blank">GitHub account</a>. A free account is
-fine. All the Docker project repositories are public and visible to everyone.
-
-You should also have some experience using both the GitHub application and `git`
-on the command line. 
-
-### Install git
-
-Install `git` on your local system. You can check if `git` is on already on your
-system and properly installed with the following command:
-
-    $ git --version 
-
-
-This documentation is written using `git` version 2.2.2. Your version may be
-different depending on your OS.
-
-### Install make
-
-Install `make`. You can check if `make` is on your system with the following
-command:
-
-    $ make -v 
-
-This documentation is written using GNU Make 3.81. Your version may be different
-depending on your OS.
-
-### Install or upgrade Docker 
-
-If you haven't already, install the Docker software using the 
-<a href="/installation" target="_blank">instructions for your operating system</a>.
-If you have an existing installation, check your version and make sure you have
-the latest Docker. 
-
-To check if `docker` is already installed on Linux:
-
-    $ docker --version
-    Docker version 1.5.0, build a8a31ef
-
-On Mac OS X or Windows, you should have installed Boot2Docker which includes
-Docker. You'll need to verify both Boot2Docker and then Docker. This
-documentation was written on OS X using the following versions.
-
-    $ boot2docker version
-    Boot2Docker-cli version: v1.5.0
-    Git commit: ccd9032
-
-    $ docker --version
-    Docker version 1.5.0, build a8a31ef
-
-## Linux users and sudo
-
-This guide assumes you have added your user to the `docker` group on your system.
-To check, list the group's contents:
-
-    $ getent group docker
-    docker:x:999:ubuntu
-
-If the command returns no matches, you have two choices. You can preface this
-guide's `docker` commands with `sudo` as you work. Alternatively, you can add
-your user to the `docker` group as follows:
-
-    $ sudo usermod -aG docker ubuntu
-
-You must log out and back in for this modification to take effect.
-
+Work through this page to configure Git and a repository you'll use throughout
+the Contributor Guide. The work you do further in the guide, depends on the work
+you do here. 
 
 ## Fork and clone the Docker code
 
-When contributing, you first fork the Docker code repository. A fork copies
+Before contributing, you first fork the Docker code repository. A fork copies
 a repository at a particular point in time. GitHub tracks for you where a fork
 originates.
 
@@ -106,7 +23,8 @@ To fork and clone Docker:
 
 1. Open a browser and log into GitHub with your account.
 
-2. Go to the <a href="https://github.com/docker/docker" target="_blank">docker/docker repository</a>.
+2. Go to the <a href="https://github.com/docker/docker"
+target="_blank">docker/docker repository</a>.
 
 3. Click the "Fork" button in the upper right corner of the GitHub interface.
 
@@ -168,7 +86,7 @@ You must sign with your real name. We don't accept anonymous contributions or
 contributions through pseudonyms.
 
 As you change code in your fork, you'll want to keep it in sync with the changes
-others make in the `docker/docker` repository.  To make syncing easier, you'll
+others make in the `docker/docker` repository. To make syncing easier, you'll
 also add a _remote_ called `upstream` that points to `docker/docker`. A remote
 is just another a project version hosted on the internet or network.
 
@@ -308,11 +226,13 @@ the branch to your fork on GitHub:
 
 10. Navigate to your Docker fork.
 
-11. Make sure the `dry-run-test` branch exists, that it has your commit, and the commit is signed.
+11. Make sure the `dry-run-test` branch exists, that it has your commit, and the
+commit is signed.
 
     ![Branch Signature](/project/images/branch-sig.png)
 
 ## Where to go next
 
-Congratulations, you have set up and validated the contributor requirements.
-In the next section you'll [learn how to set up and work in a Docker development container](/project/set-up-dev-env/).
+Congratulations, you have finished configuring both your local host environment
+and Git for contributing. In the next section you'll [learn how to set up and
+work in a Docker development container](/project/set-up-dev-env/).
