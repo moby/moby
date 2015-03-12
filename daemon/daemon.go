@@ -876,7 +876,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	// Load storage driver
 	driver, err := graphdriver.New(config.Root, config.GraphOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error intializing graphdriver: %v", err)
 	}
 	log.Debugf("Using graph driver %s", driver)
 

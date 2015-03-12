@@ -378,7 +378,7 @@ func (a *Driver) mount(id, mountLabel string) error {
 	}
 
 	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
-		return err
+		return fmt.Errorf("error creating aufs mount to %s: %v", target, err)
 	}
 	return nil
 }
