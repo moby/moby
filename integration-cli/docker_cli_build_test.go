@@ -1508,6 +1508,31 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`,
 	logDone("build - copy single file to non-existing dir")
 }
 
+func TestBuildCopySingleExecutableAndRun(t *testing.T) {
+	name := "testcopysingleexecutable"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN touch /exists
+RUN chown dockerio.dockerio /exists
+COPY test_file.sh /
+RUN chmod +x /test_file.sh
+RUN /testfile.sh`,
+		map[string]string{
+			"test_file.sh": "#!/bin/bash\necho hello",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - copy single executable and run")
+}
+
 func TestBuildCopyDirContentToRoot(t *testing.T) {
 	name := "testcopydircontenttoroot"
 	defer deleteImages(name)
