@@ -11,16 +11,18 @@ import (
 
 type State struct {
 	sync.Mutex
-	Running    bool
-	Paused     bool
-	Restarting bool
-	OOMKilled  bool
-	Pid        int
-	ExitCode   int
-	Error      string // contains last known error when starting the container
-	StartedAt  time.Time
-	FinishedAt time.Time
-	waitChan   chan struct{}
+	Running           bool
+	Paused            bool
+	Restarting        bool
+	OOMKilled         bool
+	removalInProgress bool // Not need for this to be persistent on disk.
+	Dead              bool
+	Pid               int
+	ExitCode          int
+	Error             string // contains last known error when starting the container
+	StartedAt         time.Time
+	FinishedAt        time.Time
+	waitChan          chan struct{}
 }
 
 func NewState() *State {
@@ -42,6 +44,14 @@ func (s *State) String() string {
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
 
+	if s.removalInProgress {
+		return "Removal In Progress"
+	}
+
+	if s.Dead {
+		return "Dead"
+	}
+
 	if s.FinishedAt.IsZero() {
 		return ""
 	}
@@ -60,6 +70,11 @@ func (s *State) StateString() string {
 		}
 		return "running"
 	}
+
+	if s.Dead {
+		return "dead"
+	}
+
 	return "exited"
 }
 
@@ -216,4 +231,26 @@ func (s *State) IsPaused() bool {
 	res := s.Paused
 	s.Unlock()
 	return res
+}
+
+func (s *State) SetRemovalInProgress() error {
+	s.Lock()
+	defer s.Unlock()
+	if s.removalInProgress {
+		return fmt.Errorf("Status is already RemovalInProgress")
+	}
+	s.removalInProgress = true
+	return nil
+}
+
+func (s *State) ResetRemovalInProgress() {
+	s.Lock()
+	s.removalInProgress = false
+	s.Unlock()
+}
+
+func (s *State) SetDead() {
+	s.Lock()
+	s.Dead = true
+	s.Unlock()
 }
