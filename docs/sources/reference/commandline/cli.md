@@ -1619,19 +1619,19 @@ removed before the image is removed.
     test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
 
     $ sudo docker rmi fd484f19954f
-    Error: Conflict, cannot delete image fd484f19954f because it is tagged in multiple repositories
+    Error: Conflict, cannot delete image fd484f19954f because it is tagged in multiple repositories, use -f to force
     2013/12/11 05:47:16 Error: failed to remove one or more images
 
     $ sudo docker rmi test1
-    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    Untagged: test1:latest
     $ sudo docker rmi test2
-    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    Untagged: test2:latest
 
     $ sudo docker images
     REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
     test                      latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
     $ sudo docker rmi test
-    Untagged: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+    Untagged: test:latest
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
 ## run
