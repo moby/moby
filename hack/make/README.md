@@ -4,11 +4,11 @@ Each script is named after the bundle it creates.
 They should not be called directly - instead, pass it as argument to make.sh, for example:
 
 ```
-./project/make.sh test
-./project/make.sh binary ubuntu
+./hack/make.sh test
+./hack/make.sh binary ubuntu
 
 # Or to run all bundles:
-./project/make.sh
+./hack/make.sh
 ```
 
 To add a bundle:
