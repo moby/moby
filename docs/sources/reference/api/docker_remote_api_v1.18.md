@@ -129,6 +129,11 @@ Create a container
              ],
              "Entrypoint": "",
              "Image": "ubuntu",
+             "Labels": {
+                     "com.example.vendor": "Acme",
+                     "com.example.license": "GPL",
+                     "com.example.version": "1.0"
+             },
              "Volumes": {
                      "/tmp": {}
              },
@@ -190,6 +195,8 @@ Json Parameters:
 -   **OpenStdin** - Boolean value, opens stdin,
 -   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `VAR=value`
+-   **Labels** - A map of labels and their values that will be added to the
+        container. It should be specified in the form `{"name":"value"[,"name2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entrypoint for the container a a string or an array
       of strings
@@ -302,6 +309,11 @@ Return low-level information on the container `id`
 			"ExposedPorts": null,
 			"Hostname": "ba033ac44011",
 			"Image": "ubuntu",
+			"Labels": {
+				"com.example.vendor": "Acme",
+				"com.example.license": "GPL",
+				"com.example.version": "1.0"
+			},
 			"MacAddress": "",
 			"Memory": 0,
 			"MemorySwap": 0,
@@ -1186,6 +1198,11 @@ Return low-level information on the image `name`
                              "Cmd": ["/bin/bash"],
                              "Dns": null,
                              "Image": "ubuntu",
+                             "Labels": {
+                                 "com.example.vendor": "Acme",
+                                 "com.example.license": "GPL",
+                                 "com.example.version": "1.0"
+                             },
                              "Volumes": null,
                              "VolumesFrom": "",
                              "WorkingDir": ""

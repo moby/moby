@@ -1840,21 +1840,21 @@ An example of a file passed with `--env-file`
 This will create and run a new container with the container name being
 `console`.
 
-    $ sudo docker run -l my-label --env com.example.foo=bar ubuntu bash
+    $ sudo docker run -l my-label --label com.example.foo=bar ubuntu bash
 
 This sets two labels on the container. Label "my-label" doesn't have a value
 specified and will default to "" (empty string) for its value. Both `-l` and 
-`--env` can be repeated to add more labels. Label names are unique; if the same 
+`--label` can be repeated to add more labels. Label names are unique; if the same
 label is specified multiple times, latter values overwrite the previous value.
 
 Labels can also be loaded from a line delimited file of labels using the 
 `--label-file` flag. The example below will load labels from a file named `labels`
 in the current directory;
 
-    $ sudo docker run --env-file ./labels ubuntu bash
+    $ sudo docker run --label-file ./labels ubuntu bash
 
 The format of the labels-file is similar to that used for loading environment
-variables (see `--env-file` above). An example of a file passed with `--env-file`;
+variables (see `--label-file` above). An example of a file passed with `--label-file`;
 
     $ cat ./labels
     com.example.label1="a label"
