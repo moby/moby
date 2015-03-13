@@ -182,7 +182,7 @@ func (m *containerMonitor) Start() error {
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
-// previous runs success or failure.  Reguardless of success, if the container had
+// previous runs success or failure.  Regardless of success, if the container had
 // an execution time of more than 10s then reset the timer back to the default
 func (m *containerMonitor) resetMonitor(successful bool) {
 	executionTime := time.Now().Sub(m.lastStartTime).Seconds()

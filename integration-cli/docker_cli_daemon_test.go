@@ -408,7 +408,7 @@ func TestDaemonKeyMigration(t *testing.T) {
 }
 
 // Simulate an older daemon (pre 1.3) coming up with volumes specified in containers
-//	without corrosponding volume json
+//	without corresponding volume json
 func TestDaemonUpgradeWithVolumes(t *testing.T) {
 	d := NewDaemon(t)
 

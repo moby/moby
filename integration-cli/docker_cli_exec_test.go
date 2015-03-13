@@ -197,7 +197,7 @@ func TestExecAfterDaemonRestart(t *testing.T) {
 	logDone("exec - exec running container after daemon restart")
 }
 
-// Regresssion test for #9155, #9044
+// Regression test for #9155, #9044
 func TestExecEnv(t *testing.T) {
 	defer deleteAllContainers()
 
