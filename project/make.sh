@@ -114,7 +114,10 @@ EXTLDFLAGS_STATIC='-static'
 # with options like -race.
 ORIG_BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
-BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
+if [ "$BUILDFLAGS_FILE" ]; then
+	readarray -t BUILDFLAGS < "$BUILDFLAGS_FILE"
+fi
+BUILDFLAGS=( "${BUILDFLAGS[@]}" "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
 : ${TIMEOUT:=30m}
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
