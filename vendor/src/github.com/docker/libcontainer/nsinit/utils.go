@@ -11,20 +11,20 @@ import (
 )
 
 func loadConfig(context *cli.Context) (*configs.Config, error) {
-	if context.Bool("create") {
-		config := getTemplate()
-		modify(config, context)
+	if path := context.String("config"); path != "" {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		var config *configs.Config
+		if err := json.NewDecoder(f).Decode(&config); err != nil {
+			return nil, err
+		}
 		return config, nil
 	}
-	f, err := os.Open(context.String("config"))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var config *configs.Config
-	if err := json.NewDecoder(f).Decode(&config); err != nil {
-		return nil, err
-	}
+	config := getTemplate()
+	modify(config, context)
 	return config, nil
 }
 

@@ -42,6 +42,12 @@ type Network struct {
 	// HostInterfaceName is a unique name of a veth pair that resides on in the host interface of the
 	// container.
 	HostInterfaceName string `json:"host_interface_name"`
+
+	// HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
+	// bridge port in the case of type veth
+	// Note: This is unsupported on some systems.
+	// Note: This does not apply to loopback interfaces.
+	HairpinMode bool `json:"hairpin_mode"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started

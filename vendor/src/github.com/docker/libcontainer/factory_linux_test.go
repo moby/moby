@@ -43,6 +43,10 @@ func TestFactoryNew(t *testing.T) {
 	if lfactory.Root != root {
 		t.Fatalf("expected factory root to be %q but received %q", root, lfactory.Root)
 	}
+
+	if factory.Type() != "libcontainer" {
+		t.Fatalf("unexpected factory type: %q, expected %q", factory.Type(), "libcontainer")
+	}
 }
 
 func TestFactoryLoadNotExists(t *testing.T) {
