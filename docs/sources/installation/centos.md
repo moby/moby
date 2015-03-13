@@ -6,8 +6,8 @@ page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, 
 
 Docker is supported on the following versions of CentOS:
 
-- [*CentOS 7 (64-bit)*](#installing-docker---centos-7)
-- [*CentOS 6.5 (64-bit)*](#installing-docker---centos-6.5) or later
+- [*CentOS 7 (64-bit)*](#installing-docker-centos-7)
+- [*CentOS 6.5 (64-bit)*](#installing-docker-centos-6.5) or later
 
 These instructions are likely work for other binary compatible EL6/EL7 distributions
 such as Scientific Linux, but they haven't been tested.
