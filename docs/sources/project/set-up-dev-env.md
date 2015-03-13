@@ -242,9 +242,9 @@ build and run a `docker` binary in your container.
 
 4. From the `/go/src/github.com/docker/docker` directory make a `docker` binary with the `make.sh` script.
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker# project/make.sh binary
+        root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh binary
 
-    You only call `project/make.sh` to build a binary _inside_ a Docker
+    You only call `hack/make.sh` to build a binary _inside_ a Docker
     development container as you are now. On your host, you'll use `make`
     commands (more about this later). 
 
