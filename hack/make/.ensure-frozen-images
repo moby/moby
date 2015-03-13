@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+# this list should match roughly what's in the Dockerfile (minus the explicit image IDs, of course)
+images=(
+	busybox:latest
+	hello-world:latest
+)
+
+if ! docker inspect "${images[@]}" &> /dev/null; then
+	hardCodedDir='/docker-frozen-images'
+	if [ -d "$hardCodedDir" ]; then
+		( set -x; tar -cC "$hardCodedDir" . | docker load )
+	elif [ -e Dockerfile ] && command -v curl > /dev/null; then
+		# testing for "curl" because "download-frozen-image.sh" is built around curl
+		dir="$DEST/frozen-images"
+		# extract the exact "RUN download-frozen-image.sh" line from the Dockerfile itself for consistency
+		awk '
+			$1 == "RUN" && $2 == "./contrib/download-frozen-image.sh" {
+				for (i = 2; i < NF; i++)
+					printf ( $i == "'"$hardCodedDir"'" ? "'"$dir"'" : $i ) " ";
+				print $NF;
+				if (/\\$/) {
+					inCont = 1;
+					next;
+				}
+			}
+			inCont {
+				print;
+				if (!/\\$/) {
+					inCont = 0;
+				}
+			}
+		' Dockerfile | sh -x
+		( set -x; tar -cC "$dir" . | docker load )
+	else
+		for image in "${images[@]}"; do
+			if ! docker inspect "$image" &> /dev/null; then
+				( set -x; docker pull "$image" )
+			fi
+		done
+	fi
+fi
