@@ -41,4 +41,7 @@ type Factory interface {
 	// pipe connection error
 	// system error
 	StartInitialization(pipefd uintptr) error
+
+	// Type returns info string about factory type (e.g. lxc, libcontainer...)
+	Type() string
 }

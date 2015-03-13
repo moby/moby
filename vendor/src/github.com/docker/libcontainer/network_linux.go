@@ -135,6 +135,11 @@ func (v *veth) create(n *network, nspid int) (err error) {
 	if err := netlink.NetworkSetMTU(host, n.Mtu); err != nil {
 		return err
 	}
+	if n.HairpinMode {
+		if err := netlink.SetHairpinMode(host, true); err != nil {
+			return err
+		}
+	}
 	if err := netlink.NetworkLinkUp(host); err != nil {
 		return err
 	}

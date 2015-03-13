@@ -14,7 +14,7 @@ func main() {
 	app.Author = "libcontainer maintainers"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{Name: "root", Value: ".", Usage: "root directory for containers"},
-		cli.StringFlag{Name: "log-file", Value: "nsinit-debug.log", Usage: "set the log file to output logs to"},
+		cli.StringFlag{Name: "log-file", Value: "", Usage: "set the log file to output logs to"},
 		cli.BoolFlag{Name: "debug", Usage: "enable debug output in the logs"},
 	}
 	app.Commands = []cli.Command{

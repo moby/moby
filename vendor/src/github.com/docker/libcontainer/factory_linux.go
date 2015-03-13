@@ -172,6 +172,10 @@ func (l *LinuxFactory) Load(id string) (Container, error) {
 	}, nil
 }
 
+func (l *LinuxFactory) Type() string {
+	return "libcontainer"
+}
+
 // StartInitialization loads a container by opening the pipe fd from the parent to read the configuration and state
 // This is a low level implementation detail of the reexec and should not be consumed externally
 func (l *LinuxFactory) StartInitialization(pipefd uintptr) (err error) {
