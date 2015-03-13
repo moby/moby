@@ -1,11 +1,11 @@
 package portallocator
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
-	"strings"
+	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -71,13 +71,13 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 func init() {
 	const param = "/proc/sys/net/ipv4/ip_local_port_range"
 
-	line, err := ioutil.ReadFile(param)
+	file, err := os.Open(param)
 	if err != nil {
 		log.Errorf("Failed to read %s kernel parameter: %s", param, err.Error())
 		return
 	}
 	var start, end int
-	n, err := fmt.Fscanf(strings.NewReader(string(line)), "%d\t%d", &start, &end)
+	n, err := fmt.Fscanf(bufio.NewReader(file), "%d\t%d", &start, &end)
 	if n != 2 || err != nil {
 		if err == nil {
 			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
