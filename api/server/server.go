@@ -1457,6 +1457,11 @@ func lookupGidByName(nameOrGid string) (int, error) {
 	if groups != nil && len(groups) > 0 {
 		return groups[0].Gid, nil
 	}
+	gid, err := strconv.Atoi(nameOrGid)
+	if err != nil {
+		log.Warnf("Could not find GID %d", gid)
+		return gid, nil
+	}
 	return -1, fmt.Errorf("Group %s not found", nameOrGid)
 }
 
