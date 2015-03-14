@@ -281,7 +281,11 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
 	if res.StatusCode != 200 {
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Debugf("Error reading response body: %s", err)
+		}
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, remote, errBody), res)
 	}
 
 	var tokens []string
@@ -510,7 +514,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		if res.StatusCode != 200 && res.StatusCode != 201 {
 			errBody, err := ioutil.ReadAll(res.Body)
 			if err != nil {
-				return nil, err
+				log.Debugf("Error reading response body: %s", err)
 			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote, errBody), res)
 		}
@@ -534,7 +538,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		if res.StatusCode != 204 {
 			errBody, err := ioutil.ReadAll(res.Body)
 			if err != nil {
-				return nil, err
+				log.Debugf("Error reading response body: %s", err)
 			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, remote, errBody), res)
 		}
