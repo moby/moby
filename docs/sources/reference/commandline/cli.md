@@ -801,8 +801,8 @@ Creates a new container.
       -p, --publish=[]           Publish a container's port(s) to the host
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
-      --restart="no"             Restart policy to apply when a container exits
-      --security-opt=[]          Security Options
+      --restart="no"             Restart policy (no, on-failure[:max-retry], always)
+      --security-opt=[]          Security options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume
@@ -1011,8 +1011,8 @@ You'll need two shells for this example.
 
 The `docker exec` command runs a new command in a running container.
 
-The command started using `docker exec` will only run while the container's primary
-process (`PID 1`) is running, and will not be restarted if the container is restarted.
+The command started using `docker exec` only runs while the container's primary
+process (`PID 1`) is running, and it is not restarted if the container is restarted.
 
 If the container is paused, then the `docker exec` command will fail with an error:
 
@@ -1671,7 +1671,7 @@ removed before the image is removed.
       --pid=""                   PID namespace to use
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
-      --restart=""               Restart policy to apply when a container exits
+      --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process
