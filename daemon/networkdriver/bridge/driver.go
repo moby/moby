@@ -302,6 +302,11 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	)
 
 	if !icc {
+		output, err := ioutil.ReadFile("/proc/sys/net/bridge/bridge-nf-call-iptables")
+		if err != nil || string(output[:1]) == "0" {
+			log.Warnf("WARNING: disabling intercontainer communication is not supported: net.bridge.bridge-nf-call-iptables is not enabled.")
+		}
+
 		iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
 
 		if !iptables.Exists(dropArgs...) {
