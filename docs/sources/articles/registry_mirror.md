@@ -50,7 +50,8 @@ port `5000` and mirrors the content at `registry-1.docker.io`:
     sudo docker run -p 5000:5000 \
         -e STANDALONE=false \
         -e MIRROR_SOURCE=https://registry-1.docker.io \
-        -e MIRROR_SOURCE_INDEX=https://index.docker.io registry
+        -e MIRROR_SOURCE_INDEX=https://index.docker.io \
+        registry
 
 ## Test it out
 
