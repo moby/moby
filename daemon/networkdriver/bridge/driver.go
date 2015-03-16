@@ -284,10 +284,11 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Enable NAT
 
 	if ipmasq {
-		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
+		natArgs := []string{"-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
-		if !iptables.Exists(natArgs...) {
-			if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
+		if !iptables.Exists(iptables.Nat, "POSTROUTING", natArgs...) {
+			if output, err := iptables.Raw(append([]string{
+				"-t", string(iptables.Nat), "-I", "POSTROUTING"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
 				return &iptables.ChainError{Chain: "POSTROUTING", Output: output}
@@ -296,28 +297,28 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	}
 
 	var (
-		args       = []string{"FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j"}
+		args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
 		acceptArgs = append(args, "ACCEPT")
 		dropArgs   = append(args, "DROP")
 	)
 
 	if !icc {
-		iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
+		iptables.Raw(append([]string{"-D", "FORWARD"}, acceptArgs...)...)
 
-		if !iptables.Exists(dropArgs...) {
+		if !iptables.Exists(iptables.Filter, "FORWARD", dropArgs...) {
 			log.Debugf("Disable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
+			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
 			}
 		}
 	} else {
-		iptables.Raw(append([]string{"-D"}, dropArgs...)...)
+		iptables.Raw(append([]string{"-D", "FORWARD"}, dropArgs...)...)
 
-		if !iptables.Exists(acceptArgs...) {
+		if !iptables.Exists(iptables.Filter, "FORWARD", acceptArgs...) {
 			log.Debugf("Enable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
+			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
@@ -326,9 +327,9 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	}
 
 	// Accept all non-intercontainer outgoing packets
-	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
-	if !iptables.Exists(outgoingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
+	outgoingArgs := []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
+	if !iptables.Exists(iptables.Filter, "FORWARD", outgoingArgs...) {
+		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
 			return &iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
@@ -336,10 +337,10 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	}
 
 	// Accept incoming packets for existing connections
-	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+	existingArgs := []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
 
-	if !iptables.Exists(existingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
+	if !iptables.Exists(iptables.Filter, "FORWARD", existingArgs...) {
+		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
 			return &iptables.ChainError{Chain: "FORWARD incoming", Output: output}

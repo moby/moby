@@ -39,8 +39,7 @@ func TestForward(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dnatRule := []string{natChain.Name,
-		"-t", string(natChain.Table),
+	dnatRule := []string{
 		"!", "-i", filterChain.Bridge,
 		"-d", ip.String(),
 		"-p", proto,
@@ -49,12 +48,11 @@ func TestForward(t *testing.T) {
 		"--to-destination", dstAddr + ":" + strconv.Itoa(dstPort),
 	}
 
-	if !Exists(dnatRule...) {
+	if !Exists(natChain.Table, natChain.Name, dnatRule...) {
 		t.Fatalf("DNAT rule does not exist")
 	}
 
-	filterRule := []string{filterChain.Name,
-		"-t", string(filterChain.Table),
+	filterRule := []string{
 		"!", "-i", filterChain.Bridge,
 		"-o", filterChain.Bridge,
 		"-d", dstAddr,
@@ -63,12 +61,11 @@ func TestForward(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	if !Exists(filterRule...) {
+	if !Exists(filterChain.Table, filterChain.Name, filterRule...) {
 		t.Fatalf("filter rule does not exist")
 	}
 
-	masqRule := []string{"POSTROUTING",
-		"-t", string(natChain.Table),
+	masqRule := []string{
 		"-d", dstAddr,
 		"-s", dstAddr,
 		"-p", proto,
@@ -76,7 +73,7 @@ func TestForward(t *testing.T) {
 		"-j", "MASQUERADE",
 	}
 
-	if !Exists(masqRule...) {
+	if !Exists(natChain.Table, "POSTROUTING", masqRule...) {
 		t.Fatalf("MASQUERADE rule does not exist")
 	}
 }
@@ -94,8 +91,7 @@ func TestLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rule1 := []string{filterChain.Name,
-		"-t", string(filterChain.Table),
+	rule1 := []string{
 		"-i", filterChain.Bridge,
 		"-o", filterChain.Bridge,
 		"-p", proto,
@@ -104,12 +100,11 @@ func TestLink(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "ACCEPT"}
 
-	if !Exists(rule1...) {
+	if !Exists(filterChain.Table, filterChain.Name, rule1...) {
 		t.Fatalf("rule1 does not exist")
 	}
 
-	rule2 := []string{filterChain.Name,
-		"-t", string(filterChain.Table),
+	rule2 := []string{
 		"-i", filterChain.Bridge,
 		"-o", filterChain.Bridge,
 		"-p", proto,
@@ -118,7 +113,7 @@ func TestLink(t *testing.T) {
 		"--sport", strconv.Itoa(port),
 		"-j", "ACCEPT"}
 
-	if !Exists(rule2...) {
+	if !Exists(filterChain.Table, filterChain.Name, rule2...) {
 		t.Fatalf("rule2 does not exist")
 	}
 }
@@ -133,17 +128,16 @@ func TestPrerouting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rule := []string{"PREROUTING",
-		"-t", string(Nat),
+	rule := []string{
 		"-j", natChain.Name}
 
 	rule = append(rule, args...)
 
-	if !Exists(rule...) {
+	if !Exists(natChain.Table, "PREROUTING", rule...) {
 		t.Fatalf("rule does not exist")
 	}
 
-	delRule := append([]string{"-D"}, rule...)
+	delRule := append([]string{"-D", "PREROUTING", "-t", string(Nat)}, rule...)
 	if _, err = Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
@@ -159,17 +153,17 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rule := []string{"OUTPUT",
-		"-t", string(natChain.Table),
+	rule := []string{
 		"-j", natChain.Name}
 
 	rule = append(rule, args...)
 
-	if !Exists(rule...) {
+	if !Exists(natChain.Table, "OUTPUT", rule...) {
 		t.Fatalf("rule does not exist")
 	}
 
-	delRule := append([]string{"-D"}, rule...)
+	delRule := append([]string{"-D", "OUTPUT", "-t",
+		string(natChain.Table)}, rule...)
 	if _, err = Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
