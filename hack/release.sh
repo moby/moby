@@ -190,6 +190,13 @@ release_build() {
 		linux)
 			s3Os=Linux
 			;;
+		windows)
+			s3Os=Windows
+			binary+='.exe'
+			if [ "$latestBase" ]; then
+				latestBase+='.exe'
+			fi
+			;;
 		*)
 			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
 			exit 1
