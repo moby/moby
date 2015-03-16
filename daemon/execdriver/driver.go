@@ -164,6 +164,7 @@ type Command struct {
 	MountLabel         string            `json:"mount_label"`
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
+	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
 }
 
 func InitContainer(c *Command) *configs.Config {
@@ -179,6 +180,11 @@ func InitContainer(c *Command) *configs.Config {
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
+
+	// Default parent cgroup is "docker". Override if required.
+	if c.CgroupParent != "" {
+		container.Cgroups.Parent = c.CgroupParent
+	}
 	return container
 }
 
