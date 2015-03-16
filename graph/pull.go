@@ -532,7 +532,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		}
 	}
 
-	var layersDownloaded bool
+	var tagUpdated bool
 	for i := len(downloads) - 1; i >= 0; i-- {
 		d := &downloads[i]
 		if d.err != nil {
@@ -556,14 +556,27 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
 			}
 			out.Write(sf.FormatProgress(common.TruncateID(d.img.ID), "Pull complete", nil))
-			layersDownloaded = true
+			tagUpdated = true
 		} else {
 			out.Write(sf.FormatProgress(common.TruncateID(d.img.ID), "Already exists", nil))
 		}
 
 	}
 
-	if verified && layersDownloaded {
+	// Check for new tag if no layers downloaded
+	if !tagUpdated {
+		repo, err := s.Get(repoInfo.LocalName)
+		if err != nil {
+			return false, err
+		}
+		if repo != nil {
+			if _, exists := repo[tag]; !exists {
+				tagUpdated = true
+			}
+		}
+	}
+
+	if verified && tagUpdated {
 		out.Write(sf.FormatStatus(repoInfo.CanonicalName+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
@@ -571,5 +584,5 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		return false, err
 	}
 
-	return layersDownloaded, nil
+	return tagUpdated, nil
 }

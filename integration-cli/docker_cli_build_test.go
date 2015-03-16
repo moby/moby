@@ -5234,7 +5234,7 @@ func TestBuildRUNoneJSON(t *testing.T) {
 	defer deleteAllContainers()
 	defer deleteImages(name)
 
-	ctx, err := fakeContext(`FROM hello-world:latest
+	ctx, err := fakeContext(`FROM hello-world:frozen
 RUN [ "/hello" ]`, map[string]string{})
 	if err != nil {
 		t.Fatal(err)
