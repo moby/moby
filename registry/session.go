@@ -349,7 +349,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, t
 		} else if jsonBody["error"] == "Image already exists" {
 			return ErrAlreadyExists
 		}
-		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
+		return fmt.Errorf("HTTP code %d while uploading metadata: %q", res.StatusCode, errBody)
 	}
 	return nil
 }
@@ -385,7 +385,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 		} else if jsonBody["error"] == "Image already exists" {
 			return ErrAlreadyExists
 		}
-		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody), res)
+		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata: %q", res.StatusCode, errBody), res)
 	}
 	return nil
 }
@@ -427,7 +427,7 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 		if err != nil {
 			return "", "", utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
-		return "", "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
+		return "", "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %q", res.StatusCode, errBody), res)
 	}
 
 	checksumPayload = "sha256:" + hex.EncodeToString(h.Sum(nil))
@@ -512,7 +512,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 			if err != nil {
 				return nil, err
 			}
-			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody), res)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote, errBody), res)
 		}
 		if res.Header.Get("X-Docker-Token") != "" {
 			tokens = res.Header["X-Docker-Token"]
@@ -536,7 +536,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 			if err != nil {
 				return nil, err
 			}
-			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody), res)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, remote, errBody), res)
 		}
 	}
 
