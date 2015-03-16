@@ -467,44 +467,168 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
-	cmd.Require(flag.Exact, 0)
+	cmd.Require(flag.Max, 1)
 
 	utils.ParseFlags(cmd, args, false)
 
-	if dockerversion.VERSION != "" {
-		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
-	}
-	fmt.Fprintf(cli.out, "Client API version: %s\n", api.APIVERSION)
-	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
-	if dockerversion.GITCOMMIT != "" {
-		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
-	}
-	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	versionFormat := "default"
 
-	body, _, err := readBody(cli.call("GET", "/version", nil, false))
-	if err != nil {
-		return err
+	if len(cmd.Args()) > 0 {
+		versionFormat = cmd.Arg(0)
 	}
 
-	out := engine.NewOutput()
-	remoteVersion, err := out.AddEnv()
-	if err != nil {
-		log.Errorf("Error reading remote version: %s", err)
-		return err
+	var getRemoteVersion = func() (*engine.Env, error) {
+		body, _, err := readBody(cli.call("GET", "/version", nil, false))
+		if err != nil {
+			return nil, err
+		}
+		out := engine.NewOutput()
+		remoteVersion, err := out.AddEnv()
+		if err != nil {
+			log.Errorf("Error reading remote version: %s", err)
+			return nil, err
+		}
+		if _, err := out.Write(body); err != nil {
+			log.Errorf("Error reading remote version: %s", err)
+			return nil, err
+		}
+		out.Close()
+		return remoteVersion, nil
 	}
-	if _, err := out.Write(body); err != nil {
-		log.Errorf("Error reading remote version: %s", err)
-		return err
+
+	switch versionFormat {
+	case "prefix":
+		if dockerversion.VERSION != "" {
+			fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
+		}
+		fmt.Fprintf(cli.out, "Client API version: %s\n", api.APIVERSION)
+		fmt.Fprintf(cli.out, "Client go version: %s\n", runtime.Version())
+		if dockerversion.GITCOMMIT != "" {
+			fmt.Fprintf(cli.out, "Client Git commit version: %s\n", dockerversion.GITCOMMIT)
+		}
+		fmt.Fprintf(cli.out, "Client OS/Arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+		remoteVersion, err := getRemoteVersion()
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "Server version: %s\n", remoteVersion.Get("Version"))
+		if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
+			fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
+		}
+		fmt.Fprintf(cli.out, "Server Go version: %s\n", remoteVersion.Get("GoVersion"))
+		fmt.Fprintf(cli.out, "Server Git commit: %s\n", remoteVersion.Get("GitCommit"))
+		fmt.Fprintf(cli.out, "Server OS/Arch: %s/%s\n", remoteVersion.Get("Os"), remoteVersion.Get("Arch"))
+		return nil
+	case "suffix":
+		if dockerversion.VERSION != "" {
+			fmt.Fprintf(cli.out, "Version (client): %s\n", dockerversion.VERSION)
+		}
+		fmt.Fprintf(cli.out, "API version (client): %s\n", api.APIVERSION)
+		fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+		if dockerversion.GITCOMMIT != "" {
+			fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
+		}
+		fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+		remoteVersion, err := getRemoteVersion()
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "Version (server): %s\n", remoteVersion.Get("Version"))
+		if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
+			fmt.Fprintf(cli.out, "API version (server): %s\n", apiVersion)
+		}
+		fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
+		fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
+		fmt.Fprintf(cli.out, "OS/Arch (server): %s/%s\n", remoteVersion.Get("Os"), remoteVersion.Get("Arch"))
+		return nil
+	case "sectioned":
+		fmt.Fprintf(cli.out, "Client\n")
+		if dockerversion.VERSION != "" {
+			fmt.Fprintf(cli.out, "  Version: %s\n", dockerversion.VERSION)
+		}
+		fmt.Fprintf(cli.out, "  API version: %s\n", api.APIVERSION)
+		fmt.Fprintf(cli.out, "  Go version: %s\n", runtime.Version())
+		if dockerversion.GITCOMMIT != "" {
+			fmt.Fprintf(cli.out, "  Git commit: %s\n", dockerversion.GITCOMMIT)
+		}
+		fmt.Fprintf(cli.out, "  OS/Arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+		fmt.Fprintf(cli.out, "Server\n")
+
+		remoteVersion, err := getRemoteVersion()
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "  Version: %s\n", remoteVersion.Get("Version"))
+		if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
+			fmt.Fprintf(cli.out, "  API version: %s\n", apiVersion)
+		}
+		fmt.Fprintf(cli.out, "  Go version: %s\n", remoteVersion.Get("GoVersion"))
+		fmt.Fprintf(cli.out, "  Git commit: %s\n", remoteVersion.Get("GitCommit"))
+		fmt.Fprintf(cli.out, "  OS/Arch: %s/%s\n", remoteVersion.Get("Os"), remoteVersion.Get("Arch"))
+		return nil
+	case "tabular":
+		remoteVersion, err := getRemoteVersion()
+		if err != nil {
+			return err
+		}
+
+		const (
+			columnWidthStr = "15"
+			columnWidthInt = 15
+			//Tabular format "%-15s %-15s %-15s\n"
+			tabularFormat string = "%-" + columnWidthStr + "s %-" + columnWidthStr + "s %-" + columnWidthStr + "s\n"
+			//OS/Arch format "%-15s %-s/%-*s %-s/%-*s\n" where * is [15-len(OSName)-len('/')]
+			osArchFormat = "%-" + columnWidthStr + "s %-s/%-*s %-s/%-*s\n"
+		)
+
+		fmt.Fprintf(cli.out, tabularFormat, "", "Client", "Server")
+		fmt.Fprintf(cli.out, tabularFormat, "Version:", dockerversion.VERSION, remoteVersion.Get("Version"))
+		fmt.Fprintf(cli.out, tabularFormat, "API version:", api.APIVERSION, remoteVersion.Get("ApiVersion"))
+		fmt.Fprintf(cli.out, tabularFormat, "Go version:", runtime.Version(), remoteVersion.Get("GoVersion"))
+		fmt.Fprintf(cli.out, tabularFormat, "Git commit:", dockerversion.GITCOMMIT, remoteVersion.Get("GitCommit"))
+
+		var getWidth = func(v string) (width int) {
+			width = columnWidthInt - len(v) - 1
+			if width < 0 {
+				width = 0
+			}
+			return
+		}
+
+		fmt.Fprintf(cli.out, osArchFormat, "OS/Arch:", runtime.GOOS, getWidth(runtime.GOOS), runtime.GOARCH,
+			remoteVersion.Get("Os"), getWidth(remoteVersion.Get("Os")), remoteVersion.Get("Arch"))
+		return nil
+	default:
+		if dockerversion.VERSION != "" {
+			fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
+		}
+		fmt.Fprintf(cli.out, "Client API version: %s\n", api.APIVERSION)
+		fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+		if dockerversion.GITCOMMIT != "" {
+			fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
+		}
+		fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+		remoteVersion, err := getRemoteVersion()
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(cli.out, "Server version: %s\n", remoteVersion.Get("Version"))
+		if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
+			fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
+		}
+		fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
+		fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
+		fmt.Fprintf(cli.out, "OS/Arch (server): %s/%s\n", remoteVersion.Get("Os"), remoteVersion.Get("Arch"))
+		return nil
 	}
-	out.Close()
-	fmt.Fprintf(cli.out, "Server version: %s\n", remoteVersion.Get("Version"))
-	if apiVersion := remoteVersion.Get("ApiVersion"); apiVersion != "" {
-		fmt.Fprintf(cli.out, "Server API version: %s\n", apiVersion)
-	}
-	fmt.Fprintf(cli.out, "Go version (server): %s\n", remoteVersion.Get("GoVersion"))
-	fmt.Fprintf(cli.out, "Git commit (server): %s\n", remoteVersion.Get("GitCommit"))
-	fmt.Fprintf(cli.out, "OS/Arch (server): %s/%s\n", remoteVersion.Get("Os"), remoteVersion.Get("Arch"))
-	return nil
 }
 
 // 'docker info': display system-wide information.
