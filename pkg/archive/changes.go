@@ -220,8 +220,8 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 				oldStat.Gid() != newStat.Gid() ||
 				oldStat.Rdev() != newStat.Rdev() ||
 				// Don't look at size for dirs, its not a good measure of change
-				(oldStat.Size() != newStat.Size() && oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) ||
+				(oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR &&
+					(!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) || (oldStat.Size() != newStat.Size()))) ||
 				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
 					Path: newChild.path(),
