@@ -32,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -1406,43 +1405,6 @@ func ServeRequest(eng *engine.Engine, apiversion version.Version, w http.Respons
 	router.ServeHTTP(w, req)
 }
 
-// serveFd creates an http.Server and sets it up to serve given a socket activated
-// argument.
-func serveFd(addr string, job *engine.Job) error {
-	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
-
-	ls, e := systemd.ListenFD(addr)
-	if e != nil {
-		return e
-	}
-
-	chErrors := make(chan error, len(ls))
-
-	// We don't want to start serving on these sockets until the
-	// daemon is initialized and installed. Otherwise required handlers
-	// won't be ready.
-	<-activationLock
-
-	// Since ListenFD will return one or more sockets we have
-	// to create a go func to spawn off multiple serves
-	for i := range ls {
-		listener := ls[i]
-		go func() {
-			httpSrv := http.Server{Handler: r}
-			chErrors <- httpSrv.Serve(listener)
-		}()
-	}
-
-	for i := 0; i < len(ls); i++ {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func lookupGidByName(nameOrGid string) (int, error) {
 	groupFile, err := user.GetGroupPath()
 	if err != nil {
@@ -1621,18 +1583,6 @@ func ServeApi(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-	}
-
-	return engine.StatusOK
-}
-
-func AcceptConnections(job *engine.Job) engine.Status {
-	// Tell the init daemon we are accepting requests
-	go systemd.SdNotify("READY=1")
-
-	// close the lock so the listeners start accepting connections
-	if activationLock != nil {
-		close(activationLock)
 	}
 
 	return engine.StatusOK
