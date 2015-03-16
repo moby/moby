@@ -943,11 +943,11 @@ _docker() {
 		images
 		import
 		info
-		insert
 		inspect
 		kill
 		load
 		login
+		logout
 		logs
 		pause
 		port

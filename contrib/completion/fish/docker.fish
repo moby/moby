@@ -16,7 +16,7 @@
 
 function __fish_docker_no_subcommand --description 'Test if docker has yet to be given the subcommand'
     for i in (commandline -opc)
-        if contains -- $i attach build commit cp create diff events exec export history images import info insert inspect kill load login logout logs pause port ps pull push restart rm rmi run save search start stop tag top unpause version wait
+        if contains -- $i attach build commit cp create diff events exec export history images import info inspect kill load login logout logs pause port ps pull push rename restart rm rmi run save search start stop tag top unpause version wait
             return 1
         end
     end
