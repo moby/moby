@@ -144,16 +144,19 @@ A Dockerfile is similar to a Makefile.
   the image.
 
 **LABEL**
- --**LABEL <key>[=<value>] [<key>[=<value>] ...]**
+  -- `LABEL <key>[=<value>] [<key>[=<value>] ...]`
+  The **LABEL** instruction adds metadata to an image. A **LABEL** is a
+  key-value pair. To include spaces within a **LABEL** value, use quotes and
+  blackslashes as you would in command-line parsing.
 
- The **LABEL** instruction allows you to add meta-data to the image your 
- Dockerfile is building. LABEL is specified as name value pairs. This data can
- be retrieved using the `docker inspect` command.
+  ```
+  LABEL "com.example.vendor"="ACME Incorporated"
+  ```
 
- The LABEL instruction allows for multiple labels to be set at one time. Like 
- command line parsing, quotes and backslashes can be used to include spaces 
- within values.
+  An image can have more than one label. To specify multiple labels, separate each
+  key-value pair by a space.
 
+  To display an image's labels, use the `docker inspect` command.
 
 **EXPOSE**
   -- `EXPOSE <port> [<port>...]`

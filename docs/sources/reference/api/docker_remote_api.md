@@ -71,9 +71,8 @@ This endpoint now returns `SystemTime`, `HttpProxy`,`HttpsProxy` and `NoProxy`.
 
 ### What's new
 
-**New!**
-Build now has support for `LABEL` command which can be used to add user data
-to an image.  For example you could add data describing the content of an image.
+The build supports `LABEL` command. Use this to add metadata
+to an image. For example you could add data describing the content of an image.
 
 `LABEL "com.example.vendor"="ACME Incorporated"`
 
@@ -91,7 +90,7 @@ You can set labels on container create describing the container.
 `GET /containers/json`
 
 **New!**
-This endpoint now returns the labels associated with each container (`Labels`).
+The endpoint returns the labels associated with the containers (`Labels`).
 
 `GET /containers/(id)/json`
 

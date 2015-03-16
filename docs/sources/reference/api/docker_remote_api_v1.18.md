@@ -195,8 +195,7 @@ Json Parameters:
 -   **OpenStdin** - Boolean value, opens stdin,
 -   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `VAR=value`
--   **Labels** - A map of labels and their values that will be added to the
-        container. It should be specified in the form `{"name":"value"[,"name2":"value2"]}`
+-   **Labels** - Adds a map of labels that to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entrypoint for the container a a string or an array
       of strings

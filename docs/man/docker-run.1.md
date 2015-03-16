@@ -200,7 +200,7 @@ ENTRYPOINT.
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **-l**, **--label**=[]
-   Set meta data on the container (e.g., --label=com.example.key=value)
+   Set metadata on the container (e.g., --label com.example.key=value)
 
 **--label-file**=[]
    Read in a line delimited file of labels
