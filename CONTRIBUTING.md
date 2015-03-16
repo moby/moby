@@ -217,10 +217,18 @@ mixed into the PR.
 feature branch to update your pull request rather than `merge master`.
 
 Before you make a pull request, squash your commits into logical units of work
-using `git rebase -i` and `git push -f`. After every commit, [make sure the test
-suite passes]((https://docs.docker.com/project/test-and-docs/)). Include
-documentation changes in the same pull request so that a revert would remove all
-traces of the feature or fix.
+using `git rebase -i` and `git push -f`. A logical unit of work is a consistent
+set of patches that should be reviewed together: for example, upgrading the
+version of a vendored dependency and taking advantage of its now available new
+feature constitute two separate units of work. Implementing a new function and
+calling it in another file constitute a single logical unit of work. The very
+high majory of submissions should have a single commit, so if in doubt: squash
+down to one.
+
+After every commit, [make sure the test suite passes]
+((https://docs.docker.com/project/test-and-docs/)). Include documentation
+changes in the same pull request so that a revert would remove all traces of
+the feature or fix.
 
 Include an issue reference like `Closes #XXXX` or `Fixes #XXXX` in commits that
 close an issue. Including references automatically closes the issue on a merge.
