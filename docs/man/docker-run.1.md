@@ -49,6 +49,7 @@ docker-run - Run a command in a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
+[**--cgroup-parent**[=*CGROUP-PATH*]]
 IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
@@ -123,6 +124,9 @@ division of CPU shares:
 
 **--cap-drop**=[]
    Drop Linux capabilities
+
+**--cgroup-parent**=""
+   Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
 **--cidfile**=""
    Write the container ID to the file

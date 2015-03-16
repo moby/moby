@@ -46,6 +46,7 @@ docker-create - Create a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
+[**--cgroup-parent**[=*CGROUP-PATH*]]
 IMAGE [COMMAND] [ARG...]
 
 # OPTIONS
@@ -66,6 +67,9 @@ IMAGE [COMMAND] [ARG...]
 
 **--cidfile**=""
    Write the container ID to the file
+
+**--cgroup-parent**=""
+   Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
