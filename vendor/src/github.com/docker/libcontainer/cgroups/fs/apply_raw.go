@@ -99,11 +99,12 @@ func (m *Manager) Apply(pid int) error {
 		// created then join consists of writing the process pids to cgroup.procs
 		p, err := d.path(name)
 		if err != nil {
-			if cgroups.IsNotFound(err) {
-				continue
-			}
 			return err
 		}
+		if !cgroups.PathExists(p) {
+			continue
+		}
+
 		paths[name] = p
 	}
 	m.Paths = paths
@@ -173,6 +174,9 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 	if err != nil {
 		return err
 	}
+	if !cgroups.PathExists(dir) {
+		return cgroups.NewNotFoundError("freezer")
+	}
 
 	prevState := m.Cgroups.Freezer
 	m.Cgroups.Freezer = state
@@ -196,6 +200,9 @@ func (m *Manager) GetPids() ([]int, error) {
 	dir, err := d.path("devices")
 	if err != nil {
 		return nil, err
+	}
+	if !cgroups.PathExists(dir) {
+		return nil, cgroups.NewNotFoundError("devices")
 	}
 
 	return cgroups.ReadProcsFile(dir)
@@ -237,17 +244,7 @@ func (raw *data) path(subsystem string) (string, error) {
 
 	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
 	if filepath.IsAbs(raw.cgroup) {
-		path := filepath.Join(raw.root, subsystem, raw.cgroup)
-
-		if _, err := os.Stat(path); err != nil {
-			if os.IsNotExist(err) {
-				return "", cgroups.NewNotFoundError(subsystem)
-			}
-
-			return "", err
-		}
-
-		return path, nil
+		return filepath.Join(raw.root, subsystem, raw.cgroup), nil
 	}
 
 	parent, err := raw.parent(subsystem)

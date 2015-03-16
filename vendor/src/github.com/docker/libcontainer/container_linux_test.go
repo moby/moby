@@ -125,7 +125,7 @@ func TestGetContainerState(t *testing.T) {
 	container := &linuxContainer{
 		id: "myid",
 		config: &configs.Config{
-			Namespaces: configs.Namespaces{
+			Namespaces: []configs.Namespace{
 				{Type: configs.NEWPID},
 				{Type: configs.NEWNS},
 				{Type: configs.NEWNET, Path: expectedNetworkPath},
