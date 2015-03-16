@@ -71,6 +71,8 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.SetInt("Images", imgcount)
 	v.Set("Driver", daemon.GraphDriver().String())
 	v.SetJson("DriverStatus", daemon.GraphDriver().Status())
+	v.Set("VolumeDriver", daemon.VolumeDriver().String())
+	v.SetJson("VolumeDriverStatus", daemon.VolumeDriver().Status())
 	v.SetBool("MemoryLimit", daemon.SystemConfig().MemoryLimit)
 	v.SetBool("SwapLimit", daemon.SystemConfig().SwapLimit)
 	v.SetBool("IPv4Forwarding", !daemon.SystemConfig().IPv4ForwardingDisabled)
