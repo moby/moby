@@ -216,7 +216,7 @@ func (a *Driver) Remove(id string) error {
 	defer a.Unlock()
 
 	if a.active[id] != 0 {
-		log.Errorf("Warning: removing active id %s", id)
+		log.Errorf("Removing active id %s", id)
 	}
 
 	// Make sure the dir is umounted first

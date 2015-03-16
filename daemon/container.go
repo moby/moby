@@ -897,7 +897,7 @@ func (container *Container) GetSize() (int64, int64) {
 	)
 
 	if err := container.Mount(); err != nil {
-		log.Errorf("Warning: failed to compute size of container rootfs %s: %s", container.ID, err)
+		log.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
 	defer container.Unmount()
@@ -905,7 +905,7 @@ func (container *Container) GetSize() (int64, int64) {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	sizeRw, err = driver.DiffSize(container.ID, initID)
 	if err != nil {
-		log.Errorf("Warning: driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+		log.Errorf("Driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1
@@ -1236,15 +1236,15 @@ func (container *Container) initializeNetworking() error {
 // Make sure the config is compatible with the current kernel
 func (container *Container) verifyDaemonSettings() {
 	if container.Config.Memory > 0 && !container.daemon.sysInfo.MemoryLimit {
-		log.Infof("WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.")
+		log.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
 		container.Config.Memory = 0
 	}
 	if container.Config.Memory > 0 && !container.daemon.sysInfo.SwapLimit {
-		log.Infof("WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.")
+		log.Warnf("Your kernel does not support swap limit capabilities. Limitation discarded.")
 		container.Config.MemorySwap = -1
 	}
 	if container.daemon.sysInfo.IPv4ForwardingDisabled {
-		log.Infof("WARNING: IPv4 forwarding is disabled. Networking will not work")
+		log.Warnf("IPv4 forwarding is disabled. Networking will not work")
 	}
 }
 

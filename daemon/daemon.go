@@ -1231,11 +1231,11 @@ func checkKernel() error {
 	// the circumstances of pre-3.8 crashes are clearer.
 	// For details see http://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
-		log.Infof("WARNING: %s", err)
+		log.Warnf("%s", err)
 	} else {
 		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Infof("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+				log.Warnf("You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 			}
 		}
 	}
