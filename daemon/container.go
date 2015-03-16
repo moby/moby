@@ -102,6 +102,7 @@ type Container struct {
 	monitor            *containerMonitor
 	execCommands       *execStore
 	AppliedVolumesFrom map[string]struct{}
+	callPostUnmount    bool
 }
 
 func (container *Container) FromDisk() error {
@@ -398,7 +399,12 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	return container.waitForStart()
+	if err := container.waitForStart(); err != nil {
+		return err
+	}
+
+	container.Unmount(true)
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -651,8 +657,15 @@ func (container *Container) cleanup() {
 		}
 	}
 
-	if err := container.Unmount(); err != nil {
-		log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+	if container.callPostUnmount {
+		container.callPostUnmount = false
+		if err := container.PostUnmount(); err != nil {
+			log.Errorf("%v: Failed to unmount filesystem: %v", container.ID, err)
+		}
+	} else {
+		if err := container.Unmount(false); err != nil {
+			log.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+		}
 	}
 
 	for _, eConfig := range container.execCommands.s {
@@ -776,7 +789,7 @@ func (container *Container) Restart(seconds int) error {
 	// the container when the container stops and then starts
 	// again
 	if err := container.Mount(); err == nil {
-		defer container.Unmount()
+		defer container.Unmount(false)
 	}
 
 	if err := container.Stop(seconds); err != nil {
@@ -801,12 +814,12 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 	}
 	archive, err := container.daemon.Diff(container)
 	if err != nil {
-		container.Unmount()
+		container.Unmount(false)
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			container.Unmount()
+			container.Unmount(false)
 			return err
 		}),
 		nil
@@ -819,19 +832,34 @@ func (container *Container) Export() (archive.Archive, error) {
 
 	archive, err := archive.Tar(container.basefs, archive.Uncompressed)
 	if err != nil {
-		container.Unmount()
+		container.Unmount(false)
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			container.Unmount()
+			container.Unmount(false)
 			return err
 		}),
 		nil
 }
 
+func (container *Container) PreMount() error {
+	return container.daemon.PreMount(container)
+}
+
+func (container *Container) PostUnmount() error {
+	return container.daemon.PostUnmount(container)
+}
+
 func (container *Container) Mount() error {
 	return container.daemon.Mount(container)
+}
+
+func (container *Container) Unmount(noPostUnmount bool) error {
+	if noPostUnmount {
+		container.callPostUnmount = true
+	}
+	return container.daemon.Unmount(container, noPostUnmount)
 }
 
 func (container *Container) changes() ([]archive.Change, error) {
@@ -849,10 +877,6 @@ func (container *Container) GetImage() (*image.Image, error) {
 		return nil, fmt.Errorf("Can't get image of unregistered container")
 	}
 	return container.daemon.graph.Get(container.ImageID)
-}
-
-func (container *Container) Unmount() error {
-	return container.daemon.Unmount(container)
 }
 
 func (container *Container) logPath(name string) (string, error) {
@@ -900,7 +924,7 @@ func (container *Container) GetSize() (int64, int64) {
 		log.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
-	defer container.Unmount()
+	defer container.Unmount(false)
 
 	initID := fmt.Sprintf("%s-init", container.ID)
 	sizeRw, err = driver.DiffSize(container.ID, initID)
@@ -926,7 +950,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	basePath, err := container.getResourcePath(resource)
 	if err != nil {
-		container.Unmount()
+		container.Unmount(false)
 		return nil, err
 	}
 
@@ -939,7 +963,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 
 	stat, err := os.Stat(basePath)
 	if err != nil {
-		container.Unmount()
+		container.Unmount(false)
 		return nil, err
 	}
 	var filter []string
@@ -957,12 +981,12 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		IncludeFiles: filter,
 	})
 	if err != nil {
-		container.Unmount()
+		container.Unmount(false)
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			container.Unmount()
+			container.Unmount(false)
 			return err
 		}),
 		nil

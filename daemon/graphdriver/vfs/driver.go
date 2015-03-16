@@ -73,6 +73,14 @@ func (d *Driver) Remove(id string) error {
 	return os.RemoveAll(d.dir(id))
 }
 
+func (d *Driver) Prepare(id string) error {
+	return nil
+}
+
+func (d *Driver) Unprepare(id string) error {
+	return nil
+}
+
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dir := d.dir(id)
 	if st, err := os.Stat(dir); err != nil {

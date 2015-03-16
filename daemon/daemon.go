@@ -281,7 +281,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 			daemon.execDriver.Terminate(cmd)
 		}
 
-		if err := container.Unmount(); err != nil {
+		if err := container.Unmount(false); err != nil {
 			log.Debugf("unmount error %s", err)
 		}
 		if err := container.ToDisk(); err != nil {
@@ -665,6 +665,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 		ExecDriver:      daemon.execDriver.Name(),
 		State:           NewState(),
 		execCommands:    newExecStore(),
+		callPostUnmount: false,
 	}
 	container.root = daemon.containerRoot(container.ID)
 	return container, err
@@ -680,6 +681,12 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 	if err := daemon.driver.Create(initID, container.ImageID); err != nil {
 		return err
 	}
+
+	if err := daemon.driver.Prepare(initID); err != nil {
+		return err
+	}
+	defer daemon.driver.Unprepare(initID)
+
 	initPath, err := daemon.driver.Get(initID, "")
 	if err != nil {
 		return err
@@ -1058,23 +1065,47 @@ func (daemon *Daemon) shutdown() error {
 	return nil
 }
 
+func (daemon *Daemon) PreMount(container *Container) error {
+	if err := daemon.driver.Prepare(container.ID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (daemon *Daemon) PostUnmount(container *Container) error {
+	if err := daemon.driver.Unprepare(container.ID); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (daemon *Daemon) Mount(container *Container) error {
+	if err := daemon.PreMount(container); err != nil {
+		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
+	}
+
 	dir, err := daemon.driver.Get(container.ID, container.GetMountLabel())
 	if err != nil {
+		daemon.PostUnmount(container)
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
 	}
 	if container.basefs == "" {
 		container.basefs = dir
 	} else if container.basefs != dir {
 		daemon.driver.Put(container.ID)
+		daemon.PostUnmount(container)
 		return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
 			daemon.driver, container.ID, container.basefs, dir)
 	}
 	return nil
 }
 
-func (daemon *Daemon) Unmount(container *Container) error {
+func (daemon *Daemon) Unmount(container *Container, noPostUnmount bool) error {
 	daemon.driver.Put(container.ID)
+	if noPostUnmount == true {
+		return nil
+	}
+	daemon.PostUnmount(container)
 	return nil
 }
 
