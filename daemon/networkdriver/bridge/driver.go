@@ -522,7 +522,8 @@ func Allocate(job *engine.Job) engine.Status {
 		// If globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
 		netmask_ones, _ := globalIPv6Network.Mask.Size()
 		if requestedIPv6 == nil && netmask_ones <= 80 {
-			requestedIPv6 = globalIPv6Network.IP
+			requestedIPv6 = make(net.IP, len(globalIPv6Network.IP))
+			copy(requestedIPv6, globalIPv6Network.IP)
 			for i, h := range mac {
 				requestedIPv6[i+10] = h
 			}
