@@ -62,7 +62,7 @@ func (d *Driver) Create(id, parent string) error {
 		idInitFile := d.initFile(id)
 		if err := ioutil.WriteFile(idInitFile, []byte(parentDir), 0600); err != nil {
 			return err
-		} 
+		}
 		return nil
 	}
 	if strings.Contains(parent, "-init") {
@@ -80,7 +80,7 @@ func (d *Driver) Create(id, parent string) error {
 }
 
 func (d *Driver) initFile(id string) string {
-	return path.Join(d.home, "dir", path.Base(id),"parentdir")
+	return path.Join(d.home, "dir", path.Base(id), "parentdir")
 }
 
 func (d *Driver) dir(id string) string {
