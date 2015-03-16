@@ -16,9 +16,6 @@ int my_btrfs_lib_version() {
 */
 import "C"
 
-func BtrfsBuildVersion() string {
-	return string(C.BTRFS_BUILD_VERSION)
-}
 func BtrfsLibVersion() int {
 	return int(C.BTRFS_LIB_VERSION)
 }
