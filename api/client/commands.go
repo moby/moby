@@ -769,18 +769,6 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, true)
 
-	hijacked := make(chan io.Closer)
-	// Block the return until the chan gets closed
-	defer func() {
-		log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
-		if _, ok := <-hijacked; ok {
-			log.Errorf("Hijack did not finish (chan still open)")
-		}
-		if *openStdin || *attach {
-			cli.in.Close()
-		}
-	}()
-
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
@@ -816,26 +804,34 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v.Set("stdout", "1")
 		v.Set("stderr", "1")
 
+		hijacked := make(chan io.Closer)
+		// Block the return until the chan gets closed
+		defer func() {
+			log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
+			if _, ok := <-hijacked; ok {
+				log.Errorf("Hijack did not finish (chan still open)")
+			}
+			cli.in.Close()
+		}()
 		cErr = promise.Go(func() error {
 			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, hijacked, nil)
 		})
-	} else {
-		close(hijacked)
+
+		// Acknowledge the hijack before starting
+		select {
+		case closer := <-hijacked:
+			// Make sure that the hijack gets closed when returning (results
+			// in closing the hijack chan and freeing server's goroutines)
+			if closer != nil {
+				defer closer.Close()
+			}
+		case err := <-cErr:
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	// Acknowledge the hijack before starting
-	select {
-	case closer := <-hijacked:
-		// Make sure that the hijack gets closed when returning (results
-		// in closing the hijack chan and freeing server's goroutines)
-		if closer != nil {
-			defer closer.Close()
-		}
-	case err := <-cErr:
-		if err != nil {
-			return err
-		}
-	}
 	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, false))
