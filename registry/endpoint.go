@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry/v2"
+	"github.com/docker/docker/utils"
 )
 
 // for mocking in unit tests
@@ -133,24 +134,25 @@ func (e *Endpoint) Path(path string) string {
 
 func (e *Endpoint) Ping() (RegistryInfo, error) {
 	// The ping logic to use is determined by the registry endpoint version.
+	factory := HTTPRequestFactory(nil)
 	switch e.Version {
 	case APIVersion1:
-		return e.pingV1()
+		return e.pingV1(factory)
 	case APIVersion2:
-		return e.pingV2()
+		return e.pingV2(factory)
 	}
 
 	// APIVersionUnknown
 	// We should try v2 first...
 	e.Version = APIVersion2
-	regInfo, errV2 := e.pingV2()
+	regInfo, errV2 := e.pingV2(factory)
 	if errV2 == nil {
 		return regInfo, nil
 	}
 
 	// ... then fallback to v1.
 	e.Version = APIVersion1
-	regInfo, errV1 := e.pingV1()
+	regInfo, errV1 := e.pingV1(factory)
 	if errV1 == nil {
 		return regInfo, nil
 	}
@@ -159,7 +161,7 @@ func (e *Endpoint) Ping() (RegistryInfo, error) {
 	return RegistryInfo{}, fmt.Errorf("unable to ping registry endpoint %s\nv2 ping attempt failed with error: %s\n v1 ping attempt failed with error: %s", e, errV2, errV1)
 }
 
-func (e *Endpoint) pingV1() (RegistryInfo, error) {
+func (e *Endpoint) pingV1(factory *utils.HTTPRequestFactory) (RegistryInfo, error) {
 	log.Debugf("attempting v1 ping for registry endpoint %s", e)
 
 	if e.String() == IndexServerAddress() {
@@ -168,7 +170,7 @@ func (e *Endpoint) pingV1() (RegistryInfo, error) {
 		return RegistryInfo{Standalone: false}, nil
 	}
 
-	req, err := http.NewRequest("GET", e.Path("_ping"), nil)
+	req, err := factory.NewRequest("GET", e.Path("_ping"), nil)
 	if err != nil {
 		return RegistryInfo{Standalone: false}, err
 	}
@@ -213,10 +215,10 @@ func (e *Endpoint) pingV1() (RegistryInfo, error) {
 	return info, nil
 }
 
-func (e *Endpoint) pingV2() (RegistryInfo, error) {
+func (e *Endpoint) pingV2(factory *utils.HTTPRequestFactory) (RegistryInfo, error) {
 	log.Debugf("attempting v2 ping for registry endpoint %s", e)
 
-	req, err := http.NewRequest("GET", e.Path(""), nil)
+	req, err := factory.NewRequest("GET", e.Path(""), nil)
 	if err != nil {
 		return RegistryInfo{}, err
 	}
