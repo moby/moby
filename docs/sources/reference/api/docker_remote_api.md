@@ -72,6 +72,10 @@ Added a `RepoDigests` field to include image digest information.
 **New!**
 Builds can now set resource constraints for all containers created for the build.
 
+**New!**
+(`CgroupParent`) can be passed in the host config to setup container cgroups under a specific cgroup.
+
+
 ## v1.17
 
 ### Full Documentation

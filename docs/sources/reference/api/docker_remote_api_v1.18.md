@@ -162,7 +162,8 @@ Create a container
                "NetworkMode": "bridge",
                "Devices": [],
                "Ulimits": [{}],
-               "LogConfig": { "Type": "json-file", Config: {} }
+               "LogConfig": { "Type": "json-file", Config: {} },
+               "CgroupParent": ""
             }
         }
 
@@ -260,6 +261,7 @@ Json Parameters:
         `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}
         Available types: `json-file`, `none`.
         `json-file` logging driver.
+  -   **CgroupParent** - Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
 Query Parameters:
 
