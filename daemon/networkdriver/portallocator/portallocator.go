@@ -69,11 +69,11 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 }
 
 func init() {
-	const param = "/proc/sys/net/ipv4/ip_local_port_range"
+	const portRangeKernelParam = "/proc/sys/net/ipv4/ip_local_port_range"
 
-	file, err := os.Open(param)
+	file, err := os.Open(portRangeKernelParam)
 	if err != nil {
-		log.Errorf("Failed to read %s kernel parameter: %s", param, err.Error())
+		log.Errorf("Failed to read %s kernel parameter: %v", portRangeKernelParam, err)
 		return
 	}
 	var start, end int
@@ -82,7 +82,7 @@ func init() {
 		if err == nil {
 			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
 		}
-		log.Errorf("Failed to parse port range from %s: %v", param, err)
+		log.Errorf("Failed to parse port range from %s: %v", portRangeKernelParam, err)
 		return
 	}
 	beginPortRange = start

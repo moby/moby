@@ -920,7 +920,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, false))
 		if err != nil {
 			if strings.Contains(err.Error(), "Too many") {
-				fmt.Fprintf(cli.err, "Error: %s", err.Error())
+				fmt.Fprintf(cli.err, "Error: %v", err)
 				status = 1
 				continue
 			}
@@ -2795,7 +2795,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	for _, c := range cStats {
 		c.mu.Lock()
 		if c.err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %s", c.Name, c.err.Error()))
+			errs = append(errs, fmt.Sprintf("%s: %v", c.Name, c.err))
 		}
 		c.mu.Unlock()
 	}

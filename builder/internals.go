@@ -734,7 +734,7 @@ func (b *Builder) clearTmp() {
 		}
 
 		if err := b.Daemon.Rm(tmp); err != nil {
-			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", common.TruncateID(c), err.Error())
+			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %v\n", common.TruncateID(c), err)
 			return
 		}
 		b.Daemon.DeleteVolumes(tmp.VolumePaths())

@@ -134,7 +134,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		log.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		log.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
 		http.Error(w, err.Error(), statusCode)
 	}
 }
@@ -1122,7 +1122,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	job.Stdout.Add(w)
 	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("%v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {

@@ -1015,10 +1015,10 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 			log.Errorf("portallocator.ReleaseAll(): %s", err)
 		}
 		if err := daemon.driver.Cleanup(); err != nil {
-			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
+			log.Errorf("daemon.driver.Cleanup(): %v", err)
 		}
 		if err := daemon.containerGraph.Close(); err != nil {
-			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
+			log.Errorf("daemon.containerGraph.Close(): %v", err)
 		}
 	})
 

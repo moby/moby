@@ -531,7 +531,7 @@ func Allocate(job *engine.Job) engine.Status {
 
 		globalIPv6, err = ipallocator.RequestIP(globalIPv6Network, requestedIPv6)
 		if err != nil {
-			log.Errorf("Allocator: RequestIP v6: %s", err.Error())
+			log.Errorf("Allocator: RequestIP v6: %v", err)
 			return job.Error(err)
 		}
 		log.Infof("Allocated IPv6 %s", globalIPv6)
