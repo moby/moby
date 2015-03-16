@@ -33,7 +33,7 @@ func TestTestNegative(t *testing.T) {
 
 		df, err := os.Open(dockerfile)
 		if err != nil {
-			t.Fatalf("Dockerfile missing for %s: %s", dir, err.Error())
+			t.Fatalf("Dockerfile missing for %s: %v", dir, err)
 		}
 
 		_, err = Parse(df)
@@ -52,18 +52,18 @@ func TestTestData(t *testing.T) {
 
 		df, err := os.Open(dockerfile)
 		if err != nil {
-			t.Fatalf("Dockerfile missing for %s: %s", dir, err.Error())
+			t.Fatalf("Dockerfile missing for %s: %v", dir, err)
 		}
 		defer df.Close()
 
 		ast, err := Parse(df)
 		if err != nil {
-			t.Fatalf("Error parsing %s's dockerfile: %s", dir, err.Error())
+			t.Fatalf("Error parsing %s's dockerfile: %v", dir, err)
 		}
 
 		content, err := ioutil.ReadFile(resultfile)
 		if err != nil {
-			t.Fatalf("Error reading %s's result file: %s", dir, err.Error())
+			t.Fatalf("Error reading %s's result file: %v", dir, err)
 		}
 
 		if ast.Dump()+"\n" != string(content) {
