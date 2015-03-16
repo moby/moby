@@ -12,7 +12,7 @@ docker-run - Run a command in a new container
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
-[**--cpuset**[=*CPUSET*]]
+[**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**-d**|**--detach**[=*false*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -124,7 +124,7 @@ division of CPU shares:
 **--cidfile**=""
    Write the container ID to the file
 
-**--cpuset**=""
+**--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
 
 **-d**, **--detach**=*true*|*false*

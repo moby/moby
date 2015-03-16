@@ -113,10 +113,6 @@ Create a container
              "Hostname": "",
              "Domainname": "",
              "User": "",
-             "Memory": 0,
-             "MemorySwap": 0,
-             "CpuShares": 512,
-             "Cpuset": "0,1",
              "AttachStdin": false,
              "AttachStdout": true,
              "AttachStderr": true,
@@ -143,6 +139,10 @@ Create a container
                "Binds": ["/tmp:/tmp"],
                "Links": ["redis3:redis"],
                "LxcConf": {"lxc.utsname":"docker"},
+               "Memory": 0,
+               "MemorySwap": 0,
+               "CpuShares": 512,
+               "CpusetCpus": "0,1",
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
@@ -182,7 +182,8 @@ Json Parameters:
       always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs othercontainers).
-    **CpuSet** - String value containg the cgroups Cpuset to use.
+-   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
+-   **CpusetCpus** - String value containg the cgroups CpusetCpus to use.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -195,7 +196,7 @@ Json Parameters:
       of strings
 -   **Image** - String value containing the image name to use for the container
 -   **Volumes** – An object mapping mountpoint paths (strings) inside the
-        container to empty objects.
+      container to empty objects.
 -   **WorkingDir** - A string value containing the working dir for commands to
       run in.
 -   **NetworkDisabled** - Boolean value, when true disables neworking for the
@@ -292,8 +293,6 @@ Return low-level information on the container `id`
 				"-c",
 				"exit 9"
 			],
-			"CpuShares": 0,
-			"Cpuset": "",
 			"Domainname": "",
 			"Entrypoint": null,
 			"Env": [
@@ -303,8 +302,6 @@ Return low-level information on the container `id`
 			"Hostname": "ba033ac44011",
 			"Image": "ubuntu",
 			"MacAddress": "",
-			"Memory": 0,
-			"MemorySwap": 0,
 			"NetworkDisabled": false,
 			"OnBuild": null,
 			"OpenStdin": false,
@@ -324,6 +321,8 @@ Return low-level information on the container `id`
 			"CapAdd": null,
 			"CapDrop": null,
 			"ContainerIDFile": "",
+			"CpusetCpus": "",
+			"CpuShares": 0,
 			"Devices": [],
 			"Dns": null,
 			"DnsSearch": null,
@@ -331,6 +330,8 @@ Return low-level information on the container `id`
 			"IpcMode": "",
 			"Links": null,
 			"LxcConf": [],
+			"Memory": 0,
+			"MemorySwap": 0,
 			"NetworkMode": "bridge",
 			"PortBindings": {},
 			"Privileged": false,
@@ -1173,8 +1174,6 @@ Return low-level information on the image `name`
                      {
                              "Hostname": "",
                              "User": "",
-                             "Memory": 0,
-                             "MemorySwap": 0,
                              "AttachStdin": false,
                              "AttachStdout": false,
                              "AttachStderr": false,
@@ -1540,10 +1539,6 @@ Create a new image from a container's changes
              "Hostname": "",
              "Domainname": "",
              "User": "",
-             "Memory": 0,
-             "MemorySwap": 0,
-             "CpuShares": 512,
-             "Cpuset": "0,1",
              "AttachStdin": false,
              "AttachStdout": true,
              "AttachStderr": true,
@@ -1897,10 +1892,6 @@ Return low-level information about the exec command `id`.
               "Hostname" : "8f177a186b97",
               "Domainname" : "",
               "User" : "",
-              "Memory" : 0,
-              "MemorySwap" : 0,
-              "CpuShares" : 0,
-              "Cpuset" : "",
               "AttachStdin" : false,
               "AttachStdout" : false,
               "AttachStderr" : false,

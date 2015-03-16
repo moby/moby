@@ -780,7 +780,7 @@ Creates a new container.
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
-      --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -1646,7 +1646,7 @@ removed before the image is removed.
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
-      --cpuset=""                CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers

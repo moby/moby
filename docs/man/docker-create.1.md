@@ -12,7 +12,7 @@ docker-create - Create a new container
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
-[**--cpuset**[=*CPUSET*]]
+[**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -64,7 +64,7 @@ IMAGE [COMMAND] [ARG...]
 **--cidfile**=""
    Write the container ID to the file
 
-**--cpuset**=""
+**--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
 
 **--device**=[]

@@ -103,6 +103,10 @@ type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         []utils.KeyValuePair
+	Memory          int64  // Memory limit (in bytes)
+	MemorySwap      int64  // Total memory usage (memory + swap); set `-1` to disable swap
+	CpuShares       int64  // CPU shares (relative weight vs. other containers)
+	CpusetCpus      string // CpusetCpus 0-2, 0,1
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
@@ -141,17 +145,44 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if job.EnvExists("HostConfig") {
 		hostConfig := HostConfig{}
 		job.GetenvJson("HostConfig", &hostConfig)
+
+		// FIXME: These are for backward compatibility, if people use these
+		// options with `HostConfig`, we should still make them workable.
+		if job.EnvExists("Memory") && hostConfig.Memory == 0 {
+			hostConfig.Memory = job.GetenvInt64("Memory")
+		}
+		if job.EnvExists("MemorySwap") && hostConfig.MemorySwap == 0 {
+			hostConfig.MemorySwap = job.GetenvInt64("MemorySwap")
+		}
+		if job.EnvExists("CpuShares") && hostConfig.CpuShares == 0 {
+			hostConfig.CpuShares = job.GetenvInt64("CpuShares")
+		}
+		if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
+			hostConfig.CpusetCpus = job.Getenv("Cpuset")
+		}
+
 		return &hostConfig
 	}
 
 	hostConfig := &HostConfig{
 		ContainerIDFile: job.Getenv("ContainerIDFile"),
+		Memory:          job.GetenvInt64("Memory"),
+		MemorySwap:      job.GetenvInt64("MemorySwap"),
+		CpuShares:       job.GetenvInt64("CpuShares"),
+		CpusetCpus:      job.Getenv("CpusetCpus"),
 		Privileged:      job.GetenvBool("Privileged"),
 		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
 		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
 		IpcMode:         IpcMode(job.Getenv("IpcMode")),
 		PidMode:         PidMode(job.Getenv("PidMode")),
 		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
+	}
+
+	// FIXME: This is for backward compatibility, if people use `Cpuset`
+	// in json, make it workable, we will only pass hostConfig.CpusetCpus
+	// to execDriver.
+	if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
+		hostConfig.CpusetCpus = job.Getenv("Cpuset")
 	}
 
 	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
