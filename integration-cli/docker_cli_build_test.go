@@ -4343,16 +4343,16 @@ func TestBuildCmdJSONNoShDashC(t *testing.T) {
 	logDone("build - cmd should not have /bin/sh -c for json")
 }
 
-func TestBuildIgnoreInvalidInstruction(t *testing.T) {
+func TestBuildErrorInvalidInstruction(t *testing.T) {
 	name := "testbuildignoreinvalidinstruction"
 	defer deleteImages(name)
 
 	out, _, err := buildImageWithOut(name, "FROM busybox\nfoo bar", true)
-	if err != nil {
-		t.Fatal(err, out)
+	if err == nil {
+		t.Fatalf("Should have failed: %s", out)
 	}
 
-	logDone("build - ignore invalid Dockerfile instruction")
+	logDone("build - error invalid Dockerfile instruction")
 }
 
 func TestBuildEntrypointInheritance(t *testing.T) {
