@@ -46,7 +46,7 @@ start or restart `firewalld` after Docker, you will have to restart the Docker d
 
 ## Installing Docker - CentOS-6.5
 
-For Centos-6.5, the Docker package is part of [Extra Packages
+For CentOS-6.5, the Docker package is part of [Extra Packages
 for Enterprise Linux (EPEL)](https://fedoraproject.org/wiki/EPEL) repository,
 a community effort to create and maintain additional packages for the RHEL distribution.
 
