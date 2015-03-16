@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -22,6 +23,9 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 	config := runconfig.ContainerConfigFromJob(job)
 	hostConfig := runconfig.ContainerHostConfigFromJob(job)
 
+	if len(hostConfig.LxcConf) > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
+		return job.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
+	}
 	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
 		return job.Errorf("Minimum memory limit allowed is 4MB")
 	}
