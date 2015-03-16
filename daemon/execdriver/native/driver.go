@@ -315,6 +315,9 @@ func (d *driver) Clean(id string) error {
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	c := d.activeContainers[id]
+	if c == nil {
+		return nil, execdriver.ErrNotRunning
+	}
 	now := time.Now()
 	stats, err := c.Stats()
 	if err != nil {

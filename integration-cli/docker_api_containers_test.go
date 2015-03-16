@@ -307,7 +307,7 @@ func TestGetContainerStats(t *testing.T) {
 		t.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
 		if sr.err != nil {
-			t.Fatal(err)
+			t.Fatal(sr.err)
 		}
 
 		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
@@ -318,6 +318,32 @@ func TestGetContainerStats(t *testing.T) {
 		}
 	}
 	logDone("container REST API - check GET containers/stats")
+}
+
+func TestGetStoppedContainerStats(t *testing.T) {
+	defer deleteAllContainers()
+	var (
+		name   = "statscontainer"
+		runCmd = exec.Command(dockerBinary, "create", "--name", name, "busybox", "top")
+	)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+
+	go func() {
+		// We'll never get return for GET stats from sockRequest as of now,
+		// just send request and see if panic or error would happen on daemon side.
+		_, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// allow some time to send request and let daemon deal with it
+	time.Sleep(1 * time.Second)
+
+	logDone("container REST API - check GET stopped containers/stats")
 }
 
 func TestBuildApiDockerfilePath(t *testing.T) {
