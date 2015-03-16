@@ -212,6 +212,20 @@ func (d *driver) setupRlimits(container *configs.Config, c *execdriver.Command) 
 }
 
 func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) error {
+	userMounts := make(map[string]struct{})
+	for _, m := range c.Mounts {
+		userMounts[m.Destination] = struct{}{}
+	}
+
+	// Filter out mounts that are overriden by user supplied mounts
+	var defaultMounts []*configs.Mount
+	for _, m := range container.Mounts {
+		if _, ok := userMounts[m.Destination]; !ok {
+			defaultMounts = append(defaultMounts, m)
+		}
+	}
+	container.Mounts = defaultMounts
+
 	for _, m := range c.Mounts {
 		dest, err := symlink.FollowSymlinkInScope(filepath.Join(c.Rootfs, m.Destination), c.Rootfs)
 		if err != nil {
