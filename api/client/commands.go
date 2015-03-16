@@ -227,6 +227,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 	}
+
+	// windows: show error message about modified file permissions
+	// FIXME: this is not a valid warning when the daemon is running windows. should be removed once docker engine for windows can build.
+	if runtime.GOOS == "windows" {
+		log.Warn(`SECURITY WARNING: You are building a Docker image from Windows against a Linux Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
+	}
+
 	var body io.Reader
 	// Setup an upload progress bar
 	// FIXME: ProgressReader shouldn't be this annoying to use

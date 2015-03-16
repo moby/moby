@@ -4551,8 +4551,19 @@ func TestBuildStderr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stderr != "" {
-		t.Fatalf("Stderr should have been empty, instead its: %q", stderr)
+
+	if runtime.GOOS == "windows" {
+		// stderr might contain a security warning on windows
+		lines := strings.Split(stderr, "\n")
+		for _, v := range lines {
+			if v != "" && !strings.Contains(v, "SECURITY WARNING:") {
+				t.Fatalf("Stderr contains unexpected output line: %q", v)
+			}
+		}
+	} else {
+		if stderr != "" {
+			t.Fatalf("Stderr should have been empty, instead its: %q", stderr)
+		}
 	}
 	logDone("build - testing stderr")
 }
