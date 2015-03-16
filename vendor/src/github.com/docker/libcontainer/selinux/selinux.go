@@ -159,6 +159,11 @@ func Setfilecon(path string, scon string) error {
 // Getfilecon returns the SELinux label for this path or returns an error.
 func Getfilecon(path string) (string, error) {
 	con, err := system.Lgetxattr(path, xattrNameSelinux)
+
+	// Trim the NUL byte at the end of the byte buffer, if present.
+	if con[len(con)-1] == '\x00' {
+		con = con[:len(con)-1]
+	}
 	return string(con), err
 }
 
