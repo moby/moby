@@ -97,6 +97,7 @@ expect an integer, and they can only be specified once.
       --ipv6=false                           Enable IPv6 networking
       -l, --log-level="info"                 Set the logging level
       --label=[]                             Set key=value labels to the daemon
+      --log-driver="json-file"               Container's logging driver (json-file/none)
       --mtu=0                                Set the containers network MTU
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
@@ -817,6 +818,7 @@ Creates a new container.
       -l, --label=[]             Set metadata on the container (e.g., --label=com.example.key=value)
       --label-file=[]            Read in a line delimited file of labels
       --link=[]                  Add link to another container
+      --log-driver=""            Logging driver for container
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
@@ -1447,6 +1449,9 @@ For example:
       -t, --timestamps=false    Show timestamps
       --tail="all"              Number of lines to show from the end of the logs
 
+NOTE: this command is available only for containers with `json-file` logging
+driver.
+
 The `docker logs` command batch-retrieves logs present at the time of execution.
 
 The `docker logs --follow` command will continue streaming the new output from
@@ -1722,6 +1727,7 @@ To remove an image using its digest:
       -i, --interactive=false    Keep STDIN open even if not attached
       --ipc=""                   IPC namespace to use
       --link=[]                  Add link to another container
+      --log-driver=""            Logging driver for container
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
       -l, --label=[]             Set metadata on the container (e.g., --label=com.example.key=value)

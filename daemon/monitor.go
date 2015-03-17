@@ -123,7 +123,7 @@ func (m *containerMonitor) Start() error {
 	for {
 		m.container.RestartCount++
 
-		if err := m.container.startLoggingToDisk(); err != nil {
+		if err := m.container.startLogging(); err != nil {
 			m.resetContainer(false)
 
 			return err
@@ -300,6 +300,11 @@ func (m *containerMonitor) resetContainer(lock bool) {
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	if container.logDriver != nil {
+		container.logDriver.Close()
+		container.logDriver = nil
 	}
 
 	c := container.command.ProcessConfig.Cmd

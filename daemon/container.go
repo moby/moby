@@ -21,6 +21,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
@@ -98,9 +100,11 @@ type Container struct {
 	VolumesRW  map[string]bool
 	hostConfig *runconfig.HostConfig
 
-	activeLinks        map[string]*links.Link
-	monitor            *containerMonitor
-	execCommands       *execStore
+	activeLinks  map[string]*links.Link
+	monitor      *containerMonitor
+	execCommands *execStore
+	// logDriver for closing
+	logDriver          logger.Logger
 	AppliedVolumesFrom map[string]struct{}
 }
 
@@ -1355,21 +1359,36 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) startLoggingToDisk() error {
-	// Setup logging of stdout and stderr to disk
-	logPath, err := container.logPath("json")
-	if err != nil {
-		return err
+func (container *Container) startLogging() error {
+	cfg := container.hostConfig.LogConfig
+	if cfg.Type == "" {
+		cfg = container.daemon.defaultLogConfig
 	}
-	container.LogPath = logPath
+	var l logger.Logger
+	switch cfg.Type {
+	case "json-file":
+		pth, err := container.logPath("json")
+		if err != nil {
+			return err
+		}
 
-	if err := container.daemon.LogToDisk(container.stdout, container.LogPath, "stdout"); err != nil {
-		return err
+		dl, err := jsonfilelog.New(pth)
+		if err != nil {
+			return err
+		}
+		l = dl
+	case "none":
+		return nil
+	default:
+		return fmt.Errorf("Unknown logging driver: %s", cfg.Type)
 	}
 
-	if err := container.daemon.LogToDisk(container.stderr, container.LogPath, "stderr"); err != nil {
+	if copier, err := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l); err != nil {
 		return err
+	} else {
+		copier.Run()
 	}
+	container.logDriver = l
 
 	return nil
 }
@@ -1469,4 +1488,13 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 
 func (container *Container) Stats() (*execdriver.ResourceStats, error) {
 	return container.daemon.Stats(container)
+}
+
+func (c *Container) LogDriverType() string {
+	c.Lock()
+	defer c.Unlock()
+	if c.hostConfig.LogConfig.Type == "" {
+		return c.daemon.defaultLogConfig.Type
+	}
+	return c.hostConfig.LogConfig.Type
 }

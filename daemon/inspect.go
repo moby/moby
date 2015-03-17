@@ -62,6 +62,14 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) engine.Status {
 			container.hostConfig.Links = append(container.hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 		}
 	}
+	// we need this trick to preserve empty log driver, so
+	// container will use daemon defaults even if daemon change them
+	if container.hostConfig.LogConfig.Type == "" {
+		container.hostConfig.LogConfig = daemon.defaultLogConfig
+		defer func() {
+			container.hostConfig.LogConfig = runconfig.LogConfig{}
+		}()
+	}
 
 	out.SetJson("HostConfig", container.hostConfig)
 

@@ -89,6 +89,10 @@ unix://[/path/to/socket] to use.
 **--label**="[]"
   Set key=value labels to the daemon (displayed in `docker info`)
 
+**--log-driver**="*json-file*|*none*"
+  Container's logging driver. Default is `default`.
+  **Warning**: `docker logs` command works only for `json-file` logging driver.
+
 **--mtu**=VALUE
   Set the containers network mtu. Default is `0`.
 

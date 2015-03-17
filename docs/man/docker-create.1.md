@@ -28,6 +28,7 @@ docker-create - Create a new container
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
+[**--log-driver**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
@@ -115,6 +116,10 @@ IMAGE [COMMAND] [ARG...]
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+
+**--log-driver**="|*json-file*|*none*"
+  Logging driver for container. Default is defined by daemon `--log-driver` flag.
+  **Warning**: `docker logs` command works only for `json-file` logging driver.
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)

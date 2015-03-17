@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/docker/runconfig"
 )
 
 const (
@@ -47,6 +48,7 @@ type Config struct {
 	TrustKeyPath                string
 	Labels                      []string
 	Ulimits                     map[string]*ulimit.Ulimit
+	LogConfig                   runconfig.LogConfig
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -81,6 +83,7 @@ func (config *Config) InstallFlags() {
 	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon")
 	config.Ulimits = make(map[string]*ulimit.Ulimit)
 	opts.UlimitMapVar(config.Ulimits, []string{"-default-ulimit"}, "Set default ulimits for containers")
+	flag.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", "Containers logging driver(json-file/none)")
 }
 
 func getDefaultNetworkMtu() int {

@@ -99,6 +99,11 @@ type RestartPolicy struct {
 	MaximumRetryCount int
 }
 
+type LogConfig struct {
+	Type   string
+	Config map[string]string
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
@@ -125,6 +130,7 @@ type HostConfig struct {
 	SecurityOpt     []string
 	ReadonlyRootfs  bool
 	Ulimits         []*ulimit.Ulimit
+	LogConfig       LogConfig
 }
 
 // This is used by the create command when you want to set both the
@@ -189,9 +195,8 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
 	job.GetenvJson("Devices", &hostConfig.Devices)
 	job.GetenvJson("RestartPolicy", &hostConfig.RestartPolicy)
-
 	job.GetenvJson("Ulimits", &hostConfig.Ulimits)
-
+	job.GetenvJson("LogConfig", &hostConfig.LogConfig)
 	hostConfig.SecurityOpt = job.GetenvList("SecurityOpt")
 	if Binds := job.GetenvList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds
