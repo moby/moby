@@ -153,7 +153,7 @@ A Dockerfile is similar to a Makefile.
   -- `LABEL <key>[=<value>] [<key>[=<value>] ...]`
   The **LABEL** instruction adds metadata to an image. A **LABEL** is a
   key-value pair. To include spaces within a **LABEL** value, use quotes and
-  blackslashes as you would in command-line parsing.
+  backslashes as you would in command-line parsing.
 
   ```
   LABEL "com.example.vendor"="ACME Incorporated"
