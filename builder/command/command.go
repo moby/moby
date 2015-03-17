@@ -22,6 +22,7 @@ const (
 // Commands is list of all Dockerfile commands
 var Commands = map[string]struct{}{
 	Env:        {},
+	Label:      {},
 	Maintainer: {},
 	Add:        {},
 	Copy:       {},

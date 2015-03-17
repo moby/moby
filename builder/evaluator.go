@@ -49,6 +49,7 @@ var (
 // Environment variable interpolation will happen on these statements only.
 var replaceEnvAllowed = map[string]struct{}{
 	command.Env:     {},
+	command.Label:   {},
 	command.Add:     {},
 	command.Copy:    {},
 	command.Workdir: {},

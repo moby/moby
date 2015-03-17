@@ -137,7 +137,7 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 	}
 
 	if len(words) == 0 {
-		return nil, nil, fmt.Errorf(key + " requires at least one argument")
+		return nil, nil, nil
 	}
 
 	// Old format (KEY name value)
