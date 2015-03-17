@@ -132,7 +132,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 
 4. To set the environment variables in your shell do the following:
 
-		$ $(boot2docker shellinit)
+		$ eval "$(boot2docker shellinit)"
 		
 	You can also set them manually by using the `export` commands `boot2docker`
 	returns.
