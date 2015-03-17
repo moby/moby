@@ -133,7 +133,7 @@ func mainDaemon() {
 			return
 		}
 
-		log.Debugf("daemon finished")
+		log.Debugf("daemon completed loading")
 	}()
 
 	// Serve api
