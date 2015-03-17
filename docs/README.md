@@ -106,7 +106,7 @@ also update the root docs pages by running
 > if you are using Boot2Docker on OSX and the above command returns an error,
 > `Post http:///var/run/docker.sock/build?rm=1&t=docker-docs%3Apost-1.2.0-docs_update-2:
 > dial unix /var/run/docker.sock: no such file or directory', you need to set the Docker
-> host. Run `$(boot2docker shellinit)` to see the correct variable to set. The command
+> host. Run `eval "$(boot2docker shellinit)"` to see the correct variable to set. The command
 > will return the full `export` command, so you can just cut and paste.
 
 ## Cherry-picking documentation changes to update an existing release.
