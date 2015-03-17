@@ -73,7 +73,7 @@ func init() {
 
 	file, err := os.Open(portRangeKernelParam)
 	if err != nil {
-		log.Errorf("Failed to read %s kernel parameter: %v", portRangeKernelParam, err)
+		log.Warnf("Failed to read %s kernel parameter: %v", portRangeKernelParam, err)
 		return
 	}
 	var start, end int
