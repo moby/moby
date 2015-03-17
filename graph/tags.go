@@ -3,6 +3,7 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,6 +25,10 @@ var (
 	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
 )
 
+type Attacher interface {
+	Attach(out io.Writer, err io.Writer)
+}
+
 type TagStore struct {
 	path         string
 	graph        *Graph
@@ -32,8 +37,8 @@ type TagStore struct {
 	sync.Mutex
 	// FIXME: move push/pull-related fields
 	// to a helper type
-	pullingPool map[string]chan struct{}
-	pushingPool map[string]chan struct{}
+	pullingPool map[string]Attacher
+	pushingPool map[string]Attacher
 }
 
 type Repository map[string]string
@@ -67,8 +72,8 @@ func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey) (*TagStore,
 		graph:        graph,
 		trustKey:     key,
 		Repositories: make(map[string]Repository),
-		pullingPool:  make(map[string]chan struct{}),
-		pushingPool:  make(map[string]chan struct{}),
+		pullingPool:  make(map[string]Attacher),
+		pushingPool:  make(map[string]Attacher),
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
@@ -304,27 +309,26 @@ func ValidateTagName(name string) error {
 	return nil
 }
 
-func (store *TagStore) poolAdd(kind, key string) (chan struct{}, error) {
+func (store *TagStore) poolAdd(kind, key string, attach Attacher) (Attacher, error) {
 	store.Lock()
 	defer store.Unlock()
 
-	if c, exists := store.pullingPool[key]; exists {
-		return c, fmt.Errorf("pull %s is already in progress", key)
+	if a, exists := store.pullingPool[key]; exists {
+		return a, fmt.Errorf("pull %s is already in progress", key)
 	}
-	if c, exists := store.pushingPool[key]; exists {
-		return c, fmt.Errorf("push %s is already in progress", key)
+	if a, exists := store.pushingPool[key]; exists {
+		return a, fmt.Errorf("push %s is already in progress", key)
 	}
 
-	c := make(chan struct{})
 	switch kind {
 	case "pull":
-		store.pullingPool[key] = c
+		store.pullingPool[key] = attach
 	case "push":
-		store.pushingPool[key] = c
+		store.pushingPool[key] = attach
 	default:
 		return nil, fmt.Errorf("Unknown pool type")
 	}
-	return c, nil
+	return attach, nil
 }
 
 func (store *TagStore) poolRemove(kind, key string) error {
@@ -332,13 +336,11 @@ func (store *TagStore) poolRemove(kind, key string) error {
 	defer store.Unlock()
 	switch kind {
 	case "pull":
-		if c, exists := store.pullingPool[key]; exists {
-			close(c)
+		if _, exists := store.pullingPool[key]; exists {
 			delete(store.pullingPool, key)
 		}
 	case "push":
-		if c, exists := store.pushingPool[key]; exists {
-			close(c)
+		if _, exists := store.pushingPool[key]; exists {
 			delete(store.pushingPool, key)
 		}
 	default:
