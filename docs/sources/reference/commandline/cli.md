@@ -750,8 +750,7 @@ If this behavior is undesired, set the 'p' option to false.
 
 The `--change` option will apply `Dockerfile` instructions to the image
 that is created.
-Supported `Dockerfile` instructions: `CMD`, `ENTRYPOINT`, `ENV`, `EXPOSE`,
-`ONBUILD`, `USER`, `VOLUME`, `WORKDIR`
+Supported `Dockerfile` instructions: `ADD`|`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`FROM`|`MAINTAINER`|`RUN`|`USER`|`LABEL`|`VOLUME`|`WORKDIR`|`COPY`
 
 #### Commit a container
 
@@ -1906,22 +1905,23 @@ A label is a a `key=value` pair that applies metadata to a container. To label a
 
     $ sudo docker run -l my-label --label com.example.foo=bar ubuntu bash
 
-The `my-label` key doesn't specify so the label defaults to an empty
-string(`""`). To add multiple labels, repeat the label flag (`-l` or
-`--label`).
+The `my-label` key doesn't specify a value so the label defaults to an empty
+string(`""`). To add multiple labels, repeat the label flag (`-l` or `--label`).
 
-The `key=value` must be unique. If you specify the same key multiple times
-with different values, each subsequent value overwrites the previous. Docker
-applies the last `key=value` you supply.
+The `key=value` must be unique to avoid overwriting the label value. If you
+specify labels with identical keys but different values, each subsequent value
+overwrites the previous. Docker uses the last `key=value` you supply.
 
 Use the `--label-file` flag to load multiple labels from a file. Delimit each
 label in the file with an EOL mark. The example below loads labels from a
-labels file in the current directory;
+labels file in the current directory:
 
     $ sudo docker run --label-file ./labels ubuntu bash
 
-The label-file format is similar to the format for loading environment variables
-(see `--env-file` above). The following example illustrates a label-file format;
+The label-file format is similar to the format for loading environment
+variables. (Unlike environment variables, labels are not visislbe to processes
+running inside a container.) The following example illustrates a label-file
+format:
 
     com.example.label1="a label"
 
@@ -1929,12 +1929,11 @@ The label-file format is similar to the format for loading environment variables
     com.example.label2=another\ label
     com.example.label3
 
-You can load multiple label-files by supplying the `--label-file` flag multiple
-times.
+You can load multiple label-files by supplying multiple  `--label-file` flags. 
 
-For additional information on working with labels, see
-[*Labels - custom metadata in Docker*](/userguide/labels-custom-metadata/) in
-the Docker User Guide.
+For additional information on working with labels, see [*Labels - custom
+metadata in Docker*](/userguide/labels-custom-metadata/) in the Docker User
+Guide.
 
     $ sudo docker run --link /redis:redis --name console ubuntu bash
 

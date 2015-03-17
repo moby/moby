@@ -59,7 +59,7 @@ pages:
 - ['userguide/dockerimages.md', 'User Guide', 'Working with Docker Images' ]
 - ['userguide/dockerlinks.md', 'User Guide', 'Linking containers together' ]
 - ['userguide/dockervolumes.md', 'User Guide', 'Managing data in containers' ]
-- ['userguide/labels-custom-metadata.md', 'User Guide', 'Labels - custom metadata in Docker' ]
+- ['userguide/labels-custom-metadata.md', 'User Guide', 'Apply custom metadata' ]
 - ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
 - ['userguide/level1.md', '**HIDDEN**' ]
 - ['userguide/level2.md', '**HIDDEN**' ]

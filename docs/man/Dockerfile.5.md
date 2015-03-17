@@ -159,8 +159,12 @@ A Dockerfile is similar to a Makefile.
   LABEL "com.example.vendor"="ACME Incorporated"
   ```
 
-  An image can have more than one label. To specify multiple labels, separate each
-  key-value pair by a space.
+  An image can have more than one label. To specify multiple labels, separate
+  each key-value pair by a space. 
+  
+  Labels are additive including `LABEL`s in `FROM` images. As the system
+  encounters and then applies a new label, new `key`s override any previous
+  labels with identical keys.
 
   To display an image's labels, use the `docker inspect` command.
 
@@ -290,20 +294,22 @@ A Dockerfile is similar to a Makefile.
 
 **ONBUILD**
   -- `ONBUILD [INSTRUCTION]`
-  The **ONBUILD** instruction adds a trigger instruction to the image, which is 
-  executed at a later time, when the image is used as the base for another
-  build. The trigger is executed in the context of the downstream build, as
-  if it had been inserted immediately after the **FROM** instruction in the
-  downstream Dockerfile.  Any build instruction can be registered as a
-  trigger.  This is useful if you are building an image to be
-  used as a base for building other images, for example an application build
-  environment or a daemon to be customized with a user-specific
-  configuration.  For example, if your image is a reusable python
-  application builder, it requires application source code to be
-  added in a particular directory, and might require a build script
-  to be called after that. You can't just call **ADD** and **RUN** now, because
-  you don't yet have access to the application source code, and it
-  is different for each application build.
+  The **ONBUILD** instruction adds a trigger instruction to an image. The
+  trigger is executed at a later time, when the image is used as the base for
+  another build. Docker executes the trigger in the context of the downstream
+  build, as if the trigger existed immediately after the **FROM** instruction in
+  the downstream Dockerfile.
+
+  You can register any build instruction as a trigger. A trigger is useful if
+  you are defining an image to use as a base for building other images. For
+  example, if you are defining an application build environment or a daemon that
+  is customized with a user-specific configuration.  
+  
+  Consider an image intended as a reusable python application builder. It must
+  add application source code to a particular directory, and might need a build
+  script called after that. You can't just call **ADD** and **RUN** now, because
+  you don't yet have access to the application source code, and it is different
+  for each application build.
 
   -- Providing application developers with a boilerplate Dockerfile to copy-paste
   into their application is inefficient, error-prone, and

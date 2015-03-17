@@ -106,10 +106,10 @@ IMAGE [COMMAND] [ARG...]
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **-l**, **--label**=[]
-   Set metadata on the container (e.g., --label=com.example.key=value)
+   Adds metadata to a container (e.g., --label=com.example.key=value)
 
 **--label-file**=[]
-   Read in a file of labels (EOL delimited)
+   Read labels from a file. Delimit each label with an EOL.
 
 **--link**=[]
    Add link to another container in the form of <name or id>:alias

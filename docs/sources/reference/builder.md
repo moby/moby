@@ -352,6 +352,15 @@ key-value pair by an EOL.
     LABEL description="This text illustrates \
     that label-values can span multiple lines."
 
+Docker recommends combining labels in a single `LABEL` instruction where
+possible. Each `LABEL` instruction produces a new layer which can result in an
+inefficient image if you use many labels. This example results in four image
+layers. 
+    
+Labels are additive including `LABEL`s in `FROM` images. As the system
+encounters and then applies a new label, new `key`s override any previous labels
+with identical keys.    
+
 To view an image's labels, use the `docker inspect` command.
 
 ## EXPOSE
