@@ -2,15 +2,7 @@ page_title: Make a project contribution
 page_description: Basic workflow for Docker contributions
 page_keywords: contribute, pull request, review, workflow, white-belt, black-belt, squash, commit
 
-<!-- TODO (@thaJeztah) remove after docs/base is updated -->
 <style type="text/css">
-.tg    {border-collapse:collapse;border-spacing:0;margin-bottom:15px;}
-.tg td {background-color: #fff;padding:5px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;vertical-align:top;}
-.tg th {font-weight:bold;padding:5px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;text-align:left;}
-.tg .tg-e3zv{width:150px;}
-</style>
-
-<style>
 
 /* GitHub label styles */
 .gh-label {
