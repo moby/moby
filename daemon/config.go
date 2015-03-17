@@ -47,6 +47,7 @@ type Config struct {
 	TrustKeyPath                string
 	Labels                      []string
 	Ulimits                     map[string]*ulimit.Ulimit
+	CpuShares                   int64
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -73,6 +74,7 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.SocketGroup, []string{"G", "-group"}, "docker", "Group for the unix socket")
 	flag.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "#-api-enable-cors"}, false, "Enable CORS headers in the remote API, this is deprecated by --api-cors-header")
 	flag.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", "Set CORS headers in the remote API")
+	flag.Int64Var(&config.CpuShares, []string{"-daemon-cpu-shares"}, 1024, "Set cpu shares for docker daemon")
 	opts.IPVar(&config.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP when binding container ports")
 	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
