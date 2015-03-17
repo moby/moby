@@ -99,7 +99,7 @@ environment.
 1. Open a terminal.
 
     Mac users, use `boot2docker status` to make sure Boot2Docker is running. You
-    may need to run `$(boot2docker shellinit)` to initialize your shell
+    may need to run `eval "$(boot2docker shellinit)"` to initialize your shell
     environment.
 
 3. Change into the root of your forked repository.
@@ -202,7 +202,7 @@ build and run a `docker` binary in your container.
 
     ![Multiple terminals](/project/images/three_terms.png)
 
-    Mac OSX users, make sure you run `$(boot2docker shellinit)` in any new 
+    Mac OSX users, make sure you run `eval "$(boot2docker shellinit)"` in any new 
     terminals.
 
 2. In a terminal, create a new container from your `dry-run-test` image.
