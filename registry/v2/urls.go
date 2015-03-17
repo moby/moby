@@ -74,11 +74,11 @@ func (ub *URLBuilder) BuildTagsURL(name string) (string, error) {
 	return tagsURL.String(), nil
 }
 
-// BuildManifestURL constructs a url for the manifest identified by name and tag.
-func (ub *URLBuilder) BuildManifestURL(name, tag string) (string, error) {
+// BuildManifestURL constructs a url for the manifest identified by name and reference.
+func (ub *URLBuilder) BuildManifestURL(name, reference string) (string, error) {
 	route := ub.cloneRoute(RouteNameManifest)
 
-	manifestURL, err := route.URL("name", name, "tag", tag)
+	manifestURL, err := route.URL("name", name, "reference", reference)
 	if err != nil {
 		return "", err
 	}

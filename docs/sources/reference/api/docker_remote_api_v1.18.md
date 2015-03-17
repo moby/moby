@@ -1054,6 +1054,45 @@ Status Codes:
           }
         ]
 
+**Example request, with digest information**:
+
+        GET /images/json?digests=1 HTTP/1.1
+
+**Example response, with digest information**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+          {
+            "Created": 1420064636,
+            "Id": "4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125",
+            "ParentId": "ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2",
+            "RepoDigests": [
+              "localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
+            ],
+            "RepoTags": [
+              "localhost:5000/test/busybox:latest",
+              "playdate:latest"
+            ],
+            "Size": 0,
+            "VirtualSize": 2429728
+          }
+        ]
+
+The response shows a single image `Id` associated with two repositories
+(`RepoTags`): `localhost:5000/test/busybox`: and `playdate`. A caller can use
+either of the `RepoTags` values `localhost:5000/test/busybox:latest` or
+`playdate:latest` to reference the image.
+
+You can also use `RepoDigests` values to reference an image. In this response,
+the array has only one reference and that is to the
+`localhost:5000/test/busybox` repository; the `playdate` repository has no
+digest. You can reference this digest using the value:
+`localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d...`
+
+See the `docker run` and `docker build` commands for examples of digest and tag
+references on the command line.
 
 Query Parameters:
 

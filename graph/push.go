@@ -36,8 +36,15 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 
 	for tag, id := range localRepo {
 		if requestedTag != "" && requestedTag != tag {
+			// Include only the requested tag.
 			continue
 		}
+
+		if utils.DigestReference(tag) {
+			// Ignore digest references.
+			continue
+		}
+
 		var imageListForThisTag []string
 
 		tagsByImage[id] = append(tagsByImage[id], tag)
@@ -76,14 +83,16 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 func (s *TagStore) getImageTags(localRepo map[string]string, askedTag string) ([]string, error) {
 	log.Debugf("Checking %s against %#v", askedTag, localRepo)
 	if len(askedTag) > 0 {
-		if _, ok := localRepo[askedTag]; !ok {
+		if _, ok := localRepo[askedTag]; !ok || utils.DigestReference(askedTag) {
 			return nil, fmt.Errorf("Tag does not exist: %s", askedTag)
 		}
 		return []string{askedTag}, nil
 	}
 	var tags []string
 	for tag := range localRepo {
-		tags = append(tags, tag)
+		if !utils.DigestReference(tag) {
+			tags = append(tags, tag)
+		}
 	}
 	return tags, nil
 }
@@ -422,8 +431,13 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 		log.Infof("Signed manifest for %s:%s using daemon's key: %s", repoInfo.LocalName, tag, s.trustKey.KeyID())
 
 		// push the manifest
-		if err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader(signedBody), auth); err != nil {
+		digest, err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader(signedBody), auth)
+		if err != nil {
 			return err
+		}
+
+		if len(digest) > 0 {
+			out.Write(sf.FormatStatus("", "Digest: %s", digest))
 		}
 	}
 	return nil

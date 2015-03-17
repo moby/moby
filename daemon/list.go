@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/utils"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers"
@@ -131,7 +132,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		img := container.Config.Image
 		_, tag := parsers.ParseRepositoryTag(container.Config.Image)
 		if tag == "" {
-			img = img + ":" + graph.DEFAULTTAG
+			img = utils.ImageReference(img, graph.DEFAULTTAG)
 		}
 		out.SetJson("Image", img)
 		if len(container.Args) > 0 {

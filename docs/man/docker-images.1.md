@@ -8,6 +8,7 @@ docker-images - List images
 **docker images**
 [**--help**]
 [**-a**|**--all**[=*false*]]
+[**--digests**[=*false*]]
 [**-f**|**--filter**[=*[]*]]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
@@ -32,6 +33,9 @@ versions.
 # OPTIONS
 **-a**, **--all**=*true*|*false*
    Show all images (by default filter out the intermediate image layers). The default is *false*.
+
+**--digests**=*true*|*false*
+   Show image digests. The default is *false*.
 
 **-f**, **--filter**=[]
    Filters the output. The dangling=true filter finds unused images. While label=com.foo=amd64 filters for images with a com.foo value of amd64. The label=com.foo filter finds images with the label com.foo of any value.
