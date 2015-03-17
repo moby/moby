@@ -88,7 +88,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		return nil
 	}
 
-	if len(repos) <= 1 || repoName == "" {
+	if len(repos) <= len(tags) {
 		if err := daemon.canDeleteImage(img.ID, force); err != nil {
 			return err
 		}
