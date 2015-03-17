@@ -537,6 +537,29 @@ If you use STDIN or specify a `URL`, the system places the contents into a
 file called `Dockerfile`, and any `-f`, `--file` option is ignored. In this 
 scenario, there is no context.
 
+### Return code
+
+On a successful build, a return code of success `0` will be returned.
+When the build fails, a non-zero failure code will be returned.
+
+There should be informational output of the reason for failure output
+to `STDERR`:
+
+```
+$ docker build -t fail .
+Sending build context to Docker daemon 2.048 kB
+Sending build context to Docker daemon
+Step 0 : FROM busybox
+ ---> 4986bf8c1536
+Step 1 : RUN exit 13
+ ---> Running in e26670ec7a0a
+INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
+$ echo $?
+1
+```
+
+### .dockerignore file
+
 If a file named `.dockerignore` exists in the root of `PATH` then it
 is interpreted as a newline-separated list of exclusion patterns.
 Exclusion patterns match files or directories relative to `PATH` that
