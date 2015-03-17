@@ -3229,6 +3229,13 @@ func TestRunRestartMaxRetries(t *testing.T) {
 	if count != "3" {
 		t.Fatalf("Container was restarted %s times, expected %d", count, 3)
 	}
+	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if MaximumRetryCount != "3" {
+		t.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")
+	}
 	logDone("run - test max-retries for --restart")
 }
 
