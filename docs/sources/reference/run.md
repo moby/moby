@@ -2,6 +2,12 @@ page_title: Docker run reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
+<!-- TODO (@thaJeztah) define more flexible table/td classes -->
+<style>
+.content-body table .no-wrap {
+    white-space: nowrap;
+}
+</style>
 # Docker run reference
 
 **Docker runs processes in isolated containers**. When an operator
@@ -50,9 +56,9 @@ following options.
  - [Container Identification](#container-identification)
      - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
- - [IPC Settings](#ipc-settings)
+ - [IPC Settings (--ipc)](#ipc-settings-ipc)
  - [Network Settings](#network-settings)
- - [Restart Policies<br />(--restart)](#restart-policies-restart)
+ - [Restart Policies (--restart)](#restart-policies-restart)
  - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
@@ -127,16 +133,17 @@ programs might write out their process ID to a file (you've seen them as
 PID files):
 
     --cidfile="": Write the container ID to the file
-    
+
 ### Image[:tag]
 
 While not strictly a means of identifying a container, you can specify a version of an
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
 
-## PID Settings
+## PID Settings (--pid)
     --pid=""  : Set the PID (Process) Namespace mode for the container,
            'host': use the host's PID namespace inside the container
+
 By default, all containers have the PID namespace enabled.
 
 PID namespace provides separation of processes. The PID Namespace removes the
@@ -154,13 +161,16 @@ within the container.
 This command would allow you to use `strace` inside the container on pid 1234 on
 the host.
 
-## IPC Settings
+## IPC Settings (--ipc)
+
     --ipc=""  : Set the IPC mode for the container,
-                                 'container:<name|id>': reuses another container's IPC namespace
-                                 'host': use the host's IPC namespace inside the container
+                 'container:<name|id>': reuses another container's IPC namespace
+                 'host': use the host's IPC namespace inside the container
+
 By default, all containers have the IPC namespace enabled.
 
-IPC (POSIX/SysV IPC) namespace provides separation of named shared memory segments, semaphores and message queues.  
+IPC (POSIX/SysV IPC) namespace provides separation of named shared memory 
+segments, semaphores and message queues.
 
 Shared memory segments are used to accelerate inter-process communication at
 memory speed, rather than through pipes or through the network stack. Shared
@@ -174,10 +184,10 @@ of the containers.
 
     --dns=[]         : Set custom dns servers for the container
     --net="bridge"   : Set the Network mode for the container
-                                  'bridge': creates a new network stack for the container on the docker bridge
-                                  'none': no networking for this container
-                                  'container:<name|id>': reuses another container network stack
-                                  'host': use the host network stack inside the container
+                        'bridge': creates a new network stack for the container on the docker bridge
+                        'none': no networking for this container
+                        'container:<name|id>': reuses another container network stack
+                        'host': use the host network stack inside the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
 
@@ -196,10 +206,41 @@ explicitly by providing a MAC via the `--mac-address` parameter (format:
 
 Supported networking modes are:
 
-* none - no networking in the container
-* bridge - (default) connect the container to the bridge via veth interfaces
-* host - use the host's network stack inside the container.  Note: This gives the container full access to local system services such as D-bus and is therefore considered insecure.
-* container - use another container's network stack
+<table>
+  <thead>
+    <tr>
+      <th class="no-wrap">Mode</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no-wrap"><strong>none</strong></td>
+      <td>
+        No networking in the container.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>bridge</strong> (default)</td>
+      <td>
+        Connect the container to the bridge via veth interfaces.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>host</strong></td>
+      <td>
+        Use the host's network stack inside the container.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>container</strong>:&lt;name|id&gt;</td>
+      <td>
+        Use the network stack of another container, specified via
+        its *name* or *id*.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 #### Mode: none
 
@@ -226,6 +267,9 @@ network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
 system.  Publishing ports and linking to other containers will not work
 when sharing the host's network stack.
+
+> **Note**: `--net="host"` gives the container full access to local system
+> services such as D-bus and is therefore considered insecure.
 
 #### Mode: container
 
@@ -410,20 +454,52 @@ container:
 ### Memory constraints
 
 We have four ways to set memory usage:
- - memory=inf, memory-swap=inf (not specify any of them)
-   There is no memory limit, you can use as much as you want.
 
- - memory=L&lt;inf, memory-swap=inf (specify memory and set memory-swap as `-1`)
-   It is not allowed to use more than L bytes of memory, but use as much swap
-   as you want (only if the host supports swap memory).
-
- - memory=L&lt;inf, memory-swap=2*L (specify memory without memory-swap)
-   It is not allowed to use more than L bytes of memory, swap *plus* memory
-   usage is double of that.
-
- - memory=L&lt;inf, memory-swap=S&lt;inf, L&lt;=S (specify both memory and memory-swap)
-   It is not allowed to use more than L bytes of memory, swap *plus* memory
-   usage is limited by S.
+<table>
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no-wrap">
+          <strong>memory=inf, memory-swap=inf</strong> (default)
+      </td>
+      <td>
+        There is no memory limit for the container. The container can use
+        as much memory as needed.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=inf</strong></td>
+      <td>
+        (specify memory and set memory-swap as <code>-1</code>) The container is
+        not allowed to use more than L bytes of memory, but can use as much swap
+        as is needed (if the host supports swap memory).
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=2*L</strong></td>
+      <td>
+        (specify memory without memory-swap) The container is not allowed to
+        use more than L bytes of memory, swap *plus* memory usage is double
+        of that.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap">
+          <strong>memory=L&lt;inf, memory-swap=S&lt;inf, L&lt;=S</strong>
+      </td>
+      <td>
+        (specify both memory and memory-swap) The container is not allowed to
+        use more than L bytes of memory, swap *plus* memory usage is limited
+        by S.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ### CPU share constraint
 
@@ -492,20 +568,19 @@ will be accessible within the container.
 By default, the container will be able to `read`, `write`, and `mknod` these devices.
 This can be overridden using a third `:rwm` set of options to each `--device` flag:
 
+    $ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
-	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    Command (m for help): q
+    $ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+    You will not be able to write the partition table.
 
-	Command (m for help): q
-	$ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
-	You will not be able to write the partition table.
+    Command (m for help): q
 
-	Command (m for help): q
-
-	$ sudo docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
+    $ sudo docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
         crash....
 
-	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
-	fdisk: unable to open /dev/xvdc: Operation not permitted
+    $ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+    fdisk: unable to open /dev/xvdc: Operation not permitted
 
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
@@ -770,7 +845,7 @@ If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
 
 > **Note**:
-> Unlike host entries in the `/ets/hosts` file, IP addresses stored in the
+> Unlike host entries in the `/etc/hosts` file, IP addresses stored in the
 > environment variables are not automatically updated if the source container is
 > restarted. We recommend using the host entries in `/etc/hosts` to resolve the
 > IP address of linked containers.
