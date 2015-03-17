@@ -125,14 +125,21 @@ case "$lsb_dist" in
 
 		# aufs is preferred over devicemapper; try to ensure the driver is available.
 		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-			kern_extras="linux-image-extra-$(uname -r)"
+			if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -q '^ii' 2>/dev/null; then
+				kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
 
-			apt_get_update
-			( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
 
-			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-				echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
-				echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+				if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+					echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
+					echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+					( set -x; sleep 10 )
+				fi
+			else
+				echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
+				echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
+				echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
 				( set -x; sleep 10 )
 			fi
 		fi
