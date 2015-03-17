@@ -91,7 +91,7 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 //
 func label(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("LABEL is missing arguments")
+		return fmt.Errorf("LABEL requires at least one argument")
 	}
 	if len(args)%2 != 0 {
 		// should never get here, but just in case
