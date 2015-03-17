@@ -1611,7 +1611,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	)
 	cmd.Require(flag.Exact, 0)
 
-	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided.  Valid filters:\nid=<id> - containers with id of <id>\nname=<name> - containers with name of <name>\nexited=<int> - containers with exit code of <int>\nstatus=(restarting|running|paused|exited)")
 
 	utils.ParseFlags(cmd, args, true)
 	if *last == -1 && *nLatest {
