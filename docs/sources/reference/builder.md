@@ -896,6 +896,42 @@ For example you might add something like this:
 
 > **Warning**: Chaining `ONBUILD` instructions using `ONBUILD ONBUILD` isn't allowed.
 
+## REQUEST
+
+  REQUEST [permission]
+
+The `REQUEST` instruction is used to request special permission from the host for
+the next `RUN` command. If the request is not granted from the host the build
+will fail at this point.
+
+> `REQUEST` is only used for the next `RUN` command and no other subsequent
+> commands.
+
+`REQUEST`'s must be explicity granted as part of the `docker build` command.
+
+For example, to request the `SYS_ADMIN` capability for a RUN command:
+
+  ```Dockerfile
+  REQUEST CAP SYS_ADMIN
+  RUN mount <some filesystem> && <do stuff with mounted filesystem>
+  ```
+
+You can request a host mounted volume, which will only be used during the build.
+
+> This specific instruction will force all subsequent build instructions to
+> ignore the the image cache, since `VOLUME`'s data can't be cached.
+> `VOLUME` grants will, by default, be read-only
+
+  ```Dockerfile
+  REQUEST VOLUME /host/path /container/path
+  ```
+
+Grants for these requests happen upon initiating the build as such:
+
+```bash
+docker build --cap-add SYS_ADMIN -v /host/path
+```
+
 > **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
 
 ## Dockerfile Examples
