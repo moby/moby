@@ -223,8 +223,8 @@ func validateRemoteName(remoteName string) error {
 	if !validNamespaceChars.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
 	}
-	if len(namespace) < 4 || len(namespace) > 30 {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 4 or more than 30 characters.", namespace)
+	if len(namespace) < 2 || len(namespace) > 255 {
+		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 2 or more than 255 characters.", namespace)
 	}
 	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
 		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)
