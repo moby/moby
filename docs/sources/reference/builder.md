@@ -328,6 +328,27 @@ default specified in `CMD`.
 > the result; `CMD` does not execute anything at build time, but specifies
 > the intended command for the image.
 
+## LABEL
+
+    LABEL <key>=<value> <key>=<value> <key>=<value> ...
+
+The `LABEL` instruction adds metadata to an image. A `LABEL` is a
+key-value pair. To include spaces within a `LABEL` value, use quotes and
+blackslashes as you would in command-line parsing.
+
+    LABEL "com.example.vendor"="ACME Incorporated"
+
+An image can have more than one label. To specify multiple labels, separate each
+key-value pair by an EOL.
+
+    LABEL com.example.label-without-value
+    LABEL com.example.label-with-value="foo"
+    LABEL version="1.0"
+    LABEL description="This text illustrates \
+    that label-values can span multiple lines."
+
+To view an image's labels, use the `docker inspect` command.
+
 ## EXPOSE
 
     EXPOSE <port> [<port>...]
@@ -907,6 +928,7 @@ For example you might add something like this:
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
 
+    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
     RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC

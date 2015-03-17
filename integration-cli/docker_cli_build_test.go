@@ -4541,6 +4541,28 @@ func TestBuildWithTabs(t *testing.T) {
 	logDone("build - with tabs")
 }
 
+func TestBuildLabels(t *testing.T) {
+	name := "testbuildlabel"
+	expected := `{"License":"GPL","Vendor":"Acme"}`
+	defer deleteImages(name)
+	_, err := buildImage(name,
+		`FROM busybox
+		LABEL Vendor=Acme
+                LABEL License GPL`,
+		true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inspectFieldJSON(name, "Config.Labels")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res != expected {
+		t.Fatalf("Labels %s, expected %s", res, expected)
+	}
+	logDone("build - label")
+}
+
 func TestBuildStderr(t *testing.T) {
 	// This test just makes sure that no non-error output goes
 	// to stderr

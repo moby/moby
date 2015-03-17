@@ -34,7 +34,7 @@ versions.
    Show all images (by default filter out the intermediate image layers). The default is *false*.
 
 **-f**, **--filter**=[]
-   Provide filter values (i.e., 'dangling=true')
+   Filters the output. The dangling=true filter finds unused images. While label=com.foo=amd64 filters for images with a com.foo value of amd64. The label=com.foo filter finds images with the label com.foo of any value.
 
 **--help**
   Print usage statement

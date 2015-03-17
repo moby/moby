@@ -77,6 +77,60 @@ func TestImagesErrorWithInvalidFilterNameTest(t *testing.T) {
 	logDone("images - invalid filter name check working")
 }
 
+func TestImagesFilterLabel(t *testing.T) {
+	imageName1 := "images_filter_test1"
+	imageName2 := "images_filter_test2"
+	imageName3 := "images_filter_test3"
+	defer deleteAllContainers()
+	defer deleteImages(imageName1)
+	defer deleteImages(imageName2)
+	defer deleteImages(imageName3)
+	image1ID, err := buildImage(imageName1,
+		`FROM scratch
+		 LABEL match me`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	image2ID, err := buildImage(imageName2,
+		`FROM scratch
+		 LABEL match="me too"`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	image3ID, err := buildImage(imageName3,
+		`FROM scratch
+		 LABEL nomatch me`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "images", "--no-trunc", "-q", "-f", "label=match")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.TrimSpace(out)
+
+	if (!strings.Contains(out, image1ID) && !strings.Contains(out, image2ID)) || strings.Contains(out, image3ID) {
+		t.Fatalf("Expected ids %s,%s got %s", image1ID, image2ID, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "images", "--no-trunc", "-q", "-f", "label=match=me too")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.TrimSpace(out)
+
+	if out != image2ID {
+		t.Fatalf("Expected %s got %s", image2ID, out)
+	}
+
+	logDone("images - filter label")
+}
+
 func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 	imageName := "images_filter_test"
 	defer deleteAllContainers()

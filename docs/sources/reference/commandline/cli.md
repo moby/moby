@@ -814,6 +814,8 @@ Creates a new container.
       -h, --hostname=""          Container host name
       -i, --interactive=false    Keep STDIN open even if not attached
       --ipc=""                   IPC namespace to use
+      -l, --label=[]             Set metadata on the container (e.g., --label=com.example.key=value)
+      --label-file=[]            Read in a line delimited file of labels
       --link=[]                  Add link to another container
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
@@ -1166,6 +1168,7 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 
 Current filters:
  * dangling (boolean - true or false)
+ * label (`label=<key>` or `label=<key>=<value>`)
 
 ##### Untagged images
 
@@ -1685,6 +1688,8 @@ removed before the image is removed.
       --link=[]                  Add link to another container
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
+      -l, --label=[]             Set metadata on the container (e.g., --label=com.example.key=value)
+      --label-file=[]            Read in a file of labels (EOL delimited)
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --memory-swap=""           Total memory (memory + swap), '-1' to disable swap
       --name=""                  Assign a name to the container
@@ -1855,8 +1860,39 @@ An example of a file passed with `--env-file`
 
     $ sudo docker run --name console -t -i ubuntu bash
 
-This will create and run a new container with the container name being
-`console`.
+A label is a a `key=value` pair that applies metadata to a container. To label a container with two labels:
+
+    $ sudo docker run -l my-label --label com.example.foo=bar ubuntu bash
+
+The `my-label` key doesn't specify so the label defaults to an empty
+string(`""`). To add multiple labels, repeat the label flag (`-l` or
+`--label`).
+
+The `key=value` must be unique. If you specify the same key multiple times
+with different values, each subsequent value overwrites the previous. Docker
+applies the last `key=value` you supply.
+
+Use the `--label-file` flag to load multiple labels from a file. Delimit each
+label in the file with an EOL mark. The example below loads labels from a
+labels file in the current directory;
+
+    $ sudo docker run --label-file ./labels ubuntu bash
+
+The label-file format is similar to the format for loading environment variables
+(see `--env-file` above). The following example illustrates a label-file format;
+
+    com.example.label1="a label"
+
+    # this is a comment
+    com.example.label2=another\ label
+    com.example.label3
+
+You can load multiple label-files by supplying the `--label-file` flag multiple
+times.
+
+For additional information on working with labels, see
+[*Labels - custom metadata in Docker*](/userguide/labels-custom-metadata/) in
+the Docker User Guide.
 
     $ sudo docker run --link /redis:redis --name console ubuntu bash
 

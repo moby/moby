@@ -90,6 +90,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			return nil
 		}
 
+		if !psFilters.MatchKVList("label", container.Config.Labels) {
+			return nil
+		}
+
 		if before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
@@ -157,6 +161,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
+		out.SetJson("Labels", container.Config.Labels)
 		outs.Add(out)
 		return nil
 	}
