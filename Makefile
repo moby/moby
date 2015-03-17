@@ -91,6 +91,7 @@ docs-build:
 	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
 #	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
 	echo "$(GITCOMMIT)" > docs/GITCOMMIT
+	docker pull docs/base
 	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
