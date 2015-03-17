@@ -43,7 +43,7 @@ clone git github.com/kr/pty 05017fcccf
 
 clone git github.com/gorilla/context 14f550f51a
 
-clone git github.com/gorilla/mux 136d54f81f
+clone git github.com/gorilla/mux e444e69cbd
 
 clone git github.com/tchap/go-patricia v1.0.1
 
@@ -68,12 +68,15 @@ if [ "$1" = '--go' ]; then
 	mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
 fi
 
-# get digest package from distribution
+# get distribution packages
 clone git github.com/docker/distribution d957768537c5af40e4f4cd96871f7b2bde9e2923
 mv src/github.com/docker/distribution/digest tmp-digest
+mv src/github.com/docker/distribution/registry/api tmp-api
 rm -rf src/github.com/docker/distribution
 mkdir -p src/github.com/docker/distribution
 mv tmp-digest src/github.com/docker/distribution/digest
+mkdir -p src/github.com/docker/distribution/registry
+mv tmp-api src/github.com/docker/distribution/registry/api
 
 clone git github.com/docker/libcontainer c8512754166539461fd860451ff1a0af7491c197
 # see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
