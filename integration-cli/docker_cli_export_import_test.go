@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -66,15 +65,18 @@ func TestExportContainerWithOutputAndImportImage(t *testing.T) {
 		t.Fatalf("output should've been a container id: %s %s ", cleanedContainerID, err)
 	}
 
-	exportCmdTemplate := `%v export --output=/tmp/testexp.tar %v`
-	exportCmdFinal := fmt.Sprintf(exportCmdTemplate, dockerBinary, cleanedContainerID)
-	exportCmd := exec.Command(exportCmdFinal)
+	exportCmd := exec.Command(dockerBinary, "export", "--output=testexp.tar", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(exportCmd); err != nil {
 		t.Fatalf("failed to export container: %s, %v", out, err)
 	}
 
-	importCmdFinal := `cat /tmp/testexp.tar | docker import - repo/testexp:v1`
-	importCmd := exec.Command(importCmdFinal)
+	out, _, err = runCommandWithOutput(exec.Command("cat", "testexp.tar"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
+	importCmd.Stdin = strings.NewReader(out)
 	out, _, err = runCommandWithOutput(importCmd)
 	if err != nil {
 		t.Fatalf("failed to import image: %s, %v", out, err)
