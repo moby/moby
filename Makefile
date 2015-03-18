@@ -86,7 +86,6 @@ build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
 
 docs-build:
-	git fetch https://github.com/docker/docker.git docs && git diff --name-status FETCH_HEAD...HEAD -- docs > docs/changed-files
 	cp ./VERSION docs/VERSION
 	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
 #	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET

@@ -21,6 +21,7 @@ COPY ./VERSION VERSION
 # TODO: don't do this - look at merging the yml file in build.sh
 COPY ./mkdocs.yml mkdocs.yml
 COPY ./s3_website.json s3_website.json
+COPY ./release.sh release.sh
 
 # Docker Swarm
 #ADD https://raw.githubusercontent.com/docker/swarm/master/docs/mkdocs.yml /docs/mkdocs-swarm.yml
