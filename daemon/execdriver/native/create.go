@@ -220,8 +220,12 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 
 	// Filter out mounts that are overriden by user supplied mounts
 	var defaultMounts []*configs.Mount
+	_, mountDev := userMounts["/dev"]
 	for _, m := range container.Mounts {
 		if _, ok := userMounts[m.Destination]; !ok {
+			if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
+				continue
+			}
 			defaultMounts = append(defaultMounts, m)
 		}
 	}
