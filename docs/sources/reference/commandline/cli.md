@@ -1068,13 +1068,21 @@ This will create a new Bash session in the container `ubuntu_bash`.
 
 ## export
 
-    Usage: docker export CONTAINER
+    Usage: docker export [OPTIONS] CONTAINER
 
-    Export the contents of a filesystem as a tar archive to STDOUT
+    Export the contents of a filesystem to a tar archive (streamed to STDOUT by default)
 
-For example:
+      -o, --output=""    Write to a file, instead of STDOUT
+
+      Produces a tarred repository to the standard output stream.
+
+   For example:
 
     $ sudo docker export red_panda > latest.tar
+
+   Or
+
+    $ sudo docker export --output="latest.tar" red_panda
 
 > **Note:**
 > `docker export` does not export the contents of volumes associated with the
