@@ -68,7 +68,7 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			fmt.Fprintf(cli.err, "docker: '%s' is not a docker command. See 'docker --help'.\n", args[0])
+			fmt.Fprintf(cli.err, "docker: '%s' is not a docker command. See 'docker --help'\n", args[0])
 			os.Exit(1)
 		} else {
 			method("--help")
@@ -109,12 +109,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		buf := bufio.NewReader(cli.in)
 		magic, err := buf.Peek(tarHeaderSize)
 		if err != nil && err != io.EOF {
-			return fmt.Errorf("failed to peek context header from STDIN: %v", err)
+			return fmt.Errorf("Failed to peek context header from STDIN: %v", err)
 		}
 		if !archive.IsArchive(magic) {
 			dockerfile, err := ioutil.ReadAll(buf)
 			if err != nil {
-				return fmt.Errorf("failed to read Dockerfile from STDIN: %v", err)
+				return fmt.Errorf("Failed to read Dockerfile from STDIN: %v", err)
 			}
 
 			// -f option has no meaning when we're reading it from stdin,
@@ -216,7 +216,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 
 		if err = utils.ValidateContextDirectory(root, excludes); err != nil {
-			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
+			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again", err)
 		}
 		options := &archive.TarOptions{
 			Compression:     archive.Uncompressed,
@@ -310,7 +310,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 // 'docker login': login / register a user to registry service.
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := cli.Subcmd("login", "[SERVER]", "Register or log in to a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
+	cmd := cli.Subcmd("login", "[SERVER]", "Register or log in to a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default", true)
 	cmd.Require(flag.Max, 1)
 
 	var username, password, email string
@@ -429,7 +429,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 // log out from a Docker registry
 func (cli *DockerCli) CmdLogout(args ...string) error {
-	cmd := cli.Subcmd("logout", "[SERVER]", "Log out from a Docker registry, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
+	cmd := cli.Subcmd("logout", "[SERVER]", "Log out from a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default", true)
 	cmd.Require(flag.Max, 1)
 
 	utils.ParseFlags(cmd, args, false)
@@ -454,7 +454,7 @@ func (cli *DockerCli) CmdLogout(args ...string) error {
 
 // 'docker wait': block until a container stops
 func (cli *DockerCli) CmdWait(args ...string) error {
-	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.", true)
+	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code", true)
 	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -474,7 +474,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 // 'docker version': show version information
 func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
+	cmd := cli.Subcmd("version", "", "Show the Docker version information", true)
 	cmd.Require(flag.Exact, 0)
 
 	utils.ParseFlags(cmd, args, false)
@@ -634,7 +634,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
 	}
 	if remoteInfo.Exists("IPv4Forwarding") && !remoteInfo.GetBool("IPv4Forwarding") {
-		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
+		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled\n")
 	}
 	if remoteInfo.Exists("Labels") {
 		fmt.Fprintln(cli.out, "Labels:")
@@ -708,7 +708,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				log.Errorf("Unsupported signal: %v. Discarding.", s)
+				log.Errorf("Unsupported signal: %v. Discarding", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, false)); err != nil {
 				log.Debugf("Error sending signal: %s", err)
@@ -734,7 +734,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	hijacked := make(chan io.Closer)
 	// Block the return until the chan gets closed
 	defer func() {
-		log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
+		log.Debugf("CmdStart() returned, defer waiting for hijack to finish")
 		if _, ok := <-hijacked; ok {
 			log.Errorf("Hijack did not finish (chan still open)")
 		}
@@ -745,7 +745,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
-			return fmt.Errorf("You cannot start and attach multiple containers at once.")
+			return fmt.Errorf("You cannot start and attach multiple containers at once")
 		}
 
 		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
@@ -1209,7 +1209,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 }
 
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
+	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it", true)
 	flChanges := opts.NewListOpts(nil)
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	cmd.Require(flag.Min, 1)
@@ -1328,7 +1328,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		newRemote = utils.ImageReference(taglessRemote, graph.DEFAULTTAG)
 	}
 	if tag != "" && *allTags {
-		return fmt.Errorf("tag can't be used with --all-tags/-a")
+		return fmt.Errorf("Tag can't be used with --all-tags/-a")
 	}
 
 	v.Set("fromImage", newRemote)
@@ -2196,7 +2196,7 @@ func (cid *cidFile) Close() error {
 
 	if !cid.written {
 		if err := os.Remove(cid.path); err != nil {
-			return fmt.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
+			return fmt.Errorf("Failed to remove the CID file '%s': %s \n", cid.path, err)
 		}
 	}
 
@@ -2318,7 +2318,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// set a DNS to a localhost address
 		for _, dnsIP := range hostConfig.Dns {
 			if resolvconf.IsLocalhost(dnsIP) {
-				fmt.Fprintf(cli.err, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers.\n", dnsIP)
+				fmt.Fprintf(cli.err, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers\n", dnsIP)
 				break
 			}
 		}
@@ -2383,7 +2383,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	hijacked := make(chan io.Closer)
 	// Block the return until the chan gets closed
 	defer func() {
-		log.Debugf("End of CmdRun(), Waiting for hijack to finish.")
+		log.Debugf("End of CmdRun(), waiting for hijack to finish")
 		if _, ok := <-hijacked; ok {
 			log.Errorf("Hijack did not finish (chan still open)")
 		}
@@ -2494,7 +2494,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH|-", "Copy files/folders from the PATH to the HOSTPATH. Use '-' to write the data\nas a tar file to STDOUT.", true)
+	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH|-", "Copy files/folders from the PATH to the HOSTPATH. Use '-' to write the data\nas a tar file to STDOUT", true)
 	cmd.Require(flag.Exact, 2)
 
 	utils.ParseFlags(cmd, args, true)
@@ -2552,7 +2552,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 			return err
 		}
 	} else if cli.isTerminalOut {
-		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
+		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect")
 	}
 
 	if len(cmd.Args()) == 1 {
@@ -2644,7 +2644,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 
 	// Block the return until the chan gets closed
 	defer func() {
-		log.Debugf("End of CmdExec(), Waiting for hijack to finish.")
+		log.Debugf("End of CmdExec(), waiting for hijack to finish")
 		if _, ok := <-hijacked; ok {
 			log.Errorf("Hijack did not finish (chan still open)")
 		}

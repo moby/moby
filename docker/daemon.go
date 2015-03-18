@@ -55,18 +55,18 @@ func migrateKey() (err error) {
 
 		newFile, err := os.OpenFile(newPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			return fmt.Errorf("error creating key file %q: %s", newPath, err)
+			return fmt.Errorf("Error creating key file %q: %s", newPath, err)
 		}
 		defer newFile.Close()
 
 		oldFile, err := os.Open(oldPath)
 		if err != nil {
-			return fmt.Errorf("error opening key file %q: %s", oldPath, err)
+			return fmt.Errorf("Error opening key file %q: %s", oldPath, err)
 		}
 		defer oldFile.Close()
 
 		if _, err := io.Copy(newFile, oldFile); err != nil {
-			return fmt.Errorf("error copying key: %s", err)
+			return fmt.Errorf("Error copying key: %s", err)
 		}
 
 		log.Infof("Migrated key from %s to %s", oldPath, newPath)
@@ -111,7 +111,7 @@ func mainDaemon() {
 			return
 		}
 
-		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+		log.Infof("Docker daemon: %s %s; execdriver: %s; graphdriver: %s",
 			dockerversion.VERSION,
 			dockerversion.GITCOMMIT,
 			d.ExecutionDriver().Name(),
@@ -133,7 +133,7 @@ func mainDaemon() {
 			return
 		}
 
-		log.Debugf("daemon finished")
+		log.Debugf("Daemon finished")
 	}()
 
 	// Serve api
@@ -154,12 +154,12 @@ func mainDaemon() {
 
 	// Wait for the daemon startup goroutine to finish
 	// This makes sure we can actually cleanly shutdown the daemon
-	log.Infof("waiting for daemon to initialize")
+	log.Infof("Waiting for daemon to initialize")
 	<-daemonWait
 	eng.Shutdown()
 	if err != nil {
 		// log errors here so the log output looks more consistent
-		log.Fatalf("shutting down daemon due to errors: %v", err)
+		log.Fatalf("Shutting down daemon due to errors: %v", err)
 	}
 
 }

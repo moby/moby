@@ -68,7 +68,7 @@ func init() {
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "Daemon socket(s) to connect to")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
+		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers\n\nOptions:\n")
 
 		flag.CommandLine.SetOutput(os.Stdout)
 		flag.PrintDefaults()
@@ -118,7 +118,7 @@ func init() {
 		} {
 			help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 		}
-		help += "\nRun 'docker COMMAND --help' for more information on a command."
+		help += "\nRun 'docker COMMAND --help' for more information on a command"
 		fmt.Fprintf(os.Stdout, "%s\n", help)
 	}
 }
