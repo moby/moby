@@ -1518,29 +1518,32 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 				outID = common.TruncateID(outID)
 			}
 
-			// Tags referring to this image ID.
-			for _, repotag := range out.GetList("RepoTags") {
-				repo, tag := parsers.ParseRepositoryTag(repotag)
+			repoTags := out.GetList("RepoTags")
+			repoDigests := out.GetList("RepoDigests")
 
-				if !*quiet {
-					if *showDigests {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, "<none>", outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
-					} else {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
-					}
-				} else {
-					fmt.Fprintln(w, outID)
-				}
+			if len(repoTags) == 1 && repoTags[0] == "<none>:<none>" && len(repoDigests) == 1 && repoDigests[0] == "<none>@<none>" {
+				// dangling image - clear out either repoTags or repoDigsts so we only show it once below
+				repoDigests = []string{}
 			}
 
-			// Digests referring to this image ID.
-			for _, repoDigest := range out.GetList("RepoDigests") {
-				repo, digest := parsers.ParseRepositoryTag(repoDigest)
+			// combine the tags and digests lists
+			tagsAndDigests := append(repoTags, repoDigests...)
+			for _, repoAndRef := range tagsAndDigests {
+				repo, ref := parsers.ParseRepositoryTag(repoAndRef)
+				// default tag and digest to none - if there's a value, it'll be set below
+				tag := "<none>"
+				digest := "<none>"
+				if utils.DigestReference(ref) {
+					digest = ref
+				} else {
+					tag = ref
+				}
+
 				if !*quiet {
 					if *showDigests {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, "<none>", digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 					} else {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, "<none>", outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
 					}
 				} else {
 					fmt.Fprintln(w, outID)

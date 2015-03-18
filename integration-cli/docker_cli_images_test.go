@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/pkg/common"
 )
 
 func TestImagesEnsureImageIsListed(t *testing.T) {
@@ -175,4 +177,45 @@ func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 	}
 
 	logDone("images - white space trimming and lower casing")
+}
+
+func TestImagesEnsureDanglingImageOnlyListedOnce(t *testing.T) {
+	defer deleteAllContainers()
+
+	// create container 1
+	c := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error running busybox: %s, %v", out, err)
+	}
+	containerId1 := strings.TrimSpace(out)
+
+	// tag as foobox
+	c = exec.Command(dockerBinary, "commit", containerId1, "foobox")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error tagging foobox: %s", err)
+	}
+	imageId := common.TruncateID(strings.TrimSpace(out))
+	defer deleteImages(imageId)
+
+	// overwrite the tag, making the previous image dangling
+	c = exec.Command(dockerBinary, "tag", "-f", "busybox", "foobox")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error tagging foobox: %s", err)
+	}
+	defer deleteImages("foobox")
+
+	c = exec.Command(dockerBinary, "images", "-q", "-f", "dangling=true")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("listing images failed with errors: %s, %v", out, err)
+	}
+
+	if e, a := 1, strings.Count(out, imageId); e != a {
+		t.Fatalf("expected 1 dangling image, got %d: %s", a, out)
+	}
+
+	logDone("images - dangling image only listed once")
 }
