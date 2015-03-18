@@ -10,26 +10,19 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/systemd"
-	"net"
 )
 
 type UnixHttpServer struct {
-	srv *http.Server
-	l   net.Listener
+	*HttpServer
 }
 
-func (s *UnixHttpServer) Serve() error {
-	return s.srv.Serve(s.l)
-}
 func (s *UnixHttpServer) Close() error {
-	if err := s.l.Close(); err != nil {
+	if err := s.HttpServer.Close(); err != nil {
 		return err
 	}
-	if _, err := os.Stat(s.srv.Addr); err != nil {
-		return fmt.Errorf("Error removing unix socket %s: %s", s.srv.Addr, err.Error())
-	}
-	if err := os.Remove(s.srv.Addr); err != nil {
-		return fmt.Errorf("Error removing unix socket %s: %s", s.srv.Addr, err.Error())
+
+	if err := os.Remove(s.srv.Addr); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Error removing unix socket %s: %v", s.srv.Addr, err)
 	}
 	return nil
 }
@@ -71,7 +64,7 @@ func setupUnixHttp(addr string, job *engine.Job) (*UnixHttpServer, error) {
 		return nil, err
 	}
 
-	return &UnixHttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
+	return &UnixHttpServer{&HttpServer{&http.Server{Addr: addr, Handler: r}, l}}, nil
 }
 
 // serveFd creates an http.Server and sets it up to serve given a socket activated
