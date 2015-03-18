@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -595,7 +596,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		if !job.Stdout.Used() {
 			return err
 		}
-		sf := utils.NewStreamFormatter(version.GreaterThan("1.0"))
+		sf := streamformatter.NewStreamFormatter(version.GreaterThan("1.0"))
 		w.Write(sf.FormatError(err))
 	}
 
@@ -680,7 +681,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 		if !job.Stdout.Used() {
 			return err
 		}
-		sf := utils.NewStreamFormatter(version.GreaterThan("1.0"))
+		sf := streamformatter.NewStreamFormatter(version.GreaterThan("1.0"))
 		w.Write(sf.FormatError(err))
 	}
 	return nil
@@ -1107,7 +1108,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		if !job.Stdout.Used() {
 			return err
 		}
-		sf := utils.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
+		sf := streamformatter.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
 		w.Write(sf.FormatError(err))
 	}
 	return nil

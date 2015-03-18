@@ -1,37 +1,16 @@
 package progressreader
 
 import (
+	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/streamformatter"
 	"io"
 )
-
-type StreamFormatter interface {
-	FormatProg(string, string, interface{}) []byte
-	FormatStatus(string, string, ...interface{}) []byte
-	FormatError(error) []byte
-}
-
-type PR_JSONProgress interface {
-	GetCurrent() int
-	GetTotal() int
-}
-
-type JSONProg struct {
-	Current int
-	Total   int
-}
-
-func (j *JSONProg) GetCurrent() int {
-	return j.Current
-}
-func (j *JSONProg) GetTotal() int {
-	return j.Total
-}
 
 // Reader with progress bar
 type Config struct {
 	In         io.ReadCloser // Stream to read from
 	Out        io.Writer     // Where to send progress bar to
-	Formatter  StreamFormatter
+	Formatter  *streamformatter.StreamFormatter
 	Size       int
 	Current    int
 	LastUpdate int
@@ -54,7 +33,7 @@ func (config *Config) Read(p []byte) (n int, err error) {
 		}
 	}
 	if config.Current-config.LastUpdate > updateEvery || err != nil {
-		config.Out.Write(config.Formatter.FormatProg(config.ID, config.Action, &JSONProg{Current: config.Current, Total: config.Size}))
+		config.Out.Write(config.Formatter.FormatProgress(config.ID, config.Action, &jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}))
 		config.LastUpdate = config.Current
 	}
 	// Send newline when complete
@@ -64,6 +43,6 @@ func (config *Config) Read(p []byte) (n int, err error) {
 	return read, err
 }
 func (config *Config) Close() error {
-	config.Out.Write(config.Formatter.FormatProg(config.ID, config.Action, &JSONProg{Current: config.Current, Total: config.Size}))
+	config.Out.Write(config.Formatter.FormatProgress(config.ID, config.Action, &jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}))
 	return config.In.Close()
 }

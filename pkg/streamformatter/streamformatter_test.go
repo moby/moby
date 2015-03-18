@@ -1,8 +1,9 @@
-package utils
+package streamformatter
 
 import (
 	"encoding/json"
 	"errors"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"reflect"
 	"testing"
 )
@@ -33,7 +34,7 @@ func TestFormatSimpleError(t *testing.T) {
 
 func TestFormatJSONError(t *testing.T) {
 	sf := NewStreamFormatter(true)
-	err := &JSONError{Code: 50, Message: "Json error"}
+	err := &jsonmessage.JSONError{Code: 50, Message: "Json error"}
 	res := sf.FormatError(err)
 	if string(res) != `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}`+"\r\n" {
 		t.Fatalf("%q", res)
@@ -42,13 +43,13 @@ func TestFormatJSONError(t *testing.T) {
 
 func TestFormatProgress(t *testing.T) {
 	sf := NewStreamFormatter(true)
-	progress := &JSONProgress{
+	progress := &jsonmessage.JSONProgress{
 		Current: 15,
 		Total:   30,
 		Start:   1,
 	}
 	res := sf.FormatProgress("id", "action", progress)
-	msg := &JSONMessage{}
+	msg := &jsonmessage.JSONMessage{}
 	if err := json.Unmarshal(res, msg); err != nil {
 		t.Fatal(err)
 	}

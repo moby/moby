@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -127,16 +128,16 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 	}
 	defer context.Close()
 
-	sf := utils.NewStreamFormatter(job.GetenvBool("json"))
+	sf := streamformatter.NewStreamFormatter(job.GetenvBool("json"))
 
 	builder := &Builder{
 		Daemon: b.Daemon,
 		Engine: b.Engine,
-		OutStream: &utils.StdoutFormater{
+		OutStream: &streamformatter.StdoutFormater{
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},
-		ErrStream: &utils.StderrFormater{
+		ErrStream: &streamformatter.StderrFormater{
 			Writer:          job.Stdout,
 			StreamFormatter: sf,
 		},

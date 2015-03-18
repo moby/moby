@@ -10,23 +10,23 @@ import (
 	"time"
 
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers/filters"
-	"github.com/docker/docker/utils"
 )
 
 const eventsLimit = 64
 
-type listener chan<- *utils.JSONMessage
+type listener chan<- *jsonmessage.JSONMessage
 
 type Events struct {
 	mu          sync.RWMutex
-	events      []*utils.JSONMessage
+	events      []*jsonmessage.JSONMessage
 	subscribers []listener
 }
 
 func New() *Events {
 	return &Events{
-		events: make([]*utils.JSONMessage, 0, eventsLimit),
+		events: make([]*jsonmessage.JSONMessage, 0, eventsLimit),
 	}
 }
 
@@ -63,7 +63,7 @@ func (e *Events) Get(job *engine.Job) error {
 		timeout.Stop()
 	}
 
-	listener := make(chan *utils.JSONMessage)
+	listener := make(chan *jsonmessage.JSONMessage)
 	e.subscribe(listener)
 	defer e.unsubscribe(listener)
 
@@ -107,7 +107,7 @@ func (e *Events) SubscribersCount(job *engine.Job) error {
 	return nil
 }
 
-func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.Args) error {
+func writeEvent(job *engine.Job, event *jsonmessage.JSONMessage, eventFilters filters.Args) error {
 	isFiltered := func(field string, filter []string) bool {
 		if len(filter) == 0 {
 			return false
@@ -170,7 +170,7 @@ func (e *Events) subscribersCount() int {
 func (e *Events) log(action, id, from string) {
 	e.mu.Lock()
 	now := time.Now().UTC().Unix()
-	jm := &utils.JSONMessage{Status: action, ID: id, From: from, Time: now}
+	jm := &jsonmessage.JSONMessage{Status: action, ID: id, From: from, Time: now}
 	if len(e.events) == cap(e.events) {
 		// discard oldest event
 		copy(e.events, e.events[1:])

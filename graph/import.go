@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -23,7 +24,7 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 		src          = job.Args[0]
 		repo         = job.Args[1]
 		tag          string
-		sf           = utils.NewStreamFormatter(job.GetenvBool("json"))
+		sf           = streamformatter.NewStreamFormatter(job.GetenvBool("json"))
 		archive      archive.ArchiveReader
 		resp         *http.Response
 		stdoutBuffer = bytes.NewBuffer(nil)
