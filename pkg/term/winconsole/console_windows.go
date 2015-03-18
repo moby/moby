@@ -265,6 +265,10 @@ func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
 func GetHandleInfo(in interface{}) (uintptr, bool) {
 	var inFd uintptr
 	var isTerminalIn bool
+	if file, ok := in.(*os.File); ok {
+		inFd = file.Fd()
+		isTerminalIn = IsTerminal(inFd)
+	}
 	if tr, ok := in.(*terminalReader); ok {
 		if file, ok := tr.wrappedReader.(*os.File); ok {
 			inFd = file.Fd()
@@ -678,13 +682,23 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		// [line;columnf
 		// Moves the cursor to the specified position (coordinates).
 		// If you do not specify a position, the cursor moves to the home position at the upper-left corner of the screen (line 0, column 0).
+		screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
+		if err != nil {
+			return len(command), err
+		}
 		line, err := parseInt16OrDefault(parsedCommand.getParam(0), 1)
 		if err != nil {
 			return len(command), err
 		}
+		if line > int16(screenBufferInfo.Window.Bottom) {
+			line = int16(screenBufferInfo.Window.Bottom)
+		}
 		column, err := parseInt16OrDefault(parsedCommand.getParam(1), 1)
 		if err != nil {
 			return len(command), err
+		}
+		if column > int16(screenBufferInfo.Window.Right) {
+			column = int16(screenBufferInfo.Window.Right)
 		}
 		// The numbers are not 0 based, but 1 based
 		r, err = setConsoleCursorPosition(uintptr(handle), false, int16(column-1), int16(line-1))
