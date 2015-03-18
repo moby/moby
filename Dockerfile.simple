@@ -12,6 +12,7 @@ FROM debian:jessie
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		btrfs-tools \
+		curl \
 		gcc \
 		git \
 		golang \
