@@ -66,13 +66,6 @@ func New() *configs.Config {
 		ReadonlyPaths: []string{
 			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 		},
-		Rlimits: []configs.Rlimit{
-			{
-				Type: syscall.RLIMIT_NOFILE,
-				Hard: 1024,
-				Soft: 1024,
-			},
-		},
 	}
 
 	if apparmor.IsEnabled() {
