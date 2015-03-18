@@ -267,6 +267,10 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
+func (d *Daemon) LogfileName() string {
+	return d.logFile.Name()
+}
+
 func daemonHost() string {
 	daemonUrlStr := "unix://" + api.DEFAULTUNIXSOCKET
 	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {

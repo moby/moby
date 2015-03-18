@@ -825,6 +825,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
+	// register portallocator release on shutdown
+	eng.OnShutdown(func() {
+		if err := portallocator.ReleaseAll(); err != nil {
+			log.Errorf("portallocator.ReleaseAll(): %s", err)
+		}
+	})
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
 	if config.Pidfile != "" {
@@ -887,6 +893,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("error intializing graphdriver: %v", err)
 	}
 	log.Debugf("Using graph driver %s", driver)
+	// register cleanup for graph driver
+	eng.OnShutdown(func() {
+		if err := driver.Cleanup(); err != nil {
+			log.Errorf("Error during graph storage driver.Cleanup(): %v", err)
+		}
+	})
 
 	// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
 	if selinuxEnabled() && config.EnableSelinuxSupport && driver.String() == "btrfs" {
@@ -964,6 +976,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if err != nil {
 		return nil, err
 	}
+	// register graph close on shutdown
+	eng.OnShutdown(func() {
+		if err := graph.Close(); err != nil {
+			log.Errorf("Error during container graph.Close(): %v", err)
+		}
+	})
 
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
@@ -1012,22 +1030,9 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		defaultLogConfig: config.LogConfig,
 	}
 
-	// Setup shutdown handlers
-	// FIXME: can these shutdown handlers be registered closer to their source?
 	eng.OnShutdown(func() {
-		// FIXME: if these cleanup steps can be called concurrently, register
-		// them as separate handlers to speed up total shutdown time
 		if err := daemon.shutdown(); err != nil {
-			log.Errorf("daemon.shutdown(): %s", err)
-		}
-		if err := portallocator.ReleaseAll(); err != nil {
-			log.Errorf("portallocator.ReleaseAll(): %s", err)
-		}
-		if err := daemon.driver.Cleanup(); err != nil {
-			log.Errorf("daemon.driver.Cleanup(): %v", err)
-		}
-		if err := daemon.containerGraph.Close(); err != nil {
-			log.Errorf("daemon.containerGraph.Close(): %v", err)
+			log.Errorf("Error during daemon.shutdown(): %v", err)
 		}
 	})
 

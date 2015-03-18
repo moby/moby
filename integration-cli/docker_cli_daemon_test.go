@@ -482,6 +482,33 @@ func TestDaemonUpgradeWithVolumes(t *testing.T) {
 	logDone("daemon - volumes from old(pre 1.3) daemon work")
 }
 
+// GH#11320 - verify that the daemon exits on failure properly
+// Note that this explicitly tests the conflict of {-b,--bridge} and {--bip} options as the means
+// to get a daemon init failure; no other tests for -b/--bip conflict are therefore required
+func TestDaemonExitOnFailure(t *testing.T) {
+	d := NewDaemon(t)
+	defer d.Stop()
+
+	//attempt to start daemon with incorrect flags (we know -b and --bip conflict)
+	if err := d.Start("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
+		//verify we got the right error
+		if !strings.Contains(err.Error(), "Daemon exited and never started") {
+			t.Fatalf("Expected daemon not to start, got %v", err)
+		}
+		// look in the log and make sure we got the message that daemon is shutting down
+		runCmd := exec.Command("grep", "Shutting down daemon due to", d.LogfileName())
+		if out, _, err := runCommandWithOutput(runCmd); err != nil {
+			t.Fatalf("Expected 'shutting down daemon due to error' message; but doesn't exist in log: %q, err: %v", out, err)
+		}
+	} else {
+		//if we didn't get an error and the daemon is running, this is a failure
+		d.Stop()
+		t.Fatal("Conflicting options should cause the daemon to error out with a failure")
+	}
+
+	logDone("daemon - verify no start on daemon init errors")
+}
+
 func TestDaemonUlimitDefaults(t *testing.T) {
 	testRequires(t, NativeExecDriver)
 	d := NewDaemon(t)
