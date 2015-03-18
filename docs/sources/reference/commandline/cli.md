@@ -949,7 +949,6 @@ Current filters:
 * container
 * event
 * image
-* name
 
 #### Examples
 
