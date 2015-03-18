@@ -252,6 +252,7 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
+	defer d.cleanContainer(c.ID)
 	// lets check the start time for the process
 	active := d.activeContainers[c.ID]
 	if active == nil {
@@ -272,7 +273,6 @@ func (d *driver) Terminate(c *execdriver.Command) error {
 		err = syscall.Kill(pid, 9)
 		syscall.Wait4(pid, nil, 0, nil)
 	}
-	d.cleanContainer(c.ID)
 
 	return err
 
@@ -312,7 +312,7 @@ func (d *driver) cleanContainer(id string) error {
 	d.Lock()
 	delete(d.activeContainers, id)
 	d.Unlock()
-	return os.RemoveAll(filepath.Join(d.root, id, "container.json"))
+	return os.RemoveAll(filepath.Join(d.root, id))
 }
 
 func (d *driver) createContainerRoot(id string) error {
