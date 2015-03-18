@@ -2,6 +2,7 @@ package graph
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,11 +14,11 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -466,24 +467,17 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 		os.Remove(tf.Name())
 	}()
 
-	ts, err := tarsum.NewTarSum(arch, true, tarsum.Version1)
+	h := sha256.New()
+	size, err := bufferToFile(tf, io.TeeReader(arch, h))
 	if err != nil {
 		return "", err
 	}
-	size, err := bufferToFile(tf, ts)
-	if err != nil {
-		return "", err
-	}
-	checksum := ts.Sum(nil)
-	sumParts := strings.SplitN(checksum, ":", 2)
-	if len(sumParts) < 2 {
-		return "", fmt.Errorf("Invalid checksum: %s", checksum)
-	}
+	dgst := digest.NewDigest("sha256", h)
 
 	// Send the layer
 	log.Debugf("rendered layer for %s of [%d] size", img.ID, size)
 
-	if err := r.PutV2ImageBlob(endpoint, imageName, sumParts[0], sumParts[1],
+	if err := r.PutV2ImageBlob(endpoint, imageName, dgst.Algorithm(), dgst.Hex(),
 		progressreader.New(progressreader.Config{
 			In:        tf,
 			Out:       out,
@@ -497,7 +491,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 		return "", err
 	}
 	out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Image successfully pushed", nil))
-	return checksum, nil
+	return dgst.String(), nil
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.

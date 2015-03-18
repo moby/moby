@@ -11,11 +11,11 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -375,6 +375,7 @@ func WriteStatus(requestedTag string, out io.Writer, sf *utils.StreamFormatter, 
 type downloadInfo struct {
 	imgJSON    []byte
 	img        *image.Image
+	digest     digest.Digest
 	tmpFile    *os.File
 	length     int64
 	downloaded bool
@@ -429,7 +430,7 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 
 func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
-	manifestBytes, digest, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
+	manifestBytes, manifestDigest, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
@@ -468,11 +469,12 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 			continue
 		}
 
-		chunks := strings.SplitN(sumStr, ":", 2)
-		if len(chunks) < 2 {
-			return false, fmt.Errorf("expected 2 parts in the sumStr, got %#v", chunks)
+		dgst, err := digest.ParseDigest(sumStr)
+		if err != nil {
+			return false, err
 		}
-		sumType, checksum := chunks[0], chunks[1]
+		downloads[i].digest = dgst
+
 		out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Pulling fs layer", nil))
 
 		downloadFunc := func(di *downloadInfo) error {
@@ -493,20 +495,19 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 					return err
 				}
 
-				r, l, err := r.GetV2ImageBlobReader(endpoint, repoInfo.RemoteName, sumType, checksum, auth)
+				r, l, err := r.GetV2ImageBlobReader(endpoint, repoInfo.RemoteName, di.digest.Algorithm(), di.digest.Hex(), auth)
 				if err != nil {
 					return err
 				}
 				defer r.Close()
 
-				// Wrap the reader with the appropriate TarSum reader.
-				tarSumReader, err := tarsum.NewTarSumForLabel(r, true, sumType)
+				verifier, err := digest.NewDigestVerifier(di.digest)
 				if err != nil {
-					return fmt.Errorf("unable to wrap image blob reader with TarSum: %s", err)
+					return err
 				}
 
 				if _, err := io.Copy(tmpFile, progressreader.New(progressreader.Config{
-					In:        ioutil.NopCloser(tarSumReader),
+					In:        ioutil.NopCloser(io.TeeReader(r, verifier)),
 					Out:       out,
 					Formatter: sf,
 					Size:      int(l),
@@ -519,8 +520,8 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 
 				out.Write(sf.FormatProgress(common.TruncateID(img.ID), "Verifying Checksum", nil))
 
-				if finalChecksum := tarSumReader.Sum(nil); !strings.EqualFold(finalChecksum, sumStr) {
-					log.Infof("Image verification failed: checksum mismatch - expected %q but got %q", sumStr, finalChecksum)
+				if !verifier.Verified() {
+					log.Infof("Image verification failed: checksum mismatch for %q", di.digest.String())
 					verified = false
 				}
 
@@ -604,8 +605,8 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		out.Write(sf.FormatStatus(utils.ImageReference(repoInfo.CanonicalName, tag), "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
-	if len(digest) > 0 {
-		out.Write(sf.FormatStatus("", "Digest: %s", digest))
+	if len(manifestDigest) > 0 {
+		out.Write(sf.FormatStatus("", "Digest: %s", manifestDigest))
 	}
 
 	if utils.DigestReference(tag) {

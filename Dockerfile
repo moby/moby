@@ -108,7 +108,7 @@ RUN go get golang.org/x/tools/cmd/cover
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install registry
-ENV REGISTRY_COMMIT b4cc5e3ecc2e9f4fa0e95d94c389e1d79e902486
+ENV REGISTRY_COMMIT 0c130dff5baf3168f2c85630c6d2344b81261269
 RUN set -x \
 	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
 	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
