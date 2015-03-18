@@ -43,6 +43,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 			}
 		}
 		container.ReadonlyPaths = nil
+		container.MaskPaths = nil
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
