@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_devicemapper
+// +build !exclude_graphdriver_devicemapper,!static_build
 
 package daemon
 
