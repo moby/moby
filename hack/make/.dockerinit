@@ -14,6 +14,7 @@ go build \
 		-extldflags \"$EXTLDFLAGS_STATIC\"
 	" \
 	./dockerinit
+
 echo "Created binary: $DEST/dockerinit-$VERSION"
 ln -sf "dockerinit-$VERSION" "$DEST/dockerinit"
 
