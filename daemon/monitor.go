@@ -303,7 +303,20 @@ func (m *containerMonitor) resetContainer(lock bool) {
 	}
 
 	if container.logDriver != nil {
+		if container.logCopier != nil {
+			exit := make(chan struct{})
+			go func() {
+				container.logCopier.Wait()
+				close(exit)
+			}()
+			select {
+			case <-time.After(1 * time.Second):
+				log.Warnf("Logger didn't exit in time: logs may be truncated")
+			case <-exit:
+			}
+		}
 		container.logDriver.Close()
+		container.logCopier = nil
 		container.logDriver = nil
 	}
 

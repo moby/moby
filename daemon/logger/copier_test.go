@@ -70,7 +70,16 @@ func TestCopier(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Run()
-	time.Sleep(100 * time.Millisecond)
+	wait := make(chan struct{})
+	go func() {
+		c.Wait()
+		close(wait)
+	}()
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("Copier failed to do its work in 1 second")
+	case <-wait:
+	}
 	dec := json.NewDecoder(&jsonBuf)
 	for {
 		var msg Message

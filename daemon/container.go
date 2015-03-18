@@ -105,6 +105,7 @@ type Container struct {
 	execCommands *execStore
 	// logDriver for closing
 	logDriver          logger.Logger
+	logCopier          *logger.Copier
 	AppliedVolumesFrom map[string]struct{}
 }
 
@@ -1383,11 +1384,12 @@ func (container *Container) startLogging() error {
 		return fmt.Errorf("Unknown logging driver: %s", cfg.Type)
 	}
 
-	if copier, err := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l); err != nil {
+	copier, err := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	if err != nil {
 		return err
-	} else {
-		copier.Run()
 	}
+	container.logCopier = copier
+	copier.Run()
 	container.logDriver = l
 
 	return nil
