@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/registry/v2"
 	"github.com/docker/docker/utils"
 )
@@ -95,11 +97,12 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 		return nil, "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
 	}
 
-	buf, err := ioutil.ReadAll(res.Body)
+	manifestBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, "", fmt.Errorf("Error while reading the http response: %s", err)
 	}
-	return buf, res.Header.Get(DockerDigestHeader), nil
+
+	return manifestBytes, res.Header.Get(DockerDigestHeader), nil
 }
 
 // - Succeeded to head image blob (already exists)
@@ -263,7 +266,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 }
 
 // Finally Push the (signed) manifest of the blobs we've just pushed
-func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, manifestRdr io.Reader, auth *RequestAuthorization) (string, error) {
+func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, signedManifest, rawManifest []byte, auth *RequestAuthorization) (digest.Digest, error) {
 	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
 		return "", err
@@ -271,7 +274,7 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 
 	method := "PUT"
 	log.Debugf("[registry] Calling %q %s", method, routeURL)
-	req, err := r.reqFactory.NewRequest(method, routeURL, manifestRdr)
+	req, err := r.reqFactory.NewRequest(method, routeURL, bytes.NewReader(signedManifest))
 	if err != nil {
 		return "", err
 	}
@@ -297,7 +300,24 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
 	}
 
-	return res.Header.Get(DockerDigestHeader), nil
+	hdrDigest, err := digest.ParseDigest(res.Header.Get(DockerDigestHeader))
+	if err != nil {
+		return "", fmt.Errorf("invalid manifest digest from registry: %s", err)
+	}
+
+	dgstVerifier, err := digest.NewDigestVerifier(hdrDigest)
+	if err != nil {
+		return "", fmt.Errorf("invalid manifest digest from registry: %s", err)
+	}
+
+	dgstVerifier.Write(rawManifest)
+
+	if !dgstVerifier.Verified() {
+		computedDigest, _ := digest.FromBytes(rawManifest)
+		return "", fmt.Errorf("unable to verify manifest digest: registry has %q, computed %q", hdrDigest, computedDigest)
+	}
+
+	return hdrDigest, nil
 }
 
 type remoteTags struct {
