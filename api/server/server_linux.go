@@ -10,29 +10,7 @@ import (
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/systemd"
-	"net"
 )
-
-type UnixHttpServer struct {
-	srv *http.Server
-	l   net.Listener
-}
-
-func (s *UnixHttpServer) Serve() error {
-	return s.srv.Serve(s.l)
-}
-func (s *UnixHttpServer) Close() error {
-	if err := s.l.Close(); err != nil {
-		return err
-	}
-	if _, err := os.Stat(s.srv.Addr); err != nil {
-		return fmt.Errorf("Error removing unix socket %s: %s", s.srv.Addr, err.Error())
-	}
-	if err := os.Remove(s.srv.Addr); err != nil {
-		return fmt.Errorf("Error removing unix socket %s: %s", s.srv.Addr, err.Error())
-	}
-	return nil
-}
 
 // NewServer sets up the required Server and does protocol specific checking.
 func NewServer(proto, addr string, job *engine.Job) (Server, error) {
@@ -49,7 +27,7 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 	}
 }
 
-func setupUnixHttp(addr string, job *engine.Job) (*UnixHttpServer, error) {
+func setupUnixHttp(addr string, job *engine.Job) (*HttpServer, error) {
 	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
 
 	if err := syscall.Unlink(addr); err != nil && !os.IsNotExist(err) {
@@ -71,7 +49,7 @@ func setupUnixHttp(addr string, job *engine.Job) (*UnixHttpServer, error) {
 		return nil, err
 	}
 
-	return &UnixHttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
+	return &HttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
 }
 
 // serveFd creates an http.Server and sets it up to serve given a socket activated
