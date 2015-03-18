@@ -17,6 +17,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
@@ -50,6 +51,15 @@ func NewDriver(root, initPath string) (*driver, error) {
 
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
+	}
+	mounted, err := mount.Mounted(root)
+	if err != nil {
+		return nil, err
+	}
+	if !mounted {
+		if err := syscall.Mount("tmpfs", root, "tmpfs", 0, ""); err != nil {
+			return nil, err
+		}
 	}
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
 	if err := apparmor.InstallDefaultProfile(); err != nil {
