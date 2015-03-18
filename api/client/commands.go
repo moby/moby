@@ -2494,7 +2494,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 }
 
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTPATH|-", "Copy files/folders from the PATH to the HOSTPATH. Use '-' to write the data\nas a tar file to STDOUT.", true)
+	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTDIR|-", "Copy files/folders from a PATH on the container to a HOSTDIR on the host\nrunning the command. Use '-' to write the data\nas a tar file to STDOUT.", true)
 	cmd.Require(flag.Exact, 2)
 
 	utils.ParseFlags(cmd, args, true)
