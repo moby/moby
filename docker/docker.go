@@ -67,6 +67,11 @@ func main() {
 		flHosts = append(flHosts, defaultHost)
 	}
 
+	file := "/etc/docker/key.json"
+	info, _ := os.Stat(file)
+	if info.Mode().Perm()&0177 != 0 {
+		log.Warnf("%s file's permission isn't 400 or 600.", file)
+	}
 	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
 
 	if *flDaemon {
