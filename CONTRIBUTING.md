@@ -190,9 +190,7 @@ Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
 clean documentation build. See our contributors guide for [our style
 guide](https://docs.docker.com/project/doc-style) and instructions on [building
-the
-documentation](https://docs.docker.com/project/test-and-docs/#build-and-test-the
-- documentation).
+the documentation](https://docs.docker.com/project/test-and-docs/#build-and-test-the-documentation).
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `gofmt -s -w file.go` on each changed file before
