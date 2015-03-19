@@ -16,7 +16,8 @@ export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
-	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+	SOCKDIR=$(mktemp -d --tmpdir "docker-test-integration-cli-XXXXXX")
+	export DOCKER_HOST="unix://$SOCKDIR/docker.sock"
 	( set -x; exec \
 		docker --daemon --debug \
 		--host "$DOCKER_HOST" \
