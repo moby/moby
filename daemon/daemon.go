@@ -346,7 +346,7 @@ func (daemon *Daemon) restore() error {
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
-		if !debug {
+		if !debug && log.GetLevel() == log.InfoLevel {
 			fmt.Print(".")
 		}
 		if err != nil {
@@ -368,7 +368,7 @@ func (daemon *Daemon) restore() error {
 
 	if entities := daemon.containerGraph.List("/", -1); entities != nil {
 		for _, p := range entities.Paths() {
-			if !debug {
+			if !debug && log.GetLevel() == log.InfoLevel {
 				fmt.Print(".")
 			}
 
@@ -420,7 +420,9 @@ func (daemon *Daemon) restore() error {
 	}
 
 	if !debug {
-		fmt.Println()
+		if log.GetLevel() == log.InfoLevel {
+			fmt.Println()
+		}
 		log.Infof("Loading containers: done.")
 	}
 

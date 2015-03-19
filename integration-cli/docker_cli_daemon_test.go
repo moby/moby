@@ -753,3 +753,50 @@ func TestDaemonLoggingDriverNoneLogsError(t *testing.T) {
 	}
 	logDone("daemon - logs not available for non-json-file drivers")
 }
+
+func TestDaemonDots(t *testing.T) {
+	defer deleteAllContainers()
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now create 4 containers
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+
+	d.Stop()
+
+	d.Start("--log-level=debug")
+	d.Stop()
+	content, _ := ioutil.ReadFile(d.logFile.Name())
+	if strings.Contains(string(content), "....") {
+		t.Fatalf("Debug level should not have ....\n%s", string(content))
+	}
+
+	d.Start("--log-level=error")
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if strings.Contains(string(content), "....") {
+		t.Fatalf("Error level should not have ....\n%s", string(content))
+	}
+
+	d.Start("--log-level=info")
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), "....") {
+		t.Fatalf("Info level should have ....\n%s", string(content))
+	}
+
+	logDone("daemon - test dots on INFO")
+}
