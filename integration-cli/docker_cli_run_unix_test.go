@@ -114,7 +114,7 @@ func getCgroupPaths(test string) map[string]string {
 	for _, line := range strings.Split(test, "\n") {
 		parts := strings.Split(line, ":")
 		if len(parts) != 3 {
-			fmt.Printf("unexpected file format for /proc/self/cgroup - %q", line)
+			fmt.Printf("unexpected file format for /proc/self/cgroup - %q\n", line)
 			continue
 		}
 		cgroupPaths[parts[1]] = parts[2]
@@ -132,7 +132,7 @@ func TestRunContainerWithCgroupParent(t *testing.T) {
 		t.Fatalf("failed to read '/proc/self/cgroup - %v", err)
 	}
 	selfCgroupPaths := getCgroupPaths(string(data))
-	selfCpuCgroup, found := selfCgroupPaths["cpu"]
+	selfCpuCgroup, found := selfCgroupPaths["memory"]
 	if !found {
 		t.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
 	}
