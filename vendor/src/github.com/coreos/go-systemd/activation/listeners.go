@@ -30,7 +30,7 @@ func Listeners(unsetEnv bool) ([]net.Listener, error) {
 		var err error
 		listeners[i], err = net.FileListener(f)
 		if err != nil {
-			return nil, fmt.Errorf("Error setting up FileListener for fd %d: %v", f.Fd(), err)
+			return nil, fmt.Errorf("Error setting up FileListener for fd %d: %s", f.Fd(), err.Error())
 		}
 	}
 

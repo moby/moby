@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"syscall"
 
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/cgroups/systemd"
@@ -73,6 +75,20 @@ func Cgroupfs(l *LinuxFactory) error {
 		return &fs.Manager{
 			Cgroups: config,
 			Paths:   paths,
+		}
+	}
+	return nil
+}
+
+// TmpfsRoot is an option func to mount LinuxFactory.Root to tmpfs.
+func TmpfsRoot(l *LinuxFactory) error {
+	mounted, err := mount.Mounted(l.Root)
+	if err != nil {
+		return err
+	}
+	if !mounted {
+		if err := syscall.Mount("tmpfs", l.Root, "tmpfs", 0, ""); err != nil {
+			return err
 		}
 	}
 	return nil

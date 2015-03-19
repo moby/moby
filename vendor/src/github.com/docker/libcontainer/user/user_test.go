@@ -198,7 +198,7 @@ this is just some garbage data
 
 		execUser, err := GetExecUser(test.ref, &defaultExecUser, passwd, group)
 		if err != nil {
-			t.Logf("got unexpected error when parsing '%s': %v", test.ref, err)
+			t.Logf("got unexpected error when parsing '%s': %s", test.ref, err.Error())
 			t.Fail()
 			continue
 		}
@@ -337,7 +337,7 @@ this is just some garbage data
 
 		execUser, err := GetExecUser(test.ref, &defaultExecUser, passwd, group)
 		if err != nil {
-			t.Logf("got unexpected error when parsing '%s': %v", test.ref, err)
+			t.Logf("got unexpected error when parsing '%s': %s", test.ref, err.Error())
 			t.Fail()
 			continue
 		}

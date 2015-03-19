@@ -96,7 +96,7 @@ type Container interface {
 	//
 	// errors:
 	// Systemerror - System error.
-	Set() error
+	Set(config configs.Config) error
 
 	// Start a process inside the container. Returns error if process fails to
 	// start. You can track process lifecycle with passed Process structure.
