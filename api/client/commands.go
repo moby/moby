@@ -90,6 +90,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers")
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
+	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
+	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+	flCpuShares := cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+	flCpuSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 
 	cmd.Require(flag.Exact, 1)
 
@@ -242,6 +246,28 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			Action:    "Sending build context to Docker daemon",
 		})
 	}
+
+	var memory int64
+	if *flMemoryString != "" {
+		parsedMemory, err := units.RAMInBytes(*flMemoryString)
+		if err != nil {
+			return err
+		}
+		memory = parsedMemory
+	}
+
+	var memorySwap int64
+	if *flMemorySwap != "" {
+		if *flMemorySwap == "-1" {
+			memorySwap = -1
+		} else {
+			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
+			if err != nil {
+				return err
+			}
+			memorySwap = parsedMemorySwap
+		}
+	}
 	// Send the build context
 	v := &url.Values{}
 
@@ -282,6 +308,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *pull {
 		v.Set("pull", "1")
 	}
+
+	v.Set("cpusetcpus", *flCpuSetCpus)
+	v.Set("cpushares", strconv.FormatInt(*flCpuShares, 10))
+	v.Set("memory", strconv.FormatInt(memory, 10))
+	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
 
 	v.Set("dockerfile", *dockerfileName)
 

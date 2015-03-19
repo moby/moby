@@ -1082,6 +1082,10 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("forcerm", r.FormValue("forcerm"))
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
+	job.Setenv("memswap", r.FormValue("memswap"))
+	job.Setenv("memory", r.FormValue("memory"))
+	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
+	job.Setenv("cpushares", r.FormValue("cpushares"))
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {

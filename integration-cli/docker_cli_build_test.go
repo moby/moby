@@ -4455,7 +4455,7 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-		
+
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]
@@ -5275,4 +5275,75 @@ RUN [ "/hello" ]`, map[string]string{})
 	}
 
 	logDone("build - RUN with one JSON arg")
+}
+
+func TestBuildResourceConstraintsAreUsed(t *testing.T) {
+	name := "testbuildresourceconstraints"
+	defer deleteAllContainers()
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(`
+	FROM hello-world:frozen
+	RUN ["/hello"]
+	`, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "build", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=1", "--cpu-shares=100", "-t", name, ".")
+	cmd.Dir = ctx.Dir
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	out, _, err = dockerCmd(t, "ps", "-lq")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	cID := stripTrailingCharacters(out)
+
+	type hostConfig struct {
+		Memory     float64 // Use float64 here since the json decoder sees it that way
+		MemorySwap int
+		CpusetCpus string
+		CpuShares  int
+	}
+
+	cfg, err := inspectFieldJSON(cID, "HostConfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var c1 hostConfig
+	if err := json.Unmarshal([]byte(cfg), &c1); err != nil {
+		t.Fatal(err, cfg)
+	}
+	mem := int64(c1.Memory)
+	if mem != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "1" || c1.CpuShares != 100 {
+		t.Fatalf("resource constraints not set properly:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpuShares: %d",
+			mem, c1.MemorySwap, c1.CpusetCpus, c1.CpuShares)
+	}
+
+	// Make sure constraints aren't saved to image
+	_, _, err = dockerCmd(t, "run", "--name=test", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = inspectFieldJSON("test", "HostConfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c2 hostConfig
+	if err := json.Unmarshal([]byte(cfg), &c2); err != nil {
+		t.Fatal(err, cfg)
+	}
+	mem = int64(c2.Memory)
+	if mem == 67108864 || c2.MemorySwap == -1 || c2.CpusetCpus == "1" || c2.CpuShares == 100 {
+		t.Fatalf("resource constraints leaked from build:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpuShares: %d",
+			mem, c2.MemorySwap, c2.CpusetCpus, c2.CpuShares)
+	}
+
+	logDone("build - resource constraints applied")
 }

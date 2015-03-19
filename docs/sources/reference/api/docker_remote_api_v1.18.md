@@ -1156,6 +1156,10 @@ Query Parameters:
 -   **pull** - attempt to pull the image even if an older image exists locally
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm** - always remove intermediate containers (includes rm)
+-   **memory** - set memory limit for build
+-   **memswap** - Total memory (memory + swap), `-1` to disable swap
+-   **cpushares** - CPU shares (relative weight)
+-   **cpusetcpus** - CPUs in which to allow exection, e.g., `0-3`, `0,1`
 
     Request Headers:
 
