@@ -21,8 +21,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
 )
@@ -84,10 +82,11 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		return nil, fmt.Errorf("Cannot open %s", options.fsName)
 	}
 
-	return &Driver{
+	d := &Driver{
 		dataset: dataset,
 		options: options,
-	}, nil
+	}
+	return graphdriver.NaiveDiffDriver(d), nil
 }
 
 func parseOptions(opt []string) (ZfsOptions, error) {
@@ -275,101 +274,4 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Exists(id string) bool {
 	_, err := zfs.GetDataset(d.ZfsPath(id))
 	return err == nil
-}
-
-func zfsChanges(dataset *zfs.Dataset) ([]archive.Change, error) {
-	if dataset.Origin == "" { // should never happen
-		return nil, fmt.Errorf("no origin found for dataset '%s'. expected a clone", dataset.Name)
-	}
-	changes, err := dataset.Diff(dataset.Origin)
-	if err != nil {
-		return nil, err
-	}
-
-	// for rename changes, we have to add a ADD and a REMOVE
-	renameCount := 0
-	for _, change := range changes {
-		if change.Change == zfs.Renamed {
-			renameCount++
-		}
-	}
-	archiveChanges := make([]archive.Change, len(changes)+renameCount)
-	i := 0
-	for _, change := range changes {
-		var changeType archive.ChangeType
-		mountpointLen := len(dataset.Mountpoint)
-		basePath := change.Path[mountpointLen:]
-		switch change.Change {
-		case zfs.Renamed:
-			archiveChanges[i] = archive.Change{basePath, archive.ChangeDelete}
-			newBasePath := change.NewPath[mountpointLen:]
-			archiveChanges[i+1] = archive.Change{newBasePath, archive.ChangeAdd}
-			i += 2
-			continue
-		case zfs.Created:
-			changeType = archive.ChangeAdd
-		case zfs.Modified:
-			changeType = archive.ChangeModify
-		case zfs.Removed:
-			changeType = archive.ChangeDelete
-		}
-		archiveChanges[i] = archive.Change{basePath, changeType}
-		i++
-	}
-
-	return archiveChanges, nil
-}
-
-func (d *Driver) Diff(id, parent string) (archive.Archive, error) {
-	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if err != nil {
-		return nil, err
-	}
-	changes, err := zfsChanges(dataset)
-	if err != nil {
-		return nil, err
-	}
-
-	archive, err := archive.ExportChanges(dataset.Mountpoint, changes)
-	if err != nil {
-		return nil, err
-	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		d.Put(id)
-		return err
-	}), nil
-}
-
-func (d *Driver) DiffSize(id, parent string) (bytes int64, err error) {
-	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if err == nil {
-		return int64((*dataset).Logicalused), nil
-	} else {
-		return -1, err
-	}
-}
-
-func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
-	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if err != nil {
-		return nil, err
-	}
-	return zfsChanges(dataset)
-}
-
-func (d *Driver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (int64, error) {
-	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if err != nil {
-		return -1, err
-	}
-	_, err = archive.ApplyLayer(dataset.Mountpoint, diff)
-	if err != nil {
-		return -1, err
-	}
-	updatedDataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if err != nil {
-		return -1, err
-	}
-	return int64(updatedDataset.Logicalused), nil
 }
