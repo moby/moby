@@ -102,9 +102,10 @@ specify to which of the three standard streams (`STDIN`, `STDOUT`,
     $ sudo docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 For interactive processes (like a shell), you must use `-i -t` together in
-order to allocate a tty for the container process. Specifying `-t` is however
-forbidden when the client standard output is redirected or pipe, such as in:
-`echo test | docker run -i busybox cat`.
+order to allocate a tty for the container process. `-i -t` is often written `-it`
+as you'll see in later examples.  Specifying `-t` is forbidden when the client
+standard output is redirected or piped, such as in:
+`echo test | sudo docker run -i busybox cat`.
 
 ## Container identification
 
@@ -289,7 +290,7 @@ running the `redis-cli` command and connecting to the Redis server over the
 
     $ sudo docker run -d --name redis example/redis --bind 127.0.0.1
     $ # use the redis container's network stack to access localhost
-    $ sudo docker run --rm -ti --net container:redis example/redis-cli -h 127.0.0.1
+    $ sudo docker run --rm -it --net container:redis example/redis-cli -h 127.0.0.1
 
 ### Managing /etc/hosts
 
@@ -297,7 +298,7 @@ Your container will have lines in `/etc/hosts` which define the hostname of the
 container itself as well as `localhost` and a few other common things.  The
 `--add-host` flag can be used to add additional lines to `/etc/hosts`.  
 
-    $ /docker run -ti --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
+    $ sudo docker run -it --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
     172.17.0.22     09d03f76bf2c
     fe00::0         ip6-localnet
     ff00::0         ip6-mcastprefix
