@@ -56,8 +56,11 @@ func NewDigestVerifier(d Digest) (Verifier, error) {
 		// TODO(sday): Ick! A goroutine per digest verification? We'll have to
 		// get the tarsum library to export an io.Writer variant.
 		go func() {
-			io.Copy(ioutil.Discard, ts)
-			pw.Close()
+			if _, err := io.Copy(ioutil.Discard, ts); err != nil {
+				pr.CloseWithError(err)
+			} else {
+				pr.Close()
+			}
 		}()
 
 		return &tarsumVerifier{

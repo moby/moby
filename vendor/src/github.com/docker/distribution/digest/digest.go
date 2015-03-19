@@ -58,7 +58,7 @@ var (
 	// ErrDigestInvalidFormat returned when digest format invalid.
 	ErrDigestInvalidFormat = fmt.Errorf("invalid checksum digest format")
 
-	// ErrDigestUnsupported returned when the digest algorithm is unsupported by registry.
+	// ErrDigestUnsupported returned when the digest algorithm is unsupported.
 	ErrDigestUnsupported = fmt.Errorf("unsupported digest algorithm")
 )
 

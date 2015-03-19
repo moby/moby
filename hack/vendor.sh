@@ -69,7 +69,7 @@ if [ "$1" = '--go' ]; then
 fi
 
 # get digest package from distribution
-clone git github.com/docker/distribution 0c130dff5baf3168f2c85630c6d2344b81261269
+clone git github.com/docker/distribution d957768537c5af40e4f4cd96871f7b2bde9e2923
 mv src/github.com/docker/distribution/digest tmp-digest
 rm -rf src/github.com/docker/distribution
 mkdir -p src/github.com/docker/distribution
