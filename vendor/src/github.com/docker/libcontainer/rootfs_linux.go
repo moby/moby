@@ -17,37 +17,14 @@ import (
 
 const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
-var baseMounts = []*configs.Mount{
-	{
-		Source:      "proc",
-		Destination: "/proc",
-		Device:      "proc",
-		Flags:       defaultMountFlags,
-	},
-	{
-		Source:      "tmpfs",
-		Destination: "/dev",
-		Device:      "tmpfs",
-		Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
-		Data:        "mode=755",
-	},
-	{
-		Source:      "devpts",
-		Destination: "/dev/pts",
-		Device:      "devpts",
-		Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
-		Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
-	},
-}
-
 // setupRootfs sets up the devices, mount points, and filesystems for use inside a
 // new mount namespace.
 func setupRootfs(config *configs.Config, console *linuxConsole) (err error) {
 	if err := prepareRoot(config); err != nil {
 		return newSystemError(err)
 	}
-	for _, m := range append(baseMounts, config.Mounts...) {
-		if err := mount(m, config.Rootfs, config.MountLabel); err != nil {
+	for _, m := range config.Mounts {
+		if err := mountToRootfs(m, config.Rootfs, config.MountLabel); err != nil {
 			return newSystemError(err)
 		}
 	}
@@ -85,7 +62,7 @@ func setupRootfs(config *configs.Config, console *linuxConsole) (err error) {
 	return nil
 }
 
-func mount(m *configs.Mount, rootfs, mountLabel string) error {
+func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 	var (
 		dest = m.Destination
 		data = label.FormatMountLabel(m.Data, mountLabel)

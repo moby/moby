@@ -78,9 +78,10 @@ func (c *linuxContainer) Stats() (*Stats, error) {
 	return stats, nil
 }
 
-func (c *linuxContainer) Set() error {
+func (c *linuxContainer) Set(config configs.Config) error {
 	c.m.Lock()
 	defer c.m.Unlock()
+	c.config = &config
 	return c.cgroupManager.Set(c.config)
 }
 

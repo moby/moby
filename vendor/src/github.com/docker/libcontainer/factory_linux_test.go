@@ -9,15 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/libcontainer/configs"
 )
 
 func newTestRoot() (string, error) {
 	dir, err := ioutil.TempDir("", "libcontainer")
 	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -46,6 +44,58 @@ func TestFactoryNew(t *testing.T) {
 
 	if factory.Type() != "libcontainer" {
 		t.Fatalf("unexpected factory type: %q, expected %q", factory.Type(), "libcontainer")
+	}
+}
+
+func TestFactoryNewTmpfs(t *testing.T) {
+	root, rerr := newTestRoot()
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	defer os.RemoveAll(root)
+	factory, err := New(root, Cgroupfs, TmpfsRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if factory == nil {
+		t.Fatal("factory should not be nil")
+	}
+	lfactory, ok := factory.(*LinuxFactory)
+	if !ok {
+		t.Fatal("expected linux factory returned on linux based systems")
+	}
+	if lfactory.Root != root {
+		t.Fatalf("expected factory root to be %q but received %q", root, lfactory.Root)
+	}
+
+	if factory.Type() != "libcontainer" {
+		t.Fatalf("unexpected factory type: %q, expected %q", factory.Type(), "libcontainer")
+	}
+	mounted, err := mount.Mounted(lfactory.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !mounted {
+		t.Fatalf("Factory Root is not mounted")
+	}
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, m := range mounts {
+		if m.Mountpoint == lfactory.Root {
+			if m.Fstype != "tmpfs" {
+				t.Fatalf("Fstype of root: %s, expected %s", m.Fstype, "tmpfs")
+			}
+			if m.Source != "tmpfs" {
+				t.Fatalf("Source of root: %s, expected %s", m.Source, "tmpfs")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Factory Root is not listed in mounts list")
 	}
 }
 
