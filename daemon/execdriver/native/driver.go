@@ -60,7 +60,12 @@ func NewDriver(root, initPath string) (*driver, error) {
 		cgm = libcontainer.SystemdCgroups
 	}
 
-	f, err := libcontainer.New(root, cgm, libcontainer.InitPath(reexec.Self(), DriverName))
+	f, err := libcontainer.New(
+		root,
+		cgm,
+		libcontainer.InitPath(reexec.Self(), DriverName),
+		libcontainer.TmpfsRoot,
+	)
 	if err != nil {
 		return nil, err
 	}
