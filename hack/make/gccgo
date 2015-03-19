@@ -8,17 +8,16 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 source "$(dirname "$BASH_SOURCE")/.go-autogen"
 
-go build --compiler=gccgo \
+go build -compiler=gccgo \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \
-	--gccgoflags "
+	-gccgoflags "
 		-g
 		$EXTLDFLAGS_STATIC_DOCKER
 		-Wl,--no-export-dynamic
 		-ldl
 	" \
 	./docker
-
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
