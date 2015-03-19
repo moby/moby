@@ -17,6 +17,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
@@ -50,6 +51,15 @@ func NewDriver(root, initPath string) (*driver, error) {
 
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
+	}
+	mounted, err := mount.Mounted(root)
+	if err != nil {
+		return nil, err
+	}
+	if !mounted {
+		if err := syscall.Mount("tmpfs", root, "tmpfs", 0, ""); err != nil {
+			return nil, err
+		}
 	}
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
 	if err := apparmor.InstallDefaultProfile(); err != nil {
@@ -242,6 +252,7 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
+	defer d.cleanContainer(c.ID)
 	// lets check the start time for the process
 	active := d.activeContainers[c.ID]
 	if active == nil {
@@ -262,7 +273,6 @@ func (d *driver) Terminate(c *execdriver.Command) error {
 		err = syscall.Kill(pid, 9)
 		syscall.Wait4(pid, nil, 0, nil)
 	}
-	d.cleanContainer(c.ID)
 
 	return err
 
@@ -302,7 +312,7 @@ func (d *driver) cleanContainer(id string) error {
 	d.Lock()
 	delete(d.activeContainers, id)
 	d.Unlock()
-	return os.RemoveAll(filepath.Join(d.root, id, "container.json"))
+	return os.RemoveAll(filepath.Join(d.root, id))
 }
 
 func (d *driver) createContainerRoot(id string) error {
