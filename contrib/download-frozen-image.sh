@@ -7,6 +7,11 @@ set -e
 # debian                           latest              f6fab3b798be        10 weeks ago        85.1 MB
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
 
+if ! command -v curl &> /dev/null; then
+	echo >&2 'error: "curl" not found!'
+	exit 1
+fi
+
 usage() {
 	echo "usage: $0 dir image[:tag][@image-id] ..."
 	echo "   ie: $0 /tmp/hello-world hello-world"
