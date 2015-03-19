@@ -866,9 +866,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	os.Setenv("TMPDIR", realTmp)
-	if !config.EnableSelinuxSupport {
-		selinuxSetDisabled()
-	}
 
 	// get the canonical path to the Docker root directory
 	var realRoot string
@@ -902,9 +899,18 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		}
 	})
 
-	// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
-	if selinuxEnabled() && config.EnableSelinuxSupport && driver.String() == "btrfs" {
-		return nil, fmt.Errorf("SELinux is not supported with the BTRFS graph driver!")
+	if config.EnableSelinuxSupport {
+		if selinuxEnabled() {
+			// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
+			if driver.String() == "btrfs" {
+				return nil, fmt.Errorf("SELinux is not supported with the BTRFS graph driver")
+			}
+			log.Debug("SELinux enabled successfully")
+		} else {
+			log.Warn("Docker could not enable SELinux on the host system")
+		}
+	} else {
+		selinuxSetDisabled()
 	}
 
 	daemonRepo := path.Join(config.Root, "containers")
