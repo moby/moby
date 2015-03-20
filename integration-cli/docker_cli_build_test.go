@@ -4563,6 +4563,41 @@ func TestBuildLabels(t *testing.T) {
 	logDone("build - label")
 }
 
+func TestBuildLabelsCache(t *testing.T) {
+	name := "testbuildlabelcache"
+	defer deleteImages(name)
+
+	id1, err := buildImage(name,
+		`FROM busybox
+		LABEL Vendor=Acme`, false)
+	if err != nil {
+		t.Fatalf("Build 1 should have worked: %v", err)
+	}
+
+	id2, err := buildImage(name,
+		`FROM busybox
+		LABEL Vendor=Acme`, true)
+	if err != nil || id1 != id2 {
+		t.Fatalf("Build 2 should have worked & used cache(%s,%s): %v", id1, id2, err)
+	}
+
+	id2, err = buildImage(name,
+		`FROM busybox
+		LABEL Vendor=Acme1`, true)
+	if err != nil || id1 == id2 {
+		t.Fatalf("Build 2 should have worked & NOT used cache(%s,%s): %v", id1, id2, err)
+	}
+
+	id2, err = buildImage(name,
+		`FROM busybox
+		LABEL Vendor Acme`, true) // Note: " " and "=" should be same
+	if err != nil || id1 != id2 {
+		t.Fatalf("Build 3 should have worked & used cache(%s,%s): %v", id1, id2, err)
+	}
+
+	logDone("build - label cache")
+}
+
 func TestBuildStderr(t *testing.T) {
 	// This test just makes sure that no non-error output goes
 	// to stderr
