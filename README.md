@@ -235,8 +235,8 @@ Docker platform to broaden its application and utility.
 If you know of another project underway that should be listed here, please help
 us keep this list up-to-date by submitting a PR.
 
-* [Docker Registry](https://github.com/docker/docker-registry): Registry 
-server for Docker (hosting/delivering of repositories and images) 
+* [Docker Registry](https://github.com/docker/distribution): Registry 
+server for Docker (hosting/delivery of repositories and images)
 * [Docker Machine](https://github.com/docker/machine): Machine management 
 for a container-centric world 
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
