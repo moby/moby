@@ -46,18 +46,19 @@ func unregister(name string) {
 // It acts as a store for *containers*, and allows manipulation of these
 // containers by executing *jobs*.
 type Engine struct {
-	handlers   map[string]Handler
-	catchall   Handler
-	hack       Hack // data for temporary hackery (see hack.go)
-	id         string
-	Stdout     io.Writer
-	Stderr     io.Writer
-	Stdin      io.Reader
-	Logging    bool
-	tasks      sync.WaitGroup
-	l          sync.RWMutex // lock for shutdown
-	shutdown   bool
-	onShutdown []func() // shutdown handlers
+	handlers      map[string]Handler
+	catchall      Handler
+	hack          Hack // data for temporary hackery (see hack.go)
+	id            string
+	Stdout        io.Writer
+	Stderr        io.Writer
+	Stdin         io.Reader
+	Logging       bool
+	tasks         sync.WaitGroup
+	l             sync.RWMutex // lock for shutdown
+	shutdown      bool
+	onShutdown    []func() // shutdown handlers
+	shutdownTasks sync.WaitGroup
 }
 
 func (eng *Engine) Register(name string, handler Handler) error {
@@ -180,17 +181,16 @@ func (eng *Engine) Shutdown() {
 
 	// Call shutdown handlers, if any.
 	// Timeout after 10 seconds.
-	var wg sync.WaitGroup
 	for _, h := range eng.onShutdown {
-		wg.Add(1)
+		eng.shutdownTasks.Add(1)
 		go func(h func()) {
-			defer wg.Done()
+			defer eng.shutdownTasks.Done()
 			h()
 		}(h)
 	}
 	done := make(chan struct{})
 	go func() {
-		wg.Wait()
+		eng.shutdownTasks.Wait()
 		close(done)
 	}()
 	select {
@@ -249,4 +249,8 @@ func (eng *Engine) ParseJob(input string) (*Job, error) {
 	job := eng.Job(cmd[0], cmd[1:]...)
 	job.Env().Init(&env)
 	return job, nil
+}
+
+func (eng *Engine) WaitShutdown() {
+	eng.shutdownTasks.Wait()
 }

@@ -189,5 +189,13 @@ func mainDaemon() {
 	if errAPI != nil {
 		log.Errorf("Shutting down due to ServeAPI error: %v", errAPI)
 	}
+
 	eng.Shutdown()
+	// Can't just call eng.Shutdown() here and expect it to wait if the eng shutdown was already called from another goroutine
+	// Need to block here to make sure if this was called by another goroutinue that it actually finishes
+	eng.WaitShutdown()
+
+	if errAPI != nil {
+		os.Exit(1)
+	}
 }

@@ -800,3 +800,31 @@ func TestDaemonDots(t *testing.T) {
 
 	logDone("daemon - test dots on INFO")
 }
+
+func TestDaemonUnixSockCleanedUp(t *testing.T) {
+	d := NewDaemon(t)
+	dir, err := ioutil.TempDir("", "socket-cleanup-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	sockPath := filepath.Join(dir, "docker.sock")
+	if err := d.Start("--host", "unix://"+sockPath); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(sockPath); err != nil {
+		t.Fatal("socket does not exist")
+	}
+
+	if err := d.Stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(sockPath); err == nil || !os.IsNotExist(err) {
+		t.Fatal("unix socket is not cleaned up")
+	}
+
+	logDone("daemon - unix socket is cleaned up")
+}
