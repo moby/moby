@@ -32,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
@@ -646,14 +645,12 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		err        error
 		destExists = true
 		origPath   = path.Join(b.contextPath, orig)
-		destPath   = path.Join(container.RootfsPath(), dest)
+		destPath   string
 	)
 
-	if destPath != container.RootfsPath() {
-		destPath, err = symlink.FollowSymlinkInScope(destPath, container.RootfsPath())
-		if err != nil {
-			return err
-		}
+	destPath, err = container.GetResourcePath(dest)
+	if err != nil {
+		return err
 	}
 
 	// Preserve the trailing '/'
