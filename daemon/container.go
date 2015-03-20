@@ -937,10 +937,20 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	}
 
 	// Check if this is actually in a volume
+	var (
+		tmpMnt  *Mount
+		pathLen = 0
+	)
 	for _, mnt := range container.VolumeMounts() {
 		if len(mnt.MountToPath) > 0 && strings.HasPrefix(resource, mnt.MountToPath[1:]) {
-			return mnt.Export(resource)
+			if len(mnt.MountToPath) > pathLen {
+				tmpMnt = mnt
+				pathLen = len(mnt.MountToPath)
+			}
 		}
+	}
+	if tmpMnt != nil {
+		return tmpMnt.Export(resource)
 	}
 
 	stat, err := os.Stat(basePath)

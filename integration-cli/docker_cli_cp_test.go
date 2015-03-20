@@ -492,6 +492,52 @@ func TestCpVolumePath(t *testing.T) {
 	logDone("cp - volume path")
 }
 
+func TestCpOverlayVolumePath(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
+	tmpDir1, err := ioutil.TempDir("", "cp-test-overlayvolumepath-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir1)
+	tmpDir2, err := ioutil.TempDir("", "cp-test-overlayvolumepath-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir2)
+	outDir, err := ioutil.TempDir("", "cp-test-overlayvolumepath-out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(outDir)
+	out, exitCode, err := dockerCmd(t, "run", "-d", "-v", tmpDir1+":/layer1", "-v", tmpDir2+":/layer1/layer2", "busybox", "/bin/sh", "-c", "touch /layer1/layer2/test")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	// Copy actual volume path
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/layer1/layer2/test", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from an overlay volume path: %s:%s %v", cleanedContainerID, "/layer1/layer2/test", err)
+	}
+	stat, err := os.Stat(outDir + "/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat.IsDir() {
+		t.Fatal("expected copied content to be dir")
+	}
+	logDone("cp - overlay volume path")
+}
+
 func TestCpToDot(t *testing.T) {
 	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 	if err != nil || exitCode != 0 {
