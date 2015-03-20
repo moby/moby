@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/libtrust"
 )
@@ -244,7 +245,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ := ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file:\n%s`, string(content))
 	}
 
@@ -254,7 +255,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if strings.Contains(string(content), `level="debug"`) {
+	if strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Should not have level="debug" in log file:\n%s`, string(content))
 	}
 
@@ -264,7 +265,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file using -D:\n%s`, string(content))
 	}
 
@@ -274,7 +275,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file using --debug:\n%s`, string(content))
 	}
 
@@ -284,7 +285,7 @@ func TestDaemonLoggingLevel(t *testing.T) {
 	}
 	d.Stop()
 	content, _ = ioutil.ReadFile(d.logFile.Name())
-	if !strings.Contains(string(content), `level="debug"`) {
+	if !strings.Contains(string(content), `level=debug`) {
 		t.Fatalf(`Missing level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
 	}
 
@@ -408,7 +409,7 @@ func TestDaemonKeyMigration(t *testing.T) {
 }
 
 // Simulate an older daemon (pre 1.3) coming up with volumes specified in containers
-//	without corrosponding volume json
+//	without corresponding volume json
 func TestDaemonUpgradeWithVolumes(t *testing.T) {
 	d := NewDaemon(t)
 
@@ -481,6 +482,33 @@ func TestDaemonUpgradeWithVolumes(t *testing.T) {
 	logDone("daemon - volumes from old(pre 1.3) daemon work")
 }
 
+// GH#11320 - verify that the daemon exits on failure properly
+// Note that this explicitly tests the conflict of {-b,--bridge} and {--bip} options as the means
+// to get a daemon init failure; no other tests for -b/--bip conflict are therefore required
+func TestDaemonExitOnFailure(t *testing.T) {
+	d := NewDaemon(t)
+	defer d.Stop()
+
+	//attempt to start daemon with incorrect flags (we know -b and --bip conflict)
+	if err := d.Start("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
+		//verify we got the right error
+		if !strings.Contains(err.Error(), "Daemon exited and never started") {
+			t.Fatalf("Expected daemon not to start, got %v", err)
+		}
+		// look in the log and make sure we got the message that daemon is shutting down
+		runCmd := exec.Command("grep", "Shutting down daemon due to", d.LogfileName())
+		if out, _, err := runCommandWithOutput(runCmd); err != nil {
+			t.Fatalf("Expected 'shutting down daemon due to error' message; but doesn't exist in log: %q, err: %v", out, err)
+		}
+	} else {
+		//if we didn't get an error and the daemon is running, this is a failure
+		d.Stop()
+		t.Fatal("Conflicting options should cause the daemon to error out with a failure")
+	}
+
+	logDone("daemon - verify no start on daemon init errors")
+}
+
 func TestDaemonUlimitDefaults(t *testing.T) {
 	testRequires(t, NativeExecDriver)
 	d := NewDaemon(t)
@@ -533,4 +561,242 @@ func TestDaemonUlimitDefaults(t *testing.T) {
 	}
 
 	logDone("daemon - default ulimits are applied")
+}
+
+// #11315
+func TestDaemonRestartRenameContainer(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+
+	if out, err := d.Cmd("run", "--name=test", "busybox"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if out, err := d.Cmd("rename", "test", "test2"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	if err := d.Restart(); err != nil {
+		t.Fatal(err)
+	}
+
+	if out, err := d.Cmd("start", "test2"); err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("daemon - rename persists through daemon restart")
+}
+
+func TestDaemonLoggingDriverDefault(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res struct {
+		Log    string    `json:log`
+		Stream string    `json:stream`
+		Time   time.Time `json:time`
+	}
+	if err := json.NewDecoder(f).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Log != "testline\n" {
+		t.Fatalf("Unexpected log line: %q, expected: %q", res.Log, "testline\n")
+	}
+	if res.Stream != "stdout" {
+		t.Fatalf("Unexpected stream: %q, expected: %q", res.Stream, "stdout")
+	}
+	if !time.Now().After(res.Time) {
+		t.Fatalf("Log time %v in future", res.Time)
+	}
+	logDone("daemon - default 'json-file' logging driver")
+}
+
+func TestDaemonLoggingDriverDefaultOverride(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "--log-driver=none", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
+	}
+	logDone("daemon - default logging driver override in run")
+}
+
+func TestDaemonLoggingDriverNone(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox("--log-driver=none"); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
+	}
+	logDone("daemon - 'none' logging driver")
+}
+
+func TestDaemonLoggingDriverNoneOverride(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox("--log-driver=none"); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "--log-driver=json-file", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("wait", id); err != nil {
+		t.Fatal(out, err)
+	}
+	logPath := filepath.Join(d.folder, "graph", "containers", id, id+"-json.log")
+
+	if _, err := os.Stat(logPath); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res struct {
+		Log    string    `json:log`
+		Stream string    `json:stream`
+		Time   time.Time `json:time`
+	}
+	if err := json.NewDecoder(f).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Log != "testline\n" {
+		t.Fatalf("Unexpected log line: %q, expected: %q", res.Log, "testline\n")
+	}
+	if res.Stream != "stdout" {
+		t.Fatalf("Unexpected stream: %q, expected: %q", res.Stream, "stdout")
+	}
+	if !time.Now().After(res.Time) {
+		t.Fatalf("Log time %v in future", res.Time)
+	}
+	logDone("daemon - 'none' logging driver override in run")
+}
+
+func TestDaemonLoggingDriverNoneLogsError(t *testing.T) {
+	d := NewDaemon(t)
+
+	if err := d.StartWithBusybox("--log-driver=none"); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "busybox", "echo", "testline")
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	id := strings.TrimSpace(out)
+	out, err = d.Cmd("logs", id)
+	if err == nil {
+		t.Fatalf("Logs should fail with \"none\" driver")
+	}
+	if !strings.Contains(out, `\"logs\" command is supported only for \"json-file\" logging driver`) {
+		t.Fatalf("There should be error about non-json-file driver, got %s", out)
+	}
+	logDone("daemon - logs not available for non-json-file drivers")
+}
+
+func TestDaemonDots(t *testing.T) {
+	defer deleteAllContainers()
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now create 4 containers
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+	if _, err := d.Cmd("create", "busybox"); err != nil {
+		t.Fatalf("Error creating container: %q", err)
+	}
+
+	d.Stop()
+
+	d.Start("--log-level=debug")
+	d.Stop()
+	content, _ := ioutil.ReadFile(d.logFile.Name())
+	if strings.Contains(string(content), "....") {
+		t.Fatalf("Debug level should not have ....\n%s", string(content))
+	}
+
+	d.Start("--log-level=error")
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if strings.Contains(string(content), "....") {
+		t.Fatalf("Error level should not have ....\n%s", string(content))
+	}
+
+	d.Start("--log-level=info")
+	d.Stop()
+	content, _ = ioutil.ReadFile(d.logFile.Name())
+	if !strings.Contains(string(content), "....") {
+		t.Fatalf("Info level should have ....\n%s", string(content))
+	}
+
+	logDone("daemon - test dots on INFO")
 }

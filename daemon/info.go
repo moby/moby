@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"runtime"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
@@ -76,6 +77,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())
 	v.SetInt("NGoroutines", runtime.NumGoroutine())
+	v.Set("SystemTime", time.Now().Format(time.RFC3339Nano))
 	v.Set("ExecutionDriver", daemon.ExecutionDriver().Name())
 	v.SetInt("NEventsListener", env.GetInt("count"))
 	v.Set("KernelVersion", kernelVersion)
@@ -87,6 +89,16 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	v.SetInt("NCPU", runtime.NumCPU())
 	v.SetInt64("MemTotal", meminfo.MemTotal)
 	v.Set("DockerRootDir", daemon.Config().Root)
+	if http_proxy := os.Getenv("http_proxy"); http_proxy != "" {
+		v.Set("HttpProxy", http_proxy)
+	}
+	if https_proxy := os.Getenv("https_proxy"); https_proxy != "" {
+		v.Set("HttpsProxy", https_proxy)
+	}
+	if no_proxy := os.Getenv("no_proxy"); no_proxy != "" {
+		v.Set("NoProxy", no_proxy)
+	}
+
 	if hostname, err := os.Hostname(); err == nil {
 		v.SetJson("Name", hostname)
 	}

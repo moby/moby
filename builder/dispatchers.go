@@ -85,6 +85,37 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
 }
 
+// LABEL some json data describing the image
+//
+// Sets the Label variable foo to bar,
+//
+func label(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("LABEL requires at least one argument")
+	}
+	if len(args)%2 != 0 {
+		// should never get here, but just in case
+		return fmt.Errorf("Bad input to LABEL, too many args")
+	}
+
+	commitStr := "LABEL"
+
+	if b.Config.Labels == nil {
+		b.Config.Labels = map[string]string{}
+	}
+
+	for j := 0; j < len(args); j++ {
+		// name  ==> args[j]
+		// value ==> args[j+1]
+		newVar := args[j] + "=" + args[j+1] + ""
+		commitStr += " " + newVar
+
+		b.Config.Labels[args[j]] = args[j+1]
+		j++
+	}
+	return b.commit("", b.Config.Cmd, commitStr)
+}
+
 // ADD foo /path
 //
 // Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
@@ -213,8 +244,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	args = handleJsonArgs(args, attributes)
 
-	if len(args) == 1 {
-		args = append([]string{"/bin/sh", "-c"}, args[0])
+	if !attributes["json"] {
+		args = append([]string{"/bin/sh", "-c"}, args...)
 	}
 
 	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
@@ -339,9 +370,17 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		b.Config.ExposedPorts = make(nat.PortSet)
 	}
 
-	ports, _, err := nat.ParsePortSpecs(append(portsTab, b.Config.PortSpecs...))
+	ports, bindingMap, err := nat.ParsePortSpecs(append(portsTab, b.Config.PortSpecs...))
 	if err != nil {
 		return err
+	}
+
+	for _, bindings := range bindingMap {
+		if bindings[0].HostIp != "" || bindings[0].HostPort != "" {
+			fmt.Fprintf(b.ErrStream, " ---> Using Dockerfile's EXPOSE instruction"+
+				"      to map host ports to container ports (ip:hostPort:containerPort) is deprecated.\n"+
+				"      Please use -p to publish the ports.\n")
+		}
 	}
 
 	// instead of using ports directly, we build a list of ports and sort it so

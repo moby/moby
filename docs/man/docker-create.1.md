@@ -12,7 +12,7 @@ docker-create - Create a new container
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
-[**--cpuset**[=*CPUSET*]]
+[**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -24,8 +24,11 @@ docker-create - Create a new container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
+[**-l**|**--label**[=*[]*]]
+[**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
+[**--log-driver**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
@@ -43,6 +46,7 @@ docker-create - Create a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
+[**--cgroup-parent**[=*CGROUP-PATH*]]
 IMAGE [COMMAND] [ARG...]
 
 # OPTIONS
@@ -64,7 +68,10 @@ IMAGE [COMMAND] [ARG...]
 **--cidfile**=""
    Write the container ID to the file
 
-**--cpuset**=""
+**--cgroup-parent**=""
+   Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
+
+**--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
 
 **--device**=[]
@@ -102,11 +109,21 @@ IMAGE [COMMAND] [ARG...]
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
+**-l**, **--label**=[]
+   Adds metadata to a container (e.g., --label=com.example.key=value)
+
+**--label-file**=[]
+   Read labels from a file. Delimit each label with an EOL.
+
 **--link**=[]
    Add link to another container in the form of <name or id>:alias
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+
+**--log-driver**="|*json-file*|*none*"
+  Logging driver for container. Default is defined by daemon `--log-driver` flag.
+  **Warning**: `docker logs` command works only for `json-file` logging driver.
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
@@ -157,7 +174,7 @@ This value should always larger than **-m**, so you should alway use this with *
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.
 
-**--restart**=""
+**--restart**="no"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
 
 **--security-opt**=[]

@@ -307,7 +307,7 @@ func TestDaemonCreate(t *testing.T) {
 		"conflictname",
 	)
 	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: []string{"ls", "-al"}}, &runconfig.HostConfig{}, testContainer.Name); err == nil || !strings.Contains(err.Error(), common.TruncateID(testContainer.ID)) {
-		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %s", err.Error())
+		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %v", err)
 	}
 
 	// Make sure create with bad parameters returns an error

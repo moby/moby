@@ -2,6 +2,12 @@ page_title: Docker run reference
 page_description: Configure containers at runtime
 page_keywords: docker, run, configure, runtime
 
+<!-- TODO (@thaJeztah) define more flexible table/td classes -->
+<style>
+.content-body table .no-wrap {
+    white-space: nowrap;
+}
+</style>
 # Docker run reference
 
 **Docker runs processes in isolated containers**. When an operator
@@ -18,7 +24,7 @@ other `docker` command.
 
 The basic `docker run` command takes this form:
 
-    $ sudo docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ sudo docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
 see [*Option types*](/reference/commandline/cli/#option-types).
@@ -50,8 +56,9 @@ following options.
  - [Container Identification](#container-identification)
      - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
- - [IPC Settings](#ipc-settings)
+ - [IPC Settings (--ipc)](#ipc-settings-ipc)
  - [Network Settings](#network-settings)
+ - [Restart Policies (--restart)](#restart-policies-restart)
  - [Clean Up (--rm)](#clean-up-rm)
  - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
  - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
@@ -126,16 +133,23 @@ programs might write out their process ID to a file (you've seen them as
 PID files):
 
     --cidfile="": Write the container ID to the file
-    
+
 ### Image[:tag]
 
 While not strictly a means of identifying a container, you can specify a version of an
 image you'd like to run the container with by adding `image[:tag]` to the command. For
 example, `docker run ubuntu:14.04`.
 
-## PID Settings
+### Image[@digest]
+
+Images using the v2 or later image format have a content-addressable identifier
+called a digest. As long as the input used to generate the image is unchanged,
+the digest value is predictable and referenceable.
+
+## PID Settings (--pid)
     --pid=""  : Set the PID (Process) Namespace mode for the container,
            'host': use the host's PID namespace inside the container
+
 By default, all containers have the PID namespace enabled.
 
 PID namespace provides separation of processes. The PID Namespace removes the
@@ -153,13 +167,16 @@ within the container.
 This command would allow you to use `strace` inside the container on pid 1234 on
 the host.
 
-## IPC Settings
+## IPC Settings (--ipc)
+
     --ipc=""  : Set the IPC mode for the container,
-                                 'container:<name|id>': reuses another container's IPC namespace
-                                 'host': use the host's IPC namespace inside the container
+                 'container:<name|id>': reuses another container's IPC namespace
+                 'host': use the host's IPC namespace inside the container
+
 By default, all containers have the IPC namespace enabled.
 
-IPC (POSIX/SysV IPC) namespace provides separation of named shared memory segments, semaphores and message queues.  
+IPC (POSIX/SysV IPC) namespace provides separation of named shared memory 
+segments, semaphores and message queues.
 
 Shared memory segments are used to accelerate inter-process communication at
 memory speed, rather than through pipes or through the network stack. Shared
@@ -173,10 +190,10 @@ of the containers.
 
     --dns=[]         : Set custom dns servers for the container
     --net="bridge"   : Set the Network mode for the container
-                                  'bridge': creates a new network stack for the container on the docker bridge
-                                  'none': no networking for this container
-                                  'container:<name|id>': reuses another container network stack
-                                  'host': use the host network stack inside the container
+                        'bridge': creates a new network stack for the container on the docker bridge
+                        'none': no networking for this container
+                        'container:<name|id>': reuses another container network stack
+                        'host': use the host network stack inside the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
 
@@ -195,10 +212,41 @@ explicitly by providing a MAC via the `--mac-address` parameter (format:
 
 Supported networking modes are:
 
-* none - no networking in the container
-* bridge - (default) connect the container to the bridge via veth interfaces
-* host - use the host's network stack inside the container.  Note: This gives the container full access to local system services such as D-bus and is therefore considered insecure.
-* container - use another container's network stack
+<table>
+  <thead>
+    <tr>
+      <th class="no-wrap">Mode</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no-wrap"><strong>none</strong></td>
+      <td>
+        No networking in the container.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>bridge</strong> (default)</td>
+      <td>
+        Connect the container to the bridge via veth interfaces.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>host</strong></td>
+      <td>
+        Use the host's network stack inside the container.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>container</strong>:&lt;name|id&gt;</td>
+      <td>
+        Use the network stack of another container, specified via
+        its *name* or *id*.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 #### Mode: none
 
@@ -225,6 +273,9 @@ network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
 system.  Publishing ports and linking to other containers will not work
 when sharing the host's network stack.
+
+> **Note**: `--net="host"` gives the container full access to local system
+> services such as D-bus and is therefore considered insecure.
 
 #### Mode: container
 
@@ -255,6 +306,99 @@ container itself as well as `localhost` and a few other common things.  The
     127.0.0.1       localhost
     ::1	            localhost ip6-localhost ip6-loopback
     86.75.30.9      db-static
+
+## Restart policies (--restart)
+
+Using the `--restart` flag on Docker run you can specify a restart policy for
+how a container should or should not be restarted on exit.
+
+When a restart policy is active on a container, it will be shown as either `Up`
+or `Restarting` in [`docker ps`](/reference/commandline/cli/#ps). It can also be
+useful to use [`docker events`](/reference/commandline/cli/#events) to see the
+restart policy in effect.
+
+Docker supports the following restart policies:
+
+<table>
+  <thead>
+    <tr>
+      <th>Policy</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>no</strong></td>
+      <td>
+        Do not automatically restart the container when it exits. This is the 
+        default.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span style="white-space: nowrap">
+          <strong>on-failure</strong>[:max-retries]
+        </span>
+      </td>
+      <td>
+        Restart only if the container exits with a non-zero exit status.
+        Optionally, limit the number of restart retries the Docker 
+        daemon attempts.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>always</strong></td>
+      <td>
+        Always restart the container regardless of the exit status.
+        When you specify always, the Docker daemon will try to restart
+        the container indefinitely.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+An ever increasing delay (double the previous delay, starting at 100
+milliseconds) is added before each restart to prevent flooding the server.
+This means the daemon will wait for 100 ms, then 200 ms, 400, 800, 1600,
+and so on until either the `on-failure` limit is hit, or when you `docker stop`
+or `docker rm -f` the container.
+
+If a container is succesfully restarted (the container is started and runs
+for at least 10 seconds), the delay is reset to its default value of 100 ms.
+
+You can specify the maximum amount of times Docker will try to restart the
+container when using the **on-failure** policy.  The default is that Docker
+will try forever to restart the container. The number of (attempted) restarts
+for a container can be obtained via [`docker inspect`](
+/reference/commandline/cli/#inspect). For example, to get the number of restarts
+for container "my-container";
+
+    $ sudo docker inspect -f "{{ .RestartCount }}" my-container
+    # 2
+
+Or, to get the last time the container was (re)started;
+
+    $ docker inspect -f "{{ .State.StartedAt }}" my-container
+    # 2015-03-04T23:47:07.691840179Z
+
+You cannot set any restart policy in combination with 
+["clean up (--rm)"](#clean-up-rm). Setting both `--restart` and `--rm`
+results in an error.
+
+###Examples
+
+    $ sudo docker run --restart=always redis
+
+This will run the `redis` container with a restart policy of **always**
+so that if the container exits, Docker will restart it.
+
+    $ sudo docker run --restart=on-failure:10 redis
+
+This will run the `redis` container with a restart policy of **on-failure** 
+and a maximum restart count of 10.  If the `redis` container exits with a
+non-zero exit status more than 10 times in a row Docker will abort trying to
+restart the container. Providing a maximum restart limit is only valid for the
+**on-failure** policy.
 
 ## Clean up (--rm)
 
@@ -311,42 +455,92 @@ container:
 
     -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
     -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
-    -c=0 : CPU shares (relative weight)
+    -c, --cpu-shares=0         CPU shares (relative weight)
+
+### Memory constraints
 
 We have four ways to set memory usage:
- - memory=inf, memory-swap=inf (not specify any of them)
-   There is no memory limit, you can use as much as you want.
 
- - memory=L<inf, memory-swap=inf (specify memory and set memory-swap as `-1`)
-   It is not allowed to use more than L bytes of memory, but use as much swap
-   as you want (only if the host supports swap memory).
+<table>
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no-wrap">
+          <strong>memory=inf, memory-swap=inf</strong> (default)
+      </td>
+      <td>
+        There is no memory limit for the container. The container can use
+        as much memory as needed.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=inf</strong></td>
+      <td>
+        (specify memory and set memory-swap as <code>-1</code>) The container is
+        not allowed to use more than L bytes of memory, but can use as much swap
+        as is needed (if the host supports swap memory).
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=2*L</strong></td>
+      <td>
+        (specify memory without memory-swap) The container is not allowed to
+        use more than L bytes of memory, swap *plus* memory usage is double
+        of that.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap">
+          <strong>memory=L&lt;inf, memory-swap=S&lt;inf, L&lt;=S</strong>
+      </td>
+      <td>
+        (specify both memory and memory-swap) The container is not allowed to
+        use more than L bytes of memory, swap *plus* memory usage is limited
+        by S.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
- - memory=L<inf, memory-swap=2*L (specify memory without memory-swap)
-   It is not allowed to use more than L bytes of memory, swap *plus* memory
-   usage is double of that.
+### CPU share constraint
 
- - memory=L<inf, memory-swap=S<inf, L<=S (specify both memory and memory-swap)
-   It is not allowed to use more than L bytes of memory, swap *plus* memory
-   usage is limited by S.
+By default, all containers get the same proportion of CPU cycles. This proportion
+can be modified by changing the container's CPU share weighting relative
+to the weighting of all other running containers.
 
-The operator can increase the priority of this container with
-the `-c` option. By default, all containers run at the same priority and
-get the same proportion of CPU cycles, but you can tell the kernel to
-give more shares of CPU time to one or more containers when you start
-them via Docker.
+To modify the proportion from the default of 1024, use the `-c` or `--cpu-shares`
+flag to set the weighting to 2 or higher.
 
-The flag `-c` or `--cpu-shares` with value 0 indicates that the running
-container has access to all 1024 (default) CPU shares. However, this value
-can be modified to run a container with a different priority or different
-proportion of CPU cycles.
+The proportion will only apply when CPU-intensive processes are running.
+When tasks in one container are idle, other containers can use the
+left-over CPU time. The actual amount of CPU time will vary depending on
+the number of containers running on the system.
 
-E.g., If we start three {C0, C1, C2} containers with default values
-(`-c` OR `--cpu-shares` = 0) and one {C3} with (`-c` or `--cpu-shares`=512)
-then C0, C1, and C2 would have access to 100% CPU shares (1024) and C3 would
-only have access to 50% CPU shares (512). In the context of a time-sliced OS
-with time quantum set as 100 milliseconds, containers C0, C1, and C2 will run
-for full-time quantum, and container C3 will run for half-time quantum i.e 50
-milliseconds.
+For example, consider three containers, one has a cpu-share of 1024 and
+two others have a cpu-share setting of 512. When processes in all three
+containers attempt to use 100% of CPU, the first container would receive
+50% of the total CPU time. If you add a fouth container with a cpu-share
+of 1024, the first container only gets 33% of the CPU. The remaining containers
+receive 16.5%, 16.5% and 33% of the CPU.
+
+On a multi-core system, the shares of CPU time are distributed over all CPU
+cores. Even if a container is limited to less than 100% of CPU time, it can
+use 100% of each individual CPU core.
+
+For example, consider a system with more than three cores. If you start one
+container `{C0}` with `-c=512` running one process, and another container
+`{C1}` with `-c=1024` running two processes, this can result in the following
+division of CPU shares:
+
+    PID    container	CPU	CPU share
+    100    {C0}		0	100% of CPU0
+    101    {C1}		1	100% of CPU1
+    102    {C1}		2	100% of CPU2
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 
@@ -380,22 +574,19 @@ will be accessible within the container.
 By default, the container will be able to `read`, `write`, and `mknod` these devices.
 This can be overridden using a third `:rwm` set of options to each `--device` flag:
 
+    $ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
-```
-	$ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    Command (m for help): q
+    $ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+    You will not be able to write the partition table.
 
-	Command (m for help): q
-	$ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
-	You will not be able to write the partition table.
+    Command (m for help): q
 
-	Command (m for help): q
-
-	$ sudo docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
+    $ sudo docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
         crash....
 
-	$ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
-	fdisk: unable to open /dev/xvdc: Operation not permitted
-```
+    $ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+    fdisk: unable to open /dev/xvdc: Operation not permitted
 
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
@@ -451,6 +642,20 @@ familiar with using LXC directly.
 > you can use `--lxc-conf` to set a container's IP address, but this will not be
 > reflected in the `/etc/hosts` file.
 
+## Logging drivers (--log-driver)
+
+You can specify a different logging driver for the container than for the daemon.
+
+### Logging driver: none
+
+Disables any logging for the container. `docker logs` won't be available with
+this driver.
+
+### Log driver: json-file
+
+Default logging driver for Docker. Writes JSON messages to file. `docker logs`
+command is available only for this logging driver
+
 ## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder)
@@ -476,7 +681,7 @@ Dockerfile instruction and how the operator can override that setting.
 Recall the optional `COMMAND` in the Docker
 commandline:
 
-    $ sudo docker run [OPTIONS] IMAGE[:TAG] [COMMAND] [ARG...]
+    $ sudo docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
 This command is optional because the person who created the `IMAGE` may
 have already provided a default `COMMAND` using the Dockerfile `CMD`
@@ -541,10 +746,11 @@ developer, the operator has three choices: start the server container
 with `-P` or `-p,` or start the client container with `--link`.
 
 If the operator uses `-P` or `-p` then Docker will make the exposed port
-accessible on the host and the ports will be available to any client
-that can reach the host. When using `-P`, Docker will bind the exposed 
-ports to a random port on the host between 49153 and 65535. To find the
-mapping between the host ports and the exposed ports, use `docker port`.
+accessible on the host and the ports will be available to any client that can
+reach the host. When using `-P`, Docker will bind the exposed port to a random
+port on the host within an *ephemeral port range* defined by
+`/proc/sys/net/ipv4/ip_local_port_range`. To find the mapping between the host
+ports and the exposed ports, use `docker port`.
 
 If the operator uses `--link` when starting the new client container,
 then the client container can access the exposed port via a private
@@ -556,34 +762,32 @@ client container to help indicate which interface and port to use.
 When a new container is created, Docker will set the following environment
 variables automatically:
 
-<table width=100%>
- <tr style="background-color:#C0C0C0">
-  <td> <b>Variable</b> </td>
-  <td style="padding-left:10px"> <b>Value</b> </td>
+<table>
+ <tr>
+  <th>Variable</th>
+  <th>Value</th>
  </tr>
  <tr>
-  <td> <code>HOME</code> </td>
-  <td style="padding-left:10px">
+  <td><code>HOME</code></td>
+  <td>
     Set based on the value of <code>USER</code>
   </td>
  </tr>
- <tr style="background-color:#E8E8E8">
-  <td valign=top> <code>HOSTNAME</code> </td>
-  <td style="padding-left:10px"> 
+ <tr>
+  <td><code>HOSTNAME</code></td>
+  <td> 
     The hostname associated with the container
   </td>
  </tr>
  <tr>
-  <td valign=top> <code>PATH</code> </td>
-  <td style="padding-left:10px"> 
+  <td><code>PATH</code></td>
+  <td> 
     Includes popular directories, such as :<br>
     <code>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code>
   </td>
- <tr style="background-color:#E8E8E8">
-  <td valign=top> <code>TERM</code> </td>
-  <td style="padding-left:10px"> 
-    <code>xterm</code> if the container is allocated a psuedo-TTY 
-  </td>
+ <tr>
+  <td><code>TERM</code></td>
+  <td><code>xterm</code> if the container is allocated a psuedo-TTY</td>
  </tr>
 </table>
 
@@ -619,7 +823,7 @@ container running Redis:
 
     # The redis-name container exposed port 6379
     $ sudo docker ps
-    CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS               NAMES
+    CONTAINER ID        IMAGE                        COMMAND                CREATED             STATUS              PORTS               NAMES
     4241164edf6f        $ dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
     # Note that there are no public ports exposed since we didn᾿t use -p or -P
@@ -661,7 +865,7 @@ If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
 
 > **Note**:
-> Unlike host entries in the `/ets/hosts` file, IP addresses stored in the
+> Unlike host entries in the `/etc/hosts` file, IP addresses stored in the
 > environment variables are not automatically updated if the source container is
 > restarted. We recommend using the host entries in `/etc/hosts` to resolve the
 > IP address of linked containers.

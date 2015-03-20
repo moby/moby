@@ -44,10 +44,10 @@ func parseSubCommand(rest string) (*Node, map[string]bool, error) {
 
 // parse environment like statements. Note that this does *not* handle
 // variable interpolation, which will be handled in the evaluator.
-func parseEnv(rest string) (*Node, map[string]bool, error) {
+func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 	// This is kind of tricky because we need to support the old
-	// variant:   ENV name value
-	// as well as the new one:    ENV name=value ...
+	// variant:   KEY name value
+	// as well as the new one:    KEY name=value ...
 	// The trigger to know which one is being used will be whether we hit
 	// a space or = first.  space ==> old, "=" ==> new
 
@@ -137,10 +137,10 @@ func parseEnv(rest string) (*Node, map[string]bool, error) {
 	}
 
 	if len(words) == 0 {
-		return nil, nil, fmt.Errorf("ENV requires at least one argument")
+		return nil, nil, nil
 	}
 
-	// Old format (ENV name value)
+	// Old format (KEY name value)
 	var rootnode *Node
 
 	if !strings.Contains(words[0], "=") {
@@ -149,7 +149,7 @@ func parseEnv(rest string) (*Node, map[string]bool, error) {
 		strs := TOKEN_WHITESPACE.Split(rest, 2)
 
 		if len(strs) < 2 {
-			return nil, nil, fmt.Errorf("ENV must have two arguments")
+			return nil, nil, fmt.Errorf(key + " must have two arguments")
 		}
 
 		node.Value = strs[0]
@@ -180,6 +180,14 @@ func parseEnv(rest string) (*Node, map[string]bool, error) {
 	}
 
 	return rootnode, nil, nil
+}
+
+func parseEnv(rest string) (*Node, map[string]bool, error) {
+	return parseNameVal(rest, "ENV")
+}
+
+func parseLabel(rest string) (*Node, map[string]bool, error) {
+	return parseNameVal(rest, "LABEL")
 }
 
 // parses a whitespace-delimited set of arguments. The result is effectively a

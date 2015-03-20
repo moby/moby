@@ -4,119 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
-
-func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error) {
-	manifest := &registry.ManifestData{
-		Name:          remoteName,
-		Tag:           tag,
-		SchemaVersion: 1,
-	}
-	localRepo, err := s.Get(localName)
-	if err != nil {
-		return nil, err
-	}
-	if localRepo == nil {
-		return nil, fmt.Errorf("Repo does not exist: %s", localName)
-	}
-
-	// Get the top-most layer id which the tag points to
-	layerId, exists := localRepo[tag]
-	if !exists {
-		return nil, fmt.Errorf("Tag does not exist for %s: %s", localName, tag)
-	}
-	layersSeen := make(map[string]bool)
-
-	layer, err := s.graph.Get(layerId)
-	if err != nil {
-		return nil, err
-	}
-	manifest.Architecture = layer.Architecture
-	manifest.FSLayers = make([]*registry.FSLayer, 0, 4)
-	manifest.History = make([]*registry.ManifestHistory, 0, 4)
-	var metadata runconfig.Config
-	if layer.Config != nil {
-		metadata = *layer.Config
-	}
-
-	for ; layer != nil; layer, err = layer.GetParent() {
-		if err != nil {
-			return nil, err
-		}
-
-		if layersSeen[layer.ID] {
-			break
-		}
-		if layer.Config != nil && metadata.Image != layer.ID {
-			err = runconfig.Merge(&metadata, layer.Config)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		checksum, err := layer.GetCheckSum(s.graph.ImageRoot(layer.ID))
-		if err != nil {
-			return nil, fmt.Errorf("Error getting image checksum: %s", err)
-		}
-		if tarsum.VersionLabelForChecksum(checksum) != tarsum.Version1.String() {
-			archive, err := layer.TarLayer()
-			if err != nil {
-				return nil, err
-			}
-
-			defer archive.Close()
-
-			tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version1)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
-				return nil, err
-			}
-
-			checksum = tarSum.Sum(nil)
-
-			// Save checksum value
-			if err := layer.SaveCheckSum(s.graph.ImageRoot(layer.ID), checksum); err != nil {
-				return nil, err
-			}
-		}
-
-		jsonData, err := layer.RawJson()
-		if err != nil {
-			return nil, fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err)
-		}
-
-		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: checksum})
-
-		layersSeen[layer.ID] = true
-
-		manifest.History = append(manifest.History, &registry.ManifestHistory{V1Compatibility: string(jsonData)})
-	}
-
-	manifestBytes, err := json.MarshalIndent(manifest, "", "   ")
-	if err != nil {
-		return nil, err
-	}
-
-	return manifestBytes, nil
-}
 
 // loadManifest loads a manifest from a byte array and verifies its content.
 // The signature must be verified or an error is returned. If the manifest
 // contains no signatures by a trusted key for the name in the manifest, the
 // image is not considered verified. The parsed manifest object and a boolean
 // for whether the manifest is verified is returned.
-func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte) (*registry.ManifestData, bool, error) {
+func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte, dgst, ref string) (*registry.ManifestData, bool, error) {
 	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
 	if err != nil {
 		return nil, false, fmt.Errorf("error parsing payload: %s", err)
@@ -130,6 +32,31 @@ func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte) (*regi
 	payload, err := sig.Payload()
 	if err != nil {
 		return nil, false, fmt.Errorf("error retrieving payload: %s", err)
+	}
+
+	var manifestDigest digest.Digest
+
+	if dgst != "" {
+		manifestDigest, err = digest.ParseDigest(dgst)
+		if err != nil {
+			return nil, false, fmt.Errorf("invalid manifest digest from registry: %s", err)
+		}
+
+		dgstVerifier, err := digest.NewDigestVerifier(manifestDigest)
+		if err != nil {
+			return nil, false, fmt.Errorf("unable to verify manifest digest from registry: %s", err)
+		}
+
+		dgstVerifier.Write(payload)
+
+		if !dgstVerifier.Verified() {
+			computedDigest, _ := digest.FromBytes(payload)
+			return nil, false, fmt.Errorf("unable to verify manifest digest: registry has %q, computed %q", manifestDigest, computedDigest)
+		}
+	}
+
+	if utils.DigestReference(ref) && ref != manifestDigest.String() {
+		return nil, false, fmt.Errorf("mismatching image manifest digest: got %q, expected %q", manifestDigest, ref)
 	}
 
 	var manifest registry.ManifestData

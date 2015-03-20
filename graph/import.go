@@ -9,6 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -48,7 +49,15 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		progressReader := utils.ProgressReader(resp.Body, int(resp.ContentLength), job.Stdout, sf, true, "", "Importing")
+		progressReader := progressreader.New(progressreader.Config{
+			In:        resp.Body,
+			Out:       job.Stdout,
+			Formatter: sf,
+			Size:      int(resp.ContentLength),
+			NewLines:  true,
+			ID:        "",
+			Action:    "Importing",
+		})
 		defer progressReader.Close()
 		archive = progressReader
 	}
@@ -79,7 +88,7 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 	job.Stdout.Write(sf.FormatStatus("", img.ID))
 	logID := img.ID
 	if tag != "" {
-		logID += ":" + tag
+		logID = utils.ImageReference(logID, tag)
 	}
 	if err = job.Eng.Job("log", "import", logID, "").Run(); err != nil {
 		log.Errorf("Error logging event 'import' for %s: %s", logID, err)

@@ -144,18 +144,17 @@ func TestRunLeakyFileDescriptors(t *testing.T) {
 	logDone("run - check file descriptor leakage")
 }
 
-// it should be possible to ping Google DNS resolver
+// it should be possible to lookup Google DNS
 // this will fail when Internet access is unavailable
-func TestRunPingGoogle(t *testing.T) {
+func TestRunLookupGoogleDns(t *testing.T) {
 	defer deleteAllContainers()
 
-	runCmd := exec.Command(dockerBinary, "run", "busybox", "ping", "-c", "1", "8.8.8.8")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	out, _, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "run", "busybox", "nslookup", "google.com"))
 	if err != nil {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	logDone("run - ping 8.8.8.8")
+	logDone("run - nslookup google.com")
 }
 
 // the exit code should be 0
@@ -378,6 +377,39 @@ func TestRunLinksContainerWithContainerId(t *testing.T) {
 	}
 
 	logDone("run - use a container id to link target work")
+}
+
+func TestRunLinkToContainerNetMode(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "run", "--name", "parent", "-d", "--net=container:test", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "run", "-d", "--link=parent:parent", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--name", "child", "-d", "--net=container:parent", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "run", "-d", "--link=child:child", "busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	logDone("run - link to a container which net mode is container success")
 }
 
 // Regression test for #4741
@@ -869,7 +901,7 @@ func TestRunEnvironmentErase(t *testing.T) {
 	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env")
-	cmd.Env = appendDockerHostEnv([]string{})
+	cmd.Env = appendBaseEnv([]string{})
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -908,7 +940,7 @@ func TestRunEnvironmentOverride(t *testing.T) {
 	defer deleteAllContainers()
 
 	cmd := exec.Command(dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env")
-	cmd.Env = appendDockerHostEnv([]string{"HOSTNAME=bar"})
+	cmd.Env = appendBaseEnv([]string{"HOSTNAME=bar"})
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -1283,6 +1315,17 @@ func TestRunWithCpuset(t *testing.T) {
 	logDone("run - cpuset 0")
 }
 
+func TestRunWithCpusetCpus(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--cpuset-cpus", "0", "busybox", "true")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("container should run successfuly with cpuset-cpus of 0: %s", err)
+	}
+
+	logDone("run - cpuset-cpus 0")
+}
+
 func TestRunDeviceNumbers(t *testing.T) {
 	defer deleteAllContainers()
 
@@ -1463,9 +1506,14 @@ func TestRunDnsOptions(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
-	out, _, err := runCommandWithOutput(cmd)
+	out, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
 		t.Fatal(err, out)
+	}
+
+	// The client will get a warning on stderr when setting DNS to a localhost address; verify this:
+	if !strings.Contains(stderr, "Localhost DNS setting") {
+		t.Fatalf("Expected warning on stderr about localhost resolver, but got %q", stderr)
 	}
 
 	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
@@ -1475,7 +1523,7 @@ func TestRunDnsOptions(t *testing.T) {
 
 	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
 
-	out, _, err = runCommandWithOutput(cmd)
+	out, _, _, err = runCommandWithStdoutStderr(cmd)
 	if err != nil {
 		t.Fatal(err, out)
 	}
@@ -1502,7 +1550,7 @@ func TestRunDnsOptionsBasedOnHostResolvConf(t *testing.T) {
 
 	var out string
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
-	if out, _, err = runCommandWithOutput(cmd); err != nil {
+	if out, _, _, err = runCommandWithStdoutStderr(cmd); err != nil {
 		t.Fatal(err, out)
 	}
 
@@ -2289,11 +2337,12 @@ func TestRunCidFileCleanupIfEmpty(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 	tmpCidFile := path.Join(tmpDir, "cid")
-	cmd := exec.Command(dockerBinary, "run", "--cidfile", tmpCidFile, "scratch")
+	cmd := exec.Command(dockerBinary, "run", "--cidfile", tmpCidFile, "emptyfs")
 	out, _, err := runCommandWithOutput(cmd)
-	t.Log(out)
 	if err == nil {
-		t.Fatal("Run without command must fail")
+		t.Fatalf("Run without command must fail. out=%s", out)
+	} else if !strings.Contains(out, "No command specified") {
+		t.Fatalf("Run without command failed with wrong output. out=%s\nerr=%v", out, err)
 	}
 
 	if _, err := os.Stat(tmpCidFile); err == nil {
@@ -3177,6 +3226,25 @@ func TestRunOOMExitCode(t *testing.T) {
 	logDone("run - exit code on oom")
 }
 
+func TestRunSetDefaultRestartPolicy(t *testing.T) {
+	defer deleteAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "test", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.RestartPolicy.Name}}", "test")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %v, output: %q", err, out)
+	}
+	out = strings.Trim(out, "\r\n")
+	if out != "no" {
+		t.Fatalf("Set default restart policy failed")
+	}
+
+	logDone("run - set default restart policy success")
+}
+
 func TestRunRestartMaxRetries(t *testing.T) {
 	defer deleteAllContainers()
 	out, err := exec.Command(dockerBinary, "run", "-d", "--restart=on-failure:3", "busybox", "false").CombinedOutput()
@@ -3193,6 +3261,13 @@ func TestRunRestartMaxRetries(t *testing.T) {
 	}
 	if count != "3" {
 		t.Fatalf("Container was restarted %s times, expected %d", count, 3)
+	}
+	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if MaximumRetryCount != "3" {
+		t.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")
 	}
 	logDone("run - test max-retries for --restart")
 }

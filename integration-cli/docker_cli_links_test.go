@@ -132,14 +132,14 @@ func TestLinksIpTablesRulesWhenLinkAndUnlink(t *testing.T) {
 	childIP := findContainerIP(t, "child")
 	parentIP := findContainerIP(t, "parent")
 
-	sourceRule := []string{"DOCKER", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
-	destinationRule := []string{"DOCKER", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
-	if !iptables.Exists(sourceRule...) || !iptables.Exists(destinationRule...) {
+	sourceRule := []string{"-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
+	destinationRule := []string{"-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
+	if !iptables.Exists("filter", "DOCKER", sourceRule...) || !iptables.Exists("filter", "DOCKER", destinationRule...) {
 		t.Fatal("Iptables rules not found")
 	}
 
 	dockerCmd(t, "rm", "--link", "parent/http")
-	if iptables.Exists(sourceRule...) || iptables.Exists(destinationRule...) {
+	if iptables.Exists("filter", "DOCKER", sourceRule...) || iptables.Exists("filter", "DOCKER", destinationRule...) {
 		t.Fatal("Iptables rules should be removed when unlink")
 	}
 

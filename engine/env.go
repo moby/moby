@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/utils"
 )
@@ -67,6 +68,15 @@ func (env *Env) SetBool(key string, value bool) {
 	} else {
 		env.Set(key, "0")
 	}
+}
+
+func (env *Env) GetTime(key string) (time.Time, error) {
+	t, err := time.Parse(time.RFC3339Nano, env.Get(key))
+	return t, err
+}
+
+func (env *Env) SetTime(key string, t time.Time) {
+	env.Set(key, t.Format(time.RFC3339Nano))
 }
 
 func (env *Env) GetInt(key string) int {

@@ -17,7 +17,7 @@ func TestPushBusyboxImage(t *testing.T) {
 	defer setupRegistry(t)()
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	// tag the image to upload it tot he private registry
+	// tag the image to upload it to the private registry
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		t.Fatalf("image tagging failed: %s, %v", out, err)
@@ -45,7 +45,7 @@ func TestPushUntagged(t *testing.T) {
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
-	expected := "No tags to push"
+	expected := "Repository does not exist"
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
 		t.Fatalf("pushing the image to the private registry should have failed: outuput %q", out)

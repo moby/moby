@@ -145,6 +145,14 @@ func (job *Job) SetenvBool(key string, value bool) {
 	job.env.SetBool(key, value)
 }
 
+func (job *Job) GetenvTime(key string) (value time.Time, err error) {
+	return job.env.GetTime(key)
+}
+
+func (job *Job) SetenvTime(key string, value time.Time) {
+	job.env.SetTime(key, value)
+}
+
 func (job *Job) GetenvSubEnv(key string) *Env {
 	return job.env.GetSubEnv(key)
 }

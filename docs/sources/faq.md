@@ -148,7 +148,7 @@ Linux:
  - Ubuntu 12.04, 13.04 et al 
  - Fedora 19/20+ 
  - RHEL 6.5+ 
- - Centos 6+ 
+ - CentOS 6+ 
  - Gentoo 
  - ArchLinux 
  - openSUSE 12.3+ 

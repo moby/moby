@@ -214,3 +214,33 @@ func TestRestartPolicyOnFailure(t *testing.T) {
 
 	logDone("restart - recording restart policy name for --restart=on-failure")
 }
+
+// a good container with --restart=on-failure:3
+// MaximumRetryCount!=0; RestartCount=0
+func TestContainerRestartwithGoodContainer(t *testing.T) {
+	defer deleteAllContainers()
+	out, err := exec.Command(dockerBinary, "run", "-d", "--restart=on-failure:3", "busybox", "true").CombinedOutput()
+	if err != nil {
+		t.Fatal(string(out), err)
+	}
+	id := strings.TrimSpace(string(out))
+	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {
+		t.Fatal(err)
+	}
+	count, err := inspectField(id, "RestartCount")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != "0" {
+		t.Fatalf("Container was restarted %s times, expected %d", count, 0)
+	}
+	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if MaximumRetryCount != "3" {
+		t.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")
+	}
+
+	logDone("restart - for a good container with restart policy, MaximumRetryCount is not 0 and RestartCount is 0")
+}

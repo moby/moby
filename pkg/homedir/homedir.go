@@ -3,6 +3,8 @@ package homedir
 import (
 	"os"
 	"runtime"
+
+	"github.com/docker/libcontainer/user"
 )
 
 // Key returns the env var name for the user's home dir based on
@@ -18,7 +20,13 @@ func Key() string {
 // environment variables depending on the target operating system.
 // Returned path should be used with "path/filepath" to form new paths.
 func Get() string {
-	return os.Getenv(Key())
+	home := os.Getenv(Key())
+	if home == "" && runtime.GOOS != "windows" {
+		if u, err := user.CurrentUser(); err == nil {
+			return u.Home
+		}
+	}
+	return home
 }
 
 // GetShortcutString returns the string that is shortcut to user's home directory

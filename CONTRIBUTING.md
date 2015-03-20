@@ -1,70 +1,60 @@
 # Contributing to Docker
 
-Want to hack on Docker? Awesome! Here are instructions to get you
-started. They are probably not perfect; please let us know if anything
-feels wrong or incomplete.
+Want to hack on Docker? Awesome!  We have a contributor's guide that explains
+[setting up a Docker development environment and the contribution
+process](https://docs.docker.com/project/who-written-for/). 
+
+![Contributors guide](docs/sources/static_files/contributors.png)
+
+This page contains information about reporting issues as well as some tips and
+guidelines useful to experienced open source contributors. Finally, make sure
+you read our [community guidelines](#docker-community-guidelines) before you
+start participating.
 
 ## Topics
 
 * [Reporting Security Issues](#reporting-security-issues)
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
-* [Reporting Issues](#reporting-issues)
-* [Build Environment](#build-environment)
-* [Contribution Guidelines](#contribution-guidelines)
+* [Reporting Issues](#reporting-other-issues)
+* [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
 * [Community Guidelines](#docker-community-guidelines)
 
-## Reporting Security Issues
+## Reporting security issues
 
-The Docker maintainers take security very seriously. If you discover a security issue,
-please bring it to their attention right away!
+The Docker maintainers take security seriously. If you discover a security
+issue, please bring it to their attention right away!
 
-Please send your report privately to [security@docker.com](mailto:security@docker.com),
-please **DO NOT** file a public issue.
+Please **DO NOT** file a public issue, instead send your report privately to
+[security@docker.com](mailto:security@docker.com), 
 
-Security reports are greatly appreciated and we will publicly thank you for it. We also
-like to send gifts - if you're into Docker shwag make sure to let us know :)
-We currently do not offer a paid security bounty program, but are not ruling it out in
-the future.
+Security reports are greatly appreciated and we will publicly thank you for it.
+We also like to send gifts&mdash;if you're into Docker schwag make sure to let
+us know We currently do not offer a paid security bounty program, but are not
+ruling it out in the future.
 
-## Design and Cleanup Proposals
 
-When considering a design proposal, we are looking for:
-
-* A description of the problem this design proposal solves
-* A pull request, not an issue, that modifies the documentation describing
-  the feature you are proposing, adding new documentation if necessary.
-  * Please prefix your issue with `Proposal:` in the title
-* Please review [the existing Proposals](https://github.com/docker/docker/pulls?q=is%3Aopen+is%3Apr+label%3AProposal)
-  before reporting a new one. You can always pair with someone if you both
-  have the same idea.
-
-When considering a cleanup task, we are looking for:
-
-* A description of the refactors made
-  * Please note any logic changes if necessary
-* A pull request with the code
-  * Please prefix your PR's title with `Cleanup:` so we can quickly address it.
-  * Your pull request must remain up to date with master, so rebase as necessary.
-
-## Reporting Issues
+## Reporting other issues
 
 A great way to contribute to the project is to send a detailed report when you
 encounter an issue. We always appreciate a well-written, thorough bug report,
 and will thank you for it!
 
-When reporting [issues](https://github.com/docker/docker/issues) on
-GitHub please include your host OS (Ubuntu 12.04, Fedora 19, etc).
-Please include:
+Check that [our issue database](https://github.com/docker/docker/issues)
+doesn't already include that problem or suggestion before submitting an issue.
+If you find a match, add a quick "+1" or "I have this problem too." Doing this
+helps prioritize the most common problems and requests.
+
+When reporting issues, please include your host OS (Ubuntu 12.04, Fedora 19,
+etc). Please include:
 
 * The output of `uname -a`.
 * The output of `docker version`.
 * The output of `docker -D info`.
 
-Please also include the steps required to reproduce the problem if
-possible and applicable.  This information will help us review and fix
-your issue faster.
+Please also include the steps required to reproduce the problem if possible and
+applicable. This information will help us review and fix your issue faster.
 
-### Template
+**Issue Report Template**:
 
 ```
 Description of problem:
@@ -103,123 +93,165 @@ Additional info:
 
 ```
 
-## Build Environment
 
-For instructions on setting up your development environment, please
-see our dedicated [dev environment setup
-docs](http://docs.docker.com/contributing/devenvironment/).
+##Quick contribution tips and guidelines
 
-## Contribution guidelines
+This section gives the experienced contributor some tips and guidelines.
 
-### Pull requests are always welcome
+###Pull requests are always welcome
 
-We are always thrilled to receive pull requests, and do our best to
-process them as quickly as possible. Not sure if that typo is worth a pull
-request? Do it! We will appreciate it.
+Not sure if that typo is worth a pull request? Found a bug and know how to fix
+it? Do it! We will appreciate it. Any significant improvement should be
+documented as [a GitHub issue](https://github.com/docker/docker/issues) before
+anybody starts working on it.
 
-If your pull request is not accepted on the first try, don't be
-discouraged! If there's a problem with the implementation, hopefully you
-received feedback on what to improve.
+We are always thrilled to receive pull requests. We do our best to process them
+quickly. If your pull request is not accepted on the first try,
+don't get discouraged! Our contributor's guide explains [the review process we
+use for simple changes](https://docs.docker.com/project/make-a-contribution/).
 
-We're trying very hard to keep Docker lean and focused. We don't want it
-to do everything for everybody. This means that we might decide against
-incorporating a new feature. However, there might be a way to implement
-that feature *on top of* Docker.
+### Design and cleanup proposals
 
-### Discuss your design on the mailing list
+You can propose new designs for existing Docker features. You can also design
+entirely new features. We really appreciate contributors who want to refactor or
+otherwise cleanup our project. For information on making these types of
+contributions, see [the advanced contribution
+section](https://docs.docker.com/project/advanced-contributing/) in the
+contributors guide.
 
-We recommend discussing your plans [on the mailing
-list](https://groups.google.com/forum/?fromgroups#!forum/docker-dev)
-before starting to code - especially for more ambitious contributions.
-This gives other contributors a chance to point you in the right
-direction, give feedback on your design, and maybe point out if someone
-else is working on the same thing.
+We try hard to keep Docker lean and focused. Docker can't do everything for
+everybody. This means that we might decide against incorporating a new feature.
+However, there might be a way to implement that feature *on top of* Docker.
 
-### Create issues...
+### Talking to other Docker users and contributors
 
-Any significant improvement should be documented as [a GitHub
-issue](https://github.com/docker/docker/issues) before anybody
-starts working on it.
+<table class="tg">
+  <col width="45%">
+  <col width="65%">
+  <tr>
+    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</th>
+    <td>
+      <p>
+        IRC a direct line to our most knowledgeable Docker users; we have
+        both the  <code>#docker</code> and <code>#docker-dev</code> group on 
+        <strong>irc.freenode.net</strong>.  
+        IRC is a rich chat protocol but it can overwhelm new users. You can search
+        <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
+      </p>
+      Read our <a href="https://docs.docker.com/project/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
+    </td>
+  </tr>
+  <tr>
+    <td>Google Groups</td>
+    <td>
+      There are two groups.
+      <a href="https://groups.google.com/forum/#!forum/docker-user" target="_blank">Docker-user</a>
+      is for people using Docker containers. 
+      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a> 
+      group is for contributors and other people contributing to the Docker 
+      project.
+    </td>
+  </tr>
+  <tr>
+    <td>Twitter</td>
+    <td>
+      You can follow <a href="https://twitter.com/docker/" target="_blank">Docker's Twitter feed</a>
+      to get updates on our products. You can also tweet us questions or just 
+      share blogs or stories.
+    </td>
+  </tr>
+  <tr>
+    <td>Stack Overflow</td>
+    <td>
+      Stack Overflow has over 7000K Docker questions listed. We regularly 
+      monitor <a href="http://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
+      and so do many other knowledgeable Docker users.
+    </td>
+  </tr>
+</table>
 
-### ...but check for existing issues first!
-
-Please take a moment to check that an issue doesn't already exist
-documenting your bug report or improvement proposal. If it does, it
-never hurts to add a quick "+1" or "I have this problem too". This will
-help prioritize the most common problems and requests.
 
 ### Conventions
 
 Fork the repository and make changes on your fork in a feature branch:
 
-- If it's a bug fix branch, name it XXXX-something where XXXX is the number of the
-  issue.
-- If it's a feature branch, create an enhancement issue to announce your
-  intentions, and name it XXXX-something where XXXX is the number of the issue.
+- If it's a bug fix branch, name it XXXX-something where XXXX is the number of
+	the issue. 
+- If it's a feature branch, create an enhancement issue to announce
+	your intentions, and name it XXXX-something where XXXX is the number of the
+	issue.
 
-Submit unit tests for your changes.  Go has a great test framework built in; use
-it! Take a look at existing tests for inspiration. Run the full test suite on
-your branch before submitting a pull request.
+Submit unit tests for your changes. Go has a great test framework built in; use
+it! Take a look at existing tests for inspiration. [Run the full test
+suite](https://docs.docker.com/project/test-and-docs/) on your branch before
+submitting a pull request.
 
-Update the documentation when creating or modifying features. Test
-your documentation changes for clarity, concision, and correctness, as
-well as a clean documentation build. See `docs/README.md` for more
-information on building the docs and how they get released.
+Update the documentation when creating or modifying features. Test your
+documentation changes for clarity, concision, and correctness, as well as a
+clean documentation build. See our contributors guide for [our style
+guide](https://docs.docker.com/project/doc-style) and instructions on [building
+the documentation](https://docs.docker.com/project/test-and-docs/#build-and-test-the-documentation).
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `gofmt -s -w file.go` on each changed file before
 committing your changes. Most editors have plug-ins that do this automatically.
 
-Pull requests descriptions should be as clear as possible and include a
-reference to all the issues that they address.
+Pull request descriptions should be as clear as possible and include a reference
+to all the issues that they address.
 
-Commit messages must start with a capitalized and short summary (max. 50
-chars) written in the imperative, followed by an optional, more detailed
-explanatory text which is separated from the summary by an empty line.
+Commit messages must start with a capitalized and short summary (max. 50 chars)
+written in the imperative, followed by an optional, more detailed explanatory
+text which is separated from the summary by an empty line.
 
 Code review comments may be added to your pull request. Discuss, then make the
-suggested modifications and push additional commits to your feature branch. Be
-sure to post a comment after pushing. The new commits will show up in the pull
-request automatically, but the reviewers will not be notified unless you
-comment.
+suggested modifications and push additional commits to your feature branch. Post
+a comment after pushing. New commits show up in the pull request automatically,
+but the reviewers are notified only when you comment.
 
-Pull requests must be cleanly rebased ontop of master without multiple branches
+Pull requests must be cleanly rebased on top of master without multiple branches
 mixed into the PR.
 
 **Git tip**: If your PR no longer merges cleanly, use `rebase master` in your
 feature branch to update your pull request rather than `merge master`.
 
-Before the pull request is merged, make sure that you squash your commits into
-logical units of work using `git rebase -i` and `git push -f`. After every
-commit the test suite should be passing. Include documentation changes in the
-same commit so that a revert would remove all traces of the feature or fix.
+Before you make a pull request, squash your commits into logical units of work
+using `git rebase -i` and `git push -f`. A logical unit of work is a consistent
+set of patches that should be reviewed together: for example, upgrading the
+version of a vendored dependency and taking advantage of its now available new
+feature constitute two separate units of work. Implementing a new function and
+calling it in another file constitute a single logical unit of work. The very
+high majory of submissions should have a single commit, so if in doubt: squash
+down to one.
 
-Commits that fix or close an issue should include a reference like
-`Closes #XXXX` or `Fixes #XXXX`, which will automatically close the
-issue when merged.
+After every commit, [make sure the test suite passes]
+((https://docs.docker.com/project/test-and-docs/)). Include documentation
+changes in the same pull request so that a revert would remove all traces of
+the feature or fix.
 
-Please do not add yourself to the `AUTHORS` file, as it is regenerated
-regularly from the Git history.
+Include an issue reference like `Closes #XXXX` or `Fixes #XXXX` in commits that
+close an issue. Including references automatically closes the issue on a merge.
+
+Please do not add yourself to the `AUTHORS` file, as it is regenerated regularly
+from the Git history.
 
 ### Merge approval
 
-Docker maintainers use LGTM (Looks Good To Me) in comments on the code review
-to indicate acceptance.
+Docker maintainers use LGTM (Looks Good To Me) in comments on the code review to
+indicate acceptance.
 
 A change requires LGTMs from an absolute majority of the maintainers of each
 component affected. For example, if a change affects `docs/` and `registry/`, it
 needs an absolute majority from the maintainers of `docs/` AND, separately, an
 absolute majority of the maintainers of `registry/`.
 
-For more details see [MAINTAINERS](MAINTAINERS)
+For more details, see the [MAINTAINERS](MAINTAINERS) page.
 
 ### Sign your work
 
-The sign-off is a simple line at the end of the explanation for the
-patch, which certifies that you wrote it or otherwise have the right to
-pass it on as an open-source patch.  The rules are pretty simple: if you
-can certify the below (from
-[developercertificate.org](http://developercertificate.org/)):
+The sign-off is a simple line at the end of the explanation for the patch. Your
+signature certifies that you wrote the patch or otherwise have the right to pass
+it on as an open-source patch. The rules are pretty simple: if you can certify
+the below (from [developercertificate.org](http://developercertificate.org/)):
 
 ```
 Developer Certificate of Origin
@@ -263,7 +295,7 @@ Then you just add a line to every git commit message:
 
     Signed-off-by: Joe Smith <joe.smith@email.com>
 
-Using your real name (sorry, no pseudonyms or anonymous contributions.)
+Use your real name (sorry, no pseudonyms or anonymous contributions.)
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
@@ -280,45 +312,45 @@ format right away, but please do adjust your processes for future contributions.
 * Step 4: Propose yourself at a scheduled docker meeting in #docker-dev
 
 Don't forget: being a maintainer is a time investment. Make sure you
-will have time to make yourself available.  You don't have to be a
+will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
 
-### IRC Meetings
+### IRC meetings
 
-There are two monthly meetings taking place on #docker-dev IRC to accomodate all timezones.
-Anybody can ask for a topic to be discussed prior to the meeting.
+There are two monthly meetings taking place on #docker-dev IRC to accomodate all
+timezones. Anybody can propose a topic for discussion prior to the meeting.
 
 If you feel the conversation is going off-topic, feel free to point it out.
 
-For the exact dates and times, have a look at [the irc-minutes repo](https://github.com/docker/irc-minutes).
-They also contain all the notes from previous meetings.
+For the exact dates and times, have a look at [the irc-minutes
+repo](https://github.com/docker/irc-minutes). The minutes also contain all the
+notes from previous meetings.
 
-## Docker Community Guidelines
+## Docker community guidelines
 
-We want to keep the Docker community awesome, growing and collaborative. We
-need your help to keep it that way. To help with this we've come up with some
-general guidelines for the community as a whole:
+We want to keep the Docker community awesome, growing and collaborative. We need
+your help to keep it that way. To help with this we've come up with some general
+guidelines for the community as a whole:
 
-* Be nice: Be courteous, respectful and polite to fellow community members: no
-  regional, racial, gender, or other abuse will be tolerated. We like nice people
-  way better than mean ones!
+* Be nice: Be courteous, respectful and polite to fellow community members:
+  no regional, racial, gender, or other abuse will be tolerated. We like
+  nice people way better than mean ones!
 
-* Encourage diversity and participation: Make everyone in our community
-  feel welcome, regardless of their background and the extent of their
+* Encourage diversity and participation: Make everyone in our community feel
+  welcome, regardless of their background and the extent of their
   contributions, and do everything possible to encourage participation in
   our community.
 
 * Keep it legal: Basically, don't get us in trouble. Share only content that
-  you own, do not share private or sensitive information, and don't break the
-  law.
+  you own, do not share private or sensitive information, and don't break
+  the law.
 
-* Stay on topic: Make sure that you are posting to the correct channel
-  and avoid off-topic discussions. Remember when you update an issue or
-  respond to an email you are potentially sending to a large number of
-  people.  Please consider this before you update.  Also remember that
-  nobody likes spam.
+* Stay on topic: Make sure that you are posting to the correct channel and
+  avoid off-topic discussions. Remember when you update an issue or respond
+  to an email you are potentially sending to a large number of people. Please
+  consider this before you update. Also remember that nobody likes spam.
 
-### Guideline Violations — 3 Strikes Method
+### Guideline violations — 3 strikes method
 
 The point of this section is not to find opportunities to punish people, but we
 do need a fair way to deal with people who are making our community suck.
@@ -337,20 +369,19 @@ do need a fair way to deal with people who are making our community suck.
 * Obvious spammers are banned on first occurrence. If we don't do this, we'll
   have spam all over the place.
 
-* Violations are forgiven after 6 months of good behavior, and we won't
-  hold a grudge.
+* Violations are forgiven after 6 months of good behavior, and we won't hold a
+  grudge.
 
-* People who commit minor infractions will get some education,
-  rather than hammering them in the 3 strikes process.
+* People who commit minor infractions will get some education, rather than
+  hammering them in the 3 strikes process.
 
-* The rules apply equally to everyone in the community, no matter how
-  much you've contributed.
+* The rules apply equally to everyone in the community, no matter how much
+	you've contributed.
 
 * Extreme violations of a threatening, abusive, destructive or illegal nature
-  will be addressed immediately and are not subject to 3 strikes or
-  forgiveness.
+	will be addressed immediately and are not subject to 3 strikes or forgiveness.
 
 * Contact abuse@docker.com to report abuse or appeal violations. In the case of
-  appeals, we know that mistakes happen, and we'll work with you to come up with
-  a fair solution if there has been a misunderstanding.
+	appeals, we know that mistakes happen, and we'll work with you to come up with a
+	fair solution if there has been a misunderstanding.
 

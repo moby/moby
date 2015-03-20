@@ -89,23 +89,24 @@ func (c *contStore) List() []*Container {
 }
 
 type Daemon struct {
-	ID             string
-	repository     string
-	sysInitPath    string
-	containers     *contStore
-	execCommands   *execStore
-	graph          *graph.Graph
-	repositories   *graph.TagStore
-	idIndex        *truncindex.TruncIndex
-	sysInfo        *sysinfo.SysInfo
-	volumes        *volumes.Repository
-	eng            *engine.Engine
-	config         *Config
-	containerGraph *graphdb.Database
-	driver         graphdriver.Driver
-	execDriver     execdriver.Driver
-	trustStore     *trust.TrustStore
-	statsCollector *statsCollector
+	ID               string
+	repository       string
+	sysInitPath      string
+	containers       *contStore
+	execCommands     *execStore
+	graph            *graph.Graph
+	repositories     *graph.TagStore
+	idIndex          *truncindex.TruncIndex
+	sysInfo          *sysinfo.SysInfo
+	volumes          *volumes.Repository
+	eng              *engine.Engine
+	config           *Config
+	containerGraph   *graphdb.Database
+	driver           graphdriver.Driver
+	execDriver       execdriver.Driver
+	trustStore       *trust.TrustStore
+	statsCollector   *statsCollector
+	defaultLogConfig runconfig.LogConfig
 }
 
 // Install installs daemon capabilities to eng.
@@ -345,7 +346,7 @@ func (daemon *Daemon) restore() error {
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
-		if !debug {
+		if !debug && log.GetLevel() == log.InfoLevel {
 			fmt.Print(".")
 		}
 		if err != nil {
@@ -367,7 +368,7 @@ func (daemon *Daemon) restore() error {
 
 	if entities := daemon.containerGraph.List("/", -1); entities != nil {
 		for _, p := range entities.Paths() {
-			if !debug {
+			if !debug && log.GetLevel() == log.InfoLevel {
 				fmt.Print(".")
 			}
 
@@ -419,7 +420,9 @@ func (daemon *Daemon) restore() error {
 	}
 
 	if !debug {
-		fmt.Println()
+		if log.GetLevel() == log.InfoLevel {
+			fmt.Println()
+		}
 		log.Infof("Loading containers: done.")
 	}
 
@@ -774,6 +777,13 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 				//An error from daemon.Get() means this name could not be found
 				return fmt.Errorf("Could not get container for %s", parts["name"])
 			}
+			for child.hostConfig.NetworkMode.IsContainer() {
+				parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
+				child, err = daemon.Get(parts[1])
+				if err != nil {
+					return fmt.Errorf("Could not get container for %s", parts[1])
+				}
+			}
 			if child.hostConfig.NetworkMode.IsHost() {
 				return runconfig.ErrConflictHostNetworkAndLinks
 			}
@@ -817,6 +827,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
+	// register portallocator release on shutdown
+	eng.OnShutdown(func() {
+		if err := portallocator.ReleaseAll(); err != nil {
+			log.Errorf("portallocator.ReleaseAll(): %s", err)
+		}
+	})
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
 	if config.Pidfile != "" {
@@ -850,9 +866,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	os.Setenv("TMPDIR", realTmp)
-	if !config.EnableSelinuxSupport {
-		selinuxSetDisabled()
-	}
 
 	// get the canonical path to the Docker root directory
 	var realRoot string
@@ -876,13 +889,28 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	// Load storage driver
 	driver, err := graphdriver.New(config.Root, config.GraphOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error intializing graphdriver: %v", err)
 	}
 	log.Debugf("Using graph driver %s", driver)
+	// register cleanup for graph driver
+	eng.OnShutdown(func() {
+		if err := driver.Cleanup(); err != nil {
+			log.Errorf("Error during graph storage driver.Cleanup(): %v", err)
+		}
+	})
 
-	// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
-	if selinuxEnabled() && config.EnableSelinuxSupport && driver.String() == "btrfs" {
-		return nil, fmt.Errorf("SELinux is not supported with the BTRFS graph driver!")
+	if config.EnableSelinuxSupport {
+		if selinuxEnabled() {
+			// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
+			if driver.String() == "btrfs" {
+				return nil, fmt.Errorf("SELinux is not supported with the BTRFS graph driver")
+			}
+			log.Debug("SELinux enabled successfully")
+		} else {
+			log.Warn("Docker could not enable SELinux on the host system")
+		}
+	} else {
+		selinuxSetDisabled()
 	}
 
 	daemonRepo := path.Join(config.Root, "containers")
@@ -956,6 +984,12 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if err != nil {
 		return nil, err
 	}
+	// register graph close on shutdown
+	eng.OnShutdown(func() {
+		if err := graph.Close(); err != nil {
+			log.Errorf("Error during container graph.Close(): %v", err)
+		}
+	})
 
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
@@ -984,24 +1018,32 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	daemon := &Daemon{
-		ID:             trustKey.PublicKey().KeyID(),
-		repository:     daemonRepo,
-		containers:     &contStore{s: make(map[string]*Container)},
-		execCommands:   newExecStore(),
-		graph:          g,
-		repositories:   repositories,
-		idIndex:        truncindex.NewTruncIndex([]string{}),
-		sysInfo:        sysInfo,
-		volumes:        volumes,
-		config:         config,
-		containerGraph: graph,
-		driver:         driver,
-		sysInitPath:    sysInitPath,
-		execDriver:     ed,
-		eng:            eng,
-		trustStore:     t,
-		statsCollector: newStatsCollector(1 * time.Second),
+		ID:               trustKey.PublicKey().KeyID(),
+		repository:       daemonRepo,
+		containers:       &contStore{s: make(map[string]*Container)},
+		execCommands:     newExecStore(),
+		graph:            g,
+		repositories:     repositories,
+		idIndex:          truncindex.NewTruncIndex([]string{}),
+		sysInfo:          sysInfo,
+		volumes:          volumes,
+		config:           config,
+		containerGraph:   graph,
+		driver:           driver,
+		sysInitPath:      sysInitPath,
+		execDriver:       ed,
+		eng:              eng,
+		trustStore:       t,
+		statsCollector:   newStatsCollector(1 * time.Second),
+		defaultLogConfig: config.LogConfig,
 	}
+
+	eng.OnShutdown(func() {
+		if err := daemon.shutdown(); err != nil {
+			log.Errorf("Error during daemon.shutdown(): %v", err)
+		}
+	})
+
 	if err := daemon.restore(); err != nil {
 		return nil, err
 	}
@@ -1010,25 +1052,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	if err := daemon.setupResolvconfWatcher(); err != nil {
 		return nil, err
 	}
-
-	// Setup shutdown handlers
-	// FIXME: can these shutdown handlers be registered closer to their source?
-	eng.OnShutdown(func() {
-		// FIXME: if these cleanup steps can be called concurrently, register
-		// them as separate handlers to speed up total shutdown time
-		if err := daemon.shutdown(); err != nil {
-			log.Errorf("daemon.shutdown(): %s", err)
-		}
-		if err := portallocator.ReleaseAll(); err != nil {
-			log.Errorf("portallocator.ReleaseAll(): %s", err)
-		}
-		if err := daemon.driver.Cleanup(); err != nil {
-			log.Errorf("daemon.driver.Cleanup(): %s", err.Error())
-		}
-		if err := daemon.containerGraph.Close(); err != nil {
-			log.Errorf("daemon.containerGraph.Close(): %s", err.Error())
-		}
-	})
 
 	return daemon, nil
 }
@@ -1230,11 +1253,11 @@ func checkKernel() error {
 	// the circumstances of pre-3.8 crashes are clearer.
 	// For details see http://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
-		log.Infof("WARNING: %s", err)
+		log.Warnf("%s", err)
 	} else {
 		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				log.Infof("WARNING: You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+				log.Warnf("You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
 			}
 		}
 	}

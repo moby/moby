@@ -30,7 +30,8 @@ func NewPapertrailHook(host string, port int, appName string) (*PapertrailHook, 
 // Fire is called when a log event is fired.
 func (hook *PapertrailHook) Fire(entry *logrus.Entry) error {
 	date := time.Now().Format(format)
-	payload := fmt.Sprintf("<22> %s %s: [%s] %s", date, hook.AppName, entry.Data["level"], entry.Message)
+	msg, _ := entry.String()
+	payload := fmt.Sprintf("<22> %s %s: %s", date, hook.AppName, msg)
 
 	bytesWritten, err := hook.UDPConn.Write([]byte(payload))
 	if err != nil {

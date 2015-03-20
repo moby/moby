@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/utils"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers"
@@ -90,6 +91,10 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			return nil
 		}
 
+		if !psFilters.MatchKVList("label", container.Config.Labels) {
+			return nil
+		}
+
 		if before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
@@ -127,7 +132,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 		img := container.Config.Image
 		_, tag := parsers.ParseRepositoryTag(container.Config.Image)
 		if tag == "" {
-			img = img + ":" + graph.DEFAULTTAG
+			img = utils.ImageReference(img, graph.DEFAULTTAG)
 		}
 		out.SetJson("Image", img)
 		if len(container.Args) > 0 {
@@ -157,6 +162,7 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
+		out.SetJson("Labels", container.Config.Labels)
 		outs.Add(out)
 		return nil
 	}

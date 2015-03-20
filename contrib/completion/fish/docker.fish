@@ -16,7 +16,7 @@
 
 function __fish_docker_no_subcommand --description 'Test if docker has yet to be given the subcommand'
     for i in (commandline -opc)
-        if contains -- $i attach build commit cp create diff events exec export history images import info insert inspect kill load login logout logs pause port ps pull push restart rm rmi run save search start stop tag top unpause version wait
+        if contains -- $i attach build commit cp create diff events exec export history images import info inspect kill load login logout logs pause port ps pull push rename restart rm rmi run save search start stop tag top unpause version wait
             return 1
         end
     end
@@ -43,7 +43,7 @@ function __fish_print_docker_repositories --description 'Print a list of docker 
 end
 
 # common options
-complete -c docker -f -n '__fish_docker_no_subcommand' -l api-enable-cors -d 'Enable CORS headers in the remote API'
+complete -c docker -f -n '__fish_docker_no_subcommand' -l api-cors-header -d "Set CORS headers in the remote API. Default is cors disabled"
 complete -c docker -f -n '__fish_docker_no_subcommand' -s b -l bridge -d 'Attach containers to a pre-existing network bridge'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l bip -d "Use this CIDR notation address for the network bridge's IP, not compatible with -b"
 complete -c docker -f -n '__fish_docker_no_subcommand' -s D -l debug -d 'Enable debug mode'

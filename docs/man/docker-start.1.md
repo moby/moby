@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-start - Restart a stopped container
+docker-start - Start one or more stopped containers
 
 # SYNOPSIS
 **docker start**
@@ -13,7 +13,7 @@ CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 
-Start a stopped container.
+Start one or more stopped containers.
 
 # OPTIONS
 **-a**, **--attach**=*true*|*false*

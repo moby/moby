@@ -11,7 +11,6 @@ import (
 	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
-	"github.com/docker/libcontainer/security/capabilities"
 )
 
 const LxcTemplate = `
@@ -52,7 +51,7 @@ lxc.cgroup.devices.allow = a
 lxc.cgroup.devices.deny = a
 #Allow the devices passed to us in the AllowedDevices list.
 {{range $allowedDevice := .AllowedDevices}}
-lxc.cgroup.devices.allow = {{$allowedDevice.GetCgroupAllowString}}
+lxc.cgroup.devices.allow = {{$allowedDevice.CgroupString}}
 {{end}}
 {{end}}
 
@@ -108,8 +107,8 @@ lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{if .Resources.CpuShares}}
 lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 {{end}}
-{{if .Resources.Cpuset}}
-lxc.cgroup.cpuset.cpus = {{.Resources.Cpuset}}
+{{if .Resources.CpusetCpus}}
+lxc.cgroup.cpuset.cpus = {{.Resources.CpusetCpus}}
 {{end}}
 {{end}}
 
@@ -169,7 +168,7 @@ func keepCapabilities(adds []string, drops []string) ([]string, error) {
 	var newCaps []string
 	for _, cap := range caps {
 		log.Debugf("cap %s\n", cap)
-		realCap := capabilities.GetCapability(cap)
+		realCap := execdriver.GetCapability(cap)
 		numCap := fmt.Sprintf("%d", realCap.Value)
 		newCaps = append(newCaps, numCap)
 	}
@@ -180,13 +179,10 @@ func keepCapabilities(adds []string, drops []string) ([]string, error) {
 func dropList(drops []string) ([]string, error) {
 	if utils.StringsContainsNoCase(drops, "all") {
 		var newCaps []string
-		for _, cap := range capabilities.GetAllCapabilities() {
-			log.Debugf("drop cap %s\n", cap)
-			realCap := capabilities.GetCapability(cap)
-			if realCap == nil {
-				return nil, fmt.Errorf("Invalid capability '%s'", cap)
-			}
-			numCap := fmt.Sprintf("%d", realCap.Value)
+		for _, capName := range execdriver.GetAllCapabilities() {
+			cap := execdriver.GetCapability(capName)
+			log.Debugf("drop cap %s\n", cap.Key)
+			numCap := fmt.Sprintf("%d", cap.Value)
 			newCaps = append(newCaps, numCap)
 		}
 		return newCaps, nil

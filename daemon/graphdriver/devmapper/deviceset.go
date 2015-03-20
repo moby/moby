@@ -347,7 +347,7 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 	}
 
 	if dinfo.DeviceId > MaxDeviceId {
-		log.Errorf("Warning: Ignoring Invalid DeviceId=%d", dinfo.DeviceId)
+		log.Errorf("Ignoring Invalid DeviceId=%d", dinfo.DeviceId)
 		return nil
 	}
 
@@ -554,7 +554,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 				// happen. Now we have a mechianism to find
 				// a free device Id. So something is not right.
 				// Give a warning and continue.
-				log.Errorf("Warning: Device Id %d exists in pool but it is supposed to be unused", deviceId)
+				log.Errorf("Device Id %d exists in pool but it is supposed to be unused", deviceId)
 				deviceId, err = devices.getNextFreeDeviceId()
 				if err != nil {
 					return nil, err
@@ -606,7 +606,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInf
 				// happen. Now we have a mechianism to find
 				// a free device Id. So something is not right.
 				// Give a warning and continue.
-				log.Errorf("Warning: Device Id %d exists in pool but it is supposed to be unused", deviceId)
+				log.Errorf("Device Id %d exists in pool but it is supposed to be unused", deviceId)
 				deviceId, err = devices.getNextFreeDeviceId()
 				if err != nil {
 					return err
@@ -852,18 +852,18 @@ func (devices *DeviceSet) rollbackTransaction() error {
 	// closed. In that case this call will fail. Just leave a message
 	// in case of failure.
 	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), devices.DeviceId); err != nil {
-		log.Errorf("Warning: Unable to delete device: %s", err)
+		log.Errorf("Unable to delete device: %s", err)
 	}
 
 	dinfo := &DevInfo{Hash: devices.DeviceIdHash}
 	if err := devices.removeMetadata(dinfo); err != nil {
-		log.Errorf("Warning: Unable to remove metadata: %s", err)
+		log.Errorf("Unable to remove metadata: %s", err)
 	} else {
 		devices.markDeviceIdFree(devices.DeviceId)
 	}
 
 	if err := devices.removeTransactionMetaData(); err != nil {
-		log.Errorf("Warning: Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
+		log.Errorf("Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
 	}
 
 	return nil
@@ -883,7 +883,7 @@ func (devices *DeviceSet) processPendingTransaction() error {
 	// If open transaction Id is less than pool transaction Id, something
 	// is wrong. Bail out.
 	if devices.OpenTransactionId < devices.TransactionId {
-		log.Errorf("Warning: Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionId, devices.TransactionId)
+		log.Errorf("Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionId, devices.TransactionId)
 		return nil
 	}
 
@@ -963,7 +963,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		log.Warnf("WARNING: Udev sync is not supported. This will lead to unexpected behavior, data loss and errors")
+		log.Warnf("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors")
 	}
 	log.Debugf("devicemapper: udev sync support: %v", devicemapper.UdevSyncSupported())
 
@@ -1221,7 +1221,7 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	// Wait for the unmount to be effective,
 	// by watching the value of Info.OpenCount for the device
 	if err := devices.waitClose(info); err != nil {
-		log.Errorf("Warning: error waiting for device %s to close: %s", info.Hash, err)
+		log.Errorf("Error waiting for device %s to close: %s", info.Hash, err)
 	}
 
 	devinfo, err := devicemapper.GetInfo(info.Name())
@@ -1584,7 +1584,7 @@ func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, 
 	buf := new(syscall.Statfs_t)
 	err := syscall.Statfs(loopFile, buf)
 	if err != nil {
-		log.Warnf("Warning: Couldn't stat loopfile filesystem %v: %v", loopFile, err)
+		log.Warnf("Couldn't stat loopfile filesystem %v: %v", loopFile, err)
 		return 0, err
 	}
 	return buf.Bfree * uint64(buf.Bsize), nil
@@ -1594,7 +1594,7 @@ func (devices *DeviceSet) isRealFile(loopFile string) (bool, error) {
 	if loopFile != "" {
 		fi, err := os.Stat(loopFile)
 		if err != nil {
-			log.Warnf("Warning: Couldn't stat loopfile %v: %v", loopFile, err)
+			log.Warnf("Couldn't stat loopfile %v: %v", loopFile, err)
 			return false, err
 		}
 		return fi.Mode().IsRegular(), nil

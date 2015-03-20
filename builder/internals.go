@@ -28,11 +28,13 @@ import (
 	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -268,7 +270,15 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		}
 
 		// Download and dump result to tmp file
-		if _, err := io.Copy(tmpFile, utils.ProgressReader(resp.Body, int(resp.ContentLength), b.OutOld, b.StreamFormatter, true, "", "Downloading")); err != nil {
+		if _, err := io.Copy(tmpFile, progressreader.New(progressreader.Config{
+			In:        resp.Body,
+			Out:       b.OutOld,
+			Formatter: b.StreamFormatter,
+			Size:      int(resp.ContentLength),
+			NewLines:  true,
+			ID:        "",
+			Action:    "Downloading",
+		})); err != nil {
 			tmpFile.Close()
 			return err
 		}
@@ -528,10 +538,17 @@ func (b *Builder) create() (*daemon.Container, error) {
 	}
 	b.Config.Image = b.image
 
+	hostConfig := &runconfig.HostConfig{
+		CpuShares:  b.cpuShares,
+		CpusetCpus: b.cpuSetCpus,
+		Memory:     b.memory,
+		MemorySwap: b.memorySwap,
+	}
+
 	config := *b.Config
 
 	// Create the container
-	c, warnings, err := b.Daemon.Create(b.Config, nil, "")
+	c, warnings, err := b.Daemon.Create(b.Config, hostConfig, "")
 	if err != nil {
 		return nil, err
 	}
@@ -725,7 +742,7 @@ func (b *Builder) clearTmp() {
 		}
 
 		if err := b.Daemon.Rm(tmp); err != nil {
-			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %s\n", common.TruncateID(c), err.Error())
+			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %v\n", common.TruncateID(c), err)
 			return
 		}
 		b.Daemon.DeleteVolumes(tmp.VolumePaths())

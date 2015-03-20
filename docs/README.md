@@ -106,7 +106,7 @@ also update the root docs pages by running
 > if you are using Boot2Docker on OSX and the above command returns an error,
 > `Post http:///var/run/docker.sock/build?rm=1&t=docker-docs%3Apost-1.2.0-docs_update-2:
 > dial unix /var/run/docker.sock: no such file or directory', you need to set the Docker
-> host. Run `$(boot2docker shellinit)` to see the correct variable to set. The command
+> host. Run `eval "$(boot2docker shellinit)"` to see the correct variable to set. The command
 > will return the full `export` command, so you can just cut and paste.
 
 ## Cherry-picking documentation changes to update an existing release.
@@ -151,4 +151,33 @@ distributed CDN system) is flushed. The `make docs-release` command will do this
 _if_ the `DISTRIBUTION_ID` is set to the Cloudfront distribution ID (ask the meta
 team) - this will take at least 15 minutes to run and you can check its progress
 with the CDN Cloudfront Chrome addin.
+
+## Removing files from the docs.docker.com site
+
+Sometimes it becomes necessary to remove files from the historical published documentation.
+The most reliable way to do this is to do it directly using `aws s3` commands running in a
+docs container:
+
+Start the docs container like `make docs-shell`, but bind mount in your `awsconfig`:
+
+```
+docker run --rm -it -v $(CURDIR)/docs/awsconfig:/docs/awsconfig docker-docs:master bash
+```
+
+and then the following example shows deleting 2 documents from s3, and then requesting the
+CloudFlare cache to invalidate them:
+
+
+```
+export BUCKET BUCKET=docs.docker.com
+export AWS_CONFIG_FILE=$(pwd)/awsconfig
+aws s3 --profile $BUCKET ls s3://$BUCKET
+aws s3 --profile $BUCKET rm s3://$BUCKET/v1.0/reference/api/docker_io_oauth_api/index.html
+aws s3 --profile $BUCKET rm s3://$BUCKET/v1.1/reference/api/docker_io_oauth_api/index.html
+
+aws configure set preview.cloudfront true
+export DISTRIBUTION_ID=YUTIYUTIUTIUYTIUT
+aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id $DISTRIBUTION_ID --invalidation-batch '{"Paths":{"Quantity":1, "Items":["/v1.0/reference/api/docker_io_oauth_api/"]},"CallerReference":"6Mar2015sventest1"}'
+aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id $DISTRIBUTION_ID --invalidation-batch '{"Paths":{"Quantity":1, "Items":["/v1.1/reference/api/docker_io_oauth_api/"]},"CallerReference":"6Mar2015sventest1"}'
+```
 

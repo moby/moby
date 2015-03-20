@@ -113,10 +113,6 @@ Create a container
              "Hostname": "",
              "Domainname": "",
              "User": "",
-             "Memory": 0,
-             "MemorySwap": 0,
-             "CpuShares": 512,
-             "Cpuset": "0,1",
              "AttachStdin": false,
              "AttachStdout": true,
              "AttachStderr": true,
@@ -129,6 +125,11 @@ Create a container
              ],
              "Entrypoint": "",
              "Image": "ubuntu",
+             "Labels": {
+                     "com.example.vendor": "Acme",
+                     "com.example.license": "GPL",
+                     "com.example.version": "1.0"
+             },
              "Volumes": {
                      "/tmp": {}
              },
@@ -143,6 +144,10 @@ Create a container
                "Binds": ["/tmp:/tmp"],
                "Links": ["redis3:redis"],
                "LxcConf": {"lxc.utsname":"docker"},
+               "Memory": 0,
+               "MemorySwap": 0,
+               "CpuShares": 512,
+               "CpusetCpus": "0,1",
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
@@ -156,7 +161,9 @@ Create a container
                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
                "NetworkMode": "bridge",
                "Devices": [],
-               "Ulimits": [{}]
+               "Ulimits": [{}],
+               "LogConfig": { "Type": "json-file", Config: {} },
+               "CgroupParent": ""
             }
         }
 
@@ -182,7 +189,8 @@ Json Parameters:
       always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs othercontainers).
-    **CpuSet** - String value containg the cgroups Cpuset to use.
+-   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
+-   **CpusetCpus** - String value containg the cgroups CpusetCpus to use.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -190,12 +198,13 @@ Json Parameters:
 -   **OpenStdin** - Boolean value, opens stdin,
 -   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `VAR=value`
+-   **Labels** - Adds a map of labels that to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entrypoint for the container a a string or an array
       of strings
 -   **Image** - String value containing the image name to use for the container
 -   **Volumes** – An object mapping mountpoint paths (strings) inside the
-        container to empty objects.
+      container to empty objects.
 -   **WorkingDir** - A string value containing the working dir for commands to
       run in.
 -   **NetworkDisabled** - Boolean value, when true disables neworking for the
@@ -248,6 +257,11 @@ Json Parameters:
   -   **Ulimits** - A list of ulimits to be set in the container, specified as
         `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
         `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
+  -   **LogConfig** - Logging configuration to container, format
+        `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}
+        Available types: `json-file`, `none`.
+        `json-file` logging driver.
+  -   **CgroupParent** - Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
 Query Parameters:
 
@@ -292,8 +306,6 @@ Return low-level information on the container `id`
 				"-c",
 				"exit 9"
 			],
-			"CpuShares": 0,
-			"Cpuset": "",
 			"Domainname": "",
 			"Entrypoint": null,
 			"Env": [
@@ -302,9 +314,12 @@ Return low-level information on the container `id`
 			"ExposedPorts": null,
 			"Hostname": "ba033ac44011",
 			"Image": "ubuntu",
+			"Labels": {
+				"com.example.vendor": "Acme",
+				"com.example.license": "GPL",
+				"com.example.version": "1.0"
+			},
 			"MacAddress": "",
-			"Memory": 0,
-			"MemorySwap": 0,
 			"NetworkDisabled": false,
 			"OnBuild": null,
 			"OpenStdin": false,
@@ -324,6 +339,8 @@ Return low-level information on the container `id`
 			"CapAdd": null,
 			"CapDrop": null,
 			"ContainerIDFile": "",
+			"CpusetCpus": "",
+			"CpuShares": 0,
 			"Devices": [],
 			"Dns": null,
 			"DnsSearch": null,
@@ -331,6 +348,8 @@ Return low-level information on the container `id`
 			"IpcMode": "",
 			"Links": null,
 			"LxcConf": [],
+			"Memory": 0,
+			"MemorySwap": 0,
 			"NetworkMode": "bridge",
 			"PortBindings": {},
 			"Privileged": false,
@@ -340,6 +359,7 @@ Return low-level information on the container `id`
 				"MaximumRetryCount": 2,
 				"Name": "on-failure"
 			},
+           "LogConfig": { "Type": "json-file", Config: {} },
 			"SecurityOpt": null,
 			"VolumesFrom": null,
 			"Ulimits": [{}]
@@ -436,6 +456,9 @@ Status Codes:
 
 Get stdout and stderr logs from the container ``id``
 
+> **Note**:
+> This endpoint works only for containers with `json-file` logging driver.
+
 **Example request**:
 
        GET /containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10 HTTP/1.1
@@ -494,6 +517,12 @@ Inspect changes on container `id`'s filesystem
                      "Kind": 1
              }
         ]
+
+Values for `Kind`:
+
+- `0`: Modify
+- `1`: Add
+- `2`: Delete
 
 Status Codes:
 
@@ -1036,6 +1065,45 @@ Status Codes:
           }
         ]
 
+**Example request, with digest information**:
+
+        GET /images/json?digests=1 HTTP/1.1
+
+**Example response, with digest information**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+          {
+            "Created": 1420064636,
+            "Id": "4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125",
+            "ParentId": "ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2",
+            "RepoDigests": [
+              "localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
+            ],
+            "RepoTags": [
+              "localhost:5000/test/busybox:latest",
+              "playdate:latest"
+            ],
+            "Size": 0,
+            "VirtualSize": 2429728
+          }
+        ]
+
+The response shows a single image `Id` associated with two repositories
+(`RepoTags`): `localhost:5000/test/busybox`: and `playdate`. A caller can use
+either of the `RepoTags` values `localhost:5000/test/busybox:latest` or
+`playdate:latest` to reference the image.
+
+You can also use `RepoDigests` values to reference an image. In this response,
+the array has only one reference and that is to the
+`localhost:5000/test/busybox` repository; the `playdate` repository has no
+digest. You can reference this digest using the value:
+`localhost:5000/test/busybox@sha256:cbbf2f9a99b47fc460d...`
+
+See the `docker run` and `docker build` commands for examples of digest and tag
+references on the command line.
 
 Query Parameters:
 
@@ -1090,6 +1158,10 @@ Query Parameters:
 -   **pull** - attempt to pull the image even if an older image exists locally
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm** - always remove intermediate containers (includes rm)
+-   **memory** - set memory limit for build
+-   **memswap** - Total memory (memory + swap), `-1` to disable swap
+-   **cpushares** - CPU shares (relative weight)
+-   **cpusetcpus** - CPUs in which to allow exection, e.g., `0-3`, `0,1`
 
     Request Headers:
 
@@ -1167,8 +1239,6 @@ Return low-level information on the image `name`
                      {
                              "Hostname": "",
                              "User": "",
-                             "Memory": 0,
-                             "MemorySwap": 0,
                              "AttachStdin": false,
                              "AttachStdout": false,
                              "AttachStderr": false,
@@ -1180,6 +1250,11 @@ Return low-level information on the image `name`
                              "Cmd": ["/bin/bash"],
                              "Dns": null,
                              "Image": "ubuntu",
+                             "Labels": {
+                                 "com.example.vendor": "Acme",
+                                 "com.example.license": "GPL",
+                                 "com.example.version": "1.0"
+                             },
                              "Volumes": null,
                              "VolumesFrom": "",
                              "WorkingDir": ""
@@ -1446,6 +1521,7 @@ Display system-wide information
              "Debug":false,
              "NFd": 11,
              "NGoroutines":21,
+             "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
              "NEventsListener":0,
              "InitPath":"/usr/bin/docker",
              "InitSha1":"",
@@ -1455,6 +1531,9 @@ Display system-wide information
              "IPv4Forwarding":true,
              "Labels":["storage=ssd"],
              "DockerRootDir": "/var/lib/docker",
+             "HttpProxy": "http://test:test@localhost:8080"
+             "HttpsProxy": "https://test:test@localhost:8080"
+             "NoProxy": "9.81.1.160"
              "OperatingSystem": "Boot2Docker",
         }
 
@@ -1530,10 +1609,6 @@ Create a new image from a container's changes
              "Hostname": "",
              "Domainname": "",
              "User": "",
-             "Memory": 0,
-             "MemorySwap": 0,
-             "CpuShares": 512,
-             "Cpuset": "0,1",
              "AttachStdin": false,
              "AttachStdout": true,
              "AttachStderr": true,
@@ -1887,10 +1962,6 @@ Return low-level information about the exec command `id`.
               "Hostname" : "8f177a186b97",
               "Domainname" : "",
               "User" : "",
-              "Memory" : 0,
-              "MemorySwap" : 0,
-              "CpuShares" : 0,
-              "Cpuset" : "",
               "AttachStdin" : false,
               "AttachStdout" : false,
               "AttachStderr" : false,

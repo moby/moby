@@ -267,6 +267,10 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
+func (d *Daemon) LogfileName() string {
+	return d.logFile.Name()
+}
+
 func daemonHost() string {
 	daemonUrlStr := "unix://" + api.DEFAULTUNIXSOCKET
 	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {
@@ -469,7 +473,7 @@ func dockerCmd(t *testing.T, args ...string) (string, int, error) {
 	return out, status, err
 }
 
-// execute a docker ocmmand with a timeout
+// execute a docker command with a timeout
 func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
 	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
 	if err != nil {
@@ -559,7 +563,11 @@ func (f *FakeContext) Close() error {
 	return os.RemoveAll(f.Dir)
 }
 
-func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
+func fakeContextFromDir(dir string) *FakeContext {
+	return &FakeContext{dir}
+}
+
+func fakeContextWithFiles(files map[string]string) (*FakeContext, error) {
 	tmp, err := ioutil.TempDir("", "fake-context")
 	if err != nil {
 		return nil, err
@@ -567,78 +575,188 @@ func fakeContext(dockerfile string, files map[string]string) (*FakeContext, erro
 	if err := os.Chmod(tmp, 0755); err != nil {
 		return nil, err
 	}
-	ctx := &FakeContext{tmp}
+
+	ctx := fakeContextFromDir(tmp)
 	for file, content := range files {
 		if err := ctx.Add(file, content); err != nil {
 			ctx.Close()
 			return nil, err
 		}
 	}
+	return ctx, nil
+}
+
+func fakeContextAddDockerfile(ctx *FakeContext, dockerfile string) error {
 	if err := ctx.Add("Dockerfile", dockerfile); err != nil {
 		ctx.Close()
+		return err
+	}
+	return nil
+}
+
+func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
+	ctx, err := fakeContextWithFiles(files)
+	if err != nil {
+		ctx.Close()
+		return nil, err
+	}
+	if err := fakeContextAddDockerfile(ctx, dockerfile); err != nil {
 		return nil, err
 	}
 	return ctx, nil
 }
 
-type FakeStorage struct {
+// FakeStorage is a static file server. It might be running locally or remotely
+// on test host.
+type FakeStorage interface {
+	Close() error
+	URL() string
+	CtxDir() string
+}
+
+// fakeStorage returns either a local or remote (at daemon machine) file server
+func fakeStorage(files map[string]string) (FakeStorage, error) {
+	ctx, err := fakeContextWithFiles(files)
+	if err != nil {
+		return nil, err
+	}
+	return fakeStorageWithContext(ctx)
+}
+
+// fakeStorageWithContext returns either a local or remote (at daemon machine) file server
+func fakeStorageWithContext(ctx *FakeContext) (FakeStorage, error) {
+	if isLocalDaemon {
+		return newLocalFakeStorage(ctx)
+	}
+	return newRemoteFileServer(ctx)
+}
+
+// localFileStorage is a file storage on the running machine
+type localFileStorage struct {
 	*FakeContext
 	*httptest.Server
 }
 
-func (f *FakeStorage) Close() error {
-	f.Server.Close()
-	return f.FakeContext.Close()
+func (s *localFileStorage) URL() string {
+	return s.Server.URL
 }
 
-func fakeStorage(files map[string]string) (*FakeStorage, error) {
-	tmp, err := ioutil.TempDir("", "fake-storage")
-	if err != nil {
-		return nil, err
-	}
-	ctx := &FakeContext{tmp}
-	for file, content := range files {
-		if err := ctx.Add(file, content); err != nil {
-			ctx.Close()
-			return nil, err
-		}
-	}
+func (s *localFileStorage) CtxDir() string {
+	return s.FakeContext.Dir
+}
+
+func (s *localFileStorage) Close() error {
+	defer s.Server.Close()
+	return s.FakeContext.Close()
+}
+
+func newLocalFakeStorage(ctx *FakeContext) (*localFileStorage, error) {
 	handler := http.FileServer(http.Dir(ctx.Dir))
 	server := httptest.NewServer(handler)
-	return &FakeStorage{
+	return &localFileStorage{
 		FakeContext: ctx,
 		Server:      server,
 	}, nil
 }
 
-func inspectField(name, field string) (string, error) {
-	format := fmt.Sprintf("{{.%s}}", field)
+// remoteFileServer is a containerized static file server started on the remote
+// testing machine to be used in URL-accepting docker build functionality.
+type remoteFileServer struct {
+	host      string // hostname/port web server is listening to on docker host e.g. 0.0.0.0:43712
+	container string
+	image     string
+	ctx       *FakeContext
+}
+
+func (f *remoteFileServer) URL() string {
+	u := url.URL{
+		Scheme: "http",
+		Host:   f.host}
+	return u.String()
+}
+
+func (f *remoteFileServer) CtxDir() string {
+	return f.ctx.Dir
+}
+
+func (f *remoteFileServer) Close() error {
+	defer func() {
+		if f.ctx != nil {
+			f.ctx.Close()
+		}
+		if f.image != "" {
+			deleteImages(f.image)
+		}
+	}()
+	if f.container == "" {
+		return nil
+	}
+	return deleteContainer(f.container)
+}
+
+func newRemoteFileServer(ctx *FakeContext) (*remoteFileServer, error) {
+	var (
+		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(makeRandomString(10)))
+		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(makeRandomString(10)))
+	)
+
+	// Build the image
+	if err := fakeContextAddDockerfile(ctx, `FROM httpserver
+COPY . /static`); err != nil {
+		return nil, fmt.Errorf("Cannot add Dockerfile to context: %v", err)
+	}
+	if _, err := buildImageFromContext(image, ctx, false); err != nil {
+		return nil, fmt.Errorf("failed building file storage container image: %v", err)
+	}
+
+	// Start the container
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-P", "--name", container, image)
+	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
+		return nil, fmt.Errorf("failed to start file storage container. ec=%v\nout=%s\nerr=%v", ec, out, err)
+	}
+
+	// Find out the system assigned port
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "port", container, "80/tcp"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find container port: err=%v\nout=%s", err, out)
+	}
+
+	return &remoteFileServer{
+		container: container,
+		image:     image,
+		host:      strings.Trim(out, "\n"),
+		ctx:       ctx}, nil
+}
+
+func inspectFieldAndMarshall(name, field string, output interface{}) error {
+	str, err := inspectFieldJSON(name, field)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(str), output)
+}
+
+func inspectFilter(name, filter string) (string, error) {
+	format := fmt.Sprintf("{{%s}}", filter)
 	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
 	out, exitCode, err := runCommandWithOutput(inspectCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+		return "", fmt.Errorf("failed to inspect container %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
+}
+
+func inspectField(name, field string) (string, error) {
+	return inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
 func inspectFieldJSON(name, field string) (string, error) {
-	format := fmt.Sprintf("{{json .%s}}", field)
-	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
-	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
-	}
-	return strings.TrimSpace(out), nil
+	return inspectFilter(name, fmt.Sprintf("json .%s", field))
 }
 
 func inspectFieldMap(name, path, field string) (string, error) {
-	format := fmt.Sprintf("{{index .%s %q}}", path, field)
-	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
-	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
-	}
-	return strings.TrimSpace(out), nil
+	return inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
 }
 
 func getIDByName(name string) (string, error) {
@@ -747,28 +865,39 @@ func buildImageFromPath(name, path string, useCache bool) (string, error) {
 	return getIDByName(name)
 }
 
-type FakeGIT struct {
+type GitServer interface {
+	URL() string
+	Close() error
+}
+
+type localGitServer struct {
 	*httptest.Server
-	Root    string
+}
+
+func (r *localGitServer) Close() error {
+	r.Server.Close()
+	return nil
+}
+
+func (r *localGitServer) URL() string {
+	return r.Server.URL
+}
+
+type FakeGIT struct {
+	root    string
+	server  GitServer
 	RepoURL string
 }
 
 func (g *FakeGIT) Close() {
-	g.Server.Close()
-	os.RemoveAll(g.Root)
+	g.server.Close()
+	os.RemoveAll(g.root)
 }
 
-func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
-	tmp, err := ioutil.TempDir("", "fake-git-repo")
+func fakeGIT(name string, files map[string]string, enforceLocalServer bool) (*FakeGIT, error) {
+	ctx, err := fakeContextWithFiles(files)
 	if err != nil {
 		return nil, err
-	}
-	ctx := &FakeContext{tmp}
-	for file, content := range files {
-		if err := ctx.Add(file, content); err != nil {
-			ctx.Close()
-			return nil, err
-		}
 	}
 	defer ctx.Close()
 	curdir, err := os.Getwd()
@@ -820,12 +949,23 @@ func fakeGIT(name string, files map[string]string) (*FakeGIT, error) {
 		os.RemoveAll(root)
 		return nil, err
 	}
-	handler := http.FileServer(http.Dir(root))
-	server := httptest.NewServer(handler)
+
+	var server GitServer
+	if !enforceLocalServer {
+		// use fakeStorage server, which might be local or remote (at test daemon)
+		server, err = fakeStorageWithContext(fakeContextFromDir(root))
+		if err != nil {
+			return nil, fmt.Errorf("cannot start fake storage: %v", err)
+		}
+	} else {
+		// always start a local http server on CLI test machin
+		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))
+		server = &localGitServer{httpServer}
+	}
 	return &FakeGIT{
-		Server:  server,
-		Root:    root,
-		RepoURL: fmt.Sprintf("%s/%s.git", server.URL, name),
+		root:    root,
+		server:  server,
+		RepoURL: fmt.Sprintf("%s/%s.git", server.URL(), name),
 	}, nil
 }
 
@@ -897,6 +1037,32 @@ func readContainerFileWithExec(containerId, filename string) ([]byte, error) {
 	return []byte(out), err
 }
 
+// daemonTime provides the current time on the daemon host
+func daemonTime(t *testing.T) time.Time {
+	if isLocalDaemon {
+		return time.Now()
+	}
+
+	body, err := sockRequest("GET", "/info", nil)
+	if err != nil {
+		t.Fatal("daemonTime: failed to get /info: %v", err)
+	}
+
+	type infoJSON struct {
+		SystemTime string
+	}
+	var info infoJSON
+	if err = json.Unmarshal(body, &info); err != nil {
+		t.Fatalf("unable to unmarshal /info response: %v", err)
+	}
+
+	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dt
+}
+
 func setupRegistry(t *testing.T) func() {
 	testRequires(t, RegistryHosting)
 	reg, err := newTestRegistryV2(t)
@@ -919,12 +1085,23 @@ func setupRegistry(t *testing.T) func() {
 	return func() { reg.Close() }
 }
 
-// appendDockerHostEnv adds given env slice DOCKER_HOST value if set in the
-// environment. Useful when environment is cleared but we want to preserve DOCKER_HOST
-// to execute tests against a remote daemon.
-func appendDockerHostEnv(env []string) []string {
-	if dockerHost := os.Getenv("DOCKER_HOST"); dockerHost != "" {
-		env = append(env, fmt.Sprintf("DOCKER_HOST=%s", dockerHost))
+// appendBaseEnv appends the minimum set of environment variables to exec the
+// docker cli binary for testing with correct configuration to the given env
+// list.
+func appendBaseEnv(env []string) []string {
+	preserveList := []string{
+		// preserve remote test host
+		"DOCKER_HOST",
+
+		// windows: requires preserving SystemRoot, otherwise dial tcp fails
+		// with "GetAddrInfoW: A non-recoverable error occurred during a database lookup."
+		"SystemRoot",
+	}
+
+	for _, key := range preserveList {
+		if val := os.Getenv(key); val != "" {
+			env = append(env, fmt.Sprintf("%s=%s", key, val))
+		}
 	}
 	return env
 }

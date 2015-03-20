@@ -412,6 +412,74 @@ func TestPsListContainersFilterName(t *testing.T) {
 	logDone("ps - test ps filter name")
 }
 
+func TestPsListContainersFilterLabel(t *testing.T) {
+	// start container
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	firstID := stripTrailingCharacters(out)
+
+	// start another container
+	runCmd = exec.Command(dockerBinary, "run", "-d", "-l", "match=me too", "busybox")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	secondID := stripTrailingCharacters(out)
+
+	// start third container
+	runCmd = exec.Command(dockerBinary, "run", "-d", "-l", "nomatch=me", "busybox")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	thirdID := stripTrailingCharacters(out)
+
+	// filter containers by exact match
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	containerOut := strings.TrimSpace(out)
+	if containerOut != firstID {
+		t.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out)
+	}
+
+	// filter containers by two labels
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	containerOut = strings.TrimSpace(out)
+	if containerOut != firstID {
+		t.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out)
+	}
+
+	// filter containers by two labels, but expect not found because of AND behavior
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag-no")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	containerOut = strings.TrimSpace(out)
+	if containerOut != "" {
+		t.Fatalf("Expected nothing, got %s for exited filter, output: %q", containerOut, out)
+	}
+
+	// filter containers by exact key
+	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=label=match")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+	containerOut = strings.TrimSpace(out)
+	if (!strings.Contains(containerOut, firstID) || !strings.Contains(containerOut, secondID)) || strings.Contains(containerOut, thirdID) {
+		t.Fatalf("Expected ids %s,%s, got %s for exited filter, output: %q", firstID, secondID, containerOut, out)
+	}
+
+	deleteAllContainers()
+
+	logDone("ps - test ps filter label")
+}
+
 func TestPsListContainersFilterExited(t *testing.T) {
 	defer deleteAllContainers()
 

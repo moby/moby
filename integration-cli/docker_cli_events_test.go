@@ -45,7 +45,7 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 		t.Fatalf("Container run with command blerg should have failed, but it did not")
 	}
 
-	eventsCmd = exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	eventsCmd = exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
 	out, _, _ = runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
 	if len(events) <= 1 {
@@ -70,7 +70,7 @@ func TestEventsLimit(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		dockerCmd(t, "run", "busybox", "echo", strconv.Itoa(i))
 	}
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
 	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
 	nEvents := len(events) - 1
@@ -82,7 +82,7 @@ func TestEventsLimit(t *testing.T) {
 
 func TestEventsContainerEvents(t *testing.T) {
 	dockerCmd(t, "run", "--rm", "busybox", "true")
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
 		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
@@ -125,7 +125,7 @@ func TestEventsImageUntagDelete(t *testing.T) {
 	if err := deleteImages(name); err != nil {
 		t.Fatal(err)
 	}
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", time.Now().Unix()))
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
 	out, exitCode, err := runCommandWithOutput(eventsCmd)
 	if exitCode != 0 || err != nil {
 		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
@@ -148,7 +148,7 @@ func TestEventsImageUntagDelete(t *testing.T) {
 }
 
 func TestEventsImagePull(t *testing.T) {
-	since := time.Now().Unix()
+	since := daemonTime(t).Unix()
 
 	defer deleteImages("hello-world")
 
@@ -159,7 +159,7 @@ func TestEventsImagePull(t *testing.T) {
 
 	eventsCmd := exec.Command(dockerBinary, "events",
 		fmt.Sprintf("--since=%d", since),
-		fmt.Sprintf("--until=%d", time.Now().Unix()))
+		fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
 	out, _, _ := runCommandWithOutput(eventsCmd)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
@@ -174,7 +174,7 @@ func TestEventsImagePull(t *testing.T) {
 
 func TestEventsImageImport(t *testing.T) {
 	defer deleteAllContainers()
-	since := time.Now().Unix()
+	since := daemonTime(t).Unix()
 
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -193,7 +193,7 @@ func TestEventsImageImport(t *testing.T) {
 
 	eventsCmd := exec.Command(dockerBinary, "events",
 		fmt.Sprintf("--since=%d", since),
-		fmt.Sprintf("--until=%d", time.Now().Unix()))
+		fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
 	out, _, _ = runCommandWithOutput(eventsCmd)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
@@ -219,7 +219,7 @@ func TestEventsFilters(t *testing.T) {
 		}
 	}
 
-	since := time.Now().Unix()
+	since := daemonTime(t).Unix()
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
 	if err != nil {
 		t.Fatal(out, err)
@@ -228,13 +228,13 @@ func TestEventsFilters(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die"))
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", "event=die"))
 	if err != nil {
 		t.Fatalf("Failed to get events: %s", err)
 	}
 	parseEvents(out, "die")
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", time.Now().Unix()), "--filter", "event=die", "--filter", "event=start"))
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", "event=die", "--filter", "event=start"))
 	if err != nil {
 		t.Fatalf("Failed to get events: %s", err)
 	}
@@ -247,4 +247,142 @@ func TestEventsFilters(t *testing.T) {
 	}
 
 	logDone("events - filters")
+}
+
+func TestEventsFilterImageName(t *testing.T) {
+	since := daemonTime(t).Unix()
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_1", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container1 := stripTrailingCharacters(out)
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_2", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container2 := stripTrailingCharacters(out)
+
+	for _, s := range []string{"busybox", "busybox:latest"} {
+		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("image=%s", s))
+		out, _, err := runCommandWithOutput(eventsCmd)
+		if err != nil {
+			t.Fatalf("Failed to get events, error: %s(%s)", err, out)
+		}
+		events := strings.Split(out, "\n")
+		events = events[:len(events)-1]
+		if len(events) == 0 {
+			t.Fatalf("Expected events but found none for the image busybox:latest")
+		}
+		count1 := 0
+		count2 := 0
+		for _, e := range events {
+			if strings.Contains(e, container1) {
+				count1++
+			} else if strings.Contains(e, container2) {
+				count2++
+			}
+		}
+		if count1 == 0 || count2 == 0 {
+			t.Fatalf("Expected events from each container but got %d from %s and %d from %s", count1, container1, count2, container2)
+		}
+	}
+
+	logDone("events - filters using image")
+}
+
+func TestEventsFilterContainerID(t *testing.T) {
+	since := daemonTime(t).Unix()
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container1 := stripTrailingCharacters(out)
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	container2 := stripTrailingCharacters(out)
+
+	for _, s := range []string{container1, container2, container1[:12], container2[:12]} {
+		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
+		out, _, err := runCommandWithOutput(eventsCmd)
+		if err != nil {
+			t.Fatalf("Failed to get events, error: %s(%s)", err, out)
+		}
+		events := strings.Split(out, "\n")
+		events = events[:len(events)-1]
+		if len(events) == 0 || len(events) > 3 {
+			t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+		}
+		createEvent := strings.Fields(events[0])
+		if createEvent[len(createEvent)-1] != "create" {
+			t.Fatalf("first event should be create, not %#v", createEvent)
+		}
+		if len(events) > 1 {
+			startEvent := strings.Fields(events[1])
+			if startEvent[len(startEvent)-1] != "start" {
+				t.Fatalf("second event should be start, not %#v", startEvent)
+			}
+		}
+		if len(events) == 3 {
+			dieEvent := strings.Fields(events[len(events)-1])
+			if dieEvent[len(dieEvent)-1] != "die" {
+				t.Fatalf("event should be die, not %#v", dieEvent)
+			}
+		}
+	}
+
+	logDone("events - filters using container id")
+}
+
+func TestEventsFilterContainerName(t *testing.T) {
+	since := daemonTime(t).Unix()
+	defer deleteAllContainers()
+
+	_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_1", "busybox", "true"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_2", "busybox", "true"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range []string{"container_1", "container_2"} {
+		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
+		out, _, err := runCommandWithOutput(eventsCmd)
+		if err != nil {
+			t.Fatalf("Failed to get events, error : %s(%s)", err, out)
+		}
+		events := strings.Split(out, "\n")
+		events = events[:len(events)-1]
+		if len(events) == 0 || len(events) > 3 {
+			t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+		}
+		createEvent := strings.Fields(events[0])
+		if createEvent[len(createEvent)-1] != "create" {
+			t.Fatalf("first event should be create, not %#v", createEvent)
+		}
+		if len(events) > 1 {
+			startEvent := strings.Fields(events[1])
+			if startEvent[len(startEvent)-1] != "start" {
+				t.Fatalf("second event should be start, not %#v", startEvent)
+			}
+		}
+		if len(events) == 3 {
+			dieEvent := strings.Fields(events[len(events)-1])
+			if dieEvent[len(dieEvent)-1] != "die" {
+				t.Fatalf("event should be die, not %#v", dieEvent)
+			}
+		}
+	}
+
+	logDone("events - filters using container name")
 }

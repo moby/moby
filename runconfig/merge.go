@@ -84,6 +84,16 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
+	if userConf.Labels == nil {
+		userConf.Labels = map[string]string{}
+	}
+	if imageConf.Labels != nil {
+		for l := range userConf.Labels {
+			imageConf.Labels[l] = userConf.Labels[l]
+		}
+		userConf.Labels = imageConf.Labels
+	}
+
 	if len(userConf.Entrypoint) == 0 {
 		if len(userConf.Cmd) == 0 {
 			userConf.Cmd = imageConf.Cmd

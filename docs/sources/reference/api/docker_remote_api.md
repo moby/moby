@@ -57,6 +57,25 @@ This endpoint now returns `Os`, `Arch` and `KernelVersion`.
 **New!**
 You can set ulimit settings to be used within the container.
 
+`GET /info`
+
+**New!**
+This endpoint now returns `SystemTime`, `HttpProxy`,`HttpsProxy` and `NoProxy`.
+
+`GET /images/json`
+
+**New!**
+Added a `RepoDigests` field to include image digest information.
+
+`POST /build`
+
+**New!**
+Builds can now set resource constraints for all containers created for the build.
+
+**New!**
+(`CgroupParent`) can be passed in the host config to setup container cgroups under a specific cgroup.
+
+
 ## v1.17
 
 ### Full Documentation
@@ -65,15 +84,32 @@ You can set ulimit settings to be used within the container.
 
 ### What's new
 
+The build supports `LABEL` command. Use this to add metadata
+to an image. For example you could add data describing the content of an image.
+
+`LABEL "com.example.vendor"="ACME Incorporated"`
+
+**New!**
 `POST /containers/(id)/attach` and `POST /exec/(id)/start`
 
 **New!**
 Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
 
+`POST /containers/create`
+
+**New!**
+You can set labels on container create describing the container.
+
+`GET /containers/json`
+
+**New!**
+The endpoint returns the labels associated with the containers (`Labels`).
+
 `GET /containers/(id)/json`
 
 **New!**
 This endpoint now returns the list current execs associated with the container (`ExecIDs`).
+This endpoint now returns the container labels (`Config.Labels`).
 
 `POST /containers/(id)/rename`
 
@@ -91,6 +127,12 @@ root filesystem as read only.
 
 **New!**
 This endpoint returns a live stream of a container's resource usage statistics.
+
+`GET /images/json`
+
+**New!**
+This endpoint now returns the labels associated with each image (`Labels`).
+
 
 ## v1.16
 

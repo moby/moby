@@ -193,13 +193,18 @@ for each.
 			# They should ask for any editorial change that makes the documentation more
 			# consistent and easier to understand.
 			#
-			# Once documentation is approved, a maintainer should make sure to remove this
+			# Once documentation is approved (see below), a maintainer should make sure to remove this
 			# label and add the next one.
 
 			close = ""
 			2-code-review = "requires more code changes"
 			1-design-review = "raises design concerns"
 			4-merge = "general case"
+			
+		# Docs approval
+		[Rules.review.docs-approval]
+			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs sub-project maintainers.
+			# If the docs change originates with a docs maintainer, only one additional LGTM is required (since we assume a docs maintainer approves of their own PR). 	
 
 		# Merge
 		[Rules.review.states.4-merge]
@@ -424,7 +429,10 @@ made through a pull request.
 				"dmp42",
 				"vbatts",
 				"joffrey",
-				"samalba"
+				"samalba",
+				"sday",
+				"jlhawn",
+				"dmcg"
 			]
 
 		[Org.Subsystems."build tools"]
@@ -502,6 +510,16 @@ made through a pull request.
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
 
+	[people.dmcg]
+	Name = "Derek McGowan"
+	Email = "derek@docker.com"
+	Github = "dmcgowan"
+
+	[people.dmp42]
+	Name = "Olivier Gambier"
+	Email = "olivier@docker.com"
+	Github = "dmp42"
+
 	[people.ehazlett]
 	Name = "Evan Hazlett"
 	Email = "ejhazlett@gmail.com"
@@ -522,6 +540,11 @@ made through a pull request.
 	Email = "estesp@linux.vnet.ibm.com"
 	GitHub = "estesp"
 
+	[people.fredlf]
+	Name = "Fred Lifton"
+	Email = "fred.lifton@docker.com"
+	GitHub = "fredlf"
+
 	[people.icecrime]
 	Name = "Arnaud Porterie"
 	Email = "arnaud@docker.com"
@@ -532,6 +555,16 @@ made through a pull request.
 	Email = "jess@docker.com"
 	GitHub = "jfrazelle"
 
+	[people.jlhawn]
+	Name = "Josh Hawn"
+	Email = "josh.hawn@docker.com"
+	Github = "jlhawn"
+
+	[people.joffrey]
+	Name = "Joffrey Fuhrer"
+	Email = "joffrey@docker.com"
+	Github = "shin-"
+
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
@@ -541,6 +574,11 @@ made through a pull request.
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.sday]
+	Name = "Stephen Day"
+	Email = "stephen.day@docker.com"
+	Github = "stevvooe"
 
 	[people.shykes]
 	Name = "Solomon Hykes"

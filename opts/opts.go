@@ -211,7 +211,7 @@ func validateDomain(val string) (string, error) {
 		return "", fmt.Errorf("%s is not a valid domain", val)
 	}
 	ns := domainRegexp.FindSubmatch([]byte(val))
-	if len(ns) > 0 {
+	if len(ns) > 0 && len(ns[1]) < 255 {
 		return string(ns[1]), nil
 	}
 	return "", fmt.Errorf("%s is not a valid domain", val)

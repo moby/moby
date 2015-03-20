@@ -1,10 +1,24 @@
 package portallocator
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
+)
+
+const (
+	DefaultPortRangeStart = 49153
+	DefaultPortRangeEnd   = 65535
+)
+
+var (
+	beginPortRange = DefaultPortRangeStart
+	endPortRange   = DefaultPortRangeEnd
 )
 
 type portMap struct {
@@ -15,7 +29,7 @@ type portMap struct {
 func newPortMap() *portMap {
 	return &portMap{
 		p:    map[int]struct{}{},
-		last: EndPortRange,
+		last: endPortRange,
 	}
 }
 
@@ -29,11 +43,6 @@ func newProtoMap() protoMap {
 }
 
 type ipMapping map[string]protoMap
-
-const (
-	BeginPortRange = 49153
-	EndPortRange   = 65535
-)
 
 var (
 	ErrAllPortsAllocated = errors.New("all ports are allocated")
@@ -57,6 +66,31 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 		ip:   ip,
 		port: port,
 	}
+}
+
+func init() {
+	const portRangeKernelParam = "/proc/sys/net/ipv4/ip_local_port_range"
+
+	file, err := os.Open(portRangeKernelParam)
+	if err != nil {
+		log.Warnf("Failed to read %s kernel parameter: %v", portRangeKernelParam, err)
+		return
+	}
+	var start, end int
+	n, err := fmt.Fscanf(bufio.NewReader(file), "%d\t%d", &start, &end)
+	if n != 2 || err != nil {
+		if err == nil {
+			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
+		}
+		log.Errorf("Failed to parse port range from %s: %v", portRangeKernelParam, err)
+		return
+	}
+	beginPortRange = start
+	endPortRange = end
+}
+
+func PortRange() (int, int) {
+	return beginPortRange, endPortRange
 }
 
 func (e ErrPortAlreadyAllocated) IP() string {
@@ -137,10 +171,10 @@ func ReleaseAll() error {
 
 func (pm *portMap) findPort() (int, error) {
 	port := pm.last
-	for i := 0; i <= EndPortRange-BeginPortRange; i++ {
+	for i := 0; i <= endPortRange-beginPortRange; i++ {
 		port++
-		if port > EndPortRange {
-			port = BeginPortRange
+		if port > endPortRange {
+			port = beginPortRange
 		}
 
 		if _, ok := pm.p[port]; !ok {

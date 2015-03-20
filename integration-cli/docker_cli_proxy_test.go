@@ -8,8 +8,10 @@ import (
 )
 
 func TestCliProxyDisableProxyUnixSock(t *testing.T) {
+	testRequires(t, SameHostDaemon) // test is valid when DOCKER_HOST=unix://..
+
 	cmd := exec.Command(dockerBinary, "info")
-	cmd.Env = appendDockerHostEnv([]string{"HTTP_PROXY=http://127.0.0.1:9999"})
+	cmd.Env = appendBaseEnv([]string{"HTTP_PROXY=http://127.0.0.1:9999"})
 
 	if out, _, err := runCommandWithOutput(cmd); err != nil {
 		t.Fatal(err, out)

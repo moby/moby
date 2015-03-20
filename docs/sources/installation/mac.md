@@ -1,5 +1,5 @@
-page_title: Installation on Mac OS X 
-page_description: Instructions for installing Docker on OS X using boot2docker. 
+page_title: Installation on Mac OS X
+page_description: Instructions for installing Docker on OS X using boot2docker.
 page_keywords: Docker, Docker documentation, requirements, boot2docker, VirtualBox, SSH, Linux, OSX, OS X, Mac
 
 # Install Docker on Mac OS X
@@ -17,12 +17,20 @@ completely from RAM, is a small ~24MB download, and boots in approximately 5s.
 
 Your Mac must be running OS X 10.6 "Snow Leopard" or newer to run Boot2Docker.
 
+## How do you want to work with Docker?
+
+You can set up Docker using the command line with Boot2Docker and the guide
+below. Alternatively, you may want to try <a href="https://kitematic.com/" target="_blank">Kitematic</a>,
+an application that lets you set up Docker and run containers using a graphical
+user interface (GUI).
+
+<a href="https://kitematic.com/" target="_blank"><img src="/installation/images/kitematic.png" alt="Download Kitematic"></a>
 
 ## Learn the key concepts before installing
- 
+
 In a Docker installation on Linux, your machine is both the localhost and the
 Docker host. In networking, localhost means your computer. The Docker host is
-the machine on which the containers run. 
+the machine on which the containers run.
 
 On a typical Linux installation, the Docker client, the Docker daemon, and any
 containers run directly on your localhost. This means you can address ports on a
@@ -43,7 +51,7 @@ practice, work through the exercises on this page.
 
 
 ## Install Boot2Docker
- 
+
 1. Go to the [boot2docker/osx-installer ](
 https://github.com/boot2docker/osx-installer/releases/latest) release page.
 
@@ -65,10 +73,10 @@ To run a Docker container, you first start the `boot2docker` VM and then issue
 `boot2docker` from your Applications folder or from the command line.
 
 > **NOTE**: Boot2Docker is designed as a development tool. You should not use
->  it in production environments. 
+>  it in production environments.
 
 ### From the Applications folder
- 
+
 When you launch the "Boot2Docker" application from your "Applications" folder, the
 application:
 
@@ -85,9 +93,9 @@ your setup succeeded is to run the `hello-world` container.
 
 		$ docker run hello-world
 		Unable to find image 'hello-world:latest' locally
-		511136ea3c5a: Pull complete 
-		31cbccb51277: Pull complete 
-		e45a5af57b00: Pull complete 
+		511136ea3c5a: Pull complete
+		31cbccb51277: Pull complete
+		e45a5af57b00: Pull complete
 		hello-world:latest: The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security.
 		Status: Downloaded newer image for hello-world:latest
 		Hello from Docker.
@@ -108,7 +116,7 @@ your setup succeeded is to run the `hello-world` container.
 		For more examples and ideas, visit:
 		 http://docs.docker.com/userguide/
 
-	
+
 A more typical way to start and stop `boot2docker` is using the command line.
 
 ### From your command line
@@ -121,7 +129,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 
 	This creates a new virtual machine. You only need to run this command once.
 
-2. Start the `boot2docker` VM. 
+2. Start the `boot2docker` VM.
 
 		$ boot2docker start
 
@@ -134,19 +142,19 @@ Initialize and run `boot2docker` from the command line, do the following:
 			export DOCKER_HOST=tcp://192.168.59.103:2376
 			export DOCKER_CERT_PATH=/Users/mary/.boot2docker/certs/boot2docker-vm
 			export DOCKER_TLS_VERIFY=1
-	
+
 	The specific paths and address on your machine will be different.
 
 4. To set the environment variables in your shell do the following:
 
-		$ $(boot2docker shellinit)
-		
+		$ eval "$(boot2docker shellinit)"
+
 	You can also set them manually by using the `export` commands `boot2docker`
 	returns.
 
 5. Run the `hello-world` container to verify your setup.
 
-		$ docker run hello-world		
+		$ docker run hello-world
 
 
 ## Basic Boot2Docker Exercises
@@ -156,7 +164,7 @@ environment initialized. To verify this, run the following commands:
 
 	$ boot2docker status
 	$ docker version
-			
+
 Work through this section to try some practical container tasks using `boot2docker` VM.
 
 ### Access container ports
@@ -164,25 +172,25 @@ Work through this section to try some practical container tasks using `boot2dock
 1. Start an NGINX container on the DOCKER_HOST.
 
 		$ docker run -d -P --name web nginx
-		
+
 	Normally, the `docker run` commands starts a container, runs it, and then
 	exits. The `-d` flag keeps the container running in the background
 	after the `docker run` command completes. The `-P` flag publishes exposed ports from the
 	container to your local host; this lets you access them from your Mac.
-		
+
 2. Display your running container with `docker ps` command
 
 		CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS                                           NAMES
 		5fb65ff765e9        nginx:latest        "nginx -g 'daemon of   3 minutes ago       Up 3 minutes        0.0.0.0:49156->443/tcp, 0.0.0.0:49157->80/tcp   web  
 
-	At this point, you can see `nginx` is running as a daemon. 
+	At this point, you can see `nginx` is running as a daemon.
 
 3. View just the container's ports.
 
 		$ docker port web
 		443/tcp -> 0.0.0.0:49156
 		80/tcp -> 0.0.0.0:49157
-	
+
 	This tells you that the `web` container's port `80` is mapped to port
 	`49157` on your Docker host.
 
@@ -198,7 +206,7 @@ Work through this section to try some practical container tasks using `boot2dock
 
 		$ boot2docker ip
 		192.168.59.103
-		
+
 6. Enter the `http://192.168.59.103:49157` address in your browser:
 
 	![Correct Addressing](/installation/images/good_host.png)
@@ -209,7 +217,7 @@ Work through this section to try some practical container tasks using `boot2dock
 
 		$ docker stop web
 		$ docker rm web
-		
+
 ### Mount a volume on the container
 
 When you start `boot2docker`, it automatically shares your `/Users` directory
@@ -219,7 +227,7 @@ The next exercise demonstrates how to do this.
 1. Change to your user `$HOME` directory.
 
 		$ cd $HOME
-	
+
 2. Make a new `site` directory.
 
 		$ mkdir site
@@ -231,17 +239,17 @@ The next exercise demonstrates how to do this.
 4. Create a new `index.html` file.
 
 		$ echo "my new site" > index.html
-	
+
 5. Start a new `nginx` container and replace the `html` folder with your `site` directory.
 
 		$ docker run -d -P -v $HOME/site:/usr/share/nginx/html --name mysite nginx
-	
+
 6. Get the `mysite` container's port.
 
 		$ docker port mysite
 		80/tcp -> 0.0.0.0:49166
 		443/tcp -> 0.0.0.0:49165
-	
+
 7. Open the site in a browser:
 
 	![My site page](/installation/images/newsite_view.png)
@@ -249,7 +257,7 @@ The next exercise demonstrates how to do this.
 8. Try adding a page to your `$HOME/site` in real time.
 
 		$ echo "This is cool" > cool.html
-	
+
 9. Open the new page in the browser.
 
 	![Cool page](/installation/images/cool_view.png)
@@ -259,7 +267,7 @@ The next exercise demonstrates how to do this.
 		$ docker stop mysite
 		$ docker rm mysite
 
-## Upgrade Boot2Docker 
+## Upgrade Boot2Docker
 
 If you running Boot2Docker 1.4.1 or greater, you can upgrade Boot2Docker from
 the command line. If you are running an older version, you should use the
@@ -274,7 +282,7 @@ To upgrade from 1.4.1 or greater, you can do this:
 2. Stop the `boot2docker` application.
 
 		$ boot2docker stop
-			
+
 3. Run the upgrade command.
 
 		$ boot2docker upgrade
@@ -292,13 +300,13 @@ To upgrade any version of Boot2Docker, do this:
 
 3. Go to the [boot2docker/osx-installer ](
    https://github.com/boot2docker/osx-installer/releases/latest) release page.
-   
+
 4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
 section.
 
-2. Install Boot2Docker by double-clicking the package. 
+2. Install Boot2Docker by double-clicking the package.
 
-	The installer places Boot2Docker in your "Applications" folder. 
+	The installer places Boot2Docker in your "Applications" folder.
 
 
 ## Learning more and Acknowledgement
@@ -312,4 +320,3 @@ Thanks to Chris Jones whose [blog](http://goo.gl/Be6cCk)  inspired me to redo
 this page.
 
 Continue with the [Docker User Guide](/userguide/).
-

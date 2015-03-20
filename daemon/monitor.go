@@ -123,7 +123,7 @@ func (m *containerMonitor) Start() error {
 	for {
 		m.container.RestartCount++
 
-		if err := m.container.startLoggingToDisk(); err != nil {
+		if err := m.container.startLogging(); err != nil {
 			m.resetContainer(false)
 
 			return err
@@ -182,7 +182,7 @@ func (m *containerMonitor) Start() error {
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
-// previous runs success or failure.  Reguardless of success, if the container had
+// previous runs success or failure.  Regardless of success, if the container had
 // an execution time of more than 10s then reset the timer back to the default
 func (m *containerMonitor) resetMonitor(successful bool) {
 	executionTime := time.Now().Sub(m.lastStartTime).Seconds()
@@ -300,6 +300,24 @@ func (m *containerMonitor) resetContainer(lock bool) {
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	if container.logDriver != nil {
+		if container.logCopier != nil {
+			exit := make(chan struct{})
+			go func() {
+				container.logCopier.Wait()
+				close(exit)
+			}()
+			select {
+			case <-time.After(1 * time.Second):
+				log.Warnf("Logger didn't exit in time: logs may be truncated")
+			case <-exit:
+			}
+		}
+		container.logDriver.Close()
+		container.logCopier = nil
+		container.logDriver = nil
 	}
 
 	c := container.command.ProcessConfig.Cmd

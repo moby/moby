@@ -32,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -135,7 +134,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		log.Errorf("HTTP Error: statusCode=%d %s", statusCode, err.Error())
+		log.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
 		http.Error(w, err.Error(), statusCode)
 	}
 }
@@ -1083,6 +1082,10 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("forcerm", r.FormValue("forcerm"))
 	job.SetenvJson("authConfig", authConfig)
 	job.SetenvJson("configFile", configFile)
+	job.Setenv("memswap", r.FormValue("memswap"))
+	job.Setenv("memory", r.FormValue("memory"))
+	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
+	job.Setenv("cpushares", r.FormValue("cpushares"))
 
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
@@ -1123,7 +1126,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	job.Stdout.Add(w)
 	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("%v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {
@@ -1406,43 +1409,6 @@ func ServeRequest(eng *engine.Engine, apiversion version.Version, w http.Respons
 	router.ServeHTTP(w, req)
 }
 
-// serveFd creates an http.Server and sets it up to serve given a socket activated
-// argument.
-func serveFd(addr string, job *engine.Job) error {
-	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
-
-	ls, e := systemd.ListenFD(addr)
-	if e != nil {
-		return e
-	}
-
-	chErrors := make(chan error, len(ls))
-
-	// We don't want to start serving on these sockets until the
-	// daemon is initialized and installed. Otherwise required handlers
-	// won't be ready.
-	<-activationLock
-
-	// Since ListenFD will return one or more sockets we have
-	// to create a go func to spawn off multiple serves
-	for i := range ls {
-		listener := ls[i]
-		go func() {
-			httpSrv := http.Server{Handler: r}
-			chErrors <- httpSrv.Serve(listener)
-		}()
-	}
-
-	for i := 0; i < len(ls); i++ {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func lookupGidByName(nameOrGid string) (int, error) {
 	groupFile, err := user.GetGroupPath()
 	if err != nil {
@@ -1457,13 +1423,21 @@ func lookupGidByName(nameOrGid string) (int, error) {
 	if groups != nil && len(groups) > 0 {
 		return groups[0].Gid, nil
 	}
+	gid, err := strconv.Atoi(nameOrGid)
+	if err == nil {
+		log.Warnf("Could not find GID %d", gid)
+		return gid, nil
+	}
 	return -1, fmt.Errorf("Group %s not found", nameOrGid)
 }
 
 func setupTls(cert, key, ca string, l net.Listener) (net.Listener, error) {
 	tlsCert, err := tls.LoadX509KeyPair(cert, key)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't load X509 key pair (%s, %s): %s. Key encrypted?",
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("Could not load X509 key pair (%s, %s): %v", cert, key, err)
+		}
+		return nil, fmt.Errorf("Error reading X509 key pair (%s, %s): %q. Make sure the key is encrypted.",
 			cert, key, err)
 	}
 	tlsConfig := &tls.Config{
@@ -1477,7 +1451,7 @@ func setupTls(cert, key, ca string, l net.Listener) (net.Listener, error) {
 		certPool := x509.NewCertPool()
 		file, err := ioutil.ReadFile(ca)
 		if err != nil {
-			return nil, fmt.Errorf("Couldn't read CA certificate: %s", err)
+			return nil, fmt.Errorf("Could not read CA certificate: %v", err)
 		}
 		certPool.AppendCertsFromPEM(file)
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
@@ -1613,18 +1587,6 @@ func ServeApi(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-	}
-
-	return engine.StatusOK
-}
-
-func AcceptConnections(job *engine.Job) engine.Status {
-	// Tell the init daemon we are accepting requests
-	go systemd.SdNotify("READY=1")
-
-	// close the lock so the listeners start accepting connections
-	if activationLock != nil {
-		close(activationLock)
 	}
 
 	return engine.StatusOK

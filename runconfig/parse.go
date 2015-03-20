@@ -31,6 +31,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flVolumes = opts.NewListOpts(opts.ValidatePath)
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
+		flLabels  = opts.NewListOpts(opts.ValidateEnv)
 		flDevices = opts.NewListOpts(opts.ValidatePath)
 
 		ulimits   = make(map[string]*ulimit.Ulimit)
@@ -47,6 +48,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
 		flSecurityOpt = opts.NewListOpts(nil)
+		flLabelsFile  = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -62,18 +64,22 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCpuset          = cmd.String([]string{"-cpuset"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits")
+		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
 		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
+		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
+		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
+	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
+	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
 	cmd.Var(&flPublish, []string{"p", "-publish"}, "Publish a container's port(s) to the host")
@@ -243,16 +249,16 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	// collect all the environment variables for the container
-	envVariables := []string{}
-	for _, ef := range flEnvFile.GetAll() {
-		parsedVars, err := opts.ParseEnvFile(ef)
-		if err != nil {
-			return nil, nil, cmd, err
-		}
-		envVariables = append(envVariables, parsedVars...)
+	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
+	if err != nil {
+		return nil, nil, cmd, err
 	}
-	// parse the '-e' and '--env' after, to allow override
-	envVariables = append(envVariables, flEnv.GetAll()...)
+
+	// collect all the labels for the container
+	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	if err != nil {
+		return nil, nil, cmd, err
+	}
 
 	ipcMode := IpcMode(*flIpcMode)
 	if !ipcMode.Valid() {
@@ -283,10 +289,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
-		Memory:          flMemory,
-		MemorySwap:      MemorySwap,
-		CpuShares:       *flCpuShares,
-		Cpuset:          *flCpuset,
+		Memory:          flMemory,      // FIXME: for backward compatibility
+		MemorySwap:      MemorySwap,    // FIXME: for backward compatibility
+		CpuShares:       *flCpuShares,  // FIXME: for backward compatibility
+		Cpuset:          *flCpusetCpus, // FIXME: for backward compatibility
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
@@ -297,12 +303,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MacAddress:      *flMacAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
+		Labels:          convertKVStringsToMap(labels),
 	}
 
 	hostConfig := &HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
+		Memory:          flMemory,
+		MemorySwap:      MemorySwap,
+		CpuShares:       *flCpuShares,
+		CpusetCpus:      *flCpusetCpus,
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
@@ -321,6 +332,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		SecurityOpt:     flSecurityOpt.GetAll(),
 		ReadonlyRootfs:  *flReadonlyRootfs,
 		Ulimits:         flUlimits.GetList(),
+		LogConfig:       LogConfig{Type: *flLoggingDriver},
+		CgroupParent:    *flCgroupParent,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
@@ -328,6 +341,37 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
+}
+
+// reads a file of line terminated key=value pairs and override that with override parameter
+func readKVStrings(files []string, override []string) ([]string, error) {
+	envVariables := []string{}
+	for _, ef := range files {
+		parsedVars, err := opts.ParseEnvFile(ef)
+		if err != nil {
+			return nil, err
+		}
+		envVariables = append(envVariables, parsedVars...)
+	}
+	// parse the '-e' and '--env' after, to allow override
+	envVariables = append(envVariables, override...)
+
+	return envVariables, nil
+}
+
+// converts ["key=value"] to {"key":"value"}
+func convertKVStringsToMap(values []string) map[string]string {
+	result := make(map[string]string, len(values))
+	for _, value := range values {
+		kv := strings.SplitN(value, "=", 2)
+		if len(kv) == 1 {
+			result[kv[0]] = ""
+		} else {
+			result[kv[0]] = kv[1]
+		}
+	}
+
+	return result
 }
 
 // parseRestartPolicy returns the parsed policy or an error indicating what is incorrect

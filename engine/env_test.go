@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/testutils"
 )
@@ -91,6 +92,27 @@ func TestSetenvBool(t *testing.T) {
 
 	if val := job.GetenvBool("nonexistent"); val {
 		t.Fatalf("GetenvBool returns incorrect value: %t", val)
+	}
+}
+
+func TestSetenvTime(t *testing.T) {
+	job := mkJob(t, "dummy")
+
+	now := time.Now()
+	job.SetenvTime("foo", now)
+	if val, err := job.GetenvTime("foo"); err != nil {
+		t.Fatalf("GetenvTime failed to parse: %v", err)
+	} else {
+		nowStr := now.Format(time.RFC3339)
+		valStr := val.Format(time.RFC3339)
+		if nowStr != valStr {
+			t.Fatalf("GetenvTime returns incorrect value: %s, Expected: %s", valStr, nowStr)
+		}
+	}
+
+	job.Setenv("bar", "Obviously I'm not a date")
+	if val, err := job.GetenvTime("bar"); err == nil {
+		t.Fatalf("GetenvTime was supposed to fail, instead returned: %s", val)
 	}
 }
 

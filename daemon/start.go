@@ -66,7 +66,7 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 		if err != nil && os.IsNotExist(err) {
 			err = os.MkdirAll(source, 0755)
 			if err != nil {
-				return fmt.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
+				return fmt.Errorf("Could not create local directory '%s' for bind mount: %v!", source, err)
 			}
 		}
 	}

@@ -83,6 +83,11 @@ To get information on a container use it's ID or instance name:
             "Ghost": false
         },
         "Image": "df53773a4390e25936f9fd3739e0c0e60a62d024ea7b669282b27e65ae8458e6",
+        "Labels": {
+            "com.example.vendor": "Acme",
+            "com.example.license": "GPL",
+            "com.example.version": "1.0"
+        },
         "NetworkSettings": {
             "IPAddress": "172.17.0.2",
             "IPPrefixLen": 16,

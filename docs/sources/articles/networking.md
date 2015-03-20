@@ -183,10 +183,27 @@ Four different options affect container domain name services.
     only look up `host` but also `host.example.com`.
     Use `--dns-search=.` if you don't wish to set the search domain.
 
-Note that Docker, in the absence of either of the last two options
-above, will make `/etc/resolv.conf` inside of each container look like
-the `/etc/resolv.conf` of the host machine where the `docker` daemon is
-running.  You might wonder what happens when the host machine's
+Regarding DNS settings, in the absence of either the `--dns=IP_ADDRESS...`
+or the `--dns-search=DOMAIN...` option, Docker makes each container's
+`/etc/resolv.conf` look like the `/etc/resolv.conf` of the host machine (where
+the `docker` daemon runs).  When creating the container's `/etc/resolv.conf`,
+the daemon filters out all localhost IP address `nameserver` entries from
+the host's original file.
+
+Filtering is necessary because all localhost addresses on the host are
+unreachable from the container's network.  After this filtering, if there 
+are no more `nameserver` entries left in the container's `/etc/resolv.conf`
+file, the daemon adds public Google DNS nameservers
+(8.8.8.8 and 8.8.4.4) to the container's DNS configuration.  If IPv6 is
+enabled on the daemon, the public IPv6 Google DNS nameservers will also
+be added (2001:4860:4860::8888 and 2001:4860:4860::8844).
+
+> **Note**:
+> If you need access to a host's localhost resolver, you must modify your
+> DNS service on the host to listen on a non-localhost address that is
+> reachable from within the container.
+
+You might wonder what happens when the host machine's
 `/etc/resolv.conf` file changes.  The `docker` daemon has a file change
 notifier active which will watch for changes to the host DNS configuration.
 
@@ -228,13 +245,11 @@ Whether a container can talk to the world is governed by two factors.
     Docker will go set `ip_forward` to `1` for you when the server
     starts up. To check the setting or turn it on manually:
 
-    ```
-    $ cat /proc/sys/net/ipv4/ip_forward
-    0
-    $ echo 1 > /proc/sys/net/ipv4/ip_forward
-    $ cat /proc/sys/net/ipv4/ip_forward
-    1
-    ```
+        $ sysctl net.ipv4.conf.all.forwarding
+        net.ipv4.conf.all.forwarding = 0
+        $ sysctl net.ipv4.conf.all.forwarding=1
+        $ sysctl net.ipv4.conf.all.forwarding
+        net.ipv4.conf.all.forwarding = 1
 
     Many using Docker will want `ip_forward` to be on, to at
     least make communication *possible* between containers and
@@ -370,17 +385,18 @@ to provide special options when invoking `docker run`.  These options
 are covered in more detail in the [Docker User Guide](/userguide/dockerlinks)
 page.  There are two approaches.
 
-First, you can supply `-P` or `--publish-all=true|false` to `docker run`
-which is a blanket operation that identifies every port with an `EXPOSE`
-line in the image's `Dockerfile` and maps it to a host port somewhere in
-the range 49153–65535.  This tends to be a bit inconvenient, since you
-then have to run other `docker` sub-commands to learn which external
-port a given service was mapped to.
+First, you can supply `-P` or `--publish-all=true|false` to `docker run` which
+is a blanket operation that identifies every port with an `EXPOSE` line in the
+image's `Dockerfile` or `--expose <port>` commandline flag and maps it to a
+host port somewhere within an *ephemeral port range*. The `docker port` command
+then needs to be used to inspect created mapping. The *ephemeral port range* is
+configured by `/proc/sys/net/ipv4/ip_local_port_range` kernel parameter,
+typically ranging from 32768 to 61000.
 
-More convenient is the `-p SPEC` or `--publish=SPEC` option which lets
-you be explicit about exactly which external port on the Docker server —
-which can be any port at all, not just those in the 49153-65535 block —
-you want mapped to which port in the container.
+Mapping can be specified explicitly using `-p SPEC` or `--publish=SPEC` option.
+It allows you to particularize which port on docker server - which can be any
+port at all, not just one within the *ephemeral port range* — you want mapped
+to which port in the container.
 
 Either way, you should be able to peek at what Docker has accomplished
 in your network stack by examining your NAT tables.
@@ -463,9 +479,7 @@ your host's interfaces you should set `accept_ra` to `2`. Otherwise IPv6
 enabled forwarding will result in rejecting Router Advertisements. E.g., if you
 want to configure `eth0` via Router Advertisements you should set:
 
-    ```
     $ sysctl net.ipv6.conf.eth0.accept_ra=2
-    ```
 
 ![](/article-img/ipv6_basic_host_config.svg)
 
@@ -840,10 +854,11 @@ The steps with which Docker configures a container are:
 
 5.  Give the container's `eth0` a new IP address from within the
     bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge. If available
-    the IP address is generated from the MAC address. This prevents ARP
-    cache invalidation problems, when a new container comes up with an
-    IP used in the past by another container with another MAC.
+    the IP address that the Docker host owns on the bridge. The MAC
+    address is generated from the IP address unless otherwise specified.
+    This prevents ARP cache invalidation problems, when a new container
+    comes up with an IP used in the past by another container with another
+    MAC.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with

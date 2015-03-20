@@ -9,7 +9,7 @@ import (
 // with the Airbrake API. You must set:
 // * airbrake.Endpoint
 // * airbrake.ApiKey
-// * airbrake.Environment (only sends exceptions when set to "production")
+// * airbrake.Environment
 //
 // Before using this hook, to send an error. Entries that trigger an Error,
 // Fatal or Panic should now include an "error" field to send to Airbrake.

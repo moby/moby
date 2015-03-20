@@ -150,7 +150,7 @@ Here is the list of supported options:
     If using a block device for device mapper storage, ideally lvm2
     would be used to create/manage the thin-pool volume that is then
     handed to docker to exclusively create/manage the thin and thin
-    snapshot volumes needed for it's containers.  Managing the thin-pool
+    snapshot volumes needed for its containers.  Managing the thin-pool
     outside of docker makes for the most feature-rich method of having
     docker utilize device mapper thin provisioning as the backing
     storage for docker's containers.  lvm2-based thin-pool management

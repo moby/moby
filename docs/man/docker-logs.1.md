@@ -22,6 +22,8 @@ The **docker logs --follow** command combines commands **docker logs** and
 **docker attach**. It will first return all logs from the beginning and
 then continue streaming new output from the container’s stdout and stderr.
 
+**Warning**: This command works only for **json-file** logging driver.
+
 # OPTIONS
 **--help**
   Print usage statement

@@ -301,7 +301,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		return "", err
+		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	mount.path = mergedDir
 	mount.mounted = true

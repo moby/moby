@@ -1,7 +1,10 @@
 package events
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,11 +115,23 @@ func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.
 			if v == field {
 				return false
 			}
+			if strings.Contains(field, ":") {
+				image := strings.Split(field, ":")
+				if image[0] == v {
+					return false
+				}
+			}
 		}
 		return true
 	}
 
-	if isFiltered(event.Status, eventFilters["event"]) || isFiltered(event.From, eventFilters["image"]) || isFiltered(event.ID, eventFilters["container"]) {
+	//incoming container filter can be name,id or partial id, convert and replace as a full container id
+	for i, cn := range eventFilters["container"] {
+		eventFilters["container"][i] = GetContainerId(job.Eng, cn)
+	}
+
+	if isFiltered(event.Status, eventFilters["event"]) || isFiltered(event.From, eventFilters["image"]) ||
+		isFiltered(event.ID, eventFilters["container"]) {
 		return nil
 	}
 
@@ -195,4 +210,21 @@ func (e *Events) unsubscribe(l listener) bool {
 	}
 	e.mu.Unlock()
 	return false
+}
+
+func GetContainerId(eng *engine.Engine, name string) string {
+	var buf bytes.Buffer
+	job := eng.Job("container_inspect", name)
+
+	var outStream io.Writer
+
+	outStream = &buf
+	job.Stdout.Set(outStream)
+
+	if err := job.Run(); err != nil {
+		return ""
+	}
+	var out struct{ ID string }
+	json.NewDecoder(&buf).Decode(&out)
+	return out.ID
 }

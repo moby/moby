@@ -7,13 +7,18 @@ docker-build - Build a new image from the source code at PATH
 # SYNOPSIS
 **docker build**
 [**--help**]
-[**-f**|**--file**[=*Dockerfile*]]
+[**-f**|**--file**[=*PATH/Dockerfile*]]
 [**--force-rm**[=*false*]]
 [**--no-cache**[=*false*]]
 [**--pull**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [**--rm**[=*true*]]
 [**-t**|**--tag**[=*TAG*]]
+[**-m**|**--memory**[=*MEMORY*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
+[**-c**|**--cpu-shares**[=*0*]]
+[**--cpuset-cpus**[=*CPUSET-CPUS*]]
+
 PATH | URL | -
 
 # DESCRIPTION
@@ -33,7 +38,7 @@ When a Git repository is set as the **URL**, the repository is used
 as context.
 
 # OPTIONS
-**-f**, **--file**=*Dockerfile*
+**-f**, **--file**=*PATH/Dockerfile*
    Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile*.
 
 **--force-rm**=*true*|*false*

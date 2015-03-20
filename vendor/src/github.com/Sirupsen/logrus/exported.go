@@ -9,6 +9,10 @@ var (
 	std = New()
 )
 
+func StandardLogger() *Logger {
+	return std
+}
+
 // SetOutput sets the standard logger output.
 func SetOutput(out io.Writer) {
 	std.mu.Lock()
@@ -28,6 +32,13 @@ func SetLevel(level Level) {
 	std.mu.Lock()
 	defer std.mu.Unlock()
 	std.Level = level
+}
+
+// GetLevel returns the standard logger level.
+func GetLevel() Level {
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	return std.Level
 }
 
 // AddHook adds a hook to the standard logger hooks.

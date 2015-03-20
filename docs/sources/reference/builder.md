@@ -192,6 +192,10 @@ Or
 
     FROM <image>:<tag>
 
+Or
+
+    FROM <image>@<digest>
+
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
@@ -204,8 +208,9 @@ to start by **pulling an image** from the [*Public Repositories*](
 multiple images. Simply make a note of the last image ID output by the commit
 before each new `FROM` command.
 
-If no `tag` is given to the `FROM` instruction, `latest` is assumed. If the
-used tag does not exist, an error will be returned.
+The `tag` or `digest` values are optional. If you omit either of them, the builder
+assumes a `latest` by default. The builder returns an error if it cannot match
+the `tag` value.
 
 ## MAINTAINER
 
@@ -327,6 +332,36 @@ default specified in `CMD`.
 > don't confuse `RUN` with `CMD`. `RUN` actually runs a command and commits
 > the result; `CMD` does not execute anything at build time, but specifies
 > the intended command for the image.
+
+## LABEL
+
+    LABEL <key>=<value> <key>=<value> <key>=<value> ...
+
+The `LABEL` instruction adds metadata to an image. A `LABEL` is a
+key-value pair. To include spaces within a `LABEL` value, use quotes and
+blackslashes as you would in command-line parsing.
+
+    LABEL "com.example.vendor"="ACME Incorporated"
+
+An image can have more than one label. To specify multiple labels, separate each
+key-value pair by an EOL.
+
+    LABEL com.example.label-without-value
+    LABEL com.example.label-with-value="foo"
+    LABEL version="1.0"
+    LABEL description="This text illustrates \
+    that label-values can span multiple lines."
+
+Docker recommends combining labels in a single `LABEL` instruction where
+possible. Each `LABEL` instruction produces a new layer which can result in an
+inefficient image if you use many labels. This example results in four image
+layers. 
+    
+Labels are additive including `LABEL`s in `FROM` images. As the system
+encounters and then applies a new label, new `key`s override any previous labels
+with identical keys.    
+
+To view an image's labels, use the `docker inspect` command.
 
 ## EXPOSE
 
@@ -777,13 +812,27 @@ If you then run `docker stop test`, the container will not exit cleanly - the
 
     VOLUME ["/data"]
 
-The `VOLUME` instruction will create a mount point with the specified name
-and mark it as holding externally mounted volumes from native host or other
+The `VOLUME` instruction creates a mount point with the specified name
+and marks it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`.  For more information/examples and mounting instructions via the
-Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
+Docker client, refer to 
+[*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
 documentation.
+
+The `docker run` command initializes the newly created volume with any data 
+that exists at the specified location within the base image. For example, 
+consider the following Dockerfile snippet:
+
+    FROM ubuntu
+    RUN mkdir /myvol
+    RUN echo "hello world" > /myvol/greating
+    VOLUME /myvol
+
+This Dockerfile results in an image that causes `docker run`, to
+create a new mount point at `/myvol` and copy the  `greating` file 
+into the newly created volume.
 
 > **Note**:
 > The list is parsed as a JSON array, which means that
@@ -893,6 +942,7 @@ For example you might add something like this:
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
 
+    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
     RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC
