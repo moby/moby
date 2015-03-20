@@ -74,7 +74,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName = utils.ImageReference(logName, tag)
 	}
 
-	if len(repoInfo.Index.Mirrors) == 0 && ((repoInfo.Official && repoInfo.Index.Official) || endpoint.Version == registry.APIVersion2) {
+	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		if repoInfo.Official {
 			j := job.Eng.Job("trust_update_base")
 			if err = j.Run(); err != nil {
