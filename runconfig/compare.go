@@ -19,6 +19,7 @@ func Compare(a, b *Config) bool {
 	}
 	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Env) != len(b.Env) ||
+		len(a.Labels) != len(b.Labels) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
 		len(a.Entrypoint) != len(b.Entrypoint) ||
@@ -33,6 +34,11 @@ func Compare(a, b *Config) bool {
 	}
 	for i := 0; i < len(a.Env); i++ {
 		if a.Env[i] != b.Env[i] {
+			return false
+		}
+	}
+	for k, v := range a.Labels {
+		if v != b.Labels[k] {
 			return false
 		}
 	}

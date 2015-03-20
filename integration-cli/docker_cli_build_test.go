@@ -4585,14 +4585,29 @@ func TestBuildLabelsCache(t *testing.T) {
 		`FROM busybox
 		LABEL Vendor=Acme1`, true)
 	if err != nil || id1 == id2 {
-		t.Fatalf("Build 2 should have worked & NOT used cache(%s,%s): %v", id1, id2, err)
+		t.Fatalf("Build 3 should have worked & NOT used cache(%s,%s): %v", id1, id2, err)
 	}
 
 	id2, err = buildImage(name,
 		`FROM busybox
 		LABEL Vendor Acme`, true) // Note: " " and "=" should be same
 	if err != nil || id1 != id2 {
-		t.Fatalf("Build 3 should have worked & used cache(%s,%s): %v", id1, id2, err)
+		t.Fatalf("Build 4 should have worked & used cache(%s,%s): %v", id1, id2, err)
+	}
+
+	// Now make sure the cache isn't used by mistake
+	id1, err = buildImage(name,
+		`FROM busybox
+       LABEL f1=b1 f2=b2`, false)
+	if err != nil {
+		t.Fatalf("Build 5 should have worked: %q", err)
+	}
+
+	id2, err = buildImage(name,
+		`FROM busybox
+       LABEL f1="b1 f2=b2"`, true)
+	if err != nil || id1 == id2 {
+		t.Fatalf("Build 6 should have worked & NOT used the cache(%s,%s): %q", id1, id2, err)
 	}
 
 	logDone("build - label cache")
