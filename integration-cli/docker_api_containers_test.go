@@ -275,6 +275,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 }
 
 func TestGetContainerStats(t *testing.T) {
+	testRequires(t, NotSystemdCgroups)
 	defer deleteAllContainers()
 	var (
 		name   = "statscontainer"
