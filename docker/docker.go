@@ -26,14 +26,14 @@ const (
 )
 
 func main() {
+	if reexec.Init() {
+		return
+	}
+
 	// Set terminal emulation based on platform as required.
 	stdout, stderr, stdin := term.StdStreams()
 
 	initLogging(stderr)
-
-	if reexec.Init() {
-		return
-	}
 
 	flag.Parse()
 	// FIXME: validate daemon flags here

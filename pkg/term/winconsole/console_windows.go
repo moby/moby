@@ -83,6 +83,7 @@ const (
 
 	ANSI_MAX_CMD_LENGTH = 256
 
+	MAX_INPUT_EVENTS = 128
 	MAX_INPUT_BUFFER = 1024
 	DEFAULT_WIDTH    = 80
 	DEFAULT_HEIGHT   = 24
@@ -195,15 +196,18 @@ type (
 type WindowsTerminal struct {
 	outMutex            sync.Mutex
 	inMutex             sync.Mutex
-	inputBuffer         chan byte
+	inputBuffer         []byte
+	inputSize           int
+	inputEvents         []INPUT_RECORD
 	screenBufferInfo    *CONSOLE_SCREEN_BUFFER_INFO
 	inputEscapeSequence []byte
 }
 
 func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
 	handler := &WindowsTerminal{
-		inputBuffer:         make(chan byte, MAX_INPUT_BUFFER),
+		inputBuffer:         make([]byte, MAX_INPUT_BUFFER),
 		inputEscapeSequence: []byte(KEY_ESC_CSI),
+		inputEvents:         make([]INPUT_RECORD, MAX_INPUT_EVENTS),
 	}
 
 	// Save current screen buffer info
@@ -218,6 +222,8 @@ func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
 
 	// Set the window size
 	SetWindowSize(uintptr(handle), DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_HEIGHT)
+	buffer = make([]CHAR_INFO, screenBufferInfo.MaximumWindowSize.X*screenBufferInfo.MaximumWindowSize.Y)
+
 	if IsTerminal(os.Stdout.Fd()) {
 		stdOut = &terminalWriter{
 			wrappedWriter: os.Stdout,
@@ -427,6 +433,8 @@ func getNumberOfChars(fromCoord COORD, toCoord COORD, screenSize COORD) uint32 {
 	return 0
 }
 
+var buffer []CHAR_INFO
+
 func clearDisplayRect(fileDesc uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
 	var writeRegion SMALL_RECT
 	writeRegion.Top = fromCoord.Y
@@ -439,14 +447,13 @@ func clearDisplayRect(fileDesc uintptr, fillChar rune, attributes WORD, fromCoor
 	height := toCoord.Y - fromCoord.Y + 1
 	size := width * height
 	if size > 0 {
-		buffer := make([]CHAR_INFO, size)
-		for i := 0; i < len(buffer); i++ {
+		for i := 0; i < int(size); i++ {
 			buffer[i].UnicodeChar = WCHAR(fillChar)
 			buffer[i].Attributes = attributes
 		}
 
 		// Write to buffer
-		r, err := writeConsoleOutput(fileDesc, buffer, windowSize, COORD{X: 0, Y: 0}, &writeRegion)
+		r, err := writeConsoleOutput(fileDesc, buffer[:size], windowSize, COORD{X: 0, Y: 0}, &writeRegion)
 		if !r {
 			if err != nil {
 				return false, 0, err
@@ -914,6 +921,9 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 
 // WriteChars writes the bytes to given writer.
 func (term *WindowsTerminal) WriteChars(fd uintptr, w io.Writer, p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	return w.Write(p)
 }
 
@@ -1049,24 +1059,19 @@ func mapKeystokeToTerminalString(keyEvent *KEY_EVENT_RECORD, escapeSequence []by
 
 // getAvailableInputEvents polls the console for availble events
 // The function does not return until at least one input record has been read.
-func getAvailableInputEvents(fd uintptr) (inputEvents []INPUT_RECORD, err error) {
+func getAvailableInputEvents(fd uintptr, inputEvents []INPUT_RECORD) (n int, err error) {
 	handle := syscall.Handle(fd)
 	if nil != err {
-		return nil, err
+		return 0, err
 	}
 	for {
 		// Read number of console events available
-		tempBuffer := make([]INPUT_RECORD, MAX_INPUT_BUFFER)
-		nr, err := readConsoleInputKey(uintptr(handle), tempBuffer)
+		nr, err := readConsoleInputKey(uintptr(handle), inputEvents)
 		if nr == 0 {
-			return nil, err
+			return 0, err
 		}
 		if 0 < nr {
-			retValue := make([]INPUT_RECORD, nr)
-			for i := 0; i < nr; i++ {
-				retValue[i] = tempBuffer[i]
-			}
-			return retValue, nil
+			return nr, nil
 		}
 	}
 }
@@ -1086,32 +1091,19 @@ func getTranslatedKeyCodes(inputEvents []INPUT_RECORD, escapeSequence []byte) st
 }
 
 // ReadChars reads the characters from the given reader
-func (term *WindowsTerminal) ReadChars(fd uintptr, w io.Reader, p []byte) (n int, err error) {
-	n = 0
-	for n < len(p) {
-		select {
-		case b := <-term.inputBuffer:
-			p[n] = b
-			n++
-		default:
-			// Read at least one byte read
-			if n > 0 {
-				return n, nil
-			}
-			inputEvents, _ := getAvailableInputEvents(fd)
-			if inputEvents != nil {
-				if len(inputEvents) == 0 && nil != err {
-					return n, err
-				}
-				if len(inputEvents) != 0 {
-					keyCodes := getTranslatedKeyCodes(inputEvents, term.inputEscapeSequence)
-					for _, b := range []byte(keyCodes) {
-						term.inputBuffer <- b
-					}
-				}
-			}
+func (term *WindowsTerminal) ReadChars(fd uintptr, r io.Reader, p []byte) (n int, err error) {
+	for term.inputSize == 0 {
+		nr, err := getAvailableInputEvents(fd, term.inputEvents)
+		if nr == 0 && nil != err {
+			return n, err
+		}
+		if nr > 0 {
+			keyCodes := getTranslatedKeyCodes(term.inputEvents[:nr], term.inputEscapeSequence)
+			term.inputSize = copy(term.inputBuffer, keyCodes)
 		}
 	}
+	n = copy(p, term.inputBuffer[:term.inputSize])
+	term.inputSize -= n
 	return n, nil
 }
 
