@@ -84,5 +84,5 @@ func (d *driver) CreateNetwork(name string, opaqueConfig interface{}) (libnetwor
 		return nil, err
 	}
 
-	return &bridgeNetwork{NetworkName: name, Config: *config}, nil
+	return &bridgeNetwork{NetworkName: name, bridge: bridgeIntfc}, nil
 }

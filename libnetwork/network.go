@@ -76,6 +76,8 @@ type Network interface {
 	// Create a new link to this network symbolically identified by the
 	// specified unique name.
 	Link(name string) ([]*Interface, error)
+
+	Delete() error
 }
 
 // Namespace represents a network namespace, mounted on a specific Path.  It
