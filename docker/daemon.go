@@ -186,8 +186,9 @@ func mainDaemon() {
 	errAPI := <-serveAPIWait
 	// If we have an error here it is unique to API (as daemonErr would have
 	// exited the daemon process above)
-	if errAPI != nil {
-		log.Errorf("Shutting down due to ServeAPI error: %v", errAPI)
-	}
 	eng.Shutdown()
+	if errAPI != nil {
+		log.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)
+	}
+
 }

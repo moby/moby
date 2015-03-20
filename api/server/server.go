@@ -1578,7 +1578,15 @@ func ServeApi(job *engine.Job) engine.Status {
 				chErrors <- err
 				return
 			}
-			chErrors <- srv.Serve()
+			job.Eng.OnShutdown(func() {
+				if err := srv.Close(); err != nil {
+					log.Error(err)
+				}
+			})
+			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+				err = nil
+			}
+			chErrors <- err
 		}()
 	}
 
