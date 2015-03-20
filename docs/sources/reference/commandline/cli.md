@@ -1514,14 +1514,6 @@ just a specific mapping:
     $ sudo docker port test 7890
     0.0.0.0:4321
 
-## rename
-
-    Usage: docker rename OLD_NAME NEW_NAME
-
-    rename a existing container to a NEW_NAME
-
-The `docker rename` command allows the container to be renamed to a different name.
-
 ## ps
 
     Usage: docker ps [OPTIONS]
@@ -1616,6 +1608,14 @@ use `docker pull`:
 
 Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.
+
+## rename
+
+    Usage: docker rename OLD_NAME NEW_NAME
+
+    rename a existing container to a NEW_NAME
+
+The `docker rename` command allows the container to be renamed to a different name.
 
 ## restart
 
