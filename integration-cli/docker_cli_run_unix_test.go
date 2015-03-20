@@ -112,6 +112,10 @@ func TestRunWithUlimits(t *testing.T) {
 func getCgroupPaths(test string) map[string]string {
 	cgroupPaths := map[string]string{}
 	for _, line := range strings.Split(test, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		parts := strings.Split(line, ":")
 		if len(parts) != 3 {
 			fmt.Printf("unexpected file format for /proc/self/cgroup - %q\n", line)
