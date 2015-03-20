@@ -67,11 +67,11 @@ If your GitHub repository contains links to private submodules, you'll get an
 error message in your build.
 
 Normally, the Docker Hub sets up a deploy key in your GitHub repository.
-Unfortunately, GitHub only allows a deploy key to access one single repository.
+Unfortunately, GitHub only allows a repository deploy key to access a single repository.
 
-To work around this, we will be creating a dedicated user account in GitHub to
-attach this key to. A key on a GitHub user account can be given read-only
-access to all your repositories.
+To work around this, you need to create a dedicated user account in GitHub and attach
+the automated build's deploy key that account. This dedicated build account
+can be limited to read-only access to just the repositories required to build.
 
 <table class="table table-bordered">
   <thead>
@@ -91,7 +91,7 @@ access to all your repositories.
     <tr>
       <td>2.</td>
       <td><img src="/docker-hub/hub-images/gh_team_members.png"></td>
-      <td>This can be accomplished by adding the account to a read-only team on
+      <td>This can be accomplished by adding the account to a read-only team in
       the organization(s) where the main GitHub repository and all submodule
       repositories are kept.</td>
     </tr>
