@@ -5408,3 +5408,19 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 
 	logDone("build - resource constraints applied")
 }
+
+func TestBuildEmptyStringVolume(t *testing.T) {
+	name := "testbuildemptystringvolume"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  ENV foo=""
+  VOLUME $foo
+  `, false)
+	if err == nil {
+		t.Fatal("Should have failed to build")
+	}
+
+	logDone("build - empty string volume")
+}
