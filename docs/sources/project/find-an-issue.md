@@ -1,6 +1,6 @@
 page_title: Make a project contribution
 page_description: Basic workflow for Docker contributions
-page_keywords: contribute, pull request, review, workflow, white-belt, black-belt, squash, commit
+page_keywords: contribute, pull request, review, workflow, beginner, expert, squash, commit
 
 <style type="text/css">
 
@@ -8,7 +8,7 @@ page_keywords: contribute, pull request, review, workflow, white-belt, black-bel
 .gh-label {
     display: inline-block;
     padding: 3px 4px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     line-height: 1;
     color: #fff;
@@ -16,11 +16,25 @@ page_keywords: contribute, pull request, review, workflow, white-belt, black-bel
     box-shadow: inset 0 -1px 0 rgba(0,0,0,0.12);
 }
 
-.gh-label.black-belt  { background-color: #000000; color: #ffffff; }
-.gh-label.bug         { background-color: #fc2929; color: #ffffff; }
-.gh-label.improvement { background-color: #bfe5bf; color: #2a332a; }
-.gh-label.project-doc { background-color: #207de5; color: #ffffff; }
-.gh-label.white-belt  { background-color: #ffffff; color: #333333; }
+/* Experience */
+.gh-label.beginner  { background-color: #B5E0B5; color: #333333; }
+.gh-label.expert  { background-color: #599898; color: #ffffff; }
+.gh-label.master { background-color: #306481; color: #ffffff; }
+.gh-label.novice { background-color: #D6F2AC; color: #333333; }
+.gh-label.proficient { background-color: #8DC7A9; color: #333333; }
+
+/* Kind */
+.gh-label.bug { background-color: #FF9DA4; color: #333333; }
+.gh-label.cleanup { background-color: #FFB7B3; color: #333333; }
+.gh-label.content { background-color: #CDD3C2; color: #333333; }
+.gh-label.feature { background-color: #B7BEB7; color: #333333; }
+.gh-label.graphics { background-color: #E1EFCB; color: #333333; }
+.gh-label.improvement { background-color: #EBD2BB; color: #333333; }
+.gh-label.proposal { background-color: #FFD9C0; color: #333333; }
+.gh-label.question { background-color: #EEF1D1; color: #333333; }
+.gh-label.usecase { background-color: #F0E4C2; color: #333333; }
+.gh-label.writing { background-color: #B5E9D5; color: #333333; }
+
 
 </style>
 
@@ -37,20 +51,44 @@ An existing issue is something reported by a Docker user. As issues come in,
 our maintainers triage them. Triage is its own topic. For now, it is important
 for you to know that triage includes ranking issues according to difficulty. 
 
-Triaged issues have either a <strong class="gh-label white-belt">white-belt</strong> 
-or <strong class="gh-label black-belt">black-belt</strong> label.
-A <strong class="gh-label white-belt">white-belt</strong> issue is considered
-an easier issue. Issues can have more than one label, for example, 
-<strong class="gh-label bug">bug</strong>, 
-<strong class="gh-label improvement">improvement</strong>, 
-<strong class="gh-label project-doc">project/doc</strong>, and so forth. 
-These other labels are there for filtering purposes but you might also find
-them helpful.
+Triaged issues have one of these labels:
 
+<table class="tg">
+  <tr>
+    <td class="tg-031e">Level</td>
+    <td class="tg-031e">Experience level guideline</td>
+  </tr>
+  <tr>
+    <td class="tg-031e"><strong class="gh-label beginner">exp/beginner</strong></td>
+    <td class="tg-031e">You have made less than 10 contributions in your life time to any open source project.</td>
+  </tr>
+  <tr>
+    <td class="tg-031e"><strong class="gh-label novice">exp/novice</strong></td>
+    <td class="tg-031e">You have made more than 10 contributions to an open source project or at least 5 contributions to Docker.  </td>
+  </tr>
+  <tr>
+    <td class="tg-031e"><strong class="gh-label proficient">exp/proficient</strong></td>
+    <td class="tg-031e">You have made more than 5 contributions to Docker which amount to at least 200 code lines or 1000 documentation lines. </td>
+  </tr>
+  <tr>
+    <td class="tg-031e"><strong class="gh-label expert">exp/expert</strong></td>
+    <td class="tg-031e">You have made less than 20 commits to Docker which amount to 500-1000 code lines or 1000-3000 documentation lines. </td>
+  </tr>
+  <tr>
+    <td class="tg-031e"><strong class="gh-label master">exp/master</strong></td>
+    <td class="tg-031e">You have made more than 20 commits to Docker and greater than 1000 code lines or 3000 documentation lines.</td>
+  </tr>
+</table>
 
-## Claim a white-belt issue
+As the table states, these labels are meant as guidelines. You might have
+written a whole plugin for Docker in a personal project and never contributed to
+Docker. With that kind of experience, you could take on an <strong
+class="gh-label expert">exp/expert</strong> or <strong class="gh-label
+master">exp/master</strong> level task.
 
-In this section, you find and claim an open white-belt issue.
+## Claim a beginner or novice issue
+
+In this section, you find and claim an open documentation lines issue.
 
 
 1. Go to the `docker/docker` <a
@@ -62,11 +100,11 @@ In this section, you find and claim an open white-belt issue.
 
     ![Open issues](/project/images/issue_list.png)
 
-3. Look for the <strong class="gh-label white-belt">white-belt</strong> items on the list.
+3. Look for the <strong class="gh-label beginner">exp/beginner</strong> items on the list.
 
-4. Click on the "labels" dropdown and select  <strong class="gh-label white-belt">white-belt</strong>.
+4. Click on the "labels" dropdown and select  <strong class="gh-label beginner">exp/beginner</strong>.
 
-    The system filters to show only open <strong class="gh-label white-belt">white-belt</strong> issues.
+    The system filters to show only open <strong class="gh-label beginner">exp/beginner</strong> issues.
 
 5. Open an issue that interests you.
 
@@ -75,21 +113,18 @@ In this section, you find and claim an open white-belt issue.
 
 6. Make sure that no other user has chosen to work on the issue.
 
-    We don't allow external contributors to assign issues to themselves, so you
-    need to read the comments to find if a user claimed an issue by saying:
-    
-    - "I'd love to give this a try~"
-    - "I'll work on this!"
-    - "I'll take this."
-    
-    The community is very good about claiming issues explicitly.
+    We don't allow external contributors to assign issues to themselves. So, you
+    need to read the comments to find if a user claimed the issue by leaving a
+    `#dibs` comment on the issue.  
 
-7. When you find an open issue that both interests you and is unclaimed, claim it yourself by adding a comment.
+7. When you find an open issue that both interests you and is unclaimed, add a
+`#dibs` comment.
 
     ![Easy issue](/project/images/easy_issue.png)
 
     This example uses issue 11038. Your issue # will be different depending on
-    what you claimed.
+   what you claimed.  After a moment, Gordon the Docker bot, changes the issue
+   status to claimed.
 
 8. Make a note of the issue number; you'll need it later.
 
