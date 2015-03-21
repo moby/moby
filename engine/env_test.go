@@ -78,6 +78,26 @@ func TestSetenv(t *testing.T) {
 	}
 }
 
+func TestDecodeEnv(t *testing.T) {
+	job := mkJob(t, "dummy")
+	type tmp struct {
+		Id1 int64
+		Id2 int64
+	}
+	body := []byte("{\"tags\":{\"Id1\":123, \"Id2\":1234567}}")
+	if err := job.DecodeEnv(bytes.NewBuffer(body)); err != nil {
+		t.Fatalf("DecodeEnv failed: %v", err)
+	}
+	mytag := tmp{}
+	if val := job.GetenvJson("tags", &mytag); val != nil {
+		t.Fatalf("GetenvJson returns incorrect value: %s", val)
+	}
+
+	if mytag.Id1 != 123 || mytag.Id2 != 1234567 {
+		t.Fatal("Get wrong values set by job.DecodeEnv")
+	}
+}
+
 func TestSetenvBool(t *testing.T) {
 	job := mkJob(t, "dummy")
 	job.SetenvBool("foo", true)

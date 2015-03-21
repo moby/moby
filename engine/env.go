@@ -189,7 +189,10 @@ func (decoder *Decoder) Decode() (*Env, error) {
 // is returned.
 func (env *Env) Decode(src io.Reader) error {
 	m := make(map[string]interface{})
-	if err := json.NewDecoder(src).Decode(&m); err != nil {
+	d := json.NewDecoder(src)
+	// We need this or we'll lose data when we decode int64 in json
+	d.UseNumber()
+	if err := d.Decode(&m); err != nil {
 		return err
 	}
 	for k, v := range m {
