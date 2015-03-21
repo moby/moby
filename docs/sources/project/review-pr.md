@@ -1,6 +1,6 @@
 page_title: Participate in the PR Review
 page_description: Basic workflow for Docker contributions
-page_keywords: contribute, pull request, review, workflow, white-belt, black-belt, squash, commit
+page_keywords: contribute, pull request, review, workflow, beginner, squash, commit
 
 
 # Participate in the PR Review
@@ -117,8 +117,7 @@ see the GitHub help on deleting branches</a>.
 ## Where to go next
 
 At this point, you have completed all the basic tasks in our contributors guide.
-If you enjoyed contributing, let us know by completing another 
-<strong class="gh-label white-belt">white-belt</strong>
+If you enjoyed contributing, let us know by completing another beginner
 issue or two. We really appreciate the help. 
 
 If you are very experienced and want to make a major change, go on to 
