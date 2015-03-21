@@ -70,10 +70,11 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 
 func init() {
 	const portRangeKernelParam = "/proc/sys/net/ipv4/ip_local_port_range"
+	portRangeFallback := fmt.Sprintf("using fallback port range %d-%d", beginPortRange, endPortRange)
 
 	file, err := os.Open(portRangeKernelParam)
 	if err != nil {
-		log.Warnf("Failed to read %s kernel parameter: %v", portRangeKernelParam, err)
+		log.Warnf("port allocator - %s due to error: %v", portRangeFallback, err)
 		return
 	}
 	var start, end int
@@ -82,7 +83,7 @@ func init() {
 		if err == nil {
 			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
 		}
-		log.Errorf("Failed to parse port range from %s: %v", portRangeKernelParam, err)
+		log.Errorf("port allocator - failed to parse system ephemeral port range from %s - %s: %v", portRangeKernelParam, portRangeFallback, err)
 		return
 	}
 	beginPortRange = start
