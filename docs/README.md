@@ -46,7 +46,7 @@ to the menu definition in the `docs/mkdocs.yml` file.
 
 If you have questions about how to write for Docker's documentation (e.g.,
 questions about grammar, syntax, formatting, styling, language, or tone) please
-see the [style guide](sources/contributing/docs_style-guide.md). If something
+see the [style guide](sources/project/docs-style.md). If something
 isn't clear in the guide, please submit a PR to help us improve it.
 
 ## Working using GitHub's file editor
