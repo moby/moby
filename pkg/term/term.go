@@ -26,8 +26,8 @@ type Winsize struct {
 	y      uint16
 }
 
-func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
-	return os.Stdout, os.Stderr, os.Stdin
+func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
+	return os.Stdin, os.Stdout, os.Stderr
 }
 
 func GetFdInfo(in interface{}) (uintptr, bool) {

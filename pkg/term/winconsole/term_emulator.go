@@ -211,7 +211,7 @@ func parseInt16OrDefault(s string, defaultValue int16) (n int16, err error) {
 		return defaultValue, nil
 	}
 	parsedValue, err := strconv.ParseInt(s, 10, 16)
-	if nil != err {
+	if err != nil {
 		return defaultValue, err
 	}
 	return int16(parsedValue), nil

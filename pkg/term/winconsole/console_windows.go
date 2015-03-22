@@ -203,68 +203,70 @@ type WindowsTerminal struct {
 	inputEscapeSequence []byte
 }
 
-func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
+func getStdHandle(stdhandle int) uintptr {
+	handle, err := syscall.GetStdHandle(stdhandle)
+	if err != nil {
+		panic(fmt.Errorf("could not get standard io handle %d", stdhandle))
+	}
+	return uintptr(handle)
+}
+
+func StdStreams() (stdIn io.ReadCloser, stdOut io.Writer, stdErr io.Writer) {
 	handler := &WindowsTerminal{
 		inputBuffer:         make([]byte, MAX_INPUT_BUFFER),
 		inputEscapeSequence: []byte(KEY_ESC_CSI),
 		inputEvents:         make([]INPUT_RECORD, MAX_INPUT_EVENTS),
 	}
 
-	// Save current screen buffer info
-	handle, err := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
-	if nil != err {
-		panic("This should never happen as it is predefined handle.")
-	}
-	screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
-	if err == nil {
-		handler.screenBufferInfo = screenBufferInfo
-	}
-
-	// Set the window size
-	SetWindowSize(uintptr(handle), DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_HEIGHT)
-	buffer = make([]CHAR_INFO, screenBufferInfo.MaximumWindowSize.X*screenBufferInfo.MaximumWindowSize.Y)
-
-	if IsTerminal(os.Stdout.Fd()) {
-		stdOut = &terminalWriter{
-			wrappedWriter: os.Stdout,
-			emulator:      handler,
-			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
-			fd:            uintptr(handle),
-		}
-	} else {
-		stdOut = os.Stdout
-
-	}
-	if IsTerminal(os.Stderr.Fd()) {
-		handle, err := syscall.GetStdHandle(syscall.STD_ERROR_HANDLE)
-		if nil != err {
-			panic("This should never happen as it is predefined handle.")
-		}
-		stdErr = &terminalWriter{
-			wrappedWriter: os.Stderr,
-			emulator:      handler,
-			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
-			fd:            uintptr(handle),
-		}
-	} else {
-		stdErr = os.Stderr
-	}
 	if IsTerminal(os.Stdin.Fd()) {
-		handle, err := syscall.GetStdHandle(syscall.STD_INPUT_HANDLE)
-		if nil != err {
-			panic("This should never happen as it is predefined handle.")
-		}
 		stdIn = &terminalReader{
 			wrappedReader: os.Stdin,
 			emulator:      handler,
 			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
-			fd:            uintptr(handle),
+			fd:            getStdHandle(syscall.STD_INPUT_HANDLE),
 		}
 	} else {
 		stdIn = os.Stdin
 	}
 
-	return
+	if IsTerminal(os.Stdout.Fd()) {
+		stdoutHandle := getStdHandle(syscall.STD_OUTPUT_HANDLE)
+
+		// Save current screen buffer info
+		screenBufferInfo, err := GetConsoleScreenBufferInfo(stdoutHandle)
+		if err != nil {
+			// If GetConsoleScreenBufferInfo returns a nil error, it usually means that stdout is not a TTY.
+			// However, this is in the branch where stdout is a TTY, hence the panic.
+			panic("could not get console screen buffer info")
+		}
+		handler.screenBufferInfo = screenBufferInfo
+
+		// Set the window size
+		SetWindowSize(stdoutHandle, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_HEIGHT)
+		buffer = make([]CHAR_INFO, screenBufferInfo.MaximumWindowSize.X*screenBufferInfo.MaximumWindowSize.Y)
+
+		stdOut = &terminalWriter{
+			wrappedWriter: os.Stdout,
+			emulator:      handler,
+			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
+			fd:            stdoutHandle,
+		}
+	} else {
+		stdOut = os.Stdout
+	}
+
+	if IsTerminal(os.Stderr.Fd()) {
+		stdErr = &terminalWriter{
+			wrappedWriter: os.Stderr,
+			emulator:      handler,
+			command:       make([]byte, 0, ANSI_MAX_CMD_LENGTH),
+			fd:            getStdHandle(syscall.STD_ERROR_HANDLE),
+		}
+	} else {
+		stdErr = os.Stderr
+	}
+
+	return stdIn, stdOut, stdErr
 }
 
 // GetHandleInfo returns file descriptor and bool indicating whether the file is a terminal
@@ -284,81 +286,64 @@ func GetHandleInfo(in interface{}) (uintptr, bool) {
 	return inFd, isTerminalIn
 }
 
-// GetConsoleMode gets the console mode for given file descriptor
-// http://msdn.microsoft.com/en-us/library/windows/desktop/ms683167(v=vs.85).aspx
-func GetConsoleMode(fileDesc uintptr) (uint32, error) {
-	var mode uint32
-	err := syscall.GetConsoleMode(syscall.Handle(fileDesc), &mode)
-	return mode, err
-}
-
-// SetConsoleMode sets the console mode for given file descriptor
-// http://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
-func SetConsoleMode(fileDesc uintptr, mode uint32) error {
-	r, _, err := setConsoleModeProc.Call(fileDesc, uintptr(mode), 0)
-	if r == 0 {
-		if err != nil {
-			return err
+func getError(r1, r2 uintptr, lastErr error) error {
+	// If the function fails, the return value is zero.
+	if r1 == 0 {
+		if lastErr != nil {
+			return lastErr
 		}
 		return syscall.EINVAL
 	}
 	return nil
 }
 
+// GetConsoleMode gets the console mode for given file descriptor
+// http://msdn.microsoft.com/en-us/library/windows/desktop/ms683167(v=vs.85).aspx
+func GetConsoleMode(handle uintptr) (uint32, error) {
+	var mode uint32
+	err := syscall.GetConsoleMode(syscall.Handle(handle), &mode)
+	return mode, err
+}
+
+// SetConsoleMode sets the console mode for given file descriptor
+// http://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
+func SetConsoleMode(handle uintptr, mode uint32) error {
+	return getError(setConsoleModeProc.Call(handle, uintptr(mode), 0))
+}
+
 // SetCursorVisible sets the cursor visbility
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms686019(v=vs.85).aspx
-func SetCursorVisible(fileDesc uintptr, isVisible BOOL) (bool, error) {
+func SetCursorVisible(handle uintptr, isVisible BOOL) (bool, error) {
 	var cursorInfo CONSOLE_CURSOR_INFO
-	r, _, err := getConsoleCursorInfoProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&cursorInfo)), 0)
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
+	if err := getError(getConsoleCursorInfoProc.Call(handle, uintptr(unsafe.Pointer(&cursorInfo)), 0)); err != nil {
+		return false, err
 	}
 	cursorInfo.Visible = isVisible
-	r, _, err = setConsoleCursorInfoProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&cursorInfo)), 0)
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
+	if err := getError(setConsoleCursorInfoProc.Call(handle, uintptr(unsafe.Pointer(&cursorInfo)), 0)); err != nil {
+		return false, err
 	}
 	return true, nil
 }
 
 // SetWindowSize sets the size of the console window.
-func SetWindowSize(fileDesc uintptr, width, height, max SHORT) (bool, error) {
+func SetWindowSize(handle uintptr, width, height, max SHORT) (bool, error) {
 	window := SMALL_RECT{Left: 0, Top: 0, Right: width - 1, Bottom: height - 1}
 	coord := COORD{X: width - 1, Y: max}
-	r, _, err := setConsoleWindowInfoProc.Call(uintptr(fileDesc), uintptr(BOOL(1)), uintptr(unsafe.Pointer(&window)))
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
+	if err := getError(setConsoleWindowInfoProc.Call(handle, uintptr(1), uintptr(unsafe.Pointer(&window)))); err != nil {
+		return false, err
 	}
-	r, _, err = setConsoleScreenBufferSizeProc.Call(uintptr(fileDesc), uintptr(marshal(coord)))
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
+	if err := getError(setConsoleScreenBufferSizeProc.Call(handle, marshal(coord))); err != nil {
+		return false, err
 	}
-
 	return true, nil
 }
 
 // GetConsoleScreenBufferInfo retrieves information about the specified console screen buffer.
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms683171(v=vs.85).aspx
-func GetConsoleScreenBufferInfo(fileDesc uintptr) (*CONSOLE_SCREEN_BUFFER_INFO, error) {
+func GetConsoleScreenBufferInfo(handle uintptr) (*CONSOLE_SCREEN_BUFFER_INFO, error) {
 	var info CONSOLE_SCREEN_BUFFER_INFO
-	r, _, err := getConsoleScreenBufferInfoProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&info)), 0)
-	if r == 0 {
-		if err != nil {
-			return nil, err
-		}
-		return nil, syscall.EINVAL
+	if err := getError(getConsoleScreenBufferInfoProc.Call(handle, uintptr(unsafe.Pointer(&info)), 0)); err != nil {
+		return nil, err
 	}
 	return &info, nil
 }
@@ -366,38 +351,22 @@ func GetConsoleScreenBufferInfo(fileDesc uintptr) (*CONSOLE_SCREEN_BUFFER_INFO, 
 // setConsoleTextAttribute sets the attributes of characters written to the
 // console screen buffer by the WriteFile or WriteConsole function,
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms686047(v=vs.85).aspx
-func setConsoleTextAttribute(fileDesc uintptr, attribute WORD) (bool, error) {
-	r, _, err := setConsoleTextAttributeProc.Call(uintptr(fileDesc), uintptr(attribute), 0)
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
-	}
-	return true, nil
+func setConsoleTextAttribute(handle uintptr, attribute WORD) error {
+	return getError(setConsoleTextAttributeProc.Call(handle, uintptr(attribute), 0))
 }
 
-func writeConsoleOutput(fileDesc uintptr, buffer []CHAR_INFO, bufferSize COORD, bufferCoord COORD, writeRegion *SMALL_RECT) (bool, error) {
-	r, _, err := writeConsoleOutputProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&buffer[0])), uintptr(marshal(bufferSize)), uintptr(marshal(bufferCoord)), uintptr(unsafe.Pointer(writeRegion)))
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
+func writeConsoleOutput(handle uintptr, buffer []CHAR_INFO, bufferSize COORD, bufferCoord COORD, writeRegion *SMALL_RECT) (bool, error) {
+	if err := getError(writeConsoleOutputProc.Call(handle, uintptr(unsafe.Pointer(&buffer[0])), marshal(bufferSize), marshal(bufferCoord), uintptr(unsafe.Pointer(writeRegion)))); err != nil {
+		return false, err
 	}
 	return true, nil
 }
 
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms682663(v=vs.85).aspx
-func fillConsoleOutputCharacter(fileDesc uintptr, fillChar byte, length uint32, writeCord COORD) (bool, error) {
+func fillConsoleOutputCharacter(handle uintptr, fillChar byte, length uint32, writeCord COORD) (bool, error) {
 	out := int64(0)
-	r, _, err := fillConsoleOutputCharacterProc.Call(uintptr(fileDesc), uintptr(fillChar), uintptr(length), uintptr(marshal(writeCord)), uintptr(unsafe.Pointer(&out)))
-	// If the function succeeds, the return value is nonzero.
-	if r == 0 {
-		if err != nil {
-			return false, err
-		}
-		return false, syscall.EINVAL
+	if err := getError(fillConsoleOutputCharacterProc.Call(handle, uintptr(fillChar), uintptr(length), marshal(writeCord), uintptr(unsafe.Pointer(&out)))); err != nil {
+		return false, err
 	}
 	return true, nil
 }
@@ -435,7 +404,7 @@ func getNumberOfChars(fromCoord COORD, toCoord COORD, screenSize COORD) uint32 {
 
 var buffer []CHAR_INFO
 
-func clearDisplayRect(fileDesc uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
+func clearDisplayRect(handle uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (uint32, error) {
 	var writeRegion SMALL_RECT
 	writeRegion.Top = fromCoord.Y
 	writeRegion.Left = fromCoord.X
@@ -453,117 +422,87 @@ func clearDisplayRect(fileDesc uintptr, fillChar rune, attributes WORD, fromCoor
 		}
 
 		// Write to buffer
-		r, err := writeConsoleOutput(fileDesc, buffer[:size], windowSize, COORD{X: 0, Y: 0}, &writeRegion)
+		r, err := writeConsoleOutput(handle, buffer[:size], windowSize, COORD{X: 0, Y: 0}, &writeRegion)
 		if !r {
 			if err != nil {
-				return false, 0, err
+				return 0, err
 			}
-			return false, 0, syscall.EINVAL
+			return 0, syscall.EINVAL
 		}
 	}
-	return true, uint32(size), nil
+	return uint32(size), nil
 }
 
-func clearDisplayRange(fileDesc uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (bool, uint32, error) {
+func clearDisplayRange(handle uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (uint32, error) {
 	nw := uint32(0)
 	// start and end on same line
 	if fromCoord.Y == toCoord.Y {
-		r, charWritten, err := clearDisplayRect(fileDesc, fillChar, attributes, fromCoord, toCoord, windowSize)
-		if !r {
-			if err != nil {
-				return false, charWritten, err
-			}
-			return false, charWritten, syscall.EINVAL
-		}
-		return true, charWritten, nil
+		return clearDisplayRect(handle, fillChar, attributes, fromCoord, toCoord, windowSize)
 	}
 	// TODO(azlinux): if full screen, optimize
 
 	// spans more than one line
 	if fromCoord.Y < toCoord.Y {
 		// from start position till end of line for first line
-		r, n, err := clearDisplayRect(fileDesc, fillChar, attributes, fromCoord, COORD{X: windowSize.X - 1, Y: fromCoord.Y}, windowSize)
-		if !r {
-			if err != nil {
-				return false, nw, err
-			}
-			return false, nw, syscall.EINVAL
+		n, err := clearDisplayRect(handle, fillChar, attributes, fromCoord, COORD{X: windowSize.X - 1, Y: fromCoord.Y}, windowSize)
+		if err != nil {
+			return nw, err
 		}
 		nw += n
 		// lines between
 		linesBetween := toCoord.Y - fromCoord.Y - 1
 		if linesBetween > 0 {
-			r, n, err = clearDisplayRect(fileDesc, fillChar, attributes, COORD{X: 0, Y: fromCoord.Y + 1}, COORD{X: windowSize.X - 1, Y: toCoord.Y - 1}, windowSize)
-			if !r {
-				if err != nil {
-					return false, nw, err
-				}
-				return false, nw, syscall.EINVAL
+			n, err = clearDisplayRect(handle, fillChar, attributes, COORD{X: 0, Y: fromCoord.Y + 1}, COORD{X: windowSize.X - 1, Y: toCoord.Y - 1}, windowSize)
+			if err != nil {
+				return nw, err
 			}
 			nw += n
 		}
 		// lines at end
-		r, n, err = clearDisplayRect(fileDesc, fillChar, attributes, COORD{X: 0, Y: toCoord.Y}, toCoord, windowSize)
-		if !r {
-			if err != nil {
-				return false, nw, err
-			}
-			return false, nw, syscall.EINVAL
+		n, err = clearDisplayRect(handle, fillChar, attributes, COORD{X: 0, Y: toCoord.Y}, toCoord, windowSize)
+		if err != nil {
+			return nw, err
 		}
 		nw += n
 	}
-	return true, nw, nil
+	return nw, nil
 }
 
 // setConsoleCursorPosition sets the console cursor position
 // Note The X and Y are zero based
 // If relative is true then the new position is relative to current one
-func setConsoleCursorPosition(fileDesc uintptr, isRelative bool, column int16, line int16) (bool, error) {
-	screenBufferInfo, err := GetConsoleScreenBufferInfo(fileDesc)
-	if err == nil {
-		var position COORD
-		if isRelative {
-			position.X = screenBufferInfo.CursorPosition.X + SHORT(column)
-			position.Y = screenBufferInfo.CursorPosition.Y + SHORT(line)
-		} else {
-			position.X = SHORT(column)
-			position.Y = SHORT(line)
-		}
-
-		//convert
-		bits := marshal(position)
-		r, _, err := setConsoleCursorPositionProc.Call(uintptr(fileDesc), uintptr(bits), 0)
-		if r == 0 {
-			if err != nil {
-				return false, err
-			}
-			return false, syscall.EINVAL
-		}
-		return true, nil
+func setConsoleCursorPosition(handle uintptr, isRelative bool, column int16, line int16) error {
+	screenBufferInfo, err := GetConsoleScreenBufferInfo(handle)
+	if err != nil {
+		return err
 	}
-	return false, err
+	var position COORD
+	if isRelative {
+		position.X = screenBufferInfo.CursorPosition.X + SHORT(column)
+		position.Y = screenBufferInfo.CursorPosition.Y + SHORT(line)
+	} else {
+		position.X = SHORT(column)
+		position.Y = SHORT(line)
+	}
+	return getError(setConsoleCursorPositionProc.Call(handle, marshal(position), 0))
 }
 
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms683207(v=vs.85).aspx
-func getNumberOfConsoleInputEvents(fileDesc uintptr) (uint16, error) {
+func getNumberOfConsoleInputEvents(handle uintptr) (uint16, error) {
 	var n WORD
-	r, _, err := getNumberOfConsoleInputEventsProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&n)))
-	//If the function succeeds, the return value is nonzero
-	if r != 0 {
-		return uint16(n), nil
+	if err := getError(getNumberOfConsoleInputEventsProc.Call(handle, uintptr(unsafe.Pointer(&n)))); err != nil {
+		return 0, err
 	}
-	return 0, err
+	return uint16(n), nil
 }
 
 //http://msdn.microsoft.com/en-us/library/windows/desktop/ms684961(v=vs.85).aspx
-func readConsoleInputKey(fileDesc uintptr, inputBuffer []INPUT_RECORD) (int, error) {
+func readConsoleInputKey(handle uintptr, inputBuffer []INPUT_RECORD) (int, error) {
 	var nr WORD
-	r, _, err := readConsoleInputProc.Call(uintptr(fileDesc), uintptr(unsafe.Pointer(&inputBuffer[0])), uintptr(WORD(len(inputBuffer))), uintptr(unsafe.Pointer(&nr)))
-	//If the function succeeds, the return value is nonzero.
-	if r != 0 {
-		return int(nr), nil
+	if err := getError(readConsoleInputProc.Call(handle, uintptr(unsafe.Pointer(&inputBuffer[0])), uintptr(len(inputBuffer)), uintptr(unsafe.Pointer(&nr)))); err != nil {
+		return 0, err
 	}
-	return int(0), err
+	return int(nr), nil
 }
 
 func getWindowsTextAttributeForAnsiValue(originalFlag WORD, defaultValue WORD, ansiValue int16) (WORD, error) {
@@ -638,24 +577,20 @@ func getWindowsTextAttributeForAnsiValue(originalFlag WORD, defaultValue WORD, a
 		flag = (flag & BACKGROUND_MASK_UNSET) | BACKGROUND_GREEN | BACKGROUND_BLUE
 	case ANSI_BACKGROUND_WHITE:
 		flag = (flag & BACKGROUND_MASK_UNSET) | BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE
-	default:
-
 	}
 	return flag, nil
 }
 
 // HandleOutputCommand interpretes the Ansi commands and then makes appropriate Win32 calls
-func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n int, err error) {
+func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte) (n int, err error) {
+	// always consider all the bytes in command, processed
+	n = len(command)
+
+	parsedCommand := parseAnsiCommand(command)
+
 	// console settings changes need to happen in atomic way
 	term.outMutex.Lock()
 	defer term.outMutex.Unlock()
-
-	r := false
-	// Parse the command
-	parsedCommand := parseAnsiCommand(command)
-
-	// use appropriate handle
-	handle := syscall.Handle(fd)
 
 	switch parsedCommand.Command {
 	case "m":
@@ -664,9 +599,9 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		// Calls the graphics functions specified by the following values.
 		// These specified functions remain active until the next occurrence of this escape sequence.
 		// Graphics mode changes the colors and attributes of text (such as bold and underline) displayed on the screen.
-		screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
+		screenBufferInfo, err := GetConsoleScreenBufferInfo(handle)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
 		flag := screenBufferInfo.Attributes
 		for _, e := range parsedCommand.Parameters {
@@ -675,42 +610,40 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 				flag = term.screenBufferInfo.Attributes // reset
 			} else {
 				flag, err = getWindowsTextAttributeForAnsiValue(flag, term.screenBufferInfo.Attributes, int16(value))
-				if nil != err {
-					return len(command), err
+				if err != nil {
+					return n, err
 				}
 			}
 		}
-		r, err = setConsoleTextAttribute(uintptr(handle), flag)
-		if !r {
-			return len(command), err
+		if err := setConsoleTextAttribute(handle, flag); err != nil {
+			return n, err
 		}
 	case "H", "f":
 		// [line;columnH
 		// [line;columnf
 		// Moves the cursor to the specified position (coordinates).
 		// If you do not specify a position, the cursor moves to the home position at the upper-left corner of the screen (line 0, column 0).
-		screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
+		screenBufferInfo, err := GetConsoleScreenBufferInfo(handle)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
 		line, err := parseInt16OrDefault(parsedCommand.getParam(0), 1)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
 		if line > int16(screenBufferInfo.Window.Bottom) {
 			line = int16(screenBufferInfo.Window.Bottom)
 		}
 		column, err := parseInt16OrDefault(parsedCommand.getParam(1), 1)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
 		if column > int16(screenBufferInfo.Window.Right) {
 			column = int16(screenBufferInfo.Window.Right)
 		}
 		// The numbers are not 0 based, but 1 based
-		r, err = setConsoleCursorPosition(uintptr(handle), false, int16(column-1), int16(line-1))
-		if !r {
-			return len(command), err
+		if err := setConsoleCursorPosition(handle, false, column-1, line-1); err != nil {
+			return n, err
 		}
 
 	case "A":
@@ -721,9 +654,8 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		if err != nil {
 			return len(command), err
 		}
-		r, err = setConsoleCursorPosition(uintptr(handle), true, 0, -1*value)
-		if !r {
-			return len(command), err
+		if err := setConsoleCursorPosition(handle, true, 0, -value); err != nil {
+			return n, err
 		}
 	case "B":
 		// [valueB
@@ -731,11 +663,10 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		// If the cursor is already on the bottom line, ignores this sequence.
 		value, err := parseInt16OrDefault(parsedCommand.getParam(0), 1)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
-		r, err = setConsoleCursorPosition(uintptr(handle), true, 0, value)
-		if !r {
-			return len(command), err
+		if err := setConsoleCursorPosition(handle, true, 0, value); err != nil {
+			return n, err
 		}
 	case "C":
 		// [valueC
@@ -743,11 +674,10 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		// If the cursor is already in the rightmost column, ignores this sequence.
 		value, err := parseInt16OrDefault(parsedCommand.getParam(0), 1)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
-		r, err = setConsoleCursorPosition(uintptr(handle), true, int16(value), 0)
-		if !r {
-			return len(command), err
+		if err := setConsoleCursorPosition(handle, true, value, 0); err != nil {
+			return n, err
 		}
 	case "D":
 		// [valueD
@@ -755,11 +685,10 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		// If the cursor is already in the leftmost column, ignores this sequence.
 		value, err := parseInt16OrDefault(parsedCommand.getParam(0), 1)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
-		r, err = setConsoleCursorPosition(uintptr(handle), true, int16(-1*value), 0)
-		if !r {
-			return len(command), err
+		if err := setConsoleCursorPosition(handle, true, -value, 0); err != nil {
+			return n, err
 		}
 	case "J":
 		// [J   Erases from the cursor to the end of the screen, including the cursor position.
@@ -768,50 +697,49 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		// Clears the screen and moves the cursor to the home position (line 0, column 0).
 		value, err := parseInt16OrDefault(parsedCommand.getParam(0), 0)
 		if err != nil {
-			return len(command), err
+			return n, err
 		}
 		var start COORD
 		var cursor COORD
 		var end COORD
-		screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
-		if err == nil {
-			switch value {
-			case 0:
-				start = screenBufferInfo.CursorPosition
-				// end of the screen
-				end.X = screenBufferInfo.MaximumWindowSize.X - 1
-				end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
-				// cursor
-				cursor = screenBufferInfo.CursorPosition
-			case 1:
+		screenBufferInfo, err := GetConsoleScreenBufferInfo(handle)
+		if err != nil {
+			return n, err
+		}
+		switch value {
+		case 0:
+			start = screenBufferInfo.CursorPosition
+			// end of the screen
+			end.X = screenBufferInfo.MaximumWindowSize.X - 1
+			end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			// cursor
+			cursor = screenBufferInfo.CursorPosition
+		case 1:
 
-				// start of the screen
-				start.X = 0
-				start.Y = 0
-				// end of the screen
-				end = screenBufferInfo.CursorPosition
-				// cursor
-				cursor = screenBufferInfo.CursorPosition
-			case 2:
-				// start of the screen
-				start.X = 0
-				start.Y = 0
-				// end of the screen
-				end.X = screenBufferInfo.MaximumWindowSize.X - 1
-				end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
-				// cursor
-				cursor.X = 0
-				cursor.Y = 0
-			}
-			r, _, err = clearDisplayRange(uintptr(handle), ' ', term.screenBufferInfo.Attributes, start, end, screenBufferInfo.MaximumWindowSize)
-			if !r {
-				return len(command), err
-			}
-			// remember the the cursor position is 1 based
-			r, err = setConsoleCursorPosition(uintptr(handle), false, int16(cursor.X), int16(cursor.Y))
-			if !r {
-				return len(command), err
-			}
+			// start of the screen
+			start.X = 0
+			start.Y = 0
+			// end of the screen
+			end = screenBufferInfo.CursorPosition
+			// cursor
+			cursor = screenBufferInfo.CursorPosition
+		case 2:
+			// start of the screen
+			start.X = 0
+			start.Y = 0
+			// end of the screen
+			end.X = screenBufferInfo.MaximumWindowSize.X - 1
+			end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			// cursor
+			cursor.X = 0
+			cursor.Y = 0
+		}
+		if _, err := clearDisplayRange(uintptr(handle), ' ', term.screenBufferInfo.Attributes, start, end, screenBufferInfo.MaximumWindowSize); err != nil {
+			return n, err
+		}
+		// remember the the cursor position is 1 based
+		if err := setConsoleCursorPosition(handle, false, int16(cursor.X), int16(cursor.Y)); err != nil {
+			return n, err
 		}
 	case "K":
 		// [K
@@ -824,45 +752,44 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 		var cursor COORD
 		var end COORD
 		screenBufferInfo, err := GetConsoleScreenBufferInfo(uintptr(handle))
-		if err == nil {
-			switch value {
-			case 0:
-				// start is where cursor is
-				start = screenBufferInfo.CursorPosition
-				// end of line
-				end.X = screenBufferInfo.MaximumWindowSize.X - 1
-				end.Y = screenBufferInfo.CursorPosition.Y
-				// cursor remains the same
-				cursor = screenBufferInfo.CursorPosition
+		if err != nil {
+			return n, err
+		}
+		switch value {
+		case 0:
+			// start is where cursor is
+			start = screenBufferInfo.CursorPosition
+			// end of line
+			end.X = screenBufferInfo.MaximumWindowSize.X - 1
+			end.Y = screenBufferInfo.CursorPosition.Y
+			// cursor remains the same
+			cursor = screenBufferInfo.CursorPosition
 
-			case 1:
-				// beginning of line
-				start.X = 0
-				start.Y = screenBufferInfo.CursorPosition.Y
-				// until cursor
-				end = screenBufferInfo.CursorPosition
-				// cursor remains the same
-				cursor = screenBufferInfo.CursorPosition
-			case 2:
-				// start of the line
-				start.X = 0
-				start.Y = screenBufferInfo.MaximumWindowSize.Y - 1
-				// end of the line
-				end.X = screenBufferInfo.MaximumWindowSize.X - 1
-				end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
-				// cursor
-				cursor.X = 0
-				cursor.Y = screenBufferInfo.MaximumWindowSize.Y - 1
-			}
-			r, _, err = clearDisplayRange(uintptr(handle), ' ', term.screenBufferInfo.Attributes, start, end, screenBufferInfo.MaximumWindowSize)
-			if !r {
-				return len(command), err
-			}
-			// remember the the cursor position is 1 based
-			r, err = setConsoleCursorPosition(uintptr(handle), false, int16(cursor.X), int16(cursor.Y))
-			if !r {
-				return len(command), err
-			}
+		case 1:
+			// beginning of line
+			start.X = 0
+			start.Y = screenBufferInfo.CursorPosition.Y
+			// until cursor
+			end = screenBufferInfo.CursorPosition
+			// cursor remains the same
+			cursor = screenBufferInfo.CursorPosition
+		case 2:
+			// start of the line
+			start.X = 0
+			start.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			// end of the line
+			end.X = screenBufferInfo.MaximumWindowSize.X - 1
+			end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			// cursor
+			cursor.X = 0
+			cursor.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+		}
+		if _, err := clearDisplayRange(uintptr(handle), ' ', term.screenBufferInfo.Attributes, start, end, screenBufferInfo.MaximumWindowSize); err != nil {
+			return n, err
+		}
+		// remember the the cursor position is 1 based
+		if err := setConsoleCursorPosition(uintptr(handle), false, int16(cursor.X), int16(cursor.Y)); err != nil {
+			return n, err
 		}
 
 	case "l":
@@ -875,7 +802,6 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 			case "?1", "1":
 				// If the DECCKM function is reset, then the arrow keys send ANSI cursor sequences to the host.
 				term.inputEscapeSequence = []byte(KEY_ESC_CSI)
-			default:
 			}
 		}
 	case "h":
@@ -889,34 +815,32 @@ func (term *WindowsTerminal) HandleOutputCommand(fd uintptr, command []byte) (n 
 				// If the DECCKM function is set, then the arrow keys send application sequences to the host.
 				// DECCKM (default off): When set, the cursor keys send an ESC O prefix, rather than ESC [.
 				term.inputEscapeSequence = []byte(KEY_ESC_O)
-			default:
 			}
 		}
 
 	case "]":
-	/*
-		TODO (azlinux):
-			Linux Console Private CSI Sequences
+		/*
+			TODO (azlinux):
+				Linux Console Private CSI Sequences
 
-		       The following sequences are neither ECMA-48 nor native VT102.  They are
-		       native  to the Linux console driver.  Colors are in SGR parameters: 0 =
-		       black, 1 = red, 2 = green, 3 = brown, 4 = blue, 5 = magenta, 6 =  cyan,
-		       7 = white.
+			       The following sequences are neither ECMA-48 nor native VT102.  They are
+			       native  to the Linux console driver.  Colors are in SGR parameters: 0 =
+			       black, 1 = red, 2 = green, 3 = brown, 4 = blue, 5 = magenta, 6 =  cyan,
+			       7 = white.
 
-		       ESC [ 1 ; n ]       Set color n as the underline color
-		       ESC [ 2 ; n ]       Set color n as the dim color
-		       ESC [ 8 ]           Make the current color pair the default attributes.
-		       ESC [ 9 ; n ]       Set screen blank timeout to n minutes.
-		       ESC [ 10 ; n ]      Set bell frequency in Hz.
-		       ESC [ 11 ; n ]      Set bell duration in msec.
-		       ESC [ 12 ; n ]      Bring specified console to the front.
-		       ESC [ 13 ]          Unblank the screen.
-		       ESC [ 14 ; n ]      Set the VESA powerdown interval in minutes.
+			       ESC [ 1 ; n ]       Set color n as the underline color
+			       ESC [ 2 ; n ]       Set color n as the dim color
+			       ESC [ 8 ]           Make the current color pair the default attributes.
+			       ESC [ 9 ; n ]       Set screen blank timeout to n minutes.
+			       ESC [ 10 ; n ]      Set bell frequency in Hz.
+			       ESC [ 11 ; n ]      Set bell duration in msec.
+			       ESC [ 12 ; n ]      Bring specified console to the front.
+			       ESC [ 13 ]          Unblank the screen.
+			       ESC [ 14 ; n ]      Set the VESA powerdown interval in minutes.
 
-	*/
-	default:
+		*/
 	}
-	return len(command), nil
+	return n, nil
 }
 
 // WriteChars writes the bytes to given writer.
@@ -1059,19 +983,13 @@ func mapKeystokeToTerminalString(keyEvent *KEY_EVENT_RECORD, escapeSequence []by
 
 // getAvailableInputEvents polls the console for availble events
 // The function does not return until at least one input record has been read.
-func getAvailableInputEvents(fd uintptr, inputEvents []INPUT_RECORD) (n int, err error) {
-	handle := syscall.Handle(fd)
-	if nil != err {
-		return 0, err
-	}
+func getAvailableInputEvents(handle uintptr, inputEvents []INPUT_RECORD) (n int, err error) {
+	// TODO(azlinux): Why is there a for loop? Seems to me, that `n` cannot be negative. - tibor
 	for {
 		// Read number of console events available
-		nr, err := readConsoleInputKey(uintptr(handle), inputEvents)
-		if nr == 0 {
-			return 0, err
-		}
-		if 0 < nr {
-			return nr, nil
+		n, err = readConsoleInputKey(handle, inputEvents)
+		if err != nil || n >= 0 {
+			return n, err
 		}
 	}
 }
@@ -1112,9 +1030,9 @@ func (term *WindowsTerminal) HandleInputSequence(fd uintptr, command []byte) (n 
 	return 0, nil
 }
 
-func marshal(c COORD) uint32 {
+func marshal(c COORD) uintptr {
 	// works only on intel-endian machines
-	return uint32(uint32(uint16(c.Y))<<16 | uint32(uint16(c.X)))
+	return uintptr(uint32(uint32(uint16(c.Y))<<16 | uint32(uint16(c.X))))
 }
 
 // IsTerminal returns true if the given file descriptor is a terminal.

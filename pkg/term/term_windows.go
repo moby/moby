@@ -2,8 +2,9 @@
 package term
 
 import (
-	"github.com/docker/docker/pkg/term/winconsole"
 	"io"
+
+	"github.com/docker/docker/pkg/term/winconsole"
 )
 
 // State holds the console mode for the terminal.
@@ -112,6 +113,6 @@ func GetFdInfo(in interface{}) (uintptr, bool) {
 	return winconsole.GetHandleInfo(in)
 }
 
-func StdStreams() (stdOut io.Writer, stdErr io.Writer, stdIn io.ReadCloser) {
+func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	return winconsole.StdStreams()
 }
