@@ -195,7 +195,7 @@ the branch to your fork on GitHub:
 
 9. Sign and commit your change.
 
-        $ git -s -m "Making a dry run test."
+        $ git commit -s -m "Making a dry run test."
         [dry-run-test 6e728fb] Making a dry run test
          1 file changed, 1 insertion(+)
          create mode 100644 TEST.md

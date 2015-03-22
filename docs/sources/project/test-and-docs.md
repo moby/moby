@@ -2,13 +2,6 @@ page_title: Run tests and test documentation
 page_description: Describes Docker's testing infrastructure
 page_keywords: make test, make docs, Go tests, gofmt, contributing, running tests
 
-<!-- TODO (@thaJeztah) remove after docs/base is updated -->
-<style type="text/css">
-.tg  {border-collapse:collapse;border-spacing:0;margin-bottom:15px;}
-.tg td{padding:5px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
-.tg th{padding:5px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;text-align:left;}
-</style>
-
 # Run tests and test documentation
 
 Contributing includes testing your changes. If you change the Docker code, you
@@ -59,35 +52,35 @@ The `Makefile` contains a target for the entire test suite. The target's name
 is simply `test`. The make file contains several targets for testing:
 
 <style type="text/css">
-.make-target {font-family:"Courier New", Courier, monospace !important;}
+.monospaced {font-family: Monaco, Consolas, "Lucida Console", monospace !important;}
 </style>
-<table class="tg">
+<table>
   <tr>
     <th>Target</th>
     <th>What this target does</th>
   </tr>
   <tr>
-    <td class="make-target">test</td>
+    <td class="monospaced">test</td>
     <td>Run all the tests.</td>
   </tr>
   <tr>
-    <td class="make-target">test-unit</td>
+    <td class="monospaced">test-unit</td>
     <td>Run just the unit tests.</td>
   </tr>
   <tr>
-    <td class="make-target">test-integration</td>
+    <td class="monospaced">test-integration</td>
     <td>Run just integration tests.</td>
   </tr>
   <tr>
-    <td class="make-target">test-integration-cli</td>
+    <td class="monospaced">test-integration-cli</td>
     <td>Run the test for the integration command line interface.</td>
   </tr>
   <tr>
-    <td class="make-target">test-docker-py</td>
+    <td class="monospaced">test-docker-py</td>
     <td>Run the tests for Docker API client.</td>
   </tr>
   <tr>
-    <td class="make-target">docs-test</td>
+    <td class="monospaced">docs-test</td>
     <td>Runs the documentation test build.</td>
   </tr>
 </table>
@@ -133,7 +126,7 @@ Run the entire test suite on your current repository:
 ### Run test targets inside the development container
 
 If you are working inside a Docker development container, you use the
-`project/make.sh` script to run tests. The `project/make.sh` script doesn't
+`hack/make.sh` script to run tests. The `hack/make.sh` script doesn't
 have a single target that runs all the tests. Instead, you provide a single
 commmand line with multiple targets that does the same thing.
 
@@ -148,9 +141,9 @@ Try this now.
 
         $ docker run --privileged --rm -ti -v `pwd`:/go/src/github.com/docker/docker dry-run-test /bin/bash
 
-3. Run the tests using the `project/make.sh` script.
+3. Run the tests using the `hack/make.sh` script.
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker# project/make.sh dynbinary binary cross test-unit test-integration test-integration-cli test-docker-py
+        root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-unit test-integration test-integration-cli test-docker-py
 
     The tests run just as they did within your local host.
 
@@ -158,7 +151,7 @@ Try this now.
 Of course, you can also run a subset of these targets too. For example, to run
 just the unit tests:
 
-    root@5f8630b873fe:/go/src/github.com/docker/docker# project/make.sh dynbinary binary cross test-unit
+    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-unit
 
 Most test targets require that you build these precursor targets first:
 `dynbinary binary cross`
@@ -174,7 +167,7 @@ your local host you can run the `TestBuild` test with this command:
 
 To run the same test inside your Docker development container, you do this:
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-run ^TestBuild$' project/make.sh
+    root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-run ^TestBuild$' hack/make.sh
 
 ## If test under Boot2Docker fail do to space errors
 

@@ -2,14 +2,6 @@ page_title: Work with a development container
 page_description: How to use Docker's development environment
 page_keywords: development, inception, container, image Dockerfile, dependencies, Go, artifacts
 
-
-<!-- TODO (@thaJeztah) remove after docs/base is updated -->
-<style type="text/css">
-.tg   {border-collapse:collapse;border-spacing:0;}
-.tg td{font-family:monospace, serif;font-size:11px;padding:10px 5px;border-style:solid;border-width:0px;overflow:hidden;word-break:normal;}
-.tg th{font-family:monospace, sans-serif;font-size:11px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:0px;overflow:hidden;word-break:normal;}
-</style>
-
 # Work with a development container
 
 In this section, you learn to develop like a member of Docker's core team.
@@ -23,7 +15,7 @@ You use the `docker` repository and its `Dockerfile` to create a Docker image,
 run a Docker container, and develop code in the container. Docker itself builds,
 tests, and releases new Docker versions using this container.
 
-If you followed the procedures that <a href="../set-up-prereqs" target="_blank">
+If you followed the procedures that <a href="./set-up-prereqs" target="_blank">
 set up the prerequisites</a>, you should have a fork of the `docker/docker`
 repository. You also created a branch called `dry-run-test`. In this section,
 you continue working with your fork on this branch.
@@ -44,7 +36,7 @@ To remove unnecessary artifacts.
 
     You should see something similar to the following:
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>CONTAINER ID</th>
         <th>IMAGE</th>
@@ -66,7 +58,7 @@ To remove unnecessary artifacts.
 
     You should see something similar to the following:
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>REPOSITORY</th>
         <th>TAG</th>
@@ -99,7 +91,7 @@ environment.
 1. Open a terminal.
 
     Mac users, use `boot2docker status` to make sure Boot2Docker is running. You
-    may need to run `$(boot2docker shellinit)` to initialize your shell
+    may need to run `eval "$(boot2docker shellinit)"` to initialize your shell
     environment.
 
 3. Change into the root of your forked repository.
@@ -128,7 +120,7 @@ environment.
 
     You should see something similar to this:
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>REPOSTITORY</th>
         <th>TAG</th>
@@ -202,7 +194,7 @@ build and run a `docker` binary in your container.
 
     ![Multiple terminals](/project/images/three_terms.png)
 
-    Mac OSX users, make sure you run `$(boot2docker shellinit)` in any new 
+    Mac OSX users, make sure you run `eval "$(boot2docker shellinit)"` in any new 
     terminals.
 
 2. In a terminal, create a new container from your `dry-run-test` image.
@@ -242,9 +234,9 @@ build and run a `docker` binary in your container.
 
 4. From the `/go/src/github.com/docker/docker` directory make a `docker` binary with the `make.sh` script.
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker# project/make.sh binary
+        root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh binary
 
-    You only call `project/make.sh` to build a binary _inside_ a Docker
+    You only call `hack/make.sh` to build a binary _inside_ a Docker
     development container as you are now. On your host, you'll use `make`
     commands (more about this later). 
 
@@ -292,7 +284,7 @@ build and run a `docker` binary in your container.
 
         $ docker ps
 
-    <table class="tg code">
+    <table class="code">
       <tr>
         <th>CONTAINER ID</th>
         <th>IMAGE</th>
