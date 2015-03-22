@@ -114,12 +114,12 @@ func mainDaemon() {
 			return
 		}
 
-		logrus.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
-			dockerversion.VERSION,
-			dockerversion.GITCOMMIT,
-			d.ExecutionDriver().Name(),
-			d.GraphDriver().String(),
-		)
+		logrus.WithFields(logrus.Fields{
+			"version":     dockerversion.VERSION,
+			"commit":      dockerversion.GITCOMMIT,
+			"execdriver":  d.ExecutionDriver().Name(),
+			"graphdriver": d.GraphDriver().String(),
+		}).Info("Docker daemon")
 
 		if err := d.Install(eng); err != nil {
 			daemonInitWait <- err
