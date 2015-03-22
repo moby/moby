@@ -1,9 +1,11 @@
 package graph
 
 import (
+	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -35,6 +37,10 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 	}
 
 	if src == "-" {
+		if valid, err := validImageTar(job.Stdin); !valid && err != nil {
+			return err
+		}
+
 		archive = job.Stdin
 	} else {
 		u, err := url.Parse(src)
@@ -96,4 +102,22 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 		logrus.Errorf("Error logging event 'import' for %s: %s", logID, err)
 	}
 	return nil
+}
+
+func validImageTar(reader io.Reader) (bool, error) {
+	tr := tar.NewReader(reader)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return false, err
+		}
+		if hdr.Name == "repositories" {
+			return false, fmt.Errorf("Looks like you are trying to import a previously saved image. Did you mean to use docker load instead?")
+		}
+	}
+
+	return true, nil
 }

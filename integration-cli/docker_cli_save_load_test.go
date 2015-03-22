@@ -47,7 +47,7 @@ func TestSaveXzAndLoadRepoStdout(t *testing.T) {
 		exec.Command("xz", "-c"),
 		exec.Command("gzip", "-c"))
 	if err != nil {
-		t.Fatalf("failed to save repo: %v %v", out, err)
+		t.Fatalf("failed to save repo: %v %v", repoTarball, err)
 	}
 	deleteImages(repoName)
 
