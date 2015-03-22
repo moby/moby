@@ -3348,3 +3348,46 @@ func TestRunVolumesFromRestartAfterRemoved(t *testing.T) {
 
 	logDone("run - can restart a volumes-from container after producer is removed")
 }
+
+// run container with --rm should remove container if exit code != 0
+func TestRunContainerWithRmFlagExitCodeNotEqualToZero(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "ls", "/notexists")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatal("Expected docker run to fail", out, err)
+	}
+
+	out, err = getAllContainers()
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if out != "" {
+		t.Fatal("Expected not to have containers", out)
+	}
+
+	logDone("run - container is removed if run with --rm and exit code != 0")
+}
+
+func TestRunContainerWithRmFlagCannotStartContainer(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "commandNotFound")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatal("Expected docker run to fail", out, err)
+	}
+
+	out, err = getAllContainers()
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if out != "" {
+		t.Fatal("Expected not to have containers", out)
+	}
+
+	logDone("run - container is removed if run with --rm and cannot start")
+}
