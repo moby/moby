@@ -192,7 +192,9 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 	if status := engine.Tail(stdoutBuffer, 1); status != "" {
 		var env engine.Env
 		env.Set("Status", status)
-		return writeJSONEnv(w, http.StatusOK, env)
+		return writeJSON(w, http.StatusOK, &types.AuthResponse{
+			Status: status,
+		})
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
