@@ -46,6 +46,7 @@ pages:
 - ['installation/gentoolinux.md', 'Installation', 'Gentoo']
 - ['installation/softlayer.md', 'Installation', 'IBM Softlayer']
 - ['installation/joyent.md', 'Installation', 'Joyent Compute Service']
+- ['installation/azure.md', 'Installation', 'Microsoft Azure']
 - ['installation/rackspace.md', 'Installation', 'Rackspace Cloud']
 - ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
 - ['installation/oracle.md', 'Installation', 'Oracle Linux']

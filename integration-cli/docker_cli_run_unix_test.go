@@ -109,23 +109,6 @@ func TestRunWithUlimits(t *testing.T) {
 	logDone("run - ulimits are set")
 }
 
-func getCgroupPaths(test string) map[string]string {
-	cgroupPaths := map[string]string{}
-	for _, line := range strings.Split(test, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		parts := strings.Split(line, ":")
-		if len(parts) != 3 {
-			fmt.Printf("unexpected file format for /proc/self/cgroup - %q\n", line)
-			continue
-		}
-		cgroupPaths[parts[1]] = parts[2]
-	}
-	return cgroupPaths
-}
-
 func TestRunContainerWithCgroupParent(t *testing.T) {
 	testRequires(t, NativeExecDriver)
 	defer deleteAllContainers()
@@ -135,7 +118,7 @@ func TestRunContainerWithCgroupParent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read '/proc/self/cgroup - %v", err)
 	}
-	selfCgroupPaths := getCgroupPaths(string(data))
+	selfCgroupPaths := parseCgroupPaths(string(data))
 	selfCpuCgroup, found := selfCgroupPaths["memory"]
 	if !found {
 		t.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
@@ -145,7 +128,7 @@ func TestRunContainerWithCgroupParent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
-	cgroupPaths := getCgroupPaths(string(out))
+	cgroupPaths := parseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		t.Fatalf("unexpected output - %q", string(out))
 	}
@@ -173,7 +156,7 @@ func TestRunContainerWithCgroupParentAbsPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
-	cgroupPaths := getCgroupPaths(string(out))
+	cgroupPaths := parseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		t.Fatalf("unexpected output - %q", string(out))
 	}

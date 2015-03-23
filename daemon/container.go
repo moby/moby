@@ -1223,6 +1223,7 @@ func (container *Container) initializeNetworking() error {
 		if err != nil {
 			return err
 		}
+		container.HostnamePath = nc.HostnamePath
 		container.HostsPath = nc.HostsPath
 		container.ResolvConfPath = nc.ResolvConfPath
 		container.Config.Hostname = nc.Config.Hostname

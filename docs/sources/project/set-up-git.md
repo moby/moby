@@ -138,7 +138,7 @@ As you change code in your fork, you make your changes on a repository branch.
 The branch name should reflect what you are working on. In this section, you
 create a branch, make a change, and push it up to your fork. 
 
-This branch is just for testing your config for this guide. The changes arepart
+This branch is just for testing your config for this guide. The changes are part
 of a dry run so the branch name is going to be dry-run-test. To create an push
 the branch to your fork on GitHub:
 

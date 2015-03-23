@@ -412,6 +412,31 @@ func TestRunLinkToContainerNetMode(t *testing.T) {
 	logDone("run - link to a container which net mode is container success")
 }
 
+func TestRunModeNetContainerHostname(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "--name", "parent", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "exec", "parent", "cat", "/etc/hostname")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to exec command: %v, output: %q", err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--net=container:parent", "busybox", "cat", "/etc/hostname")
+	out1, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out1)
+	}
+	if out1 != out {
+		t.Fatal("containers with shared net namespace should have same hostname")
+	}
+
+	logDone("run - containers with shared net namespace have same hostname")
+}
+
 // Regression test for #4741
 func TestRunWithVolumesAsFiles(t *testing.T) {
 	defer deleteAllContainers()

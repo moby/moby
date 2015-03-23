@@ -1,6 +1,6 @@
 page_title: Create a pull request (PR)
 page_description: Basic workflow for Docker contributions
-page_keywords: contribute, pull request, review, workflow, white-belt, black-belt, squash, commit
+page_keywords: contribute, pull request, review, workflow, beginner, squash, commit
 
 # Create a pull request (PR)
 
