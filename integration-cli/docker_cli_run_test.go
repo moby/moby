@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/docker/pkg/resolvconf"
 )
 
 // "test123" should be printed by docker run
