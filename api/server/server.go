@@ -185,6 +185,7 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 		return err
 	}
 	job.Setenv("authConfig", string(authConfig))
+	job.SetenvBool("insecure", r.FormValue("insecure") == "1")
 	job.Stdout.Add(stdoutBuffer)
 	if err = job.Run(); err != nil {
 		return err
@@ -574,7 +575,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job.SetenvBool("parallel", version.GreaterThan("1.3"))
 		job.SetenvJson("metaHeaders", metaHeaders)
 		job.SetenvJson("authConfig", authConfig)
-		job.SetenvBool("allowInsecure", r.FormValue("allowInsecure") == "1")
+		job.SetenvBool("insecure", r.FormValue("insecure") == "1")
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -667,7 +668,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	job := eng.Job("push", vars["name"])
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
-	job.SetenvBool("allowInsecure", r.FormValue("allowInsecure") == "1")
+	job.SetenvBool("insecure", r.FormValue("insecure") == "1")
 	job.Setenv("tag", r.Form.Get("tag"))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
