@@ -13,12 +13,8 @@ type FreezerGroup struct {
 
 func (s *FreezerGroup) Apply(d *data) error {
 	dir, err := d.join("freezer")
-	if err != nil {
-		if cgroups.IsNotFound(err) {
-			return nil
-		} else {
-			return err
-		}
+	if err != nil && !cgroups.IsNotFound(err) {
+		return err
 	}
 
 	if err := s.Set(dir, d.c); err != nil {
