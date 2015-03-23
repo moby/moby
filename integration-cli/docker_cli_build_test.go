@@ -5487,7 +5487,7 @@ func TestBuildRUNoneJSON(t *testing.T) {
 	name := "testbuildrunonejson"
 
 	defer deleteAllContainers()
-	defer deleteImages(name)
+	defer deleteImages(name, "hello-world")
 
 	ctx, err := fakeContext(`FROM hello-world:frozen
 RUN [ "/hello" ]`, map[string]string{})
@@ -5513,7 +5513,7 @@ RUN [ "/hello" ]`, map[string]string{})
 func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 	name := "testbuildresourceconstraints"
 	defer deleteAllContainers()
-	defer deleteImages(name)
+	defer deleteImages(name, "hello-world")
 
 	ctx, err := fakeContext(`
 	FROM hello-world:frozen
