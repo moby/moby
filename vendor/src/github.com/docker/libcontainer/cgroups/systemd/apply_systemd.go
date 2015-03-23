@@ -91,7 +91,7 @@ func UseSystemd() bool {
 		ddf := newProp("DefaultDependencies", false)
 		if _, err := theConn.StartTransientUnit("docker-systemd-test-default-dependencies.scope", "replace", ddf); err != nil {
 			if dbusError, ok := err.(dbus.Error); ok {
-				if dbusError.Name == "org.freedesktop.DBus.Error.PropertyReadOnly" {
+				if dbusError.Name == "org.freedesktop.DBus.Error.PropertyReadOnly" || dbusError.Name == "org.freedesktop.systemd1.UnitExists" {
 					hasTransientDefaultDependencies = false
 				}
 			}
