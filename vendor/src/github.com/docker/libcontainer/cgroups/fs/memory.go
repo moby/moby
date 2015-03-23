@@ -16,12 +16,9 @@ type MemoryGroup struct {
 
 func (s *MemoryGroup) Apply(d *data) error {
 	dir, err := d.join("memory")
-	if err != nil {
-		if cgroups.IsNotFound(err) {
-			return nil
-		} else {
-			return err
-		}
+	// only return an error for memory if it was specified
+	if err != nil && (d.c.Memory != 0 || d.c.MemoryReservation != 0 || d.c.MemorySwap != 0) {
+		return err
 	}
 	defer func() {
 		if err != nil {
