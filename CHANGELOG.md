@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.0 (2015-04-07)
+
+#### Builder
++ Building images from an image ID
++ `commit --change` to apply specified Dockerfile instructions while committing the image
++ `import --change` to apply specified Dockerfile instructions while importing the image
+
+#### Client
++ Windows Support
+
+#### Runtime
++ Container and image Labels
++ `--cgroup-parent` for specifying a parent cgroup to place container cgroup within
++ Logging drivers, `json-file` or `syslog`
++ Pulling images by ID
++ `--ulimit` to set the ulimit on a container
+
 ## 1.5.0 (2015-02-10)
 
 #### Builder
