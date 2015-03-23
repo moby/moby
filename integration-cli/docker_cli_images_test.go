@@ -166,6 +166,7 @@ func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 			if lenth == 0 {
 				continue
 			}
+			fmt.Print("Split intervals:", 0, date_start, date_end, lenth)
 			str = (str[0:date_start] + str[date_end:lenth])
 		}
 
