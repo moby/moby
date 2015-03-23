@@ -450,17 +450,18 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if err != nil {
 		return err
 	}
-	var out2 engine.Env
-	err = out2.Decode(stream)
-	if err != nil {
+
+	var response types.AuthResponse
+	if err := json.NewDecoder(stream).Decode(response); err != nil {
 		cli.configFile, _ = registry.LoadConfig(homedir.Get())
 		return err
 	}
+
 	registry.SaveConfig(cli.configFile)
 	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", path.Join(homedir.Get(), registry.CONFIGFILE))
 
-	if out2.Get("Status") != "" {
-		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
+	if response.Status != "" {
+		fmt.Fprintf(cli.out, "%s\n", response.Status)
 	}
 	return nil
 }
