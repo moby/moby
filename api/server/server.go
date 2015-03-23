@@ -1155,10 +1155,11 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 		return nil
 	}
 	var (
-		out          engine.Env
 		name         = vars["name"]
 		job          = eng.Job("execCreate", name)
 		stdoutBuffer = bytes.NewBuffer(nil)
+		outWarnings  []string
+		warnings     = bytes.NewBuffer(nil)
 	)
 
 	if err := job.DecodeEnv(r.Body); err != nil {
@@ -1166,15 +1167,23 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 	}
 
 	job.Stdout.Add(stdoutBuffer)
+	// Read warnings from stderr
+	job.Stderr.Add(warnings)
 	// Register an instance of Exec in container.
 	if err := job.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error setting up exec command in container %s: %s\n", name, err)
 		return err
 	}
-	// Return the ID
-	out.Set("Id", engine.Tail(stdoutBuffer, 1))
+	// Parse warnings from stderr
+	scanner := bufio.NewScanner(warnings)
+	for scanner.Scan() {
+		outWarnings = append(outWarnings, scanner.Text())
+	}
 
-	return writeJSONEnv(w, http.StatusCreated, out)
+	return writeJSON(w, http.StatusCreated, &types.ContainerExecCreateResponse{
+		ID:       engine.Tail(stdoutBuffer, 1),
+		Warnings: outWarnings,
+	})
 }
 
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
