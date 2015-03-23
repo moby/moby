@@ -659,7 +659,7 @@ func networkSetNsAction(iface *net.Interface, rtattr *RtAttr) error {
 }
 
 // Move a particular network interface to a particular network namespace
-// specified by PID. This is idential to running: ip link set dev $name netns $pid
+// specified by PID. This is identical to running: ip link set dev $name netns $pid
 func NetworkSetNsPid(iface *net.Interface, nspid int) error {
 	data := uint32Attr(syscall.IFLA_NET_NS_PID, uint32(nspid))
 	return networkSetNsAction(iface, data)
@@ -673,7 +673,7 @@ func NetworkSetNsFd(iface *net.Interface, fd int) error {
 	return networkSetNsAction(iface, data)
 }
 
-// Rname a particular interface to a different name
+// Rename a particular interface to a different name
 // !!! Note that you can't rename an active interface. You need to bring it down before renaming it.
 // This is identical to running: ip link set dev ${oldName} name ${newName}
 func NetworkChangeName(iface *net.Interface, newName string) error {
