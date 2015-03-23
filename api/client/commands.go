@@ -2495,6 +2495,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 
+	defer func() {
+		if *flAutoRemove {
+			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, false)); err != nil {
+				log.Errorf("Error deleting container: %s", err)
+			}
+		}
+	}()
+
 	//start the container
 	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, false)); err != nil {
 		return err
@@ -2530,9 +2538,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
-			return err
-		}
-		if _, _, err := readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, false)); err != nil {
 			return err
 		}
 	} else {
