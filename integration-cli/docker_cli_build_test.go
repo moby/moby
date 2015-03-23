@@ -3504,7 +3504,7 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	defer deleteImages(name)
 	_, err := buildImage(name, ``, true)
 	if err != nil {
-		if !strings.Contains(err.Error(), "Dockerfile cannot be empty") {
+		if !strings.Contains(err.Error(), "The Dockerfile (Dockerfile) cannot be empty") {
 			t.Fatalf("Wrong error %v, must be about empty Dockerfile", err)
 		}
 	} else {
