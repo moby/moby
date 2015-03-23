@@ -8,16 +8,19 @@ import (
 	"regexp"
 )
 
+// Structure for a single host record
 type Record struct {
 	Hosts string
 	IP    string
 }
 
+// Writes record to file and returns bytes written or error
 func (r Record) WriteTo(w io.Writer) (int64, error) {
 	n, err := fmt.Fprintf(w, "%s\t%s\n", r.IP, r.Hosts)
 	return int64(n), err
 }
 
+// Default hosts config records slice
 var defaultContent = []Record{
 	{Hosts: "localhost", IP: "127.0.0.1"},
 	{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
@@ -27,9 +30,14 @@ var defaultContent = []Record{
 	{Hosts: "ip6-allrouters", IP: "ff02::2"},
 }
 
+// Build function
+// path is path to host file string required
+// IP, hostname, and domainname set main record leave empty for no master record
+// extraContent is an array of extra host records.
 func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 	content := bytes.NewBuffer(nil)
 	if IP != "" {
+		//set main record
 		var mainRec Record
 		mainRec.IP = IP
 		if domainname != "" {
@@ -41,13 +49,13 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 			return err
 		}
 	}
-
+	// Write defaultContent slice to buffer
 	for _, r := range defaultContent {
 		if _, err := r.WriteTo(content); err != nil {
 			return err
 		}
 	}
-
+	// Write extra content from function arguments
 	for _, r := range extraContent {
 		if _, err := r.WriteTo(content); err != nil {
 			return err
@@ -57,6 +65,10 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
 }
 
+// Update all IP addresses where hostname matches.
+// path is path to host file
+// IP is new IP address
+// hostname is hostname to search for to replace IP
 func Update(path, IP, hostname string) error {
 	old, err := ioutil.ReadFile(path)
 	if err != nil {
