@@ -312,7 +312,11 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		var str string
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
-			str = b.replaceEnv(ast.Value)
+			var err error
+			str, err = ProcessWord(ast.Value, b.Config.Env)
+			if err != nil {
+				return err
+			}
 		}
 		strList[i+l] = str
 		msgList[i] = ast.Value

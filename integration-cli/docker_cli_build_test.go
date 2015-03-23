@@ -241,9 +241,18 @@ func TestBuildEnvironmentReplacementEnv(t *testing.T) {
 
 	_, err := buildImage(name,
 		`
-  FROM scratch
-  ENV foo foo
+  FROM busybox
+  ENV foo zzz
   ENV bar ${foo}
+  ENV abc1='$foo'
+  ENV env1=$foo env2=${foo} env3="$foo" env4="${foo}"
+  RUN [ "$abc1" = '$foo' ] && (echo "$abc1" | grep -q foo)
+  ENV abc2="\$foo"
+  RUN [ "$abc2" = '$foo' ] && (echo "$abc2" | grep -q foo)
+  ENV abc3 '$foo'
+  RUN [ "$abc3" = '$foo' ] && (echo "$abc3" | grep -q foo)
+  ENV abc4 "\$foo"
+  RUN [ "$abc4" = '$foo' ] && (echo "$abc4" | grep -q foo)
   `, true)
 
 	if err != nil {
@@ -262,19 +271,29 @@ func TestBuildEnvironmentReplacementEnv(t *testing.T) {
 	}
 
 	found := false
+	envCount := 0
 
 	for _, env := range envResult {
 		parts := strings.SplitN(env, "=", 2)
 		if parts[0] == "bar" {
 			found = true
-			if parts[1] != "foo" {
-				t.Fatalf("Could not find replaced var for env `bar`: got %q instead of `foo`", parts[1])
+			if parts[1] != "zzz" {
+				t.Fatalf("Could not find replaced var for env `bar`: got %q instead of `zzz`", parts[1])
+			}
+		} else if strings.HasPrefix(parts[0], "env") {
+			envCount++
+			if parts[1] != "zzz" {
+				t.Fatalf("%s should be 'foo' but instead its %q", parts[0], parts[1])
 			}
 		}
 	}
 
 	if !found {
 		t.Fatal("Never found the `bar` env variable")
+	}
+
+	if envCount != 4 {
+		t.Fatalf("Didn't find all env vars - only saw %d\n%s", envCount, envResult)
 	}
 
 	logDone("build - env environment replacement")
@@ -363,8 +382,8 @@ func TestBuildHandleEscapes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, ok := result[`\\\\\\${FOO}`]; !ok {
-		t.Fatal(`Could not find volume \\\\\\${FOO} set from env foo in volumes table`)
+	if _, ok := result[`\\\${FOO}`]; !ok {
+		t.Fatal(`Could not find volume \\\${FOO} set from env foo in volumes table`, result)
 	}
 
 	logDone("build - handle escapes")
@@ -2256,7 +2275,7 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 
 func TestBuildWorkdirWithEnvVariables(t *testing.T) {
 	name := "testbuildworkdirwithenvvariables"
-	expected := "/test1/test2/$MISSING_VAR"
+	expected := "/test1/test2"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
@@ -4025,9 +4044,9 @@ ENV    abc=zzz TO=/docker/world/hello
 ADD    $FROM $TO
 RUN    [ "$(cat $TO)" = "hello" ]
 ENV    abc "zzz"
-RUN    [ $abc = \"zzz\" ]
+RUN    [ $abc = "zzz" ]
 ENV    abc 'yyy'
-RUN    [ $abc = \'yyy\' ]
+RUN    [ $abc = 'yyy' ]
 ENV    abc=
 RUN    [ "$abc" = "" ]
 
@@ -4043,13 +4062,34 @@ RUN    [ "$abc" = "'foo'" ]
 ENV    abc=\"foo\"
 RUN    [ "$abc" = "\"foo\"" ]
 ENV    abc "foo"
-RUN    [ "$abc" = "\"foo\"" ]
+RUN    [ "$abc" = "foo" ]
 ENV    abc 'foo'
-RUN    [ "$abc" = "'foo'" ]
+RUN    [ "$abc" = 'foo' ]
 ENV    abc \'foo\'
-RUN    [ "$abc" = "\\'foo\\'" ]
+RUN    [ "$abc" = "'foo'" ]
 ENV    abc \"foo\"
-RUN    [ "$abc" = "\\\"foo\\\"" ]
+RUN    [ "$abc" = '"foo"' ]
+
+ENV    e1=bar
+ENV    e2=$e1
+ENV    e3=$e11
+ENV    e4=\$e1
+ENV    e5=\$e11
+RUN    [ "$e0,$e1,$e2,$e3,$e4,$e5" = ',bar,bar,,$e1,$e11' ]
+
+ENV    ee1 bar
+ENV    ee2 $ee1
+ENV    ee3 $ee11
+ENV    ee4 \$ee1
+ENV    ee5 \$ee11
+RUN    [ "$ee1,$ee2,$ee3,$ee4,$ee5" = 'bar,bar,,$ee1,$ee11' ]
+
+ENV    eee1="foo"
+ENV    eee2='foo'
+ENV    eee3 "foo"
+ENV    eee4 'foo'
+RUN    [ "$eee1,$eee2,$eee3,$eee4" = 'foo,foo,foo,foo' ]
+
 `
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"hello/docker/world": "hello",
