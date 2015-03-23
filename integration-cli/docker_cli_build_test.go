@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -1922,6 +1924,132 @@ func TestBuildForceRm(t *testing.T) {
 	}
 
 	logDone("build - ensure --force-rm doesn't leave containers behind")
+}
+
+// Test that an infinite sleep during a build is killed if the client disconnects.
+// This test is fairly hairy because there are lots of ways to race.
+// Strategy:
+// * Monitor the output of docker events starting from before
+// * Run a 1-year-long sleep from a docker build.
+// * When docker events sees container start, close the "docker build" command
+// * Wait for docker events to emit a dying event.
+func TestBuildCancelationKillsSleep(t *testing.T) {
+	// TODO(jfrazelle): Make this work on Windows.
+	testRequires(t, SameHostDaemon)
+
+	name := "testbuildcancelation"
+	defer deleteImages(name)
+
+	// (Note: one year, will never finish)
+	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	finish := make(chan struct{})
+	defer close(finish)
+
+	eventStart := make(chan struct{})
+	eventDie := make(chan struct{})
+
+	// Start one second ago, to avoid rounding problems
+	startEpoch := time.Now().Add(-1 * time.Second)
+
+	// Goroutine responsible for watching start/die events from `docker events`
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// Watch for events since epoch.
+		eventsCmd := exec.Command(dockerBinary, "events",
+			"-since", fmt.Sprint(startEpoch.Unix()))
+		stdout, err := eventsCmd.StdoutPipe()
+		err = eventsCmd.Start()
+		if err != nil {
+			t.Fatalf("failed to start 'docker events': %s", err)
+		}
+
+		go func() {
+			<-finish
+			eventsCmd.Process.Kill()
+		}()
+
+		var started, died bool
+		matchStart := regexp.MustCompile(" \\(from busybox\\:latest\\) start$")
+		matchDie := regexp.MustCompile(" \\(from busybox\\:latest\\) die$")
+
+		//
+		// Read lines of `docker events` looking for container start and stop.
+		//
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			if ok := matchStart.MatchString(scanner.Text()); ok {
+				if started {
+					t.Fatal("assertion fail: more than one container started")
+				}
+				close(eventStart)
+				started = true
+			}
+			if ok := matchDie.MatchString(scanner.Text()); ok {
+				if died {
+					t.Fatal("assertion fail: more than one container died")
+				}
+				close(eventDie)
+				died = true
+			}
+		}
+
+		err = eventsCmd.Wait()
+		if err != nil && !IsKilled(err) {
+			t.Fatalf("docker events had bad exit status: %s", err)
+		}
+	}()
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
+	buildCmd.Dir = ctx.Dir
+	buildCmd.Stdout = os.Stdout
+
+	err = buildCmd.Start()
+	if err != nil {
+		t.Fatalf("failed to run build: %s", err)
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		t.Fatal("failed to observe build container start in timely fashion")
+	case <-eventStart:
+		// Proceeds from here when we see the container fly past in the
+		// output of "docker events".
+		// Now we know the container is running.
+	}
+
+	// Send a kill to the `docker build` command.
+	// Causes the underlying build to be cancelled due to socket close.
+	err = buildCmd.Process.Kill()
+	if err != nil {
+		t.Fatalf("error killing build command: %s", err)
+	}
+
+	// Get the exit status of `docker build`, check it exited because killed.
+	err = buildCmd.Wait()
+	if err != nil && !IsKilled(err) {
+		t.Fatalf("wait failed during build run: %T %s", err, err)
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		// If we don't get here in a timely fashion, it wasn't killed.
+		t.Fatal("container cancel did not succeed")
+	case <-eventDie:
+		// We saw the container shut down in the `docker events` stream,
+		// as expected.
+	}
+
+	logDone("build - ensure canceled job finishes immediately")
 }
 
 func TestBuildRm(t *testing.T) {

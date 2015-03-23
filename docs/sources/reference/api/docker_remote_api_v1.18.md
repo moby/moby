@@ -1144,6 +1144,9 @@ The archive may include any number of other files,
 which will be accessible in the build context (See the [*ADD build
 command*](/reference/builder/#dockerbuilder)).
 
+The build will also be canceled if the client drops the connection by quitting
+or being killed.
+
 Query Parameters:
 
 -   **dockerfile** - path within the build context to the Dockerfile. This is 

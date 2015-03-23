@@ -1087,6 +1087,20 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
 	job.Setenv("cpushares", r.FormValue("cpushares"))
 
+	// Job cancellation. Note: not all job types support this.
+	if closeNotifier, ok := w.(http.CloseNotifier); ok {
+		finished := make(chan struct{})
+		defer close(finished)
+		go func() {
+			select {
+			case <-finished:
+			case <-closeNotifier.CloseNotify():
+				log.Infof("Client disconnected, cancelling job: %v", job)
+				job.Cancel()
+			}
+		}()
+	}
+
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
 			return err
