@@ -1,4 +1,4 @@
-// builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
+// Package builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
 //
 // It incorporates a dispatch table based on the parser.Node values (see the
 // parser package for more information) that are yielded from the parser itself.
