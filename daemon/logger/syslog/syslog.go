@@ -28,7 +28,7 @@ func New(tag string) (logger.Logger, error) {
 }
 
 func (s *Syslog) Log(msg *logger.Message) error {
-	logMessage := fmt.Sprintf("%s: %s", s.tag, string(msg.Line))
+	logMessage := fmt.Sprintf("%s: %s", s.tag, msg.Line)
 	if msg.Source == "stderr" {
 		return s.writer.Err(logMessage)
 	}
