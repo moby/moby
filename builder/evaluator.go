@@ -20,7 +20,6 @@
 package builder
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -40,10 +39,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-)
-
-var (
-	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
 // Environment variable interpolation will happen on these statements only.
@@ -225,7 +220,7 @@ func (b *Builder) readDockerfile() error {
 		return fmt.Errorf("Cannot locate specified Dockerfile: %s", origFile)
 	}
 	if fi.Size() == 0 {
-		return ErrDockerfileEmpty
+		return fmt.Errorf("The Dockerfile (%s) cannot be empty", origFile)
 	}
 
 	f, err := os.Open(filename)
