@@ -164,7 +164,10 @@ func decodeAuth(authStr string) (string, string, error) {
 // FIXME: use the internal golang config parser
 func LoadConfig(rootPath string) (*ConfigFile, error) {
 	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
-	confFile := path.Join(rootPath, CONFIGFILE)
+	confFile := os.Getenv("DOCKER_CFG")
+	if confFile == "" {
+		confFile = path.Join(rootPath, CONFIGFILE)
+	}
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
@@ -211,7 +214,10 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 
 // save the auth config
 func SaveConfig(configFile *ConfigFile) error {
-	confFile := path.Join(configFile.rootPath, CONFIGFILE)
+	confFile := os.Getenv("DOCKER_CFG")
+	if confFile == "" {
+		confFile = path.Join(configFile.rootPath, CONFIGFILE)
+	}
 	if len(configFile.Configs) == 0 {
 		os.Remove(confFile)
 		return nil
