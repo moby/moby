@@ -6,7 +6,7 @@ docker-pause - Pause all processes within a container
 
 # SYNOPSIS
 **docker pause**
-CONTAINER
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 
@@ -22,6 +22,9 @@ further details.
 
 # OPTIONS
 There are no available options.
+
+# See also
+**docker-unpause(1)** to unpause all processes within a container.
 
 # HISTORY
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

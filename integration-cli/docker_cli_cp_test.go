@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,7 +59,7 @@ func TestCpGarbagePath(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := filepath.Join("../../../../../../../../../../../../", cpFullPath)
+	path := path.Join("../../../../../../../../../../../../", cpFullPath)
 
 	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 	if err != nil {
@@ -120,11 +122,18 @@ func TestCpRelativePath(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path, _ := filepath.Rel("/", cpFullPath)
+	var relPath string
+	if path.IsAbs(cpFullPath) {
+		// normally this is `filepath.Rel("/", cpFullPath)` but we cannot
+		// get this unix-path manipulation on windows with filepath.
+		relPath = cpFullPath[1:]
+	} else {
+		t.Fatalf("path %s was assumed to be an absolute path", cpFullPath)
+	}
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+relPath, tmpdir)
 	if err != nil {
-		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, path, err)
+		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, relPath, err)
 	}
 
 	file, _ := os.Open(tmpname)
@@ -247,7 +256,7 @@ func TestCpAbsoluteSymlink(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := filepath.Join("/", "container_path")
+	path := path.Join("/", "container_path")
 
 	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 	if err != nil {
@@ -311,7 +320,7 @@ func TestCpSymlinkComponent(t *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := filepath.Join("/", "container_path", cpTestName)
+	path := path.Join("/", "container_path", cpTestName)
 
 	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 	if err != nil {
@@ -339,6 +348,8 @@ func TestCpSymlinkComponent(t *testing.T) {
 
 // Check that cp with unprivileged user doesn't return any error
 func TestCpUnprivilegedUser(t *testing.T) {
+	testRequires(t, UnixCli) // uses chmod/su: not available on windows
+
 	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
 	if err != nil || exitCode != 0 {
 		t.Fatal("failed to create a container", out, err)
@@ -374,6 +385,8 @@ func TestCpUnprivilegedUser(t *testing.T) {
 }
 
 func TestCpVolumePath(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
 	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
 	if err != nil {
 		t.Fatal(err)
@@ -515,4 +528,31 @@ func TestCpToDot(t *testing.T) {
 		t.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")
 	}
 	logDone("cp - to dot path")
+}
+
+func TestCpToStdout(t *testing.T) {
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to create a container:%s\n%s", out, err)
+	}
+
+	cID := stripTrailingCharacters(out)
+	defer deleteContainer(cID)
+
+	out, _, err = dockerCmd(t, "wait", cID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatalf("failed to set up container:%s\n%s", out, err)
+	}
+
+	out, _, err = runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "cp", cID+":/test", "-"),
+		exec.Command("tar", "-vtf", "-"))
+	if err != nil {
+		t.Fatalf("Failed to run commands: %s", err)
+	}
+
+	if !strings.Contains(out, "test") || !strings.Contains(out, "-rw") {
+		t.Fatalf("Missing file from tar TOC:\n%s", out)
+	}
+	logDone("cp - to stdout")
 }

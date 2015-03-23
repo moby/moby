@@ -9,6 +9,9 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
+	testRequires(t, SameHostDaemon, NativeExecDriver)
+	defer deleteAllContainers()
+
 	iface, err := net.InterfaceByName("eth0")
 	if err != nil {
 		t.Skipf("Test not running with `make test`. Interface eth0 not found: %s", err)
@@ -54,7 +57,6 @@ func TestNetworkNat(t *testing.T) {
 	if out, _, err = runCommandWithOutput(killCmd); err != nil {
 		t.Fatalf("failed to kill container: %s, %v", out, err)
 	}
-	deleteAllContainers()
 
 	logDone("network - make sure nat works through the host")
 }

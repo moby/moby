@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/pkg/common"
 )
 
 func TestImagesEnsureImageIsListed(t *testing.T) {
@@ -77,6 +79,60 @@ func TestImagesErrorWithInvalidFilterNameTest(t *testing.T) {
 	logDone("images - invalid filter name check working")
 }
 
+func TestImagesFilterLabel(t *testing.T) {
+	imageName1 := "images_filter_test1"
+	imageName2 := "images_filter_test2"
+	imageName3 := "images_filter_test3"
+	defer deleteAllContainers()
+	defer deleteImages(imageName1)
+	defer deleteImages(imageName2)
+	defer deleteImages(imageName3)
+	image1ID, err := buildImage(imageName1,
+		`FROM scratch
+		 LABEL match me`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	image2ID, err := buildImage(imageName2,
+		`FROM scratch
+		 LABEL match="me too"`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	image3ID, err := buildImage(imageName3,
+		`FROM scratch
+		 LABEL nomatch me`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "images", "--no-trunc", "-q", "-f", "label=match")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.TrimSpace(out)
+
+	if (!strings.Contains(out, image1ID) && !strings.Contains(out, image2ID)) || strings.Contains(out, image3ID) {
+		t.Fatalf("Expected ids %s,%s got %s", image1ID, image2ID, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "images", "--no-trunc", "-q", "-f", "label=match=me too")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	out = strings.TrimSpace(out)
+
+	if out != image2ID {
+		t.Fatalf("Expected %s got %s", image2ID, out)
+	}
+
+	logDone("images - filter label")
+}
+
 func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 	imageName := "images_filter_test"
 	defer deleteAllContainers()
@@ -97,7 +153,7 @@ func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 
 	imageListings := make([][]string, 5, 5)
 	for idx, filter := range filters {
-		cmd := exec.Command(dockerBinary, "images", "-f", filter)
+		cmd := exec.Command(dockerBinary, "images", "-q", "-f", filter)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
 			t.Fatal(err)
@@ -121,4 +177,45 @@ func TestImagesFilterWhiteSpaceTrimmingAndLowerCasingWorking(t *testing.T) {
 	}
 
 	logDone("images - white space trimming and lower casing")
+}
+
+func TestImagesEnsureDanglingImageOnlyListedOnce(t *testing.T) {
+	defer deleteAllContainers()
+
+	// create container 1
+	c := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error running busybox: %s, %v", out, err)
+	}
+	containerId1 := strings.TrimSpace(out)
+
+	// tag as foobox
+	c = exec.Command(dockerBinary, "commit", containerId1, "foobox")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error tagging foobox: %s", err)
+	}
+	imageId := common.TruncateID(strings.TrimSpace(out))
+	defer deleteImages(imageId)
+
+	// overwrite the tag, making the previous image dangling
+	c = exec.Command(dockerBinary, "tag", "-f", "busybox", "foobox")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("error tagging foobox: %s", err)
+	}
+	defer deleteImages("foobox")
+
+	c = exec.Command(dockerBinary, "images", "-q", "-f", "dangling=true")
+	out, _, err = runCommandWithOutput(c)
+	if err != nil {
+		t.Fatalf("listing images failed with errors: %s, %v", out, err)
+	}
+
+	if e, a := 1, strings.Count(out, imageId); e != a {
+		t.Fatalf("expected 1 dangling image, got %d: %s", a, out)
+	}
+
+	logDone("images - dangling image only listed once")
 }

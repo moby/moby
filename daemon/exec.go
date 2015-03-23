@@ -12,10 +12,10 @@ import (
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 type execConfig struct {
@@ -74,7 +74,7 @@ func (execConfig *execConfig) Resize(h, w int) error {
 }
 
 func (d *Daemon) registerExecCommand(execConfig *execConfig) {
-	// Storing execs in container inorder to kill them gracefully whenever the container is stopped or removed.
+	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	execConfig.Container.execCommands.Add(execConfig.ID, execConfig)
 	// Storing execs in daemon for easy access via remote API.
 	d.execCommands.Add(execConfig.ID, execConfig)
@@ -97,10 +97,9 @@ func (d *Daemon) unregisterExecCommand(execConfig *execConfig) {
 }
 
 func (d *Daemon) getActiveContainer(name string) (*Container, error) {
-	container := d.Get(name)
-
-	if container == nil {
-		return nil, fmt.Errorf("No such container: %s", name)
+	container, err := d.Get(name)
+	if err != nil {
+		return nil, err
 	}
 
 	if !container.IsRunning() {
@@ -142,7 +141,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 	}
 
 	execConfig := &execConfig{
-		ID:            utils.GenerateRandomID(),
+		ID:            common.GenerateRandomID(),
 		OpenStdin:     config.AttachStdin,
 		OpenStdout:    config.AttachStdout,
 		OpenStderr:    config.AttachStderr,
@@ -219,7 +218,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) engine.Status {
 		execConfig.StreamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 
-	attachErr := d.attach(&execConfig.StreamConfig, execConfig.OpenStdin, true, execConfig.ProcessConfig.Tty, cStdin, cStdout, cStderr)
+	attachErr := d.Attach(&execConfig.StreamConfig, execConfig.OpenStdin, true, execConfig.ProcessConfig.Tty, cStdin, cStdout, cStderr)
 
 	execErr := make(chan error)
 

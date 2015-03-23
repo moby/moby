@@ -3,7 +3,7 @@ package registry
 import (
 	"runtime"
 
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/utils"
 )

@@ -24,7 +24,7 @@ func TestRestartStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer daemon.Destroy(container)
+	defer daemon.Rm(container)
 
 	stdin := container.StdinPipe()
 	stdout := container.StdoutPipe()
@@ -89,7 +89,7 @@ func TestStdin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer daemon.Destroy(container)
+	defer daemon.Rm(container)
 
 	stdin := container.StdinPipe()
 	stdout := container.StdoutPipe()
@@ -129,7 +129,7 @@ func TestTty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer daemon.Destroy(container)
+	defer daemon.Rm(container)
 
 	stdin := container.StdinPipe()
 	stdout := container.StdoutPipe()
@@ -168,7 +168,7 @@ func BenchmarkRunSequential(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		defer daemon.Destroy(container)
+		defer daemon.Rm(container)
 		output, err := container.Output()
 		if err != nil {
 			b.Fatal(err)
@@ -176,7 +176,7 @@ func BenchmarkRunSequential(b *testing.B) {
 		if string(output) != "foo" {
 			b.Fatalf("Unexpected output: %s", output)
 		}
-		if err := daemon.Destroy(container); err != nil {
+		if err := daemon.Rm(container); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -203,7 +203,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				complete <- err
 				return
 			}
-			defer daemon.Destroy(container)
+			defer daemon.Rm(container)
 			if err := container.Start(); err != nil {
 				complete <- err
 				return
@@ -215,7 +215,7 @@ func BenchmarkRunParallel(b *testing.B) {
 			// if string(output) != "foo" {
 			// 	complete <- fmt.Errorf("Unexecpted output: %v", string(output))
 			// }
-			if err := daemon.Destroy(container); err != nil {
+			if err := daemon.Rm(container); err != nil {
 				complete <- err
 				return
 			}

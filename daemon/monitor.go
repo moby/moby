@@ -8,8 +8,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 const defaultTimeIncrement = 100
@@ -123,7 +123,7 @@ func (m *containerMonitor) Start() error {
 	for {
 		m.container.RestartCount++
 
-		if err := m.container.startLoggingToDisk(); err != nil {
+		if err := m.container.startLogging(); err != nil {
 			m.resetContainer(false)
 
 			return err
@@ -168,12 +168,10 @@ func (m *containerMonitor) Start() error {
 			// we need to check this before reentering the loop because the waitForNextRestart could have
 			// been terminated by a request from a user
 			if m.shouldStop {
-				m.container.ExitCode = exitStatus.ExitCode
 				return err
 			}
 			continue
 		}
-		m.container.ExitCode = exitStatus.ExitCode
 		if exitStatus.OOMKilled {
 			m.container.LogEvent("oom")
 		}
@@ -184,7 +182,7 @@ func (m *containerMonitor) Start() error {
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
-// previous runs success or failure.  Reguardless of success, if the container had
+// previous runs success or failure.  Regardless of success, if the container had
 // an execution time of more than 10s then reset the timer back to the default
 func (m *containerMonitor) resetMonitor(successful bool) {
 	executionTime := time.Now().Sub(m.lastStartTime).Seconds()
@@ -232,7 +230,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
 		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount > max {
 			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",
-				utils.TruncateID(m.container.ID), max)
+				common.TruncateID(m.container.ID), max)
 			return false
 		}
 
@@ -302,6 +300,24 @@ func (m *containerMonitor) resetContainer(lock bool) {
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
+	}
+
+	if container.logDriver != nil {
+		if container.logCopier != nil {
+			exit := make(chan struct{})
+			go func() {
+				container.logCopier.Wait()
+				close(exit)
+			}()
+			select {
+			case <-time.After(1 * time.Second):
+				log.Warnf("Logger didn't exit in time: logs may be truncated")
+			case <-exit:
+			}
+		}
+		container.logDriver.Close()
+		container.logCopier = nil
+		container.logDriver = nil
 	}
 
 	c := container.command.ProcessConfig.Cmd

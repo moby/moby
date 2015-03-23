@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -70,10 +71,19 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 		return auth.tokenCache, nil
 	}
 
+	tlsConfig := tls.Config{
+		MinVersion: tls.VersionTLS10,
+	}
+	if !auth.registryEndpoint.IsSecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment},
+			Proxy:             http.ProxyFromEnvironment,
+			TLSClientConfig:   &tlsConfig,
+		},
 		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
 	}
 	factory := HTTPRequestFactory(nil)
@@ -362,10 +372,18 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
 	log.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 
+	tlsConfig := tls.Config{
+		MinVersion: tls.VersionTLS10,
+	}
+	if !registryEndpoint.IsSecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
 			Proxy:             http.ProxyFromEnvironment,
+			TLSClientConfig:   &tlsConfig,
 		},
 		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
 	}

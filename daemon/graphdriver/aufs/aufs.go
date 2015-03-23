@@ -34,8 +34,9 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/directory"
 	mountpk "github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -215,7 +216,7 @@ func (a *Driver) Remove(id string) error {
 	defer a.Unlock()
 
 	if a.active[id] != 0 {
-		log.Errorf("Warning: removing active id %s", id)
+		log.Errorf("Removing active id %s", id)
 	}
 
 	// Make sure the dir is umounted first
@@ -319,7 +320,7 @@ func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
 // relative to its base filesystem directory.
 func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 	// AUFS doesn't need the parent layer to calculate the diff size.
-	return utils.TreeSize(path.Join(a.rootPath(), "diff", id))
+	return directory.Size(path.Join(a.rootPath(), "diff", id))
 }
 
 // ApplyDiff extracts the changeset from the given diff into the
@@ -377,7 +378,7 @@ func (a *Driver) mount(id, mountLabel string) error {
 	}
 
 	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
-		return err
+		return fmt.Errorf("error creating aufs mount to %s: %v", target, err)
 	}
 	return nil
 }
@@ -404,7 +405,7 @@ func (a *Driver) Cleanup() error {
 
 	for _, id := range ids {
 		if err := a.unmount(id); err != nil {
-			log.Errorf("Unmounting %s: %s", utils.TruncateID(id), err)
+			log.Errorf("Unmounting %s: %s", common.TruncateID(id), err)
 		}
 	}
 
@@ -421,7 +422,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	// Mount options are clipped to page size(4096 bytes). If there are more
 	// layers then these are remounted individually using append.
 
-	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-50) // room for xino & mountLabel
+	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-54) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
 	firstMount := true
@@ -445,7 +446,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 
 		if firstMount {
-			data := label.FormatMountLabel(fmt.Sprintf("%s,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
+			data := label.FormatMountLabel(fmt.Sprintf("%s,dio,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
 			if err = mount("none", target, "aufs", 0, data); err != nil {
 				return
 			}

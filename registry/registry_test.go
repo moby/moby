@@ -751,6 +751,9 @@ func TestValidRemoteName(t *testing.T) {
 
 		// Allow underscores everywhere (as opposed to hyphens).
 		"____/____",
+
+		//Username doc and image name docker being tested.
+		"doc/docker",
 	}
 	for _, repositoryName := range validRepositoryNames {
 		if err := validateRemoteName(repositoryName); err != nil {
@@ -776,11 +779,14 @@ func TestValidRemoteName(t *testing.T) {
 		// Disallow consecutive hyphens.
 		"dock--er/docker",
 
-		// Namespace too short.
-		"doc/docker",
-
 		// No repository.
 		"docker/",
+
+		//namespace too short
+		"d/docker",
+
+		//namespace too long
+		"this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255/docker",
 	}
 	for _, repositoryName := range invalidRepositoryNames {
 		if err := validateRemoteName(repositoryName); err == nil {

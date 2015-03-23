@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"path/filepath"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -23,6 +22,7 @@ const (
 	IFLA_VLAN_ID      = 1
 	IFLA_NET_NS_FD    = 28
 	IFLA_ADDRESS      = 1
+	IFLA_BRPORT_MODE  = 4
 	SIOC_BRADDBR      = 0x89a0
 	SIOC_BRDELBR      = 0x89a1
 	SIOC_BRADDIF      = 0x89a2
@@ -1253,25 +1253,33 @@ func SetMacAddress(name, addr string) error {
 }
 
 func SetHairpinMode(iface *net.Interface, enabled bool) error {
-	sysPath := filepath.Join("/sys/class/net", iface.Name, "brport/hairpin_mode")
-
-	sysFile, err := os.OpenFile(sysPath, os.O_WRONLY, 0)
+	s, err := getNetlinkSocket()
 	if err != nil {
 		return err
 	}
-	defer sysFile.Close()
+	defer s.Close()
+	req := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
-	var writeVal []byte
+	msg := newIfInfomsg(syscall.AF_BRIDGE)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = DEFAULT_CHANGE
+	req.AddData(msg)
+
+	mode := []byte{0}
 	if enabled {
-		writeVal = []byte("1")
-	} else {
-		writeVal = []byte("0")
+		mode[0] = byte(1)
 	}
-	if _, err := sysFile.Write(writeVal); err != nil {
+
+	br := newRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
+	newRtAttrChild(br, IFLA_BRPORT_MODE, mode)
+	req.AddData(br)
+	if err := s.Send(req); err != nil {
 		return err
 	}
 
-	return nil
+	return s.HandleAck(req.Seq)
 }
 
 func ChangeName(iface *net.Interface, newName string) error {

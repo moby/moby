@@ -22,3 +22,10 @@ direct-build:
 
 direct-install:
 	go install -v $(GO_PACKAGES)
+
+local:
+	go test -v
+
+validate:
+	hack/validate.sh
+

@@ -11,10 +11,11 @@ func (daemon *Daemon) ContainerWait(job *engine.Job) engine.Status {
 		return job.Errorf("Usage: %s", job.Name)
 	}
 	name := job.Args[0]
-	if container := daemon.Get(name); container != nil {
-		status, _ := container.WaitStop(-1 * time.Second)
-		job.Printf("%d\n", status)
-		return engine.StatusOK
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Errorf("%s: %v", job.Name, err)
 	}
-	return job.Errorf("%s: No such container: %s", job.Name, name)
+	status, _ := container.WaitStop(-1 * time.Second)
+	job.Printf("%d\n", status)
+	return engine.StatusOK
 }

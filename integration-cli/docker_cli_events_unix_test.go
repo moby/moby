@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"testing"
-	"time"
 	"unicode"
 
 	"github.com/kr/pty"
@@ -17,11 +16,8 @@ import (
 
 // #5979
 func TestEventsRedirectStdout(t *testing.T) {
-
-	since := time.Now().Unix()
-
+	since := daemonTime(t).Unix()
 	dockerCmd(t, "run", "busybox", "true")
-
 	defer deleteAllContainers()
 
 	file, err := ioutil.TempFile("", "")
@@ -30,7 +26,7 @@ func TestEventsRedirectStdout(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	command := fmt.Sprintf("%s events --since=%d --until=%d > %s", dockerBinary, since, time.Now().Unix(), file.Name())
+	command := fmt.Sprintf("%s events --since=%d --until=%d > %s", dockerBinary, since, daemonTime(t).Unix(), file.Name())
 	_, tty, err := pty.Open()
 	if err != nil {
 		t.Fatalf("Could not open pty: %v", err)

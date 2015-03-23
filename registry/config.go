@@ -48,9 +48,9 @@ func IndexServerName() string {
 // the current process.
 func (options *Options) InstallFlags() {
 	options.Mirrors = opts.NewListOpts(ValidateMirror)
-	flag.Var(&options.Mirrors, []string{"-registry-mirror"}, "Specify a preferred Docker registry mirror")
+	flag.Var(&options.Mirrors, []string{"-registry-mirror"}, "Preferred Docker registry mirror")
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
-	flag.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure communication with specified registries (no certificate verification for HTTPS and enable HTTP fallback) (e.g., localhost:5000 or 10.20.0.0/16)")
+	flag.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure registry communication")
 }
 
 type netIPNet net.IPNet
@@ -223,8 +223,8 @@ func validateRemoteName(remoteName string) error {
 	if !validNamespaceChars.MatchString(namespace) {
 		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
 	}
-	if len(namespace) < 4 || len(namespace) > 30 {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 4 or more than 30 characters.", namespace)
+	if len(namespace) < 2 || len(namespace) > 255 {
+		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 2 or more than 255 characters.", namespace)
 	}
 	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
 		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)

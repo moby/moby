@@ -53,10 +53,18 @@ func TestRouter(t *testing.T) {
 		},
 		{
 			RouteName:  RouteNameManifest,
+			RequestURI: "/v2/foo/manifests/bar",
+			Vars: map[string]string{
+				"name":      "foo",
+				"reference": "bar",
+			},
+		},
+		{
+			RouteName:  RouteNameManifest,
 			RequestURI: "/v2/foo/bar/manifests/tag",
 			Vars: map[string]string{
-				"name": "foo/bar",
-				"tag":  "tag",
+				"name":      "foo/bar",
+				"reference": "tag",
 			},
 		},
 		{
@@ -120,8 +128,8 @@ func TestRouter(t *testing.T) {
 			RouteName:  RouteNameManifest,
 			RequestURI: "/v2/foo/bar/manifests/manifests/tags",
 			Vars: map[string]string{
-				"name": "foo/bar/manifests",
-				"tag":  "tags",
+				"name":      "foo/bar/manifests",
+				"reference": "tags",
 			},
 		},
 		{

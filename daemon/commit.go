@@ -1,6 +1,9 @@
 package daemon
 
 import (
+	"bytes"
+	"encoding/json"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
@@ -12,17 +15,27 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 	}
 	name := job.Args[0]
 
-	container := daemon.Get(name)
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	var (
-		config    = container.Config
-		newConfig runconfig.Config
+		config       = container.Config
+		stdoutBuffer = bytes.NewBuffer(nil)
+		newConfig    runconfig.Config
 	)
 
-	if err := job.GetenvJson("config", &newConfig); err != nil {
+	buildConfigJob := daemon.eng.Job("build_config")
+	buildConfigJob.Stdout.Add(stdoutBuffer)
+	buildConfigJob.Setenv("changes", job.Getenv("changes"))
+	// FIXME this should be remove when we remove deprecated config param
+	buildConfigJob.Setenv("config", job.Getenv("config"))
+
+	if err := buildConfigJob.Run(); err != nil {
+		return job.Error(err)
+	}
+	if err := json.NewDecoder(stdoutBuffer).Decode(&newConfig); err != nil {
 		return job.Error(err)
 	}
 
@@ -41,7 +54,7 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
 func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
-	if pause {
+	if pause && !container.IsPaused() {
 		container.Pause()
 		defer container.Unpause()
 	}

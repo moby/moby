@@ -1,8 +1,0 @@
-{% if aws_bucket != "docs.docker.com" %}
-<div class="box alert-red-body alert-red-block">
-	This is the
-  <span>{% if docker_version != docker_version|replace("-dev", "bingo") %}{{ docker_branch }} development branch{% else %}beta{% endif %}</span>
-	documentation for Docker version {{ docker_version }}.
-	Please go to <a class="alert-red-link" href="http://docs.docker.com">http://docs.docker.com</a> for the current Docker release documentation.
-</div>
-{% endif %}

@@ -17,10 +17,10 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 	removeVolume := job.GetenvBool("removeVolume")
 	removeLink := job.GetenvBool("removeLink")
 	forceRemove := job.GetenvBool("forceRemove")
-	container := daemon.Get(name)
 
-	if container == nil {
-		return job.Errorf("No such container: %s", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
 
 	if removeLink {
@@ -36,7 +36,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		if pe == nil {
 			return job.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
-		parentContainer := daemon.Get(pe.ID())
+		parentContainer, _ := daemon.Get(pe.ID())
 
 		if parentContainer != nil {
 			parentContainer.DisableLink(n)
@@ -61,7 +61,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 				return job.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
 			}
 		}
-		if err := daemon.Destroy(container); err != nil {
+		if err := daemon.Rm(container); err != nil {
 			return job.Errorf("Cannot destroy container %s: %s", name, err)
 		}
 		container.LogEvent("destroy")
@@ -82,8 +82,7 @@ func (daemon *Daemon) DeleteVolumes(volumeIDs map[string]struct{}) {
 }
 
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-// FIXME: rename to Rm for consistency with the CLI command
-func (daemon *Daemon) Destroy(container *Container) error {
+func (daemon *Daemon) Rm(container *Container) error {
 	if container == nil {
 		return fmt.Errorf("The given container is <nil>")
 	}

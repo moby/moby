@@ -72,8 +72,10 @@ func (d *Driver) Status() [][2]string {
 		{"Metadata file", s.MetadataFile},
 		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
 		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Total)))},
+		{"Data Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Available)))},
 		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Used)))},
 		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Total)))},
+		{"Metadata Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Available)))},
 		{"Udev Sync Supported", fmt.Sprintf("%v", s.UdevSyncSupported)},
 	}
 	if len(s.DataLoopback) > 0 {
@@ -162,7 +164,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 func (d *Driver) Put(id string) error {
 	err := d.DeviceSet.UnmountDevice(id)
 	if err != nil {
-		log.Errorf("Warning: error unmounting device %s: %s", id, err)
+		log.Errorf("Error unmounting device %s: %s", id, err)
 	}
 	return err
 }

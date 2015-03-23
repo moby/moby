@@ -8,14 +8,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volumes"
-	"github.com/docker/libcontainer/label"
 )
 
 type Mount struct {
@@ -89,9 +88,10 @@ func (m *Mount) initialize() error {
 
 		// Make sure we remove these old volumes we don't actually want now.
 		// Ignore any errors here since this is just cleanup, maybe someone volumes-from'd this volume
-		v := m.container.daemon.volumes.Get(hostPath)
-		v.RemoveContainer(m.container.ID)
-		m.container.daemon.volumes.Delete(v.Path)
+		if v := m.container.daemon.volumes.Get(hostPath); v != nil {
+			v.RemoveContainer(m.container.ID)
+			m.container.daemon.volumes.Delete(v.Path)
+		}
 	}
 
 	// This is the full path to container fs + mntToPath
@@ -158,6 +158,10 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 		if err != nil {
 			return nil, err
 		}
+		// Check if a bind mount has already been specified for the same container path
+		if m, exists := mounts[mountToPath]; exists {
+			return nil, fmt.Errorf("Duplicate volume %q: %q already in use, mounted from %q", path, mountToPath, m.volume.Path)
+		}
 		// Check if a volume already exists for this and use it
 		vol, err := container.daemon.volumes.FindOrCreateVolume(path, writable)
 		if err != nil {
@@ -182,6 +186,12 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 		// Check if this has already been created
 		if _, exists := container.Volumes[path]; exists {
 			continue
+		}
+
+		if stat, err := os.Stat(filepath.Join(container.basefs, path)); err == nil {
+			if !stat.IsDir() {
+				return nil, fmt.Errorf("file exists at %s, can't create volume there")
+			}
 		}
 
 		vol, err := container.daemon.volumes.FindOrCreateVolume("", true)
@@ -266,9 +276,9 @@ func (container *Container) applyVolumesFrom() error {
 			continue
 		}
 
-		c := container.daemon.Get(id)
-		if c == nil {
-			return fmt.Errorf("container %s not found, impossible to mount its volumes", id)
+		c, err := container.daemon.Get(id)
+		if err != nil {
+			return fmt.Errorf("Could not apply volumes of non-existent container %q.", id)
 		}
 
 		var (
@@ -306,23 +316,7 @@ func validMountMode(mode string) bool {
 }
 
 func (container *Container) setupMounts() error {
-	mounts := []execdriver.Mount{
-		{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true},
-	}
-
-	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
-	}
-
-	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
-	}
-
-	for _, m := range mounts {
-		if err := label.SetFileLabel(m.Source, container.MountLabel); err != nil {
-			return err
-		}
-	}
+	mounts := []execdriver.Mount{}
 
 	// Mount user specified volumes
 	// Note, these are not private because you may want propagation of (un)mounts from host
@@ -335,6 +329,18 @@ func (container *Container) setupMounts() error {
 			Destination: path,
 			Writable:    container.VolumesRW[path],
 		})
+	}
+
+	if container.ResolvConfPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: true, Private: true})
+	}
+
+	if container.HostnamePath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: true, Private: true})
+	}
+
+	if container.HostsPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: true, Private: true})
 	}
 
 	container.command.Mounts = mounts
@@ -379,15 +385,14 @@ func copyExistingContents(source, destination string) error {
 // copyOwnership copies the permissions and uid:gid of the source file
 // into the destination file
 func copyOwnership(source, destination string) error {
-	var stat syscall.Stat_t
-
-	if err := syscall.Stat(source, &stat); err != nil {
+	stat, err := system.Stat(source)
+	if err != nil {
 		return err
 	}
 
-	if err := os.Chown(destination, int(stat.Uid), int(stat.Gid)); err != nil {
+	if err := os.Chown(destination, int(stat.Uid()), int(stat.Gid())); err != nil {
 		return err
 	}
 
-	return os.Chmod(destination, os.FileMode(stat.Mode))
+	return os.Chmod(destination, os.FileMode(stat.Mode()))
 }

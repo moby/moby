@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/utils"
 )
@@ -41,10 +42,14 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		tag = graph.DEFAULTTAG
 	}
 
+	if name == "" {
+		return fmt.Errorf("Image name can not be blank")
+	}
+
 	img, err := daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if r, _ := daemon.Repositories().Get(repoName); r != nil {
-			return fmt.Errorf("No such image: %s:%s", repoName, tag)
+			return fmt.Errorf("No such image: %s", utils.ImageReference(repoName, tag))
 		}
 		return fmt.Errorf("No such image: %s", name)
 	}
@@ -70,7 +75,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 				if parsedTag != "" {
 					tags = append(tags, parsedTag)
 				}
-			} else if repoName != parsedRepo && !force {
+			} else if repoName != parsedRepo && !force && first {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
 				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
@@ -98,7 +103,7 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		}
 		if tagDeleted {
 			out := &engine.Env{}
-			out.Set("Untagged", repoName+":"+tag)
+			out.Set("Untagged", utils.ImageReference(repoName, tag))
 			imgs.Add(out)
 			eng.Job("log", "untag", img.ID, "").Run()
 		}
@@ -143,11 +148,11 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {
-						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", common.TruncateID(imgID), common.TruncateID(container.ID))
 					}
-					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", common.TruncateID(imgID), common.TruncateID(container.ID))
 				} else if !force {
-					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", common.TruncateID(imgID), common.TruncateID(container.ID))
 				}
 			}
 			return nil

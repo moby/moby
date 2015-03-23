@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -18,28 +19,29 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 	} else if len(job.Args) > 1 {
 		return job.Errorf("Usage: %s", job.Name)
 	}
+
 	config := runconfig.ContainerConfigFromJob(job)
-	if config.Memory != 0 && config.Memory < 4194304 {
+	hostConfig := runconfig.ContainerHostConfigFromJob(job)
+
+	if len(hostConfig.LxcConf) > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
+		return job.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
+	}
+	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
 		return job.Errorf("Minimum memory limit allowed is 4MB")
 	}
-	if config.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
+	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
 		job.Errorf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		config.Memory = 0
+		hostConfig.Memory = 0
 	}
-	if config.Memory > 0 && !daemon.SystemConfig().SwapLimit {
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
 		job.Errorf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		config.MemorySwap = -1
+		hostConfig.MemorySwap = -1
 	}
-	if config.Memory > 0 && config.MemorySwap > 0 && config.MemorySwap < config.Memory {
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
 		return job.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
 	}
-
-	var hostConfig *runconfig.HostConfig
-	if job.EnvExists("HostConfig") {
-		hostConfig = runconfig.ContainerHostConfigFromJob(job)
-	} else {
-		// Older versions of the API don't provide a HostConfig.
-		hostConfig = nil
+	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
+		return job.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
 	}
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
@@ -91,7 +93,10 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
-	if hostConfig != nil && hostConfig.SecurityOpt == nil {
+	if hostConfig == nil {
+		hostConfig = &runconfig.HostConfig{}
+	}
+	if hostConfig.SecurityOpt == nil {
 		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
 		if err != nil {
 			return nil, nil, err
@@ -129,9 +134,9 @@ func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode, pidMode run
 		return label.DisableSecOpt(), nil
 	}
 	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
-		c := daemon.Get(ipcContainer)
-		if c == nil {
-			return nil, fmt.Errorf("no such container to join IPC: %s", ipcContainer)
+		c, err := daemon.Get(ipcContainer)
+		if err != nil {
+			return nil, err
 		}
 		if !c.IsRunning() {
 			return nil, fmt.Errorf("cannot join IPC of a non running container: %s", ipcContainer)

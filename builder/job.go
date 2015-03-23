@@ -1,12 +1,16 @@
 package builder
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
@@ -14,8 +18,21 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
+
+// whitelist of commands allowed for a commit/import
+var validCommitCommands = map[string]bool{
+	"entrypoint": true,
+	"cmd":        true,
+	"user":       true,
+	"workdir":    true,
+	"env":        true,
+	"volume":     true,
+	"expose":     true,
+	"onbuild":    true,
+}
 
 type BuilderJob struct {
 	Engine *engine.Engine
@@ -24,6 +41,7 @@ type BuilderJob struct {
 
 func (b *BuilderJob) Install() {
 	b.Engine.Register("build", b.CmdBuild)
+	b.Engine.Register("build_config", b.CmdBuildConfig)
 }
 
 func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
@@ -39,6 +57,10 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		rm             = job.GetenvBool("rm")
 		forceRm        = job.GetenvBool("forcerm")
 		pull           = job.GetenvBool("pull")
+		memory         = job.GetenvInt64("memory")
+		memorySwap     = job.GetenvInt64("memswap")
+		cpuShares      = job.GetenvInt64("cpushares")
+		cpuSetCpus     = job.Getenv("cpusetcpus")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -58,10 +80,6 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 		}
-	}
-
-	if dockerfileName == "" {
-		dockerfileName = api.DefaultDockerfileName
 	}
 
 	if remoteURL == "" {
@@ -95,6 +113,11 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
+
+		// When we're downloading just a Dockerfile put it in
+		// the default name - don't allow the client to move/specify it
+		dockerfileName = api.DefaultDockerfileName
+
 		c, err := archive.Generate(dockerfileName, string(dockerFile))
 		if err != nil {
 			return job.Error(err)
@@ -126,6 +149,11 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
 		dockerfileName:  dockerfileName,
+		cpuShares:       cpuShares,
+		cpuSetCpus:      cpuSetCpus,
+		memory:          memory,
+		memorySwap:      memorySwap,
+		cancelled:       job.WaitCancelled(),
 	}
 
 	id, err := builder.Run(context)
@@ -135,6 +163,53 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	if repoName != "" {
 		b.Daemon.Repositories().Set(repoName, tag, id, true)
+	}
+	return engine.StatusOK
+}
+
+func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
+	if len(job.Args) != 0 {
+		return job.Errorf("Usage: %s\n", job.Name)
+	}
+
+	var (
+		changes   = job.GetenvList("changes")
+		newConfig runconfig.Config
+	)
+
+	if err := job.GetenvJson("config", &newConfig); err != nil {
+		return job.Error(err)
+	}
+
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
+	if err != nil {
+		return job.Error(err)
+	}
+
+	// ensure that the commands are valid
+	for _, n := range ast.Children {
+		if !validCommitCommands[n.Value] {
+			return job.Errorf("%s is not a valid change command", n.Value)
+		}
+	}
+
+	builder := &Builder{
+		Daemon:        b.Daemon,
+		Engine:        b.Engine,
+		Config:        &newConfig,
+		OutStream:     ioutil.Discard,
+		ErrStream:     ioutil.Discard,
+		disableCommit: true,
+	}
+
+	for i, n := range ast.Children {
+		if err := builder.dispatch(i, n); err != nil {
+			return job.Error(err)
+		}
+	}
+
+	if err := json.NewEncoder(job.Stdout).Encode(builder.Config); err != nil {
+		return job.Error(err)
 	}
 	return engine.StatusOK
 }

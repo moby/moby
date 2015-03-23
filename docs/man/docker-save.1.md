@@ -35,6 +35,9 @@ fedora image to a fedora-latest.tar:
     $ ls -sh fedora-latest.tar
     367M fedora-latest.tar
 
+# See also
+**docker-load(1)** to load an image from a tar archive on STDIN.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.

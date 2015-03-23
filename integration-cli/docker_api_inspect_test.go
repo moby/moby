@@ -7,6 +7,8 @@ import (
 )
 
 func TestInspectApiContainerResponse(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -34,7 +36,7 @@ func TestInspectApiContainerResponse(t *testing.T) {
 			t.Fatalf("unable to unmarshal body for %s version: %v", testVersion, err)
 		}
 
-		keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW"}
+		keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW"}
 
 		if testVersion == "v1.11" {
 			keys = append(keys, "ID")
@@ -52,8 +54,6 @@ func TestInspectApiContainerResponse(t *testing.T) {
 			t.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
 		}
 	}
-
-	deleteAllContainers()
 
 	logDone("container json - check keys in container json response")
 }

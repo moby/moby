@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"sync"
+	"unicode"
 )
 
 type Output struct {
@@ -16,25 +18,25 @@ type Output struct {
 }
 
 // Tail returns the n last lines of a buffer
-// stripped out of the last \n, if any
+// stripped out of trailing white spaces, if any.
+//
 // if n <= 0, returns an empty string
 func Tail(buffer *bytes.Buffer, n int) string {
 	if n <= 0 {
 		return ""
 	}
-	bytes := buffer.Bytes()
-	if len(bytes) > 0 && bytes[len(bytes)-1] == '\n' {
-		bytes = bytes[:len(bytes)-1]
-	}
-	for i := buffer.Len() - 2; i >= 0; i-- {
-		if bytes[i] == '\n' {
+	s := strings.TrimRightFunc(buffer.String(), unicode.IsSpace)
+	i := len(s) - 1
+	for ; i >= 0 && n > 0; i-- {
+		if s[i] == '\n' {
 			n--
 			if n == 0 {
-				return string(bytes[i+1:])
+				break
 			}
 		}
 	}
-	return string(bytes)
+	// when i == -1, return the whole string which is s[0:]
+	return s[i+1:]
 }
 
 // NewOutput returns a new Output object with no destinations attached.

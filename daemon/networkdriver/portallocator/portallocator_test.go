@@ -5,6 +5,11 @@ import (
 	"testing"
 )
 
+func init() {
+	beginPortRange = DefaultPortRangeStart
+	endPortRange = DefaultPortRangeEnd
+}
+
 func reset() {
 	ReleaseAll()
 }
@@ -17,7 +22,7 @@ func TestRequestNewPort(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if expected := BeginPortRange; port != expected {
+	if expected := beginPortRange; port != expected {
 		t.Fatalf("Expected port %d got %d", expected, port)
 	}
 }
@@ -102,13 +107,13 @@ func TestUnknowProtocol(t *testing.T) {
 func TestAllocateAllPorts(t *testing.T) {
 	defer reset()
 
-	for i := 0; i <= EndPortRange-BeginPortRange; i++ {
+	for i := 0; i <= endPortRange-beginPortRange; i++ {
 		port, err := RequestPort(defaultIP, "tcp", 0)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if expected := BeginPortRange + i; port != expected {
+		if expected := beginPortRange + i; port != expected {
 			t.Fatalf("Expected port %d got %d", expected, port)
 		}
 	}
@@ -123,7 +128,7 @@ func TestAllocateAllPorts(t *testing.T) {
 	}
 
 	// release a port in the middle and ensure we get another tcp port
-	port := BeginPortRange + 5
+	port := beginPortRange + 5
 	if err := ReleasePort(defaultIP, "tcp", port); err != nil {
 		t.Fatal(err)
 	}
@@ -153,13 +158,13 @@ func BenchmarkAllocatePorts(b *testing.B) {
 	defer reset()
 
 	for i := 0; i < b.N; i++ {
-		for i := 0; i <= EndPortRange-BeginPortRange; i++ {
+		for i := 0; i <= endPortRange-beginPortRange; i++ {
 			port, err := RequestPort(defaultIP, "tcp", 0)
 			if err != nil {
 				b.Fatal(err)
 			}
 
-			if expected := BeginPortRange + i; port != expected {
+			if expected := beginPortRange + i; port != expected {
 				b.Fatalf("Expected port %d got %d", expected, port)
 			}
 		}
@@ -231,15 +236,15 @@ func TestPortAllocation(t *testing.T) {
 func TestNoDuplicateBPR(t *testing.T) {
 	defer reset()
 
-	if port, err := RequestPort(defaultIP, "tcp", BeginPortRange); err != nil {
+	if port, err := RequestPort(defaultIP, "tcp", beginPortRange); err != nil {
 		t.Fatal(err)
-	} else if port != BeginPortRange {
-		t.Fatalf("Expected port %d got %d", BeginPortRange, port)
+	} else if port != beginPortRange {
+		t.Fatalf("Expected port %d got %d", beginPortRange, port)
 	}
 
 	if port, err := RequestPort(defaultIP, "tcp", 0); err != nil {
 		t.Fatal(err)
-	} else if port == BeginPortRange {
+	} else if port == beginPortRange {
 		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
 	}
 }

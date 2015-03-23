@@ -67,7 +67,7 @@ func TestValidateEndpointAmbiguousAPIVersion(t *testing.T) {
 	}
 
 	if testEndpoint.Version != APIVersion1 {
-		t.Fatalf("expected endpoint to validate to %s, got %s", APIVersion1, testEndpoint.Version)
+		t.Fatalf("expected endpoint to validate to %d, got %d", APIVersion1, testEndpoint.Version)
 	}
 
 	// Make a test server which should validate as a v2 server.
@@ -87,6 +87,6 @@ func TestValidateEndpointAmbiguousAPIVersion(t *testing.T) {
 	}
 
 	if testEndpoint.Version != APIVersion2 {
-		t.Fatalf("expected endpoint to validate to %s, got %s", APIVersion2, testEndpoint.Version)
+		t.Fatalf("expected endpoint to validate to %d, got %d", APIVersion2, testEndpoint.Version)
 	}
 }

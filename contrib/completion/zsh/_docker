@@ -197,8 +197,10 @@ __docker_subcommand () {
             ;;
         (build)
             _arguments \
+                {-f,--file=-}'[Dockerfile to use]:Dockerfile:_files' \
                 '--force-rm[Always remove intermediate containers]' \
                 '--no-cache[Do not use cache when building the image]' \
+                '--pull[Attempt to pull a newer version of the image]' \
                 {-q,--quiet}'[Suppress verbose build output]' \
                 '--rm[Remove intermediate containers after a successful build]' \
                 {-t,--tag=-}'[Repository, name and tag to be applied]:repository:__docker_repositories_with_tags' \
@@ -209,7 +211,6 @@ __docker_subcommand () {
                 {-a,--author=-}'[Author]:author: ' \
                 {-m,--message=-}'[Commit message]:message: ' \
                 {-p,--pause}'[Pause container during commit]' \
-                '--run=-[Configuration automatically applied when the image is run]:configuration: ' \
                 ':container:__docker_containers' \
                 ':repository:__docker_repositories_with_tags'
             ;;
@@ -232,15 +233,28 @@ __docker_subcommand () {
             ;;
         (events)
             _arguments \
+                '*'{-f,--filter=-}'[Filter values]:filter: ' \
                 '--since=-[Events created since this timestamp]:timestamp: ' \
                 '--until=-[Events created until this timestamp]:timestamp: '
             ;;
         (exec)
+            local state ret
             _arguments \
                 {-d,--detach}'[Detached mode: leave the container running in the background]' \
                 {-i,--interactive}'[Keep stdin open even if not attached]' \
                 {-t,--tty}'[Allocate a pseudo-tty]' \
-                ':containers:__docker_runningcontainers'
+                ':containers:__docker_runningcontainers' \
+                '*::command:->anycommand' && ret=0
+
+            case $state in
+                (anycommand)
+                    shift 1 words
+                    (( CURRENT-- ))
+                    _normal
+                    ;;
+            esac
+
+            return ret
             ;;
         (history)
             _arguments \
@@ -254,14 +268,7 @@ __docker_subcommand () {
                 '*'{-f,--filter=-}'[Filter values]:filter: ' \
                 '--no-trunc[Do not truncate output]' \
                 {-q,--quiet}'[Only show numeric IDs]' \
-                '--tree[Output graph in tree format]' \
-                '--viz[Output graph in graphviz format]' \
                 ':repository:__docker_repositories'
-            ;;
-        (inspect)
-            _arguments \
-                {-f,--format=-}'[Format the output using the given go template]:template: ' \
-                '*:containers:__docker_containers'
             ;;
         (import)
             _arguments \
@@ -270,15 +277,10 @@ __docker_subcommand () {
             ;;
         (info)
             ;;
-        (import)
+        (inspect)
             _arguments \
-                ':URL:(- http:// file://)' \
-                ':repository:__docker_repositories_with_tags'
-            ;;
-        (insert)
-            _arguments '1:containers:__docker_containers' \
-                       '2:URL:(http:// file://)' \
-                       '3:file:_files'
+                {-f,--format=-}'[Format the output using the given go template]:template: ' \
+                '*:containers:__docker_containers'
             ;;
         (kill)
             _arguments \
@@ -287,7 +289,7 @@ __docker_subcommand () {
             ;;
         (load)
             _arguments \
-                {-i,--input=-}'[Read from tar archive file]:tar:_files'
+                {-i,--input=-}'[Read from tar archive file]:archive file:_files -g "*.((tar|TAR)(.gz|.GZ|.Z|.bz2|.lzma|.xz|)|(tbz|tgz|txz))(-.)"'
             ;;
         (login)
             _arguments \
@@ -304,6 +306,7 @@ __docker_subcommand () {
             _arguments \
                 {-f,--follow}'[Follow log output]' \
                 {-t,--timestamps}'[Show timestamps]' \
+                '--tail=-[Output the last K lines]:lines:(1 10 20 50 all)' \
                 '*:containers:__docker_containers'
             ;;
         (port)
@@ -320,6 +323,10 @@ __docker_subcommand () {
                 {-a,--attach}'[Attach container'"'"'s stdout/stderr and forward all signals]' \
                 {-i,--interactive}'[Attach container'"'"'s stding]' \
                 '*:containers:__docker_stoppedcontainers'
+            ;;
+        (stats)
+            _arguments \
+                '*:containers:__docker_runningcontainers'
             ;;
         (rm)
             _arguments \
@@ -391,7 +398,7 @@ __docker_subcommand () {
                 '*--lxc-conf=-[Add custom lxc options]:lxc options: ' \
                 '-m[Memory limit (in bytes)]:limit: ' \
                 '--name=-[Container name]:name: ' \
-                '--net=-[Network mode]:network mode:(bridge none container: host)' \
+                '--net=-[Network mode]:network mode:(bridge none container host)' \
                 {-P,--publish-all}'[Publish all exposed ports]' \
                 '*'{-p,--publish=-}'[Expose a container'"'"'s port to the host]:port:_ports' \
                 '--privileged[Give extended privileges to this container]' \
@@ -419,19 +426,33 @@ __docker_subcommand () {
             esac
 
             ;;
-        (pull|search)
-            _arguments ':name:__docker_search'
+        (pull)
+            _arguments \
+                {-a,--all-tags}'[Download all tagged images]' \
+                ':name:__docker_search'
             ;;
         (push)
             _arguments ':images:__docker_images'
             ;;
+        (rename)
+            _arguments \
+                ':old name:__docker_containers' \
+                ':new name: '
+            ;;
         (save)
             _arguments \
                 {-o,--output=-}'[Write to file]:file:_files' \
-                ':images:__docker_images'
+                '*:images:__docker_images'
+            ;;
+        (search)
+            _arguments \
+                '--automated[Only show automated builds]' \
+                '--no-trunc[Do not truncate output]' \
+                {-s,--stars=-}'[Only display with at least X stars]:stars:(0 10 100 1000)' \
+                ':term: '
             ;;
         (wait)
-            _arguments ':containers:__docker_runningcontainers'
+            _arguments '*:containers:__docker_runningcontainers'
             ;;
         (help)
             _arguments ':subcommand:__docker_commands'

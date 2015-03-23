@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -95,5 +97,58 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 
 	if err = os.Remove("/tmp/fileLinkTest"); err != nil {
 		t.Errorf("failed to remove symlink: %s", err)
+	}
+}
+
+func TestWriteCounter(t *testing.T) {
+	dummy1 := "This is a dummy string."
+	dummy2 := "This is another dummy string."
+	totalLength := int64(len(dummy1) + len(dummy2))
+
+	reader1 := strings.NewReader(dummy1)
+	reader2 := strings.NewReader(dummy2)
+
+	var buffer bytes.Buffer
+	wc := NewWriteCounter(&buffer)
+
+	reader1.WriteTo(wc)
+	reader2.WriteTo(wc)
+
+	if wc.Count != totalLength {
+		t.Errorf("Wrong count: %d vs. %d", wc.Count, totalLength)
+	}
+
+	if buffer.String() != dummy1+dummy2 {
+		t.Error("Wrong message written")
+	}
+}
+
+func TestImageReference(t *testing.T) {
+	tests := []struct {
+		repo     string
+		ref      string
+		expected string
+	}{
+		{"repo", "tag", "repo:tag"},
+		{"repo", "sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64", "repo@sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64"},
+	}
+
+	for i, test := range tests {
+		actual := ImageReference(test.repo, test.ref)
+		if test.expected != actual {
+			t.Errorf("%d: expected %q, got %q", i, test.expected, actual)
+		}
+	}
+}
+
+func TestDigestReference(t *testing.T) {
+	input := "sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64"
+	if !DigestReference(input) {
+		t.Errorf("Expected DigestReference=true for input %q", input)
+	}
+
+	input = "latest"
+	if DigestReference(input) {
+		t.Errorf("Unexpected DigestReference=true for input %q", input)
 	}
 }

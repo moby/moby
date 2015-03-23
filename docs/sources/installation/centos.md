@@ -6,8 +6,8 @@ page_keywords: Docker, Docker documentation, requirements, linux, centos, epel, 
 
 Docker is supported on the following versions of CentOS:
 
-- [*CentOS 7 (64-bit)*](#installing-docker---centos-7)
-- [*CentOS 6.5 (64-bit)*](#installing-docker---centos-6.5) or later
+- [*CentOS 7 (64-bit)*](#installing-docker-centos-7)
+- [*CentOS 6.5 (64-bit)*](#installing-docker-centos-6.5) or later
 
 These instructions are likely work for other binary compatible EL6/EL7 distributions
 such as Scientific Linux, but they haven't been tested.
@@ -46,7 +46,7 @@ start or restart `firewalld` after Docker, you will have to restart the Docker d
 
 ## Installing Docker - CentOS-6.5
 
-For Centos-6.5, the Docker package is part of [Extra Packages
+For CentOS-6.5, the Docker package is part of [Extra Packages
 for Enterprise Linux (EPEL)](https://fedoraproject.org/wiki/EPEL) repository,
 a community effort to create and maintain additional packages for the RHEL distribution.
 

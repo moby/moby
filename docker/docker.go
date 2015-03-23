@@ -11,9 +11,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/autogen/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
 
@@ -29,6 +30,11 @@ func main() {
 		return
 	}
 
+	// Set terminal emulation based on platform as required.
+	stdin, stdout, stderr := term.StdStreams()
+
+	initLogging(stderr)
+
 	flag.Parse()
 	// FIXME: validate daemon flags here
 
@@ -42,16 +48,16 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unable to parse logging level: %s", *flLogLevel)
 		}
-		initLogging(lvl)
+		setLogLevel(lvl)
 	} else {
-		initLogging(log.InfoLevel)
+		setLogLevel(log.InfoLevel)
 	}
 
 	// -D, --debug, -l/--log-level=debug processing
 	// When/if -D is removed this block can be deleted
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
-		initLogging(log.DebugLevel)
+		setLogLevel(log.DebugLevel)
 	}
 
 	if len(flHosts) == 0 {
@@ -70,6 +76,10 @@ func main() {
 	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
 
 	if *flDaemon {
+		if *flHelp {
+			flag.Usage()
+			return
+		}
 		mainDaemon()
 		return
 	}
@@ -111,7 +121,7 @@ func main() {
 			*flTls = true
 			cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
 			if err != nil {
-				log.Fatalf("Couldn't load X509 key pair: %s. Key encrypted?", err)
+				log.Fatalf("Couldn't load X509 key pair: %q. Make sure the key is encrypted", err)
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
@@ -120,9 +130,9 @@ func main() {
 	}
 
 	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
+		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
 	} else {
-		cli = client.NewDockerCli(os.Stdin, os.Stdout, os.Stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
+		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {

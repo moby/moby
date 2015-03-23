@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -34,6 +35,12 @@ type Job struct {
 	status  Status
 	end     time.Time
 	closeIO bool
+
+	// When closed, the job has been cancelled.
+	// Note: not all jobs implement cancellation.
+	// See Job.Cancel() and Job.WaitCancelled()
+	cancelled  chan struct{}
+	cancelOnce sync.Once
 }
 
 type Status int
@@ -145,6 +152,14 @@ func (job *Job) SetenvBool(key string, value bool) {
 	job.env.SetBool(key, value)
 }
 
+func (job *Job) GetenvTime(key string) (value time.Time, err error) {
+	return job.env.GetTime(key)
+}
+
+func (job *Job) SetenvTime(key string, value time.Time) {
+	job.env.SetTime(key, value)
+}
+
 func (job *Job) GetenvSubEnv(key string) *Env {
 	return job.env.GetSubEnv(key)
 }
@@ -239,4 +254,16 @@ func (job *Job) StatusCode() int {
 
 func (job *Job) SetCloseIO(val bool) {
 	job.closeIO = val
+}
+
+// When called, causes the Job.WaitCancelled channel to unblock.
+func (job *Job) Cancel() {
+	job.cancelOnce.Do(func() {
+		close(job.cancelled)
+	})
+}
+
+// Returns a channel which is closed ("never blocks") when the job is cancelled.
+func (job *Job) WaitCancelled() <-chan struct{} {
+	return job.cancelled
 }

@@ -28,9 +28,12 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/tarsum"
@@ -45,33 +48,35 @@ var (
 
 // Environment variable interpolation will happen on these statements only.
 var replaceEnvAllowed = map[string]struct{}{
-	"env":     {},
-	"add":     {},
-	"copy":    {},
-	"workdir": {},
-	"expose":  {},
-	"volume":  {},
-	"user":    {},
+	command.Env:     {},
+	command.Label:   {},
+	command.Add:     {},
+	command.Copy:    {},
+	command.Workdir: {},
+	command.Expose:  {},
+	command.Volume:  {},
+	command.User:    {},
 }
 
 var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
 	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
-		"env":        env,
-		"maintainer": maintainer,
-		"add":        add,
-		"copy":       dispatchCopy, // copy() is a go builtin
-		"from":       from,
-		"onbuild":    onbuild,
-		"workdir":    workdir,
-		"run":        run,
-		"cmd":        cmd,
-		"entrypoint": entrypoint,
-		"expose":     expose,
-		"volume":     volume,
-		"user":       user,
-		"insert":     insert,
+		command.Env:        env,
+		command.Label:      label,
+		command.Maintainer: maintainer,
+		command.Add:        add,
+		command.Copy:       dispatchCopy, // copy() is a go builtin
+		command.From:       from,
+		command.Onbuild:    onbuild,
+		command.Workdir:    workdir,
+		command.Run:        run,
+		command.Cmd:        cmd,
+		command.Entrypoint: entrypoint,
+		command.Expose:     expose,
+		command.Volume:     volume,
+		command.User:       user,
+		command.Insert:     insert,
 	}
 }
 
@@ -88,11 +93,17 @@ type Builder struct {
 
 	Verbose      bool
 	UtilizeCache bool
+	cacheBusted  bool
 
 	// controls how images and containers are handled between steps.
 	Remove      bool
 	ForceRemove bool
 	Pull        bool
+
+	// set this to true if we want the builder to not commit between steps.
+	// This is useful when we only want to use the evaluator table to generate
+	// the final configs of the Dockerfile but dont want the layers
+	disableCommit bool
 
 	AuthConfig     *registry.AuthConfig
 	AuthConfigFile *registry.ConfigFile
@@ -114,6 +125,14 @@ type Builder struct {
 	context        tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath    string        // the path of the temporary directory the local context is unpacked to (server side)
 	noBaseImage    bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
+
+	// Set resource restrictions for build containers
+	cpuSetCpus string
+	cpuShares  int64
+	memory     int64
+	memorySwap int64
+
+	cancelled <-chan struct{} // When closed, job was cancelled.
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -139,38 +158,63 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		}
 	}()
 
-	if err := b.readDockerfile(b.dockerfileName); err != nil {
+	if err := b.readDockerfile(); err != nil {
 		return "", err
 	}
 
 	// some initializations that would not have been supplied by the caller.
 	b.Config = &runconfig.Config{}
+
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {
+		select {
+		case <-b.cancelled:
+			log.Debug("Builder: build cancelled!")
+			fmt.Fprintf(b.OutStream, "Build cancelled")
+			return "", fmt.Errorf("Build cancelled")
+		default:
+			// Not cancelled yet, keep going...
+		}
 		if err := b.dispatch(i, n); err != nil {
 			if b.ForceRemove {
 				b.clearTmp()
 			}
 			return "", err
 		}
-		fmt.Fprintf(b.OutStream, " ---> %s\n", utils.TruncateID(b.image))
+		fmt.Fprintf(b.OutStream, " ---> %s\n", common.TruncateID(b.image))
 		if b.Remove {
 			b.clearTmp()
 		}
 	}
 
 	if b.image == "" {
-		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?\n")
+		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
 
-	fmt.Fprintf(b.OutStream, "Successfully built %s\n", utils.TruncateID(b.image))
+	fmt.Fprintf(b.OutStream, "Successfully built %s\n", common.TruncateID(b.image))
 	return b.image, nil
 }
 
 // Reads a Dockerfile from the current context. It assumes that the
 // 'filename' is a relative path from the root of the context
-func (b *Builder) readDockerfile(origFile string) error {
+func (b *Builder) readDockerfile() error {
+	// If no -f was specified then look for 'Dockerfile'. If we can't find
+	// that then look for 'dockerfile'.  If neither are found then default
+	// back to 'Dockerfile' and use that in the error message.
+	if b.dockerfileName == "" {
+		b.dockerfileName = api.DefaultDockerfileName
+		tmpFN := filepath.Join(b.contextPath, api.DefaultDockerfileName)
+		if _, err := os.Lstat(tmpFN); err != nil {
+			tmpFN = filepath.Join(b.contextPath, strings.ToLower(api.DefaultDockerfileName))
+			if _, err := os.Lstat(tmpFN); err == nil {
+				b.dockerfileName = strings.ToLower(api.DefaultDockerfileName)
+			}
+		}
+	}
+
+	origFile := b.dockerfileName
+
 	filename, err := symlink.FollowSymlinkInScope(filepath.Join(b.contextPath, origFile), b.contextPath)
 	if err != nil {
 		return fmt.Errorf("The Dockerfile (%s) must be within the build context", origFile)
@@ -240,6 +284,9 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
 
 	if cmd == "onbuild" {
+		if ast.Next == nil {
+			return fmt.Errorf("ONBUILD requires at least one argument")
+		}
 		ast = ast.Next.Children[0]
 		strs = append(strs, ast.Value)
 		msg += " " + ast.Value
@@ -281,7 +328,5 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		return f(b, strList, attrs, original)
 	}
 
-	fmt.Fprintf(b.ErrStream, "# Skipping unknown instruction %s\n", strings.ToUpper(cmd))
-
-	return nil
+	return fmt.Errorf("Unknown instruction: %s", strings.ToUpper(cmd))
 }

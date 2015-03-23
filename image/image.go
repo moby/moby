@@ -140,14 +140,12 @@ func (img *Image) RawJson() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get root for image %s: %s", img.ID, err)
 	}
-	fh, err := os.Open(jsonPath(root))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open json for image %s: %s", img.ID, err)
-	}
-	buf, err := ioutil.ReadAll(fh)
+
+	buf, err := ioutil.ReadFile(jsonPath(root))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read json for image %s: %s", img.ID, err)
 	}
+
 	return buf, nil
 }
 
