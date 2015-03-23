@@ -239,17 +239,18 @@ func parseJSON(rest string) (*Node, map[string]bool, error) {
 
 	var top, prev *Node
 	for _, str := range myJson {
-		if s, ok := str.(string); !ok {
+		s, ok := str.(string)
+		if !ok {
 			return nil, nil, errDockerfileNotStringArray
-		} else {
-			node := &Node{Value: s}
-			if prev == nil {
-				top = node
-			} else {
-				prev.Next = node
-			}
-			prev = node
 		}
+
+		node := &Node{Value: s}
+		if prev == nil {
+			top = node
+		} else {
+			prev.Next = node
+		}
+		prev = node
 	}
 
 	return top, map[string]bool{"json": true}, nil

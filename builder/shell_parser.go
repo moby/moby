@@ -158,14 +158,13 @@ func (sw *shellWord) processDollar() (string, error) {
 			return sw.getEnv(name), nil
 		}
 		return "", fmt.Errorf("Unsupported ${} substitution: %s", sw.word)
-	} else {
-		// $xxx case
-		name := sw.processName()
-		if name == "" {
-			return "$", nil
-		}
-		return sw.getEnv(name), nil
 	}
+	// $xxx case
+	name := sw.processName()
+	if name == "" {
+		return "$", nil
+	}
+	return sw.getEnv(name), nil
 }
 
 func (sw *shellWord) processName() string {
