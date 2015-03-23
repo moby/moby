@@ -1661,6 +1661,8 @@ containers removing all network communication.
 The main process inside the container referenced under the link `/redis` will receive
 `SIGKILL`, then the container will be removed.
 
+    $ docker rm $(docker ps -a -q)
+
 This command will delete all stopped containers. The command `docker ps
 -a -q` will return all existing container IDs and pass them to the `rm`
 command which will delete them. Any running containers will not be
