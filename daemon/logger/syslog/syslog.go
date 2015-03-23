@@ -30,16 +30,9 @@ func New(tag string) (logger.Logger, error) {
 func (s *Syslog) Log(msg *logger.Message) error {
 	logMessage := fmt.Sprintf("%s: %s", s.tag, string(msg.Line))
 	if msg.Source == "stderr" {
-		if err := s.writer.Err(logMessage); err != nil {
-			return err
-		}
-
-	} else {
-		if err := s.writer.Info(logMessage); err != nil {
-			return err
-		}
+		return s.writer.Err(logMessage)
 	}
-	return nil
+	return s.writer.Info(logMessage)
 }
 
 func (s *Syslog) Close() error {
