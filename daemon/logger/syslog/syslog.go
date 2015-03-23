@@ -43,10 +43,7 @@ func (s *Syslog) Log(msg *logger.Message) error {
 }
 
 func (s *Syslog) Close() error {
-	if s.writer != nil {
-		return s.writer.Close()
-	}
-	return nil
+	return s.writer.Close()
 }
 
 func (s *Syslog) Name() string {
