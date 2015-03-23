@@ -352,8 +352,8 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, si
 }
 
 type remoteTags struct {
-	Name string
-	Tags []string
+	Name string   `json:"name"`
+	Tags []string `json:"tags"`
 }
 
 // Given a repository name, returns a json array of string tags
