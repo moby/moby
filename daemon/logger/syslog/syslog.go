@@ -5,7 +5,6 @@ import (
 	"log/syslog"
 	"os"
 	"path"
-	"sync"
 
 	"github.com/docker/docker/daemon/logger"
 )
@@ -13,7 +12,6 @@ import (
 type Syslog struct {
 	writer *syslog.Writer
 	tag    string
-	mu     sync.Mutex
 }
 
 func New(tag string) (logger.Logger, error) {
