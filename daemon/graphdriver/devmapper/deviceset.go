@@ -1551,11 +1551,11 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 
 	if sizeInSectors, mappedSectors, highestMappedSector, err := devices.deviceStatus(info.DevName()); err != nil {
 		return nil, err
-	} else {
-		status.SizeInSectors = sizeInSectors
-		status.MappedSectors = mappedSectors
-		status.HighestMappedSector = highestMappedSector
 	}
+
+	status.SizeInSectors = sizeInSectors
+	status.MappedSectors = mappedSectors
+	status.HighestMappedSector = highestMappedSector
 
 	return status, nil
 }
