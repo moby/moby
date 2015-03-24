@@ -25,6 +25,7 @@ const (
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
+	ConfFile = ""
 )
 
 type AuthConfig struct {
@@ -164,14 +165,15 @@ func decodeAuth(authStr string) (string, string, error) {
 // FIXME: use the internal golang config parser
 func LoadConfig(rootPath string) (*ConfigFile, error) {
 	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
-	confFile := os.Getenv("DOCKER_CFG")
-	if confFile == "" {
-		confFile = path.Join(rootPath, CONFIGFILE)
+	ConfFile = os.Getenv("DOCKER_CFG")
+	if ConfFile == "" {
+		fmt.Println("No environment variable found")
+		ConfFile = path.Join(rootPath, CONFIGFILE)
 	}
-	if _, err := os.Stat(confFile); err != nil {
+	if _, err := os.Stat(ConfFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
-	b, err := ioutil.ReadFile(confFile)
+	b, err := ioutil.ReadFile(ConfFile)
 	if err != nil {
 		return &configFile, err
 	}
@@ -214,12 +216,13 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 
 // save the auth config
 func SaveConfig(configFile *ConfigFile) error {
-	confFile := os.Getenv("DOCKER_CFG")
-	if confFile == "" {
-		confFile = path.Join(configFile.rootPath, CONFIGFILE)
+	ConfFile = os.Getenv("DOCKER_CFG")
+	if ConfFile == "" {
+		fmt.Println("No environment variable found")
+		ConfFile = path.Join(configFile.rootPath, CONFIGFILE)
 	}
 	if len(configFile.Configs) == 0 {
-		os.Remove(confFile)
+		os.Remove(ConfFile)
 		return nil
 	}
 
@@ -238,7 +241,7 @@ func SaveConfig(configFile *ConfigFile) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(confFile, b, 0600)
+	err = ioutil.WriteFile(ConfFile, b, 0600)
 	if err != nil {
 		return err
 	}
