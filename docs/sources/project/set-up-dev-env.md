@@ -100,7 +100,7 @@ environment.
 
 4. Ensure you are on your `dry-run-test` branch.
 
-        $ git checkout dry-run-test
+        $ git checkout -b dry-run-test
 
 5. Compile your development environment container into an image.
 
