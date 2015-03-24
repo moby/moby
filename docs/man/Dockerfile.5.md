@@ -273,8 +273,15 @@ A Dockerfile is similar to a Makefile.
 
 **USER**
   -- `USER daemon`
-  The **USER** instruction sets the username or UID that is used when running the
-  image.
+  Sets the username or UID used for running subsequent commands.
+
+  The **USER** instruction can optionally be used to set the group or GID. The
+  followings examples are all valid:
+  USER [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+  Until the **USER** instruction is set, instructions will be run as root. The USER
+  instruction can be used any number of times in a Dockerfile, and will only affect
+  subsequent commands.
 
 **WRKDIR**
   -- `WORKDIR /path/to/workdir`
