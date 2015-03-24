@@ -19,13 +19,12 @@ type mapping struct {
 }
 
 var (
-	chain *iptables.Chain
-	lock  sync.Mutex
-
-	// udp:ip:port
-	currentMappings = make(map[string]*mapping)
-
 	NewProxy = NewProxyCommand
+
+	DefaultPortMapper = NewWithPortAllocator(portallocator.DefaultPortAllocator)
+	SetIptablesChain  = DefaultPortMapper.SetIptablesChain
+	Map               = DefaultPortMapper.Map
+	Unmap             = DefaultPortMapper.Unmap
 )
 
 var (
@@ -34,13 +33,34 @@ var (
 	ErrPortNotMapped             = errors.New("port is not mapped")
 )
 
-func SetIptablesChain(c *iptables.Chain) {
-	chain = c
+type PortMapper struct {
+	chain *iptables.Chain
+
+	// udp:ip:port
+	currentMappings map[string]*mapping
+	lock            sync.Mutex
+
+	allocator *portallocator.PortAllocator
 }
 
-func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err error) {
-	lock.Lock()
-	defer lock.Unlock()
+func New() *PortMapper {
+	return NewWithPortAllocator(portallocator.New())
+}
+
+func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
+	return &PortMapper{
+		currentMappings: make(map[string]*mapping),
+		allocator:       allocator,
+	}
+}
+
+func (pm *PortMapper) SetIptablesChain(c *iptables.Chain) {
+	pm.chain = c
+}
+
+func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err error) {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
 
 	var (
 		m                 *mapping
@@ -52,7 +72,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 	switch container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
-		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
+		if allocatedHostPort, err = pm.allocator.RequestPort(hostIP, proto, hostPort); err != nil {
 			return nil, err
 		}
 
@@ -65,7 +85,7 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
 	case *net.UDPAddr:
 		proto = "udp"
-		if allocatedHostPort, err = portallocator.RequestPort(hostIP, proto, hostPort); err != nil {
+		if allocatedHostPort, err = pm.allocator.RequestPort(hostIP, proto, hostPort); err != nil {
 			return nil, err
 		}
 
@@ -83,25 +103,25 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 	// release the allocated port on any further error during return.
 	defer func() {
 		if err != nil {
-			portallocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
 		}
 	}()
 
 	key := getKey(m.host)
-	if _, exists := currentMappings[key]; exists {
+	if _, exists := pm.currentMappings[key]; exists {
 		return nil, ErrPortMappedForIP
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if err := forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
+	if err := pm.forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
 		return nil, err
 	}
 
 	cleanup := func() error {
 		// need to undo the iptables rules before we return
 		proxy.Stop()
-		forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := portallocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+		pm.forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		if err := pm.allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
 			return err
 		}
 
@@ -115,35 +135,35 @@ func Map(container net.Addr, hostIP net.IP, hostPort int) (host net.Addr, err er
 		return nil, err
 	}
 	m.userlandProxy = proxy
-	currentMappings[key] = m
+	pm.currentMappings[key] = m
 	return m.host, nil
 }
 
-func Unmap(host net.Addr) error {
-	lock.Lock()
-	defer lock.Unlock()
+func (pm *PortMapper) Unmap(host net.Addr) error {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
 
 	key := getKey(host)
-	data, exists := currentMappings[key]
+	data, exists := pm.currentMappings[key]
 	if !exists {
 		return ErrPortNotMapped
 	}
 
 	data.userlandProxy.Stop()
 
-	delete(currentMappings, key)
+	delete(pm.currentMappings, key)
 
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
-	if err := forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+	if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
 		log.Errorf("Error on iptables delete: %s", err)
 	}
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		return portallocator.ReleasePort(a.IP, "tcp", a.Port)
+		return pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		return portallocator.ReleasePort(a.IP, "udp", a.Port)
+		return pm.allocator.ReleasePort(a.IP, "udp", a.Port)
 	}
 	return nil
 }
@@ -168,9 +188,9 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 	return nil, 0
 }
 
-func forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
-	if chain == nil {
+func (pm *PortMapper) forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
+	if pm.chain == nil {
 		return nil
 	}
-	return chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
+	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
 }
