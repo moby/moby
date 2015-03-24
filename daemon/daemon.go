@@ -31,13 +31,13 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/resolvconf"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
@@ -517,7 +517,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
 	var (
 		err error
-		id  = common.GenerateRandomID()
+		id  = stringid.GenerateRandomID()
 	)
 
 	if name == "" {
@@ -562,7 +562,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 			nameAsKnownByUser := strings.TrimPrefix(name, "/")
 			return "", fmt.Errorf(
 				"Conflict. The name %q is already in use by container %s. You have to delete (or rename) that container to be able to reuse that name.", nameAsKnownByUser,
-				common.TruncateID(conflictingContainer.ID))
+				stringid.TruncateID(conflictingContainer.ID))
 		}
 	}
 	return name, nil
@@ -585,7 +585,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 		return name, nil
 	}
 
-	name = "/" + common.TruncateID(id)
+	name = "/" + stringid.TruncateID(id)
 	if _, err := daemon.containerGraph.Set(name, id); err != nil {
 		return "", err
 	}

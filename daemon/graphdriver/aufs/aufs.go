@@ -34,9 +34,9 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/directory"
 	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -405,7 +405,7 @@ func (a *Driver) Cleanup() error {
 
 	for _, id := range ids {
 		if err := a.unmount(id); err != nil {
-			log.Errorf("Unmounting %s: %s", common.TruncateID(id), err)
+			log.Errorf("Unmounting %s: %s", stringid.TruncateID(id), err)
 		}
 	}
 

@@ -12,9 +12,9 @@ import (
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/broadcastwriter"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -141,7 +141,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) engine.Status {
 	}
 
 	execConfig := &execConfig{
-		ID:            common.GenerateRandomID(),
+		ID:            stringid.GenerateRandomID(),
 		OpenStdin:     config.AttachStdin,
 		OpenStdout:    config.AttachStdout,
 		OpenStderr:    config.AttachStderr,

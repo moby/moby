@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 // tagging a named image in a new unprefixed repo should work
@@ -59,7 +61,7 @@ func TestTagInvalidUnprefixedRepo(t *testing.T) {
 
 // ensure we don't allow the use of invalid tags; these tag operations should fail
 func TestTagInvalidPrefixedRepo(t *testing.T) {
-	long_tag := makeRandomString(121)
+	long_tag := stringutils.GenerateRandomAlphaOnlyString(121)
 
 	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", long_tag}
 

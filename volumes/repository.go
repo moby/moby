@@ -9,7 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 type Repository struct {
@@ -43,7 +43,7 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 	var (
 		isBindMount bool
 		err         error
-		id          = common.GenerateRandomID()
+		id          = stringid.GenerateRandomID()
 	)
 	if path != "" {
 		isBindMount = true
