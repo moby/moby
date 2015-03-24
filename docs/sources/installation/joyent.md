@@ -4,13 +4,13 @@ page_keywords: Docker, Docker documentation, installation, joyent, Joyent Public
 
 ## Install on Joyent Public Cloud
 
-1. Sign in to the [Joyent customer portal](https://my.joyent.com/)
+1. Sign in to the [Joyent customer portal](https://my.joyent.com/) ![Joyent Portal](https://docs.joyent.com/content/10-jpc/01-managing-docker-containers/10-creating-a-docker-host/image17.png)
 
 2. [Create a Docker host](https://docs.joyent.com/jpc/managing-docker-containers/creating-a-docker-host).
 
 ## Start and manage containers
 
-1. [Start containers in the web UI](https://docs.joyent.com/jpc/managing-docker-containers/starting-a-container)
+1. [Start containers in the web UI](https://docs.joyent.com/jpc/managing-docker-containers/starting-a-container) ![Container in Web UI](https://docs.joyent.com/content/10-jpc/01-managing-docker-containers/10-creating-a-docker-host/image04.png)
 
 2. [Configure the Docker CLI on your laptop](https://docs.joyent.com/jpc/managing-docker-containers/access-your-jpc-docker-hosts-from-the-docker-cli) to connect to the remote host to launch and manage containers.
 
