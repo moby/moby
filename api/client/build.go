@@ -32,6 +32,10 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+const (
+	tarHeaderSize = 512
+)
+
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "PATH | URL | -", "Build a new image from the source code at PATH", true)
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) for the image")
