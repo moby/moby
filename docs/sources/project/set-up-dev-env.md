@@ -15,7 +15,7 @@ You use the `docker` repository and its `Dockerfile` to create a Docker image,
 run a Docker container, and develop code in the container. Docker itself builds,
 tests, and releases new Docker versions using this container.
 
-If you followed the procedures that <a href="./set-up-prereqs" target="_blank">
+If you followed the procedures that <a href="./software-required" target="_blank">
 set up the prerequisites</a>, you should have a fork of the `docker/docker`
 repository. You also created a branch called `dry-run-test`. In this section,
 you continue working with your fork on this branch.
