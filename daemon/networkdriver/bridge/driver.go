@@ -80,6 +80,7 @@ var (
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
+	ipAllocator       = ipallocator.New()
 )
 
 func InitDriver(job *engine.Job) engine.Status {
@@ -244,7 +245,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		log.Debugf("Subnet: %v", subnet)
-		if err := ipallocator.RegisterSubnet(bridgeIPv4Network, subnet); err != nil {
+		if err := ipAllocator.RegisterSubnet(bridgeIPv4Network, subnet); err != nil {
 			return job.Error(err)
 		}
 	}
@@ -255,14 +256,14 @@ func InitDriver(job *engine.Job) engine.Status {
 			return job.Error(err)
 		}
 		log.Debugf("Subnet: %v", subnet)
-		if err := ipallocator.RegisterSubnet(subnet, subnet); err != nil {
+		if err := ipAllocator.RegisterSubnet(subnet, subnet); err != nil {
 			return job.Error(err)
 		}
 		globalIPv6Network = subnet
 	}
 
 	// Block BridgeIP in IP allocator
-	ipallocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
+	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
 
 	// https://github.com/docker/docker/issues/2768
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeIPv4Network.IP)
@@ -509,7 +510,7 @@ func Allocate(job *engine.Job) engine.Status {
 		globalIPv6    net.IP
 	)
 
-	ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
+	ip, err = ipAllocator.RequestIP(bridgeIPv4Network, requestedIP)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -530,7 +531,7 @@ func Allocate(job *engine.Job) engine.Status {
 			}
 		}
 
-		globalIPv6, err = ipallocator.RequestIP(globalIPv6Network, requestedIPv6)
+		globalIPv6, err = ipAllocator.RequestIP(globalIPv6Network, requestedIPv6)
 		if err != nil {
 			log.Errorf("Allocator: RequestIP v6: %v", err)
 			return job.Error(err)
@@ -591,11 +592,11 @@ func Release(job *engine.Job) engine.Status {
 		}
 	}
 
-	if err := ipallocator.ReleaseIP(bridgeIPv4Network, containerInterface.IP); err != nil {
+	if err := ipAllocator.ReleaseIP(bridgeIPv4Network, containerInterface.IP); err != nil {
 		log.Infof("Unable to release IPv4 %s", err)
 	}
 	if globalIPv6Network != nil {
-		if err := ipallocator.ReleaseIP(globalIPv6Network, containerInterface.IPv6); err != nil {
+		if err := ipAllocator.ReleaseIP(globalIPv6Network, containerInterface.IPv6); err != nil {
 			log.Infof("Unable to release IPv6 %s", err)
 		}
 	}

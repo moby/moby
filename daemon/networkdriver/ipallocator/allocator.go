@@ -41,19 +41,24 @@ var (
 	ErrBadSubnet                = errors.New("network does not contain specified subnet")
 )
 
-var (
-	lock         = sync.Mutex{}
-	allocatedIPs = networkSet{}
-)
+type IPAllocator struct {
+	allocatedIPs networkSet
+	mutex        sync.Mutex
+}
+
+func New() *IPAllocator {
+	return &IPAllocator{networkSet{}, sync.Mutex{}}
+}
 
 // RegisterSubnet registers network in global allocator with bounds
 // defined by subnet. If you want to use network range you must call
 // this method before first RequestIP, otherwise full network range will be used
-func RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
-	lock.Lock()
-	defer lock.Unlock()
+func (a *IPAllocator) RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	key := network.String()
-	if _, ok := allocatedIPs[key]; ok {
+	if _, ok := a.allocatedIPs[key]; ok {
 		return ErrNetworkAlreadyRegistered
 	}
 	n := newAllocatedMap(network)
@@ -68,7 +73,7 @@ func RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
 	n.begin.Set(begin)
 	n.end.Set(end)
 	n.last.Sub(begin, big.NewInt(1))
-	allocatedIPs[key] = n
+	a.allocatedIPs[key] = n
 	return nil
 }
 
@@ -76,14 +81,15 @@ func RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
 // will return the next available ip if the ip provided is nil.  If the
 // ip provided is not nil it will validate that the provided ip is available
 // for use or return an error
-func RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
-	lock.Lock()
-	defer lock.Unlock()
+func (a *IPAllocator) RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	key := network.String()
-	allocated, ok := allocatedIPs[key]
+	allocated, ok := a.allocatedIPs[key]
 	if !ok {
 		allocated = newAllocatedMap(network)
-		allocatedIPs[key] = allocated
+		a.allocatedIPs[key] = allocated
 	}
 
 	if ip == nil {
@@ -94,10 +100,11 @@ func RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
 
 // ReleaseIP adds the provided ip back into the pool of
 // available ips to be returned for use.
-func ReleaseIP(network *net.IPNet, ip net.IP) error {
-	lock.Lock()
-	defer lock.Unlock()
-	if allocated, exists := allocatedIPs[network.String()]; exists {
+func (a *IPAllocator) ReleaseIP(network *net.IPNet, ip net.IP) error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	if allocated, exists := a.allocatedIPs[network.String()]; exists {
 		delete(allocated.p, ip.String())
 	}
 	return nil
