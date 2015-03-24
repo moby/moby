@@ -341,7 +341,12 @@ The **-t** option is incompatible with a redirection of the docker client
 standard input.
 
 **-u**, **--user**=""
-   Username or UID
+   Sets the username or UID used and optionally the groupname or GID for the specified command.
+
+   The followings examples are all valid:
+   --user [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+   Without this argument the command will be run as root in the container.
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
