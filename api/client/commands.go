@@ -33,7 +33,6 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -43,6 +42,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/timeutils"
@@ -1165,7 +1165,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 			if *noTrunc {
 				fmt.Fprintf(w, "%s\t", outID)
 			} else {
-				fmt.Fprintf(w, "%s\t", common.TruncateID(outID))
+				fmt.Fprintf(w, "%s\t", stringid.TruncateID(outID))
 			}
 
 			fmt.Fprintf(w, "%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))))
@@ -1180,7 +1180,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 			if *noTrunc {
 				fmt.Fprintln(w, outID)
 			} else {
-				fmt.Fprintln(w, common.TruncateID(outID))
+				fmt.Fprintln(w, stringid.TruncateID(outID))
 			}
 		}
 	}
@@ -1479,7 +1479,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			}
 
 			if matchName != "" {
-				if matchName == image.Get("Id") || matchName == common.TruncateID(image.Get("Id")) {
+				if matchName == image.Get("Id") || matchName == stringid.TruncateID(image.Get("Id")) {
 					startImage = image
 				}
 
@@ -1549,7 +1549,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		for _, out := range outs.Data {
 			outID := out.Get("Id")
 			if !*noTrunc {
-				outID = common.TruncateID(outID)
+				outID = stringid.TruncateID(outID)
 			}
 
 			repoTags := out.GetList("RepoTags")
@@ -1629,8 +1629,8 @@ func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix strin
 		imageID = image.Get("Id")
 		parentID = image.Get("ParentId")
 	} else {
-		imageID = common.TruncateID(image.Get("Id"))
-		parentID = common.TruncateID(image.Get("ParentId"))
+		imageID = stringid.TruncateID(image.Get("Id"))
+		parentID = stringid.TruncateID(image.Get("ParentId"))
 	}
 	if parentID == "" {
 		fmt.Fprintf(cli.out, " base -> \"%s\" [style=invis]\n", imageID)
@@ -1649,7 +1649,7 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 	if noTrunc {
 		imageID = image.Get("Id")
 	} else {
-		imageID = common.TruncateID(image.Get("Id"))
+		imageID = stringid.TruncateID(image.Get("Id"))
 	}
 
 	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, units.HumanSize(float64(image.GetInt64("VirtualSize"))))
@@ -1757,7 +1757,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		outID := out.Get("Id")
 
 		if !*noTrunc {
-			outID = common.TruncateID(outID)
+			outID = stringid.TruncateID(outID)
 		}
 
 		if *quiet {

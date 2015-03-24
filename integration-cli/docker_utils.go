@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 // Daemon represents a Docker daemon for the testing framework.
@@ -695,8 +696,8 @@ func (f *remoteFileServer) Close() error {
 
 func newRemoteFileServer(ctx *FakeContext) (*remoteFileServer, error) {
 	var (
-		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(makeRandomString(10)))
-		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(makeRandomString(10)))
+		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
+		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 	)
 
 	// Build the image

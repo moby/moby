@@ -21,9 +21,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 type KeyValuePair struct {
@@ -312,7 +312,7 @@ var globalTestID string
 // new directory.
 func TestDirectory(templateDir string) (dir string, err error) {
 	if globalTestID == "" {
-		globalTestID = common.RandomString()[:4]
+		globalTestID = stringutils.GenerateRandomString()[:4]
 	}
 	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, GetCallerName(2))
 	if prefix == "" {

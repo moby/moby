@@ -8,7 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -230,7 +230,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
 		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount > max {
 			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",
-				common.TruncateID(m.container.ID), max)
+				stringid.TruncateID(m.container.ID), max)
 			return false
 		}
 
