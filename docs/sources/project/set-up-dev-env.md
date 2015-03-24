@@ -15,8 +15,8 @@ You use the `docker` repository and its `Dockerfile` to create a Docker image,
 run a Docker container, and develop code in the container. Docker itself builds,
 tests, and releases new Docker versions using this container.
 
-If you followed the procedures that <a href="./software-required" target="_blank">
-set up the prerequisites</a>, you should have a fork of the `docker/docker`
+If you followed the procedures that <a href="/project/set-up-git" target="_blank">
+set up Git for contributing</a>, you should have a fork of the `docker/docker`
 repository. You also created a branch called `dry-run-test`. In this section,
 you continue working with your fork on this branch.
 
@@ -97,10 +97,17 @@ environment.
 3. Change into the root of your forked repository.
 
         $ cd ~/repos/docker-fork 
+        
+	If you are following along with this guide, you created a `dry-run-test`
+	branch when you <a href="/project/set-up-git" target="_blank"> set up Git for
+	contributing</a>
 
 4. Ensure you are on your `dry-run-test` branch.
 
         $ git checkout dry-run-test
+        
+    If you get a message that the branch doesn't exist, add the `-b` flag so the
+    command both creates the branch and checks it out.
 
 5. Compile your development environment container into an image.
 
@@ -232,7 +239,8 @@ build and run a `docker` binary in your container.
 
     You will create one in the next steps.
 
-4. From the `/go/src/github.com/docker/docker` directory make a `docker` binary with the `make.sh` script.
+4. From the `/go/src/github.com/docker/docker` directory make a `docker` binary
+with the `make.sh` script.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh binary
 
@@ -357,7 +365,8 @@ container.
 
     Your location will be different because it reflects your environment. 
 
-3. Create a container using `dry-run-test` but this time mount your repository onto the `/go` directory inside the container.
+3. Create a container using `dry-run-test` but this time mount your repository
+onto the `/go` directory inside the container.
 
         $  docker run --privileged --rm -ti -v `pwd`:/go/src/github.com/docker/docker dry-run-test /bin/bash
 
@@ -408,4 +417,5 @@ container.
 Congratulations, you have successfully achieved Docker inception. At this point,
 you've set up your development environment and verified almost all the essential
 processes you need to contribute. Of course, before you start contributing, 
-[you'll need to learn one more piece of the development environment, the test framework](/project/test-and-docs/).
+[you'll need to learn one more piece of the development environment, the test
+framework](/project/test-and-docs/).

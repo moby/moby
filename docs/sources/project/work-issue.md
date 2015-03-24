@@ -30,8 +30,10 @@ Follow this workflow as you work:
     source into a development container and iterate that way. For documentation
     alone, you can work on your local host. 
 
-    Review <a href="../set-up-dev-env" target="_blank">if you forgot the details
-    of working with a container</a>.
+    Make sure you don't change files in the `vendor` directory and its
+    subdirectories; they contain third-party dependency code. Review <a
+    href="../set-up-dev-env" target="_blank">if you forgot the details of
+    working with a container</a>.
 
 
 3. Test your changes as you work.
