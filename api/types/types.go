@@ -18,3 +18,9 @@ type ContainerExecCreateResponse struct {
 	// Warnings are any warnings encountered during the execution of the command.
 	Warnings []string `json:"Warnings"`
 }
+
+// POST /auth
+type AuthResponse struct {
+	// Status is the authentication status
+	Status string `json:"Status"`
+}
