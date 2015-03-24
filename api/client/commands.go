@@ -2677,12 +2677,15 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return err
 	}
 
-	var execResult engine.Env
-	if err := execResult.Decode(stream); err != nil {
+	var response types.ContainerExecCreateResponse
+	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err
 	}
+	for _, warning := range response.Warnings {
+		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
+	}
 
-	execID := execResult.Get("Id")
+	execID := response.ID
 
 	if execID == "" {
 		fmt.Fprintf(cli.out, "exec ID empty")
