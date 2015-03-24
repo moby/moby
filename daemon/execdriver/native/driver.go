@@ -64,7 +64,6 @@ func NewDriver(root, initPath string) (*driver, error) {
 		root,
 		cgm,
 		libcontainer.InitPath(reexec.Self(), DriverName),
-		libcontainer.TmpfsRoot,
 	)
 	if err != nil {
 		return nil, err
