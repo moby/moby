@@ -445,6 +445,7 @@ made through a pull request.
 		[Org.Subsystem."remote api"]
 
 			people = [
+				"jfrazelle",
 				"vieux"
 			]
 
@@ -476,6 +477,62 @@ made through a pull request.
 				"duglin"
 			]
 
+		[Org.Subsystem.daemon]
+
+			people = [
+				"cpuguy83",
+				"crosbymichael",
+				"shykes",
+				"tibor",
+				"unclejack",
+				"vieux",
+				"vishh",
+			]
+
+		[Org.Subsystem.engine]
+
+			people = [
+				"shykes"
+			]
+
+		[Org.Subsystem.graph]
+
+			people = [
+				"crosbymichael",
+				"shykes",
+				"tibor",
+				"unclejack",
+				"vieux",
+			]
+
+		[Org.Subsystem.integration]
+
+			people = [
+				"tibor",
+				"unclejack"
+			]
+
+		[Org.Subsystem.integration-cli]
+
+			people = [
+				"unclejack"
+			]
+
+		[Org.Subsystem.project]
+
+			people = [
+				# NOTE: jpetazzo is maintainer for "dind"
+				"jpetazzo",
+				"tianon",
+				"tibor",
+				"unclejack"
+			]
+
+		[Org.Subsystem.volumes]
+
+			people = [
+				"cpuguy83"
+			]
 
 [people]
 
@@ -499,6 +556,11 @@ made through a pull request.
 	Name = "Ben Firshman"
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
+
+	[people.cpuguy83]
+	Name = "Brian Goff"
+	Email = "cpuguy83@gmail.com"
+	GitHub = "cpuguy83"
 
 	[people.crosbymichael]
 	Name = "Michael Crosby"
@@ -550,6 +612,11 @@ made through a pull request.
 	Email = "arnaud@docker.com"
 	GitHub = "icecrime"
 
+	[people.james]
+	Name = "James Turnbull"
+	Email = "james@lovedthanlost.net"
+	GitHub = "jamtur01"
+
 	[people.jfrazelle]
 	Name = "Jessie Frazelle"
 	Email = "jess@docker.com"
@@ -564,6 +631,11 @@ made through a pull request.
 	Name = "Joffrey Fuhrer"
 	Email = "joffrey@docker.com"
 	Github = "shin-"
+
+	[people.jpetazzo]
+	Name = "Jerome Petazzoni"
+	Email = "jerome@docker.com"
+	GitHub = "jpetazzo"
 
 	[people.lk4d4]
 	Name = "Alexander Morozov"
