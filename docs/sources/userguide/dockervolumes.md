@@ -52,6 +52,27 @@ This will create a new volume inside a container at `/webapp`.
 > You can also use the `VOLUME` instruction in a `Dockerfile` to add one or
 > more new volumes to any container created from that image.
 
+### Locating a volume
+
+You can locate the volume on the host by utilizing the 'docker inspect' command.
+
+    $ docker inspect web
+
+The output will provide details on the container configurations including the
+volumes. The output should look something similar to the following:
+
+    ...
+    "Volumes": {
+        "/webapp": "/var/lib/docker/volumes/fac362...80535"
+    },
+    "VolumesRW": {
+        "/webapp": true
+    }
+    ...
+
+You will notice in the above 'Volumes' is specifying the location on the host and 
+'VolumesRW' is specifying that the volume is read/write.
+
 ### Mount a Host Directory as a Data Volume
 
 In addition to creating a volume using the `-v` flag you can also mount a
