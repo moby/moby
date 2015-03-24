@@ -1554,6 +1554,8 @@ The filtering flag (`-f` or `--filter)` format is a `key=value` pair. If there i
 than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
 
 Current filters:
+ * id (container's id)
+ * name (container's name)
  * exited (int - the code of exited containers. Only useful with '--all')
  * status (restarting|running|paused|exited)
 
