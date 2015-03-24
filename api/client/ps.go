@@ -151,7 +151,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", ID, image, command,
-			units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))),
+			units.HumanDuration(time.Now().UTC().Sub(container.Created)),
 			container.Status, api.DisplayablePorts(container.Ports), strings.Join(names, ","))
 
 		if *size {

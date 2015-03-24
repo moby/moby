@@ -50,7 +50,7 @@ type ContainerChange struct {
 // GET "/images/{name:.*}/history"
 type ImageHistory struct {
 	ID        string `json:"Id"`
-	Created   int64
+	Created   time.Time
 	CreatedBy string
 	Tags      []string
 	Size      int64
@@ -69,7 +69,7 @@ type Image struct {
 	ParentId    string
 	RepoTags    []string
 	RepoDigests []string
-	Created     int
+	Created     time.Time
 	Size        int
 	VirtualSize int
 	Labels      map[string]string
@@ -105,7 +105,7 @@ type Container struct {
 	Names      []string          `json:",omitempty"`
 	Image      string            `json:",omitempty"`
 	Command    string            `json:",omitempty"`
-	Created    int               `json:",omitempty"`
+	Created    time.Time         `json:",omitempty"`
 	Ports      []Port            `json:",omitempty"`
 	SizeRw     int               `json:",omitempty"`
 	SizeRootFs int               `json:",omitempty"`

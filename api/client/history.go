@@ -47,9 +47,9 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		}
 		if !*quiet {
 			if *human {
-				fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))))
+				fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(entry.Created)))
 			} else {
-				fmt.Fprintf(w, "\t%s\t", time.Unix(entry.Created, 0).Format(time.RFC3339))
+				fmt.Fprintf(w, "\t%s\t", entry.Created.Format(time.RFC3339))
 			}
 
 			if *noTrunc {
