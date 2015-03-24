@@ -49,6 +49,9 @@ type activeContainer struct {
 }
 
 func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
+	if err := os.MkdirAll(root, 0700); err != nil {
+		return nil, err
+	}
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
