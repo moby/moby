@@ -19,9 +19,7 @@ func (history *History) Less(i, j int) bool {
 
 func (history *History) Swap(i, j int) {
 	containers := *history
-	tmp := containers[i]
-	containers[i] = containers[j]
-	containers[j] = tmp
+	containers[i], containers[j] = containers[j], containers[i]
 }
 
 func (history *History) Add(container *Container) {
