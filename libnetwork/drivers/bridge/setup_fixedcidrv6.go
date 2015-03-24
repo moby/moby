@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/networkdriver/ipallocator"
+	"github.com/docker/libnetwork/ipallocator"
 )
 
 func setupFixedCIDRv6(i *bridgeInterface) error {

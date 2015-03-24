@@ -69,8 +69,8 @@ func TestSetupDeviceUp(t *testing.T) {
 func TestGenerateRandomMAC(t *testing.T) {
 	defer libnetwork.SetupTestNetNS(t)()
 
-	mac1 := generateRandomMAC()
-	mac2 := generateRandomMAC()
+	mac1 := libnetwork.GenerateRandomMAC()
+	mac2 := libnetwork.GenerateRandomMAC()
 	if bytes.Compare(mac1, mac2) == 0 {
 		t.Fatalf("Generated twice the same MAC address %v", mac1)
 	}
