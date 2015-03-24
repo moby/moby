@@ -192,7 +192,9 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 	if status := engine.Tail(stdoutBuffer, 1); status != "" {
 		var env engine.Env
 		env.Set("Status", status)
-		return writeJSONEnv(w, http.StatusOK, env)
+		return writeJSON(w, http.StatusOK, &types.AuthResponse{
+			Status: status,
+		})
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
@@ -1087,6 +1089,20 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
 	job.Setenv("cpushares", r.FormValue("cpushares"))
 
+	// Job cancellation. Note: not all job types support this.
+	if closeNotifier, ok := w.(http.CloseNotifier); ok {
+		finished := make(chan struct{})
+		defer close(finished)
+		go func() {
+			select {
+			case <-finished:
+			case <-closeNotifier.CloseNotify():
+				log.Infof("Client disconnected, cancelling job: %v", job)
+				job.Cancel()
+			}
+		}()
+	}
+
 	if err := job.Run(); err != nil {
 		if !job.Stdout.Used() {
 			return err
@@ -1141,10 +1157,11 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 		return nil
 	}
 	var (
-		out          engine.Env
 		name         = vars["name"]
 		job          = eng.Job("execCreate", name)
 		stdoutBuffer = bytes.NewBuffer(nil)
+		outWarnings  []string
+		warnings     = bytes.NewBuffer(nil)
 	)
 
 	if err := job.DecodeEnv(r.Body); err != nil {
@@ -1152,15 +1169,23 @@ func postContainerExecCreate(eng *engine.Engine, version version.Version, w http
 	}
 
 	job.Stdout.Add(stdoutBuffer)
+	// Read warnings from stderr
+	job.Stderr.Add(warnings)
 	// Register an instance of Exec in container.
 	if err := job.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error setting up exec command in container %s: %s\n", name, err)
 		return err
 	}
-	// Return the ID
-	out.Set("Id", engine.Tail(stdoutBuffer, 1))
+	// Parse warnings from stderr
+	scanner := bufio.NewScanner(warnings)
+	for scanner.Scan() {
+		outWarnings = append(outWarnings, scanner.Text())
+	}
 
-	return writeJSONEnv(w, http.StatusCreated, out)
+	return writeJSON(w, http.StatusCreated, &types.ContainerExecCreateResponse{
+		ID:       engine.Tail(stdoutBuffer, 1),
+		Warnings: outWarnings,
+	})
 }
 
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
@@ -1578,7 +1603,15 @@ func ServeApi(job *engine.Job) engine.Status {
 				chErrors <- err
 				return
 			}
-			chErrors <- srv.Serve()
+			job.Eng.OnShutdown(func() {
+				if err := srv.Close(); err != nil {
+					log.Error(err)
+				}
+			})
+			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+				err = nil
+			}
+			chErrors <- err
 		}()
 	}
 

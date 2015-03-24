@@ -37,11 +37,11 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/term"
@@ -232,6 +232,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 	}
+
+	// windows: show error message about modified file permissions
+	// FIXME: this is not a valid warning when the daemon is running windows. should be removed once docker engine for windows can build.
+	if runtime.GOOS == "windows" {
+		log.Warn(`SECURITY WARNING: You are building a Docker image from Windows against a Linux Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
+	}
+
 	var body io.Reader
 	// Setup an upload progress bar
 	// FIXME: ProgressReader shouldn't be this annoying to use
@@ -443,17 +450,18 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if err != nil {
 		return err
 	}
-	var out2 engine.Env
-	err = out2.Decode(stream)
-	if err != nil {
+
+	var response types.AuthResponse
+	if err := json.NewDecoder(stream).Decode(response); err != nil {
 		cli.configFile, _ = registry.LoadConfig(homedir.Get())
 		return err
 	}
+
 	registry.SaveConfig(cli.configFile)
 	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", path.Join(homedir.Get(), registry.CONFIGFILE))
 
-	if out2.Get("Status") != "" {
-		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
+	if response.Status != "" {
+		fmt.Fprintf(cli.out, "%s\n", response.Status)
 	}
 	return nil
 }
@@ -762,18 +770,6 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	cmd.Require(flag.Min, 1)
 	utils.ParseFlags(cmd, args, true)
 
-	hijacked := make(chan io.Closer)
-	// Block the return until the chan gets closed
-	defer func() {
-		log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
-		if _, ok := <-hijacked; ok {
-			log.Errorf("Hijack did not finish (chan still open)")
-		}
-		if *openStdin || *attach {
-			cli.in.Close()
-		}
-	}()
-
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
@@ -809,26 +805,34 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v.Set("stdout", "1")
 		v.Set("stderr", "1")
 
+		hijacked := make(chan io.Closer)
+		// Block the return until the chan gets closed
+		defer func() {
+			log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
+			if _, ok := <-hijacked; ok {
+				log.Errorf("Hijack did not finish (chan still open)")
+			}
+			cli.in.Close()
+		}()
 		cErr = promise.Go(func() error {
 			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, hijacked, nil)
 		})
-	} else {
-		close(hijacked)
+
+		// Acknowledge the hijack before starting
+		select {
+		case closer := <-hijacked:
+			// Make sure that the hijack gets closed when returning (results
+			// in closing the hijack chan and freeing server's goroutines)
+			if closer != nil {
+				defer closer.Close()
+			}
+		case err := <-cErr:
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	// Acknowledge the hijack before starting
-	select {
-	case closer := <-hijacked:
-		// Make sure that the hijack gets closed when returning (results
-		// in closing the hijack chan and freeing server's goroutines)
-		if closer != nil {
-			defer closer.Close()
-		}
-	case err := <-cErr:
-		if err != nil {
-			return err
-		}
-	}
 	var encounteredError error
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, false))
@@ -2492,6 +2496,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 
+	defer func() {
+		if *flAutoRemove {
+			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, false)); err != nil {
+				log.Errorf("Error deleting container: %s", err)
+			}
+		}
+	}()
+
 	//start the container
 	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, false)); err != nil {
 		return err
@@ -2527,9 +2539,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			return err
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
-			return err
-		}
-		if _, _, err := readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, false)); err != nil {
 			return err
 		}
 	} else {
@@ -2669,12 +2678,15 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return err
 	}
 
-	var execResult engine.Env
-	if err := execResult.Decode(stream); err != nil {
+	var response types.ContainerExecCreateResponse
+	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err
 	}
+	for _, warning := range response.Warnings {
+		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
+	}
 
-	execID := execResult.Get("Id")
+	execID := response.ID
 
 	if execID == "" {
 		fmt.Fprintf(cli.out, "exec ID empty")

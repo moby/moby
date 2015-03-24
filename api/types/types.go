@@ -9,3 +9,18 @@ type ContainerCreateResponse struct {
 	// Warnings are any warnings encountered during the creation of the container.
 	Warnings []string `json:"Warnings"`
 }
+
+// POST /containers/{name:.*}/exec
+type ContainerExecCreateResponse struct {
+	// ID is the exec ID.
+	ID string `json:"Id"`
+
+	// Warnings are any warnings encountered during the execution of the command.
+	Warnings []string `json:"Warnings"`
+}
+
+// POST /auth
+type AuthResponse struct {
+	// Status is the authentication status
+	Status string `json:"Status"`
+}

@@ -51,11 +51,11 @@ func TestChmodTarEntry(t *testing.T) {
 	cases := []struct {
 		in, expected os.FileMode
 	}{
-		{0000, 0100},
-		{0777, 0711},
-		{0644, 0700},
-		{0755, 0711},
-		{0444, 0500},
+		{0000, 0111},
+		{0777, 0755},
+		{0644, 0755},
+		{0755, 0755},
+		{0444, 0555},
 	}
 	for _, v := range cases {
 		if out := chmodTarEntry(v.in); out != v.expected {

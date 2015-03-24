@@ -270,11 +270,6 @@ __docker_subcommand () {
                 {-q,--quiet}'[Only show numeric IDs]' \
                 ':repository:__docker_repositories'
             ;;
-        (inspect)
-            _arguments \
-                {-f,--format=-}'[Format the output using the given go template]:template: ' \
-                '*:containers:__docker_containers'
-            ;;
         (import)
             _arguments \
                 ':URL:(- http:// file://)' \
@@ -282,15 +277,10 @@ __docker_subcommand () {
             ;;
         (info)
             ;;
-        (import)
+        (inspect)
             _arguments \
-                ':URL:(- http:// file://)' \
-                ':repository:__docker_repositories_with_tags'
-            ;;
-        (insert)
-            _arguments '1:containers:__docker_containers' \
-                       '2:URL:(http:// file://)' \
-                       '3:file:_files'
+                {-f,--format=-}'[Format the output using the given go template]:template: ' \
+                '*:containers:__docker_containers'
             ;;
         (kill)
             _arguments \

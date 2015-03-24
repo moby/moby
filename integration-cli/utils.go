@@ -42,6 +42,18 @@ func processExitCode(err error) (exitCode int) {
 	return
 }
 
+func IsKilled(err error) bool {
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		sys := exitErr.ProcessState.Sys()
+		status, ok := sys.(syscall.WaitStatus)
+		if !ok {
+			return false
+		}
+		return status.Signaled() && status.Signal() == os.Kill
+	}
+	return false
+}
+
 func runCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
 	exitCode = 0
 	out, err := cmd.CombinedOutput()
@@ -327,4 +339,18 @@ func consumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 			time.Sleep(interval)
 		}
 	}
+}
+
+// Parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
+// a map which cgroup name as key and path as value.
+func parseCgroupPaths(procCgroupData string) map[string]string {
+	cgroupPaths := map[string]string{}
+	for _, line := range strings.Split(procCgroupData, "\n") {
+		parts := strings.Split(line, ":")
+		if len(parts) != 3 {
+			continue
+		}
+		cgroupPaths[parts[1]] = parts[2]
+	}
+	return cgroupPaths
 }

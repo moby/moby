@@ -259,7 +259,7 @@ Json Parameters:
         `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
   -   **LogConfig** - Logging configuration to container, format
         `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}
-        Available types: `json-file`, `none`.
+        Available types: `json-file`, `syslog`, `none`.
         `json-file` logging driver.
   -   **CgroupParent** - Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
@@ -1143,6 +1143,9 @@ the path to the alternate build instructions file to use.
 The archive may include any number of other files,
 which will be accessible in the build context (See the [*ADD build
 command*](/reference/builder/#dockerbuilder)).
+
+The build will also be canceled if the client drops the connection by quitting
+or being killed.
 
 Query Parameters:
 

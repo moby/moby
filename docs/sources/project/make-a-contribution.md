@@ -16,7 +16,7 @@ process simple so you'll want to contribute frequently.
 ## The basic contribution workflow
 
 In this guide, you work through Docker's basic contribution workflow by fixing a
-single *white-belt* issue in the `docker/docker` repository. The workflow
+single *beginner* issue in the `docker/docker` repository. The workflow
 for fixing simple issues looks like this:
 
 ![Simple process](/project/images/existing_issue.png)

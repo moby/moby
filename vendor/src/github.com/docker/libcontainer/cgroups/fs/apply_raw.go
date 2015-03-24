@@ -99,12 +99,11 @@ func (m *Manager) Apply(pid int) error {
 		// created then join consists of writing the process pids to cgroup.procs
 		p, err := d.path(name)
 		if err != nil {
+			if cgroups.IsNotFound(err) {
+				continue
+			}
 			return err
 		}
-		if !cgroups.PathExists(p) {
-			continue
-		}
-
 		paths[name] = p
 	}
 	m.Paths = paths

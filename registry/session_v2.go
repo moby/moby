@@ -1,13 +1,16 @@
 package registry
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/registry/v2"
 	"github.com/docker/docker/utils"
 )
@@ -95,11 +98,12 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 		return nil, "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
 	}
 
-	buf, err := ioutil.ReadAll(res.Body)
+	manifestBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, "", fmt.Errorf("Error while reading the http response: %s", err)
 	}
-	return buf, res.Header.Get(DockerDigestHeader), nil
+
+	return manifestBytes, res.Header.Get(DockerDigestHeader), nil
 }
 
 // - Succeeded to head image blob (already exists)
@@ -209,29 +213,14 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum str
 // 'layer' is an uncompressed reader of the blob to be pushed.
 // The server will generate it's own checksum calculation.
 func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string, blobRdr io.Reader, auth *RequestAuthorization) error {
-	routeURL, err := getV2Builder(ep).BuildBlobUploadURL(imageName)
+	location, err := r.initiateBlobUpload(ep, imageName, auth)
 	if err != nil {
 		return err
 	}
-
-	log.Debugf("[registry] Calling %q %s", "POST", routeURL)
-	req, err := r.reqFactory.NewRequest("POST", routeURL, nil)
-	if err != nil {
-		return err
-	}
-
-	if err := auth.Authorize(req); err != nil {
-		return err
-	}
-	res, _, err := r.doRequest(req)
-	if err != nil {
-		return err
-	}
-	location := res.Header.Get("Location")
 
 	method := "PUT"
 	log.Debugf("[registry] Calling %q %s", method, location)
-	req, err = r.reqFactory.NewRequest(method, location, ioutil.NopCloser(blobRdr))
+	req, err := r.reqFactory.NewRequest(method, location, ioutil.NopCloser(blobRdr))
 	if err != nil {
 		return err
 	}
@@ -241,7 +230,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err = r.doRequest(req)
+	res, _, err := r.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -262,8 +251,53 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 	return nil
 }
 
+// initiateBlobUpload gets the blob upload location for the given image name.
+func (r *Session) initiateBlobUpload(ep *Endpoint, imageName string, auth *RequestAuthorization) (location string, err error) {
+	routeURL, err := getV2Builder(ep).BuildBlobUploadURL(imageName)
+	if err != nil {
+		return "", err
+	}
+
+	log.Debugf("[registry] Calling %q %s", "POST", routeURL)
+	req, err := r.reqFactory.NewRequest("POST", routeURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if err := auth.Authorize(req); err != nil {
+		return "", err
+	}
+	res, _, err := r.doRequest(req)
+	if err != nil {
+		return "", err
+	}
+
+	if res.StatusCode != http.StatusAccepted {
+		if res.StatusCode == http.StatusUnauthorized {
+			return "", errLoginRequired
+		}
+		if res.StatusCode == http.StatusNotFound {
+			return "", ErrDoesNotExist
+		}
+
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return "", err
+		}
+
+		log.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
+		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: unexpected %d response status trying to initiate upload of %s", res.StatusCode, imageName), res)
+	}
+
+	if location = res.Header.Get("Location"); location == "" {
+		return "", fmt.Errorf("registry did not return a Location header for resumable blob upload for image %s", imageName)
+	}
+
+	return
+}
+
 // Finally Push the (signed) manifest of the blobs we've just pushed
-func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, manifestRdr io.Reader, auth *RequestAuthorization) (string, error) {
+func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, signedManifest, rawManifest []byte, auth *RequestAuthorization) (digest.Digest, error) {
 	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
 		return "", err
@@ -271,7 +305,7 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 
 	method := "PUT"
 	log.Debugf("[registry] Calling %q %s", method, routeURL)
-	req, err := r.reqFactory.NewRequest(method, routeURL, manifestRdr)
+	req, err := r.reqFactory.NewRequest(method, routeURL, bytes.NewReader(signedManifest))
 	if err != nil {
 		return "", err
 	}
@@ -297,12 +331,29 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, ma
 		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
 	}
 
-	return res.Header.Get(DockerDigestHeader), nil
+	hdrDigest, err := digest.ParseDigest(res.Header.Get(DockerDigestHeader))
+	if err != nil {
+		return "", fmt.Errorf("invalid manifest digest from registry: %s", err)
+	}
+
+	dgstVerifier, err := digest.NewDigestVerifier(hdrDigest)
+	if err != nil {
+		return "", fmt.Errorf("invalid manifest digest from registry: %s", err)
+	}
+
+	dgstVerifier.Write(rawManifest)
+
+	if !dgstVerifier.Verified() {
+		computedDigest, _ := digest.FromBytes(rawManifest)
+		return "", fmt.Errorf("unable to verify manifest digest: registry has %q, computed %q", hdrDigest, computedDigest)
+	}
+
+	return hdrDigest, nil
 }
 
 type remoteTags struct {
-	name string
-	tags []string
+	Name string   `json:"name"`
+	Tags []string `json:"tags"`
 }
 
 // Given a repository name, returns a json array of string tags
@@ -342,5 +393,5 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 	if err != nil {
 		return nil, fmt.Errorf("Error while decoding the http response: %s", err)
 	}
-	return remote.tags, nil
+	return remote.Tags, nil
 }

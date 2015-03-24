@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
+	"github.com/docker/docker/pkg/resolvconf"
 )
 
 // "test123" should be printed by docker run
@@ -410,6 +410,31 @@ func TestRunLinkToContainerNetMode(t *testing.T) {
 	}
 
 	logDone("run - link to a container which net mode is container success")
+}
+
+func TestRunModeNetContainerHostname(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "--name", "parent", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "exec", "parent", "cat", "/etc/hostname")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to exec command: %v, output: %q", err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--net=container:parent", "busybox", "cat", "/etc/hostname")
+	out1, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out1)
+	}
+	if out1 != out {
+		t.Fatal("containers with shared net namespace should have same hostname")
+	}
+
+	logDone("run - containers with shared net namespace have same hostname")
 }
 
 // Regression test for #4741
@@ -3322,4 +3347,47 @@ func TestRunVolumesFromRestartAfterRemoved(t *testing.T) {
 	}
 
 	logDone("run - can restart a volumes-from container after producer is removed")
+}
+
+// run container with --rm should remove container if exit code != 0
+func TestRunContainerWithRmFlagExitCodeNotEqualToZero(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "ls", "/notexists")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatal("Expected docker run to fail", out, err)
+	}
+
+	out, err = getAllContainers()
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if out != "" {
+		t.Fatal("Expected not to have containers", out)
+	}
+
+	logDone("run - container is removed if run with --rm and exit code != 0")
+}
+
+func TestRunContainerWithRmFlagCannotStartContainer(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "commandNotFound")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		t.Fatal("Expected docker run to fail", out, err)
+	}
+
+	out, err = getAllContainers()
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if out != "" {
+		t.Fatal("Expected not to have containers", out)
+	}
+
+	logDone("run - container is removed if run with --rm and cannot start")
 }

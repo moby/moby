@@ -3,11 +3,23 @@ package engine
 import (
 	"bytes"
 	"encoding/json"
+	"math/rand"
 	"testing"
 	"time"
-
-	"github.com/docker/docker/pkg/testutils"
 )
+
+const chars = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+	"~!@#$%^&*()-_+={}[]\\|<,>.?/\"';:` "
+
+// RandomString returns random string of specified length
+func RandomString(length int) string {
+	res := make([]byte, length)
+	for i := 0; i < length; i++ {
+		res[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(res)
+}
 
 func TestEnvLenZero(t *testing.T) {
 	env := &Env{}
@@ -185,7 +197,7 @@ func TestMultiMap(t *testing.T) {
 func testMap(l int) [][2]string {
 	res := make([][2]string, l)
 	for i := 0; i < l; i++ {
-		t := [2]string{testutils.RandomString(5), testutils.RandomString(20)}
+		t := [2]string{RandomString(5), RandomString(20)}
 		res[i] = t
 	}
 	return res

@@ -192,9 +192,8 @@ func ValidateMACAddress(val string) (string, error) {
 	_, err := net.ParseMAC(strings.TrimSpace(val))
 	if err != nil {
 		return "", err
-	} else {
-		return val, nil
 	}
+	return val, nil
 }
 
 // Validates domain for resolvconf search configuration.

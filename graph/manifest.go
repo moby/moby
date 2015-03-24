@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
 
@@ -16,7 +18,7 @@ import (
 // contains no signatures by a trusted key for the name in the manifest, the
 // image is not considered verified. The parsed manifest object and a boolean
 // for whether the manifest is verified is returned.
-func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte) (*registry.ManifestData, bool, error) {
+func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte, dgst, ref string) (*registry.ManifestData, bool, error) {
 	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
 	if err != nil {
 		return nil, false, fmt.Errorf("error parsing payload: %s", err)
@@ -30,6 +32,31 @@ func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte) (*regi
 	payload, err := sig.Payload()
 	if err != nil {
 		return nil, false, fmt.Errorf("error retrieving payload: %s", err)
+	}
+
+	var manifestDigest digest.Digest
+
+	if dgst != "" {
+		manifestDigest, err = digest.ParseDigest(dgst)
+		if err != nil {
+			return nil, false, fmt.Errorf("invalid manifest digest from registry: %s", err)
+		}
+
+		dgstVerifier, err := digest.NewDigestVerifier(manifestDigest)
+		if err != nil {
+			return nil, false, fmt.Errorf("unable to verify manifest digest from registry: %s", err)
+		}
+
+		dgstVerifier.Write(payload)
+
+		if !dgstVerifier.Verified() {
+			computedDigest, _ := digest.FromBytes(payload)
+			return nil, false, fmt.Errorf("unable to verify manifest digest: registry has %q, computed %q", manifestDigest, computedDigest)
+		}
+	}
+
+	if utils.DigestReference(ref) && ref != manifestDigest.String() {
+		return nil, false, fmt.Errorf("mismatching image manifest digest: got %q, expected %q", manifestDigest, ref)
 	}
 
 	var manifest registry.ManifestData

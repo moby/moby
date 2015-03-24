@@ -54,30 +54,51 @@ that the user can easily script and know the reason why the command failed.
 ### Step 3: Classify the Issue
 
 Classifications help both to inform readers about an issue's priority and how to resolve it.
-This is also helpful for identifying new, critical issues.  Classifications types are
-applied to the issue or pull request using labels.
+This is also helpful for identifying new, critical issues.  "Kinds of" are
+applied to the issue or pull request using labels.  You can apply one or more labels.
 
 
-Types of classification:
+Kinds of classifications:
 
-| Type        | Description                                                                                                                     |
-|-------------|---------------------------------------------------------------------------------------------------------------------------------|
-| improvement | improvements are not bugs or new features but can drastically improve usability.                                                |
-| regression  | regressions are usually easy fixes as hopefully the action worked previously and git history can be used to propose a solution. |
-| bug         | bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
-| feature     | features are new and shinny. They are things that the project does not currently support.                                       |
+| Kind             | Description                                                                                                                     |
+|------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| kind/enhancement | Enhancement are not bugs or new features but can drastically improve usability or performance of a project component.           |
+| kind/cleanup     | Refactoring code or otherwise clarifying documentation.                                                                         |
+| kind/content     | Content that is not documentation such as help or error messages.                                                               |
+| kind/graphics    | Work involving graphics skill                                                                                                   |
+| kind/regression  | Regressions are usually easy fixes as hopefully the action worked previously and git history can be used to propose a solution. |
+| kind/bug         | Bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
+| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shinny.                      |
+| kind/question    | Contains a user or contributor question requiring a response.                                                                   |
+| kind/usecase     | A description of a user or contributor situation requiring a response perhaps in code or documentation.                         |
+| kind/writing     | Writing documentation, man pages, articles, blogs, or other significant word-driven task.                                       |
+| kind/test        | Tests or test infrastructure needs adding or updating.                                                                                                 |
 
-### Step 4: Estimate the Difficulty
 
-Difficulty is a way for a contributor to find an issue based on their skill set.  Difficulty types are
-applied to the issue or pull request using labels.
+Contributors can add labels by using a `+kind/bug` in an issue or pull request comment.  
 
-Difficulty
+### Step 4: Estimate the experience level required
 
-| Type         | Description                                                                 |
-|--------------|-----------------------------------------------------------------------------|
-| white-belt   | Simple, non-time consuming issue, easy first task to accomplish             |
-| black-belt   | Expert at the subject matter or someone who likes pain                      | 
+Experience level is a way for a contributor to find an issue based on their
+skill set.  Experience types are applied to the issue or pull request using
+labels.
+
+| Level            | Experience level guideline                                                                                               |
+|------------------|--------------------------------------------------------------------------------------------------------------------------|
+| exp/beginner     | You have made less than 10 contributions in your life time to any open source project.                                   |
+| exp/novice       | You have made more than 10 contributions to an open source project or at least 5 contributions to Docker.                | 
+| exp/proficient   | You have made more than 5 contributions to Docker which amount to at least 200 code lines or 1000 documentation lines.   | 
+| exp/expert       | You have made less than 20 commits to Docker which amount to 500-1000 code lines or 1000-3000 documentation lines.       | 
+| exp/master       | You have made more than 20 commits to Docker and greater than 1000 code lines or 3000 documentation lines.               | 
+
+As the table states, these labels are meant as guidelines. You might have
+written a whole plugin for Docker in a personal project and never contributed to
+Docker. With that kind of experience, you could take on an <strong
+class="gh-label expert">exp/expert</strong> or <strong class="gh-label
+master">exp/master</strong> level task.
+
+Contributors can add labels by using a `+exp/expert` format in issue comment.
+
 
 And that's it. That should be all the information required for a new or existing contributor to come in an resolve an issue.
 

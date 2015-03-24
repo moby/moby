@@ -28,10 +28,9 @@ func CanonicalTarNameForPath(p string) (string, error) {
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
 func chmodTarEntry(perm os.FileMode) os.FileMode {
-	// Clear r/w on grp/others: no precise equivalen of group/others on NTFS.
-	perm &= 0711
+	perm &= 0755
 	// Add the x bit: make everything +x from windows
-	perm |= 0100
+	perm |= 0111
 
 	return perm
 }

@@ -153,6 +153,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		cpuSetCpus:      cpuSetCpus,
 		memory:          memory,
 		memorySwap:      memorySwap,
+		cancelled:       job.WaitCancelled(),
 	}
 
 	id, err := builder.Run(context)

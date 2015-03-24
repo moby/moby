@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -432,14 +431,12 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 		log.Infof("Signed manifest for %s:%s using daemon's key: %s", repoInfo.LocalName, tag, s.trustKey.KeyID())
 
 		// push the manifest
-		digest, err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, bytes.NewReader(signedBody), auth)
+		digest, err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, signedBody, mBytes, auth)
 		if err != nil {
 			return err
 		}
 
-		if len(digest) > 0 {
-			out.Write(sf.FormatStatus("", "Digest: %s", digest))
-		}
+		out.Write(sf.FormatStatus("", "Digest: %s", digest))
 	}
 	return nil
 }
@@ -542,7 +539,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Errorf("Repository does not exist: %s", repoInfo.LocalName)
 	}
 
-	if endpoint.Version == registry.APIVersion2 {
+	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
 		err := s.pushV2Repository(r, localRepo, job.Stdout, repoInfo, tag, sf)
 		if err == nil {
 			return engine.StatusOK

@@ -427,6 +427,10 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 		b.Config.Volumes = map[string]struct{}{}
 	}
 	for _, v := range args {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			return fmt.Errorf("Volume specified can not be an empty string")
+		}
 		b.Config.Volumes[v] = struct{}{}
 	}
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {

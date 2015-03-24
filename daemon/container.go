@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
+	"github.com/docker/docker/daemon/logger/syslog"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/links"
@@ -31,10 +32,10 @@ import (
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/networkfs/etchosts"
-	"github.com/docker/docker/pkg/networkfs/resolvconf"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
@@ -1223,6 +1224,7 @@ func (container *Container) initializeNetworking() error {
 		if err != nil {
 			return err
 		}
+		container.HostnamePath = nc.HostnamePath
 		container.HostsPath = nc.HostsPath
 		container.ResolvConfPath = nc.ResolvConfPath
 		container.Config.Hostname = nc.Config.Hostname
@@ -1375,6 +1377,12 @@ func (container *Container) startLogging() error {
 		}
 
 		dl, err := jsonfilelog.New(pth)
+		if err != nil {
+			return err
+		}
+		l = dl
+	case "syslog":
+		dl, err := syslog.New(container.ID[:12])
 		if err != nil {
 			return err
 		}

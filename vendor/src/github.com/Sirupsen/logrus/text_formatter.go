@@ -3,7 +3,6 @@ package logrus
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -21,7 +20,6 @@ const (
 var (
 	baseTimestamp time.Time
 	isTerminal    bool
-	noQuoteNeeded *regexp.Regexp
 )
 
 func init() {

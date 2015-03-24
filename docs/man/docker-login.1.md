@@ -17,6 +17,9 @@ Register or Login to a docker registry server, if no server is
 specified "https://index.docker.io/v1/" is the default. If you want to
 login to a private registry you can specify this by adding the server name.
 
+This stores encoded credentials in `$HOME/.dockercfg` on Linux or `%USERPROFILE%/.dockercfg`
+on Windows.
+
 # OPTIONS
 **-e**, **--email**=""
    Email

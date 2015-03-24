@@ -74,7 +74,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		logName = utils.ImageReference(logName, tag)
 	}
 
-	if len(repoInfo.Index.Mirrors) == 0 && ((repoInfo.Official && repoInfo.Index.Official) || endpoint.Version == registry.APIVersion2) {
+	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		if repoInfo.Official {
 			j := job.Eng.Job("trust_update_base")
 			if err = j.Run(); err != nil {
@@ -430,12 +430,15 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 
 func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *utils.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	log.Debugf("Pulling tag from V2 registry: %q", tag)
+
 	manifestBytes, manifestDigest, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
 
-	manifest, verified, err := s.loadManifest(eng, manifestBytes)
+	// loadManifest ensures that the manifest payload has the expected digest
+	// if the tag is a digest reference.
+	manifest, verified, err := s.loadManifest(eng, manifestBytes, manifestDigest, tag)
 	if err != nil {
 		return false, fmt.Errorf("error verifying manifest: %s", err)
 	}
@@ -605,7 +608,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		out.Write(sf.FormatStatus(utils.ImageReference(repoInfo.CanonicalName, tag), "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
-	if len(manifestDigest) > 0 {
+	if manifestDigest != "" {
 		out.Write(sf.FormatStatus("", "Digest: %s", manifestDigest))
 	}
 

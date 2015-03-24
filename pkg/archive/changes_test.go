@@ -218,7 +218,6 @@ func TestChangesDirsMutated(t *testing.T) {
 	expectedChanges := []Change{
 		{"/dir1", ChangeDelete},
 		{"/dir2", ChangeModify},
-		{"/dir3", ChangeModify},
 		{"/dirnew", ChangeAdd},
 		{"/file1", ChangeDelete},
 		{"/file2", ChangeModify},

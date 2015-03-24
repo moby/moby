@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -239,9 +241,18 @@ func TestBuildEnvironmentReplacementEnv(t *testing.T) {
 
 	_, err := buildImage(name,
 		`
-  FROM scratch
-  ENV foo foo
+  FROM busybox
+  ENV foo zzz
   ENV bar ${foo}
+  ENV abc1='$foo'
+  ENV env1=$foo env2=${foo} env3="$foo" env4="${foo}"
+  RUN [ "$abc1" = '$foo' ] && (echo "$abc1" | grep -q foo)
+  ENV abc2="\$foo"
+  RUN [ "$abc2" = '$foo' ] && (echo "$abc2" | grep -q foo)
+  ENV abc3 '$foo'
+  RUN [ "$abc3" = '$foo' ] && (echo "$abc3" | grep -q foo)
+  ENV abc4 "\$foo"
+  RUN [ "$abc4" = '$foo' ] && (echo "$abc4" | grep -q foo)
   `, true)
 
 	if err != nil {
@@ -260,19 +271,29 @@ func TestBuildEnvironmentReplacementEnv(t *testing.T) {
 	}
 
 	found := false
+	envCount := 0
 
 	for _, env := range envResult {
 		parts := strings.SplitN(env, "=", 2)
 		if parts[0] == "bar" {
 			found = true
-			if parts[1] != "foo" {
-				t.Fatalf("Could not find replaced var for env `bar`: got %q instead of `foo`", parts[1])
+			if parts[1] != "zzz" {
+				t.Fatalf("Could not find replaced var for env `bar`: got %q instead of `zzz`", parts[1])
+			}
+		} else if strings.HasPrefix(parts[0], "env") {
+			envCount++
+			if parts[1] != "zzz" {
+				t.Fatalf("%s should be 'foo' but instead its %q", parts[0], parts[1])
 			}
 		}
 	}
 
 	if !found {
 		t.Fatal("Never found the `bar` env variable")
+	}
+
+	if envCount != 4 {
+		t.Fatalf("Didn't find all env vars - only saw %d\n%s", envCount, envResult)
 	}
 
 	logDone("build - env environment replacement")
@@ -361,8 +382,8 @@ func TestBuildHandleEscapes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, ok := result[`\\\\\\${FOO}`]; !ok {
-		t.Fatal(`Could not find volume \\\\\\${FOO} set from env foo in volumes table`)
+	if _, ok := result[`\\\${FOO}`]; !ok {
+		t.Fatal(`Could not find volume \\\${FOO} set from env foo in volumes table`, result)
 	}
 
 	logDone("build - handle escapes")
@@ -1924,6 +1945,132 @@ func TestBuildForceRm(t *testing.T) {
 	logDone("build - ensure --force-rm doesn't leave containers behind")
 }
 
+// Test that an infinite sleep during a build is killed if the client disconnects.
+// This test is fairly hairy because there are lots of ways to race.
+// Strategy:
+// * Monitor the output of docker events starting from before
+// * Run a 1-year-long sleep from a docker build.
+// * When docker events sees container start, close the "docker build" command
+// * Wait for docker events to emit a dying event.
+func TestBuildCancelationKillsSleep(t *testing.T) {
+	// TODO(jfrazelle): Make this work on Windows.
+	testRequires(t, SameHostDaemon)
+
+	name := "testbuildcancelation"
+	defer deleteImages(name)
+
+	// (Note: one year, will never finish)
+	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	finish := make(chan struct{})
+	defer close(finish)
+
+	eventStart := make(chan struct{})
+	eventDie := make(chan struct{})
+
+	// Start one second ago, to avoid rounding problems
+	startEpoch := time.Now().Add(-1 * time.Second)
+
+	// Goroutine responsible for watching start/die events from `docker events`
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// Watch for events since epoch.
+		eventsCmd := exec.Command(dockerBinary, "events",
+			"-since", fmt.Sprint(startEpoch.Unix()))
+		stdout, err := eventsCmd.StdoutPipe()
+		err = eventsCmd.Start()
+		if err != nil {
+			t.Fatalf("failed to start 'docker events': %s", err)
+		}
+
+		go func() {
+			<-finish
+			eventsCmd.Process.Kill()
+		}()
+
+		var started, died bool
+		matchStart := regexp.MustCompile(" \\(from busybox\\:latest\\) start$")
+		matchDie := regexp.MustCompile(" \\(from busybox\\:latest\\) die$")
+
+		//
+		// Read lines of `docker events` looking for container start and stop.
+		//
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			if ok := matchStart.MatchString(scanner.Text()); ok {
+				if started {
+					t.Fatal("assertion fail: more than one container started")
+				}
+				close(eventStart)
+				started = true
+			}
+			if ok := matchDie.MatchString(scanner.Text()); ok {
+				if died {
+					t.Fatal("assertion fail: more than one container died")
+				}
+				close(eventDie)
+				died = true
+			}
+		}
+
+		err = eventsCmd.Wait()
+		if err != nil && !IsKilled(err) {
+			t.Fatalf("docker events had bad exit status: %s", err)
+		}
+	}()
+
+	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
+	buildCmd.Dir = ctx.Dir
+	buildCmd.Stdout = os.Stdout
+
+	err = buildCmd.Start()
+	if err != nil {
+		t.Fatalf("failed to run build: %s", err)
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		t.Fatal("failed to observe build container start in timely fashion")
+	case <-eventStart:
+		// Proceeds from here when we see the container fly past in the
+		// output of "docker events".
+		// Now we know the container is running.
+	}
+
+	// Send a kill to the `docker build` command.
+	// Causes the underlying build to be cancelled due to socket close.
+	err = buildCmd.Process.Kill()
+	if err != nil {
+		t.Fatalf("error killing build command: %s", err)
+	}
+
+	// Get the exit status of `docker build`, check it exited because killed.
+	err = buildCmd.Wait()
+	if err != nil && !IsKilled(err) {
+		t.Fatalf("wait failed during build run: %T %s", err, err)
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		// If we don't get here in a timely fashion, it wasn't killed.
+		t.Fatal("container cancel did not succeed")
+	case <-eventDie:
+		// We saw the container shut down in the `docker events` stream,
+		// as expected.
+	}
+
+	logDone("build - ensure canceled job finishes immediately")
+}
+
 func TestBuildRm(t *testing.T) {
 	name := "testbuildrm"
 	defer deleteImages(name)
@@ -2128,7 +2275,7 @@ func TestBuildRelativeWorkdir(t *testing.T) {
 
 func TestBuildWorkdirWithEnvVariables(t *testing.T) {
 	name := "testbuildworkdirwithenvvariables"
-	expected := "/test1/test2/$MISSING_VAR"
+	expected := "/test1/test2"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
@@ -3357,7 +3504,7 @@ func TestBuildFailsDockerfileEmpty(t *testing.T) {
 	defer deleteImages(name)
 	_, err := buildImage(name, ``, true)
 	if err != nil {
-		if !strings.Contains(err.Error(), "Dockerfile cannot be empty") {
+		if !strings.Contains(err.Error(), "The Dockerfile (Dockerfile) cannot be empty") {
 			t.Fatalf("Wrong error %v, must be about empty Dockerfile", err)
 		}
 	} else {
@@ -3897,9 +4044,9 @@ ENV    abc=zzz TO=/docker/world/hello
 ADD    $FROM $TO
 RUN    [ "$(cat $TO)" = "hello" ]
 ENV    abc "zzz"
-RUN    [ $abc = \"zzz\" ]
+RUN    [ $abc = "zzz" ]
 ENV    abc 'yyy'
-RUN    [ $abc = \'yyy\' ]
+RUN    [ $abc = 'yyy' ]
 ENV    abc=
 RUN    [ "$abc" = "" ]
 
@@ -3915,13 +4062,34 @@ RUN    [ "$abc" = "'foo'" ]
 ENV    abc=\"foo\"
 RUN    [ "$abc" = "\"foo\"" ]
 ENV    abc "foo"
-RUN    [ "$abc" = "\"foo\"" ]
+RUN    [ "$abc" = "foo" ]
 ENV    abc 'foo'
-RUN    [ "$abc" = "'foo'" ]
+RUN    [ "$abc" = 'foo' ]
 ENV    abc \'foo\'
-RUN    [ "$abc" = "\\'foo\\'" ]
+RUN    [ "$abc" = "'foo'" ]
 ENV    abc \"foo\"
-RUN    [ "$abc" = "\\\"foo\\\"" ]
+RUN    [ "$abc" = '"foo"' ]
+
+ENV    e1=bar
+ENV    e2=$e1
+ENV    e3=$e11
+ENV    e4=\$e1
+ENV    e5=\$e11
+RUN    [ "$e0,$e1,$e2,$e3,$e4,$e5" = ',bar,bar,,$e1,$e11' ]
+
+ENV    ee1 bar
+ENV    ee2 $ee1
+ENV    ee3 $ee11
+ENV    ee4 \$ee1
+ENV    ee5 \$ee11
+RUN    [ "$ee1,$ee2,$ee3,$ee4,$ee5" = 'bar,bar,,$ee1,$ee11' ]
+
+ENV    eee1="foo"
+ENV    eee2='foo'
+ENV    eee3 "foo"
+ENV    eee4 'foo'
+RUN    [ "$eee1,$eee2,$eee3,$eee4" = 'foo,foo,foo,foo' ]
+
 `
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"hello/docker/world": "hello",
@@ -4585,14 +4753,29 @@ func TestBuildLabelsCache(t *testing.T) {
 		`FROM busybox
 		LABEL Vendor=Acme1`, true)
 	if err != nil || id1 == id2 {
-		t.Fatalf("Build 2 should have worked & NOT used cache(%s,%s): %v", id1, id2, err)
+		t.Fatalf("Build 3 should have worked & NOT used cache(%s,%s): %v", id1, id2, err)
 	}
 
 	id2, err = buildImage(name,
 		`FROM busybox
 		LABEL Vendor Acme`, true) // Note: " " and "=" should be same
 	if err != nil || id1 != id2 {
-		t.Fatalf("Build 3 should have worked & used cache(%s,%s): %v", id1, id2, err)
+		t.Fatalf("Build 4 should have worked & used cache(%s,%s): %v", id1, id2, err)
+	}
+
+	// Now make sure the cache isn't used by mistake
+	id1, err = buildImage(name,
+		`FROM busybox
+       LABEL f1=b1 f2=b2`, false)
+	if err != nil {
+		t.Fatalf("Build 5 should have worked: %q", err)
+	}
+
+	id2, err = buildImage(name,
+		`FROM busybox
+       LABEL f1="b1 f2=b2"`, true)
+	if err != nil || id1 == id2 {
+		t.Fatalf("Build 6 should have worked & NOT used the cache(%s,%s): %q", id1, id2, err)
 	}
 
 	logDone("build - label cache")
@@ -4608,8 +4791,19 @@ func TestBuildStderr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stderr != "" {
-		t.Fatalf("Stderr should have been empty, instead its: %q", stderr)
+
+	if runtime.GOOS == "windows" {
+		// stderr might contain a security warning on windows
+		lines := strings.Split(stderr, "\n")
+		for _, v := range lines {
+			if v != "" && !strings.Contains(v, "SECURITY WARNING:") {
+				t.Fatalf("Stderr contains unexpected output line: %q", v)
+			}
+		}
+	} else {
+		if stderr != "" {
+			t.Fatalf("Stderr should have been empty, instead its: %q", stderr)
+		}
 	}
 	logDone("build - testing stderr")
 }
@@ -5098,9 +5292,13 @@ func TestBuildSpaces(t *testing.T) {
 		t.Fatal("Build 2 was supposed to fail, but didn't")
 	}
 
+	removeLogTimestamps := func(s string) string {
+		return regexp.MustCompile(`time="(.*?)"`).ReplaceAllString(s, `time=[TIMESTAMP]`)
+	}
+
 	// Skip over the times
-	e1 := err1.Error()[strings.Index(err1.Error(), `level=`):]
-	e2 := err2.Error()[strings.Index(err1.Error(), `level=`):]
+	e1 := removeLogTimestamps(err1.Error())
+	e2 := removeLogTimestamps(err2.Error())
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
 	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
@@ -5113,8 +5311,8 @@ func TestBuildSpaces(t *testing.T) {
 	}
 
 	// Skip over the times
-	e1 = err1.Error()[strings.Index(err1.Error(), `level=`):]
-	e2 = err2.Error()[strings.Index(err1.Error(), `level=`):]
+	e1 = removeLogTimestamps(err1.Error())
+	e2 = removeLogTimestamps(err2.Error())
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
 	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
@@ -5127,8 +5325,8 @@ func TestBuildSpaces(t *testing.T) {
 	}
 
 	// Skip over the times
-	e1 = err1.Error()[strings.Index(err1.Error(), `level=`):]
-	e2 = err2.Error()[strings.Index(err1.Error(), `level=`):]
+	e1 = removeLogTimestamps(err1.Error())
+	e2 = removeLogTimestamps(err2.Error())
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
 	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
@@ -5289,7 +5487,7 @@ func TestBuildRUNoneJSON(t *testing.T) {
 	name := "testbuildrunonejson"
 
 	defer deleteAllContainers()
-	defer deleteImages(name)
+	defer deleteImages(name, "hello-world")
 
 	ctx, err := fakeContext(`FROM hello-world:frozen
 RUN [ "/hello" ]`, map[string]string{})
@@ -5315,7 +5513,7 @@ RUN [ "/hello" ]`, map[string]string{})
 func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 	name := "testbuildresourceconstraints"
 	defer deleteAllContainers()
-	defer deleteImages(name)
+	defer deleteImages(name, "hello-world")
 
 	ctx, err := fakeContext(`
 	FROM hello-world:frozen
@@ -5381,4 +5579,20 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 	}
 
 	logDone("build - resource constraints applied")
+}
+
+func TestBuildEmptyStringVolume(t *testing.T) {
+	name := "testbuildemptystringvolume"
+	defer deleteImages(name)
+
+	_, err := buildImage(name, `
+  FROM busybox
+  ENV foo=""
+  VOLUME $foo
+  `, false)
+	if err == nil {
+		t.Fatal("Should have failed to build")
+	}
+
+	logDone("build - empty string volume")
 }
