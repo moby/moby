@@ -55,8 +55,6 @@ func TestPullImageWithAliases(t *testing.T) {
 
 // pulling library/hello-world should show verified message
 func TestPullVerified(t *testing.T) {
-	t.Skip("problems verifying library/hello-world (to be fixed)")
-
 	// Image must be pulled from central repository to get verified message
 	// unless keychain is manually updated to contain the daemon's sign key.
 
@@ -108,6 +106,8 @@ func TestPullNonExistingImage(t *testing.T) {
 // pulling an image from the central registry using official names should work
 // ensure all pulls result in the same image
 func TestPullImageOfficialNames(t *testing.T) {
+	testRequires(t, Network)
+
 	names := []string{
 		"docker.io/hello-world",
 		"index.docker.io/hello-world",

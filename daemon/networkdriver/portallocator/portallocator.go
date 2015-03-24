@@ -50,11 +50,20 @@ var (
 )
 
 var (
-	mutex sync.Mutex
-
-	defaultIP = net.ParseIP("0.0.0.0")
-	globalMap = ipMapping{}
+	defaultIP            = net.ParseIP("0.0.0.0")
+	defaultPortAllocator = New()
 )
+
+type PortAllocator struct {
+	mutex sync.Mutex
+	ipMap ipMapping
+}
+
+func New() *PortAllocator {
+	return &PortAllocator{
+		ipMap: ipMapping{},
+	}
+}
 
 type ErrPortAlreadyAllocated struct {
 	ip   string
@@ -70,10 +79,11 @@ func NewErrPortAlreadyAllocated(ip string, port int) ErrPortAlreadyAllocated {
 
 func init() {
 	const portRangeKernelParam = "/proc/sys/net/ipv4/ip_local_port_range"
+	portRangeFallback := fmt.Sprintf("using fallback port range %d-%d", beginPortRange, endPortRange)
 
 	file, err := os.Open(portRangeKernelParam)
 	if err != nil {
-		log.Warnf("Failed to read %s kernel parameter: %v", portRangeKernelParam, err)
+		log.Warnf("port allocator - %s due to error: %v", portRangeFallback, err)
 		return
 	}
 	var start, end int
@@ -82,7 +92,7 @@ func init() {
 		if err == nil {
 			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
 		}
-		log.Errorf("Failed to parse port range from %s: %v", portRangeKernelParam, err)
+		log.Errorf("port allocator - failed to parse system ephemeral port range from %s - %s: %v", portRangeKernelParam, portRangeFallback, err)
 		return
 	}
 	beginPortRange = start
@@ -109,12 +119,9 @@ func (e ErrPortAlreadyAllocated) Error() string {
 	return fmt.Sprintf("Bind for %s:%d failed: port is already allocated", e.ip, e.port)
 }
 
-// RequestPort requests new port from global ports pool for specified ip and proto.
-// If port is 0 it returns first free port. Otherwise it cheks port availability
-// in pool and return that port or error if port is already busy.
-func RequestPort(ip net.IP, proto string, port int) (int, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	if proto != "tcp" && proto != "udp" {
 		return 0, ErrUnknownProtocol
@@ -124,10 +131,10 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 		ip = defaultIP
 	}
 	ipstr := ip.String()
-	protomap, ok := globalMap[ipstr]
+	protomap, ok := p.ipMap[ipstr]
 	if !ok {
 		protomap = newProtoMap()
-		globalMap[ipstr] = protomap
+		p.ipMap[ipstr] = protomap
 	}
 	mapping := protomap[proto]
 	if port > 0 {
@@ -145,15 +152,22 @@ func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	return port, nil
 }
 
+// RequestPort requests new port from global ports pool for specified ip and proto.
+// If port is 0 it returns first free port. Otherwise it cheks port availability
+// in pool and return that port or error if port is already busy.
+func RequestPort(ip net.IP, proto string, port int) (int, error) {
+	return defaultPortAllocator.RequestPort(ip, proto, port)
+}
+
 // ReleasePort releases port from global ports pool for specified ip and proto.
-func ReleasePort(ip net.IP, proto string, port int) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	if ip == nil {
 		ip = defaultIP
 	}
-	protomap, ok := globalMap[ip.String()]
+	protomap, ok := p.ipMap[ip.String()]
 	if !ok {
 		return nil
 	}
@@ -161,12 +175,20 @@ func ReleasePort(ip net.IP, proto string, port int) error {
 	return nil
 }
 
+func ReleasePort(ip net.IP, proto string, port int) error {
+	return defaultPortAllocator.ReleasePort(ip, proto, port)
+}
+
 // ReleaseAll releases all ports for all ips.
-func ReleaseAll() error {
-	mutex.Lock()
-	globalMap = ipMapping{}
-	mutex.Unlock()
+func (p *PortAllocator) ReleaseAll() error {
+	p.mutex.Lock()
+	p.ipMap = ipMapping{}
+	p.mutex.Unlock()
 	return nil
+}
+
+func ReleaseAll() error {
+	return defaultPortAllocator.ReleaseAll()
 }
 
 func (pm *portMap) findPort() (int, error) {

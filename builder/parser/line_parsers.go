@@ -90,7 +90,7 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 				if blankOK || len(word) > 0 {
 					words = append(words, word)
 
-					// Look for = and if no there assume
+					// Look for = and if not there assume
 					// we're doing the old stuff and
 					// just read the rest of the line
 					if !strings.Contains(word, "=") {
@@ -107,12 +107,15 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 				quote = ch
 				blankOK = true
 				phase = inQuote
-				continue
 			}
 			if ch == '\\' {
 				if pos+1 == len(rest) {
 					continue // just skip \ at end
 				}
+				// If we're not quoted and we see a \, then always just
+				// add \ plus the char to the word, even if the char
+				// is a quote.
+				word += string(ch)
 				pos++
 				ch = rune(rest[pos])
 			}
@@ -122,15 +125,17 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 		if phase == inQuote {
 			if ch == quote {
 				phase = inWord
-				continue
 			}
-			if ch == '\\' {
+			// \ is special except for ' quotes - can't escape anything for '
+			if ch == '\\' && quote != '\'' {
 				if pos+1 == len(rest) {
 					phase = inWord
 					continue // just skip \ at end
 				}
 				pos++
-				ch = rune(rest[pos])
+				nextCh := rune(rest[pos])
+				word += string(ch)
+				ch = nextCh
 			}
 			word += string(ch)
 		}
@@ -234,17 +239,18 @@ func parseJSON(rest string) (*Node, map[string]bool, error) {
 
 	var top, prev *Node
 	for _, str := range myJson {
-		if s, ok := str.(string); !ok {
+		s, ok := str.(string)
+		if !ok {
 			return nil, nil, errDockerfileNotStringArray
-		} else {
-			node := &Node{Value: s}
-			if prev == nil {
-				top = node
-			} else {
-				prev.Next = node
-			}
-			prev = node
 		}
+
+		node := &Node{Value: s}
+		if prev == nil {
+			top = node
+		} else {
+			prev.Next = node
+		}
+		prev = node
 	}
 
 	return top, map[string]bool{"json": true}, nil

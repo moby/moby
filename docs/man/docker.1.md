@@ -89,7 +89,7 @@ unix://[/path/to/socket] to use.
 **--label**="[]"
   Set key=value labels to the daemon (displayed in `docker info`)
 
-**--log-driver**="*json-file*|*none*"
+**--log-driver**="*json-file*|*syslog*|*none*"
   Container's logging driver. Default is `default`.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 

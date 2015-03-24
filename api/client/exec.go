@@ -1,11 +1,12 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -25,12 +26,15 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return err
 	}
 
-	var execResult engine.Env
-	if err := execResult.Decode(stream); err != nil {
+	var response types.ContainerExecCreateResponse
+	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err
 	}
+	for _, warning := range response.Warnings {
+		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
+	}
 
-	execID := execResult.Get("Id")
+	execID := response.ID
 
 	if execID == "" {
 		fmt.Fprintf(cli.out, "exec ID empty")

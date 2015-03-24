@@ -11,11 +11,7 @@ type DevicesGroup struct {
 func (s *DevicesGroup) Apply(d *data) error {
 	dir, err := d.join("devices")
 	if err != nil {
-		if cgroups.IsNotFound(err) {
-			return nil
-		} else {
-			return err
-		}
+		return err
 	}
 
 	if err := s.Set(dir, d.c); err != nil {

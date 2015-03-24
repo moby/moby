@@ -3,6 +3,7 @@ package term
 
 import (
 	"io"
+	"os"
 
 	"github.com/docker/docker/pkg/term/winconsole"
 )
@@ -114,5 +115,23 @@ func GetFdInfo(in interface{}) (uintptr, bool) {
 }
 
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
-	return winconsole.StdStreams()
+	var shouldEmulateANSI bool
+	switch {
+	case os.Getenv("ConEmuANSI") == "ON":
+		// ConEmu shell, ansi emulated by default and ConEmu does an extensively
+		// good emulation.
+		shouldEmulateANSI = false
+	case os.Getenv("MSYSTEM") != "":
+		// MSYS (mingw) cannot fully emulate well and still shows escape characters
+		// mostly because it's still running on cmd.exe window.
+		shouldEmulateANSI = true
+	default:
+		shouldEmulateANSI = true
+	}
+
+	if shouldEmulateANSI {
+		return winconsole.StdStreams()
+	}
+
+	return os.Stdin, os.Stdout, os.Stderr
 }
