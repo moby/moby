@@ -50,8 +50,12 @@ var (
 )
 
 var (
-	defaultIP            = net.ParseIP("0.0.0.0")
-	defaultPortAllocator = New()
+	defaultIP = net.ParseIP("0.0.0.0")
+
+	DefaultPortAllocator = New()
+	RequestPort          = DefaultPortAllocator.RequestPort
+	ReleasePort          = DefaultPortAllocator.ReleasePort
+	ReleaseAll           = DefaultPortAllocator.ReleaseAll
 )
 
 type PortAllocator struct {
@@ -119,6 +123,9 @@ func (e ErrPortAlreadyAllocated) Error() string {
 	return fmt.Sprintf("Bind for %s:%d failed: port is already allocated", e.ip, e.port)
 }
 
+// RequestPort requests new port from global ports pool for specified ip and proto.
+// If port is 0 it returns first free port. Otherwise it cheks port availability
+// in pool and return that port or error if port is already busy.
 func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -152,13 +159,6 @@ func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, err
 	return port, nil
 }
 
-// RequestPort requests new port from global ports pool for specified ip and proto.
-// If port is 0 it returns first free port. Otherwise it cheks port availability
-// in pool and return that port or error if port is already busy.
-func RequestPort(ip net.IP, proto string, port int) (int, error) {
-	return defaultPortAllocator.RequestPort(ip, proto, port)
-}
-
 // ReleasePort releases port from global ports pool for specified ip and proto.
 func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) error {
 	p.mutex.Lock()
@@ -175,20 +175,12 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) error {
 	return nil
 }
 
-func ReleasePort(ip net.IP, proto string, port int) error {
-	return defaultPortAllocator.ReleasePort(ip, proto, port)
-}
-
 // ReleaseAll releases all ports for all ips.
 func (p *PortAllocator) ReleaseAll() error {
 	p.mutex.Lock()
 	p.ipMap = ipMapping{}
 	p.mutex.Unlock()
 	return nil
-}
-
-func ReleaseAll() error {
-	return defaultPortAllocator.ReleaseAll()
 }
 
 func (pm *portMap) findPort() (int, error) {

@@ -13,30 +13,26 @@ func init() {
 	NewProxy = NewMockProxyCommand
 }
 
-func reset() {
-	chain = nil
-	currentMappings = make(map[string]*mapping)
-}
-
 func TestSetIptablesChain(t *testing.T) {
-	defer reset()
+	pm := New()
 
 	c := &iptables.Chain{
 		Name:   "TEST",
 		Bridge: "192.168.1.1",
 	}
 
-	if chain != nil {
+	if pm.chain != nil {
 		t.Fatal("chain should be nil at init")
 	}
 
-	SetIptablesChain(c)
-	if chain == nil {
+	pm.SetIptablesChain(c)
+	if pm.chain == nil {
 		t.Fatal("chain should not be nil after set")
 	}
 }
 
 func TestMapPorts(t *testing.T) {
+	pm := New()
 	dstIp1 := net.ParseIP("192.168.0.1")
 	dstIp2 := net.ParseIP("192.168.0.2")
 	dstAddr1 := &net.TCPAddr{IP: dstIp1, Port: 80}
@@ -49,34 +45,34 @@ func TestMapPorts(t *testing.T) {
 		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
 	}
 
-	if host, err := Map(srcAddr1, dstIp1, 80); err != nil {
+	if host, err := pm.Map(srcAddr1, dstIp1, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
 	} else if !addrEqual(dstAddr1, host) {
 		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
 			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if _, err := Map(srcAddr1, dstIp1, 80); err == nil {
+	if _, err := pm.Map(srcAddr1, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
 	}
 
-	if _, err := Map(srcAddr2, dstIp1, 80); err == nil {
+	if _, err := pm.Map(srcAddr2, dstIp1, 80); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
 	}
 
-	if _, err := Map(srcAddr2, dstIp2, 80); err != nil {
+	if _, err := pm.Map(srcAddr2, dstIp2, 80); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
 	}
 
-	if Unmap(dstAddr1) != nil {
+	if pm.Unmap(dstAddr1) != nil {
 		t.Fatalf("Failed to release port")
 	}
 
-	if Unmap(dstAddr2) != nil {
+	if pm.Unmap(dstAddr2) != nil {
 		t.Fatalf("Failed to release port")
 	}
 
-	if Unmap(dstAddr2) == nil {
+	if pm.Unmap(dstAddr2) == nil {
 		t.Fatalf("Port already released, but no error reported")
 	}
 }
@@ -115,6 +111,7 @@ func TestGetUDPIPAndPort(t *testing.T) {
 }
 
 func TestMapAllPortsSingleInterface(t *testing.T) {
+	pm := New()
 	dstIp1 := net.ParseIP("0.0.0.0")
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
 
@@ -124,26 +121,26 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 
 	defer func() {
 		for _, val := range hosts {
-			Unmap(val)
+			pm.Unmap(val)
 		}
 	}()
 
 	for i := 0; i < 10; i++ {
 		start, end := portallocator.PortRange()
 		for i := start; i < end; i++ {
-			if host, err = Map(srcAddr1, dstIp1, 0); err != nil {
+			if host, err = pm.Map(srcAddr1, dstIp1, 0); err != nil {
 				t.Fatal(err)
 			}
 
 			hosts = append(hosts, host)
 		}
 
-		if _, err := Map(srcAddr1, dstIp1, start); err == nil {
+		if _, err := pm.Map(srcAddr1, dstIp1, start); err == nil {
 			t.Fatalf("Port %d should be bound but is not", start)
 		}
 
 		for _, val := range hosts {
-			if err := Unmap(val); err != nil {
+			if err := pm.Unmap(val); err != nil {
 				t.Fatal(err)
 			}
 		}
