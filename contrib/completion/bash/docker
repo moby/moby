@@ -734,6 +734,7 @@ _docker_run() {
 		--attach -a
 		--cap-add
 		--cap-drop
+		--cgroup-parent
 		--cidfile
 		--cpuset
 		--cpu-shares -c
@@ -746,7 +747,10 @@ _docker_run() {
 		--expose
 		--hostname -h
 		--ipc
+		--label -l
+		--label-file
 		--link
+		--log-driver
 		--lxc-conf
 		--mac-address
 		--memory -m
@@ -798,7 +802,7 @@ _docker_run() {
 			__docker_capabilities
 			return
 			;;
-		--cidfile|--env-file)
+		--cidfile|--cgroup-parent|--env-file|--label-file)
 			_filedir
 			return
 			;;
@@ -848,6 +852,10 @@ _docker_run() {
 					compopt -o nospace
 					;;
 			esac
+			return
+			;;
+		--log-driver)
+			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur") )
 			return
 			;;
 		--net)
