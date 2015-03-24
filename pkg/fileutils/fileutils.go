@@ -6,7 +6,7 @@ import (
 )
 
 // Matches returns true if relFilePath matches any of the patterns
-// and isn't excluded by any of the patterns.
+// and isn't excluded by any of the subsequent patterns.
 func Matches(relFilePath string, patterns []string) (bool, error) {
 
 	var matched = false
