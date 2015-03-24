@@ -1569,7 +1569,7 @@ This shows all the containers that have exited with status of '0'
 
 ## pull
 
-    Usage: docker pull [OPTIONS] NAME[:TAG]
+    Usage: docker pull [OPTIONS] NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
     Pull an image or a repository from the registry
 
@@ -1605,6 +1605,7 @@ use `docker pull`:
     $ sudo docker pull registry.hub.docker.com/debian
     # manually specifies the path to the default Docker registry. This could
     # be replaced with the path to a local registry to pull from another source.
+    # sudo docker pull myhub.com:8080/test-image
 
 ## push
 
