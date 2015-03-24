@@ -457,7 +457,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 	registry.SaveConfig(cli.configFile)
-	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", path.Join(homedir.Get(), registry.CONFIGFILE))
+	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", registry.ConfFile)
 
 	if out2.Get("Status") != "" {
 		fmt.Fprintf(cli.out, "%s\n", out2.Get("Status"))
