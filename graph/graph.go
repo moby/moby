@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -118,7 +118,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 // Create creates a new image and registers it in the graph.
 func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
 	img := &image.Image{
-		ID:            common.GenerateRandomID(),
+		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
 		DockerVersion: dockerversion.VERSION,
@@ -217,7 +217,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, outpu
 		Formatter: sf,
 		Size:      0,
 		NewLines:  false,
-		ID:        common.TruncateID(id),
+		ID:        stringid.TruncateID(id),
 		Action:    "Buffering to disk",
 	})
 	defer progressReader.Close()
@@ -226,7 +226,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, outpu
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	dir := path.Join(graph.Root, "_tmp", common.GenerateRandomID())
+	dir := path.Join(graph.Root, "_tmp", stringid.GenerateRandomID())
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}

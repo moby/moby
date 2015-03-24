@@ -22,6 +22,7 @@ import (
 
 	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 func TestBuildJSONEmptyRun(t *testing.T) {
@@ -4420,7 +4421,7 @@ func TestBuildOnBuildOutput(t *testing.T) {
 }
 
 func TestBuildInvalidTag(t *testing.T) {
-	name := "abcd:" + makeRandomString(200)
+	name := "abcd:" + stringutils.GenerateRandomAlphaOnlyString(200)
 	defer deleteImages(name)
 	_, out, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\n", true)
 	// if the error doesnt check for illegal tag name, or the image is built
