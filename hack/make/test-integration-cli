@@ -18,7 +18,6 @@ bundle_test_integration_cli() {
 	if ! {
 		source "$(dirname "$BASH_SOURCE")/.ensure-frozen-images"
 		source "$(dirname "$BASH_SOURCE")/.ensure-httpserver"
-		source "$(dirname "$BASH_SOURCE")/.ensure-registry"
 		source "$(dirname "$BASH_SOURCE")/.ensure-emptyfs"
 
 		bundle_test_integration_cli
