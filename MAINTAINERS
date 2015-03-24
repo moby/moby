@@ -113,7 +113,7 @@ It is the responsibility of the subsystem maintainers to process patches affecti
 manner.
 
 * If the change affects areas of the code which are not part of a subsystem,
-or if subsystem maintainers are unable to reach a timely decision, it must be approved by 
+or if subsystem maintainers are unable to reach a timely decision, it must be approved by
 the core maintainers.
 
 * If the change affects the UI or public APIs, or if it represents a major change in architecture,
@@ -200,11 +200,11 @@ for each.
 			2-code-review = "requires more code changes"
 			1-design-review = "raises design concerns"
 			4-merge = "general case"
-			
+
 		# Docs approval
 		[Rules.review.docs-approval]
 			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs sub-project maintainers.
-			# If the docs change originates with a docs maintainer, only one additional LGTM is required (since we assume a docs maintainer approves of their own PR). 	
+			# If the docs change originates with a docs maintainer, only one additional LGTM is required (since we assume a docs maintainer approves of their own PR).
 
 		# Merge
 		[Rules.review.states.4-merge]
@@ -268,7 +268,7 @@ made through a pull request.
 
 	# The chief architect is responsible for the overall integrity of the technical architecture
 	# across all subsystems, and the consistency of APIs and UI.
-	# 
+	#
 	# Changes to UI, public APIs and overall architecture (for example a plugin system) must
 	# be approved by the chief architect.
 	"Chief Architect" = "shykes"
@@ -314,7 +314,7 @@ made through a pull request.
 			]
 
 	# The chief maintainer is responsible for all aspects of quality for the project including
-	# code reviews, usability, stability, security, performance, etc. 
+	# code reviews, usability, stability, security, performance, etc.
 	# The most important function of the chief maintainer is to lead by example. On the first
 	# day of a new maintainer, the best advice should be "follow the C.M.'s example and you'll
 	# be fine".
@@ -359,9 +359,9 @@ made through a pull request.
 	# has a dedicated group of maintainers, which are dedicated to that subsytem and responsible
 	# for its quality.
 	# This "cellular division" is the primary mechanism for scaling maintenance of the project as it grows.
-	# 
+	#
 	# The maintainers of each subsytem are responsible for:
-	# 
+	#
 	# 1. Exposing a clear road map for improving their subsystem.
 	# 2. Deliver prompt feedback and decisions on pull requests affecting their subsystem.
 	# 3. Be available to anyone with questions, bug reports, criticism etc.
@@ -371,9 +371,9 @@ made through a pull request.
 	#   road map of the project.
 	#
 	# #### How to review patches to your subsystem
-	# 
+	#
 	# Accepting pull requests:
-	# 
+	#
 	#   - If the pull request appears to be ready to merge, give it a `LGTM`, which
 	#     stands for "Looks Good To Me".
 	#   - If the pull request has some small problems that need to be changed, make
@@ -384,9 +384,9 @@ made through a pull request.
 	#   - If the PR only needs a few changes before being merged, any MAINTAINER can
 	#     make a replacement PR that incorporates the existing commits and fixes the
 	#     problems before a fast track merge.
-	# 
+	#
 	# Closing pull requests:
-	# 
+	#
 	#   - If a PR appears to be abandoned, after having attempted to contact the
 	#     original contributor, then a replacement PR may be made.  Once the
 	#     replacement PR is made, any contributor may close the original one.
@@ -584,12 +584,12 @@ made through a pull request.
 	Name = "Solomon Hykes"
 	Email = "solomon@docker.com"
 	GitHub = "shykes"
-    
+
 	[people.spf13]
 	Name = "Steve Francia"
 	Email = "steve.francia@gmail.com"
 	GitHub = "spf13"
-	
+
 	[people.sven]
 	Name = "Sven Dowideit"
 	Email = "SvenDowideit@home.org.au"
