@@ -125,7 +125,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
 	}
 
-	if *flNetMode == "container" && flLinks.Len() > 0 {
+	if strings.HasPrefix(*flNetMode, "container") && flLinks.Len() > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
 	}
 
