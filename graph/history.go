@@ -37,6 +37,7 @@ func (s *TagStore) CmdHistory(job *engine.Job) engine.Status {
 		out.Set("CreatedBy", strings.Join(img.ContainerConfig.Cmd, " "))
 		out.SetList("Tags", lookupMap[img.ID])
 		out.SetInt64("Size", img.Size)
+		out.Set("Comment", img.Comment)
 		outs.Add(out)
 		return nil
 	})
