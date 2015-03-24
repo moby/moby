@@ -14,11 +14,12 @@ import (
 	"github.com/docker/libtrust"
 )
 
+// Common constants for daemon and client.
 const (
-	APIVERSION            version.Version = "1.18"
-	DEFAULTHTTPHOST                       = "127.0.0.1"
-	DEFAULTUNIXSOCKET                     = "/var/run/docker.sock"
-	DefaultDockerfileName string          = "Dockerfile"
+	APIVERSION            version.Version = "1.18"                 // Current REST API version
+	DEFAULTHTTPHOST                       = "127.0.0.1"            // Default HTTP Host used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
+	DEFAULTUNIXSOCKET                     = "/var/run/docker.sock" // Docker daemon by default always listens on the default unix socket
+	DefaultDockerfileName string          = "Dockerfile"           // Default filename with Docker commands, read by docker build
 )
 
 func ValidateHost(val string) (string, error) {
