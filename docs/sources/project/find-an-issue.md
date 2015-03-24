@@ -166,7 +166,7 @@ To sync your repository:
 
 5. Fetch all the changes from the `upstream/master` branch.
 
-        $ git fetch upstream/master
+        $ git fetch upstream
         remote: Counting objects: 141, done.
         remote: Compressing objects: 100% (29/29), done.
         remote: Total 141 (delta 52), reused 46 (delta 46), pack-reused 66
