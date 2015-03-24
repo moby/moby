@@ -449,14 +449,15 @@ Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
 
-## Runtime constraints on CPU and memory
+## Runtime constraints on resources
 
 The operator can also adjust the performance parameters of the
 container:
 
-    -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+    -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
     -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
     -c, --cpu-shares=0: CPU shares (relative weight)
+    --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
 
 ### Memory constraints
 
@@ -567,6 +568,20 @@ division of CPU shares:
     100    {C0}		0	100% of CPU0
     101    {C1}		1	100% of CPU1
     102    {C1}		2	100% of CPU2
+
+### Cpuset constraint
+
+We can set cpus in which to allow execution for containers.
+
+Examples:
+
+    $ sudo docker run -ti --cpuset-cpus="1,3" ubuntu:14.04 /bin/bash
+
+This means processes in container can be executed on cpu 1 and cpu 3.
+
+    $ sudo docker run -ti --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
+
+This means processes in container can be executed on cpu 0, cpu 1 and cpu 2.
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 
