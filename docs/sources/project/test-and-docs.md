@@ -169,7 +169,7 @@ To run the same test inside your Docker development container, you do this:
 
     root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-run ^TestBuild$' hack/make.sh
 
-## If test under Boot2Docker fail do to space errors
+## If tests under Boot2Docker fail due to disk space errors
 
 Running the tests requires about 2GB of memory. If you are running your
 container on bare metal, that is you are not running with Boot2Docker, your
