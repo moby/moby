@@ -18,10 +18,12 @@ var (
 	privateV1RegistryURL = "0.0.0.0:5000"
 
 	dockerBasePath       = "/var/lib/docker"
-	execDriverPath       = dockerBasePath + "/execdriver/native"
 	volumesConfigPath    = dockerBasePath + "/volumes"
 	volumesStoragePath   = dockerBasePath + "/vfs/dir"
 	containerStoragePath = dockerBasePath + "/containers"
+
+	runtimePath    = "/var/run/docker"
+	execDriverPath = runtimePath + "/execdriver/native"
 
 	workingDirectory string
 )
