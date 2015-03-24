@@ -298,7 +298,7 @@ and won't need it again. So let's remove it using the `docker rm` command.
     Error: Impossible to remove a running container, please stop it first or use -f
     2014/05/24 08:12:56 Error: failed to remove one or more containers
 
-What's happened? We can't actually remove a running container. This protects
+What happened? We can't actually remove a running container. This protects
 you from accidentally removing a running container you might need. Let's try
 this again by stopping the container first.
 
