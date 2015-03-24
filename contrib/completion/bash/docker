@@ -325,7 +325,7 @@ _docker_cp() {
 			(( counter++ ))
 
 			if [ $cword -eq $counter ]; then
-				_filedir
+				_filedir -d
 				return
 			fi
 			;;

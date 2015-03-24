@@ -280,7 +280,9 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
-	if res.StatusCode != 200 {
+	if res.StatusCode == 404 {
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
+	} else if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			log.Debugf("Error reading response body: %s", err)

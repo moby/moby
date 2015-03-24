@@ -581,6 +581,17 @@ func (b *Builder) run(c *daemon.Container) error {
 		return err
 	}
 
+	finished := make(chan struct{})
+	defer close(finished)
+	go func() {
+		select {
+		case <-b.cancelled:
+			log.Debugln("Build cancelled, killing container:", c.ID)
+			c.Kill()
+		case <-finished:
+		}
+	}()
+
 	if b.Verbose {
 		// Block on reading output from container, stop on err or chan closed
 		if err := <-errCh; err != nil {

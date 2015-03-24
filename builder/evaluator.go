@@ -1,4 +1,4 @@
-// builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
+// Package builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
 //
 // It incorporates a dispatch table based on the parser.Node values (see the
 // parser package for more information) that are yielded from the parser itself.
@@ -20,7 +20,6 @@
 package builder
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -40,10 +39,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-)
-
-var (
-	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
 // Environment variable interpolation will happen on these statements only.
@@ -131,6 +126,8 @@ type Builder struct {
 	cpuShares  int64
 	memory     int64
 	memorySwap int64
+
+	cancelled <-chan struct{} // When closed, job was cancelled.
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
@@ -166,6 +163,14 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	b.TmpContainers = map[string]struct{}{}
 
 	for i, n := range b.dockerfile.Children {
+		select {
+		case <-b.cancelled:
+			log.Debug("Builder: build cancelled!")
+			fmt.Fprintf(b.OutStream, "Build cancelled")
+			return "", fmt.Errorf("Build cancelled")
+		default:
+			// Not cancelled yet, keep going...
+		}
 		if err := b.dispatch(i, n); err != nil {
 			if b.ForceRemove {
 				b.clearTmp()
@@ -215,7 +220,7 @@ func (b *Builder) readDockerfile() error {
 		return fmt.Errorf("Cannot locate specified Dockerfile: %s", origFile)
 	}
 	if fi.Size() == 0 {
-		return ErrDockerfileEmpty
+		return fmt.Errorf("The Dockerfile (%s) cannot be empty", origFile)
 	}
 
 	f, err := os.Open(filename)
@@ -302,7 +307,11 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		var str string
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
-			str = b.replaceEnv(ast.Value)
+			var err error
+			str, err = ProcessWord(ast.Value, b.Config.Env)
+			if err != nil {
+				return err
+			}
 		}
 		strList[i+l] = str
 		msgList[i] = ast.Value

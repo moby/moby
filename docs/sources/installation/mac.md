@@ -4,6 +4,20 @@ page_keywords: Docker, Docker documentation, requirements, boot2docker, VirtualB
 
 # Install Docker on Mac OS X
 
+You can install Docker using Boot2Docker to run `docker` commands at your command-line.
+Choose this installation if you are familiar with the command-line or plan to
+contribute to the Docker project on GitHub.
+
+Alternatively, you may want to try <a id="inlinelink" href="https://kitematic.com/"
+target="_blank">Kitematic</a>, an application that lets you set up Docker and
+run containers using a graphical user interface (GUI).
+
+<a id="graphic" href="https://kitematic.com/" target="_blank"><img
+src="/installation/images/kitematic.png" alt="Download Kitematic"></a>
+
+
+## Command-line Docker with Boot2Docker
+
 Because the Docker daemon uses Linux-specific kernel features, you can't run
 Docker natively in OS X. Instead, you must install the Boot2Docker application.
 The application includes a VirtualBox Virtual Machine (VM), Docker itself, and the
@@ -17,16 +31,7 @@ completely from RAM, is a small ~24MB download, and boots in approximately 5s.
 
 Your Mac must be running OS X 10.6 "Snow Leopard" or newer to run Boot2Docker.
 
-## How do you want to work with Docker?
-
-You can set up Docker using the command line with Boot2Docker and the guide
-below. Alternatively, you may want to try <a href="https://kitematic.com/" target="_blank">Kitematic</a>,
-an application that lets you set up Docker and run containers using a graphical
-user interface (GUI).
-
-<a href="https://kitematic.com/" target="_blank"><img src="/installation/images/kitematic.png" alt="Download Kitematic"></a>
-
-## Learn the key concepts before installing
+### Learn the key concepts before installing
 
 In a Docker installation on Linux, your machine is both the localhost and the
 Docker host. In networking, localhost means your computer. The Docker host is
@@ -50,7 +55,7 @@ When you start the `boot2docker` process, the VM is assigned an IP address. Unde
 practice, work through the exercises on this page.
 
 
-## Install Boot2Docker
+### Install Boot2Docker
 
 1. Go to the [boot2docker/osx-installer ](
 https://github.com/boot2docker/osx-installer/releases/latest) release page.
