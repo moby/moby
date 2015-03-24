@@ -134,3 +134,13 @@ func TestPullImageOfficialNames(t *testing.T) {
 	}
 	logDone("pull - pull official names")
 }
+
+// Pull multiple images
+func TestPullMultipleImages(t *testing.T) {
+	pullCmd := exec.Command(dockerBinary, "pull", "hello-world", "busybox")
+	_, exitCode, err := runCommandWithOutput(pullCmd)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("Pulling multiple images failed")
+	}
+	logDone("pull - pull multiple images")
+}

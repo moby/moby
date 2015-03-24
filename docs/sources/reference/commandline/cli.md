@@ -1569,9 +1569,9 @@ This shows all the containers that have exited with status of '0'
 
 ## pull
 
-    Usage: docker pull [OPTIONS] NAME[:TAG]
+    Usage: docker pull [OPTIONS] NAME[:TAG] [NAME[:TAG]...]
 
-    Pull an image or a repository from the registry
+    Pull images or repositories from the registry.
 
       -a, --all-tags=false    Download all tagged images in the repository
 
@@ -1591,6 +1591,9 @@ use `docker pull`:
 
     $ sudo docker pull debian
     # will pull the debian:latest image and its intermediate layers
+    $ sudo docker pull debian ubuntu busybox
+    # will pull debian:latest, ubuntu:latest and busybox:latest images and 
+    # their intermediate layers
     $ sudo docker pull debian:testing
     # will pull the image named debian:testing and any intermediate
     # layers it is based on.

@@ -1346,64 +1346,66 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 }
 
 func (cli *DockerCli) CmdPull(args ...string) error {
-	cmd := cli.Subcmd("pull", "NAME[:TAG|@DIGEST]", "Pull an image or a repository from the registry", true)
+	cmd := cli.Subcmd("pull", "NAME[:TAG|@DIGEST] [NAME[:TAG|@DIGEST]...]", "Pull images or repositories from the registry", true)
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
-	cmd.Require(flag.Exact, 1)
+	cmd.Require(flag.Min, 1)
 
 	utils.ParseFlags(cmd, args, true)
 
-	var (
-		v         = url.Values{}
-		remote    = cmd.Arg(0)
-		newRemote = remote
-	)
-	taglessRemote, tag := parsers.ParseRepositoryTag(remote)
-	if tag == "" && !*allTags {
-		newRemote = utils.ImageReference(taglessRemote, graph.DEFAULTTAG)
-	}
-	if tag != "" && *allTags {
-		return fmt.Errorf("tag can't be used with --all-tags/-a")
-	}
+	for _, remoteName := range cmd.Args() {
+		var (
+			v         = url.Values{}
+			remote    = remoteName
+			newRemote = remote
+		)
 
-	v.Set("fromImage", newRemote)
+		taglessRemote, tag := parsers.ParseRepositoryTag(remote)
+		if tag == "" && !*allTags {
+			newRemote = utils.ImageReference(taglessRemote, graph.DEFAULTTAG)
+		}
+		if tag != "" && *allTags {
+			return fmt.Errorf("tag can't be used with --all-tags/-a")
+		}
 
-	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
-	if err != nil {
-		return err
-	}
+		v.Set("fromImage", newRemote)
 
-	cli.LoadConfigFile()
-
-	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
-
-	pull := func(authConfig registry.AuthConfig) error {
-		buf, err := json.Marshal(authConfig)
+		// Resolve the Repository name from fqn to RepositoryInfo
+		repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
 		if err != nil {
 			return err
 		}
-		registryAuthHeader := []string{
-			base64.URLEncoding.EncodeToString(buf),
-		}
 
-		return cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{
-			"X-Registry-Auth": registryAuthHeader,
-		})
-	}
+		cli.LoadConfigFile()
 
-	if err := pull(authConfig); err != nil {
-		if strings.Contains(err.Error(), "Status 401") {
-			fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
-			if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
+		// Resolve the Auth config relevant for this server
+		authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
+
+		pull := func(authConfig registry.AuthConfig) error {
+			buf, err := json.Marshal(authConfig)
+			if err != nil {
 				return err
 			}
-			authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
-			return pull(authConfig)
-		}
-		return err
-	}
+			registryAuthHeader := []string{
+				base64.URLEncoding.EncodeToString(buf),
+			}
 
+			return cli.stream("POST", "/images/create?"+v.Encode(), nil, cli.out, map[string][]string{
+				"X-Registry-Auth": registryAuthHeader,
+			})
+		}
+
+		if err := pull(authConfig); err != nil {
+			if strings.Contains(err.Error(), "Status 401") {
+				fmt.Fprintln(cli.out, "\nPlease login prior to pull:")
+				if err := cli.CmdLogin(repoInfo.Index.GetAuthConfigKey()); err != nil {
+					return err
+				}
+				authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
+				return pull(authConfig)
+			}
+			return err
+		}
+	}
 	return nil
 }
 
