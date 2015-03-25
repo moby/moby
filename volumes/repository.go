@@ -171,7 +171,7 @@ func (r *Repository) createNewVolumePath(id string) (string, error) {
 		return "", err
 	}
 
-	path, err := r.driver.Get(id, "")
+	path, err := graphdriver.PrepareGet(r.driver, id, "")
 	if err != nil {
 		return "", fmt.Errorf("Driver %s failed to get volume rootfs %s: %v", r.driver, id, err)
 	}

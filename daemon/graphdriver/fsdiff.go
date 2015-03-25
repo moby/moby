@@ -36,14 +36,14 @@ func NaiveDiffDriver(driver ProtoDriver) Driver {
 func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err error) {
 	driver := gdw.ProtoDriver
 
-	layerFs, err := driver.Get(id, "")
+	layerFs, err := PrepareGet(driver, id, "")
 	if err != nil {
 		return nil, err
 	}
 
 	defer func() {
 		if err != nil {
-			driver.Put(id)
+			PutUnprepare(driver, id)
 		}
 	}()
 
@@ -54,16 +54,16 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 		}
 		return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			driver.Put(id)
+			PutUnprepare(driver, id)
 			return err
 		}), nil
 	}
 
-	parentFs, err := driver.Get(parent, "")
+	parentFs, err := PrepareGet(driver, parent, "")
 	if err != nil {
 		return nil, err
 	}
-	defer driver.Put(parent)
+	defer PutUnprepare(driver, parent)
 
 	changes, err := archive.ChangesDirs(layerFs, parentFs)
 	if err != nil {
@@ -77,7 +77,7 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		driver.Put(id)
+		PutUnprepare(driver, id)
 		return err
 	}), nil
 }
@@ -87,20 +87,20 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 func (gdw *naiveDiffDriver) Changes(id, parent string) ([]archive.Change, error) {
 	driver := gdw.ProtoDriver
 
-	layerFs, err := driver.Get(id, "")
+	layerFs, err := PrepareGet(driver, id, "")
 	if err != nil {
 		return nil, err
 	}
-	defer driver.Put(id)
+	defer PutUnprepare(driver, id)
 
 	parentFs := ""
 
 	if parent != "" {
-		parentFs, err = driver.Get(parent, "")
+		parentFs, err = PrepareGet(driver, parent, "")
 		if err != nil {
 			return nil, err
 		}
-		defer driver.Put(parent)
+		defer PutUnprepare(driver, parent)
 	}
 
 	return archive.ChangesDirs(layerFs, parentFs)
@@ -113,11 +113,11 @@ func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveRea
 	driver := gdw.ProtoDriver
 
 	// Mount the root filesystem so we can apply the diff/layer.
-	layerFs, err := driver.Get(id, "")
+	layerFs, err := PrepareGet(driver, id, "")
 	if err != nil {
 		return
 	}
-	defer driver.Put(id)
+	defer PutUnprepare(driver, id)
 
 	start := time.Now().UTC()
 	log.Debugf("Start untar layer")
@@ -140,11 +140,11 @@ func (gdw *naiveDiffDriver) DiffSize(id, parent string) (size int64, err error) 
 		return
 	}
 
-	layerFs, err := driver.Get(id, "")
+	layerFs, err := PrepareGet(driver, id, "")
 	if err != nil {
 		return
 	}
-	defer driver.Put(id)
+	defer PutUnprepare(driver, id)
 
 	return archive.ChangesSize(layerFs, changes), nil
 }

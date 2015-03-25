@@ -248,6 +248,14 @@ func (a *Driver) Remove(id string) error {
 	return nil
 }
 
+func (d *Driver) Prepare(id string) error {
+	return nil
+}
+
+func (d *Driver) Unprepare(id string) error {
+	return nil
+}
+
 // Return the rootfs path for the id
 // This will mount the dir at it's given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {

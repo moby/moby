@@ -52,8 +52,9 @@ type DevInfo struct {
 	Initialized   bool   `json:"initialized"`
 	devices       *DeviceSet
 
-	mountCount int
-	mountPath  string
+	mountCount   int
+	mountPath    string
+	prepareCount int
 
 	// The global DeviceSet lock guarantees that we serialize all
 	// the calls to libdevmapper (which is not threadsafe), but we
@@ -691,9 +692,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	log.Debugf("Creating filesystem on base device-mapper thin volume")
 
-	if err = devices.activateDeviceIfNeeded(info); err != nil {
+	if err = devices.PrepareDevice(info.Hash); err != nil {
 		return err
 	}
+	defer devices.UnprepareDevice(info.Hash)
 
 	if err := devices.createFilesystem(info); err != nil {
 		return err
@@ -1141,10 +1143,11 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 		// This is a workaround for the kernel not discarding block so
 		// on the thin pool when we remove a thinp device, so we do it
 		// manually
-		if err := devices.activateDeviceIfNeeded(info); err == nil {
+		if err := devices.prepareDevice(info); err == nil {
 			if err := devicemapper.BlockDeviceDiscard(info.DevName()); err != nil {
 				log.Debugf("Error discarding block on device: %s (ignoring)", err)
 			}
+			devices.unprepareDevice(info)
 		}
 	}
 
@@ -1347,6 +1350,9 @@ func (devices *DeviceSet) Shutdown() error {
 				log.Debugf("Shutdown unmounting %s, error: %s", info.mountPath, err)
 			}
 
+		}
+
+		if info.prepareCount > 0 {
 			devices.Lock()
 			if err := devices.deactivateDevice(info); err != nil {
 				log.Debugf("Shutdown deactivate %s , error: %s", info.Hash, err)
@@ -1380,7 +1386,78 @@ func (devices *DeviceSet) Shutdown() error {
 	return nil
 }
 
+/* This assumes that DevInfo (info.lock) and Devices lock are already held */
+func (devices *DeviceSet) prepareDevice(info *DevInfo) error {
+	if info.prepareCount > 0 {
+		info.prepareCount++
+		return nil
+	}
+
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
+		return fmt.Errorf("Error activating devmapper device for '%s': %s", info.Hash, err)
+	}
+
+	info.prepareCount = 1
+	return nil
+}
+
+func (devices *DeviceSet) PrepareDevice(hash string) error {
+	log.Debugf("[devmapper] PrepareDevice(hash=%s)", hash)
+	defer log.Debugf("[devmapper] PrepareDevice(hash=%s) END", hash)
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
+
+	return devices.prepareDevice(info)
+}
+
+/* This assumes that DevInfo (info.lock) and Devices lock are already held */
+func (devices *DeviceSet) unprepareDevice(info *DevInfo) error {
+	if info.prepareCount == 0 {
+		return fmt.Errorf("unprepareDevice: device not-prepared id %s", info.Hash)
+	}
+
+	info.prepareCount--
+	if info.prepareCount > 0 {
+		return nil
+	}
+
+	if err := devices.deactivateDevice(info); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) UnprepareDevice(hash string) error {
+	log.Debugf("[devmapper] UnprepareDevice(hash=%s)", hash)
+	defer log.Debugf("[devmapper] UnprepareDevice(hash=%s) END", hash)
+
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	devices.Lock()
+	defer devices.Unlock()
+
+	return devices.unprepareDevice(info)
+}
+
 func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
+	log.Debugf("[devmapper] MountDevice(hash=%s)", hash)
+	defer log.Debugf("[devmapper] MountDevice(hash=%s) END", hash)
+
 	info, err := devices.lookupDevice(hash)
 	if err != nil {
 		return err
@@ -1401,8 +1478,8 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 		return nil
 	}
 
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
-		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
+	if info.prepareCount <= 0 {
+		return fmt.Errorf("Trying to mount devmapper device which is not activated. hash=%s prepereCount=%v", hash, info.prepareCount)
 	}
 
 	var flags uintptr = syscall.MS_MGC_VAL
@@ -1465,10 +1542,6 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 		return err
 	}
 	log.Debugf("[devmapper] Unmount done")
-
-	if err := devices.deactivateDevice(info); err != nil {
-		return err
-	}
 
 	info.mountPath = ""
 
@@ -1545,9 +1618,11 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 		TransactionId: info.TransactionId,
 	}
 
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
-		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
+	if err := devices.prepareDevice(info); err != nil {
+		return nil, fmt.Errorf("Error preparing devmapper device for '%s': %s", hash, err)
 	}
+
+	defer devices.unprepareDevice(info)
 
 	if sizeInSectors, mappedSectors, highestMappedSector, err := devices.deviceStatus(info.DevName()); err != nil {
 		return nil, err

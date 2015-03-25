@@ -82,6 +82,15 @@ type ProtoDriver interface {
 	Create(id, parent string) error
 	// Remove attempts to remove the filesystem layer with this id.
 	Remove(id string) error
+	// Prepare() should be called once before Get() is called. It gives a
+	// chance to graph driver to do anything it wants before Get() is
+	// called. For example, devicemapper driver can activate device
+	// before fs layer can be mounted.
+	Prepare(id string) error
+	// Unprepare() should be called somtime after Put() to release
+	// any resources consumed by Get(). For example, devicemapper driver
+	// can deactivate device here.
+	Unprepare(id string) error
 	// Get returns the mountpoint for the layered filesystem referred
 	// to by this id. You can optionally specify a mountLabel or "".
 	// Returns the absolute path to the mounted layered filesystem.
@@ -186,4 +195,29 @@ func checkPriorDriver(name, root string) {
 	if len(priorDrivers) > 0 {
 		log.Warnf("Graphdriver %s selected. Your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
 	}
+}
+
+func PrepareGet(driver ProtoDriver, id, mountLabel string) (string, error) {
+	if err := driver.Prepare(id); err != nil {
+		return "", err
+	}
+
+	dir, err := driver.Get(id, mountLabel)
+	if err != nil {
+		return "", err
+	}
+
+	return dir, nil
+}
+
+func PutUnprepare(driver ProtoDriver, id string) error {
+	if err := driver.Put(id); err != nil {
+		return err
+	}
+
+	if err := driver.Unprepare(id); err != nil {
+		return err
+	}
+
+	return nil
 }

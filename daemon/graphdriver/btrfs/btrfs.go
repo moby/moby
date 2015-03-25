@@ -203,6 +203,14 @@ func (d *Driver) Remove(id string) error {
 	return os.RemoveAll(dir)
 }
 
+func (d *Driver) Prepare(id string) error {
+	return nil
+}
+
+func (d *Driver) Unprepare(id string) error {
+	return nil
+}
+
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dir := d.subvolumesDirId(id)
 	st, err := os.Stat(dir)

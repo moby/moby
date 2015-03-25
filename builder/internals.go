@@ -91,7 +91,7 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 		if err := container.Mount(); err != nil {
 			return err
 		}
-		defer container.Unmount()
+		defer container.Unmount(false)
 	}
 	container, err := b.Daemon.Get(id)
 	if err != nil {
@@ -203,7 +203,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	if err := container.Mount(); err != nil {
 		return err
 	}
-	defer container.Unmount()
+	defer container.Unmount(false)
 
 	for _, ci := range copyInfos {
 		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {

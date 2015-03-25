@@ -282,7 +282,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// Ensure that we keep the container mounted until the commit
 	// to avoid unmounting and then mounting directly again
 	c.Mount()
-	defer c.Unmount()
+	defer c.Unmount(false)
 
 	err = b.run(c)
 	if err != nil {

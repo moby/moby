@@ -129,6 +129,14 @@ func (d *Driver) Remove(id string) error {
 	return nil
 }
 
+func (d *Driver) Prepare(id string) error {
+	return d.DeviceSet.PrepareDevice(id)
+}
+
+func (d *Driver) Unprepare(id string) error {
+	return d.DeviceSet.UnprepareDevice(id)
+}
+
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
 

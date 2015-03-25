@@ -62,7 +62,7 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
-	defer container.Unmount()
+	defer container.Unmount(false)
 
 	rwTar, err := container.ExportRw()
 	if err != nil {

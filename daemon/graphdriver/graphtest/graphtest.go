@@ -159,7 +159,7 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 		t.Fatal("Newly created image doesn't exist")
 	}
 
-	dir, err := driver.Get("empty", "")
+	dir, err := graphdriver.PrepareGet(driver, "empty", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 		t.Fatal("New directory not empty")
 	}
 
-	driver.Put("empty")
+	graphdriver.PutUnprepare(driver, "empty")
 
 	if err := driver.Remove("empty"); err != nil {
 		t.Fatal(err)
@@ -193,11 +193,11 @@ func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 		t.Fatal(err)
 	}
 
-	dir, err := driver.Get(name, "")
+	dir, err := graphdriver.PrepareGet(driver, name, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer driver.Put(name)
+	defer graphdriver.PutUnprepare(driver, name)
 
 	subdir := path.Join(dir, "a subdir")
 	if err := os.Mkdir(subdir, 0705|os.ModeSticky); err != nil {
@@ -214,11 +214,11 @@ func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 }
 
 func verifyBase(t *testing.T, driver graphdriver.Driver, name string) {
-	dir, err := driver.Get(name, "")
+	dir, err := graphdriver.PrepareGet(driver, name, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer driver.Put(name)
+	defer graphdriver.PutUnprepare(driver, name)
 
 	subdir := path.Join(dir, "a subdir")
 	verifyFile(t, subdir, 0705|os.ModeDir|os.ModeSticky, 1, 2)

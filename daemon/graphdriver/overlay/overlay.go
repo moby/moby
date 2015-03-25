@@ -264,6 +264,14 @@ func (d *Driver) Remove(id string) error {
 	return os.RemoveAll(dir)
 }
 
+func (d *Driver) Prepare(id string) error {
+	return nil
+}
+
+func (d *Driver) Unprepare(id string) error {
+	return nil
+}
+
 func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	// Protect the d.active from concurrent access
 	d.Lock()

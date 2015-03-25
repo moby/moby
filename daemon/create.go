@@ -119,7 +119,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := container.Mount(); err != nil {
 		return nil, nil, err
 	}
-	defer container.Unmount()
+	defer container.Unmount(false)
 	if err := container.prepareVolumes(); err != nil {
 		return nil, nil, err
 	}
