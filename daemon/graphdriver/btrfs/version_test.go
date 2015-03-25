@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!btrfs_noversion
 
 package btrfs
 
