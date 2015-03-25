@@ -8,6 +8,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdLoad loads an image from a tar archive.
+//
+// The tar archive is read from STDIN by default, or from a tar archive file.
+//
+// Usage: docker load [OPTIONS]
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := cli.Subcmd("load", "", "Load an image from a tar archive on STDIN", true)
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")

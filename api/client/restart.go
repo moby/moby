@@ -9,6 +9,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdRestart restarts one or more running containers.
+//
+// Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := cli.Subcmd("restart", "CONTAINER [CONTAINER...]", "Restart a running container", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container")

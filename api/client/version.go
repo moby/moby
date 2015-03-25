@@ -12,7 +12,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// 'docker version': show version information
+// CmdVersion shows Docker version information.
+//
+// Available version information is shown for: client Docker version, client API version, client Go version, client Git commit, client OS/Arch, server Docker version, server API version, server Go version, server Git commit, and server OS/Arch.
+//
+// Usage: docker version
 func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
 	cmd.Require(flag.Exact, 0)

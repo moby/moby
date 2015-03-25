@@ -11,6 +11,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdCp copies files/folders from a path on the container to a directory on the host running the command.
+//
+// If HOSTDIR is '-', the data is written as a tar file to STDOUT.
+//
+// Usage: docker cp CONTAINER:PATH HOSTDIR
 func (cli *DockerCli) CmdCp(args ...string) error {
 	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTDIR|-", "Copy files/folders from a PATH on the container to a HOSTDIR on the host\nrunning the command. Use '-' to write the data\nas a tar file to STDOUT.", true)
 	cmd.Require(flag.Exact, 2)

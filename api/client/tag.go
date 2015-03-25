@@ -9,6 +9,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdTag tags an image into a repository.
+//
+// Usage: docker tag [OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 func (cli *DockerCli) CmdTag(args ...string) error {
 	cmd := cli.Subcmd("tag", "IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository", true)
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")

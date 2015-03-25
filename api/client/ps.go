@@ -18,6 +18,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdPs outputs a list of Docker containers.
+//
+// Usage: docker ps [OPTIONS]
 func (cli *DockerCli) CmdPs(args ...string) error {
 	var (
 		err error

@@ -85,6 +85,9 @@ func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix stri
 	}
 }
 
+// CmdImages lists the images in a specified repository, or all top-level images if no repository is specified.
+//
+// Usage: docker images [OPTIONS] [REPOSITORY]
 func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd := cli.Subcmd("images", "[REPOSITORY]", "List images", true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")

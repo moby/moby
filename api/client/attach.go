@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdAttach attaches to a running container.
+//
+// Usage: docker attach [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	var (
 		cmd     = cli.Subcmd("attach", "CONTAINER", "Attach to a running container", true)

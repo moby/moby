@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdEvents prints a live stream of real time events from the server.
+//
+// Usage: docker events [OPTIONS]
 func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd := cli.Subcmd("events", "", "Get real time events from the server", true)
 	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")

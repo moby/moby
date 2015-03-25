@@ -106,6 +106,11 @@ func (s *containerStats) Display(w io.Writer) error {
 	return nil
 }
 
+// CmdStats displays a live stream of resource usage statistics for one or more containers.
+//
+// This shows real-time information on CPU usage, memory usage, and network I/O.
+//
+// Usage: docker stats CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd := cli.Subcmd("stats", "CONTAINER [CONTAINER...]", "Display a live stream of one or more containers' resource usage statistics", true)
 	cmd.Require(flag.Min, 1)
