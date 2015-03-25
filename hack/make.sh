@@ -259,6 +259,8 @@ main() {
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})
+	elif [ $1 = "test" ]; then
+		bundles="binary cross test-unit test-integration test-integration-cli test-docker-py"
 	else
 		bundles=($@)
 	fi
