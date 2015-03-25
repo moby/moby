@@ -492,9 +492,9 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
-func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
+func (s *TagStore) CmdPush(job *engine.Job) error {
 	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s IMAGE", job.Name)
+		return fmt.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	var (
 		localName   = job.Args[0]
@@ -506,7 +506,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ResolveRepositoryInfo(job, localName)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	tag := job.Getenv("tag")
@@ -514,18 +514,18 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	job.GetenvJson("metaHeaders", &metaHeaders)
 
 	if _, err := s.poolAdd("push", repoInfo.LocalName); err != nil {
-		return job.Error(err)
+		return err
 	}
 	defer s.poolRemove("push", repoInfo.LocalName)
 
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	r, err := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	reposLen := 1
@@ -536,23 +536,23 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	// If it fails, try to get the repository
 	localRepo, exists := s.Repositories[repoInfo.LocalName]
 	if !exists {
-		return job.Errorf("Repository does not exist: %s", repoInfo.LocalName)
+		return fmt.Errorf("Repository does not exist: %s", repoInfo.LocalName)
 	}
 
 	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
 		err := s.pushV2Repository(r, localRepo, job.Stdout, repoInfo, tag, sf)
 		if err == nil {
-			return engine.StatusOK
+			return nil
 		}
 
 		if err != ErrV2RegistryUnavailable {
-			return job.Errorf("Error pushing to registry: %s", err)
+			return fmt.Errorf("Error pushing to registry: %s", err)
 		}
 	}
 
 	if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 
 }

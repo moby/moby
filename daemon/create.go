@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -12,36 +13,36 @@ import (
 	"github.com/docker/libcontainer/label"
 )
 
-func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerCreate(job *engine.Job) error {
 	var name string
 	if len(job.Args) == 1 {
 		name = job.Args[0]
 	} else if len(job.Args) > 1 {
-		return job.Errorf("Usage: %s", job.Name)
+		return fmt.Errorf("Usage: %s", job.Name)
 	}
 
 	config := runconfig.ContainerConfigFromJob(job)
 	hostConfig := runconfig.ContainerHostConfigFromJob(job)
 
 	if len(hostConfig.LxcConf) > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
-		return job.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
+		return fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
 	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
-		return job.Errorf("Minimum memory limit allowed is 4MB")
+		return fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}
 	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
-		job.Errorf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		log.Printf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		hostConfig.Memory = 0
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
-		job.Errorf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		log.Printf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		hostConfig.MemorySwap = -1
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
-		return job.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
+		return fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
 	}
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
-		return job.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
+		return fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
 	}
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
@@ -51,22 +52,22 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) engine.Status {
 			if tag == "" {
 				tag = graph.DEFAULTTAG
 			}
-			return job.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}
-		return job.Error(err)
+		return err
 	}
 	if !container.Config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
-		job.Errorf("IPv4 forwarding is disabled.\n")
+		log.Printf("IPv4 forwarding is disabled.\n")
 	}
 	container.LogEvent("create")
 
 	job.Printf("%s\n", container.ID)
 
 	for _, warning := range buildWarnings {
-		job.Errorf("%s\n", warning)
+		log.Printf("%s\n", warning)
 	}
 
-	return engine.StatusOK
+	return nil
 }
 
 // Create creates a new container from the given configuration with a given name.

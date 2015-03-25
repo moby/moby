@@ -1097,7 +1097,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 			select {
 			case <-finished:
 			case <-closeNotifier.CloseNotify():
-				log.Infof("Client disconnected, cancelling job: %v", job)
+				log.Infof("Client disconnected, cancelling job: %s", job.Name)
 				job.Cancel()
 			}
 		}()
@@ -1581,9 +1581,9 @@ type Server interface {
 
 // ServeApi loops through all of the protocols sent in to docker and spawns
 // off a go routine to setup a serving http.Server for each.
-func ServeApi(job *engine.Job) engine.Status {
+func ServeApi(job *engine.Job) error {
 	if len(job.Args) == 0 {
-		return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+		return fmt.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 	}
 	var (
 		protoAddrs = job.Args
@@ -1594,7 +1594,7 @@ func ServeApi(job *engine.Job) engine.Status {
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
-			return job.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+			return fmt.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 		}
 		go func() {
 			log.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
@@ -1618,9 +1618,9 @@ func ServeApi(job *engine.Job) engine.Status {
 	for i := 0; i < len(protoAddrs); i++ {
 		err := <-chErrors
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 
-	return engine.StatusOK
+	return nil
 }

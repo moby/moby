@@ -10,10 +10,10 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 )
 
-func (daemon *Daemon) ContainerStats(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerStats(job *engine.Job) error {
 	updates, err := daemon.SubscribeToContainerStats(job.Args[0])
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	enc := json.NewEncoder(job.Stdout)
 	for v := range updates {
@@ -25,10 +25,10 @@ func (daemon *Daemon) ContainerStats(job *engine.Job) engine.Status {
 		if err := enc.Encode(ss); err != nil {
 			// TODO: handle the specific broken pipe
 			daemon.UnsubscribeToContainerStats(job.Args[0], updates)
-			return job.Error(err)
+			return err
 		}
 	}
-	return engine.StatusOK
+	return nil
 }
 
 // convertToAPITypes converts the libcontainer.Stats to the api specific

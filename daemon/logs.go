@@ -16,9 +16,9 @@ import (
 	"github.com/docker/docker/pkg/timeutils"
 )
 
-func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerLogs(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return fmt.Errorf("Usage: %s CONTAINER\n", job.Name)
 	}
 
 	var (
@@ -32,7 +32,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 		format string
 	)
 	if !(stdout || stderr) {
-		return job.Errorf("You must choose at least one stream")
+		return fmt.Errorf("You must choose at least one stream")
 	}
 	if times {
 		format = timeutils.RFC3339NanoFixed
@@ -42,10 +42,10 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 	}
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if container.LogDriverType() != "json-file" {
-		return job.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
+		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
 	}
 	cLog, err := container.ReadLog("json")
 	if err != nil && os.IsNotExist(err) {
@@ -83,7 +83,7 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 				f := cLog.(*os.File)
 				ls, err := tailfile.TailFile(f, lines)
 				if err != nil {
-					return job.Error(err)
+					return err
 				}
 				tmp := bytes.NewBuffer([]byte{})
 				for _, l := range ls {
@@ -148,5 +148,5 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) engine.Status {
 		}
 
 	}
-	return engine.StatusOK
+	return nil
 }

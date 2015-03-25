@@ -55,36 +55,36 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 //			That is a requirement of the current registry client implementation,
 //			because a re-encoded json might invalidate the image checksum at
 //			the next upload, even with functionaly identical content.
-func (s *TagStore) CmdSet(job *engine.Job) engine.Status {
+func (s *TagStore) CmdSet(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("usage: %s NAME", job.Name)
+		return fmt.Errorf("usage: %s NAME", job.Name)
 	}
 	var (
 		imgJSON = []byte(job.Getenv("json"))
 		layer   = job.Stdin
 	)
 	if len(imgJSON) == 0 {
-		return job.Errorf("mandatory key 'json' is not set")
+		return fmt.Errorf("mandatory key 'json' is not set")
 	}
 	// We have to pass an *image.Image object, even though it will be completely
 	// ignored in favor of the redundant json data.
 	// FIXME: the current prototype of Graph.Register is stupid and redundant.
 	img, err := image.NewImgJSON(imgJSON)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if err := s.graph.Register(img, layer); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }
 
 // CmdGet returns information about an image.
 // If the image doesn't exist, an empty object is returned, to allow
 // checking for an image's existence.
-func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
+func (s *TagStore) CmdGet(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("usage: %s NAME", job.Name)
+		return fmt.Errorf("usage: %s NAME", job.Name)
 	}
 	name := job.Args[0]
 	res := &engine.Env{}
@@ -92,7 +92,7 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 	// Note: if the image doesn't exist, LookupImage returns
 	// nil, nil.
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if img != nil {
 		// We don't directly expose all fields of the Image objects,
@@ -116,23 +116,23 @@ func (s *TagStore) CmdGet(job *engine.Job) engine.Status {
 		res.SetJson("Parent", img.Parent)
 	}
 	res.WriteTo(job.Stdout)
-	return engine.StatusOK
+	return nil
 }
 
 // CmdLookup return an image encoded in JSON
-func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
+func (s *TagStore) CmdLookup(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("usage: %s NAME", job.Name)
+		return fmt.Errorf("usage: %s NAME", job.Name)
 	}
 	name := job.Args[0]
 	if image, err := s.LookupImage(name); err == nil && image != nil {
 		if job.GetenvBool("raw") {
 			b, err := image.RawJson()
 			if err != nil {
-				return job.Error(err)
+				return err
 			}
 			job.Stdout.Write(b)
-			return engine.StatusOK
+			return nil
 		}
 
 		out := &engine.Env{}
@@ -150,32 +150,32 @@ func (s *TagStore) CmdLookup(job *engine.Job) engine.Status {
 		out.SetInt64("Size", image.Size)
 		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
 		if _, err = out.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	}
-	return job.Errorf("No such image: %s", name)
+	return fmt.Errorf("No such image: %s", name)
 }
 
 // CmdTarLayer return the tarLayer of the image
-func (s *TagStore) CmdTarLayer(job *engine.Job) engine.Status {
+func (s *TagStore) CmdTarLayer(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("usage: %s NAME", job.Name)
+		return fmt.Errorf("usage: %s NAME", job.Name)
 	}
 	name := job.Args[0]
 	if image, err := s.LookupImage(name); err == nil && image != nil {
 		fs, err := image.TarLayer()
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		defer fs.Close()
 
 		written, err := io.Copy(job.Stdout, fs)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
-		return engine.StatusOK
+		return nil
 	}
-	return job.Errorf("No such image: %s", name)
+	return fmt.Errorf("No such image: %s", name)
 }

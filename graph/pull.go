@@ -20,9 +20,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
+func (s *TagStore) CmdPull(job *engine.Job) error {
 	if n := len(job.Args); n != 1 && n != 2 {
-		return job.Errorf("Usage: %s IMAGE [TAG|DIGEST]", job.Name)
+		return fmt.Errorf("Usage: %s IMAGE [TAG|DIGEST]", job.Name)
 	}
 
 	var (
@@ -36,7 +36,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ResolveRepositoryInfo(job, localName)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if len(job.Args) > 1 {
@@ -52,21 +52,21 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			// Another pull of the same repository is already taking place; just wait for it to finish
 			job.Stdout.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", repoInfo.LocalName))
 			<-c
-			return engine.StatusOK
+			return nil
 		}
-		return job.Error(err)
+		return err
 	}
 	defer s.poolRemove("pull", utils.ImageReference(repoInfo.LocalName, tag))
 
 	log.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	r, err := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, true)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	logName := repoInfo.LocalName
@@ -87,7 +87,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
 				log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
 			}
-			return engine.StatusOK
+			return nil
 		} else if err != registry.ErrDoesNotExist && err != ErrV2RegistryUnavailable {
 			log.Errorf("Error from V2 registry: %s", err)
 		}
@@ -97,14 +97,14 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 
 	log.Debugf("pulling v1 repository with local name %q", repoInfo.LocalName)
 	if err = s.pullRepository(r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
 		log.Errorf("Error logging event 'pull' for %s: %s", logName, err)
 	}
 
-	return engine.StatusOK
+	return nil
 }
 
 func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, askedTag string, sf *utils.StreamFormatter, parallel bool) error {

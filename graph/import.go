@@ -3,6 +3,7 @@ package graph
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -14,9 +15,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
+func (s *TagStore) CmdImport(job *engine.Job) error {
 	if n := len(job.Args); n != 2 && n != 3 {
-		return job.Errorf("Usage: %s SRC REPO [TAG]", job.Name)
+		return fmt.Errorf("Usage: %s SRC REPO [TAG]", job.Name)
 	}
 	var (
 		src          = job.Args[0]
@@ -37,7 +38,7 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		if u.Scheme == "" {
 			u.Scheme = "http"
@@ -47,7 +48,7 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 		job.Stdout.Write(sf.FormatStatus("", "Downloading from %s", u))
 		resp, err = utils.Download(u.String())
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		progressReader := progressreader.New(progressreader.Config{
 			In:        resp.Body,
@@ -69,20 +70,20 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 	buildConfigJob.Setenv("config", job.Getenv("config"))
 
 	if err := buildConfigJob.Run(); err != nil {
-		return job.Error(err)
+		return err
 	}
 	if err := json.NewDecoder(stdoutBuffer).Decode(&newConfig); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, &newConfig)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	// Optionally register the image at REPO/TAG
 	if repo != "" {
 		if err := s.Set(repo, tag, img.ID, true); err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 	job.Stdout.Write(sf.FormatStatus("", img.ID))
@@ -93,5 +94,5 @@ func (s *TagStore) CmdImport(job *engine.Job) engine.Status {
 	if err = job.Eng.Job("log", "import", logID, "").Run(); err != nil {
 		log.Errorf("Error logging event 'import' for %s: %s", logID, err)
 	}
-	return engine.StatusOK
+	return nil
 }

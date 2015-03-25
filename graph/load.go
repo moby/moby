@@ -18,10 +18,10 @@ import (
 
 // Loads a set of images into the repository. This is the complementary of ImageExport.
 // The input stream is an uncompressed tar ball containing images and metadata.
-func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
+func (s *TagStore) CmdLoad(job *engine.Job) error {
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	defer os.RemoveAll(tmpImageDir)
 
@@ -30,11 +30,11 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 	)
 
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
-		return job.Error(err)
+		return err
 	}
 	images, err := s.graph.Map()
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	excludes := make([]string, len(images))
 	i := 0
@@ -43,18 +43,18 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 		i++
 	}
 	if err := chrootarchive.Untar(job.Stdin, repoDir, &archive.TarOptions{ExcludePatterns: excludes}); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	dirs, err := ioutil.ReadDir(repoDir)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	for _, d := range dirs {
 		if d.IsDir() {
 			if err := s.recursiveLoad(job.Eng, d.Name(), tmpImageDir); err != nil {
-				return job.Error(err)
+				return err
 			}
 		}
 	}
@@ -63,21 +63,21 @@ func (s *TagStore) CmdLoad(job *engine.Job) engine.Status {
 	if err == nil {
 		repositories := map[string]Repository{}
 		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
-			return job.Error(err)
+			return err
 		}
 
 		for imageName, tagMap := range repositories {
 			for tag, address := range tagMap {
 				if err := s.Set(imageName, tag, address, true); err != nil {
-					return job.Error(err)
+					return err
 				}
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		return job.Error(err)
+		return err
 	}
 
-	return engine.StatusOK
+	return nil
 }
 
 func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {

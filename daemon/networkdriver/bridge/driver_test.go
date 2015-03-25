@@ -60,22 +60,22 @@ func TestAllocatePortDetection(t *testing.T) {
 
 	// Init driver
 	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != engine.StatusOK {
+	if res := InitDriver(job); res != nil {
 		t.Fatal("Failed to initialize network driver")
 	}
 
 	// Allocate interface
 	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != engine.StatusOK {
+	if res := Allocate(job); res != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
 	// Allocate same port twice, expect failure on second call
 	job = newPortAllocationJob(eng, freePort)
-	if res := AllocatePort(job); res != engine.StatusOK {
+	if res := AllocatePort(job); res != nil {
 		t.Fatal("Failed to find a free port to allocate")
 	}
-	if res := AllocatePort(job); res == engine.StatusOK {
+	if res := AllocatePort(job); res == nil {
 		t.Fatal("Duplicate port allocation granted by AllocatePort")
 	}
 }
@@ -88,19 +88,19 @@ func TestHostnameFormatChecking(t *testing.T) {
 
 	// Init driver
 	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != engine.StatusOK {
+	if res := InitDriver(job); res != nil {
 		t.Fatal("Failed to initialize network driver")
 	}
 
 	// Allocate interface
 	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != engine.StatusOK {
+	if res := Allocate(job); res != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
 	// Allocate port with invalid HostIP, expect failure with Bad Request http status
 	job = newPortAllocationJobWithInvalidHostIP(eng, freePort)
-	if res := AllocatePort(job); res == engine.StatusOK {
+	if res := AllocatePort(job); res == nil {
 		t.Fatal("Failed to check invalid HostIP")
 	}
 }
@@ -129,11 +129,11 @@ func newInterfaceAllocation(t *testing.T, input engine.Env) (output engine.Env) 
 	<-done
 
 	if input.Exists("expectFail") && input.GetBool("expectFail") {
-		if res == engine.StatusOK {
+		if res == nil {
 			t.Fatal("Doesn't fail to allocate network interface")
 		}
 	} else {
-		if res != engine.StatusOK {
+		if res != nil {
 			t.Fatal("Failed to allocate network interface")
 		}
 	}
@@ -244,13 +244,13 @@ func TestLinkContainers(t *testing.T) {
 
 	// Init driver
 	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != engine.StatusOK {
+	if res := InitDriver(job); res != nil {
 		t.Fatal("Failed to initialize network driver")
 	}
 
 	// Allocate interface
 	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != engine.StatusOK {
+	if res := Allocate(job); res != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
@@ -267,7 +267,7 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if res := LinkContainers(job); res != engine.StatusOK {
+	if res := LinkContainers(job); res != nil {
 		t.Fatalf("LinkContainers failed")
 	}
 

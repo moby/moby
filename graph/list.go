@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"log"
 	"path"
 	"strings"
@@ -16,7 +17,7 @@ var acceptedImageFilterTags = map[string]struct{}{
 	"label":    {},
 }
 
-func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
+func (s *TagStore) CmdImages(job *engine.Job) error {
 	var (
 		allImages   map[string]*image.Image
 		err         error
@@ -26,11 +27,11 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 	imageFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	for name := range imageFilters {
 		if _, ok := acceptedImageFilterTags[name]; !ok {
-			return job.Errorf("Invalid filter '%s'", name)
+			return fmt.Errorf("Invalid filter '%s'", name)
 		}
 	}
 
@@ -50,7 +51,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 		allImages, err = s.graph.Heads()
 	}
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	lookup := make(map[string]*engine.Env)
 	s.Lock()
@@ -133,7 +134,7 @@ func (s *TagStore) CmdImages(job *engine.Job) engine.Status {
 
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }

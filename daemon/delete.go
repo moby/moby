@@ -9,9 +9,9 @@ import (
 	"github.com/docker/docker/engine"
 )
 
-func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
+		return fmt.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 	removeVolume := job.GetenvBool("removeVolume")
@@ -20,21 +20,23 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if removeLink {
 		name, err := GetFullContainerName(name)
 		if err != nil {
-			job.Error(err)
+			return err
+			// TODO: why was just job.Error(err) without return if the function cannot continue w/o container name?
+			//job.Error(err)
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
-			return job.Errorf("Conflict, cannot remove the default name of the container")
+			return fmt.Errorf("Conflict, cannot remove the default name of the container")
 		}
 		pe := daemon.ContainerGraph().Get(parent)
 		if pe == nil {
-			return job.Errorf("Cannot get parent %s for name %s", parent, name)
+			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
 		parentContainer, _ := daemon.Get(pe.ID())
 
@@ -43,9 +45,9 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		}
 
 		if err := daemon.ContainerGraph().Delete(name); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	}
 
 	if container != nil {
@@ -55,21 +57,21 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		if container.IsRunning() {
 			if forceRemove {
 				if err := container.Kill(); err != nil {
-					return job.Errorf("Could not kill running container, cannot remove - %v", err)
+					return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
 				}
 			} else {
-				return job.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
+				return fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
 			}
 		}
 		if err := daemon.Rm(container); err != nil {
-			return job.Errorf("Cannot destroy container %s: %s", name, err)
+			return fmt.Errorf("Cannot destroy container %s: %s", name, err)
 		}
 		container.LogEvent("destroy")
 		if removeVolume {
 			daemon.DeleteVolumes(container.VolumePaths())
 		}
 	}
-	return engine.StatusOK
+	return nil
 }
 
 func (daemon *Daemon) DeleteVolumes(volumeIDs map[string]struct{}) {

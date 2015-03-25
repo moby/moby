@@ -3,21 +3,22 @@ package daemon
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
 
-func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerCommit(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
+		return fmt.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
 	}
 	name := job.Args[0]
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	var (
@@ -33,22 +34,22 @@ func (daemon *Daemon) ContainerCommit(job *engine.Job) engine.Status {
 	buildConfigJob.Setenv("config", job.Getenv("config"))
 
 	if err := buildConfigJob.Run(); err != nil {
-		return job.Error(err)
+		return err
 	}
 	if err := json.NewDecoder(stdoutBuffer).Decode(&newConfig); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if err := runconfig.Merge(&newConfig, config); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	img, err := daemon.Commit(container, job.Getenv("repo"), job.Getenv("tag"), job.Getenv("comment"), job.Getenv("author"), job.GetenvBool("pause"), &newConfig)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	job.Printf("%s\n", img.ID)
-	return engine.StatusOK
+	return nil
 }
 
 // Commit creates a new filesystem image from the current state of a container.

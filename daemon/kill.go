@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"syscall"
@@ -13,9 +14,9 @@ import (
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerKill(job *engine.Job) error {
 	if n := len(job.Args); n < 1 || n > 2 {
-		return job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
+		return fmt.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
 	}
 	var (
 		name = job.Args[0]
@@ -34,27 +35,27 @@ func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
 		}
 
 		if sig == 0 {
-			return job.Errorf("Invalid signal: %s", job.Args[1])
+			return fmt.Errorf("Invalid signal: %s", job.Args[1])
 		}
 	}
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
 		if err := container.Kill(); err != nil {
-			return job.Errorf("Cannot kill container %s: %s", name, err)
+			return fmt.Errorf("Cannot kill container %s: %s", name, err)
 		}
 		container.LogEvent("kill")
 	} else {
 		// Otherwise, just send the requested signal
 		if err := container.KillSig(int(sig)); err != nil {
-			return job.Errorf("Cannot kill container %s: %s", name, err)
+			return fmt.Errorf("Cannot kill container %s: %s", name, err)
 		}
 		// FIXME: Add event for signals
 	}
-	return engine.StatusOK
+	return nil
 }

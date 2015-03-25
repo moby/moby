@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 )
@@ -38,7 +40,7 @@ func (s *Service) Install(eng *engine.Engine) error {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was sucessful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(job *engine.Job) engine.Status {
+func (s *Service) Auth(job *engine.Job) error {
 	var (
 		authConfig = new(AuthConfig)
 		endpoint   *Endpoint
@@ -56,25 +58,25 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 	}
 
 	if index, err = ResolveIndexInfo(job, addr); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if endpoint, err = NewEndpoint(index); err != nil {
 		log.Errorf("unable to get new registry endpoint: %s", err)
-		return job.Error(err)
+		return err
 	}
 
 	authConfig.ServerAddress = endpoint.String()
 
 	if status, err = Login(authConfig, endpoint, HTTPRequestFactory(nil)); err != nil {
 		log.Errorf("unable to login against registry endpoint %s: %s", endpoint, err)
-		return job.Error(err)
+		return err
 	}
 
 	log.Infof("successful registry login for endpoint %s: %s", endpoint, status)
 	job.Printf("%s\n", status)
 
-	return engine.StatusOK
+	return nil
 }
 
 // Search queries the public registry for images matching the specified
@@ -93,9 +95,9 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 //	Results are sent as a collection of structured messages (using engine.Table).
 //	Each result is sent as a separate message.
 //	Results are ordered by number of stars on the public registry.
-func (s *Service) Search(job *engine.Job) engine.Status {
+func (s *Service) Search(job *engine.Job) error {
 	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s TERM", job.Name)
+		return fmt.Errorf("Usage: %s TERM", job.Name)
 	}
 	var (
 		term        = job.Args[0]
@@ -107,20 +109,20 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 
 	repoInfo, err := ResolveRepositoryInfo(job, term)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	// *TODO: Search multiple indexes.
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	r, err := NewSession(authConfig, HTTPRequestFactory(metaHeaders), endpoint, true)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	results, err := r.SearchRepositories(repoInfo.GetSearchTerm())
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	outs := engine.NewTable("star_count", 0)
 	for _, result := range results.Results {
@@ -130,31 +132,31 @@ func (s *Service) Search(job *engine.Job) engine.Status {
 	}
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }
 
 // ResolveRepository splits a repository name into its components
 // and configuration of the associated registry.
-func (s *Service) ResolveRepository(job *engine.Job) engine.Status {
+func (s *Service) ResolveRepository(job *engine.Job) error {
 	var (
 		reposName = job.Args[0]
 	)
 
 	repoInfo, err := s.Config.NewRepositoryInfo(reposName)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	out := engine.Env{}
 	err = out.SetJson("repository", repoInfo)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	out.WriteTo(job.Stdout)
 
-	return engine.StatusOK
+	return nil
 }
 
 // Convenience wrapper for calling resolve_repository Job from a running job.
@@ -175,24 +177,24 @@ func ResolveRepositoryInfo(jobContext *engine.Job, reposName string) (*Repositor
 }
 
 // ResolveIndex takes indexName and returns index info
-func (s *Service) ResolveIndex(job *engine.Job) engine.Status {
+func (s *Service) ResolveIndex(job *engine.Job) error {
 	var (
 		indexName = job.Args[0]
 	)
 
 	index, err := s.Config.NewIndexInfo(indexName)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	out := engine.Env{}
 	err = out.SetJson("index", index)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	out.WriteTo(job.Stdout)
 
-	return engine.StatusOK
+	return nil
 }
 
 // Convenience wrapper for calling resolve_index Job from a running job.
@@ -213,13 +215,13 @@ func ResolveIndexInfo(jobContext *engine.Job, indexName string) (*IndexInfo, err
 }
 
 // GetRegistryConfig returns current registry configuration.
-func (s *Service) GetRegistryConfig(job *engine.Job) engine.Status {
+func (s *Service) GetRegistryConfig(job *engine.Job) error {
 	out := engine.Env{}
 	err := out.SetJson("config", s.Config)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	out.WriteTo(job.Stdout)
 
-	return engine.StatusOK
+	return nil
 }
