@@ -18,12 +18,12 @@
 				<key>0</key>
 				<dict>
 					<key>name</key>
-					<string>keyword.control.dockerfile</string>					
+					<string>keyword.control.dockerfile</string>
 				</dict>
 				<key>1</key>
 				<dict>
 					<key>name</key>
-					<string>keyword.other.special-method.dockerfile</string>					
+					<string>keyword.other.special-method.dockerfile</string>
 				</dict>
 			</dict>
 		</dict>
@@ -35,12 +35,12 @@
 				<key>0</key>
 				<dict>
 					<key>name</key>
-					<string>keyword.operator.dockerfile</string>					
+					<string>keyword.operator.dockerfile</string>
 				</dict>
 				<key>1</key>
 				<dict>
 					<key>name</key>
-					<string>keyword.other.special-method.dockerfile</string>					
+					<string>keyword.other.special-method.dockerfile</string>
 				</dict>
 			</dict>
 		</dict>

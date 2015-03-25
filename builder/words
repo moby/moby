@@ -15,7 +15,7 @@ hello\\                  |     hello\
 'hello\'                 |     hello\
 "''"                     |     ''
 $.                       |     $.
-$1                       |     
+$1                       |
 he$1x                    |     hex
 he$.x                    |     he$.x
 he$pwd.                  |     he.

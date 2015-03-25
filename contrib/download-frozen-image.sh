@@ -41,39 +41,39 @@ while [ $# -gt 0 ]; do
 	[ "$imageId" != "$tag" ] || imageId=
 	[ "$tag" != "$imageTag" ] || tag='latest'
 	tag="${tag%@*}"
-	
+
 	token="$(curl -sSL -o /dev/null -D- -H 'X-Docker-Token: true' "https://index.docker.io/v1/repositories/$image/images" | tr -d '\r' | awk -F ': *' '$1 == "X-Docker-Token" { print $2 }')"
-	
+
 	if [ -z "$imageId" ]; then
 		imageId="$(curl -sSL -H "Authorization: Token $token" "https://registry-1.docker.io/v1/repositories/$image/tags/$tag")"
 		imageId="${imageId//\"/}"
 	fi
-	
+
 	ancestryJson="$(curl -sSL -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/ancestry")"
 	if [ "${ancestryJson:0:1}" != '[' ]; then
 		echo >&2 "error: /v1/images/$imageId/ancestry returned something unexpected:"
 		echo >&2 "  $ancestryJson"
 		exit 1
 	fi
-	
+
 	IFS=','
 	ancestry=( ${ancestryJson//[\[\] \"]/} )
 	unset IFS
-	
+
 	if [ -s "$dir/tags-$image.tmp" ]; then
 		echo -n ', ' >> "$dir/tags-$image.tmp"
 	else
 		images=( "${images[@]}" "$image" )
 	fi
 	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$image.tmp"
-	
+
 	echo "Downloading '$imageTag' (${#ancestry[@]} layers)..."
 	for imageId in "${ancestry[@]}"; do
 		mkdir -p "$dir/$imageId"
 		echo '1.0' > "$dir/$imageId/VERSION"
-		
+
 		curl -sSL -H "Authorization: Token $token" "https://registry-1.docker.io/v1/images/$imageId/json" -o "$dir/$imageId/json"
-		
+
 		# TODO figure out why "-C -" doesn't work here
 		# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
 		# "HTTP/1.1 416 Requested Range Not Satisfiable"

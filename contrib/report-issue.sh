@@ -29,41 +29,41 @@ function template() {
 # this should always match the template from CONTRIBUTING.md
 	cat <<- EOM
 	Description of problem:
-	
-	
+
+
 	\`docker version\`:
 	`${DOCKER_COMMAND} -D version`
-	
-	
+
+
 	\`docker info\`:
 	`${DOCKER_COMMAND} -D info`
-	
-	
+
+
 	\`uname -a\`:
 	`uname -a`
-	
-	
+
+
 	Environment details (AWS, VirtualBox, physical, etc.):
-	
-	
+
+
 	How reproducible:
-	
-	
+
+
 	Steps to Reproduce:
 	1.
 	2.
 	3.
-	
-	
+
+
 	Actual Results:
-	
-	
+
+
 	Expected Results:
-	
-	
+
+
 	Additional info:
-	
-	
+
+
 	EOM
 }
 
@@ -81,7 +81,7 @@ echo -ne "Do you use \`sudo\` to call docker? [y|N]: "
 read -r -n 1 use_sudo
 echo ""
 
-if [ "x${use_sudo}" = "xy" -o "x${use_sudo}" = "xY" ]; then 
+if [ "x${use_sudo}" = "xy" -o "x${use_sudo}" = "xY" ]; then
 	export DOCKER_COMMAND="sudo ${DOCKER}"
 fi
 
