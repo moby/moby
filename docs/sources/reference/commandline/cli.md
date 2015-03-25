@@ -17,6 +17,30 @@ or execute `docker help`:
 
       ...
 
+## Environment Variables
+
+For easy reference, the following list of environment variables are supported
+by the `docker` command line:
+
+* `DOCKER_CERT_PATH` The location of your authentication keys.
+* `DOCKER_DRIVER` The graph driver to use.
+* `DOCKER_HOST` Daemon socket to connect to.
+* `DOCKER_NOWARN_KERNEL_VERSION` Prevent warnings that your Linux kernel is unsuitable for Docker.
+* `DOCKER_RAMDISK` If set this will disable 'pivot_root'.
+* `DOCKER_TLS_VERIFY` When set Docker uses TLS and verifies the remote.
+* `DOCKER_TMPDIR` Location for temporary Docker files.
+
+Because Docker is developed using 'Go', you can also use any environment
+variables used by the 'Go' runtime. In particular, you may find these useful:
+
+* `HTTP_PROXY`
+* `HTTPS_PROXY`
+* `NO_PROXY`
+
+These Go environment variables are case-insensitive. See the
+[Go specification](http://golang.org/pkg/net/http/) for details on these
+variables.
+
 ## Help
 To list the help on any command just execute the command, followed by the `--help` option.
 
@@ -539,7 +563,7 @@ Instead of specifying a context, you can pass a single Dockerfile in the
 	docker build - < Dockerfile
 
 If you use STDIN or specify a `URL`, the system places the contents into a
-file called `Dockerfile`, and any `-f`, `--file` option is ignored. In this 
+file called `Dockerfile`, and any `-f`, `--file` option is ignored. In this
 scenario, there is no context.
 
 ### Return code
@@ -795,7 +819,7 @@ relative to the root of the container's filesystem.
 
     Usage: docker cp CONTAINER:PATH HOSTDIR|-
 
-    Copy files/folders from the PATH to the HOSTDIR. 
+    Copy files/folders from the PATH to the HOSTDIR.
 
 
 ## create
@@ -1530,7 +1554,7 @@ just a specific mapping:
       --before=""           Show only container created before Id or Name
       -f, --filter=[]       Filter output based on conditions provided
       -l, --latest=false    Show the latest created container, include non-running
-      -n=-1                 Show n last created containers, include non-running 
+      -n=-1                 Show n last created containers, include non-running
       --no-trunc=false      Don't truncate output
       -q, --quiet=false     Only display numeric IDs
       -s, --size=false      Display total file sizes
@@ -1950,7 +1974,7 @@ format:
     com.example.label2=another\ label
     com.example.label3
 
-You can load multiple label-files by supplying multiple  `--label-file` flags. 
+You can load multiple label-files by supplying multiple  `--label-file` flags.
 
 For additional information on working with labels, see [*Labels - custom
 metadata in Docker*](/userguide/labels-custom-metadata/) in the Docker User
@@ -2064,7 +2088,7 @@ application change:
 
 #### Restart Policies
 
-Use Docker's `--restart` to specify a container's *restart policy*. A restart 
+Use Docker's `--restart` to specify a container's *restart policy*. A restart
 policy controls whether the Docker daemon restarts a container after exit.
 Docker supports the following restart policies:
 
@@ -2079,7 +2103,7 @@ Docker supports the following restart policies:
     <tr>
       <td><strong>no</strong></td>
       <td>
-        Do not automatically restart the container when it exits. This is the 
+        Do not automatically restart the container when it exits. This is the
         default.
       </td>
     </tr>
@@ -2091,7 +2115,7 @@ Docker supports the following restart policies:
       </td>
       <td>
         Restart only if the container exits with a non-zero exit status.
-        Optionally, limit the number of restart retries the Docker 
+        Optionally, limit the number of restart retries the Docker
         daemon attempts.
       </td>
     </tr>
@@ -2111,7 +2135,7 @@ Docker supports the following restart policies:
 This will run the `redis` container with a restart policy of **always**
 so that if the container exits, Docker will restart it.
 
-More detailed information on restart policies can be found in the 
+More detailed information on restart policies can be found in the
 [Restart Policies (--restart)](/reference/run/#restart-policies-restart) section
 of the Docker run reference page.
 
