@@ -45,7 +45,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/timeutils"
+	timeutils "github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
@@ -1890,7 +1890,6 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 	var (
 		v               = url.Values{}
-		loc             = time.FixedZone(time.Now().Zone())
 		eventFilterArgs = filters.Args{}
 	)
 
@@ -1903,22 +1902,20 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 			return err
 		}
 	}
-	var setTime = func(key, value string) {
-		format := timeutils.RFC3339NanoFixed
-		if len(value) < len(format) {
-			format = format[:len(value)]
-		}
-		if t, err := time.ParseInLocation(format, value, loc); err == nil {
-			v.Set(key, strconv.FormatInt(t.Unix(), 10))
-		} else {
-			v.Set(key, value)
-		}
-	}
+
 	if *since != "" {
-		setTime("since", *since)
+		if err, newTime := timeutils.ConvertFrom(*since); err != nil {
+			return err
+		} else {
+			v.Set("since", newTime)
+		}
 	}
 	if *until != "" {
-		setTime("until", *until)
+		if err, newTime := timeutils.ConvertFrom(*until); err != nil {
+			return err
+		} else {
+			v.Set("until", newTime)
+		}
 	}
 	if len(eventFilterArgs) > 0 {
 		filterJson, err := filters.ToParam(eventFilterArgs)
