@@ -10,6 +10,10 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdPort lists port mappings for a container.
+// If a private port is specified, it also shows the public-facing port that is NATed to the private port.
+//
+// Usage: docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 func (cli *DockerCli) CmdPort(args ...string) error {
 	cmd := cli.Subcmd("port", "CONTAINER [PRIVATE_PORT[/PROTO]]", "List port mappings for the CONTAINER, or lookup the public-facing port that\nis NAT-ed to the PRIVATE_PORT", true)
 	cmd.Require(flag.Min, 1)

@@ -10,6 +10,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdSave saves one or more images to a tar archive.
+//
+// The tar archive is written to STDOUT by default, or written to a file.
+//
+// Usage: docker save [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdSave(args ...string) error {
 	cmd := cli.Subcmd("save", "IMAGE [IMAGE...]", "Save an image(s) to a tar archive (streamed to STDOUT by default)", true)
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")

@@ -7,6 +7,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdUnpause unpauses all processes within a container, for one or more containers.
+//
+// Usage: docker unpause CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdUnpause(args ...string) error {
 	cmd := cli.Subcmd("unpause", "CONTAINER [CONTAINER...]", "Unpause all processes within a container", true)
 	cmd.Require(flag.Min, 1)

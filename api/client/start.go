@@ -40,6 +40,9 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	return sigc
 }
 
+// CmdStart starts one or more stopped containers.
+//
+// Usage: docker start [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStart(args ...string) error {
 	var (
 		cErr chan error

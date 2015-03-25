@@ -9,7 +9,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// 'docker rmi IMAGE' removes all images with the name IMAGE
+// CmdRmi removes all images with the specified name(s).
+//
+// Usage: docker rmi [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdRmi(args ...string) error {
 	var (
 		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images", true)

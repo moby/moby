@@ -64,7 +64,7 @@ func (cli *DockerCli) getMethod(args ...string) (func(...string) error, bool) {
 	return method.Interface().(func(...string) error), true
 }
 
-// Cmd executes the specified command
+// Cmd executes the specified command.
 func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 1 {
 		method, exists := cli.getMethod(args[:2]...)

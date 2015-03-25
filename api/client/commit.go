@@ -14,6 +14,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdAttach attaches to a running container.
+//
+// Usage: docker attach [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd := cli.Subcmd("commit", "CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes", true)
 	flPause := cmd.Bool([]string{"p", "-pause"}, true, "Pause container during commit")

@@ -11,6 +11,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdTop displays the running processes of a container.
+//
+// Usage: docker top CONTAINER
 func (cli *DockerCli) CmdTop(args ...string) error {
 	cmd := cli.Subcmd("top", "CONTAINER [ps OPTIONS]", "Display the running processes of a container", true)
 	cmd.Require(flag.Min, 1)

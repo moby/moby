@@ -2,6 +2,9 @@ package client
 
 import "fmt"
 
+// CmdRename renames a container.
+//
+// Usage: docker rename OLD_NAME NEW_NAME
 func (cli *DockerCli) CmdRename(args ...string) error {
 	cmd := cli.Subcmd("rename", "OLD_NAME NEW_NAME", "Rename a container", true)
 	if err := cmd.Parse(args); err != nil {

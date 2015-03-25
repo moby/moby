@@ -9,6 +9,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdLogs fetches the logs of a given container.
+//
+// docker logs [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdLogs(args ...string) error {
 	var (
 		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container", true)

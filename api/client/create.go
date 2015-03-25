@@ -128,6 +128,9 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	return &response, nil
 }
 
+// CmdCreate creates a new container from a given image.
+//
+// Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdCreate(args ...string) error {
 	cmd := cli.Subcmd("create", "IMAGE [COMMAND] [ARG...]", "Create a new container", true)
 

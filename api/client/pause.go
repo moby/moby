@@ -7,6 +7,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdPause pauses all processes within one or more containers.
+//
+// Usage: docker pause CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdPause(args ...string) error {
 	cmd := cli.Subcmd("pause", "CONTAINER [CONTAINER...]", "Pause all processes within a container", true)
 	cmd.Require(flag.Min, 1)

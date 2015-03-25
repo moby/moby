@@ -36,6 +36,11 @@ const (
 	tarHeaderSize = 512
 )
 
+// CmdBuild builds a new image from the source code at a given path.
+//
+// If '-' is provided instead of a path or URL, Docker will build an image from either a Dockerfile or tar archive read from STDIN.
+//
+// Usage: docker build [OPTIONS] PATH | URL | -
 func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd := cli.Subcmd("build", "PATH | URL | -", "Build a new image from the source code at PATH", true)
 	tag := cmd.String([]string{"t", "-tag"}, "", "Repository name (and optionally a tag) for the image")
