@@ -69,7 +69,7 @@ func (e *Events) Get(job *engine.Job) engine.Status {
 	job.Stdout.Write(nil)
 
 	// Resend every event in the [since, until] time interval.
-	if since != 0 {
+	if job.Getenv("since") != "" {
 		if err := e.writeCurrent(job, since, until, eventFilters); err != nil {
 			return job.Error(err)
 		}
