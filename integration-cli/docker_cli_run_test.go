@@ -413,6 +413,7 @@ func TestRunLinkToContainerNetMode(t *testing.T) {
 }
 
 func TestRunModeNetContainerHostname(t *testing.T) {
+	testRequires(t, ExecSupport)
 	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "--name", "parent", "busybox", "top")
 	out, _, err := runCommandWithOutput(cmd)
