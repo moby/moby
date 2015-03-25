@@ -37,7 +37,7 @@ rootfs_chroot() {
 
 # prevent init scripts from running during install/update
 echo >&2 "+ echo exit 101 > '$rootfsDir/usr/sbin/policy-rc.d'"
-cat > "$rootfsDir/usr/sbin/policy-rc.d" <<'EOF'
+cat > "$rootfsDir/usr/sbin/policy-rc.d" <<-'EOF'
 	#!/bin/sh
 
 	# For most Docker users, "apt-get install" only happens during "docker build",
