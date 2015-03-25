@@ -54,9 +54,6 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 		return err
 	}
 
-	// FIXME: this should be handled by the volume subsystem
-	// Validate the HostConfig binds. Make sure that:
-	// the source exists
 	for _, bind := range hostConfig.Binds {
 		splitBind := strings.Split(bind, ":")
 		source := splitBind[0]
@@ -64,10 +61,7 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 		// ensure the source exists on the host
 		_, err := os.Stat(source)
 		if err != nil && os.IsNotExist(err) {
-			err = os.MkdirAll(source, 0755)
-			if err != nil {
-				return fmt.Errorf("Could not create local directory '%s' for bind mount: %v!", source, err)
-			}
+			return fmt.Errorf("Source '%s' does not exist !", source);
 		}
 	}
 	// Register any links from the host config before starting the container
