@@ -91,7 +91,7 @@ func populateProcessEnvironment(env []string) error {
 
 // finalizeNamespace drops the caps, sets the correct user
 // and working dir, and closes any leaked file descriptors
-// before execing the command inside the namespace
+// before executing the command inside the namespace
 func finalizeNamespace(config *initConfig) error {
 	// Ensure that all non-standard fds we may have accidentally
 	// inherited are marked close-on-exec so they stay out of the
