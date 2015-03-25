@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
@@ -55,7 +57,15 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
 		if container.IsRunning() {
 			if forceRemove {
 				if err := container.Kill(); err != nil {
-					return job.Errorf("Could not kill running container, cannot remove - %v", err)
+					if err != syscall.ESRCH {
+						return job.Errorf("Could not kill running container, cannot remove - %v", err)
+					}
+
+					// This is a situation in which the container PID 1 has died
+					// but has yet to be reaped or recognized by Docker as being gone.
+					if _, err := container.WaitStop(1 * time.Second); err != nil {
+						return job.Errorf("Failed to wait for killed container to stop, cannot remove - %v", err)
+					}
 				}
 			} else {
 				return job.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
