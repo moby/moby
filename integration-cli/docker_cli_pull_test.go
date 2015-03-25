@@ -85,6 +85,8 @@ func TestPullVerified(t *testing.T) {
 
 // pulling an image from the central registry should work
 func TestPullImageFromCentralRegistry(t *testing.T) {
+	testRequires(t, Network)
+
 	defer deleteImages("hello-world")
 
 	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
