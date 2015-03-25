@@ -173,9 +173,6 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 	if err != nil {
 		return err
 	}
-	if !cgroups.PathExists(dir) {
-		return cgroups.NewNotFoundError("freezer")
-	}
 
 	prevState := m.Cgroups.Freezer
 	m.Cgroups.Freezer = state
@@ -199,9 +196,6 @@ func (m *Manager) GetPids() ([]int, error) {
 	dir, err := d.path("devices")
 	if err != nil {
 		return nil, err
-	}
-	if !cgroups.PathExists(dir) {
-		return nil, cgroups.NewNotFoundError("devices")
 	}
 
 	return cgroups.ReadProcsFile(dir)
