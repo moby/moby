@@ -9,7 +9,7 @@ features to the project. But most of your time will be spent reviewing,
 cleaning up, documenting, answering questions, justifying design
 decisions - while everyone has all the fun! But remember - the quality
 of the maintainers work is what distinguishes the good projects from the
-great.  So please be proud of your work, even the unglamourous parts,
+great.  So please be proud of your work, even the unglamorous parts,
 and encourage a culture of appreciation and respect for *every* aspect
 of improving the project - not just the hot new features.
 
