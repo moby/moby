@@ -31,17 +31,13 @@ After that, we install and setup a few dependencies:
     repository key
  - `lsb-release` helps us derive the Ubuntu release
     codename
- - `openssh-server` allows us to login to
-    containers remotely and join Riak nodes to form a cluster
- - `supervisor` is used manage the OpenSSH and Riak
-    processes
+ - `supervisor` is used manage the Riak processes
 
 <!-- -->
 
     # Install and setup project dependencies
-    RUN apt-get update && apt-get install -y curl lsb-release supervisor openssh-server
+    RUN apt-get update && apt-get install -y curl lsb-release supervisor
 
-    RUN mkdir -p /var/run/sshd
     RUN mkdir -p /var/log/supervisor
 
     RUN locale-gen en_US en_US.UTF-8
@@ -64,8 +60,8 @@ After that, we install Riak and alter a few defaults:
 Then, we expose the Riak Protocol Buffers and HTTP interfaces, along
 with SSH:
 
-    # Expose Riak Protocol Buffers and HTTP interfaces, along with SSH
-    EXPOSE 8087 8098 22
+    # Expose Riak Protocol Buffers and HTTP interfaces
+    EXPOSE 8087 8098
 
 Finally, run `supervisord` so that Riak and OpenSSH
 are started:
