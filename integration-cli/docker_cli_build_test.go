@@ -2032,7 +2032,6 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 	buildCmd.Dir = ctx.Dir
-	buildCmd.Stdout = os.Stdout
 
 	err = buildCmd.Start()
 	if err != nil {
