@@ -1549,13 +1549,15 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
-	if sizeInSectors, mappedSectors, highestMappedSector, err := devices.deviceStatus(info.DevName()); err != nil {
+	sizeInSectors, mappedSectors, highestMappedSector, err := devices.deviceStatus(info.DevName())
+
+	if err != nil {
 		return nil, err
-	} else {
-		status.SizeInSectors = sizeInSectors
-		status.MappedSectors = mappedSectors
-		status.HighestMappedSector = highestMappedSector
 	}
+
+	status.SizeInSectors = sizeInSectors
+	status.MappedSectors = mappedSectors
+	status.HighestMappedSector = highestMappedSector
 
 	return status, nil
 }
