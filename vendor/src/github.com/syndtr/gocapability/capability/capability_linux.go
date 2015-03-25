@@ -417,10 +417,6 @@ func (c *capsV3) Load() (err error) {
 }
 
 func (c *capsV3) Apply(kind CapType) (err error) {
-	err = initLastCap()
-	if err != nil {
-		return
-	}
 	if kind&BOUNDS == BOUNDS {
 		var data [2]capData
 		err = capget(&c.hdr, &data[0])
@@ -428,7 +424,7 @@ func (c *capsV3) Apply(kind CapType) (err error) {
 			return
 		}
 		if (1<<uint(CAP_SETPCAP))&data[0].effective != 0 {
-			for i := Cap(0); i <= capLastCap; i++ {
+			for i := Cap(0); i <= CAP_LAST_CAP; i++ {
 				if c.Get(BOUNDING, i) {
 					continue
 				}

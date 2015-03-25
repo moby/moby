@@ -186,7 +186,9 @@ func reOpenDevNull(rootfs string) error {
 func createDevices(config *configs.Config) error {
 	oldMask := syscall.Umask(0000)
 	for _, node := range config.Devices {
-		if err := createDeviceNode(config.Rootfs, node); err != nil {
+		// containers running in a user namespace are not allowed to mknod
+		// devices so we can just bind mount it from the host.
+		if err := createDeviceNode(config.Rootfs, node, config.Namespaces.Contains(configs.NEWUSER)); err != nil {
 			syscall.Umask(oldMask)
 			return err
 		}
@@ -196,20 +198,13 @@ func createDevices(config *configs.Config) error {
 }
 
 // Creates the device node in the rootfs of the container.
-func createDeviceNode(rootfs string, node *configs.Device) error {
+func createDeviceNode(rootfs string, node *configs.Device, bind bool) error {
 	dest := filepath.Join(rootfs, node.Path)
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return err
 	}
-	if err := mknodDevice(dest, node); err != nil {
-		if os.IsExist(err) {
-			return nil
-		}
-		if err != syscall.EPERM {
-			return err
-		}
-		// containers running in a user namespace are not allowed to mknod
-		// devices so we can just bind mount it from the host.
+
+	if bind {
 		f, err := os.Create(dest)
 		if err != nil && !os.IsExist(err) {
 			return err
@@ -218,6 +213,12 @@ func createDeviceNode(rootfs string, node *configs.Device) error {
 			f.Close()
 		}
 		return syscall.Mount(node.Path, dest, "bind", syscall.MS_BIND, "")
+	}
+	if err := mknodDevice(dest, node); err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return err
 	}
 	return nil
 }
