@@ -36,6 +36,7 @@ var ErrExec = errors.New("Unsupported: Exec is not supported by the lxc driver")
 
 type driver struct {
 	root             string // root path for the driver to use
+	libPath          string
 	initPath         string
 	apparmor         bool
 	sharedRoot       bool
@@ -49,7 +50,7 @@ type activeContainer struct {
 	cmd       *exec.Cmd
 }
 
-func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
+func NewDriver(root, libPath, initPath string, apparmor bool) (*driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
@@ -64,6 +65,7 @@ func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
 	return &driver{
 		apparmor:         apparmor,
 		root:             root,
+		libPath:          libPath,
 		initPath:         initPath,
 		sharedRoot:       rootIsShared(),
 		activeContainers: make(map[string]*activeContainer),
@@ -669,7 +671,7 @@ func rootIsShared() bool {
 }
 
 func (d *driver) containerDir(containerId string) string {
-	return path.Join(d.root, "containers", containerId)
+	return path.Join(d.libPath, "containers", containerId)
 }
 
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
@@ -699,7 +701,7 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	if err != nil {
 		return err
 	}
-	p := path.Join(d.root, "containers", c.ID, "config.env")
+	p := path.Join(d.libPath, "containers", c.ID, "config.env")
 	c.Mounts = append(c.Mounts, execdriver.Mount{
 		Source:      p,
 		Destination: "/.dockerenv",
@@ -791,5 +793,8 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	if _, ok := d.activeContainers[id]; !ok {
+		return nil, fmt.Errorf("%s is not a key in active containers", id)
+	}
 	return execdriver.Stats(d.containerDir(id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
 }
