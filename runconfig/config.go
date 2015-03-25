@@ -33,7 +33,6 @@ type Config struct {
 	NetworkDisabled bool
 	MacAddress      string
 	OnBuild         []string
-	SecurityOpt     []string
 	Labels          map[string]string
 }
 
