@@ -427,36 +427,37 @@ the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
 requirement for MLS systems. Specifying the level in the following command
 allows you to share the same content between containers.
 
-    # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
+    $ sudo docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
 
 An MLS example might be:
 
-    # docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+    $ sudo docker run --security-opt label:level:TopSecret -i -t rhel7 bash
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
 
-    # docker run --security-opt label:disable -i -t fedora bash
+    $ sudo docker run --security-opt label:disable -i -t fedora bash
 
 If you want a tighter security policy on the processes within a container,
 you can specify an alternate type for the container. You could run a container
 that is only allowed to listen on Apache ports by executing the following
 command:
 
-    # docker run --security-opt label:type:svirt_apache_t -i -t centos bash
+    $ sudo docker run --security-opt label:type:svirt_apache_t -i -t centos bash
 
 Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
 
-## Runtime constraints on CPU and memory
+## Runtime constraints on resources
 
 The operator can also adjust the performance parameters of the
 container:
 
-    -m="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+    -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
     -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
-    -c, --cpu-shares=0         CPU shares (relative weight)
+    -c, --cpu-shares=0: CPU shares (relative weight)
+    --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
 
 ### Memory constraints
 
@@ -508,6 +509,31 @@ We have four ways to set memory usage:
   </tbody>
 </table>
 
+Examples:
+
+    $ sudo docker run -ti ubuntu:14.04 /bin/bash
+
+We set nothing about memory, this means the processes in the container can use
+as much memory and swap memory as they need.
+
+    $ sudo docker run -ti -m 300M --memory-swap -1 ubuntu:14.04 /bin/bash
+
+We set memory limit and disabled swap memory limit, this means the processes in
+the container can use 300M memory and as much swap memory as they need (if the
+host supports swap memory).
+
+    $ sudo docker run -ti -m 300M ubuntu:14.04 /bin/bash
+
+We set memory limit only, this means the processes in the container can use
+300M memory and 300M swap memory, by default, the total virtual memory size
+(--memory-swap) will be set as double of memory, in this case, memory + swap
+would be 2*300M, so processes can use 300M swap memory as well.
+
+    $ sudo docker run -ti -m 300M --memory-swap 1G ubuntu:14.04 /bin/bash
+
+We set both memory and swap memory, so the processes in the container can use
+300M memory and 700M swap memory.
+
 ### CPU share constraint
 
 By default, all containers get the same proportion of CPU cycles. This proportion
@@ -542,6 +568,20 @@ division of CPU shares:
     100    {C0}		0	100% of CPU0
     101    {C1}		1	100% of CPU1
     102    {C1}		2	100% of CPU2
+
+### Cpuset constraint
+
+We can set cpus in which to allow execution for containers.
+
+Examples:
+
+    $ sudo docker run -ti --cpuset-cpus="1,3" ubuntu:14.04 /bin/bash
+
+This means processes in container can be executed on cpu 1 and cpu 3.
+
+    $ sudo docker run -ti --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
+
+This means processes in container can be executed on cpu 0, cpu 1 and cpu 2.
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 
@@ -599,18 +639,18 @@ operator wants to have all capabilities but `MKNOD` they could use:
 For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
-    $ docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
+    $ sudo docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
     RTNETLINK answers: Operation not permitted
-    $ docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
+    $ sudo docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
 
 To mount a FUSE based filesystem, you need to combine both `--cap-add` and
 `--device`:
 
-    $ docker run --rm -it --cap-add SYS_ADMIN sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    $ sudo docker run --rm -it --cap-add SYS_ADMIN sshfs sshfs sven@10.10.10.20:/home/sven /mnt
     fuse: failed to open /dev/fuse: Operation not permitted
-    $ docker run --rm -it --device /dev/fuse sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    $ sudo docker run --rm -it --device /dev/fuse sshfs sshfs sven@10.10.10.20:/home/sven /mnt
     fusermount: mount failed: Operation not permitted
-    $ docker run --rm -it --cap-add SYS_ADMIN --device /dev/fuse sshfs
+    $ sudo docker run --rm -it --cap-add SYS_ADMIN --device /dev/fuse sshfs
     # sshfs sven@10.10.10.20:/home/sven /mnt
     The authenticity of host '10.10.10.20 (10.10.10.20)' can't be established.
     ECDSA key fingerprint is 25:34:85:75:25:b0:17:46:05:19:04:93:b5:dd:5f:c6.
