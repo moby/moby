@@ -102,5 +102,5 @@ func (u *Ulimit) GetRlimit() (*Rlimit, error) {
 }
 
 func (u *Ulimit) String() string {
-	return fmt.Sprintf("%s=%s:%s", u.Name, u.Soft, u.Hard)
+	return fmt.Sprintf("%s=%d:%d", u.Name, u.Soft, u.Hard)
 }

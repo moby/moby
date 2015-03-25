@@ -39,3 +39,10 @@ func TestParseInvalidValueType(t *testing.T) {
 		t.Fatal("expected error on bad value type")
 	}
 }
+
+func TestStringOutput(t *testing.T) {
+	u := &Ulimit{"nofile", 1024, 512}
+	if s := u.String(); s != "nofile=512:1024" {
+		t.Fatal("expected String to return nofile=512:1024, but got", s)
+	}
+}
