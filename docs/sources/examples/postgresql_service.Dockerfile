@@ -6,7 +6,7 @@ FROM ubuntu
 MAINTAINER SvenDowideit@docker.com
 
 # Add the PostgreSQL PGP key to verify their Debian packages.
-# It should be the same key as https://www.postgresql.org/media/keys/ACCC4CF8.asc
+# It should be the same key as https://www.postgresql.org/media/keys/ACCC4CF8.asc 
 RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
 
 # Add PostgreSQL's repository. It contains the most recent stable release
@@ -33,7 +33,7 @@ RUN    /etc/init.d/postgresql start &&\
     createdb -O docker docker
 
 # Adjust PostgreSQL configuration so that remote connections to the
-# database are possible.
+# database are possible. 
 RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
 
 # And add ``listen_addresses`` to ``/etc/postgresql/9.3/main/postgresql.conf``
