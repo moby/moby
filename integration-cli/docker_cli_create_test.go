@@ -215,7 +215,7 @@ func TestCreateEchoStdout(t *testing.T) {
 
 	cleanedContainerID := stripTrailingCharacters(out)
 
-	runCmd = exec.Command(dockerBinary, "start", "-ai", cleanedContainerID)
+	runCmd = exec.Command(dockerBinary, "start", "-a", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(runCmd)
 	if err != nil {
 		t.Fatal(out, err)

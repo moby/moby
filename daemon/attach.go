@@ -93,6 +93,10 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 				io.Copy(w, job.Stdin)
 			}()
 			cStdin = r
+			if !container.Config.OpenStdin {
+				container.Config.OpenStdin = true
+				container.stdin, container.stdinPipe = io.Pipe()
+			}
 		}
 		if stdout {
 			cStdout = job.Stdout

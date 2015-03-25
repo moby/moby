@@ -775,31 +775,20 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, false)
-		if err != nil {
-			return err
-		}
-
-		env := engine.Env{}
-		if err := env.Decode(stream); err != nil {
-			return err
-		}
-		config := env.GetSubEnv("Config")
-		tty = config.GetBool("Tty")
-
-		if !tty {
-			sigc := cli.forwardAllSignals(cmd.Arg(0))
-			defer signal.StopCatch(sigc)
-		}
-
 		var in io.ReadCloser
 
 		v := url.Values{}
 		v.Set("stream", "1")
 
-		if *openStdin && config.GetBool("OpenStdin") {
+		if *openStdin {
 			v.Set("stdin", "1")
+			tty = true
 			in = cli.in
+		}
+
+		if !tty {
+			sigc := cli.forwardAllSignals(cmd.Arg(0))
+			defer signal.StopCatch(sigc)
 		}
 
 		v.Set("stdout", "1")
