@@ -363,6 +363,20 @@ func TestUserDefinedBool(t *testing.T) {
 	}
 }
 
+// This tests that "see other" flags are ignored as "formal"
+func TestIgnoreSeeOther(t *testing.T) {
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
+	var b boolFlagVar
+	flags.Var(&b, []string{"#b", "#-boo", "@-something"}, "usage")
+
+	c := len(flags.formal)
+
+	if c != 2 {
+		t.Errorf("want: %d; got: %d", 2, c)
+	}
+}
+
 func TestSetOutput(t *testing.T) {
 	var flags FlagSet
 	var buf bytes.Buffer
@@ -449,8 +463,9 @@ func TestFlagCounts(t *testing.T) {
 	fs.BoolVar(&flag, []string{"#d", "#deprecated2"}, false, "regular flag")
 	fs.BoolVar(&flag, []string{"flag3"}, false, "regular flag")
 	fs.BoolVar(&flag, []string{"g", "#flag4", "-flag4"}, false, "regular flag")
+	fs.BoolVar(&flag, []string{"#o", "#-old-flag", "@flag3"}, false, "replaced flag")
 
-	if fs.FlagCount() != 6 {
+	if fs.FlagCount() != 7 {
 		t.Fatal("FlagCount wrong. ", fs.FlagCount())
 	}
 	if fs.FlagCountUndeprecated() != 4 {

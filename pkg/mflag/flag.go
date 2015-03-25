@@ -33,6 +33,12 @@
 		var ip = flag.Int([]string{"f", "#flagname"}, 1234, "help message for flagname")
 	will display: `Warning: '-flagname' is deprecated, it will be removed soon. See usage.`
 	so you can only use `-f`.
+	If the replacement flag is a flag that has already been defined elsewhere, the
+	replacement flag can be prefixed with a `@` (see other):
+		var ip = flag.Int([]string{"#-old-flag", "@-other-flag"}, 1234, "help message for flagname")
+	this will display: `Warning: '--old-flag' is deprecated, it will be replaced by '--other-flag' soon. See usage.`
+	'see other' flags are only used for displaying the deprecation message and will not
+	be displayed in the help output.
 
 	You can also group one letter flags, bif you declare
 		var v = flag.Bool([]string{"v", "-verbose"}, false, "help message for verbose")
@@ -330,6 +336,11 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 	nameMap := make(map[string]string)
 
 	for n, f := range flags {
+		if strings.HasPrefix(f.Names[0], "@") {
+			// Ignore 'see other' flags.
+			continue
+		}
+
 		fName := strings.TrimPrefix(f.Names[0], "#")
 		nameMap[fName] = n
 		if len(f.Names) == 1 {
@@ -516,7 +527,7 @@ func (f *FlagSet) PrintDefaults() {
 		format := "  -%s=%s"
 		names := []string{}
 		for _, name := range flag.Names {
-			if name[0] != '#' {
+			if strings.IndexAny(name, "#@") != 0 {
 				names = append(names, name)
 			}
 		}
@@ -573,7 +584,7 @@ func (f *FlagSet) FlagCountUndeprecated() int {
 	count := 0
 	for _, flag := range sortFlags(f.formal) {
 		for _, name := range flag.Names {
-			if name[0] != '#' {
+			if strings.IndexAny(name, "#@") != 0 {
 				count++
 				break
 			}
@@ -833,6 +844,10 @@ func (f *FlagSet) Var(value Value, names []string, usage string) {
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{names, usage, value, value.String()}
 	for _, name := range names {
+		if strings.HasPrefix(name, "@") {
+			// Ignore 'see other' flags.
+			continue
+		}
 		name = strings.TrimPrefix(name, "#")
 		_, alreadythere := f.formal[name]
 		if alreadythere {
@@ -997,7 +1012,7 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 				}
 			}
 			if replacement != "" {
-				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
+				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, strings.TrimPrefix(replacement, "@"))
 			} else {
 				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
 			}
