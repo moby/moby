@@ -137,3 +137,16 @@ The following provides greater detail on the process:
 
 14. Acceptance and merge!
 
+## About the Advanced process
+
+Docker is a large project. Our core team gets a great many design proposals.
+Design proposal discussions can span days, weeks, and longer. The number of comments can reach the 100s.
+In that situation, following the discussion flow and the decisions reached is crucial.
+
+Making a pull request with a design proposal simplifies this process:
+* you can leave comments on specific design proposal line
+* replies around line are easy to track
+* as a proposal changes and is updated, pages reset as line items resolve
+* Github maintains the entire history
+
+While proposals in pull requests do not end up merged into a master repository, they provide a convenient tool for managing the design process.
