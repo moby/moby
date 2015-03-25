@@ -21,8 +21,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	cli.LoadConfigFile()
-
 	remote, tag := parsers.ParseRepositoryTag(name)
 
 	// Resolve the Repository name from fqn to RepositoryInfo

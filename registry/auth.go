@@ -26,6 +26,7 @@ var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
 )
 
+// Registry Auth info
 type AuthConfig struct {
 	Username      string `json:"username,omitempty"`
 	Password      string `json:"password,omitempty"`
@@ -34,8 +35,17 @@ type AuthConfig struct {
 	ServerAddress string `json:"serveraddress,omitempty"`
 }
 
+// Config data itself
+type Config struct {
+	AuthConfigs map[string]AuthConfig `json:"auths"`
+
+	// Add additonal config file info here - eg:
+	// DockerHost  string                `json:"dockerhost,omitempty"`
+}
+
+// Config data + location of file
 type ConfigFile struct {
-	Configs  map[string]AuthConfig `json:"configs,omitempty"`
+	Config
 	rootPath string
 }
 
@@ -148,7 +158,12 @@ func decodeAuth(authStr string) (string, string, error) {
 // load up the auth config information and return values
 // FIXME: use the internal golang config parser
 func LoadConfig(rootPath string) (*ConfigFile, error) {
-	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
+	configFile := ConfigFile{
+		Config: Config{
+			AuthConfigs: make(map[string]AuthConfig),
+		},
+		rootPath: rootPath,
+	}
 	confFile := path.Join(rootPath, CONFIGFILE)
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
@@ -158,7 +173,20 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		return &configFile, err
 	}
 
-	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
+	// Try new format first
+	if strings.Contains(string(b), `"auths":`) {
+		err = json.Unmarshal(b, &configFile)
+	} else {
+		err = fmt.Errorf("Force old format")
+	}
+
+	// If it failed, try old format
+	if err != nil {
+		err = json.Unmarshal(b, &configFile.AuthConfigs)
+	}
+
+	// Still fails, do old-style error recovery
+	if err != nil {
 		arr := strings.Split(string(b), "\n")
 		if len(arr) < 2 {
 			return &configFile, fmt.Errorf("The Auth config file is empty")
@@ -179,16 +207,16 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		authConfig.Email = origEmail[1]
 		authConfig.ServerAddress = IndexServerAddress()
 		// *TODO: Switch to using IndexServerName() instead?
-		configFile.Configs[IndexServerAddress()] = authConfig
+		configFile.AuthConfigs[IndexServerAddress()] = authConfig
 	} else {
-		for k, authConfig := range configFile.Configs {
+		for k, authConfig := range configFile.AuthConfigs {
 			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 			if err != nil {
 				return &configFile, err
 			}
 			authConfig.Auth = ""
 			authConfig.ServerAddress = k
-			configFile.Configs[k] = authConfig
+			configFile.AuthConfigs[k] = authConfig
 		}
 	}
 	return &configFile, nil
@@ -197,26 +225,28 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 // save the auth config
 func SaveConfig(configFile *ConfigFile) error {
 	confFile := path.Join(configFile.rootPath, CONFIGFILE)
-	if len(configFile.Configs) == 0 {
-		os.Remove(confFile)
-		return nil
-	}
 
-	configs := make(map[string]AuthConfig, len(configFile.Configs))
-	for k, authConfig := range configFile.Configs {
+	// Encode sensitive data into a new/temp struct
+	tmpConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
+	for k, authConfig := range configFile.AuthConfigs {
 		authCopy := authConfig
 
 		authCopy.Auth = encodeAuth(&authCopy)
 		authCopy.Username = ""
 		authCopy.Password = ""
 		authCopy.ServerAddress = ""
-		configs[k] = authCopy
+		tmpConfigs[k] = authCopy
 	}
 
-	b, err := json.MarshalIndent(configs, "", "\t")
+	oldConfigs := configFile.AuthConfigs
+	configFile.AuthConfigs = tmpConfigs
+	defer func() { configFile.AuthConfigs = oldConfigs }()
+
+	b, err := json.MarshalIndent(configFile, "", "\t")
 	if err != nil {
 		return err
 	}
+
 	err = ioutil.WriteFile(confFile, b, 0600)
 	if err != nil {
 		return err
@@ -432,7 +462,7 @@ func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
 	configKey := index.GetAuthConfigKey()
 	// First try the happy case
-	if c, found := config.Configs[configKey]; found || index.Official {
+	if c, found := config.AuthConfigs[configKey]; found || index.Official {
 		return c
 	}
 
@@ -451,7 +481,7 @@ func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, config := range config.Configs {
+	for registry, config := range config.AuthConfigs {
 		if configKey == convertToHostname(registry) {
 			return config
 		}

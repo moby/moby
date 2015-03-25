@@ -285,8 +285,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	v.Set("dockerfile", *dockerfileName)
 
-	cli.LoadConfigFile()
-
 	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(cli.configFile)
 	if err != nil {

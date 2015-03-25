@@ -107,14 +107,6 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 	return flags
 }
 
-func (cli *DockerCli) LoadConfigFile() (err error) {
-	cli.configFile, err = registry.LoadConfig(homedir.Get())
-	if err != nil {
-		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
-	}
-	return err
-}
-
 func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	// In order to attach to a container tty, input stream for the client must
 	// be a tty itself: redirecting or piping the client standard input is
@@ -167,6 +159,11 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
 	}
 
+	configFile, err2 := registry.LoadConfig(homedir.Get())
+	if err2 != nil {
+		fmt.Fprintf(err, "WARNING: %s\n", err2)
+	}
+
 	return &DockerCli{
 		proto:         proto,
 		addr:          addr,
@@ -181,5 +178,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		tlsConfig:     tlsConfig,
 		scheme:        scheme,
 		transport:     tr,
+		configFile:    configFile,
 	}
 }

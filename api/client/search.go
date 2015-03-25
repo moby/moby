@@ -37,8 +37,6 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	cli.LoadConfigFile()
-
 	body, statusCode, errReq := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
 	rawBody, _, err := readBody(body, statusCode, errReq)
 	if err != nil {

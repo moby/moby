@@ -42,8 +42,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return err
 	}
 
-	cli.LoadConfigFile()
-
 	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/create?"+v.Encode(), nil, cli.out, repoInfo.Index, "pull")
 	return err
 }
