@@ -273,9 +273,9 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	if mount != nil {
 		mount.count++
 		return mount.path, nil
-	} else {
-		mount = &ActiveMount{count: 1}
 	}
+
+	mount = &ActiveMount{count: 1}
 
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
