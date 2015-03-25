@@ -105,7 +105,8 @@ install Docker using the following:
 
 	 If `wget` isn't installed, install it after updating your manager:
 
-		$ sudo apt-get update $ sudo apt-get install wget
+		$ sudo apt-get update
+		$ sudo apt-get install wget
 
 3. Get the latest Docker package.
 
