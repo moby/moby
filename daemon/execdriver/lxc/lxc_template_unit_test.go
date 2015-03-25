@@ -39,7 +39,7 @@ func TestLXCConfig(t *testing.T) {
 		cpu    = cpuMin + rand.Intn(cpuMax-cpuMin)
 	)
 
-	driver, err := NewDriver(root, "", false)
+	driver, err := NewDriver(root, root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestCustomLxcConfig(t *testing.T) {
 
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
 
-	driver, err := NewDriver(root, "", false)
+	driver, err := NewDriver(root, root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestCustomLxcConfigMounts(t *testing.T) {
 	}
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
 
-	driver, err := NewDriver(root, "", false)
+	driver, err := NewDriver(root, root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	}
 	defer os.RemoveAll(root)
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
-	driver, err := NewDriver(root, "", true)
+	driver, err := NewDriver(root, root, "", true)
 
 	if err != nil {
 		t.Fatal(err)
@@ -313,7 +313,7 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 	}
 	defer os.RemoveAll(root)
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
-	driver, err := NewDriver(root, "", false)
+	driver, err := NewDriver(root, root, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
