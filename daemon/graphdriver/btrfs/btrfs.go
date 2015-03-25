@@ -61,6 +61,9 @@ func (d *Driver) String() string {
 
 func (d *Driver) Status() [][2]string {
 	status := [][2]string{}
+	if bv := BtrfsBuildVersion(); bv != "-" {
+		status = append(status, [2]string{"Build Version", bv})
+	}
 	if lv := BtrfsLibVersion(); lv != -1 {
 		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
 	}
