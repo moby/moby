@@ -1,14 +1,15 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/engine"
 )
 
-func (daemon *Daemon) ContainerCopy(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerCopy(job *engine.Job) error {
 	if len(job.Args) != 2 {
-		return job.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
+		return fmt.Errorf("Usage: %s CONTAINER RESOURCE\n", job.Name)
 	}
 
 	var (
@@ -18,17 +19,17 @@ func (daemon *Daemon) ContainerCopy(job *engine.Job) engine.Status {
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	data, err := container.Copy(resource)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	defer data.Close()
 
 	if _, err := io.Copy(job.Stdout, data); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }

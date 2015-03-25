@@ -57,7 +57,7 @@ func daemon(eng *engine.Engine) error {
 }
 
 // builtins jobs independent of any subsystem
-func dockerVersion(job *engine.Job) engine.Status {
+func dockerVersion(job *engine.Job) error {
 	v := &engine.Env{}
 	v.SetJson("Version", dockerversion.VERSION)
 	v.SetJson("ApiVersion", api.APIVERSION)
@@ -69,7 +69,7 @@ func dockerVersion(job *engine.Job) engine.Status {
 		v.Set("KernelVersion", kernelVersion.String())
 	}
 	if _, err := v.WriteTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }

@@ -20,7 +20,7 @@ func (daemon *Daemon) List() []*Container {
 	return daemon.containers.List()
 }
 
-func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
+func (daemon *Daemon) Containers(job *engine.Job) error {
 	var (
 		foundBefore bool
 		displayed   int
@@ -36,13 +36,13 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 
 	psFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if i, ok := psFilters["exited"]; ok {
 		for _, value := range i {
 			code, err := strconv.Atoi(value)
 			if err != nil {
-				return job.Error(err)
+				return err
 			}
 			filt_exited = append(filt_exited, code)
 		}
@@ -65,14 +65,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	if before != "" {
 		beforeCont, err = daemon.Get(before)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 
 	if since != "" {
 		sinceCont, err = daemon.Get(since)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 
@@ -170,14 +170,14 @@ func (daemon *Daemon) Containers(job *engine.Job) engine.Status {
 	for _, container := range daemon.List() {
 		if err := writeCont(container); err != nil {
 			if err != errLast {
-				return job.Error(err)
+				return err
 			}
 			break
 		}
 	}
 	outs.ReverseSort()
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }

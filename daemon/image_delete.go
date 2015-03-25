@@ -12,21 +12,21 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (daemon *Daemon) ImageDelete(job *engine.Job) engine.Status {
+func (daemon *Daemon) ImageDelete(job *engine.Job) error {
 	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s IMAGE", job.Name)
+		return fmt.Errorf("Usage: %s IMAGE", job.Name)
 	}
 	imgs := engine.NewTable("", 0)
 	if err := daemon.DeleteImage(job.Eng, job.Args[0], imgs, true, job.GetenvBool("force"), job.GetenvBool("noprune")); err != nil {
-		return job.Error(err)
+		return err
 	}
 	if len(imgs.Data) == 0 {
-		return job.Errorf("Conflict, %s wasn't deleted", job.Args[0])
+		return fmt.Errorf("Conflict, %s wasn't deleted", job.Args[0])
 	}
 	if _, err := imgs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }
 
 // FIXME: make this private and use the job instead

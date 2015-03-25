@@ -1,13 +1,15 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
 )
 
-func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerStart(job *engine.Job) error {
 	if len(job.Args) < 1 {
-		return job.Errorf("Usage: %s container_id", job.Name)
+		return fmt.Errorf("Usage: %s container_id", job.Name)
 	}
 	var (
 		name = job.Args[0]
@@ -15,15 +17,15 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if container.IsPaused() {
-		return job.Errorf("Cannot start a paused container, try unpause instead.")
+		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
 	}
 
 	if container.IsRunning() {
-		return job.Errorf("Container already started")
+		return fmt.Errorf("Container already started")
 	}
 
 	// If no environment was set, then no hostconfig was passed.
@@ -32,15 +34,15 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
 	if len(job.Environ()) > 0 {
 		hostConfig := runconfig.ContainerHostConfigFromJob(job)
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 	if err := container.Start(); err != nil {
 		container.LogEvent("die")
-		return job.Errorf("Cannot start container %s: %s", name, err)
+		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 
-	return engine.StatusOK
+	return nil
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {

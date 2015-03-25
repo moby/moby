@@ -1,17 +1,21 @@
 package daemon
 
-import "github.com/docker/docker/engine"
+import (
+	"fmt"
 
-func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
+	"github.com/docker/docker/engine"
+)
+
+func (daemon *Daemon) ContainerRename(job *engine.Job) error {
 	if len(job.Args) != 2 {
-		return job.Errorf("usage: %s OLD_NAME NEW_NAME", job.Name)
+		return fmt.Errorf("usage: %s OLD_NAME NEW_NAME", job.Name)
 	}
 	oldName := job.Args[0]
 	newName := job.Args[1]
 
 	container, err := daemon.Get(oldName)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	oldName = container.Name
@@ -19,7 +23,7 @@ func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
 	container.Lock()
 	defer container.Unlock()
 	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
-		return job.Errorf("Error when allocating new name: %s", err)
+		return fmt.Errorf("Error when allocating new name: %s", err)
 	}
 
 	container.Name = newName
@@ -32,13 +36,13 @@ func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
 
 	if err := daemon.containerGraph.Delete(oldName); err != nil {
 		undo()
-		return job.Errorf("Failed to delete container %q: %v", oldName, err)
+		return fmt.Errorf("Failed to delete container %q: %v", oldName, err)
 	}
 
 	if err := container.toDisk(); err != nil {
 		undo()
-		return job.Error(err)
+		return err
 	}
 
-	return engine.StatusOK
+	return nil
 }

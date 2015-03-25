@@ -45,9 +45,9 @@ func TestJob(t *testing.T) {
 		t.Fatalf("job1.handler should be empty")
 	}
 
-	h := func(j *Job) Status {
+	h := func(j *Job) error {
 		j.Printf("%s\n", j.Name)
-		return 42
+		return nil
 	}
 
 	eng.Register("dummy2", h)
@@ -58,7 +58,7 @@ func TestJob(t *testing.T) {
 		t.Fatalf("job2.handler shouldn't be nil")
 	}
 
-	if job2.handler(job2) != 42 {
+	if job2.handler(job2) != nil {
 		t.Fatalf("handler dummy2 was not found in job2")
 	}
 }
@@ -76,7 +76,7 @@ func TestEngineShutdown(t *testing.T) {
 
 func TestEngineCommands(t *testing.T) {
 	eng := New()
-	handler := func(job *Job) Status { return StatusOK }
+	handler := func(job *Job) error { return nil }
 	eng.Register("foo", handler)
 	eng.Register("bar", handler)
 	eng.Register("echo", handler)
@@ -105,9 +105,9 @@ func TestParseJob(t *testing.T) {
 	eng := New()
 	// Verify that the resulting job calls to the right place
 	var called bool
-	eng.Register("echo", func(job *Job) Status {
+	eng.Register("echo", func(job *Job) error {
 		called = true
-		return StatusOK
+		return nil
 	})
 	input := "echo DEBUG=1 hello world VERBOSITY=42"
 	job, err := eng.ParseJob(input)
@@ -140,9 +140,9 @@ func TestParseJob(t *testing.T) {
 func TestCatchallEmptyName(t *testing.T) {
 	eng := New()
 	var called bool
-	eng.RegisterCatchall(func(job *Job) Status {
+	eng.RegisterCatchall(func(job *Job) error {
 		called = true
-		return StatusOK
+		return nil
 	})
 	err := eng.Job("").Run()
 	if err == nil {
@@ -164,7 +164,7 @@ func TestNestedJobSharedOutput(t *testing.T) {
 		wrapOutput   bool
 	)
 
-	outerHandler = func(job *Job) Status {
+	outerHandler = func(job *Job) error {
 		job.Stdout.Write([]byte("outer1"))
 
 		innerJob := job.Eng.Job("innerJob")
@@ -184,13 +184,13 @@ func TestNestedJobSharedOutput(t *testing.T) {
 		// closed output.
 		job.Stdout.Write([]byte(" outer2"))
 
-		return StatusOK
+		return nil
 	}
 
-	innerHandler = func(job *Job) Status {
+	innerHandler = func(job *Job) error {
 		job.Stdout.Write([]byte(" inner"))
 
-		return StatusOK
+		return nil
 	}
 
 	eng := New()

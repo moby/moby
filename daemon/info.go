@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
+func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 	images, _ := daemon.Graph().Map()
 	var imgcount int
 	if images == nil {
@@ -54,16 +54,16 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	cjob := job.Eng.Job("subscribers_count")
 	env, _ := cjob.Stdout.AddEnv()
 	if err := cjob.Run(); err != nil {
-		return job.Error(err)
+		return err
 	}
 	registryJob := job.Eng.Job("registry_config")
 	registryEnv, _ := registryJob.Stdout.AddEnv()
 	if err := registryJob.Run(); err != nil {
-		return job.Error(err)
+		return err
 	}
 	registryConfig := registry.ServiceConfig{}
 	if err := registryEnv.GetJson("config", &registryConfig); err != nil {
-		return job.Error(err)
+		return err
 	}
 	v := &engine.Env{}
 	v.SetJson("ID", daemon.ID)
@@ -104,7 +104,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) engine.Status {
 	}
 	v.SetList("Labels", daemon.Config().Labels)
 	if _, err := v.WriteTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }

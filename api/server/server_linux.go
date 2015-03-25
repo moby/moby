@@ -90,7 +90,7 @@ func serveFd(addr string, job *engine.Job) error {
 }
 
 // Called through eng.Job("acceptconnections")
-func AcceptConnections(job *engine.Job) engine.Status {
+func AcceptConnections(job *engine.Job) error {
 	// Tell the init daemon we are accepting requests
 	go systemd.SdNotify("READY=1")
 
@@ -99,5 +99,5 @@ func AcceptConnections(job *engine.Job) engine.Status {
 		close(activationLock)
 	}
 
-	return engine.StatusOK
+	return nil
 }

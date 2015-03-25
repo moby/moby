@@ -21,7 +21,7 @@ type Installer interface {
 	Install(*Engine) error
 }
 
-type Handler func(*Job) Status
+type Handler func(*Job) error
 
 var globalHandlers map[string]Handler
 
@@ -84,11 +84,11 @@ func New() *Engine {
 		Stdin:    os.Stdin,
 		Logging:  true,
 	}
-	eng.Register("commands", func(job *Job) Status {
+	eng.Register("commands", func(job *Job) error {
 		for _, name := range eng.commands() {
 			job.Printf("%s\n", name)
 		}
-		return StatusOK
+		return nil
 	})
 	// Copy existing global handlers
 	for k, v := range globalHandlers {

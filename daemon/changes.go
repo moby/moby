@@ -1,37 +1,39 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/engine"
 )
 
-func (daemon *Daemon) ContainerChanges(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerChanges(job *engine.Job) error {
 	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s CONTAINER", job.Name)
+		return fmt.Errorf("Usage: %s CONTAINER", job.Name)
 	}
 	name := job.Args[0]
 
-	container, error := daemon.Get(name)
-	if error != nil {
-		return job.Error(error)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return err
 	}
 
 	outs := engine.NewTable("", 0)
 	changes, err := container.Changes()
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	for _, change := range changes {
 		out := &engine.Env{}
 		if err := out.Import(change); err != nil {
-			return job.Error(err)
+			return err
 		}
 		outs.Add(out)
 	}
 
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
+		return err
 	}
 
-	return engine.StatusOK
+	return nil
 }

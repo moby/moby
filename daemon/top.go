@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -8,9 +9,9 @@ import (
 	"github.com/docker/docker/engine"
 )
 
-func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerTop(job *engine.Job) error {
 	if len(job.Args) != 1 && len(job.Args) != 2 {
-		return job.Errorf("Not enough arguments. Usage: %s CONTAINER [PS_ARGS]\n", job.Name)
+		return fmt.Errorf("Not enough arguments. Usage: %s CONTAINER [PS_ARGS]\n", job.Name)
 	}
 	var (
 		name   = job.Args[0]
@@ -23,18 +24,18 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if !container.IsRunning() {
-		return job.Errorf("Container %s is not running", name)
+		return fmt.Errorf("Container %s is not running", name)
 	}
 	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	output, err := exec.Command("ps", strings.Split(psArgs, " ")...).Output()
 	if err != nil {
-		return job.Errorf("Error running ps: %s", err)
+		return fmt.Errorf("Error running ps: %s", err)
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -49,7 +50,7 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 		}
 	}
 	if pidIndex == -1 {
-		return job.Errorf("Couldn't find PID field in ps output")
+		return fmt.Errorf("Couldn't find PID field in ps output")
 	}
 
 	processes := [][]string{}
@@ -60,7 +61,7 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 		fields := strings.Fields(line)
 		p, err := strconv.Atoi(fields[pidIndex])
 		if err != nil {
-			return job.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
+			return fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 		}
 
 		for _, pid := range pids {
@@ -75,5 +76,5 @@ func (daemon *Daemon) ContainerTop(job *engine.Job) engine.Status {
 	}
 	out.SetJson("Processes", processes)
 	out.WriteTo(job.Stdout)
-	return engine.StatusOK
+	return nil
 }

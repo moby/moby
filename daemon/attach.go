@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -14,9 +15,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
+func (daemon *Daemon) ContainerAttach(job *engine.Job) error {
 	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+		return fmt.Errorf("Usage: %s CONTAINER\n", job.Name)
 	}
 
 	var (
@@ -30,7 +31,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	//logs
@@ -108,7 +109,7 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) engine.Status {
 			container.WaitStop(-1 * time.Second)
 		}
 	}
-	return engine.StatusOK
+	return nil
 }
 
 func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {

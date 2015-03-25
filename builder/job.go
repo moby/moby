@@ -3,6 +3,7 @@ package builder
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -44,9 +45,9 @@ func (b *BuilderJob) Install() {
 	b.Engine.Register("build_config", b.CmdBuildConfig)
 }
 
-func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
+func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 	if len(job.Args) != 0 {
-		return job.Errorf("Usage: %s\n", job.Name)
+		return fmt.Errorf("Usage: %s\n", job.Name)
 	}
 	var (
 		dockerfileName = job.Getenv("dockerfile")
@@ -73,11 +74,11 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 	repoName, tag = parsers.ParseRepositoryTag(repoName)
 	if repoName != "" {
 		if err := registry.ValidateRepositoryName(repoName); err != nil {
-			return job.Error(err)
+			return err
 		}
 		if len(tag) > 0 {
 			if err := graph.ValidateTagName(tag); err != nil {
-				return job.Error(err)
+				return err
 			}
 		}
 	}
@@ -90,28 +91,28 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 		}
 		root, err := ioutil.TempDir("", "docker-build-git")
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		defer os.RemoveAll(root)
 
 		if output, err := exec.Command("git", "clone", "--recursive", remoteURL, root).CombinedOutput(); err != nil {
-			return job.Errorf("Error trying to use git: %s (%s)", err, output)
+			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
 		c, err := archive.Tar(root, archive.Uncompressed)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		context = c
 	} else if urlutil.IsURL(remoteURL) {
 		f, err := utils.Download(remoteURL)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		defer f.Body.Close()
 		dockerFile, err := ioutil.ReadAll(f.Body)
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 
 		// When we're downloading just a Dockerfile put it in
@@ -120,7 +121,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 		c, err := archive.Generate(dockerfileName, string(dockerFile))
 		if err != nil {
-			return job.Error(err)
+			return err
 		}
 		context = c
 	}
@@ -158,18 +159,18 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) engine.Status {
 
 	id, err := builder.Run(context)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if repoName != "" {
 		b.Daemon.Repositories().Set(repoName, tag, id, true)
 	}
-	return engine.StatusOK
+	return nil
 }
 
-func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
+func (b *BuilderJob) CmdBuildConfig(job *engine.Job) error {
 	if len(job.Args) != 0 {
-		return job.Errorf("Usage: %s\n", job.Name)
+		return fmt.Errorf("Usage: %s\n", job.Name)
 	}
 
 	var (
@@ -178,18 +179,18 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 	)
 
 	if err := job.GetenvJson("config", &newConfig); err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	// ensure that the commands are valid
 	for _, n := range ast.Children {
 		if !validCommitCommands[n.Value] {
-			return job.Errorf("%s is not a valid change command", n.Value)
+			return fmt.Errorf("%s is not a valid change command", n.Value)
 		}
 	}
 
@@ -204,12 +205,12 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) engine.Status {
 
 	for i, n := range ast.Children {
 		if err := builder.dispatch(i, n); err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 
 	if err := json.NewEncoder(job.Stdout).Encode(builder.Config); err != nil {
-		return job.Error(err)
+		return err
 	}
-	return engine.StatusOK
+	return nil
 }

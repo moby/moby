@@ -3,6 +3,7 @@ package events
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -45,7 +46,7 @@ func (e *Events) Install(eng *engine.Engine) error {
 	return nil
 }
 
-func (e *Events) Get(job *engine.Job) engine.Status {
+func (e *Events) Get(job *engine.Job) error {
 	var (
 		since   = job.GetenvInt64("since")
 		until   = job.GetenvInt64("until")
@@ -54,7 +55,7 @@ func (e *Events) Get(job *engine.Job) engine.Status {
 
 	eventFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	// If no until, disable timeout
@@ -71,7 +72,7 @@ func (e *Events) Get(job *engine.Job) engine.Status {
 	// Resend every event in the [since, until] time interval.
 	if since != 0 {
 		if err := e.writeCurrent(job, since, until, eventFilters); err != nil {
-			return job.Error(err)
+			return err
 		}
 	}
 
@@ -79,31 +80,31 @@ func (e *Events) Get(job *engine.Job) engine.Status {
 		select {
 		case event, ok := <-listener:
 			if !ok {
-				return engine.StatusOK
+				return nil
 			}
 			if err := writeEvent(job, event, eventFilters); err != nil {
-				return job.Error(err)
+				return err
 			}
 		case <-timeout.C:
-			return engine.StatusOK
+			return nil
 		}
 	}
 }
 
-func (e *Events) Log(job *engine.Job) engine.Status {
+func (e *Events) Log(job *engine.Job) error {
 	if len(job.Args) != 3 {
-		return job.Errorf("usage: %s ACTION ID FROM", job.Name)
+		return fmt.Errorf("usage: %s ACTION ID FROM", job.Name)
 	}
 	// not waiting for receivers
 	go e.log(job.Args[0], job.Args[1], job.Args[2])
-	return engine.StatusOK
+	return nil
 }
 
-func (e *Events) SubscribersCount(job *engine.Job) engine.Status {
+func (e *Events) SubscribersCount(job *engine.Job) error {
 	ret := &engine.Env{}
 	ret.SetInt("count", e.subscribersCount())
 	ret.WriteTo(job.Stdout)
-	return engine.StatusOK
+	return nil
 }
 
 func writeEvent(job *engine.Job, event *utils.JSONMessage, eventFilters filters.Args) error {

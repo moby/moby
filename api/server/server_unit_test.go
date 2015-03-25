@@ -63,7 +63,7 @@ func TesthttpError(t *testing.T) {
 func TestGetVersion(t *testing.T) {
 	eng := engine.New()
 	var called bool
-	eng.Register("version", func(job *engine.Job) engine.Status {
+	eng.Register("version", func(job *engine.Job) error {
 		called = true
 		v := &engine.Env{}
 		v.SetJson("Version", "42.1")
@@ -72,9 +72,9 @@ func TestGetVersion(t *testing.T) {
 		v.Set("Os", "Linux")
 		v.Set("Arch", "x86_64")
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/version", nil, eng, t)
 	if !called {
@@ -92,15 +92,15 @@ func TestGetVersion(t *testing.T) {
 func TestGetInfo(t *testing.T) {
 	eng := engine.New()
 	var called bool
-	eng.Register("info", func(job *engine.Job) engine.Status {
+	eng.Register("info", func(job *engine.Job) error {
 		called = true
 		v := &engine.Env{}
 		v.SetInt("Containers", 1)
 		v.SetInt("Images", 42000)
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/info", nil, eng, t)
 	if !called {
@@ -119,13 +119,13 @@ func TestGetInfo(t *testing.T) {
 func TestGetImagesJSON(t *testing.T) {
 	eng := engine.New()
 	var called bool
-	eng.Register("images", func(job *engine.Job) engine.Status {
+	eng.Register("images", func(job *engine.Job) error {
 		called = true
 		v := createEnvFromGetImagesJSONStruct(sampleImage)
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/images/json", nil, eng, t)
 	if !called {
@@ -145,9 +145,9 @@ func TestGetImagesJSON(t *testing.T) {
 func TestGetImagesJSONFilter(t *testing.T) {
 	eng := engine.New()
 	filter := "nothing"
-	eng.Register("images", func(job *engine.Job) engine.Status {
+	eng.Register("images", func(job *engine.Job) error {
 		filter = job.Getenv("filter")
-		return engine.StatusOK
+		return nil
 	})
 	serveRequest("GET", "/images/json?filter=aaaa", nil, eng, t)
 	if filter != "aaaa" {
@@ -158,9 +158,9 @@ func TestGetImagesJSONFilter(t *testing.T) {
 func TestGetImagesJSONFilters(t *testing.T) {
 	eng := engine.New()
 	filter := "nothing"
-	eng.Register("images", func(job *engine.Job) engine.Status {
+	eng.Register("images", func(job *engine.Job) error {
 		filter = job.Getenv("filters")
-		return engine.StatusOK
+		return nil
 	})
 	serveRequest("GET", "/images/json?filters=nnnn", nil, eng, t)
 	if filter != "nnnn" {
@@ -171,9 +171,9 @@ func TestGetImagesJSONFilters(t *testing.T) {
 func TestGetImagesJSONAll(t *testing.T) {
 	eng := engine.New()
 	allFilter := "-1"
-	eng.Register("images", func(job *engine.Job) engine.Status {
+	eng.Register("images", func(job *engine.Job) error {
 		allFilter = job.Getenv("all")
-		return engine.StatusOK
+		return nil
 	})
 	serveRequest("GET", "/images/json?all=1", nil, eng, t)
 	if allFilter != "1" {
@@ -184,14 +184,14 @@ func TestGetImagesJSONAll(t *testing.T) {
 func TestGetImagesJSONLegacyFormat(t *testing.T) {
 	eng := engine.New()
 	var called bool
-	eng.Register("images", func(job *engine.Job) engine.Status {
+	eng.Register("images", func(job *engine.Job) error {
 		called = true
 		outsLegacy := engine.NewTable("Created", 0)
 		outsLegacy.Add(createEnvFromGetImagesJSONStruct(sampleImage))
 		if _, err := outsLegacy.WriteListTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequestUsingVersion("GET", "/images/json", "1.6", nil, eng, t)
 	if !called {
@@ -219,7 +219,7 @@ func TestGetContainersByName(t *testing.T) {
 	eng := engine.New()
 	name := "container_name"
 	var called bool
-	eng.Register("container_inspect", func(job *engine.Job) engine.Status {
+	eng.Register("container_inspect", func(job *engine.Job) error {
 		called = true
 		if job.Args[0] != name {
 			t.Errorf("name != '%s': %#v", name, job.Args[0])
@@ -232,9 +232,9 @@ func TestGetContainersByName(t *testing.T) {
 		v := &engine.Env{}
 		v.SetBool("dirty", true)
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/containers/"+name+"/json", nil, eng, t)
 	if !called {
@@ -253,7 +253,7 @@ func TestGetContainersByName(t *testing.T) {
 func TestGetEvents(t *testing.T) {
 	eng := engine.New()
 	var called bool
-	eng.Register("events", func(job *engine.Job) engine.Status {
+	eng.Register("events", func(job *engine.Job) error {
 		called = true
 		since := job.Getenv("since")
 		if since != "1" {
@@ -267,9 +267,9 @@ func TestGetEvents(t *testing.T) {
 		v.Set("since", since)
 		v.Set("until", until)
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/events?since=1&until=0", nil, eng, t)
 	if !called {
@@ -295,7 +295,7 @@ func TestLogs(t *testing.T) {
 	eng := engine.New()
 	var inspect bool
 	var logs bool
-	eng.Register("container_inspect", func(job *engine.Job) engine.Status {
+	eng.Register("container_inspect", func(job *engine.Job) error {
 		inspect = true
 		if len(job.Args) == 0 {
 			t.Fatal("Job arguments is empty")
@@ -303,10 +303,10 @@ func TestLogs(t *testing.T) {
 		if job.Args[0] != "test" {
 			t.Fatalf("Container name %s, must be test", job.Args[0])
 		}
-		return engine.StatusOK
+		return nil
 	})
 	expected := "logs"
-	eng.Register("logs", func(job *engine.Job) engine.Status {
+	eng.Register("logs", func(job *engine.Job) error {
 		logs = true
 		if len(job.Args) == 0 {
 			t.Fatal("Job arguments is empty")
@@ -331,7 +331,7 @@ func TestLogs(t *testing.T) {
 			t.Fatalf("timestamps %s, must be 1", timestamps)
 		}
 		job.Stdout.Write([]byte(expected))
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/containers/test/logs?follow=1&stdout=1&timestamps=1", nil, eng, t)
 	if r.Code != http.StatusOK {
@@ -353,7 +353,7 @@ func TestLogsNoStreams(t *testing.T) {
 	eng := engine.New()
 	var inspect bool
 	var logs bool
-	eng.Register("container_inspect", func(job *engine.Job) engine.Status {
+	eng.Register("container_inspect", func(job *engine.Job) error {
 		inspect = true
 		if len(job.Args) == 0 {
 			t.Fatal("Job arguments is empty")
@@ -361,11 +361,11 @@ func TestLogsNoStreams(t *testing.T) {
 		if job.Args[0] != "test" {
 			t.Fatalf("Container name %s, must be test", job.Args[0])
 		}
-		return engine.StatusOK
+		return nil
 	})
-	eng.Register("logs", func(job *engine.Job) engine.Status {
+	eng.Register("logs", func(job *engine.Job) error {
 		logs = true
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/containers/test/logs", nil, eng, t)
 	if r.Code != http.StatusBadRequest {
@@ -388,7 +388,7 @@ func TestGetImagesHistory(t *testing.T) {
 	eng := engine.New()
 	imageName := "docker-test-image"
 	var called bool
-	eng.Register("history", func(job *engine.Job) engine.Status {
+	eng.Register("history", func(job *engine.Job) error {
 		called = true
 		if len(job.Args) == 0 {
 			t.Fatal("Job arguments is empty")
@@ -398,9 +398,9 @@ func TestGetImagesHistory(t *testing.T) {
 		}
 		v := &engine.Env{}
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/images/"+imageName+"/history", nil, eng, t)
 	if !called {
@@ -418,7 +418,7 @@ func TestGetImagesByName(t *testing.T) {
 	eng := engine.New()
 	name := "image_name"
 	var called bool
-	eng.Register("image_inspect", func(job *engine.Job) engine.Status {
+	eng.Register("image_inspect", func(job *engine.Job) error {
 		called = true
 		if job.Args[0] != name {
 			t.Fatalf("name != '%s': %#v", name, job.Args[0])
@@ -431,9 +431,9 @@ func TestGetImagesByName(t *testing.T) {
 		v := &engine.Env{}
 		v.SetBool("dirty", true)
 		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return job.Error(err)
+			return err
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("GET", "/images/"+name+"/json", nil, eng, t)
 	if !called {
@@ -455,7 +455,7 @@ func TestDeleteContainers(t *testing.T) {
 	eng := engine.New()
 	name := "foo"
 	var called bool
-	eng.Register("rm", func(job *engine.Job) engine.Status {
+	eng.Register("rm", func(job *engine.Job) error {
 		called = true
 		if len(job.Args) == 0 {
 			t.Fatalf("Job arguments is empty")
@@ -463,7 +463,7 @@ func TestDeleteContainers(t *testing.T) {
 		if job.Args[0] != name {
 			t.Fatalf("name != '%s': %#v", name, job.Args[0])
 		}
-		return engine.StatusOK
+		return nil
 	})
 	r := serveRequest("DELETE", "/containers/"+name, nil, eng, t)
 	if !called {
