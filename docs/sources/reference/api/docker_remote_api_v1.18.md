@@ -139,7 +139,6 @@ Create a container
              "ExposedPorts": {
                      "22/tcp": {}
              },
-             "SecurityOpts": [""],
              "HostConfig": {
                "Binds": ["/tmp:/tmp"],
                "Links": ["redis3:redis"],
@@ -163,6 +162,7 @@ Create a container
                "Devices": [],
                "Ulimits": [{}],
                "LogConfig": { "Type": "json-file", Config: {} },
+               "SecurityOpt": [""],
                "CgroupParent": ""
             }
         }
@@ -211,8 +211,6 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
--   **SecurityOpts**: A list of string values to customize labels for MLS
-      systems, such as SELinux.
 -   **HostConfig**
   -   **Binds** – A list of volume bindings for this container.  Each volume
           binding is a string of the form `container_path` (to create a new
@@ -257,6 +255,8 @@ Json Parameters:
   -   **Ulimits** - A list of ulimits to be set in the container, specified as
         `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
         `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
+  -   **SecurityOpt**: A list of string values to customize labels for MLS
+      systems, such as SELinux.
   -   **LogConfig** - Logging configuration to container, format
         `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}
         Available types: `json-file`, `syslog`, `none`.
