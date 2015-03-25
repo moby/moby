@@ -9,7 +9,7 @@ import (
 
 // CmdHelp displays information on a Docker command.
 //
-//If more than one command is specified, information is only shown for the first command.
+// If more than one command is specified, information is only shown for the first command.
 //
 // Usage: docker help COMMAND or docker COMMAND --help
 func (cli *DockerCli) CmdHelp(args ...string) error {
