@@ -586,9 +586,10 @@ func CreateDevice(poolName string, deviceId int) error {
 		// Caller wants to know about ErrDeviceIdExists so that it can try with a different device id.
 		if dmSawExist {
 			return ErrDeviceIdExists
-		} else {
-			return fmt.Errorf("Error running CreateDevice %s", err)
 		}
+
+		return fmt.Errorf("Error running CreateDevice %s", err)
+
 	}
 	return nil
 }
@@ -681,9 +682,10 @@ func CreateSnapDevice(poolName string, deviceId int, baseName string, baseDevice
 		// Caller wants to know about ErrDeviceIdExists so that it can try with a different device id.
 		if dmSawExist {
 			return ErrDeviceIdExists
-		} else {
-			return fmt.Errorf("Error running DeviceCreate (createSnapDevice) %s", err)
 		}
+
+		return fmt.Errorf("Error running DeviceCreate (createSnapDevice) %s", err)
+
 	}
 
 	if doSuspend {
