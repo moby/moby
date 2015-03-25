@@ -5,7 +5,7 @@ DEST=$1
 
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	source "$(dirname "$BASH_SOURCE")/.dockerinit"
-
+	
 	hash_files "$DEST/dockerinit-$VERSION"
 else
 	# DOCKER_CLIENTONLY must be truthy, so we don't need to bother with dockerinit :)
