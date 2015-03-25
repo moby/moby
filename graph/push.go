@@ -498,6 +498,7 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 	}
 	var (
 		localName   = job.Args[0]
+		insecure    = job.GetenvBool("insecure")
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
 		authConfig  = &registry.AuthConfig{}
 		metaHeaders map[string][]string
@@ -517,6 +518,10 @@ func (s *TagStore) CmdPush(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	defer s.poolRemove("push", repoInfo.LocalName)
+
+	if insecure {
+		repoInfo.Index.Secure = false
+	}
 
 	endpoint, err := repoInfo.GetEndpoint()
 	if err != nil {

@@ -349,6 +349,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 // 'docker login': login / register a user to registry service.
 func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := cli.Subcmd("login", "[SERVER]", "Register or log in to a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
+	insecure := cmd.Bool([]string{"-insecure"}, false, "Allow communication with insecure registries")
 	cmd.Require(flag.Max, 1)
 
 	var username, password, email string
@@ -441,7 +442,13 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.Configs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false)
+	v := url.Values{}
+
+	if *insecure {
+		v.Set("insecure", "1")
+	}
+
+	stream, statusCode, err := cli.call("POST", "/auth?"+v.Encode(), cli.configFile.Configs[serverAddress], false)
 	if statusCode == 401 {
 		delete(cli.configFile.Configs, serverAddress)
 		registry.SaveConfig(cli.configFile)
@@ -1286,6 +1293,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry", true)
+	insecure := cmd.Bool([]string{"-insecure"}, false, "Allow communication with insecure registries")
 	cmd.Require(flag.Exact, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1318,6 +1326,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	v := url.Values{}
 	v.Set("tag", tag)
 
+	if *insecure {
+		v.Set("insecure", "1")
+	}
+
 	push := func(authConfig registry.AuthConfig) error {
 		buf, err := json.Marshal(authConfig)
 		if err != nil {
@@ -1349,6 +1361,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME[:TAG|@DIGEST]", "Pull an image or a repository from the registry", true)
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
+	insecure := cmd.Bool([]string{"-insecure"}, false, "Allow communication with insecure registries")
 	cmd.Require(flag.Exact, 1)
 
 	utils.ParseFlags(cmd, args, true)
@@ -1367,6 +1380,10 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	}
 
 	v.Set("fromImage", newRemote)
+
+	if *insecure {
+		v.Set("insecure", "1")
+	}
 
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)

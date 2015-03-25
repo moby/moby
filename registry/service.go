@@ -58,6 +58,9 @@ func (s *Service) Auth(job *engine.Job) engine.Status {
 	if index, err = ResolveIndexInfo(job, addr); err != nil {
 		return job.Error(err)
 	}
+	if job.GetenvBool("insecure") {
+		index.Secure = false
+	}
 
 	if endpoint, err = NewEndpoint(index); err != nil {
 		log.Errorf("unable to get new registry endpoint: %s", err)

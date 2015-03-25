@@ -27,6 +27,7 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 
 	var (
 		localName   = job.Args[0]
+		insecure    = job.GetenvBool("insecure")
 		tag         string
 		sf          = utils.NewStreamFormatter(job.GetenvBool("json"))
 		authConfig  = &registry.AuthConfig{}
@@ -57,6 +58,10 @@ func (s *TagStore) CmdPull(job *engine.Job) engine.Status {
 		return job.Error(err)
 	}
 	defer s.poolRemove("pull", utils.ImageReference(repoInfo.LocalName, tag))
+
+	if insecure {
+		repoInfo.Index.Secure = false
+	}
 
 	log.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 	endpoint, err := repoInfo.GetEndpoint()
