@@ -24,26 +24,30 @@ other `docker` command.
 
 The basic `docker run` command takes this form:
 
-    $ sudo docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
+    $ docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
 To learn how to interpret the types of `[OPTIONS]`,
 see [*Option types*](/reference/commandline/cli/#option-types).
 
-The list of `[OPTIONS]` breaks down into two groups:
+The `run` options control the image's runtime behavior in a container. These
+settings affect:
 
-1. Settings exclusive to operators, including:
-     * Detached or Foreground running,
-     * Container Identification,
-     * Network settings, and
-     * Runtime Constraints on CPU and Memory
-     * Privileges and LXC Configuration
-2. Settings shared between operators and developers, where operators can
-   override defaults developers set in images at build time.
+ * detached or foreground running
+ * container identification
+ * network settings
+ * runtime constraints on CPU and memory
+ * privileges and LXC configuration
+ 
+An image developer may set defaults for these same settings when they create the
+image using the `docker build` command. Operators, however, can override all
+defaults set by the developer using the `run` options.  And, operators can also
+override nearly all the defaults set by the Docker runtime itself.
 
-Together, the `docker run [OPTIONS]` give the operator complete control over runtime
-behavior, allowing them to override all defaults set by
-the developer during `docker build` and nearly all the defaults set by
-the Docker runtime itself.
+Finally, depending on your Docker system configuration, you may be required to
+preface each `docker` command with `sudo`. To avoid having to use `sudo` with
+the `docker` command, your system administrator can create a Unix group called
+`docker` and add users to it. For more information about this configuration,
+refer to the Docker installation documentation for your operating system.
 
 ## Operator exclusive options
 
@@ -99,13 +103,13 @@ streams]( https://github.com/docker/docker/blob/
 specify to which of the three standard streams (`STDIN`, `STDOUT`,
 `STDERR`) you'd like to connect instead, as in:
 
-    $ sudo docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
 For interactive processes (like a shell), you must use `-i -t` together in
 order to allocate a tty for the container process. `-i -t` is often written `-it`
 as you'll see in later examples.  Specifying `-t` is forbidden when the client
 standard output is redirected or piped, such as in:
-`echo test | sudo docker run -i busybox cat`.
+`echo test | docker run -i busybox cat`.
 
 ## Container identification
 
@@ -163,7 +167,7 @@ on the system.  For example, you could build a container with debugging tools
 like `strace` or `gdb`, but want to use these tools when debugging processes
 within the container.
 
-    $ sudo docker run --pid=host rhel7 strace -p 1234
+    $ docker run --pid=host rhel7 strace -p 1234
 
 This command would allow you to use `strace` inside the container on pid 1234 on
 the host.
@@ -288,9 +292,9 @@ Example running a Redis container with Redis binding to `localhost` then
 running the `redis-cli` command and connecting to the Redis server over the
 `localhost` interface.
 
-    $ sudo docker run -d --name redis example/redis --bind 127.0.0.1
+    $ docker run -d --name redis example/redis --bind 127.0.0.1
     $ # use the redis container's network stack to access localhost
-    $ sudo docker run --rm -it --net container:redis example/redis-cli -h 127.0.0.1
+    $ docker run --rm -it --net container:redis example/redis-cli -h 127.0.0.1
 
 ### Managing /etc/hosts
 
@@ -298,7 +302,7 @@ Your container will have lines in `/etc/hosts` which define the hostname of the
 container itself as well as `localhost` and a few other common things.  The
 `--add-host` flag can be used to add additional lines to `/etc/hosts`.  
 
-    $ sudo docker run -it --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
+    $ docker run -it --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
     172.17.0.22     09d03f76bf2c
     fe00::0         ip6-localnet
     ff00::0         ip6-mcastprefix
@@ -374,7 +378,7 @@ for a container can be obtained via [`docker inspect`](
 /reference/commandline/cli/#inspect). For example, to get the number of restarts
 for container "my-container";
 
-    $ sudo docker inspect -f "{{ .RestartCount }}" my-container
+    $ docker inspect -f "{{ .RestartCount }}" my-container
     # 2
 
 Or, to get the last time the container was (re)started;
@@ -388,12 +392,12 @@ results in an error.
 
 ###Examples
 
-    $ sudo docker run --restart=always redis
+    $ docker run --restart=always redis
 
 This will run the `redis` container with a restart policy of **always**
 so that if the container exits, Docker will restart it.
 
-    $ sudo docker run --restart=on-failure:10 redis
+    $ docker run --restart=on-failure:10 redis
 
 This will run the `redis` container with a restart policy of **on-failure** 
 and a maximum restart count of 10.  If the `redis` container exits with a
@@ -427,23 +431,23 @@ the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
 requirement for MLS systems. Specifying the level in the following command
 allows you to share the same content between containers.
 
-    $ sudo docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
+    $ docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
 
 An MLS example might be:
 
-    $ sudo docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+    $ docker run --security-opt label:level:TopSecret -i -t rhel7 bash
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
 
-    $ sudo docker run --security-opt label:disable -i -t fedora bash
+    $ docker run --security-opt label:disable -i -t fedora bash
 
 If you want a tighter security policy on the processes within a container,
 you can specify an alternate type for the container. You could run a container
 that is only allowed to listen on Apache ports by executing the following
 command:
 
-    $ sudo docker run --security-opt label:type:svirt_apache_t -i -t centos bash
+    $ docker run --security-opt label:type:svirt_apache_t -i -t centos bash
 
 Note:
 
@@ -511,25 +515,25 @@ We have four ways to set memory usage:
 
 Examples:
 
-    $ sudo docker run -ti ubuntu:14.04 /bin/bash
+    $ docker run -ti ubuntu:14.04 /bin/bash
 
 We set nothing about memory, this means the processes in the container can use
 as much memory and swap memory as they need.
 
-    $ sudo docker run -ti -m 300M --memory-swap -1 ubuntu:14.04 /bin/bash
+    $ docker run -ti -m 300M --memory-swap -1 ubuntu:14.04 /bin/bash
 
 We set memory limit and disabled swap memory limit, this means the processes in
 the container can use 300M memory and as much swap memory as they need (if the
 host supports swap memory).
 
-    $ sudo docker run -ti -m 300M ubuntu:14.04 /bin/bash
+    $ docker run -ti -m 300M ubuntu:14.04 /bin/bash
 
 We set memory limit only, this means the processes in the container can use
 300M memory and 300M swap memory, by default, the total virtual memory size
 (--memory-swap) will be set as double of memory, in this case, memory + swap
 would be 2*300M, so processes can use 300M swap memory as well.
 
-    $ sudo docker run -ti -m 300M --memory-swap 1G ubuntu:14.04 /bin/bash
+    $ docker run -ti -m 300M --memory-swap 1G ubuntu:14.04 /bin/bash
 
 We set both memory and swap memory, so the processes in the container can use
 300M memory and 700M swap memory.
@@ -575,11 +579,11 @@ We can set cpus in which to allow execution for containers.
 
 Examples:
 
-    $ sudo docker run -ti --cpuset-cpus="1,3" ubuntu:14.04 /bin/bash
+    $ docker run -ti --cpuset-cpus="1,3" ubuntu:14.04 /bin/bash
 
 This means processes in container can be executed on cpu 1 and cpu 3.
 
-    $ sudo docker run -ti --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
+    $ docker run -ti --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
 
 This means processes in container can be executed on cpu 0, cpu 1 and cpu 2.
 
@@ -610,23 +614,23 @@ If you want to limit access to a specific device or devices you can use
 the `--device` flag. It allows you to specify one or more devices that
 will be accessible within the container.
 
-    $ sudo docker run --device=/dev/snd:/dev/snd ...
+    $ docker run --device=/dev/snd:/dev/snd ...
 
 By default, the container will be able to `read`, `write`, and `mknod` these devices.
 This can be overridden using a third `:rwm` set of options to each `--device` flag:
 
-    $ sudo docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
-    $ sudo docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
     You will not be able to write the partition table.
 
     Command (m for help): q
 
-    $ sudo docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:w --rm -it ubuntu fdisk  /dev/xvdc
         crash....
 
-    $ sudo docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
     fdisk: unable to open /dev/xvdc: Operation not permitted
 
 In addition to `--privileged`, the operator can have fine grain control over the
@@ -634,23 +638,23 @@ capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a defaul
 list of capabilities that are kept. Both flags support the value `all`, so if the
 operator wants to have all capabilities but `MKNOD` they could use:
 
-    $ sudo docker run --cap-add=ALL --cap-drop=MKNOD ...
+    $ docker run --cap-add=ALL --cap-drop=MKNOD ...
 
 For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
-    $ sudo docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
+    $ docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
     RTNETLINK answers: Operation not permitted
-    $ sudo docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
+    $ docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
 
 To mount a FUSE based filesystem, you need to combine both `--cap-add` and
 `--device`:
 
-    $ sudo docker run --rm -it --cap-add SYS_ADMIN sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    $ docker run --rm -it --cap-add SYS_ADMIN sshfs sshfs sven@10.10.10.20:/home/sven /mnt
     fuse: failed to open /dev/fuse: Operation not permitted
-    $ sudo docker run --rm -it --device /dev/fuse sshfs sshfs sven@10.10.10.20:/home/sven /mnt
+    $ docker run --rm -it --device /dev/fuse sshfs sshfs sven@10.10.10.20:/home/sven /mnt
     fusermount: mount failed: Operation not permitted
-    $ sudo docker run --rm -it --cap-add SYS_ADMIN --device /dev/fuse sshfs
+    $ docker run --rm -it --cap-add SYS_ADMIN --device /dev/fuse sshfs
     # sshfs sven@10.10.10.20:/home/sven /mnt
     The authenticity of host '10.10.10.20 (10.10.10.20)' can't be established.
     ECDSA key fingerprint is 25:34:85:75:25:b0:17:46:05:19:04:93:b5:dd:5f:c6.
@@ -727,7 +731,7 @@ Dockerfile instruction and how the operator can override that setting.
 Recall the optional `COMMAND` in the Docker
 commandline:
 
-    $ sudo docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
+    $ docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
 This command is optional because the person who created the `IMAGE` may
 have already provided a default `COMMAND` using the Dockerfile `CMD`
@@ -754,12 +758,12 @@ runtime by using a string to specify the new `ENTRYPOINT`. Here is an
 example of how to run a shell in a container that has been set up to
 automatically run something else (like `/usr/bin/redis-server`):
 
-    $ sudo docker run -i -t --entrypoint /bin/bash example/redis
+    $ docker run -i -t --entrypoint /bin/bash example/redis
 
 or two examples of how to pass more parameters to that ENTRYPOINT:
 
-    $ sudo docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
-    $ sudo docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
+    $ docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
+    $ docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
 ## EXPOSE (incoming ports)
 
@@ -846,7 +850,7 @@ Additionally, the operator can **set any environment variable** in the
 container by using one or more `-e` flags, even overriding those mentioned 
 above, or already defined by the developer with a Dockerfile `ENV`:
 
-    $ sudo docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
+    $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
     declare -x HOME="/"
     declare -x HOSTNAME="85bc26a0e200"
     declare -x OLDPWD
@@ -864,23 +868,23 @@ information for connecting to the service container. Let's imagine we have a
 container running Redis:
 
     # Start the service container, named redis-name
-    $ sudo docker run -d --name redis-name dockerfiles/redis
+    $ docker run -d --name redis-name dockerfiles/redis
     4241164edf6f5aca5b0e9e4c9eccd899b0b8080c64c0cd26efe02166c73208f3
 
     # The redis-name container exposed port 6379
-    $ sudo docker ps
+    $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED             STATUS              PORTS               NAMES
     4241164edf6f        $ dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
     # Note that there are no public ports exposed since we didn᾿t use -p or -P
-    $ sudo docker port 4241164edf6f 6379
+    $ docker port 4241164edf6f 6379
     2014/01/25 00:55:38 Error: No public port '6379' published for 4241164edf6f
 
 Yet we can get information about the Redis container's exposed ports
 with `--link`. Choose an alias that will form a
 valid environment variable!
 
-    $ sudo docker run --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c export
+    $ docker run --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c export
     declare -x HOME="/"
     declare -x HOSTNAME="acda7f7b1cdc"
     declare -x OLDPWD
@@ -897,15 +901,15 @@ valid environment variable!
 
 And we can use that information to connect from another container as a client:
 
-    $ sudo docker run -i -t --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
+    $ docker run -i -t --rm --link redis-name:redis_alias --entrypoint /bin/bash dockerfiles/redis -c '/redis-stable/src/redis-cli -h $REDIS_ALIAS_PORT_6379_TCP_ADDR -p $REDIS_ALIAS_PORT_6379_TCP_PORT'
     172.17.0.32:6379>
 
 Docker will also map the private IP address to the alias of a linked
 container by inserting an entry into `/etc/hosts`.  You can use this
 mechanism to communicate with a linked container by its alias:
 
-    $ sudo docker run -d --name servicename busybox sleep 30
-    $ sudo docker run -i -t --link servicename:servicealias busybox ping -c 1 servicealias
+    $ docker run -d --name servicename busybox sleep 30
+    $ docker run -i -t --link servicename:servicealias busybox ping -c 1 servicealias
 
 If you restart the source container (`servicename` in this case), the recipient
 container's `/etc/hosts` entry will be automatically updated.
