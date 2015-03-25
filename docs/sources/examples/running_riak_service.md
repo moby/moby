@@ -60,7 +60,6 @@ After that, we install Riak and alter a few defaults:
     # Install Riak and prepare it to run
     RUN apt-get update && apt-get install -y riak
     RUN sed -i.bak 's/127.0.0.1/0.0.0.0/' /etc/riak/app.config
-    RUN echo "ulimit -n 4096" >> /etc/default/riak
 
 Then, we expose the Riak Protocol Buffers and HTTP interfaces, along
 with SSH:
