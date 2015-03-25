@@ -1958,6 +1958,7 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 
 	name := "testbuildcancelation"
 	defer deleteImages(name)
+	defer deleteAllContainers()
 
 	// (Note: one year, will never finish)
 	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
