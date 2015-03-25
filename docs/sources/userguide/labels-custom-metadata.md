@@ -179,7 +179,7 @@ These labels appear as part of the `docker info` output for the daemon:
     ID: RC3P:JTCT:32YS:XYSB:YUBG:VFED:AAJZ:W3YW:76XO:D7NN:TEVU:UCRW
     Debug mode (server): false
     Debug mode (client): true
-    Fds: 11
+    File Descriptors: 11
     Goroutines: 14
     EventsListeners: 0
     Init Path: /usr/bin/docker

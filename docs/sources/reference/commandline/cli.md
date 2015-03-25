@@ -1333,7 +1333,7 @@ For example:
     Total Memory: 2 GiB
     Debug mode (server): false
     Debug mode (client): true
-    Fds: 10
+    File Descriptors: 10
     Goroutines: 9
     System Time: Tue Mar 10 18:38:57 UTC 2015
     EventsListeners: 0

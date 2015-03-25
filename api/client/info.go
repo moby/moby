@@ -81,7 +81,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		}
 		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		if remoteInfo.Exists("NFd") {
-			fmt.Fprintf(cli.out, "Fds: %d\n", remoteInfo.GetInt("NFd"))
+			fmt.Fprintf(cli.out, "File Descriptors: %d\n", remoteInfo.GetInt("NFd"))
 		}
 		if remoteInfo.Exists("NGoroutines") {
 			fmt.Fprintf(cli.out, "Goroutines: %d\n", remoteInfo.GetInt("NGoroutines"))
