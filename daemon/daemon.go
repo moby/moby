@@ -294,7 +294,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		if !info.IsRunning() {
 			log.Debugf("Container %s was supposed to be running but is not.", container.ID)
 
-			log.Debugf("Marking as stopped")
+			log.Debug("Marking as stopped")
 
 			container.SetStopped(&execdriver.ExitStatus{ExitCode: -127})
 			if err := container.ToDisk(); err != nil {
@@ -337,7 +337,7 @@ func (daemon *Daemon) restore() error {
 	)
 
 	if !debug {
-		log.Infof("Loading containers: start.")
+		log.Info("Loading containers: start.")
 	}
 	dir, err := ioutil.ReadDir(daemon.repository)
 	if err != nil {
@@ -406,7 +406,7 @@ func (daemon *Daemon) restore() error {
 	// check the restart policy on the containers and restart any container with
 	// the restart policy of "always"
 	if daemon.config.AutoRestart {
-		log.Debugf("Restarting containers...")
+		log.Debug("Restarting containers...")
 
 		for _, container := range registeredContainers {
 			if container.hostConfig.RestartPolicy.Name == "always" ||
@@ -424,7 +424,7 @@ func (daemon *Daemon) restore() error {
 		if log.GetLevel() == log.InfoLevel {
 			fmt.Println()
 		}
-		log.Infof("Loading containers: done.")
+		log.Info("Loading containers: done.")
 	}
 
 	return nil
@@ -465,7 +465,7 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 								newResolvConfHash = newHash
 							}
 						}
-						log.Debugf("host network resolv.conf changed--walking container list for updates")
+						log.Debug("host network resolv.conf changed--walking container list for updates")
 						contList := daemon.containers.List()
 						for _, container := range contList {
 							if err := container.updateResolvConf(updatedResolvConf, newResolvConfHash); err != nil {
@@ -926,7 +926,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
-	log.Debugf("Creating images graph")
+	log.Debug("Creating images graph")
 	g, err := graph.NewGraph(path.Join(config.Root, "graph"), driver)
 	if err != nil {
 		return nil, err
@@ -947,7 +947,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
-	log.Debugf("Creating repository list")
+	log.Debug("Creating repository list")
 	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, trustKey)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
@@ -1061,7 +1061,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 
 func (daemon *Daemon) shutdown() error {
 	group := sync.WaitGroup{}
-	log.Debugf("starting clean shutdown of all containers...")
+	log.Debug("starting clean shutdown of all containers...")
 	for _, container := range daemon.List() {
 		c := container
 		if c.IsRunning() {
