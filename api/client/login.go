@@ -123,7 +123,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 
 	var response types.AuthResponse
-	if err := json.NewDecoder(stream).Decode(response); err != nil {
+	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		cli.configFile, _ = registry.LoadConfig(homedir.Get())
 		return err
 	}
