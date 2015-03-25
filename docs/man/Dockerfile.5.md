@@ -283,7 +283,7 @@ A Dockerfile is similar to a Makefile.
   instruction can be used any number of times in a Dockerfile, and will only affect
   subsequent commands.
 
-**WRKDIR**
+**WORKDIR**
   -- `WORKDIR /path/to/workdir`
   The **WORKDIR** instruction sets the working directory for the **RUN**, **CMD**,
   **ENTRYPOINT**, **COPY** and **ADD** Dockerfile commands that follow it. It can
