@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd.Require(flag.Exact, 0)
 	utils.ParseFlags(cmd, args, false)
 
-	body, _, err := readBody(cli.call("GET", "/info", nil, false))
+	body, _, err := readBody(cli.call("GET", "/info", nil, nil))
 	if err != nil {
 		return err
 	}

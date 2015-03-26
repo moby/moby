@@ -19,7 +19,7 @@ func (cli *DockerCli) CmdKill(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", name, *signal), nil, false)); err != nil {
+		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", name, *signal), nil, nil)); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to kill one or more containers")
 		} else {

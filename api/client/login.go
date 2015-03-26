@@ -116,7 +116,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.Configs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], false)
+	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], nil)
 	if statusCode == 401 {
 		delete(cli.configFile.Configs, serverAddress)
 		registry.SaveConfig(cli.configFile)

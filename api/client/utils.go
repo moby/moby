@@ -54,68 +54,119 @@ func (cli *DockerCli) encodeData(data interface{}) (*bytes.Buffer, error) {
 	return params, nil
 }
 
-func (cli *DockerCli) call(method, path string, data interface{}, passAuthInfo bool) (io.ReadCloser, int, error) {
-	params, err := cli.encodeData(data)
-	if err != nil {
-		return nil, -1, err
+func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers map[string][]string) (io.ReadCloser, string, int, error) {
+	expectedPayload := (method == "POST" || method == "PUT")
+	if expectedPayload && in == nil {
+		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), in)
 	if err != nil {
-		return nil, -1, err
-	}
-	if passAuthInfo {
-		cli.LoadConfigFile()
-		// Resolve the Auth config relevant for this server
-		authConfig := cli.configFile.Configs[registry.IndexServerAddress()]
-		getHeaders := func(authConfig registry.AuthConfig) (map[string][]string, error) {
-			buf, err := json.Marshal(authConfig)
-			if err != nil {
-				return nil, err
-			}
-			registryAuthHeader := []string{
-				base64.URLEncoding.EncodeToString(buf),
-			}
-			return map[string][]string{"X-Registry-Auth": registryAuthHeader}, nil
-		}
-		if headers, err := getHeaders(authConfig); err == nil && headers != nil {
-			for k, v := range headers {
-				req.Header[k] = v
-			}
-		}
+		return nil, "", -1, err
 	}
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
-	if data != nil {
-		req.Header.Set("Content-Type", "application/json")
-	} else if method == "POST" {
+
+	if headers != nil {
+		for k, v := range headers {
+			req.Header[k] = v
+		}
+	}
+
+	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
 	}
+
 	resp, err := cli.HTTPClient().Do(req)
+	statusCode := -1
+	if resp != nil {
+		statusCode = resp.StatusCode
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return nil, -1, ErrConnectionRefused
+			return nil, "", statusCode, ErrConnectionRefused
 		}
 
 		if cli.tlsConfig == nil {
-			return nil, -1, fmt.Errorf("%v. Are you trying to connect to a TLS-enabled daemon without TLS?", err)
+			return nil, "", statusCode, fmt.Errorf("%v. Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
-		return nil, -1, fmt.Errorf("An error occurred trying to connect: %v", err)
-
+		return nil, "", statusCode, fmt.Errorf("An error occurred trying to connect: %v", err)
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+	if statusCode < 200 || statusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, "", statusCode, err
+		}
+		if len(body) == 0 {
+			return nil, "", statusCode, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(statusCode), req.URL)
+		}
+		return nil, "", statusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
+	}
+
+	return resp.Body, resp.Header.Get("Content-Type"), statusCode, nil
+}
+
+func (cli *DockerCli) clientRequestAttemptLogin(method, path string, in io.Reader, out io.Writer, index *registry.IndexInfo, cmdName string) (io.ReadCloser, int, error) {
+	cmdAttempt := func(authConfig registry.AuthConfig) (io.ReadCloser, int, error) {
+		buf, err := json.Marshal(authConfig)
 		if err != nil {
 			return nil, -1, err
 		}
-		if len(body) == 0 {
-			return nil, resp.StatusCode, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(resp.StatusCode), req.URL)
+		registryAuthHeader := []string{
+			base64.URLEncoding.EncodeToString(buf),
 		}
-		return nil, resp.StatusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
+
+		// begin the request
+		body, contentType, statusCode, err := cli.clientRequest(method, path, in, map[string][]string{
+			"X-Registry-Auth": registryAuthHeader,
+		})
+		if err == nil && out != nil {
+			// If we are streaming output, complete the stream since
+			// errors may not appear until later.
+			err = cli.streamBody(body, contentType, true, out, nil)
+		}
+		if err != nil {
+			// Since errors in a stream appear after status 200 has been written,
+			// we may need to change the status code.
+			if strings.Contains(err.Error(), "Authentication is required") ||
+				strings.Contains(err.Error(), "Status 401") ||
+				strings.Contains(err.Error(), "status code 401") {
+				statusCode = http.StatusUnauthorized
+			}
+		}
+		return body, statusCode, err
 	}
 
-	return resp.Body, resp.StatusCode, nil
+	// Resolve the Auth config relevant for this server
+	authConfig := cli.configFile.ResolveAuthConfig(index)
+	body, statusCode, err := cmdAttempt(authConfig)
+	if statusCode == http.StatusUnauthorized {
+		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
+		if err = cli.CmdLogin(index.GetAuthConfigKey()); err != nil {
+			return nil, -1, err
+		}
+		authConfig = cli.configFile.ResolveAuthConfig(index)
+		return cmdAttempt(authConfig)
+	}
+	return body, statusCode, err
+}
+
+func (cli *DockerCli) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
+	params, err := cli.encodeData(data)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	if data != nil {
+		if headers == nil {
+			headers = make(map[string][]string)
+		}
+		headers["Content-Type"] = []string{"application/json"}
+	}
+
+	body, _, statusCode, err := cli.clientRequest(method, path, params, headers)
+	return body, statusCode, err
 }
 
 func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, headers map[string][]string) error {
@@ -123,55 +174,26 @@ func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, h
 }
 
 func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in io.Reader, stdout, stderr io.Writer, headers map[string][]string) error {
-	if (method == "POST" || method == "PUT") && in == nil {
-		in = bytes.NewReader([]byte{})
-	}
-
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), in)
+	body, contentType, _, err := cli.clientRequest(method, path, in, headers)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
-	req.URL.Host = cli.addr
-	req.URL.Scheme = cli.scheme
-	if method == "POST" {
-		req.Header.Set("Content-Type", "text/plain")
-	}
+	return cli.streamBody(body, contentType, setRawTerminal, stdout, stderr)
+}
 
-	if headers != nil {
-		for k, v := range headers {
-			req.Header[k] = v
-		}
-	}
-	resp, err := cli.HTTPClient().Do(req)
-	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
-		}
-		return err
-	}
-	defer resp.Body.Close()
+func (cli *DockerCli) streamBody(body io.ReadCloser, contentType string, setRawTerminal bool, stdout, stderr io.Writer) error {
+	defer body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		if len(body) == 0 {
-			return fmt.Errorf("Error :%s", http.StatusText(resp.StatusCode))
-		}
-		return fmt.Errorf("Error: %s", bytes.TrimSpace(body))
-	}
-
-	if api.MatchesContentType(resp.Header.Get("Content-Type"), "application/json") {
-		return jsonmessage.DisplayJSONMessagesStream(resp.Body, stdout, cli.outFd, cli.isTerminalOut)
+	if api.MatchesContentType(contentType, "application/json") {
+		return jsonmessage.DisplayJSONMessagesStream(body, stdout, cli.outFd, cli.isTerminalOut)
 	}
 	if stdout != nil || stderr != nil {
 		// When TTY is ON, use regular copy
+		var err error
 		if setRawTerminal {
-			_, err = io.Copy(stdout, resp.Body)
+			_, err = io.Copy(stdout, body)
 		} else {
-			_, err = stdcopy.StdCopy(stdout, stderr, resp.Body)
+			_, err = stdcopy.StdCopy(stdout, stderr, body)
 		}
 		log.Debugf("[stream] End of stdout")
 		return err
@@ -195,13 +217,13 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 		path = "/exec/" + id + "/resize?"
 	}
 
-	if _, _, err := readBody(cli.call("POST", path+v.Encode(), nil, false)); err != nil {
+	if _, _, err := readBody(cli.call("POST", path+v.Encode(), nil, nil)); err != nil {
 		log.Debugf("Error resize: %s", err)
 	}
 }
 
 func waitForExit(cli *DockerCli, containerID string) (int, error) {
-	stream, _, err := cli.call("POST", "/containers/"+containerID+"/wait", nil, false)
+	stream, _, err := cli.call("POST", "/containers/"+containerID+"/wait", nil, nil)
 	if err != nil {
 		return -1, err
 	}
@@ -216,7 +238,7 @@ func waitForExit(cli *DockerCli, containerID string) (int, error) {
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
-	stream, _, err := cli.call("GET", "/containers/"+containerID+"/json", nil, false)
+	stream, _, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != ErrConnectionRefused {
@@ -237,7 +259,7 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
 func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
-	stream, _, err := cli.call("GET", "/exec/"+execID+"/json", nil, false)
+	stream, _, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != ErrConnectionRefused {

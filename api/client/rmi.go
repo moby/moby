@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		body, _, err := readBody(cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, false))
+		body, _, err := readBody(cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")

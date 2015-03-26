@@ -8,6 +8,8 @@ import (
 
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
 
@@ -24,16 +26,27 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	utils.ParseFlags(cmd, args, true)
 
+	name := cmd.Arg(0)
 	v := url.Values{}
-	v.Set("term", cmd.Arg(0))
+	v.Set("term", name)
 
-	body, _, err := readBody(cli.call("GET", "/images/search?"+v.Encode(), nil, true))
-
+	// Resolve the Repository name from fqn to hostname + name
+	taglessRemote, _ := parsers.ParseRepositoryTag(name)
+	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
 	if err != nil {
 		return err
 	}
+
+	cli.LoadConfigFile()
+
+	body, statusCode, errReq := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
+	rawBody, _, err := readBody(body, statusCode, errReq)
+	if err != nil {
+		return err
+	}
+
 	outs := engine.NewTable("star_count", 0)
-	if _, err := outs.ReadListFrom(body); err != nil {
+	if _, err := outs.ReadListFrom(rawBody); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)

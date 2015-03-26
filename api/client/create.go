@@ -92,7 +92,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	}
 
 	//create the container
-	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, false)
+	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil)
 	//if image not found try to pull it
 	if statusCode == 404 {
 		repo, tag := parsers.ParseRepositoryTag(config.Image)
@@ -106,7 +106,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 			return nil, err
 		}
 		// Retry
-		if stream, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, false); err != nil {
+		if stream, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil); err != nil {
 			return nil, err
 		}
 	} else if err != nil {

@@ -24,7 +24,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return &utils.StatusError{StatusCode: 1}
 	}
 
-	stream, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, false)
+	stream, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 			return err
 		}
 	} else {
-		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, false)); err != nil {
+		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, nil)); err != nil {
 			return err
 		}
 		// For now don't print this - wait for when we support exec wait()

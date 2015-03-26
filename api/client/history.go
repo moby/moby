@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 
 	utils.ParseFlags(cmd, args, true)
 
-	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, false))
+	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil))
 	if err != nil {
 		return err
 	}

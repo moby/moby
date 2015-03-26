@@ -33,7 +33,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	}
 	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
 
-	body, _, err := readBody(cli.call("GET", "/version", nil, false))
+	body, _, err := readBody(cli.call("GET", "/version", nil, nil))
 	if err != nil {
 		return err
 	}

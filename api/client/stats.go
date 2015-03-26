@@ -29,7 +29,7 @@ type containerStats struct {
 }
 
 func (s *containerStats) Collect(cli *DockerCli) {
-	stream, _, err := cli.call("GET", "/containers/"+s.Name+"/stats", nil, false)
+	stream, _, err := cli.call("GET", "/containers/"+s.Name+"/stats", nil, nil)
 	if err != nil {
 		s.err = err
 		return

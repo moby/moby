@@ -511,6 +511,10 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode == 401 {
+		return nil, errLoginRequired
+	}
+
 	var tokens, endpoints []string
 	if !validate {
 		if res.StatusCode != 200 && res.StatusCode != 201 {

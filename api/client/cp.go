@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	copyData.Set("Resource", info[1])
 	copyData.Set("HostPath", cmd.Arg(1))
 
-	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, false)
+	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", copyData, nil)
 	if stream != nil {
 		defer stream.Close()
 	}
