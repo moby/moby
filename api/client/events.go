@@ -55,11 +55,11 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		setTime("until", *until)
 	}
 	if len(eventFilterArgs) > 0 {
-		filterJson, err := filters.ToParam(eventFilterArgs)
+		filterJSON, err := filters.ToParam(eventFilterArgs)
 		if err != nil {
 			return err
 		}
-		v.Set("filters", filterJson)
+		v.Set("filters", filterJSON)
 	}
 	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
 		return err
