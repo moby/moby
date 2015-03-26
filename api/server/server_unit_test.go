@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -471,6 +473,34 @@ func TestDeleteContainers(t *testing.T) {
 	}
 	if r.Code != http.StatusNoContent {
 		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusNoContent)
+	}
+}
+
+func TestImagesCreateFailure(t *testing.T) {
+	eng := engine.New()
+	var called bool
+	eng.Register("pull", func(job *engine.Job) engine.Status {
+		called = true
+		job.Stdout.Write([]byte("!!!"))
+		return job.Errorf("fail!")
+	})
+
+	data := url.Values{}
+	data.Set("fromImage", "test")
+	r := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "/images/create", bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	ServeRequest(eng, api.APIVERSION, r, req)
+
+	if !called {
+		t.Fatalf("handler was not called")
+	}
+	if r.Code == http.StatusOK {
+		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusInternalServerError)
 	}
 }
 

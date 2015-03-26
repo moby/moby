@@ -547,10 +547,11 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 	}
 
 	var (
-		image = r.Form.Get("fromImage")
-		repo  = r.Form.Get("repo")
-		tag   = r.Form.Get("tag")
-		job   *engine.Job
+		image        = r.Form.Get("fromImage")
+		repo         = r.Form.Get("repo")
+		tag          = r.Form.Get("tag")
+		job          *engine.Job
+		stdoutBuffer = bytes.NewBuffer(nil)
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &registry.AuthConfig{}
@@ -585,20 +586,16 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job.SetenvList("changes", r.Form["changes"])
 	}
 
+	job.Stdout.Add(stdoutBuffer)
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
-	} else {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
-	}
-	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
-			return err
-		}
-		sf := utils.NewStreamFormatter(version.GreaterThan("1.0"))
-		w.Write(sf.FormatError(err))
 	}
 
+	if err := job.Run(); err != nil {
+		return err
+	}
+
+	writeJSON(w, http.StatusOK, string(stdoutBuffer.Bytes()))
 	return nil
 }
 
@@ -671,18 +668,15 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	job.Setenv("tag", r.Form.Get("tag"))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
-	} else {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
+	var stdoutBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(stdoutBuffer)
 
 	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
-			return err
-		}
-		sf := utils.NewStreamFormatter(version.GreaterThan("1.0"))
-		w.Write(sf.FormatError(err))
+		return err
 	}
+
+	writeJSON(w, http.StatusOK, string(stdoutBuffer.Bytes()))
 	return nil
 }
 
@@ -1034,6 +1028,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
 		job               = eng.Job("build")
+		stdoutBuffer      = bytes.NewBuffer(nil)
 	)
 
 	// This block can be removed when API versions prior to 1.9 are deprecated.
@@ -1058,11 +1053,9 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		}
 	}
 
+	job.Stdout.Add(stdoutBuffer)
 	if version.GreaterThanOrEqualTo("1.8") {
 		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
-	} else {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
 
 	if r.FormValue("forcerm") == "1" && version.GreaterThanOrEqualTo("1.12") {
@@ -1104,12 +1097,10 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	}
 
 	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
-			return err
-		}
-		sf := utils.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
-		w.Write(sf.FormatError(err))
+		return err
 	}
+
+	writeJSON(w, http.StatusOK, string(stdoutBuffer.Bytes()))
 	return nil
 }
 
