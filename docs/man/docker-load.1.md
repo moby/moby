@@ -24,11 +24,11 @@ Restores both images and tags.
 
 # EXAMPLES
 
-    $ sudo docker images
+    $ docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     busybox             latest              769b9341d937        7 weeks ago         2.489 MB
-    $ sudo docker load --input fedora.tar
-    $ sudo docker images
+    $ docker load --input fedora.tar
+    $ docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     busybox             latest              769b9341d937        7 weeks ago         2.489 MB
     fedora              rawhide             0d20aec6529d        7 weeks ago         387 MB

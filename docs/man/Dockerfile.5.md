@@ -31,7 +31,7 @@ A Dockerfile is similar to a Makefile.
 
 # USAGE
 
-  sudo docker build .
+  docker build .
 
   -- Runs the steps and commits them, building a final image.
   The path to the source repository defines where to find the context of the
@@ -41,7 +41,7 @@ A Dockerfile is similar to a Makefile.
   daemon.
 
   ```
-  sudo docker build -t repository/tag .
+  docker build -t repository/tag .
   ```
 
   -- specifies a repository and tag at which to save the new image if the build

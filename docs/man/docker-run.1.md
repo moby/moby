@@ -433,7 +433,7 @@ Host shows a shared memory segment with 7 pids attached, happens to be from http
 Now run a regular container, and it correctly does NOT see the shared memory segment from the host:
 
 ```
- $ sudo docker run -it shm ipcs -m
+ $ docker run -it shm ipcs -m
 
  ------ Shared Memory Segments --------	
  key        shmid      owner      perms      bytes      nattch     status      
@@ -442,7 +442,7 @@ Now run a regular container, and it correctly does NOT see the shared memory seg
 Run a container with the new `--ipc=host` option, and it now sees the shared memory segment from the host httpd:
 
  ```
- $ sudo docker run -it --ipc=host shm ipcs -m
+ $ docker run -it --ipc=host shm ipcs -m
 
  ------ Shared Memory Segments --------
  key        shmid      owner      perms      bytes      nattch     status      
@@ -452,7 +452,7 @@ Testing `--ipc=container:CONTAINERID` mode:
 
 Start a container with a program to create a shared memory segment:
 ```
- sudo docker run -it shm bash
+ $ docker run -it shm bash
  $ sudo shm/shm_server &
  $ sudo ipcs -m
 
@@ -462,7 +462,7 @@ Start a container with a program to create a shared memory segment:
 ```
 Create a 2nd container correctly shows no shared memory segment from 1st container:
 ```
- $ sudo docker run shm ipcs -m
+ $ docker run shm ipcs -m
 
  ------ Shared Memory Segments --------
  key        shmid      owner      perms      bytes      nattch     status      
@@ -471,7 +471,7 @@ Create a 2nd container correctly shows no shared memory segment from 1st contain
 Create a 3rd container using the new --ipc=container:CONTAINERID option, now it shows the shared memory segment from the first:
 
 ```
- $ sudo docker run -it --ipc=container:ed735b2264ac shm ipcs -m
+ $ docker run -it --ipc=container:ed735b2264ac shm ipcs -m
  $ sudo ipcs -m
 
  ------ Shared Memory Segments --------

@@ -100,9 +100,9 @@ With our `Dockerfile`, we can now build the MongoDB image using Docker. Unless
 experimenting, it is always a good practice to tag Docker images by passing the
 `--tag` option to `docker build` command.
 
-    # Format: sudo docker build --tag/-t <user-name>/<repository> .
+    # Format: docker build --tag/-t <user-name>/<repository> .
     # Example:
-    $ sudo docker build --tag my/repo .
+    $ docker build --tag my/repo .
 
 Once this command is issued, Docker will go through the `Dockerfile` and build
 the image. The final image will be tagged `my/repo`.
@@ -114,13 +114,13 @@ All Docker image repositories can be hosted and shared on
 you need to be logged-in.
 
     # Log-in
-    $ sudo docker login
+    $ docker login
     Username:
     ..
 
     # Push the image
-    # Format: sudo docker push <user-name>/<repository>
-    $ sudo docker push my/repo
+    # Format: docker push <user-name>/<repository>
+    $ docker push my/repo
     The push refers to a repository [my/repo] (len: 1)
     Sending image list
     Pushing repository my/repo (1 tags)
@@ -132,16 +132,16 @@ Using the MongoDB image we created, we can run one or more MongoDB instances
 as daemon process(es).
 
     # Basic way
-    # Usage: sudo docker run --name <name for container> -d <user-name>/<repository>
-    $ sudo docker run --name mongo_instance_001 -d my/repo
+    # Usage: docker run --name <name for container> -d <user-name>/<repository>
+    $ docker run --name mongo_instance_001 -d my/repo
 
     # Dockerized MongoDB, lean and mean!
-    # Usage: sudo docker run --name <name for container> -d <user-name>/<repository> --noprealloc --smallfiles
-    $ sudo docker run --name mongo_instance_001 -d my/repo --noprealloc --smallfiles
+    # Usage: docker run --name <name for container> -d <user-name>/<repository> --noprealloc --smallfiles
+    $ docker run --name mongo_instance_001 -d my/repo --noprealloc --smallfiles
 
     # Checking out the logs of a MongoDB container
-    # Usage: sudo docker logs <name for container>
-    $ sudo docker logs mongo_instance_001
+    # Usage: docker logs <name for container>
+    $ docker logs mongo_instance_001
 
     # Playing with MongoDB
     # Usage: mongo --port <port you get from `docker ps`> 

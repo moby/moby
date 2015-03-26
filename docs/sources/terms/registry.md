@@ -12,7 +12,7 @@ A Registry is a hosted service containing
 
 The default registry can be accessed using a browser at
 [Docker Hub](https://hub.docker.com) or using the
-`sudo docker search` command.
+`docker search` command.
 
 ## Further Reading
 

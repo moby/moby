@@ -26,7 +26,7 @@ Show the history of when and how an image was created.
    Only show numeric IDs. The default is *false*.
 
 # EXAMPLES
-    $ sudo docker history fedora
+    $ docker history fedora
     IMAGE          CREATED          CREATED BY                                      SIZE
     105182bb5e8b   5 days ago       /bin/sh -c #(nop) ADD file:71356d2ad59aa3119d   372.7 MB
     73bd853d2ea5   13 days ago      /bin/sh -c #(nop) MAINTAINER Lokesh Mandvekar   0 B

@@ -47,7 +47,7 @@ defined type which can be used like so:
 
 This is equivalent to running:
 
-    $ sudo docker pull ubuntu
+    $ docker pull ubuntu
 
 Note that it will only be downloaded if an image of that name does not
 already exist. This is downloading a large binary so on first run can
@@ -71,7 +71,7 @@ managed by Docker.
 
 This is equivalent to running the following command, but under upstart:
 
-    $ sudo docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
 
 Run also contains a number of optional parameters:
 
