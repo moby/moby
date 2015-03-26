@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +29,10 @@ type ImagePullConfig struct {
 	Json        bool
 	OutStream   io.Writer
 }
+
+var (
+	errImageChecksumFailed = errors.New("Image checksum failed")
+)
 
 func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
 	var (
@@ -81,6 +86,8 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		if err := s.pullV2Repository(r, imagePullConfig.OutStream, repoInfo, tag, sf, imagePullConfig.Parallel); err == nil {
 			s.eventsService.Log("pull", logName, "")
 			return nil
+		} else if err == errImageChecksumFailed {
+			return err
 		} else if err != registry.ErrDoesNotExist && err != ErrV2RegistryUnavailable {
 			logrus.Errorf("Error from V2 registry: %s", err)
 		}
@@ -364,13 +371,14 @@ func WriteStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamF
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	imgJSON    []byte
-	img        *image.Image
-	digest     digest.Digest
-	tmpFile    *os.File
-	length     int64
-	downloaded bool
-	err        chan error
+	imgJSON       []byte
+	img           *image.Image
+	digest        digest.Digest
+	tmpFile       *os.File
+	length        int64
+	downloaded    bool
+	validChecksum bool
+	err           chan error
 }
 
 func (s *TagStore) pullV2Repository(r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter, parallel bool) error {
@@ -516,15 +524,19 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 
 				if !verifier.Verified() {
 					logrus.Infof("Image verification failed: checksum mismatch for %q", di.digest.String())
+					out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete, Checksum failed", nil))
+					di.validChecksum = false
 					verified = false
+				} else {
+					out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete, Checksum passed", nil))
+					di.validChecksum = true
 				}
-
-				out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
 
 				logrus.Debugf("Downloaded %s to tempfile %s", img.ID, tmpFile.Name())
 				di.tmpFile = tmpFile
 				di.length = l
 				di.downloaded = true
+
 			}
 			di.imgJSON = imgJSON
 
@@ -555,23 +567,31 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 			// if tmpFile is empty assume download and extracted elsewhere
 			defer os.Remove(d.tmpFile.Name())
 			defer d.tmpFile.Close()
-			d.tmpFile.Seek(0, 0)
-			if d.tmpFile != nil {
-				err = s.graph.Register(d.img,
-					progressreader.New(progressreader.Config{
-						In:        d.tmpFile,
-						Out:       out,
-						Formatter: sf,
-						Size:      int(d.length),
-						ID:        stringid.TruncateID(d.img.ID),
-						Action:    "Extracting",
-					}))
-				if err != nil {
-					return false, err
+
+			if d.validChecksum {
+				d.tmpFile.Seek(0, 0)
+				if d.tmpFile != nil {
+					err = s.graph.Register(d.img,
+						progressreader.New(progressreader.Config{
+							In:        d.tmpFile,
+							Out:       out,
+							Formatter: sf,
+							Size:      int(d.length),
+							ID:        stringid.TruncateID(d.img.ID),
+							Action:    "Extracting",
+						}))
+					if err != nil {
+						out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Problem extracting", nil))
+						return false, err
+					}
 				}
 
 				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
+			} else {
+				out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Checksum problem", nil))
+				return false, errImageChecksumFailed
 			}
+
 			out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
 			tagUpdated = true
 		} else {
