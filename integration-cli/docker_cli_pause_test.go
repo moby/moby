@@ -22,7 +22,7 @@ func TestPause(t *testing.T) {
 		t.Fatalf("error thrown while checking if containers were paused: %v", err)
 	}
 	if len(pausedContainers) != 1 {
-		t.Fatalf("there should be one paused container and not", len(pausedContainers))
+		t.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
 	dockerCmd(t, "unpause", name)

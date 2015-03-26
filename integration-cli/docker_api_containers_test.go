@@ -548,7 +548,7 @@ func TestPostContainerBindNormalVolume(t *testing.T) {
 	}
 
 	if fooDir2 != fooDir {
-		t.Fatal("expected volume path to be %s, got: %s", fooDir, fooDir2)
+		t.Fatalf("expected volume path to be %s, got: %s", fooDir, fooDir2)
 	}
 
 	logDone("container REST API - can use path from normal volume as bind-mount to overwrite another volume")
