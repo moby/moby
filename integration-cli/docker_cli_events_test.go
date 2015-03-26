@@ -52,14 +52,18 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 		t.Fatalf("Missing expected event")
 	}
 
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
+	startEvent := strings.Fields(events[len(events)-4])
+	dieEvent := strings.Fields(events[len(events)-3])
+	exitEvent := strings.Fields(events[len(events)-2])
 
 	if startEvent[len(startEvent)-1] != "start" {
 		t.Fatalf("event should be start, not %#v", startEvent)
 	}
 	if dieEvent[len(dieEvent)-1] != "die" {
 		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if exitEvent[len(exitEvent)-1] != "process-exit" {
+		t.Fatalf("event should be process-exit, not %#v", exitEvent)
 	}
 
 	logDone("events - container unwilling to start logs die")
@@ -89,12 +93,13 @@ func TestEventsContainerEvents(t *testing.T) {
 	}
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
-	if len(events) < 4 {
+	if len(events) < 5 {
 		t.Fatalf("Missing expected event")
 	}
-	createEvent := strings.Fields(events[len(events)-4])
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
+	createEvent := strings.Fields(events[len(events)-5])
+	startEvent := strings.Fields(events[len(events)-4])
+	dieEvent := strings.Fields(events[len(events)-3])
+	exitEvent := strings.Fields(events[len(events)-2])
 	destroyEvent := strings.Fields(events[len(events)-1])
 	if createEvent[len(createEvent)-1] != "create" {
 		t.Fatalf("event should be create, not %#v", createEvent)
@@ -105,11 +110,80 @@ func TestEventsContainerEvents(t *testing.T) {
 	if dieEvent[len(dieEvent)-1] != "die" {
 		t.Fatalf("event should be die, not %#v", dieEvent)
 	}
+	if exitEvent[len(exitEvent)-1] != "process-exit" {
+		t.Fatalf("event should be process-exit, not %#v", exitEvent)
+	}
 	if destroyEvent[len(destroyEvent)-1] != "destroy" {
 		t.Fatalf("event should be destroy, not %#v", destroyEvent)
 	}
 
-	logDone("events - container create, start, die, destroy is logged")
+	logDone("events - container create, start, die, process-exit, destroy is logged")
+}
+
+func TestEventsContainerKill(t *testing.T) {
+	dockerCmd(t, "run", "--name", "testeventkill", "-d", "busybox", "sleep", "10")
+	dockerCmd(t, "kill", "testeventkill")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) < 4 {
+		t.Fatalf("Missing expected event, got: %#v", events)
+	}
+	createEvent := strings.Fields(events[len(events)-4])
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+	killEvent := strings.Fields(events[len(events)-1])
+	if createEvent[len(createEvent)-1] != "create" {
+		t.Fatalf("event should be create, not %#v", createEvent)
+	}
+	if startEvent[len(startEvent)-1] != "start" {
+		t.Fatalf("event should be start, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if killEvent[len(killEvent)-1] != "kill" {
+		t.Fatalf("event should be kill not %#v", killEvent)
+	}
+
+	logDone("events - container create, start, die, kill, destroy is logged")
+}
+
+func TestEventsContainerStop(t *testing.T) {
+	dockerCmd(t, "run", "--name", "testeventstop", "-d", "busybox", "top")
+	dockerCmd(t, "stop", "testeventstop")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) < 4 {
+		t.Fatalf("Missing expected event, got: %#v", events)
+	}
+	createEvent := strings.Fields(events[len(events)-4])
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+	stopEvent := strings.Fields(events[len(events)-1])
+	if createEvent[len(createEvent)-1] != "create" {
+		t.Fatalf("event should be create, not %#v", createEvent)
+	}
+	if startEvent[len(startEvent)-1] != "start" {
+		t.Fatalf("event should be start, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if stopEvent[len(stopEvent)-1] != "stop" {
+		t.Fatalf("event should be stop not %#v", stopEvent)
+	}
+
+	logDone("events - container create, start, die, stop, destroy is logged")
 }
 
 func TestEventsImageUntagDelete(t *testing.T) {
@@ -318,8 +392,8 @@ func TestEventsFilterContainerID(t *testing.T) {
 		}
 		events := strings.Split(out, "\n")
 		events = events[:len(events)-1]
-		if len(events) == 0 || len(events) > 3 {
-			t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+		if len(events) == 0 || len(events) > 4 {
+			t.Fatalf("Expected 4 events, got %d: %v", len(events), events)
 		}
 		createEvent := strings.Fields(events[0])
 		if createEvent[len(createEvent)-1] != "create" {
@@ -331,10 +405,16 @@ func TestEventsFilterContainerID(t *testing.T) {
 				t.Fatalf("second event should be start, not %#v", startEvent)
 			}
 		}
-		if len(events) == 3 {
-			dieEvent := strings.Fields(events[len(events)-1])
+		if len(events) > 2 {
+			dieEvent := strings.Fields(events[2])
 			if dieEvent[len(dieEvent)-1] != "die" {
 				t.Fatalf("event should be die, not %#v", dieEvent)
+			}
+		}
+		if len(events) == 4 {
+			exitEvent := strings.Fields(events[len(events)-1])
+			if exitEvent[len(exitEvent)-1] != "process-exit" {
+				t.Fatalf("event should be process-exit, not %#v", exitEvent)
 			}
 		}
 	}
@@ -364,8 +444,8 @@ func TestEventsFilterContainerName(t *testing.T) {
 		}
 		events := strings.Split(out, "\n")
 		events = events[:len(events)-1]
-		if len(events) == 0 || len(events) > 3 {
-			t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+		if len(events) == 0 || len(events) > 4 {
+			t.Fatalf("Expected 4 events, got %d: %v", len(events), events)
 		}
 		createEvent := strings.Fields(events[0])
 		if createEvent[len(createEvent)-1] != "create" {
@@ -377,10 +457,16 @@ func TestEventsFilterContainerName(t *testing.T) {
 				t.Fatalf("second event should be start, not %#v", startEvent)
 			}
 		}
-		if len(events) == 3 {
-			dieEvent := strings.Fields(events[len(events)-1])
+		if len(events) > 2 {
+			dieEvent := strings.Fields(events[2])
 			if dieEvent[len(dieEvent)-1] != "die" {
 				t.Fatalf("event should be die, not %#v", dieEvent)
+			}
+		}
+		if len(events) == 4 {
+			exitEvent := strings.Fields(events[len(events)-1])
+			if exitEvent[len(exitEvent)-1] != "process-exit" {
+				t.Fatalf("event should be process-exit, not %#v", exitEvent)
 			}
 		}
 	}

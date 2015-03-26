@@ -159,6 +159,9 @@ func (m *containerMonitor) Start() error {
 				m.container.LogEvent("oom")
 			}
 			m.container.LogEvent("die")
+			if !m.shouldStop {
+				m.container.LogEvent("process-exit")
+			}
 			m.resetContainer(true)
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
@@ -176,6 +179,9 @@ func (m *containerMonitor) Start() error {
 			m.container.LogEvent("oom")
 		}
 		m.container.LogEvent("die")
+		if !m.shouldStop {
+			m.container.LogEvent("process-exit")
+		}
 		m.resetContainer(true)
 		return err
 	}
