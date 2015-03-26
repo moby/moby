@@ -1170,7 +1170,7 @@ To see how the `docker:latest` image was built:
     750d58736b4b        6 weeks ago         /bin/sh -c #(nop) MAINTAINER Tianon Gravi <ad   0 B
     511136ea3c5a        9 months ago                                                        0 B                 Imported from -
 
-To see how the `docker:apache` image which was commited from a container:
+To see how the `docker:apache` image was added to a container's base image:
 
     $ sudo docker history docker:scm
     IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT

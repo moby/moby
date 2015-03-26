@@ -41,7 +41,7 @@ Show the history of when and how an image was created.
     511136ea3c5a   10 months ago                                                    0 B                 Imported from -
 
 ## Show the history of images created through docker commit command
-`docker commit` command accepts a **-m** parameter to provide comment messages to the image. You can see these messages in image history.
+The `docker commit` command has a **-m** flag for adding comments to the image. These comments will be displayed in the image history.
 
     $ sudo docker history docker:scm
     IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
