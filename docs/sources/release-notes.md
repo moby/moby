@@ -57,7 +57,14 @@ impact on users. This list will be updated as issues are resolved.
 * **Unexpected File Permissions in Containers**
 An idiosyncrasy in AUFS prevents permissions from propagating predictably
 between upper and lower layers. This can cause issues with accessing private
-keys, database instances, etc. For complete information and workarounds see
+keys, database instances, etc.
+
+For systems that have recent aufs version (i.e., `dirperm1` mount option can
+be set), docker will attempt to fix the issue automatically by mounting
+the layers with `dirperm1` option. More details on `dirperm1` option can be
+found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
+
+For complete information and workarounds see
 [Github Issue 783](https://github.com/docker/docker/issues/783).
 
 * **Docker Hub incompatible with Safari 8**
