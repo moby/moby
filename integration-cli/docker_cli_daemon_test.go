@@ -524,7 +524,7 @@ func TestDaemonUlimitDefaults(t *testing.T) {
 
 	outArr := strings.Split(out, "\n")
 	if len(outArr) < 2 {
-		t.Fatal("got unexpected output: %s", out)
+		t.Fatalf("got unexpected output: %s", out)
 	}
 	nofile := strings.TrimSpace(outArr[0])
 	nproc := strings.TrimSpace(outArr[1])
@@ -548,7 +548,7 @@ func TestDaemonUlimitDefaults(t *testing.T) {
 
 	outArr = strings.Split(out, "\n")
 	if len(outArr) < 2 {
-		t.Fatal("got unexpected output: %s", out)
+		t.Fatalf("got unexpected output: %s", out)
 	}
 	nofile = strings.TrimSpace(outArr[0])
 	nproc = strings.TrimSpace(outArr[1])
@@ -616,9 +616,9 @@ func TestDaemonLoggingDriverDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	var res struct {
-		Log    string    `json:log`
-		Stream string    `json:stream`
-		Time   time.Time `json:time`
+		Log    string    `json:"log"`
+		Stream string    `json:"stream"`
+		Time   time.Time `json:"time"`
 	}
 	if err := json.NewDecoder(f).Decode(&res); err != nil {
 		t.Fatal(err)
@@ -712,9 +712,9 @@ func TestDaemonLoggingDriverNoneOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	var res struct {
-		Log    string    `json:log`
-		Stream string    `json:stream`
-		Time   time.Time `json:time`
+		Log    string    `json:"log"`
+		Stream string    `json:"stream"`
+		Time   time.Time `json:"time"`
 	}
 	if err := json.NewDecoder(f).Decode(&res); err != nil {
 		t.Fatal(err)

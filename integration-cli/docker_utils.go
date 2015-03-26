@@ -1045,7 +1045,7 @@ func daemonTime(t *testing.T) time.Time {
 
 	body, err := sockRequest("GET", "/info", nil)
 	if err != nil {
-		t.Fatal("daemonTime: failed to get /info: %v", err)
+		t.Fatalf("daemonTime: failed to get /info: %v", err)
 	}
 
 	type infoJSON struct {

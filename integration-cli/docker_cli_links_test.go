@@ -75,7 +75,7 @@ func TestLinksInvalidContainerTarget(t *testing.T) {
 		t.Fatal("an invalid container target should produce an error")
 	}
 	if !strings.Contains(out, "Could not get container") {
-		t.Fatal("error output expected 'Could not get container', but got %q instead; err: %v", out, err)
+		t.Fatalf("error output expected 'Could not get container', but got %q instead; err: %v", out, err)
 	}
 
 	logDone("links - linking to non-existent container should not work")

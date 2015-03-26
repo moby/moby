@@ -1930,9 +1930,9 @@ func TestRunAttachWithDettach(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true")
 	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	if err == nil {
-		t.Fatalf("Container should have exited with error code different than 0", err)
+		t.Fatal("Container should have exited with error code different than 0")
 	} else if !strings.Contains(stderr, "Conflicting options: -a and -d") {
-		t.Fatalf("Should have been returned an error with conflicting options -a and -d")
+		t.Fatal("Should have been returned an error with conflicting options -a and -d")
 	}
 
 	logDone("run - Attach stdout with -d")
@@ -2655,7 +2655,7 @@ func TestRunCreateVolumeEtc(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "-v", "/etc", "busybox", "cat", "/etc/resolv.conf")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, out)
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	if !strings.Contains(out, "nameserver 127.0.0.1") {
 		t.Fatal("/etc volume mount hides /etc/resolv.conf")
@@ -2664,7 +2664,7 @@ func TestRunCreateVolumeEtc(t *testing.T) {
 	cmd = exec.Command(dockerBinary, "run", "-h=test123", "-v", "/etc", "busybox", "cat", "/etc/hostname")
 	out, _, err = runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, out)
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	if !strings.Contains(out, "test123") {
 		t.Fatal("/etc volume mount hides /etc/hostname")
@@ -2673,7 +2673,7 @@ func TestRunCreateVolumeEtc(t *testing.T) {
 	cmd = exec.Command(dockerBinary, "run", "--add-host=test:192.168.0.1", "-v", "/etc", "busybox", "cat", "/etc/hosts")
 	out, _, err = runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal("failed to run container: %v, output: %q", err, out)
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	out = strings.Replace(out, "\n", " ", -1)
 	if !strings.Contains(out, "192.168.0.1\ttest") || !strings.Contains(out, "127.0.0.1\tlocalhost") {
@@ -2857,14 +2857,16 @@ func TestRunAllowPortRangeThroughExpose(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ports nat.PortMap
-	err = unmarshalJSON([]byte(portstr), &ports)
+	if err = unmarshalJSON([]byte(portstr), &ports); err != nil {
+		t.Fatal(err)
+	}
 	for port, binding := range ports {
 		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
 		if portnum < 3000 || portnum > 3003 {
-			t.Fatalf("Port is out of range ", portnum, binding, out)
+			t.Fatalf("Port %d is out of range ", portnum)
 		}
 		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
-			t.Fatal("Port is not mapped for the port "+port, out)
+			t.Fatalf("Port is not mapped for the port %d", port)
 		}
 	}
 	if err := deleteContainer(id); err != nil {
@@ -3220,7 +3222,7 @@ func TestRunAllowPortRangeThroughPublish(t *testing.T) {
 	for port, binding := range ports {
 		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
 		if portnum < 3000 || portnum > 3003 {
-			t.Fatalf("Port is out of range ", portnum, binding, out)
+			t.Fatalf("Port %d is out of range ", portnum)
 		}
 		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
 			t.Fatal("Port is not mapped for the port "+port, out)
