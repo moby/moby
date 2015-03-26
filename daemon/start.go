@@ -39,6 +39,7 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) error {
 	}
 	if err := container.Start(); err != nil {
 		container.LogEvent("die")
+		container.LogEvent("process-exit")
 		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 
