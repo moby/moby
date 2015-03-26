@@ -176,7 +176,7 @@ func (info *FileInfo) path() string {
 }
 
 func (info *FileInfo) isDir() bool {
-	return info.parent == nil || info.stat.Mode()&syscall.S_IFDIR == syscall.S_IFDIR
+	return info.parent == nil || info.stat.Mode()&syscall.S_IFDIR != 0
 }
 
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
