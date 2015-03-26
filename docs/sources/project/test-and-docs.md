@@ -249,7 +249,8 @@ can browse the docs.
 
 1. In a terminal, change to the root of your `docker-fork` repository.
 
-        $ cd ~/repos/dry-run-test
+        # 'docker-fork' should be name of your docker fork dir
+        $ cd ~/repos/docker-fork
 
 2. Make sure you are in your feature branch.
 
