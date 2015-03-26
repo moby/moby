@@ -5524,7 +5524,7 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(dockerBinary, "build", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=1", "--cpu-shares=100", "-t", name, ".")
+	cmd := exec.Command(dockerBinary, "build", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpu-shares=100", "-t", name, ".")
 	cmd.Dir = ctx.Dir
 
 	out, _, err := runCommandWithOutput(cmd)
@@ -5555,7 +5555,7 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 		t.Fatal(err, cfg)
 	}
 	mem := int64(c1.Memory)
-	if mem != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "1" || c1.CpuShares != 100 {
+	if mem != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "0" || c1.CpuShares != 100 {
 		t.Fatalf("resource constraints not set properly:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpuShares: %d",
 			mem, c1.MemorySwap, c1.CpusetCpus, c1.CpuShares)
 	}
@@ -5574,7 +5574,7 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 		t.Fatal(err, cfg)
 	}
 	mem = int64(c2.Memory)
-	if mem == 67108864 || c2.MemorySwap == -1 || c2.CpusetCpus == "1" || c2.CpuShares == 100 {
+	if mem == 67108864 || c2.MemorySwap == -1 || c2.CpusetCpus == "0" || c2.CpuShares == 100 {
 		t.Fatalf("resource constraints leaked from build:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpuShares: %d",
 			mem, c2.MemorySwap, c2.CpusetCpus, c2.CpuShares)
 	}
