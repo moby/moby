@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -31,11 +30,11 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) error {
 		return fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}
 	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
-		log.Printf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		job.Errorf("Your kernel does not support memory limit capabilities. Limitation discarded.\n")
 		hostConfig.Memory = 0
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
-		log.Printf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		job.Errorf("Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		hostConfig.MemorySwap = -1
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
@@ -57,14 +56,14 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) error {
 		return err
 	}
 	if !container.Config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
-		log.Printf("IPv4 forwarding is disabled.\n")
+		job.Errorf("IPv4 forwarding is disabled.\n")
 	}
 	container.LogEvent("create")
 
 	job.Printf("%s\n", container.ID)
 
 	for _, warning := range buildWarnings {
-		log.Printf("%s\n", warning)
+		job.Errorf("%s\n", warning)
 	}
 
 	return nil

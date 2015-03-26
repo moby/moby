@@ -204,6 +204,10 @@ func (job *Job) Printf(format string, args ...interface{}) (n int, err error) {
 	return fmt.Fprintf(job.Stdout, format, args...)
 }
 
+func (job *Job) Errorf(format string, args ...interface{}) (n int, err error) {
+	return fmt.Fprintf(job.Stderr, format, args...)
+}
+
 func (job *Job) SetCloseIO(val bool) {
 	job.closeIO = val
 }
