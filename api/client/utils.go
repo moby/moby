@@ -200,8 +200,8 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	}
 }
 
-func waitForExit(cli *DockerCli, containerId string) (int, error) {
-	stream, _, err := cli.call("POST", "/containers/"+containerId+"/wait", nil, false)
+func waitForExit(cli *DockerCli, containerID string) (int, error) {
+	stream, _, err := cli.call("POST", "/containers/"+containerID+"/wait", nil, false)
 	if err != nil {
 		return -1, err
 	}
@@ -215,8 +215,8 @@ func waitForExit(cli *DockerCli, containerId string) (int, error) {
 
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
-func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
-	stream, _, err := cli.call("GET", "/containers/"+containerId+"/json", nil, false)
+func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
+	stream, _, err := cli.call("GET", "/containers/"+containerID+"/json", nil, false)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != ErrConnectionRefused {
@@ -236,8 +236,8 @@ func getExitCode(cli *DockerCli, containerId string) (bool, int, error) {
 
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
-func getExecExitCode(cli *DockerCli, execId string) (bool, int, error) {
-	stream, _, err := cli.call("GET", "/exec/"+execId+"/json", nil, false)
+func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
+	stream, _, err := cli.call("GET", "/exec/"+execID+"/json", nil, false)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != ErrConnectionRefused {

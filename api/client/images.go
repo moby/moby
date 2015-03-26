@@ -119,11 +119,11 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			"all": []string{"1"},
 		}
 		if len(imageFilterArgs) > 0 {
-			filterJson, err := filters.ToParam(imageFilterArgs)
+			filterJSON, err := filters.ToParam(imageFilterArgs)
 			if err != nil {
 				return err
 			}
-			v.Set("filters", filterJson)
+			v.Set("filters", filterJSON)
 		}
 
 		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, false))
@@ -189,11 +189,11 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	} else {
 		v := url.Values{}
 		if len(imageFilterArgs) > 0 {
-			filterJson, err := filters.ToParam(imageFilterArgs)
+			filterJSON, err := filters.ToParam(imageFilterArgs)
 			if err != nil {
 				return err
 			}
-			v.Set("filters", filterJson)
+			v.Set("filters", filterJSON)
 		}
 
 		if cmd.NArg() == 1 {

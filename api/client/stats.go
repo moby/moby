@@ -18,7 +18,7 @@ import (
 
 type containerStats struct {
 	Name             string
-	CpuPercentage    float64
+	CPUPercentage    float64
 	Memory           float64
 	MemoryLimit      float64
 	MemoryPercentage float64
@@ -36,7 +36,7 @@ func (s *containerStats) Collect(cli *DockerCli) {
 	}
 	defer stream.Close()
 	var (
-		previousCpu    uint64
+		previousCPU    uint64
 		previousSystem uint64
 		start          = true
 		dec            = json.NewDecoder(stream)
@@ -54,18 +54,18 @@ func (s *containerStats) Collect(cli *DockerCli) {
 				cpuPercent = 0.0
 			)
 			if !start {
-				cpuPercent = calculateCpuPercent(previousCpu, previousSystem, v)
+				cpuPercent = calculateCPUPercent(previousCPU, previousSystem, v)
 			}
 			start = false
 			s.mu.Lock()
-			s.CpuPercentage = cpuPercent
+			s.CPUPercentage = cpuPercent
 			s.Memory = float64(v.MemoryStats.Usage)
 			s.MemoryLimit = float64(v.MemoryStats.Limit)
 			s.MemoryPercentage = memPercent
 			s.NetworkRx = float64(v.Network.RxBytes)
 			s.NetworkTx = float64(v.Network.TxBytes)
 			s.mu.Unlock()
-			previousCpu = v.CpuStats.CpuUsage.TotalUsage
+			previousCPU = v.CpuStats.CpuUsage.TotalUsage
 			previousSystem = v.CpuStats.SystemUsage
 			u <- nil
 		}
@@ -76,7 +76,7 @@ func (s *containerStats) Collect(cli *DockerCli) {
 			// zero out the values if we have not received an update within
 			// the specified duration.
 			s.mu.Lock()
-			s.CpuPercentage = 0
+			s.CPUPercentage = 0
 			s.Memory = 0
 			s.MemoryPercentage = 0
 			s.mu.Unlock()
@@ -99,7 +99,7 @@ func (s *containerStats) Display(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
 		s.Name,
-		s.CpuPercentage,
+		s.CPUPercentage,
 		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
 		s.MemoryPercentage,
 		units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
@@ -161,11 +161,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	return nil
 }
 
-func calculateCpuPercent(previousCpu, previousSystem uint64, v *types.Stats) float64 {
+func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.Stats) float64 {
 	var (
 		cpuPercent = 0.0
 		// calculate the change for the cpu usage of the container in between readings
-		cpuDelta = float64(v.CpuStats.CpuUsage.TotalUsage - previousCpu)
+		cpuDelta = float64(v.CpuStats.CpuUsage.TotalUsage - previousCPU)
 		// calculate the change for the entire system between readings
 		systemDelta = float64(v.CpuStats.SystemUsage - previousSystem)
 	)

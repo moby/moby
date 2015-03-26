@@ -74,12 +74,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	if len(psFilterArgs) > 0 {
-		filterJson, err := filters.ToParam(psFilterArgs)
+		filterJSON, err := filters.ToParam(psFilterArgs)
 		if err != nil {
 			return err
 		}
 
-		v.Set("filters", filterJson)
+		v.Set("filters", filterJSON)
 	}
 
 	body, _, err := readBody(cli.call("GET", "/containers/json?"+v.Encode(), nil, false))

@@ -110,14 +110,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		defer signal.StopCatch(sigc)
 	}
 	var (
-		waitDisplayId chan struct{}
+		waitDisplayID chan struct{}
 		errCh         chan error
 	)
 	if !config.AttachStdout && !config.AttachStderr {
 		// Make this asynchronous to allow the client to write to stdin before having to read the ID
-		waitDisplayId = make(chan struct{})
+		waitDisplayID = make(chan struct{})
 		go func() {
-			defer close(waitDisplayId)
+			defer close(waitDisplayID)
 			fmt.Fprintf(cli.out, "%s\n", createResponse.ID)
 		}()
 	}
@@ -207,7 +207,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// Detached mode: wait for the id to be displayed and return.
 	if !config.AttachStdout && !config.AttachStderr {
 		// Detached mode
-		<-waitDisplayId
+		<-waitDisplayID
 		return nil
 	}
 
