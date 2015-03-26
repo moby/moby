@@ -448,7 +448,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
-	if out != "<no value>" {
+	if out != "[]" {
 		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 

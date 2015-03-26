@@ -644,7 +644,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if cmd != "[/bin/sh -c touch /test]" {
+	if cmd != "{[/bin/sh -c touch /test]}" {
 		c.Fatalf("got wrong Cmd from commit: %q", cmd)
 	}
 	// sanity check, make sure the image is what we think it is

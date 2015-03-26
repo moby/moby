@@ -75,6 +75,23 @@ type Image struct {
 	Labels      map[string]string
 }
 
+// GET "/images/{name:.*}/json"
+type ImageInspect struct {
+	Id              string
+	Parent          string
+	Comment         string
+	Created         time.Time
+	Container       string
+	ContainerConfig *runconfig.Config
+	DockerVersion   string
+	Author          string
+	Config          *runconfig.Config
+	Architecture    string
+	Os              string
+	Size            int64
+	VirtualSize     int64
+}
+
 type LegacyImage struct {
 	ID          string `json:"Id"`
 	Repository  string
