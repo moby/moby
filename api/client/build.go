@@ -58,6 +58,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCpuQuota := cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) quota")
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
+	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
@@ -276,6 +277,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("cpuquota", strconv.FormatInt(*flCpuQuota, 10))
 	v.Set("memory", strconv.FormatInt(memory, 10))
 	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
+	v.Set("cgroupparent", *flCgroupParent)
 
 	v.Set("dockerfile", *dockerfileName)
 

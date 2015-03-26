@@ -1346,6 +1346,7 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 	buildConfig.CpuQuota = int64Value(r, "cpuquota")
 	buildConfig.CpuSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CpuSetMems = r.FormValue("cpusetmems")
+	buildConfig.CgroupParent = r.FormValue("cgroupparent")
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
