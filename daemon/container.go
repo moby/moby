@@ -253,6 +253,7 @@ func (container *Container) Start() (err error) {
 			container.toDisk()
 			container.cleanup()
 			container.LogEvent("die")
+			container.LogEvent("exit")
 		}
 	}()
 
