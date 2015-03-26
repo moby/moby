@@ -46,7 +46,7 @@ target="_blank">docker/docker repository</a>.
     that instead. You'll need to convert what you see in the guide to what is
     appropriate to your tool.
 
-5. Open a terminal window on your local host and change to your home directory.
+5. Open a terminal window on your local host and change to your home directory. In Windows, you'll work in your Boot2Docker window instead of Powershell or cmd.
 
         $ cd ~
 
