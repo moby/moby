@@ -69,7 +69,7 @@ Follow this workflow as you work:
             For example, if you edited the `docker.go` file you would format the file
             like this:
             </p>
-            <p><code>$ gofmt -s -w file.go</code></p>
+            <p><code>$ gofmt -s -w docker.go</code></p>
             <p>
             Most file editors have a plugin to format for you. Check your editor's
             documentation.
