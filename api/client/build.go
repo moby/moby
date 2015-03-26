@@ -22,9 +22,11 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
@@ -198,7 +200,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// Setup an upload progress bar
 	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
-		sf := utils.NewStreamFormatter(false)
+		sf := streamformatter.NewStreamFormatter(false)
 		body = progressreader.New(progressreader.Config{
 			In:        context,
 			Out:       cli.out,
@@ -291,7 +293,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		headers.Set("Content-Type", "application/tar")
 	}
 	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
-	if jerr, ok := err.(*utils.JSONError); ok {
+	if jerr, ok := err.(*jsonmessage.JSONError); ok {
 		// If no error code is set, default to 1
 		if jerr.Code == 0 {
 			jerr.Code = 1

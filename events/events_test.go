@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 func TestEventsPublish(t *testing.T) {
 	e := New()
-	l1 := make(chan *utils.JSONMessage)
-	l2 := make(chan *utils.JSONMessage)
+	l1 := make(chan *jsonmessage.JSONMessage)
+	l2 := make(chan *jsonmessage.JSONMessage)
 	e.subscribe(l1)
 	e.subscribe(l2)
 	count := e.subscribersCount()
@@ -61,7 +61,7 @@ func TestEventsPublish(t *testing.T) {
 
 func TestEventsPublishTimeout(t *testing.T) {
 	e := New()
-	l := make(chan *utils.JSONMessage)
+	l := make(chan *jsonmessage.JSONMessage)
 	e.subscribe(l)
 
 	c := make(chan struct{})
@@ -108,9 +108,9 @@ func TestLogEvents(t *testing.T) {
 	}
 	buf = bytes.NewBuffer(buf.Bytes())
 	dec := json.NewDecoder(buf)
-	var msgs []utils.JSONMessage
+	var msgs []jsonmessage.JSONMessage
 	for {
-		var jm utils.JSONMessage
+		var jm jsonmessage.JSONMessage
 		if err := dec.Decode(&jm); err != nil {
 			if err == io.EOF {
 				break
@@ -138,8 +138,8 @@ func TestEventsCountJob(t *testing.T) {
 	if err := e.Install(eng); err != nil {
 		t.Fatal(err)
 	}
-	l1 := make(chan *utils.JSONMessage)
-	l2 := make(chan *utils.JSONMessage)
+	l1 := make(chan *jsonmessage.JSONMessage)
+	l2 := make(chan *jsonmessage.JSONMessage)
 	e.subscribe(l1)
 	e.subscribe(l2)
 	job := eng.Job("subscribers_count")

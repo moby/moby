@@ -1,9 +1,9 @@
-package utils
+package streamformatter
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"io"
 )
 
@@ -21,7 +21,7 @@ var streamNewlineBytes = []byte(streamNewline)
 
 func (sf *StreamFormatter) FormatStream(str string) []byte {
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{Stream: str})
+		b, err := json.Marshal(&jsonmessage.JSONMessage{Stream: str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -33,7 +33,7 @@ func (sf *StreamFormatter) FormatStream(str string) []byte {
 func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
-		b, err := json.Marshal(&JSONMessage{ID: id, Status: str})
+		b, err := json.Marshal(&jsonmessage.JSONMessage{ID: id, Status: str})
 		if err != nil {
 			return sf.FormatError(err)
 		}
@@ -44,33 +44,25 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	if sf.json {
-		jsonError, ok := err.(*JSONError)
+		jsonError, ok := err.(*jsonmessage.JSONError)
 		if !ok {
-			jsonError = &JSONError{Message: err.Error()}
+			jsonError = &jsonmessage.JSONError{Message: err.Error()}
 		}
-		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
+		if b, err := json.Marshal(&jsonmessage.JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
 			return append(b, streamNewlineBytes...)
 		}
 		return []byte("{\"error\":\"format error\"}" + streamNewline)
 	}
 	return []byte("Error: " + err.Error() + streamNewline)
 }
-func (sf *StreamFormatter) FormatProg(id, action string, p interface{}) []byte {
-	switch progress := p.(type) {
-	case *JSONProgress:
-		return sf.FormatProgress(id, action, progress)
-	case progressreader.PR_JSONProgress:
-		return sf.FormatProgress(id, action, &JSONProgress{Current: progress.GetCurrent(), Total: progress.GetTotal()})
-	}
-	return nil
-}
-func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgress) []byte {
+
+func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessage.JSONProgress) []byte {
 	if progress == nil {
-		progress = &JSONProgress{}
+		progress = &jsonmessage.JSONProgress{}
 	}
 	if sf.json {
 
-		b, err := json.Marshal(&JSONMessage{
+		b, err := json.Marshal(&jsonmessage.JSONMessage{
 			Status:          action,
 			ProgressMessage: progress.String(),
 			Progress:        progress,
