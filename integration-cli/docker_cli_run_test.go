@@ -147,6 +147,7 @@ func TestRunLeakyFileDescriptors(t *testing.T) {
 // it should be possible to lookup Google DNS
 // this will fail when Internet access is unavailable
 func TestRunLookupGoogleDns(t *testing.T) {
+	testRequires(t, Network)
 	defer deleteAllContainers()
 
 	out, _, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "run", "busybox", "nslookup", "google.com"))
