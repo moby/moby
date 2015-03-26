@@ -241,8 +241,6 @@ func StdStreams() (stdIn io.ReadCloser, stdOut io.Writer, stdErr io.Writer) {
 		}
 		handler.screenBufferInfo = screenBufferInfo
 
-		// Set the window size
-		SetWindowSize(stdoutHandle, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_HEIGHT)
 		buffer = make([]CHAR_INFO, screenBufferInfo.MaximumWindowSize.X*screenBufferInfo.MaximumWindowSize.Y)
 
 		stdOut = &terminalWriter{
@@ -279,6 +277,12 @@ func GetHandleInfo(in interface{}) (uintptr, bool) {
 	}
 	if tr, ok := in.(*terminalReader); ok {
 		if file, ok := tr.wrappedReader.(*os.File); ok {
+			inFd = file.Fd()
+			isTerminalIn = IsTerminal(inFd)
+		}
+	}
+	if tr, ok := in.(*terminalWriter); ok {
+		if file, ok := tr.wrappedWriter.(*os.File); ok {
 			inFd = file.Fd()
 			isTerminalIn = IsTerminal(inFd)
 		}
