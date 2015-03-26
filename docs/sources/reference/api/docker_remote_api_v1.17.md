@@ -138,7 +138,6 @@ Create a container
              "ExposedPorts": {
                      "22/tcp": {}
              },
-             "SecurityOpts": [""],
              "HostConfig": {
                "Binds": ["/tmp:/tmp"],
                "Links": ["redis3:redis"],
@@ -156,6 +155,7 @@ Create a container
                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
                "NetworkMode": "bridge",
                "Devices": []
+               "SecurityOpt": [""],
             }
         }
 
@@ -201,8 +201,6 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
--   **SecurityOpts**: A list of string values to customize labels for MLS
-      systems, such as SELinux.
 -   **HostConfig**
   -   **Binds** – A list of volume bindings for this container.  Each volume
           binding is a string of the form `container_path` (to create a new
@@ -244,6 +242,8 @@ Json Parameters:
   -   **Devices** - A list of devices to add to the container specified in the
         form
         `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
+  -   **SecurityOpt**: A list of string values to customize labels for MLS
+        systems, such as SELinux.
 
 Query Parameters:
 
