@@ -37,7 +37,9 @@ rm bin/init
 ln bin/busybox bin/init
 cp -P /lib/x86_64-linux-gnu/lib{pthread*,c*(-*),dl*(-*),nsl*(-*),nss_*,util*(-*),wrap,z}.so* lib
 cp /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 lib
-cp -P /usr/lib/x86_64-linux-gnu/lib{crypto,ssl}.so* lib
+cp /lib/x86_64-linux-gnu/libreadline.so* lib
+cp /lib/x86_64-linux-gnu/libtinfo.so* lib
+cp /usr/lib/x86_64-linux-gnu/lib{crypto,ssl}.so* lib
 for X in console null ptmx random stdin stdout stderr tty urandom zero
 do
     cp -a /dev/$X dev
