@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/stringid"
@@ -337,7 +337,7 @@ func TestAttachDisconnect(t *testing.T) {
 	go func() {
 		// Start a process in daemon mode
 		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			log.Debugf("Error CmdRun: %s", err)
+			logrus.Debugf("Error CmdRun: %s", err)
 		}
 	}()
 

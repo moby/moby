@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 )
 
@@ -99,10 +99,10 @@ func FilterResolvDns(resolvConf []byte, ipv6Enabled bool) ([]byte, bool) {
 	// if the resulting resolvConf has no more nameservers defined, add appropriate
 	// default DNS servers for IPv4 and (optionally) IPv6
 	if len(GetNameservers(cleanedResolvConf)) == 0 {
-		log.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers : %v", defaultIPv4Dns)
+		logrus.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers : %v", defaultIPv4Dns)
 		dns := defaultIPv4Dns
 		if ipv6Enabled {
-			log.Infof("IPv6 enabled; Adding default IPv6 external servers : %v", defaultIPv6Dns)
+			logrus.Infof("IPv6 enabled; Adding default IPv6 external servers : %v", defaultIPv6Dns)
 			dns = append(dns, defaultIPv6Dns...)
 		}
 		cleanedResolvConf = append(cleanedResolvConf, []byte("\n"+strings.Join(dns, "\n"))...)

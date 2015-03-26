@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -89,7 +89,7 @@ func (m *containerMonitor) Close() error {
 	// because they share same runconfig and change image. Must be fixed
 	// in builder/builder.go
 	if err := m.container.toDisk(); err != nil {
-		log.Errorf("Error dumping container %s state to disk: %s", m.container.ID, err)
+		logrus.Errorf("Error dumping container %s state to disk: %s", m.container.ID, err)
 
 		return err
 	}
@@ -145,7 +145,7 @@ func (m *containerMonitor) Start() error {
 				return err
 			}
 
-			log.Errorf("Error running container: %s", err)
+			logrus.Errorf("Error running container: %s", err)
 		}
 
 		// here container.Lock is already lost
@@ -229,7 +229,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 	case "on-failure":
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
 		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount > max {
-			log.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",
+			logrus.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",
 				stringid.TruncateID(m.container.ID), max)
 			return false
 		}
@@ -263,7 +263,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 	}
 
 	if err := m.container.ToDisk(); err != nil {
-		log.Debugf("%s", err)
+		logrus.Debugf("%s", err)
 	}
 }
 
@@ -279,21 +279,21 @@ func (m *containerMonitor) resetContainer(lock bool) {
 
 	if container.Config.OpenStdin {
 		if err := container.stdin.Close(); err != nil {
-			log.Errorf("%s: Error close stdin: %s", container.ID, err)
+			logrus.Errorf("%s: Error close stdin: %s", container.ID, err)
 		}
 	}
 
 	if err := container.stdout.Clean(); err != nil {
-		log.Errorf("%s: Error close stdout: %s", container.ID, err)
+		logrus.Errorf("%s: Error close stdout: %s", container.ID, err)
 	}
 
 	if err := container.stderr.Clean(); err != nil {
-		log.Errorf("%s: Error close stderr: %s", container.ID, err)
+		logrus.Errorf("%s: Error close stderr: %s", container.ID, err)
 	}
 
 	if container.command != nil && container.command.ProcessConfig.Terminal != nil {
 		if err := container.command.ProcessConfig.Terminal.Close(); err != nil {
-			log.Errorf("%s: Error closing terminal: %s", container.ID, err)
+			logrus.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
 
@@ -311,7 +311,7 @@ func (m *containerMonitor) resetContainer(lock bool) {
 			}()
 			select {
 			case <-time.After(1 * time.Second):
-				log.Warnf("Logger didn't exit in time: logs may be truncated")
+				logrus.Warnf("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}
 		}

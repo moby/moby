@@ -24,7 +24,7 @@ import (
 	"github.com/docker/libcontainer/user"
 	"github.com/gorilla/mux"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
@@ -135,7 +135,7 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		log.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
+		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
 		http.Error(w, err.Error(), statusCode)
 	}
 }
@@ -517,7 +517,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	}
 
 	if err := config.Decode(r.Body); err != nil {
-		log.Errorf("%s", err)
+		logrus.Errorf("%s", err)
 	}
 
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
@@ -987,7 +987,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 		job.Stdout.Add(ws)
 		job.Stderr.Set(ws)
 		if err := job.Run(); err != nil {
-			log.Errorf("Error attaching websocket: %s", err)
+			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
 	h.ServeHTTP(w, r)
@@ -1101,7 +1101,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 			select {
 			case <-finished:
 			case <-closeNotifier.CloseNotify():
-				log.Infof("Client disconnected, cancelling job: %s", job.Name)
+				logrus.Infof("Client disconnected, cancelling job: %s", job.Name)
 				job.Cancel()
 			}
 		}()
@@ -1146,7 +1146,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	job.Stdout.Add(w)
 	w.Header().Set("Content-Type", "application/x-tar")
 	if err := job.Run(); err != nil {
-		log.Errorf("%v", err)
+		logrus.Errorf("%v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
 		} else if strings.Contains(err.Error(), "no such file or directory") {
@@ -1262,7 +1262,7 @@ func optionsHandler(eng *engine.Engine, version version.Version, w http.Response
 	return nil
 }
 func writeCorsHeaders(w http.ResponseWriter, r *http.Request, corsHeaders string) {
-	log.Debugf("CORS header is enabled and set to: %s", corsHeaders)
+	logrus.Debugf("CORS header is enabled and set to: %s", corsHeaders)
 	w.Header().Add("Access-Control-Allow-Origin", corsHeaders)
 	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 	w.Header().Add("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS")
@@ -1276,16 +1276,16 @@ func ping(eng *engine.Engine, version version.Version, w http.ResponseWriter, r 
 func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, corsHeaders string, dockerVersion version.Version) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the request
-		log.Debugf("Calling %s %s", localMethod, localRoute)
+		logrus.Debugf("Calling %s %s", localMethod, localRoute)
 
 		if logging {
-			log.Infof("%s %s", r.Method, r.RequestURI)
+			logrus.Infof("%s %s", r.Method, r.RequestURI)
 		}
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				log.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
+				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
 		}
 		version := version.Version(mux.Vars(r)["version"])
@@ -1302,7 +1302,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 		}
 
 		if err := handlerFunc(eng, version, w, r, mux.Vars(r)); err != nil {
-			log.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
 			httpError(w, err)
 		}
 	}
@@ -1406,7 +1406,7 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, corsHeaders stri
 
 	for method, routes := range m {
 		for route, fct := range routes {
-			log.Debugf("Registering %s, %s", method, route)
+			logrus.Debugf("Registering %s, %s", method, route)
 			// NOTE: scope issue, make sure the variables are local and won't be changed
 			localRoute := route
 			localFct := fct
@@ -1454,7 +1454,7 @@ func lookupGidByName(nameOrGid string) (int, error) {
 	}
 	gid, err := strconv.Atoi(nameOrGid)
 	if err == nil {
-		log.Warnf("Could not find GID %d", gid)
+		logrus.Warnf("Could not find GID %d", gid)
 		return gid, nil
 	}
 	return -1, fmt.Errorf("Group %s not found", nameOrGid)
@@ -1504,7 +1504,7 @@ func changeGroup(addr string, nameOrGid string) error {
 		return err
 	}
 
-	log.Debugf("%s group found. gid: %d", nameOrGid, gid)
+	logrus.Debugf("%s group found. gid: %d", nameOrGid, gid)
 	return os.Chown(addr, 0, gid)
 }
 
@@ -1517,7 +1517,7 @@ func setSocketGroup(addr, group string) error {
 		if group != "docker" {
 			return err
 		}
-		log.Debugf("Warning: could not chgrp %s to docker: %v", addr, err)
+		logrus.Debugf("Warning: could not chgrp %s to docker: %v", addr, err)
 	}
 
 	return nil
@@ -1551,7 +1551,7 @@ func allocateDaemonPort(addr string) error {
 
 func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
 	if !job.GetenvBool("TlsVerify") {
-		log.Infof("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+		logrus.Infof("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
 
 	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
@@ -1601,7 +1601,7 @@ func ServeApi(job *engine.Job) error {
 			return fmt.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
 		}
 		go func() {
-			log.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
+			logrus.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
 			srv, err := NewServer(protoAddrParts[0], protoAddrParts[1], job)
 			if err != nil {
 				chErrors <- err
@@ -1609,7 +1609,7 @@ func ServeApi(job *engine.Job) error {
 			}
 			job.Eng.OnShutdown(func() {
 				if err := srv.Close(); err != nil {
-					log.Error(err)
+					logrus.Error(err)
 				}
 			})
 			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {

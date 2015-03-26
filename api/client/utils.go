@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
@@ -195,7 +195,7 @@ func (cli *DockerCli) streamBody(body io.ReadCloser, contentType string, setRawT
 		} else {
 			_, err = stdcopy.StdCopy(stdout, stderr, body)
 		}
-		log.Debugf("[stream] End of stdout")
+		logrus.Debugf("[stream] End of stdout")
 		return err
 	}
 	return nil
@@ -218,7 +218,7 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	}
 
 	if _, _, err := readBody(cli.call("POST", path+v.Encode(), nil, nil)); err != nil {
-		log.Debugf("Error resize: %s", err)
+		logrus.Debugf("Error resize: %s", err)
 	}
 }
 
@@ -295,7 +295,7 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	}
 	ws, err := term.GetWinsize(cli.outFd)
 	if err != nil {
-		log.Debugf("Error getting size: %s", err)
+		logrus.Debugf("Error getting size: %s", err)
 		if ws == nil {
 			return 0, 0
 		}

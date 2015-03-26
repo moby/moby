@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -87,7 +87,7 @@ func init() {
 
 	file, err := os.Open(portRangeKernelParam)
 	if err != nil {
-		log.Warnf("port allocator - %s due to error: %v", portRangeFallback, err)
+		logrus.Warnf("port allocator - %s due to error: %v", portRangeFallback, err)
 		return
 	}
 	var start, end int
@@ -96,7 +96,7 @@ func init() {
 		if err == nil {
 			err = fmt.Errorf("unexpected count of parsed numbers (%d)", n)
 		}
-		log.Errorf("port allocator - failed to parse system ephemeral port range from %s - %s: %v", portRangeKernelParam, portRangeFallback, err)
+		logrus.Errorf("port allocator - failed to parse system ephemeral port range from %s - %s: %v", portRangeKernelParam, portRangeFallback, err)
 		return
 	}
 	beginPortRange = start

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer/cgroups"
 )
 
@@ -20,20 +20,20 @@ func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
 	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
-			log.Warnf("%s", err)
+			logrus.Warnf("%s", err)
 		}
 	} else {
 		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
 		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
 		sysInfo.MemoryLimit = err1 == nil && err2 == nil
 		if !sysInfo.MemoryLimit && !quiet {
-			log.Warnf("Your kernel does not support cgroup memory limit.")
+			logrus.Warnf("Your kernel does not support cgroup memory limit.")
 		}
 
 		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
 		sysInfo.SwapLimit = err == nil
 		if !sysInfo.SwapLimit && !quiet {
-			log.Warnf("Your kernel does not support cgroup swap limit.")
+			logrus.Warnf("Your kernel does not support cgroup swap limit.")
 		}
 	}
 

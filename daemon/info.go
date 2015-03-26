@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -33,7 +33,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 		operatingSystem = s
 	}
 	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
-		log.Errorf("Could not determine if daemon is containerized: %v", err)
+		logrus.Errorf("Could not determine if daemon is containerized: %v", err)
 		operatingSystem += " (error determining if containerized)"
 	} else if inContainer {
 		operatingSystem += " (containerized)"
@@ -41,7 +41,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 
 	meminfo, err := system.ReadMemInfo()
 	if err != nil {
-		log.Errorf("Could not read system memory info: %v", err)
+		logrus.Errorf("Could not read system memory info: %v", err)
 	}
 
 	// if we still have the original dockerinit binary from before we copied it locally, let's return the path to that, since that's more intuitive (the copied path is trivial to derive by hand given VERSION)

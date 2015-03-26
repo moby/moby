@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -157,7 +157,7 @@ func DockerInitPath(localCopy string) string {
 
 func GetTotalUsedFds() int {
 	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		log.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
+		logrus.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
 	} else {
 		return len(fds)
 	}

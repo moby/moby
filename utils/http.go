@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // VersionInfo is used to model entities which has a version.
@@ -163,6 +163,6 @@ func (h *HTTPRequestFactory) NewRequest(method, urlStr string, body io.Reader, d
 			return nil, err
 		}
 	}
-	log.Debugf("%v -- HEADERS: %v", req.URL, req.Header)
+	logrus.Debugf("%v -- HEADERS: %v", req.URL, req.Header)
 	return req, err
 }

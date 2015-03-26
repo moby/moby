@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/promise"
@@ -30,10 +30,10 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				log.Errorf("Unsupported signal: %v. Discarding.", s)
+				logrus.Errorf("Unsupported signal: %v. Discarding.", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, nil)); err != nil {
-				log.Debugf("Error sending signal: %s", err)
+				logrus.Debugf("Error sending signal: %s", err)
 			}
 		}
 	}()
@@ -94,9 +94,9 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		hijacked := make(chan io.Closer)
 		// Block the return until the chan gets closed
 		defer func() {
-			log.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
+			logrus.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
 			if _, ok := <-hijacked; ok {
-				log.Errorf("Hijack did not finish (chan still open)")
+				logrus.Errorf("Hijack did not finish (chan still open)")
 			}
 			cli.in.Close()
 		}()
@@ -145,7 +145,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	if *openStdin || *attach {
 		if tty && cli.isTerminalOut {
 			if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
-				log.Errorf("Error monitoring TTY size: %s", err)
+				logrus.Errorf("Error monitoring TTY size: %s", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {

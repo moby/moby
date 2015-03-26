@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/utils"
@@ -54,7 +54,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 			return nil, err
 		}
 		if info.Standalone {
-			log.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", r.indexEndpoint.String())
+			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", r.indexEndpoint.String())
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}
@@ -93,7 +93,7 @@ func (r *Session) GetRemoteHistory(imgID, registry string, token []string) ([]st
 		return nil, fmt.Errorf("Error while reading the http response: %s", err)
 	}
 
-	log.Debugf("Ancestry: %s", jsonString)
+	logrus.Debugf("Ancestry: %s", jsonString)
 	history := new([]string)
 	if err := json.Unmarshal(jsonString, history); err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 		statusCode = 0
 		res, client, err = r.doRequest(req)
 		if err != nil {
-			log.Debugf("Error contacting registry: %s", err)
+			logrus.Debugf("Error contacting registry: %s", err)
 			if res != nil {
 				if res.Body != nil {
 					res.Body.Close()
@@ -193,10 +193,10 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, token []string, im
 	}
 
 	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
-		log.Debugf("server supports resume")
+		logrus.Debugf("server supports resume")
 		return httputils.ResumableRequestReaderWithInitialResponse(client, req, 5, imgSize, res), nil
 	}
-	log.Debugf("server doesn't support resume")
+	logrus.Debugf("server doesn't support resume")
 	return res.Body, nil
 }
 
@@ -219,7 +219,7 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 			return nil, err
 		}
 
-		log.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
+		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		defer res.Body.Close()
 
 		if res.StatusCode != 200 && res.StatusCode != 404 {
@@ -259,7 +259,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), remote)
 
-	log.Debugf("[registry] Calling GET %s", repositoryTarget)
+	logrus.Debugf("[registry] Calling GET %s", repositoryTarget)
 
 	req, err := r.reqFactory.NewRequest("GET", repositoryTarget, nil)
 	if err != nil {
@@ -285,7 +285,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	} else if res.StatusCode != 200 {
 		errBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			log.Debugf("Error reading response body: %s", err)
+			logrus.Debugf("Error reading response body: %s", err)
 		}
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, remote, errBody), res)
 	}
@@ -326,7 +326,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 
 func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, token []string) error {
 
-	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/checksum")
+	logrus.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/checksum")
 
 	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgData.ID+"/checksum", nil)
 	if err != nil {
@@ -363,7 +363,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, t
 // Push a local image to the registry
 func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, registry string, token []string) error {
 
-	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/json")
+	logrus.Debugf("[registry] Calling PUT %s", registry+"images/"+imgData.ID+"/json")
 
 	req, err := r.reqFactory.NewRequest("PUT", registry+"images/"+imgData.ID+"/json", bytes.NewReader(jsonRaw))
 	if err != nil {
@@ -398,7 +398,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 
 func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, token []string, jsonRaw []byte) (checksum string, checksumPayload string, err error) {
 
-	log.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
+	logrus.Debugf("[registry] Calling PUT %s", registry+"images/"+imgID+"/layer")
 
 	tarsumLayer, err := tarsum.NewTarSum(layer, false, tarsum.Version0)
 	if err != nil {
@@ -486,8 +486,8 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		suffix = "images"
 	}
 	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote, suffix)
-	log.Debugf("[registry] PUT %s", u)
-	log.Debugf("Image list pushed to index:\n%s", imgListJSON)
+	logrus.Debugf("[registry] PUT %s", u)
+	logrus.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	headers := map[string][]string{
 		"Content-type":   {"application/json"},
 		"X-Docker-Token": {"true"},
@@ -507,7 +507,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		}
 		res.Body.Close()
 		u = res.Header.Get("Location")
-		log.Debugf("Redirected to %s", u)
+		logrus.Debugf("Redirected to %s", u)
 	}
 	defer res.Body.Close()
 
@@ -520,13 +520,13 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		if res.StatusCode != 200 && res.StatusCode != 201 {
 			errBody, err := ioutil.ReadAll(res.Body)
 			if err != nil {
-				log.Debugf("Error reading response body: %s", err)
+				logrus.Debugf("Error reading response body: %s", err)
 			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote, errBody), res)
 		}
 		if res.Header.Get("X-Docker-Token") != "" {
 			tokens = res.Header["X-Docker-Token"]
-			log.Debugf("Auth token: %v", tokens)
+			logrus.Debugf("Auth token: %v", tokens)
 		} else {
 			return nil, fmt.Errorf("Index response didn't contain an access token")
 		}
@@ -544,7 +544,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		if res.StatusCode != 204 {
 			errBody, err := ioutil.ReadAll(res.Body)
 			if err != nil {
-				log.Debugf("Error reading response body: %s", err)
+				logrus.Debugf("Error reading response body: %s", err)
 			}
 			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, remote, errBody), res)
 		}
@@ -578,7 +578,7 @@ func shouldRedirect(response *http.Response) bool {
 }
 
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
-	log.Debugf("Index server: %s", r.indexEndpoint)
+	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
 	req, err := r.reqFactory.NewRequest("GET", u, nil)
 	if err != nil {

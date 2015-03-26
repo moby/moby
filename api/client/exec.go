@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
@@ -67,9 +67,9 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 
 	// Block the return until the chan gets closed
 	defer func() {
-		log.Debugf("End of CmdExec(), Waiting for hijack to finish.")
+		logrus.Debugf("End of CmdExec(), Waiting for hijack to finish.")
 		if _, ok := <-hijacked; ok {
-			log.Errorf("Hijack did not finish (chan still open)")
+			logrus.Errorf("Hijack did not finish (chan still open)")
 		}
 	}()
 
@@ -100,19 +100,19 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		}
 	case err := <-errCh:
 		if err != nil {
-			log.Debugf("Error hijack: %s", err)
+			logrus.Debugf("Error hijack: %s", err)
 			return err
 		}
 	}
 
 	if execConfig.Tty && cli.isTerminalIn {
 		if err := cli.monitorTtySize(execID, true); err != nil {
-			log.Errorf("Error monitoring TTY size: %s", err)
+			logrus.Errorf("Error monitoring TTY size: %s", err)
 		}
 	}
 
 	if err := <-errCh; err != nil {
-		log.Debugf("Error hijack: %s", err)
+		logrus.Debugf("Error hijack: %s", err)
 		return err
 	}
 

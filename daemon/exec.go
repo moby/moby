@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/engine"
@@ -188,7 +188,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) error {
 		return err
 	}
 
-	log.Debugf("starting exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
+	logrus.Debugf("starting exec command %s in container %s", execConfig.ID, execConfig.Container.ID)
 	container := execConfig.Container
 
 	container.LogEvent("exec_start: " + execConfig.ProcessConfig.Entrypoint + " " + strings.Join(execConfig.ProcessConfig.Arguments, " "))
@@ -197,7 +197,7 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) error {
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
-			defer log.Debugf("Closing buffered stdin pipe")
+			defer logrus.Debugf("Closing buffered stdin pipe")
 			io.Copy(w, job.Stdin)
 		}()
 		cStdin = r
@@ -305,24 +305,24 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 	pipes := execdriver.NewPipes(execConfig.StreamConfig.stdin, execConfig.StreamConfig.stdout, execConfig.StreamConfig.stderr, execConfig.OpenStdin)
 	exitCode, err = container.daemon.Exec(container, execConfig, pipes, callback)
 	if err != nil {
-		log.Errorf("Error running command in existing container %s: %s", container.ID, err)
+		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
 
-	log.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
+	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
 	if execConfig.OpenStdin {
 		if err := execConfig.StreamConfig.stdin.Close(); err != nil {
-			log.Errorf("Error closing stdin while running in %s: %s", container.ID, err)
+			logrus.Errorf("Error closing stdin while running in %s: %s", container.ID, err)
 		}
 	}
 	if err := execConfig.StreamConfig.stdout.Clean(); err != nil {
-		log.Errorf("Error closing stdout while running in %s: %s", container.ID, err)
+		logrus.Errorf("Error closing stdout while running in %s: %s", container.ID, err)
 	}
 	if err := execConfig.StreamConfig.stderr.Clean(); err != nil {
-		log.Errorf("Error closing stderr while running in %s: %s", container.ID, err)
+		logrus.Errorf("Error closing stderr while running in %s: %s", container.ID, err)
 	}
 	if execConfig.ProcessConfig.Terminal != nil {
 		if err := execConfig.ProcessConfig.Terminal.Close(); err != nil {
-			log.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
+			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
 		}
 	}
 

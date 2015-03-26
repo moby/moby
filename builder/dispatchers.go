@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
@@ -264,7 +264,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
 
-	log.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
+	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
 
 	hit, err := b.probeCache()
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -82,33 +82,33 @@ func (s *TagStore) CmdLoad(job *engine.Job) error {
 
 func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {
 	if err := eng.Job("image_get", address).Run(); err != nil {
-		log.Debugf("Loading %s", address)
+		logrus.Debugf("Loading %s", address)
 
 		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
-			log.Debugf("Error reading json", err)
+			logrus.Debugf("Error reading json", err)
 			return err
 		}
 
 		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
 		if err != nil {
-			log.Debugf("Error reading embedded tar", err)
+			logrus.Debugf("Error reading embedded tar", err)
 			return err
 		}
 		img, err := image.NewImgJSON(imageJson)
 		if err != nil {
-			log.Debugf("Error unmarshalling json", err)
+			logrus.Debugf("Error unmarshalling json", err)
 			return err
 		}
 		if err := utils.ValidateID(img.ID); err != nil {
-			log.Debugf("Error validating ID: %s", err)
+			logrus.Debugf("Error validating ID: %s", err)
 			return err
 		}
 
 		// ensure no two downloads of the same layer happen at the same time
 		if c, err := s.poolAdd("pull", "layer:"+img.ID); err != nil {
 			if c != nil {
-				log.Debugf("Image (id: %s) load is already running, waiting: %v", img.ID, err)
+				logrus.Debugf("Image (id: %s) load is already running, waiting: %v", img.ID, err)
 				<-c
 				return nil
 			}
@@ -129,7 +129,7 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 			return err
 		}
 	}
-	log.Debugf("Completed processing %s", address)
+	logrus.Debugf("Completed processing %s", address)
 
 	return nil
 }

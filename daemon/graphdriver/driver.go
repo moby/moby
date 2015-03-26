@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -184,6 +184,6 @@ func checkPriorDriver(name, root string) {
 		}
 	}
 	if len(priorDrivers) > 0 {
-		log.Warnf("Graphdriver %s selected. Your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
+		logrus.Warnf("Graphdriver %s selected. Your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
 	}
 }

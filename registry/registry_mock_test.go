@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/gorilla/mux"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 var (
@@ -134,7 +134,7 @@ func init() {
 
 func handlerAccessLog(handler http.Handler) http.Handler {
 	logHandler := func(w http.ResponseWriter, r *http.Request) {
-		log.Debugf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
+		logrus.Debugf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
 		handler.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(logHandler)
@@ -467,7 +467,7 @@ func TestPing(t *testing.T) {
  * WARNING: Don't push on the repos uncommented, it'll block the tests
  *
 func TestWait(t *testing.T) {
-	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
+	logrus.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
 	c := make(chan int)
 	<-c
 }

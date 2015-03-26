@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
@@ -193,7 +193,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
 		}
 	}
-	log.Debugf("lxc params %s", params)
+	logrus.Debugf("lxc params %s", params)
 	var (
 		name = params[0]
 		arg  = params[1:]
@@ -263,7 +263,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ContainerPid = pid
 
 	if startCallback != nil {
-		log.Debugf("Invoking startCallback")
+		logrus.Debugf("Invoking startCallback")
 		startCallback(&c.ProcessConfig, pid)
 	}
 
@@ -274,9 +274,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	if err == nil {
 		_, oomKill = <-oomKillNotification
-		log.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
+		logrus.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
 	} else {
-		log.Warnf("Your kernel does not support OOM notifications: %s", err)
+		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 
 	// check oom error
@@ -351,11 +351,11 @@ func cgroupPaths(containerId string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("subsystems: %s", subsystems)
+	logrus.Debugf("subsystems: %s", subsystems)
 	paths := make(map[string]string)
 	for _, subsystem := range subsystems {
 		cgroupRoot, cgroupDir, err := findCgroupRootAndDir(subsystem)
-		log.Debugf("cgroup path %s %s", cgroupRoot, cgroupDir)
+		logrus.Debugf("cgroup path %s %s", cgroupRoot, cgroupDir)
 		if err != nil {
 			//unsupported subystem
 			continue
@@ -576,7 +576,7 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		log.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		logrus.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
 		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {
