@@ -4,8 +4,8 @@ import "testing"
 
 func TestParseValid(t *testing.T) {
 	u1 := &Ulimit{"nofile", 1024, 512}
-	if u2, _ := Parse("nofile=512:1024"); u1 == u2 {
-		t.Fatalf("expected %s, but got %s", u1.String(), u2.String())
+	if u2, _ := Parse("nofile=512:1024"); *u1 != *u2 {
+		t.Fatalf("expected %q, but got %q", u1, u2)
 	}
 }
 
