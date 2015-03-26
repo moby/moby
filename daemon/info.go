@@ -89,14 +89,14 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 	v.SetInt("NCPU", runtime.NumCPU())
 	v.SetInt64("MemTotal", meminfo.MemTotal)
 	v.Set("DockerRootDir", daemon.Config().Root)
-	if http_proxy := os.Getenv("http_proxy"); http_proxy != "" {
-		v.Set("HttpProxy", http_proxy)
+	if httpProxy := os.Getenv("http_proxy"); httpProxy != "" {
+		v.Set("HttpProxy", httpProxy)
 	}
-	if https_proxy := os.Getenv("https_proxy"); https_proxy != "" {
-		v.Set("HttpsProxy", https_proxy)
+	if httpsProxy := os.Getenv("https_proxy"); httpsProxy != "" {
+		v.Set("HttpsProxy", httpsProxy)
 	}
-	if no_proxy := os.Getenv("no_proxy"); no_proxy != "" {
-		v.Set("NoProxy", no_proxy)
+	if noProxy := os.Getenv("no_proxy"); noProxy != "" {
+		v.Set("NoProxy", noProxy)
 	}
 
 	if hostname, err := os.Hostname(); err == nil {

@@ -941,11 +941,11 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 
 	// it's a flag. does it have an argument?
 	f.args = f.args[1:]
-	has_value := false
+	hasValue := false
 	value := ""
 	if i := strings.Index(name, "="); i != -1 {
 		value = trimQuotes(name[i+1:])
-		has_value = true
+		hasValue = true
 		name = name[:i]
 	}
 
@@ -962,7 +962,7 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		return false, name, ErrRetry
 	}
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
-		if has_value {
+		if hasValue {
 			if err := fv.Set(value); err != nil {
 				return false, "", f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
 			}
@@ -971,12 +971,12 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && len(f.args) > 0 {
+		if !hasValue && len(f.args) > 0 {
 			// value is the next arg
-			has_value = true
+			hasValue = true
 			value, f.args = f.args[0], f.args[1:]
 		}
-		if !has_value {
+		if !hasValue {
 			return false, "", f.failf("flag needs an argument: -%s", name)
 		}
 		if err := flag.Value.Set(value); err != nil {

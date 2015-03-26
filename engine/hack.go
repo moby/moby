@@ -2,7 +2,7 @@ package engine
 
 type Hack map[string]interface{}
 
-func (eng *Engine) Hack_GetGlobalVar(key string) interface{} {
+func (eng *Engine) HackGetGlobalVar(key string) interface{} {
 	if eng.hack == nil {
 		return nil
 	}
@@ -13,7 +13,7 @@ func (eng *Engine) Hack_GetGlobalVar(key string) interface{} {
 	return val
 }
 
-func (eng *Engine) Hack_SetGlobalVar(key string, val interface{}) {
+func (eng *Engine) HackSetGlobalVar(key string, val interface{}) {
 	if eng.hack == nil {
 		eng.hack = make(Hack)
 	}

@@ -152,7 +152,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 
 	errors := make(chan error)
 
-	layers_downloaded := false
+	layersDownloaded := false
 	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
@@ -189,29 +189,29 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 			out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, repoInfo.CanonicalName), nil))
 			success := false
 			var lastErr, err error
-			var is_downloaded bool
+			var isDownloaded bool
 			for _, ep := range repoInfo.Index.Mirrors {
 				out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, mirror: %s", img.Tag, repoInfo.CanonicalName, ep), nil))
-				if is_downloaded, err = s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
+				if isDownloaded, err = s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 					// Don't report errors when pulling from mirrors.
 					log.Debugf("Error pulling image (%s) from %s, mirror: %s, %s", img.Tag, repoInfo.CanonicalName, ep, err)
 					continue
 				}
-				layers_downloaded = layers_downloaded || is_downloaded
+				layersDownloaded = layersDownloaded || isDownloaded
 				success = true
 				break
 			}
 			if !success {
 				for _, ep := range repoData.Endpoints {
 					out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, repoInfo.CanonicalName, ep), nil))
-					if is_downloaded, err = s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
+					if isDownloaded, err = s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 						// It's not ideal that only the last error is returned, it would be better to concatenate the errors.
 						// As the error is also given to the output stream the user will see the error.
 						lastErr = err
 						out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Error pulling image (%s) from %s, endpoint: %s, %s", img.Tag, repoInfo.CanonicalName, ep, err), nil))
 						continue
 					}
-					layers_downloaded = layers_downloaded || is_downloaded
+					layersDownloaded = layersDownloaded || isDownloaded
 					success = true
 					break
 				}
@@ -262,7 +262,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	if len(askedTag) > 0 {
 		requestedTag = utils.ImageReference(repoInfo.CanonicalName, askedTag)
 	}
-	WriteStatus(requestedTag, out, sf, layers_downloaded)
+	WriteStatus(requestedTag, out, sf, layersDownloaded)
 	return nil
 }
 
@@ -275,7 +275,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
-	layers_downloaded := false
+	layersDownloaded := false
 	for i := len(history) - 1; i >= 0; i-- {
 		id := history[i]
 
@@ -299,16 +299,16 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
-					return layers_downloaded, err
+					return layersDownloaded, err
 				} else if err != nil {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
 				}
 				img, err = image.NewImgJSON(imgJSON)
-				layers_downloaded = true
+				layersDownloaded = true
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
-					return layers_downloaded, fmt.Errorf("Failed to parse json: %s", err)
+					return layersDownloaded, fmt.Errorf("Failed to parse json: %s", err)
 				} else if err != nil {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
@@ -333,9 +333,9 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					continue
 				} else if err != nil {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
-					return layers_downloaded, err
+					return layersDownloaded, err
 				}
-				layers_downloaded = true
+				layersDownloaded = true
 				defer layer.Close()
 
 				err = s.graph.Register(img,
@@ -353,7 +353,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					continue
 				} else if err != nil {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error downloading dependent layers", nil))
-					return layers_downloaded, err
+					return layersDownloaded, err
 				} else {
 					break
 				}
@@ -361,11 +361,11 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 		}
 		out.Write(sf.FormatProgress(stringid.TruncateID(id), "Download complete", nil))
 	}
-	return layers_downloaded, nil
+	return layersDownloaded, nil
 }
 
-func WriteStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layers_downloaded bool) {
-	if layers_downloaded {
+func WriteStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool) {
+	if layersDownloaded {
 		out.Write(sf.FormatStatus("", "Status: Downloaded newer image for %s", requestedTag))
 	} else {
 		out.Write(sf.FormatStatus("", "Status: Image is up to date for %s", requestedTag))

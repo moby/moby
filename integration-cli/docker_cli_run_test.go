@@ -2186,15 +2186,15 @@ func eqToBaseDiff(out string, t *testing.T) bool {
 	out1, _, err := runCommandWithOutput(cmd)
 	cID := stripTrailingCharacters(out1)
 	cmd = exec.Command(dockerBinary, "diff", cID)
-	base_diff, _, err := runCommandWithOutput(cmd)
+	baseDiff, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(err, base_diff)
+		t.Fatal(err, baseDiff)
 	}
-	base_arr := strings.Split(base_diff, "\n")
-	sort.Strings(base_arr)
-	out_arr := strings.Split(out, "\n")
-	sort.Strings(out_arr)
-	return sliceEq(base_arr, out_arr)
+	baseArr := strings.Split(baseDiff, "\n")
+	sort.Strings(baseArr)
+	outArr := strings.Split(out, "\n")
+	sort.Strings(outArr)
+	return sliceEq(baseArr, outArr)
 }
 
 func sliceEq(a, b []string) bool {

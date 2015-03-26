@@ -276,18 +276,18 @@ func TestGetEvents(t *testing.T) {
 		t.Fatal("handler was not called")
 	}
 	assertContentType(r, "application/json", t)
-	var stdout_json struct {
+	var stdoutJSON struct {
 		Since int
 		Until int
 	}
-	if err := json.Unmarshal(r.Body.Bytes(), &stdout_json); err != nil {
+	if err := json.Unmarshal(r.Body.Bytes(), &stdoutJSON); err != nil {
 		t.Fatal(err)
 	}
-	if stdout_json.Since != 1 {
-		t.Errorf("since != 1: %#v", stdout_json.Since)
+	if stdoutJSON.Since != 1 {
+		t.Errorf("since != 1: %#v", stdoutJSON.Since)
 	}
-	if stdout_json.Until != 0 {
-		t.Errorf("until != 0: %#v", stdout_json.Until)
+	if stdoutJSON.Until != 0 {
+		t.Errorf("until != 0: %#v", stdoutJSON.Until)
 	}
 }
 
@@ -509,8 +509,8 @@ func toJson(data interface{}, t *testing.T) io.Reader {
 	return &buf
 }
 
-func assertContentType(recorder *httptest.ResponseRecorder, content_type string, t *testing.T) {
-	if recorder.HeaderMap.Get("Content-Type") != content_type {
+func assertContentType(recorder *httptest.ResponseRecorder, contentType string, t *testing.T) {
+	if recorder.HeaderMap.Get("Content-Type") != contentType {
 		t.Fatalf("%#v\n", recorder)
 	}
 }

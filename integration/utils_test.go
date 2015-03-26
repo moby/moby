@@ -150,7 +150,7 @@ func getContainer(eng *engine.Engine, id string, t Fataler) *daemon.Container {
 }
 
 func mkDaemonFromEngine(eng *engine.Engine, t Fataler) *daemon.Daemon {
-	iDaemon := eng.Hack_GetGlobalVar("httpapi.daemon")
+	iDaemon := eng.HackGetGlobalVar("httpapi.daemon")
 	if iDaemon == nil {
 		panic("Legacy daemon field not set in engine")
 	}

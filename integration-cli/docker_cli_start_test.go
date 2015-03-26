@@ -158,9 +158,9 @@ func TestStartVolumesFromFailsCleanly(t *testing.T) {
 
 	// Check that we have the volumes we want
 	out, _, _ := dockerCmd(t, "inspect", "--format='{{ len .Volumes }}'", "consumer")
-	n_volumes := strings.Trim(out, " \r\n'")
-	if n_volumes != "2" {
-		t.Fatalf("Missing volumes: expected 2, got %s", n_volumes)
+	nVolumes := strings.Trim(out, " \r\n'")
+	if nVolumes != "2" {
+		t.Fatalf("Missing volumes: expected 2, got %s", nVolumes)
 	}
 
 	logDone("start - missing containers in --volumes-from did not affect subsequent runs")
