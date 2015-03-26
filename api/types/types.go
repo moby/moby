@@ -24,3 +24,9 @@ type AuthResponse struct {
 	// Status is the authentication status
 	Status string `json:"Status"`
 }
+
+// POST /auth
+type ContainerWaitResponse struct {
+	// StatusCode is the status code of the wait job
+	StatusCode int `json:"StatusCode"`
+}

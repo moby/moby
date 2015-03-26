@@ -877,7 +877,6 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 		return fmt.Errorf("Missing parameter")
 	}
 	var (
-		env          engine.Env
 		stdoutBuffer = bytes.NewBuffer(nil)
 		job          = eng.Job("wait", vars["name"])
 	)
@@ -885,9 +884,13 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 	if err := job.Run(); err != nil {
 		return err
 	}
-
-	env.Set("StatusCode", engine.Tail(stdoutBuffer, 1))
-	return writeJSONEnv(w, http.StatusOK, env)
+	statusCode, err := strconv.Atoi(engine.Tail(stdoutBuffer, 1))
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, &types.ContainerWaitResponse{
+		StatusCode: statusCode,
+	})
 }
 
 func postContainersResize(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
