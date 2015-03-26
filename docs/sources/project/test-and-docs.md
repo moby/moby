@@ -128,7 +128,7 @@ Run the entire test suite on your current repository:
 If you are working inside a Docker development container, you use the
 `hack/make.sh` script to run tests. The `hack/make.sh` script doesn't
 have a single target that runs all the tests. Instead, you provide a single
-commmand line with multiple targets that does the same thing.
+command line with multiple targets that does the same thing.
 
 Try this now.
 
