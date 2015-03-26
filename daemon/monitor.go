@@ -161,6 +161,9 @@ func (m *containerMonitor) Start() error {
 			if exitStatus.OOMKilled {
 				m.container.LogEvent("oom")
 			}
+			if !m.shouldStop {
+				m.container.LogEvent("exit")
+			}
 			m.container.LogEvent("die")
 			m.resetContainer(true)
 
@@ -177,6 +180,9 @@ func (m *containerMonitor) Start() error {
 		}
 		if exitStatus.OOMKilled {
 			m.container.LogEvent("oom")
+		}
+		if !m.shouldStop {
+			m.container.LogEvent("exit")
 		}
 		m.container.LogEvent("die")
 		m.resetContainer(true)
