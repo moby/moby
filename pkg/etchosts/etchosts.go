@@ -24,7 +24,7 @@ var defaultContent = []Record{
 	{Hosts: "ip6-localnet", IP: "fe00::0"},
 	{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
 	{Hosts: "ip6-allnodes", IP: "ff02::1"},
-	{Hosts: "ip6-allrouters", IP: "ff02::2"},
+	{Hosts: "ip6-allrouters", IP: "ff02::2"}
 }
 
 func Build(path, IP, hostname, domainname string, extraContent []Record) error {
