@@ -14,6 +14,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdPull pulls an image or a repository from the registry.
+//
+// Usage: docker pull [OPTIONS] IMAGENAME[:TAG|@DIGEST]
 func (cli *DockerCli) CmdPull(args ...string) error {
 	cmd := cli.Subcmd("pull", "NAME[:TAG|@DIGEST]", "Pull an image or a repository from the registry", true)
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")

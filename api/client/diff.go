@@ -9,6 +9,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdDiff shows changes on a container's filesystem.
+//
+// Each changed file is printed on a separate line, prefixed with a single character that indicates the status of the file: C (modified), A (added), or D (deleted).
+//
+// Usage: docker diff CONTAINER
 func (cli *DockerCli) CmdDiff(args ...string) error {
 	cmd := cli.Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem", true)
 	cmd.Require(flag.Exact, 1)

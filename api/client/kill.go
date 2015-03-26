@@ -7,7 +7,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// 'docker kill NAME' kills a running container
+// CmdKill kills one or more running container using SIGKILL or a specified signal.
+//
+// Usage: docker kill [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := cli.Subcmd("kill", "CONTAINER [CONTAINER...]", "Kill a running container using SIGKILL or a specified signal", true)
 	signal := cmd.String([]string{"s", "-signal"}, "KILL", "Signal to send to the container")

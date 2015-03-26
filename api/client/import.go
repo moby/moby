@@ -12,6 +12,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdImport creates an empty filesystem image, imports the contents of the tarball into the image, and optionally tags the image.
+//
+// The URL argument is the address of a tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) file. If the URL is '-', then the tar file is read from STDIN.
+//
+// Usage: docker import [OPTIONS] URL [REPOSITORY[:TAG]]
 func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
 	flChanges := opts.NewListOpts(nil)

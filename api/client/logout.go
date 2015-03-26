@@ -8,7 +8,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// 'docker logout': log out a user from a registry service.
+// CmdLogout logs a user out from a Docker registry.
+//
+// If no server is specified, the user will be logged out from the registry's index server.
+//
+// Usage: docker logout [SERVER]
 func (cli *DockerCli) CmdLogout(args ...string) error {
 	cmd := cli.Subcmd("logout", "[SERVER]", "Log out from a Docker registry, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
 	cmd.Require(flag.Max, 1)

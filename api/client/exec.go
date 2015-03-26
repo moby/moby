@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdExec runs a command in a running container.
+//
+// Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 func (cli *DockerCli) CmdExec(args ...string) error {
 	cmd := cli.Subcmd("exec", "CONTAINER COMMAND [ARG...]", "Run a command in a running container", true)
 

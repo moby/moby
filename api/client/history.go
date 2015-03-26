@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdHistory shows the history of an image.
+//
+// Usage: docker history [OPTIONS] IMAGE
 func (cli *DockerCli) CmdHistory(args ...string) error {
 	cmd := cli.Subcmd("history", "IMAGE", "Show the history of an image", true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")

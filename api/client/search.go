@@ -11,6 +11,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// CmdSearch searches the Docker Hub for images.
+//
+// Usage: docker search [OPTIONS] TERM
 func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := cli.Subcmd("search", "TERM", "Search the Docker Hub for images", true)
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")

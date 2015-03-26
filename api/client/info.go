@@ -12,7 +12,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// 'docker info': display system-wide information.
+// CmdInfo displays system-wide information.
+//
+// Usage: docker info
 func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd := cli.Subcmd("info", "", "Display system-wide information", true)
 	cmd.Require(flag.Exact, 0)

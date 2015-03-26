@@ -17,7 +17,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// 'docker login': login / register a user to registry service.
+// CmdLogin logs in or registers a user to a Docker registry service.
+//
+// If no server is specified, the user will be logged into or registered to the registry's index server.
+//
+// Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := cli.Subcmd("login", "[SERVER]", "Register or log in to a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
 	cmd.Require(flag.Max, 1)
