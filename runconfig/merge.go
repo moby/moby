@@ -3,7 +3,7 @@ package runconfig
 import (
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
 )
 
@@ -50,7 +50,7 @@ func Merge(userConf, imageConf *Config) error {
 	}
 	if len(imageConf.PortSpecs) > 0 {
 		// FIXME: I think we can safely remove this. Leaving it for now for the sake of reverse-compat paranoia.
-		log.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
+		logrus.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
 		if userConf.ExposedPorts == nil {
 			userConf.ExposedPorts = make(nat.PortSet)
 		}

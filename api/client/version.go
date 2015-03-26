@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
@@ -41,11 +41,11 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	out := engine.NewOutput()
 	remoteVersion, err := out.AddEnv()
 	if err != nil {
-		log.Errorf("Error reading remote version: %s", err)
+		logrus.Errorf("Error reading remote version: %s", err)
 		return err
 	}
 	if _, err := out.Write(body); err != nil {
-		log.Errorf("Error reading remote version: %s", err)
+		logrus.Errorf("Error reading remote version: %s", err)
 		return err
 	}
 	out.Close()

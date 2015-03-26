@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/timeoutconn"
 )
 
@@ -100,7 +100,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 		}
 
 		hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
-		log.Debugf("hostDir: %s", hostDir)
+		logrus.Debugf("hostDir: %s", hostDir)
 		fs, err := ioutil.ReadDir(hostDir)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, nil, err
@@ -111,7 +111,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 				if pool == nil {
 					pool = x509.NewCertPool()
 				}
-				log.Debugf("crt: %s", hostDir+"/"+f.Name())
+				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
 				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
 				if err != nil {
 					return nil, nil, err
@@ -121,7 +121,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 			if strings.HasSuffix(f.Name(), ".cert") {
 				certName := f.Name()
 				keyName := certName[:len(certName)-5] + ".key"
-				log.Debugf("cert: %s", hostDir+"/"+f.Name())
+				logrus.Debugf("cert: %s", hostDir+"/"+f.Name())
 				if !hasFile(fs, keyName) {
 					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
 				}
@@ -134,7 +134,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 			if strings.HasSuffix(f.Name(), ".key") {
 				keyName := f.Name()
 				certName := keyName[:len(keyName)-4] + ".cert"
-				log.Debugf("key: %s", hostDir+"/"+f.Name())
+				logrus.Debugf("key: %s", hostDir+"/"+f.Name())
 				if !hasFile(fs, certName) {
 					return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
 				}

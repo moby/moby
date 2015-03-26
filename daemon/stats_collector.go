@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/libcontainer/system"
@@ -80,13 +80,13 @@ func (s *statsCollector) run() {
 		for container, publisher := range s.publishers {
 			systemUsage, err := s.getSystemCpuUsage()
 			if err != nil {
-				log.Errorf("collecting system cpu usage for %s: %v", container.ID, err)
+				logrus.Errorf("collecting system cpu usage for %s: %v", container.ID, err)
 				continue
 			}
 			stats, err := container.Stats()
 			if err != nil {
 				if err != execdriver.ErrNotRunning {
-					log.Errorf("collecting stats for %s: %v", container.ID, err)
+					logrus.Errorf("collecting stats for %s: %v", container.ID, err)
 				}
 				continue
 			}

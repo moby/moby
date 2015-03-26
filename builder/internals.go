@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	imagepkg "github.com/docker/docker/image"
@@ -522,13 +522,13 @@ func (b *Builder) probeCache() (bool, error) {
 		return false, err
 	}
 	if cache == nil {
-		log.Debugf("[BUILDER] Cache miss")
+		logrus.Debugf("[BUILDER] Cache miss")
 		b.cacheBusted = true
 		return false, nil
 	}
 
 	fmt.Fprintf(b.OutStream, " ---> Using cache\n")
-	log.Debugf("[BUILDER] Use cached version")
+	logrus.Debugf("[BUILDER] Use cached version")
 	b.image = cache.ID
 	return true, nil
 }
@@ -587,7 +587,7 @@ func (b *Builder) run(c *daemon.Container) error {
 	go func() {
 		select {
 		case <-b.cancelled:
-			log.Debugln("Build cancelled, killing container:", c.ID)
+			logrus.Debugln("Build cancelled, killing container:", c.ID)
 			c.Kill()
 		case <-finished:
 		}
@@ -688,7 +688,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		if err := chrootarchive.UntarPath(origPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
-			log.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
+			logrus.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
 		}
 	}
 

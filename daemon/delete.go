@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 )
 
@@ -77,7 +77,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 func (daemon *Daemon) DeleteVolumes(volumeIDs map[string]struct{}) {
 	for id := range volumeIDs {
 		if err := daemon.volumes.Delete(id); err != nil {
-			log.Infof("%s", err)
+			logrus.Infof("%s", err)
 			continue
 		}
 	}
@@ -103,7 +103,7 @@ func (daemon *Daemon) Rm(container *Container) error {
 	daemon.containers.Delete(container.ID)
 	container.derefVolumes()
 	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		log.Debugf("Unable to remove container from link graph: %s", err)
+		logrus.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
 	if err := daemon.driver.Remove(container.ID); err != nil {

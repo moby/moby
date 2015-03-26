@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/template"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/utils"
@@ -160,14 +160,14 @@ func escapeFstabSpaces(field string) string {
 
 func keepCapabilities(adds []string, drops []string) ([]string, error) {
 	container := nativeTemplate.New()
-	log.Debugf("adds %s drops %s\n", adds, drops)
+	logrus.Debugf("adds %s drops %s\n", adds, drops)
 	caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
 	if err != nil {
 		return nil, err
 	}
 	var newCaps []string
 	for _, cap := range caps {
-		log.Debugf("cap %s\n", cap)
+		logrus.Debugf("cap %s\n", cap)
 		realCap := execdriver.GetCapability(cap)
 		numCap := fmt.Sprintf("%d", realCap.Value)
 		newCaps = append(newCaps, numCap)
@@ -181,7 +181,7 @@ func dropList(drops []string) ([]string, error) {
 		var newCaps []string
 		for _, capName := range execdriver.GetAllCapabilities() {
 			cap := execdriver.GetCapability(capName)
-			log.Debugf("drop cap %s\n", cap.Key)
+			logrus.Debugf("drop cap %s\n", cap.Key)
 			numCap := fmt.Sprintf("%d", cap.Value)
 			newCaps = append(newCaps, numCap)
 		}
@@ -192,7 +192,7 @@ func dropList(drops []string) ([]string, error) {
 
 func isDirectory(source string) string {
 	f, err := os.Stat(source)
-	log.Debugf("dir: %s\n", source)
+	logrus.Debugf("dir: %s\n", source)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "dir"

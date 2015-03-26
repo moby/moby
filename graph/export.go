@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
@@ -33,7 +33,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 
 	rootRepoMap := map[string]Repository{}
 	addKey := func(name string, tag string, id string) {
-		log.Debugf("add key [%s:%s]", name, tag)
+		logrus.Debugf("add key [%s:%s]", name, tag)
 		if repo, ok := rootRepoMap[name]; !ok {
 			rootRepoMap[name] = Repository{tag: id}
 		} else {
@@ -42,7 +42,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 	}
 	for _, name := range job.Args {
 		name = registry.NormalizeLocalName(name)
-		log.Debugf("Serializing %s", name)
+		logrus.Debugf("Serializing %s", name)
 		rootRepo := s.Repositories[name]
 		if rootRepo != nil {
 			// this is a base repo name, like 'busybox'
@@ -78,7 +78,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 				}
 			}
 		}
-		log.Debugf("End Serializing %s", name)
+		logrus.Debugf("End Serializing %s", name)
 	}
 	// write repositories, if there is something to write
 	if len(rootRepoMap) > 0 {
@@ -87,7 +87,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 			return err
 		}
 	} else {
-		log.Debugf("There were no repositories to write")
+		logrus.Debugf("There were no repositories to write")
 	}
 
 	fs, err := archive.Tar(tempdir, archive.Uncompressed)
@@ -99,7 +99,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 	if _, err := io.Copy(job.Stdout, fs); err != nil {
 		return err
 	}
-	log.Debugf("End export job: %s", job.Name)
+	logrus.Debugf("End export job: %s", job.Name)
 	return nil
 }
 

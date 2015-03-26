@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
@@ -75,14 +75,14 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 	if len(imageList) == 0 {
 		return nil, nil, fmt.Errorf("No images found for the requested repository / tag")
 	}
-	log.Debugf("Image list: %v", imageList)
-	log.Debugf("Tags by image: %v", tagsByImage)
+	logrus.Debugf("Image list: %v", imageList)
+	logrus.Debugf("Tags by image: %v", tagsByImage)
 
 	return imageList, tagsByImage, nil
 }
 
 func (s *TagStore) getImageTags(localRepo map[string]string, askedTag string) ([]string, error) {
-	log.Debugf("Checking %s against %#v", askedTag, localRepo)
+	logrus.Debugf("Checking %s against %#v", askedTag, localRepo)
 	if len(askedTag) > 0 {
 		if _, ok := localRepo[askedTag]; !ok || utils.DigestReference(askedTag) {
 			return nil, fmt.Errorf("Tag does not exist: %s", askedTag)
@@ -136,7 +136,7 @@ func lookupImageOnEndpoint(wg *sync.WaitGroup, r *registry.Session, out io.Write
 	defer wg.Done()
 	for image := range images {
 		if err := r.LookupRemoteImage(image.id, image.endpoint, image.tokens); err != nil {
-			log.Errorf("Error in LookupRemoteImage: %s", err)
+			logrus.Errorf("Error in LookupRemoteImage: %s", err)
 			imagesToPush <- image.id
 			continue
 		}
@@ -205,7 +205,7 @@ func (s *TagStore) pushImageToEndpoint(endpoint string, out io.Writer, remoteNam
 func (s *TagStore) pushRepository(r *registry.Session, out io.Writer,
 	repoInfo *registry.RepositoryInfo, localRepo map[string]string,
 	tag string, sf *streamformatter.StreamFormatter) error {
-	log.Debugf("Local repo: %s", localRepo)
+	logrus.Debugf("Local repo: %s", localRepo)
 	out = utils.NewWriteFlusher(out)
 	imgList, tags, err := s.getImageList(localRepo, tag)
 	if err != nil {
@@ -214,9 +214,9 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer,
 	out.Write(sf.FormatStatus("", "Sending image list"))
 
 	imageIndex := s.createImageIndex(imgList, tags)
-	log.Debugf("Preparing to push %s with the following images and tags", localRepo)
+	logrus.Debugf("Preparing to push %s with the following images and tags", localRepo)
 	for _, data := range imageIndex {
-		log.Debugf("Pushing ID: %s with Tag: %s", data.ID, data.Tag)
+		logrus.Debugf("Pushing ID: %s with Tag: %s", data.ID, data.Tag)
 	}
 	// Register all the images in a repository with the registry
 	// If an image is not in this list it will not be associated with the repository
@@ -267,7 +267,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	log.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
+	logrus.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
 
 	checksum, checksumPayload, err := r.PushImageLayerRegistry(imgData.ID,
 		progressreader.New(progressreader.Config{
@@ -297,7 +297,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
 	if err != nil {
 		if repoInfo.Index.Official {
-			log.Debugf("Unable to push to V2 registry, falling back to v1: %s", err)
+			logrus.Debugf("Unable to push to V2 registry, falling back to v1: %s", err)
 			return ErrV2RegistryUnavailable
 		}
 		return fmt.Errorf("error getting registry endpoint: %s", err)
@@ -317,7 +317,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 	}
 
 	for _, tag := range tags {
-		log.Debugf("Pushing repository: %s:%s", repoInfo.CanonicalName, tag)
+		logrus.Debugf("Pushing repository: %s:%s", repoInfo.CanonicalName, tag)
 
 		layerId, exists := localRepo[tag]
 		if !exists {
@@ -358,7 +358,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 
 		// Schema version 1 requires layer ordering from top to root
 		for i, layer := range layers {
-			log.Debugf("Pushing layer: %s", layer.ID)
+			logrus.Debugf("Pushing layer: %s", layer.ID)
 
 			if layer.Config != nil && metadata.Image != layer.ID {
 				err = runconfig.Merge(&metadata, layer.Config)
@@ -411,7 +411,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 			return fmt.Errorf("invalid manifest: %s", err)
 		}
 
-		log.Debugf("Pushing %s:%s to v2 repository", repoInfo.LocalName, tag)
+		logrus.Debugf("Pushing %s:%s to v2 repository", repoInfo.LocalName, tag)
 		mBytes, err := json.MarshalIndent(m, "", "   ")
 		if err != nil {
 			return err
@@ -429,7 +429,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 		if err != nil {
 			return err
 		}
-		log.Infof("Signed manifest for %s:%s using daemon's key: %s", repoInfo.LocalName, tag, s.trustKey.KeyID())
+		logrus.Infof("Signed manifest for %s:%s using daemon's key: %s", repoInfo.LocalName, tag, s.trustKey.KeyID())
 
 		// push the manifest
 		digest, err := r.PutV2ImageManifest(endpoint, repoInfo.RemoteName, tag, signedBody, mBytes, auth)
@@ -473,7 +473,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 	dgst := digest.NewDigest("sha256", h)
 
 	// Send the layer
-	log.Debugf("rendered layer for %s of [%d] size", img.ID, size)
+	logrus.Debugf("rendered layer for %s of [%d] size", img.ID, size)
 
 	if err := r.PutV2ImageBlob(endpoint, imageName, dgst.Algorithm(), dgst.Hex(),
 		progressreader.New(progressreader.Config{

@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver"
 )
 
@@ -157,7 +157,7 @@ func ipToBigInt(ip net.IP) *big.Int {
 		return x.SetBytes(ip6)
 	}
 
-	log.Errorf("ipToBigInt: Wrong IP length! %s", ip)
+	logrus.Errorf("ipToBigInt: Wrong IP length! %s", ip)
 	return nil
 }
 

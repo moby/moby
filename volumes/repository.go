@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/stringid"
 )
@@ -95,16 +95,16 @@ func (r *Repository) restore() error {
 		}
 		if err := vol.FromDisk(); err != nil {
 			if !os.IsNotExist(err) {
-				log.Debugf("Error restoring volume: %v", err)
+				logrus.Debugf("Error restoring volume: %v", err)
 				continue
 			}
 			if err := vol.initialize(); err != nil {
-				log.Debugf("%s", err)
+				logrus.Debugf("%s", err)
 				continue
 			}
 		}
 		if err := r.add(vol); err != nil {
-			log.Debugf("Error restoring volume: %v", err)
+			logrus.Debugf("Error restoring volume: %v", err)
 		}
 	}
 	return nil

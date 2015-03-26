@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/resolvconf"
@@ -132,9 +132,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	hijacked := make(chan io.Closer)
 	// Block the return until the chan gets closed
 	defer func() {
-		log.Debugf("End of CmdRun(), Waiting for hijack to finish.")
+		logrus.Debugf("End of CmdRun(), Waiting for hijack to finish.")
 		if _, ok := <-hijacked; ok {
-			log.Errorf("Hijack did not finish (chan still open)")
+			logrus.Errorf("Hijack did not finish (chan still open)")
 		}
 	}()
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
@@ -176,7 +176,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	case err := <-errCh:
 		if err != nil {
-			log.Debugf("Error hijack: %s", err)
+			logrus.Debugf("Error hijack: %s", err)
 			return err
 		}
 	}
@@ -184,7 +184,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	defer func() {
 		if *flAutoRemove {
 			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
-				log.Errorf("Error deleting container: %s", err)
+				logrus.Errorf("Error deleting container: %s", err)
 			}
 		}
 	}()
@@ -196,13 +196,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(createResponse.ID, false); err != nil {
-			log.Errorf("Error monitoring TTY size: %s", err)
+			logrus.Errorf("Error monitoring TTY size: %s", err)
 		}
 	}
 
 	if errCh != nil {
 		if err := <-errCh; err != nil {
-			log.Debugf("Error hijack: %s", err)
+			logrus.Debugf("Error hijack: %s", err)
 			return err
 		}
 	}

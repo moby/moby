@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/promise"
@@ -211,7 +211,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 			} else {
 				_, err = stdcopy.StdCopy(stdout, stderr, br)
 			}
-			log.Debugf("[hijack] End of stdout")
+			logrus.Debugf("[hijack] End of stdout")
 			return err
 		})
 	}
@@ -219,14 +219,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	sendStdin := promise.Go(func() error {
 		if in != nil {
 			io.Copy(rwc, in)
-			log.Debugf("[hijack] End of stdin")
+			logrus.Debugf("[hijack] End of stdin")
 		}
 
 		if conn, ok := rwc.(interface {
 			CloseWrite() error
 		}); ok {
 			if err := conn.CloseWrite(); err != nil {
-				log.Debugf("Couldn't send EOF: %s", err)
+				logrus.Debugf("Couldn't send EOF: %s", err)
 			}
 		}
 		// Discard errors due to pipe interruption
@@ -235,14 +235,14 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 
 	if stdout != nil || stderr != nil {
 		if err := <-receiveStdout; err != nil {
-			log.Debugf("Error receiveStdout: %s", err)
+			logrus.Debugf("Error receiveStdout: %s", err)
 			return err
 		}
 	}
 
 	if !cli.isTerminalIn {
 		if err := <-sendStdin; err != nil {
-			log.Debugf("Error sendStdin: %s", err)
+			logrus.Debugf("Error sendStdin: %s", err)
 			return err
 		}
 	}

@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
@@ -150,7 +150,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	defer func() {
 		if err := os.RemoveAll(b.contextPath); err != nil {
-			log.Debugf("[BUILDER] failed to remove temporary context: %s", err)
+			logrus.Debugf("[BUILDER] failed to remove temporary context: %s", err)
 		}
 	}()
 
@@ -166,7 +166,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	for i, n := range b.dockerfile.Children {
 		select {
 		case <-b.cancelled:
-			log.Debug("Builder: build cancelled!")
+			logrus.Debug("Builder: build cancelled!")
 			fmt.Fprintf(b.OutStream, "Build cancelled")
 			return "", fmt.Errorf("Build cancelled")
 		default:

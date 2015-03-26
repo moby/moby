@@ -12,7 +12,7 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -113,13 +113,13 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	// check if they are running over btrfs or aufs
 	switch fsMagic {
 	case graphdriver.FsMagicBtrfs:
-		log.Error("'overlay' is not supported over btrfs.")
+		logrus.Error("'overlay' is not supported over btrfs.")
 		return nil, graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicAufs:
-		log.Error("'overlay' is not supported over aufs.")
+		logrus.Error("'overlay' is not supported over aufs.")
 		return nil, graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicZfs:
-		log.Error("'overlay' is not supported over zfs.")
+		logrus.Error("'overlay' is not supported over zfs.")
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
@@ -153,7 +153,7 @@ func supportsOverlay() error {
 			return nil
 		}
 	}
-	log.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
+	logrus.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
 	return graphdriver.ErrNotSupported
 }
 
@@ -317,7 +317,7 @@ func (d *Driver) Put(id string) error {
 
 	mount := d.active[id]
 	if mount == nil {
-		log.Debugf("Put on a non-mounted device %s", id)
+		logrus.Debugf("Put on a non-mounted device %s", id)
 		return nil
 	}
 
@@ -330,7 +330,7 @@ func (d *Driver) Put(id string) error {
 	if mount.mounted {
 		err := syscall.Unmount(mount.path, 0)
 		if err != nil {
-			log.Debugf("Failed to unmount %s overlay: %v", id, err)
+			logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
 		}
 		return err
 	}

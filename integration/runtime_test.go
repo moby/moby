@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
@@ -94,23 +94,23 @@ func init() {
 	}
 
 	if uid := syscall.Geteuid(); uid != 0 {
-		log.Fatalf("docker tests need to be run as root")
+		logrus.Fatalf("docker tests need to be run as root")
 	}
 
 	// Copy dockerinit into our current testing directory, if provided (so we can test a separate dockerinit binary)
 	if dockerinit := os.Getenv("TEST_DOCKERINIT_PATH"); dockerinit != "" {
 		src, err := os.Open(dockerinit)
 		if err != nil {
-			log.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s", err)
+			logrus.Fatalf("Unable to open TEST_DOCKERINIT_PATH: %s", err)
 		}
 		defer src.Close()
 		dst, err := os.OpenFile(filepath.Join(filepath.Dir(utils.SelfPath()), "dockerinit"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0555)
 		if err != nil {
-			log.Fatalf("Unable to create dockerinit in test directory: %s", err)
+			logrus.Fatalf("Unable to create dockerinit in test directory: %s", err)
 		}
 		defer dst.Close()
 		if _, err := io.Copy(dst, src); err != nil {
-			log.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s", err)
+			logrus.Fatalf("Unable to copy dockerinit to TEST_DOCKERINIT_PATH: %s", err)
 		}
 		dst.Close()
 		src.Close()
@@ -137,14 +137,14 @@ func setupBaseImage() {
 		job = eng.Job("pull", unitTestImageName)
 		job.Stdout.Add(ioutils.NopWriteCloser(os.Stdout))
 		if err := job.Run(); err != nil {
-			log.Fatalf("Unable to pull the test image: %s", err)
+			logrus.Fatalf("Unable to pull the test image: %s", err)
 		}
 	}
 }
 
 func spawnGlobalDaemon() {
 	if globalDaemon != nil {
-		log.Debugf("Global daemon already exists. Skipping.")
+		logrus.Debugf("Global daemon already exists. Skipping.")
 		return
 	}
 	t := std_log.New(os.Stderr, "", 0)
@@ -154,7 +154,7 @@ func spawnGlobalDaemon() {
 
 	// Spawn a Daemon
 	go func() {
-		log.Debugf("Spawning global daemon for integration tests")
+		logrus.Debugf("Spawning global daemon for integration tests")
 		listenURL := &url.URL{
 			Scheme: testDaemonProto,
 			Host:   testDaemonAddr,
@@ -162,7 +162,7 @@ func spawnGlobalDaemon() {
 		job := eng.Job("serveapi", listenURL.String())
 		job.SetenvBool("Logging", true)
 		if err := job.Run(); err != nil {
-			log.Fatalf("Unable to spawn the test daemon: %s", err)
+			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
 
@@ -171,7 +171,7 @@ func spawnGlobalDaemon() {
 	time.Sleep(time.Second)
 
 	if err := eng.Job("acceptconnections").Run(); err != nil {
-		log.Fatalf("Unable to accept connections for test api: %s", err)
+		logrus.Fatalf("Unable to accept connections for test api: %s", err)
 	}
 }
 
@@ -204,7 +204,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 
 	// Spawn a Daemon
 	go func() {
-		log.Debugf("Spawning https daemon for integration tests")
+		logrus.Debugf("Spawning https daemon for integration tests")
 		listenURL := &url.URL{
 			Scheme: testDaemonHttpsProto,
 			Host:   addr,
@@ -217,7 +217,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 		job.Setenv("TlsCert", cert)
 		job.Setenv("TlsKey", key)
 		if err := job.Run(); err != nil {
-			log.Fatalf("Unable to spawn the test daemon: %s", err)
+			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
 
@@ -225,7 +225,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 	time.Sleep(time.Second)
 
 	if err := eng.Job("acceptconnections").Run(); err != nil {
-		log.Fatalf("Unable to accept connections for test api: %s", err)
+		logrus.Fatalf("Unable to accept connections for test api: %s", err)
 	}
 	return eng
 }
@@ -235,14 +235,14 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 func GetTestImage(daemon *daemon.Daemon) *image.Image {
 	imgs, err := daemon.Graph().Map()
 	if err != nil {
-		log.Fatalf("Unable to get the test image: %s", err)
+		logrus.Fatalf("Unable to get the test image: %s", err)
 	}
 	for _, image := range imgs {
 		if image.ID == unitTestImageID {
 			return image
 		}
 	}
-	log.Fatalf("Test image %v not found in %s: %s", unitTestImageID, daemon.Graph().Root, imgs)
+	logrus.Fatalf("Test image %v not found in %s: %s", unitTestImageID, daemon.Graph().Root, imgs)
 	return nil
 }
 
@@ -707,9 +707,9 @@ func TestRandomContainerName(t *testing.T) {
 	}
 
 	if c, err := daemon.Get(container.Name); err != nil {
-		log.Fatalf("Could not lookup container %s by its name", container.Name)
+		logrus.Fatalf("Could not lookup container %s by its name", container.Name)
 	} else if c.ID != containerID {
-		log.Fatalf("Looking up container name %s returned id %s instead of %s", container.Name, c.ID, containerID)
+		logrus.Fatalf("Looking up container name %s returned id %s instead of %s", container.Name, c.ID, containerID)
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/mount"
@@ -164,7 +164,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 func (d *Driver) Put(id string) error {
 	err := d.DeviceSet.UnmountDevice(id)
 	if err != nil {
-		log.Errorf("Error unmounting device %s: %s", id, err)
+		logrus.Errorf("Error unmounting device %s: %s", id, err)
 	}
 	return err
 }

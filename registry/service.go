@@ -3,7 +3,7 @@ package registry
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 )
 
@@ -62,18 +62,18 @@ func (s *Service) Auth(job *engine.Job) error {
 	}
 
 	if endpoint, err = NewEndpoint(index); err != nil {
-		log.Errorf("unable to get new registry endpoint: %s", err)
+		logrus.Errorf("unable to get new registry endpoint: %s", err)
 		return err
 	}
 
 	authConfig.ServerAddress = endpoint.String()
 
 	if status, err = Login(authConfig, endpoint, HTTPRequestFactory(nil)); err != nil {
-		log.Errorf("unable to login against registry endpoint %s: %s", endpoint, err)
+		logrus.Errorf("unable to login against registry endpoint %s: %s", endpoint, err)
 		return err
 	}
 
-	log.Infof("successful registry login for endpoint %s: %s", endpoint, status)
+	logrus.Infof("successful registry login for endpoint %s: %s", endpoint, status)
 	job.Printf("%s\n", status)
 
 	return nil

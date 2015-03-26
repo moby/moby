@@ -1,7 +1,7 @@
 package fileutils
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"path/filepath"
 )
 
@@ -10,15 +10,15 @@ func Matches(relFilePath string, patterns []string) (bool, error) {
 	for _, exclude := range patterns {
 		matched, err := filepath.Match(exclude, relFilePath)
 		if err != nil {
-			log.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
+			logrus.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
 			return false, err
 		}
 		if matched {
 			if filepath.Clean(relFilePath) == "." {
-				log.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
+				logrus.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
 				continue
 			}
-			log.Debugf("Skipping excluded path: %s", relFilePath)
+			logrus.Debugf("Skipping excluded path: %s", relFilePath)
 			return true, nil
 		}
 	}

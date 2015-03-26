@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 )
@@ -174,7 +174,7 @@ func (s *TagStore) CmdTarLayer(job *engine.Job) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("rendered layer for %s of [%d] size", image.ID, written)
+		logrus.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		return nil
 	}
 	return fmt.Errorf("No such image: %s", name)

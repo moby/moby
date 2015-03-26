@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/registry"
@@ -89,7 +89,7 @@ func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte, dgst, 
 			return nil, false, fmt.Errorf("error running key check: %s", err)
 		}
 		result := engine.Tail(stdoutBuffer, 1)
-		log.Debugf("Key check result: %q", result)
+		logrus.Debugf("Key check result: %q", result)
 		if result == "verified" {
 			verified = true
 		}

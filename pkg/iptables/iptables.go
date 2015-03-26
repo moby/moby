@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 type Action string
@@ -283,7 +283,7 @@ func Raw(args ...string) ([]byte, error) {
 		args = append([]string{"--wait"}, args...)
 	}
 
-	log.Debugf("%s, %v", iptablesPath, args)
+	logrus.Debugf("%s, %v", iptablesPath, args)
 
 	output, err := exec.Command(iptablesPath, args...).CombinedOutput()
 	if err != nil {

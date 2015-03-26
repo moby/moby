@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver"
 	"github.com/docker/docker/daemon/networkdriver/ipallocator"
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
@@ -132,9 +132,9 @@ func InitDriver(job *engine.Job) error {
 
 		if fixedCIDRv6 != "" {
 			// Setting route to global IPv6 subnet
-			log.Infof("Adding route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
+			logrus.Infof("Adding route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
 			if err := netlink.AddRoute(fixedCIDRv6, "", "", bridgeIface); err != nil {
-				log.Fatalf("Could not add route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
+				logrus.Fatalf("Could not add route to IPv6 network %q via device %q", fixedCIDRv6, bridgeIface)
 			}
 		}
 	} else {
@@ -207,16 +207,16 @@ func InitDriver(job *engine.Job) error {
 	if ipForward {
 		// Enable IPv4 forwarding
 		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
-			log.Warnf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+			logrus.Warnf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
 		}
 
 		if fixedCIDRv6 != "" {
 			// Enable IPv6 forwarding
 			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				log.Warnf("WARNING: unable to enable IPv6 default forwarding: %s\n", err)
+				logrus.Warnf("WARNING: unable to enable IPv6 default forwarding: %s\n", err)
 			}
 			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				log.Warnf("WARNING: unable to enable IPv6 all forwarding: %s\n", err)
+				logrus.Warnf("WARNING: unable to enable IPv6 all forwarding: %s\n", err)
 			}
 		}
 	}
@@ -244,7 +244,7 @@ func InitDriver(job *engine.Job) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("Subnet: %v", subnet)
+		logrus.Debugf("Subnet: %v", subnet)
 		if err := ipAllocator.RegisterSubnet(bridgeIPv4Network, subnet); err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func InitDriver(job *engine.Job) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("Subnet: %v", subnet)
+		logrus.Debugf("Subnet: %v", subnet)
 		if err := ipAllocator.RegisterSubnet(subnet, subnet); err != nil {
 			return err
 		}
@@ -307,7 +307,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		iptables.Raw(append([]string{"-D", "FORWARD"}, acceptArgs...)...)
 
 		if !iptables.Exists(iptables.Filter, "FORWARD", dropArgs...) {
-			log.Debugf("Disable inter-container communication")
+			logrus.Debugf("Disable inter-container communication")
 			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
@@ -318,7 +318,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		iptables.Raw(append([]string{"-D", "FORWARD"}, dropArgs...)...)
 
 		if !iptables.Exists(iptables.Filter, "FORWARD", acceptArgs...) {
-			log.Debugf("Enable inter-container communication")
+			logrus.Debugf("Enable inter-container communication")
 			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
@@ -384,7 +384,7 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 					ifaceAddr = addr
 					break
 				} else {
-					log.Debugf("%s %s", addr, err)
+					logrus.Debugf("%s %s", addr, err)
 				}
 			}
 		}
@@ -393,7 +393,7 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 	if ifaceAddr == "" {
 		return fmt.Errorf("Could not find a free IP address range for interface '%s'. Please configure its address manually and run 'docker -b %s'", bridgeIface, bridgeIface)
 	}
-	log.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
+	logrus.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
 
 	if err := createBridgeIface(bridgeIface); err != nil {
 		// The bridge may already exist, therefore we can ignore an "exists" error
@@ -457,7 +457,7 @@ func createBridgeIface(name string) error {
 	// Only set the bridge's mac address if the kernel version is > 3.3
 	// before that it was not supported
 	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
-	log.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
+	logrus.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
 	return netlink.CreateBridge(name, setBridgeMacAddr)
 }
 
@@ -533,10 +533,10 @@ func Allocate(job *engine.Job) error {
 
 		globalIPv6, err = ipAllocator.RequestIP(globalIPv6Network, requestedIPv6)
 		if err != nil {
-			log.Errorf("Allocator: RequestIP v6: %v", err)
+			logrus.Errorf("Allocator: RequestIP v6: %v", err)
 			return err
 		}
-		log.Infof("Allocated IPv6 %s", globalIPv6)
+		logrus.Infof("Allocated IPv6 %s", globalIPv6)
 	}
 
 	out := engine.Env{}
@@ -588,16 +588,16 @@ func Release(job *engine.Job) error {
 
 	for _, nat := range containerInterface.PortMappings {
 		if err := portmapper.Unmap(nat); err != nil {
-			log.Infof("Unable to unmap port %s: %s", nat, err)
+			logrus.Infof("Unable to unmap port %s: %s", nat, err)
 		}
 	}
 
 	if err := ipAllocator.ReleaseIP(bridgeIPv4Network, containerInterface.IP); err != nil {
-		log.Infof("Unable to release IPv4 %s", err)
+		logrus.Infof("Unable to release IPv4 %s", err)
 	}
 	if globalIPv6Network != nil {
 		if err := ipAllocator.ReleaseIP(globalIPv6Network, containerInterface.IPv6); err != nil {
-			log.Infof("Unable to release IPv6 %s", err)
+			logrus.Infof("Unable to release IPv6 %s", err)
 		}
 	}
 	return nil
@@ -650,10 +650,10 @@ func AllocatePort(job *engine.Job) error {
 		// There is no point in immediately retrying to map an explicitly
 		// chosen port.
 		if hostPort != 0 {
-			log.Warnf("Failed to allocate and map port %d: %s", hostPort, err)
+			logrus.Warnf("Failed to allocate and map port %d: %s", hostPort, err)
 			break
 		}
-		log.Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
+		logrus.Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
 
 	if err != nil {

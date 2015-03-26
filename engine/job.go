@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -67,10 +67,10 @@ func (job *Job) Run() error {
 	}
 	// Log beginning and end of the job
 	if job.Eng.Logging {
-		log.Infof("+job %s", job.CallString())
+		logrus.Infof("+job %s", job.CallString())
 		defer func() {
 			// what if err is nil?
-			log.Infof("-job %s%s", job.CallString(), job.err)
+			logrus.Infof("-job %s%s", job.CallString(), job.err)
 		}()
 	}
 	var errorMessage = bytes.NewBuffer(nil)

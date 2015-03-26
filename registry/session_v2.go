@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/registry/v2"
 	"github.com/docker/docker/utils"
@@ -57,7 +57,7 @@ func (r *Session) GetV2Authorization(ep *Endpoint, imageName string, readOnly bo
 		scopes = append(scopes, "push")
 	}
 
-	log.Debugf("Getting authorization for %s %s", imageName, scopes)
+	logrus.Debugf("Getting authorization for %s %s", imageName, scopes)
 	return NewRequestAuthorization(r.GetAuthConfig(true), ep, "repository", imageName, scopes), nil
 }
 
@@ -75,7 +75,7 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 	}
 
 	method := "GET"
-	log.Debugf("[registry] Calling %q %s", method, routeURL)
+	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 
 	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, 
 	}
 
 	method := "HEAD"
-	log.Debugf("[registry] Calling %q %s", method, routeURL)
+	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 
 	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
 	if err != nil {
@@ -151,7 +151,7 @@ func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, b
 	}
 
 	method := "GET"
-	log.Debugf("[registry] Calling %q %s", method, routeURL)
+	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum str
 	}
 
 	method := "GET"
-	log.Debugf("[registry] Calling %q %s", method, routeURL)
+	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return nil, 0, err
@@ -219,7 +219,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 	}
 
 	method := "PUT"
-	log.Debugf("[registry] Calling %q %s", method, location)
+	logrus.Debugf("[registry] Calling %q %s", method, location)
 	req, err := r.reqFactory.NewRequest(method, location, ioutil.NopCloser(blobRdr))
 	if err != nil {
 		return err
@@ -244,7 +244,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 		if err != nil {
 			return err
 		}
-		log.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
+		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
 		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob - %s:%s", res.StatusCode, imageName, sumType, sumStr), res)
 	}
 
@@ -258,7 +258,7 @@ func (r *Session) initiateBlobUpload(ep *Endpoint, imageName string, auth *Reque
 		return "", err
 	}
 
-	log.Debugf("[registry] Calling %q %s", "POST", routeURL)
+	logrus.Debugf("[registry] Calling %q %s", "POST", routeURL)
 	req, err := r.reqFactory.NewRequest("POST", routeURL, nil)
 	if err != nil {
 		return "", err
@@ -285,7 +285,7 @@ func (r *Session) initiateBlobUpload(ep *Endpoint, imageName string, auth *Reque
 			return "", err
 		}
 
-		log.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
+		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
 		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: unexpected %d response status trying to initiate upload of %s", res.StatusCode, imageName), res)
 	}
 
@@ -304,7 +304,7 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, si
 	}
 
 	method := "PUT"
-	log.Debugf("[registry] Calling %q %s", method, routeURL)
+	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 	req, err := r.reqFactory.NewRequest(method, routeURL, bytes.NewReader(signedManifest))
 	if err != nil {
 		return "", err
@@ -327,7 +327,7 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, si
 		if err != nil {
 			return "", err
 		}
-		log.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
+		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
 		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
 	}
 
@@ -364,7 +364,7 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 	}
 
 	method := "GET"
-	log.Debugf("[registry] Calling %q %s", method, routeURL)
+	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 
 	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
 	if err != nil {

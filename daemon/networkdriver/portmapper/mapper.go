@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/pkg/iptables"
 )
@@ -156,7 +156,7 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
 	if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		log.Errorf("Error on iptables delete: %s", err)
+		logrus.Errorf("Error on iptables delete: %s", err)
 	}
 
 	switch a := host.(type) {

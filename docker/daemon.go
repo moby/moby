@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
@@ -46,7 +46,7 @@ func migrateKey() (err error) {
 			if err == nil {
 				err = os.Remove(oldPath)
 			} else {
-				log.Warnf("Key migration failed, key file not removed at %s", oldPath)
+				logrus.Warnf("Key migration failed, key file not removed at %s", oldPath)
 			}
 		}()
 
@@ -70,7 +70,7 @@ func migrateKey() (err error) {
 			return fmt.Errorf("error copying key: %s", err)
 		}
 
-		log.Infof("Migrated key from %s to %s", oldPath, newPath)
+		logrus.Infof("Migrated key from %s to %s", oldPath, newPath)
 	}
 
 	return nil
@@ -85,18 +85,18 @@ func mainDaemon() {
 	signal.Trap(eng.Shutdown)
 
 	if err := migrateKey(); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	daemonCfg.TrustKeyPath = *flTrustKey
 
 	// Load builtins
 	if err := builtins.Register(eng); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	// load registry service
 	if err := registry.NewService(registryCfg).Install(eng); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	// load the daemon in the background so we can immediately start
@@ -110,7 +110,7 @@ func mainDaemon() {
 			return
 		}
 
-		log.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
+		logrus.Infof("docker daemon: %s %s; execdriver: %s; graphdriver: %s",
 			dockerversion.VERSION,
 			dockerversion.GITCOMMIT,
 			d.ExecutionDriver().Name(),
@@ -155,7 +155,7 @@ func mainDaemon() {
 	serveAPIWait := make(chan error)
 	go func() {
 		if err := job.Run(); err != nil {
-			log.Errorf("ServeAPI error: %v", err)
+			logrus.Errorf("ServeAPI error: %v", err)
 			serveAPIWait <- err
 			return
 		}
@@ -164,7 +164,7 @@ func mainDaemon() {
 
 	// Wait for the daemon startup goroutine to finish
 	// This makes sure we can actually cleanly shutdown the daemon
-	log.Debug("waiting for daemon to initialize")
+	logrus.Debug("waiting for daemon to initialize")
 	errDaemon := <-daemonInitWait
 	if errDaemon != nil {
 		eng.Shutdown()
@@ -176,9 +176,9 @@ func mainDaemon() {
 		}
 		// we must "fatal" exit here as the API server may be happy to
 		// continue listening forever if the error had no impact to API
-		log.Fatal(outStr)
+		logrus.Fatal(outStr)
 	} else {
-		log.Info("Daemon has completed initialization")
+		logrus.Info("Daemon has completed initialization")
 	}
 
 	// Daemon is fully initialized and handling API traffic
@@ -188,7 +188,7 @@ func mainDaemon() {
 	// exited the daemon process above)
 	eng.Shutdown()
 	if errAPI != nil {
-		log.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)
+		logrus.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)
 	}
 
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/libtrust"
 )
@@ -56,7 +56,7 @@ func (t *TrustStore) CmdCheckKey(job *engine.Job) error {
 		return fmt.Errorf("Error verifying key to namespace: %s", namespace)
 	}
 	if !verified {
-		log.Debugf("Verification failed for %s using key %s", namespace, pk.KeyID())
+		logrus.Debugf("Verification failed for %s using key %s", namespace, pk.KeyID())
 		job.Stdout.Write([]byte("not verified"))
 	} else if t.expiration.Before(time.Now()) {
 		job.Stdout.Write([]byte("expired"))

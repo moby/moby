@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 )
 
@@ -66,7 +66,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 	defer auth.tokenLock.Unlock()
 	now := time.Now()
 	if now.Before(auth.tokenExpiration) {
-		log.Debugf("Using cached token for %s", auth.authConfig.Username)
+		logrus.Debugf("Using cached token for %s", auth.authConfig.Username)
 		return auth.tokenCache, nil
 	}
 
@@ -78,7 +78,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 		case "basic":
 			// no token necessary
 		case "bearer":
-			log.Debugf("Getting bearer token with %s for %s", challenge.Parameters, auth.authConfig.Username)
+			logrus.Debugf("Getting bearer token with %s for %s", challenge.Parameters, auth.authConfig.Username)
 			params := map[string]string{}
 			for k, v := range challenge.Parameters {
 				params[k] = v
@@ -93,7 +93,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 
 			return token, nil
 		default:
-			log.Infof("Unsupported auth scheme: %q", challenge.Scheme)
+			logrus.Infof("Unsupported auth scheme: %q", challenge.Scheme)
 		}
 	}
 
@@ -245,7 +245,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 		serverAddress = authConfig.ServerAddress
 	)
 
-	log.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
+	logrus.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
 
 	if serverAddress == "" {
 		return "", fmt.Errorf("Server Error: Server Address not set.")
@@ -349,7 +349,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 // served by the v2 registry service provider. Whether this will be supported in the future
 // is to be determined.
 func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
-	log.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
+	logrus.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 	var (
 		err       error
 		allErrors []error
@@ -357,7 +357,7 @@ func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 	)
 
 	for _, challenge := range registryEndpoint.AuthChallenges {
-		log.Debugf("trying %q auth challenge with params %s", challenge.Scheme, challenge.Parameters)
+		logrus.Debugf("trying %q auth challenge with params %s", challenge.Scheme, challenge.Parameters)
 
 		switch strings.ToLower(challenge.Scheme) {
 		case "basic":
@@ -373,7 +373,7 @@ func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 			return "Login Succeeded", nil
 		}
 
-		log.Debugf("error trying auth challenge %q: %s", challenge.Scheme, err)
+		logrus.Debugf("error trying auth challenge %q: %s", challenge.Scheme, err)
 
 		allErrors = append(allErrors, err)
 	}

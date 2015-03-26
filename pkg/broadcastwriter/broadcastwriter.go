@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/jsonlog"
 )
 
@@ -61,7 +61,7 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 			jsonLog := jsonlog.JSONLog{Log: line, Stream: stream, Created: created}
 			err = jsonLog.MarshalJSONBuf(w.jsLogBuf)
 			if err != nil {
-				log.Errorf("Error making JSON log line: %s", err)
+				logrus.Errorf("Error making JSON log line: %s", err)
 				continue
 			}
 			w.jsLogBuf.WriteByte('\n')

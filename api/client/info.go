@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/units"
@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	if _, err := out.Write(body); err != nil {
-		log.Errorf("Error reading remote info: %s", err)
+		logrus.Errorf("Error reading remote info: %s", err)
 		return err
 	}
 	out.Close()
@@ -91,7 +91,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if remoteInfo.Exists("SystemTime") {
 			t, err := remoteInfo.GetTime("SystemTime")
 			if err != nil {
-				log.Errorf("Error reading system time: %v", err)
+				logrus.Errorf("Error reading system time: %v", err)
 			} else {
 				fmt.Fprintf(cli.out, "System Time: %s\n", t.Format(time.UnixDate))
 			}

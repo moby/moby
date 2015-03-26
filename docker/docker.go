@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/autogen/dockerversion"
@@ -44,20 +44,20 @@ func main() {
 	}
 
 	if *flLogLevel != "" {
-		lvl, err := log.ParseLevel(*flLogLevel)
+		lvl, err := logrus.ParseLevel(*flLogLevel)
 		if err != nil {
-			log.Fatalf("Unable to parse logging level: %s", *flLogLevel)
+			logrus.Fatalf("Unable to parse logging level: %s", *flLogLevel)
 		}
 		setLogLevel(lvl)
 	} else {
-		setLogLevel(log.InfoLevel)
+		setLogLevel(logrus.InfoLevel)
 	}
 
 	// -D, --debug, -l/--log-level=debug processing
 	// When/if -D is removed this block can be deleted
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
-		setLogLevel(log.DebugLevel)
+		setLogLevel(logrus.DebugLevel)
 	}
 
 	if len(flHosts) == 0 {
@@ -68,7 +68,7 @@ func main() {
 		}
 		defaultHost, err := api.ValidateHost(defaultHost)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		flHosts = append(flHosts, defaultHost)
 	}
@@ -85,7 +85,7 @@ func main() {
 	}
 
 	if len(flHosts) > 1 {
-		log.Fatal("Please specify only one -H")
+		logrus.Fatal("Please specify only one -H")
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
@@ -106,7 +106,7 @@ func main() {
 		certPool := x509.NewCertPool()
 		file, err := ioutil.ReadFile(*flCa)
 		if err != nil {
-			log.Fatalf("Couldn't read ca cert %s: %s", *flCa, err)
+			logrus.Fatalf("Couldn't read ca cert %s: %s", *flCa, err)
 		}
 		certPool.AppendCertsFromPEM(file)
 		tlsConfig.RootCAs = certPool
@@ -121,7 +121,7 @@ func main() {
 			*flTls = true
 			cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
 			if err != nil {
-				log.Fatalf("Couldn't load X509 key pair: %q. Make sure the key is encrypted", err)
+				logrus.Fatalf("Couldn't load X509 key pair: %q. Make sure the key is encrypted", err)
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
@@ -138,11 +138,11 @@ func main() {
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(*utils.StatusError); ok {
 			if sterr.Status != "" {
-				log.Println(sterr.Status)
+				logrus.Println(sterr.Status)
 			}
 			os.Exit(sterr.StatusCode)
 		}
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
 
