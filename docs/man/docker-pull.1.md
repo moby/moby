@@ -8,7 +8,7 @@ docker-pull - Pull an image or a repository from the registry
 **docker pull**
 [**-a**|**--all-tags**[=*false*]]
 [**--help**] 
-NAME[:TAG]
+NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
 # DESCRIPTION
 
@@ -67,3 +67,4 @@ April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+April 2015, updated by John Willis <john.willis@docker.com>
