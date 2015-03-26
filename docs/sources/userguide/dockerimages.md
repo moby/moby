@@ -27,7 +27,7 @@ including:
 Let's start with listing the images we have locally on our host. You can
 do this using the `docker images` command like so:
 
-    $ sudo docker images
+    $ docker images
     REPOSITORY       TAG      IMAGE ID      CREATED      VIRTUAL SIZE
     training/webapp  latest   fc77f57ad303  3 weeks ago  280.5 MB
     ubuntu           13.10    5e019ab7bf6d  4 weeks ago  180 MB
@@ -63,11 +63,11 @@ refer to a tagged image like so:
 
 So when we run a container we refer to a tagged image like so:
 
-    $ sudo docker run -t -i ubuntu:14.04 /bin/bash
+    $ docker run -t -i ubuntu:14.04 /bin/bash
 
 If instead we wanted to run an Ubuntu 12.04 image we'd use:
 
-    $ sudo docker run -t -i ubuntu:12.04 /bin/bash
+    $ docker run -t -i ubuntu:12.04 /bin/bash
 
 If you don't specify a variant, for example you just use `ubuntu`, then Docker
 will default to using the `ubuntu:latest` image.
@@ -85,7 +85,7 @@ add some time to the launch of a container. If we want to pre-load an image we
 can download it using the `docker pull` command. Let's say we'd like to
 download the `centos` image.
 
-    $ sudo docker pull centos
+    $ docker pull centos
     Pulling repository centos
     b7de3133ff98: Pulling dependent layers
     5cc9e91966f7: Pulling fs layer
@@ -99,7 +99,7 @@ We can see that each layer of the image has been pulled down and now we
 can run a container from this image and we won't have to wait to
 download the image.
 
-    $ sudo docker run -t -i centos /bin/bash
+    $ docker run -t -i centos /bin/bash
     bash-4.1#
 
 ## Finding images
@@ -117,7 +117,7 @@ which to do our web application development. We can search for a suitable image
 by using the `docker search` command to find all the images that contain the
 term `sinatra`.
 
-    $ sudo docker search sinatra
+    $ docker search sinatra
     NAME                                   DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     training/sinatra                       Sinatra training image                          0                    [OK]
     marceldegraaf/sinatra                  Sinatra test app                                0
@@ -152,11 +152,11 @@ prefixed with the user name, here `training`, of the user that created them.
 
 We've identified a suitable image, `training/sinatra`, and now we can download it using the `docker pull` command.
 
-    $ sudo docker pull training/sinatra
+    $ docker pull training/sinatra
 
 The team can now use this image by running their own containers.
 
-    $ sudo docker run -t -i training/sinatra /bin/bash
+    $ docker run -t -i training/sinatra /bin/bash
     root@a8cb6ce02d85:/#
 
 ## Creating our own images
@@ -174,7 +174,7 @@ update and create images.
 To update an image we first need to create a container from the image
 we'd like to update.
 
-    $ sudo docker run -t -i training/sinatra /bin/bash
+    $ docker run -t -i training/sinatra /bin/bash
     root@0b2616b0e5a8:/#
 
 > **Note:** 
@@ -192,7 +192,7 @@ Now we have a container with the change we want to make. We can then
 commit a copy of this container to an image using the `docker commit`
 command.
 
-    $ sudo docker commit -m "Added json gem" -a "Kate Smith" \
+    $ docker commit -m "Added json gem" -a "Kate Smith" \
     0b2616b0e5a8 ouruser/sinatra:v2
     4f177bd27a9ff0f6dc2a830403925b5360bfe0b93d476f7fc3231110e7f71b1c
 
@@ -215,7 +215,7 @@ the image: `v2`.
 We can then look at our new `ouruser/sinatra` image using the `docker images`
 command.
 
-    $ sudo docker images
+    $ docker images
     REPOSITORY          TAG     IMAGE ID       CREATED       VIRTUAL SIZE
     training/sinatra    latest  5bc342fa0b91   10 hours ago  446.7 MB
     ouruser/sinatra     v2      3c59e02ddd1a   10 hours ago  446.7 MB
@@ -223,7 +223,7 @@ command.
 
 To use our new image to create a container we can then:
 
-    $ sudo docker run -t -i ouruser/sinatra:v2 /bin/bash
+    $ docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@78e82f680994:/#
 
 ### Building an image from a `Dockerfile`
@@ -273,7 +273,7 @@ Sinatra gem.
 
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
-    $ sudo docker build -t ouruser/sinatra:v2 .
+    $ docker build -t ouruser/sinatra:v2 .
     Sending build context to Docker daemon 2.048 kB
     Sending build context to Docker daemon 
     Step 0 : FROM ubuntu:14.04
@@ -467,7 +467,7 @@ containers will get removed to clean things up.
 
 We can then create a container from our new image.
 
-    $ sudo docker run -t -i ouruser/sinatra:v2 /bin/bash
+    $ docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@8196968dac35:/#
 
 > **Note:** 
@@ -489,14 +489,14 @@ You can also add a tag to an existing image after you commit or build it. We
 can do this using the `docker tag` command. Let's add a new tag to our
 `ouruser/sinatra` image.
 
-    $ sudo docker tag 5db5f8471261 ouruser/sinatra:devel
+    $ docker tag 5db5f8471261 ouruser/sinatra:devel
 
 The `docker tag` command takes the ID of the image, here `5db5f8471261`, and our
 user name, the repository name and the new tag.
 
 Let's see our new tag using the `docker images` command.
 
-    $ sudo docker images ouruser/sinatra
+    $ docker images ouruser/sinatra
     REPOSITORY          TAG     IMAGE ID      CREATED        VIRTUAL SIZE
     ouruser/sinatra     latest  5db5f8471261  11 hours ago   446.7 MB
     ouruser/sinatra     devel   5db5f8471261  11 hours ago   446.7 MB
@@ -509,7 +509,7 @@ Hub](https://hub.docker.com) using the `docker push` command. This
 allows you to share it with others, either publicly, or push it into [a
 private repository](https://registry.hub.docker.com/plans/).
 
-    $ sudo docker push ouruser/sinatra
+    $ docker push ouruser/sinatra
     The push refers to a repository [ouruser/sinatra] (len: 1)
     Sending image list
     Pushing repository ouruser/sinatra (3 tags)
@@ -523,7 +523,7 @@ containers](
 
 Let's delete the `training/sinatra` image as we don't need it anymore.
 
-    $ sudo docker rmi training/sinatra
+    $ docker rmi training/sinatra
     Untagged: training/sinatra:latest
     Deleted: 5bc342fa0b91cabf65246837015197eecfa24b2213ed6a51a8974ae250fedd8d
     Deleted: ed0fffdcdae5eb2c3a55549857a8be7fc8bc4241fb19ad714364cbfd7a56b22f

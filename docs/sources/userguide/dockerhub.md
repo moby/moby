@@ -42,7 +42,7 @@ going on in the world of Docker.
 You can also create a Docker Hub account via the command line with the
 `docker login` command.
 
-    $ sudo docker login
+    $ docker login
 
 ### Confirm your email
 
@@ -58,7 +58,7 @@ After you complete the confirmation process, you can login using the web console
 
 Or via the command line with the `docker login` command:
 
-    $ sudo docker login
+    $ docker login
 
 Your Docker Hub account is now active and ready to use.
 

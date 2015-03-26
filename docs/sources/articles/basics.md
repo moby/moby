@@ -4,26 +4,30 @@ page_keywords: Examples, Usage, basic commands, docker, documentation, examples
 
 # First steps with Docker
 
-## Check your Docker install
-
 This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
 
     # Check that you have a working install
-    $ sudo docker info
+    $ docker info
 
 If you get `docker: command not found` or something like
 `/var/lib/docker/repositories: permission denied` you may have an
 incomplete Docker installation or insufficient privileges to access
-Docker on your machine.
+Docker on your machine. Please 
 
-Please refer to [*Installation*](/installation)
-for installation instructions.
+Additionally, depending on your Docker system configuration, you may be required
+to preface each `docker` command with `sudo`. To avoid having to use `sudo` with
+the `docker` command, your system administrator can create a Unix group called
+`docker` and add users to it.
+
+For more information about installing Docker or `sudo` configuration, refer to
+the [installation](/installation) instructions for your operating system.
+
 
 ## Download a pre-built image
 
     # Download an ubuntu image
-    $ sudo docker pull ubuntu
+    $ docker pull ubuntu
 
 This will find the `ubuntu` image by name on
 [*Docker Hub*](/userguide/dockerrepos/#searching-for-images)
@@ -46,7 +50,7 @@ image cache.
     # To detach the tty without exiting the shell,
     # use the escape sequence Ctrl-p + Ctrl-q
     # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
-    $ sudo docker run -i -t ubuntu /bin/bash
+    $ docker run -i -t ubuntu /bin/bash
 
 ## Bind Docker to another host/port or a Unix socket
 
@@ -92,7 +96,7 @@ Run Docker in daemon mode:
 
 Download an `ubuntu` image:
 
-    $ sudo docker -H :5555 pull ubuntu
+    $ docker -H :5555 pull ubuntu
 
 You can use multiple `-H`, for example, if you want to listen on both
 TCP and a Unix socket
@@ -100,60 +104,60 @@ TCP and a Unix socket
     # Run docker in daemon mode
     $ sudo <path to>/docker -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock -d &
     # Download an ubuntu image, use default Unix socket
-    $ sudo docker pull ubuntu
+    $ docker pull ubuntu
     # OR use the TCP port
-    $ sudo docker -H tcp://127.0.0.1:2375 pull ubuntu
+    $ docker -H tcp://127.0.0.1:2375 pull ubuntu
 
 ## Starting a long-running worker process
 
     # Start a very useful long-running process
-    $ JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+    $ JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
     # Collect the output of the job so far
-    $ sudo docker logs $JOB
+    $ docker logs $JOB
 
     # Kill the job
-    $ sudo docker kill $JOB
+    $ docker kill $JOB
 
 ## Listing containers
 
-    $ sudo docker ps # Lists only running containers
-    $ sudo docker ps -a # Lists all containers
+    $ docker ps # Lists only running containers
+    $ docker ps -a # Lists all containers
 
 ## Controlling containers
 
     # Start a new container
-    $ JOB=$(sudo docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+    $ JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
 
     # Stop the container
-    $ sudo docker stop $JOB
+    $ docker stop $JOB
 
     # Start the container
-    $ sudo docker start $JOB
+    $ docker start $JOB
 
     # Restart the container
-    $ sudo docker restart $JOB
+    $ docker restart $JOB
 
     # SIGKILL a container
-    $ sudo docker kill $JOB
+    $ docker kill $JOB
 
     # Remove a container
-    $ sudo docker stop $JOB # Container must be stopped to remove it
-    $ sudo docker rm $JOB
+    $ docker stop $JOB # Container must be stopped to remove it
+    $ docker rm $JOB
 
 ## Bind a service on a TCP port
 
     # Bind port 4444 of this container, and tell netcat to listen on it
-    $ JOB=$(sudo docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
+    $ JOB=$(docker run -d -p 4444 ubuntu:12.10 /bin/nc -l 4444)
 
     # Which public port is NATed to my container?
-    $ PORT=$(sudo docker port $JOB 4444 | awk -F: '{ print $2 }')
+    $ PORT=$(docker port $JOB 4444 | awk -F: '{ print $2 }')
 
     # Connect to the public port
     $ echo hello world | nc 127.0.0.1 $PORT
 
     # Verify that the network connection worked
-    $ echo "Daemon received: $(sudo docker logs $JOB)"
+    $ echo "Daemon received: $(docker logs $JOB)"
 
 ## Committing (saving) a container state
 
@@ -166,10 +170,10 @@ will be stored (as a diff). See which images you already have using the
 `docker images` command.
 
     # Commit your container to a new named image
-    $ sudo docker commit <container_id> <some_name>
+    $ docker commit <container_id> <some_name>
 
     # List your containers
-    $ sudo docker images
+    $ docker images
 
 You now have an image state from which you can create new instances.
 

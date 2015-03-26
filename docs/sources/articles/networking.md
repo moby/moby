@@ -723,7 +723,7 @@ the Internet.
 
     # The network, as seen from a container
 
-    $ sudo docker run -i -t --rm base /bin/bash
+    $ docker run -i -t --rm base /bin/bash
 
     $$ ip addr show eth0
     24: eth0: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
@@ -908,14 +908,14 @@ Docker do all of the configuration:
     # At one shell, start a container and
     # leave its shell idle and running
 
-    $ sudo docker run -i -t --rm --net=none base /bin/bash
+    $ docker run -i -t --rm --net=none base /bin/bash
     root@63f36fc01b5f:/#
 
     # At another shell, learn the container process ID
     # and create its namespace entry in /var/run/netns/
     # for the "ip netns" command we will be using below
 
-    $ sudo docker inspect -f '{{.State.Pid}}' 63f36fc01b5f
+    $ docker inspect -f '{{.State.Pid}}' 63f36fc01b5f
     2778
     $ pid=2778
     $ sudo mkdir -p /var/run/netns
@@ -1016,18 +1016,18 @@ the previous section to go something like this:
 
     # Start up two containers in two terminal windows
 
-    $ sudo docker run -i -t --rm --net=none base /bin/bash
+    $ docker run -i -t --rm --net=none base /bin/bash
     root@1f1f4c1f931a:/#
 
-    $ sudo docker run -i -t --rm --net=none base /bin/bash
+    $ docker run -i -t --rm --net=none base /bin/bash
     root@12e343489d2f:/#
 
     # Learn the container process IDs
     # and create their namespace entries
 
-    $ sudo docker inspect -f '{{.State.Pid}}' 1f1f4c1f931a
+    $ docker inspect -f '{{.State.Pid}}' 1f1f4c1f931a
     2989
-    $ sudo docker inspect -f '{{.State.Pid}}' 12e343489d2f
+    $ docker inspect -f '{{.State.Pid}}' 12e343489d2f
     3004
     $ sudo mkdir -p /var/run/netns
     $ sudo ln -s /proc/2989/ns/net /var/run/netns/2989

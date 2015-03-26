@@ -26,7 +26,7 @@ This file will describe the steps to assemble the image.
 Then call `docker build` with the path of your source repository as the argument
 (for example, `.`):
 
-    $ sudo docker build .
+    $ docker build .
 
 The path to the source repository defines where to find the *context* of
 the build. The build is run by the Docker daemon, not by the CLI, so the
@@ -49,7 +49,7 @@ directory.
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
-    $ sudo docker build -t shykes/myapp .
+    $ docker build -t shykes/myapp .
 
 The Docker daemon will run your steps one-by-one, committing the result
 to a new image if necessary, before finally outputting the ID of your
@@ -65,7 +65,7 @@ accelerating `docker build` significantly (indicated by `Using cache` -
 see the [`Dockerfile` Best Practices
 guide](/articles/dockerfile_best-practices/#build-cache) for more information):
 
-    $ sudo docker build -t SvenDowideit/ambassador .
+    $ docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
     Uploading context
     Step 1 : FROM docker-ut
@@ -175,7 +175,7 @@ The following example shows the use of the `.dockerignore` file to exclude the
 `.git` directory from the context. Its effect can be seen in the changed size of
 the uploaded context.
 
-    $ sudo docker build .
+    $ docker build .
     Uploading context 18.829 MB
     Uploading context
     Step 0 : FROM busybox
@@ -185,7 +185,7 @@ the uploaded context.
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
     $ echo ".git" > .dockerignore
-    $ sudo docker build .
+    $ docker build .
     Uploading context  6.76 MB
     Uploading context
     Step 0 : FROM busybox

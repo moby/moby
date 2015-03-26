@@ -27,12 +27,12 @@ flags and arguments.
 
     # Usage:  [sudo] docker [command] [flags] [arguments] ..
     # Example:
-    $ sudo docker run -i -t ubuntu /bin/bash
+    $ docker run -i -t ubuntu /bin/bash
 
 Let's see this in action by using the `docker version` command to return
 version information on the currently installed Docker client and daemon.
 
-    $ sudo docker version
+    $ docker version
 
 This command will not only provide you the version of Docker client and
 daemon you are using, but also the version of Go (the programming
@@ -54,7 +54,7 @@ language powering Docker).
 We can see all of the commands available to us with the Docker client by
 running the `docker` binary without any options.
 
-    $ sudo docker
+    $ docker
 
 You will see a list of all currently available commands.
 
@@ -71,12 +71,12 @@ You can also zoom in and review the usage for specific Docker commands.
 Try typing Docker followed with a `[command]` to see the usage for that
 command:
 
-    $ sudo docker attach
+    $ docker attach
     Help output . . .
 
 Or you can also pass the `--help` flag to the `docker` binary.
 
-    $ sudo docker attach --help
+    $ docker attach --help
 
 This will display the help text and all available flags:
 
@@ -102,7 +102,7 @@ Docker.
 For our web application we're going to run a Python Flask application.
 Let's start with a `docker run` command.
 
-    $ sudo docker run -d -P training/webapp python app.py
+    $ docker run -d -P training/webapp python app.py
 
 Let's review what our command did. We've specified two flags: `-d` and
 `-P`. We've already seen the `-d` flag which tells Docker to run the
@@ -125,7 +125,7 @@ Lastly, we've specified a command for our container to run: `python app.py`. Thi
 
 Now let's see our running container using the `docker ps` command.
 
-    $ sudo docker ps -l
+    $ docker ps -l
     CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
@@ -160,7 +160,7 @@ to a high port (from *ephemeral port range* which typically ranges from 32768
 to 61000) on the local Docker host. We can also bind Docker containers to
 specific ports using the `-p` flag, for example:
 
-    $ sudo docker run -d -p 5000:5000 training/webapp python app.py
+    $ docker run -d -p 5000:5000 training/webapp python app.py
 
 This would map port 5000 inside our container to port 5000 on our local
 host. You might be asking about now: why wouldn't we just want to always
@@ -196,7 +196,7 @@ Docker has a useful shortcut we can use: `docker port`. To use `docker port` we
 specify the ID or name of our container and then the port for which we need the
 corresponding public-facing port.
 
-    $ sudo docker port nostalgic_morse 5000
+    $ docker port nostalgic_morse 5000
     0.0.0.0:49155
 
 In this case we've looked up what port is mapped externally to port 5000 inside
@@ -207,7 +207,7 @@ the container.
 Let's also find out a bit more about what's happening with our application and
 use another of the commands we've learnt, `docker logs`.
 
-    $ sudo docker logs -f nostalgic_morse
+    $ docker logs -f nostalgic_morse
     * Running on http://0.0.0.0:5000/
     10.0.2.2 - - [23/May/2014 20:16:31] "GET / HTTP/1.1" 200 -
     10.0.2.2 - - [23/May/2014 20:16:31] "GET /favicon.ico HTTP/1.1" 404 -
@@ -222,7 +222,7 @@ the application running on port 5000 and the access log entries for it.
 In addition to the container's logs we can also examine the processes
 running inside it using the `docker top` command.
 
-    $ sudo docker top nostalgic_morse
+    $ docker top nostalgic_morse
     PID                 USER                COMMAND
     854                 root                python app.py
 
@@ -235,7 +235,7 @@ Lastly, we can take a low-level dive into our Docker container using the
 `docker inspect` command. It returns a JSON hash of useful configuration
 and status information about Docker containers.
 
-    $ sudo docker inspect nostalgic_morse
+    $ docker inspect nostalgic_morse
 
 Let's see a sample of that JSON output.
 
@@ -255,7 +255,7 @@ Let's see a sample of that JSON output.
 We can also narrow down the information we want to return by requesting a
 specific element, for example to return the container's IP address we would:
 
-    $ sudo docker inspect -f '{{ .NetworkSettings.IPAddress }}' nostalgic_morse
+    $ docker inspect -f '{{ .NetworkSettings.IPAddress }}' nostalgic_morse
     172.17.0.5
 
 ## Stopping our Web Application Container
@@ -263,13 +263,13 @@ specific element, for example to return the container's IP address we would:
 Okay we've seen web application working. Now let's stop it using the
 `docker stop` command and the name of our container: `nostalgic_morse`.
 
-    $ sudo docker stop nostalgic_morse
+    $ docker stop nostalgic_morse
     nostalgic_morse
 
 We can now use the `docker ps` command to check if the container has
 been stopped.
 
-    $ sudo docker ps -l
+    $ docker ps -l
 
 ## Restarting our Web Application Container
 
@@ -278,7 +278,7 @@ developer needs the container back. From here you have two choices: you
 can create a new container or restart the old one. Let's look at
 starting our previous container back up.
 
-    $ sudo docker start nostalgic_morse
+    $ docker start nostalgic_morse
     nostalgic_morse
 
 Now quickly run `docker ps -l` again to see the running container is
@@ -294,7 +294,7 @@ responds.
 Your colleague has let you know that they've now finished with the container
 and won't need it again. So let's remove it using the `docker rm` command.
 
-    $ sudo docker rm nostalgic_morse
+    $ docker rm nostalgic_morse
     Error: Impossible to remove a running container, please stop it first or use -f
     2014/05/24 08:12:56 Error: failed to remove one or more containers
 
@@ -302,9 +302,9 @@ What happened? We can't actually remove a running container. This protects
 you from accidentally removing a running container you might need. Let's try
 this again by stopping the container first.
 
-    $ sudo docker stop nostalgic_morse
+    $ docker stop nostalgic_morse
     nostalgic_morse
-    $ sudo docker rm nostalgic_morse
+    $ docker rm nostalgic_morse
     nostalgic_morse
 
 And now our container is stopped and deleted.
