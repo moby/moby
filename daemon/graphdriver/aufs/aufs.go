@@ -156,6 +156,7 @@ func (a *Driver) Status() [][2]string {
 		{"Root Dir", a.rootPath()},
 		{"Backing Filesystem", backingFs},
 		{"Dirs", fmt.Sprintf("%d", len(ids))},
+		{"Dirperm1 Supported", fmt.Sprintf("%v", useDirperm())},
 	}
 }
 
