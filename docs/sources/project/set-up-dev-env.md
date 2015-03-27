@@ -251,10 +251,9 @@ with the `make.sh` script.
     When the command completes successfully, you should see the following
     output:
 
-        ---> Making bundle: ubuntu (in bundles/1.5.0-dev/ubuntu)
-        Created package {:path=>"lxc-docker-1.5.0-dev_1.5.0~dev~git20150223.181106.0.1ab0d23_amd64.deb"}
-        Created package {:path=>"lxc-docker_1.5.0~dev~git20150223.181106.0.1ab0d23_amd64.deb"}
-
+	---> Making bundle: binary (in bundles/1.5.0-dev/binary)
+	Created binary: /go/src/github.com/docker/docker/bundles/1.5.0-dev/binary/docker-1.5.0-dev
+	
 5. List all the contents of the `binary` directory.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker#  ls bundles/1.5.0-dev/binary/
