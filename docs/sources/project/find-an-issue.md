@@ -164,17 +164,16 @@ To sync your repository:
 
         $ git remote add upstream https://github.com/docker/docker.git
 
-5. Fetch all the changes from the `upstream/master` branch.
+5. Fetch all the changes from the `upstream master` branch.
 
-        $ git fetch upstream
+        $ git fetch upstream master
         remote: Counting objects: 141, done.
         remote: Compressing objects: 100% (29/29), done.
         remote: Total 141 (delta 52), reused 46 (delta 46), pack-reused 66
         Receiving objects: 100% (141/141), 112.43 KiB | 0 bytes/s, done.
         Resolving deltas: 100% (79/79), done.
-        From github.com:docker/docker
-           9ffdf1e..01d09e4  docs       -> upstream/docs
-           05ba127..ac2521b  master     -> upstream/master
+	From github.com:docker/docker
+	  * branch            master     -> FETCH_HEAD
 
     This command says get all the changes from the `master` branch belonging to
     the `upstream` remote.
@@ -197,9 +196,9 @@ To sync your repository:
         nothing to commit, working directory clean
 
     Your local repository now has any changes from the `upstream` remote.  You
-    need to push the changes to your own remote fork which is `origin/master`.
+    need to push the changes to your own remote fork which is `origin master`.
 
-9. Push the rebased master to `origin/master`.
+9. Push the rebased master to `origin master`.
 
         $ git push origin
         Username for 'https://github.com': moxiegirl
@@ -219,7 +218,7 @@ To sync your repository:
         $ git checkout -b 11038-fix-rhel-link
         Switched to a new branch '11038-fix-rhel-link'
 
-    Your branch should be up-to-date with the upstream/master. Why? Because you
+    Your branch should be up-to-date with the `upstream/master`. Why? Because you
     branched off a freshly synced master.  Let's check this anyway in the next
     step.
 
