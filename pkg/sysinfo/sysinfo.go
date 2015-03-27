@@ -9,6 +9,7 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 )
 
+// SysInfo stores information about which features a kernel supports.
 type SysInfo struct {
 	MemoryLimit            bool
 	SwapLimit              bool
@@ -16,6 +17,7 @@ type SysInfo struct {
 	AppArmor               bool
 }
 
+// Returns a new SysInfo, using the filesystem to detect which features the kernel supports.
 func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
 	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
@@ -37,7 +39,7 @@ func New(quiet bool) *SysInfo {
 		}
 	}
 
-	// Check if AppArmor seems to be enabled on this system.
+	// Check if AppArmor is supported
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
 		sysInfo.AppArmor = false
 	} else {
