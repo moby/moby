@@ -272,8 +272,8 @@ with the `make.sh` script.
         root@5f8630b873fe:/go/src/github.com/docker/docker# docker --version
         Docker version 1.5.0-dev, build 6e728fb
 
-    Inside the container you are running a development version. This is version
-    on the current branch it reflects the value of the `VERSION` file at the
+    Inside the container you are running a development version. This is the version
+    on the current branch. It reflects the value of the `VERSION` file at the
     root of your `docker-fork` repository.
 
 8. Start a `docker` daemon running inside your container.
