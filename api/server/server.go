@@ -7,8 +7,6 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"expvar"
 	"fmt"
 	"io"
 	"net"
@@ -26,7 +24,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/derror"
+	"github.com/docker/docker/i18n"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -136,22 +134,23 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		if derr, ok := err.(*derror.Derror); ok {
-			statusCode = derr.Status()
+		err2, _ := i18n.NewError(err).(*jsonmessage.JSONError)
 
-			w.Header().Add("X-Docker-Msg-Id", derr.MessageID())
-
-			for i, arg := range derr.Args() {
-				name := fmt.Sprintf("X-Docker-Msg-Arg-%d", i+1)
-				val := fmt.Sprintf("%v", arg)
-				w.Header().Add(name, val)
-			}
-
-			// Grab Derror's error msg in case they differ
-			err = errors.New(derr.Message())
+		if !err2.Is(i18n.Generic) {
+			statusCode = err2.Code
 		}
-		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
-		http.Error(w, err.Error(), statusCode)
+
+		hdr, e := json.Marshal(err2)
+		if e != nil {
+			http.Error(w, "Can't marshal error:"+e.Error(),
+				http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Add("X-Docker-Err", string(hdr))
+
+		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err2)
+		http.Error(w, err2.Error(), statusCode)
 	}
 }
 

@@ -298,6 +298,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
 	if jerr, ok := err.(*jsonmessage.JSONError); ok {
+		// If cli.call() got a JSONError then do normal return
+		if jerr.Code >= 400 {
+			return err
+		}
+
 		// If no error code is set, default to 1
 		if jerr.Code == 0 {
 			jerr.Code = 1

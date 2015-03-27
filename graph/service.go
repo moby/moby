@@ -6,8 +6,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/i18n"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/derror"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
@@ -155,7 +155,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) error {
 		}
 		return nil
 	}
-	return derror.New("NoImageID", name)
+	return i18n.NewError(i18n.NoImageID, name)
 }
 
 // CmdTarLayer return the tarLayer of the image

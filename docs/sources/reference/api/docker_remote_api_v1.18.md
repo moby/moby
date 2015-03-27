@@ -2068,26 +2068,30 @@ default or blank means CORS disabled
 ## 3.4 Errors
 
 If there is an error while processing a request, the daemon will generate
-a set of HTTP Headers to indicate the error:
+an HTTP Header to indicate the error:
 
-         X-Docker-Msg-Id: <error-id>
-         X-Docker-Msg-Arg-*: <text>
+    X-Docker-Err: { json-encoded-error-data }
 
-The `X-Docker-Msg-Id` header will contain the string associated
-with the error. If there are run-time values/strings that are meant to
-be insertted into the human-readable text associated with the error, then
-the `X-Docker-Msg-Arg-*` headers will contain those values. The `*`
-will be replaced with the numeric position of the value in the text,
-e.g. 1 for the first, 2 for the second.
+The `X-Docker-Err` header will contain JSON encoded data for the error:
+    {
+	  "id": "..."
+      "args": [
+        "..."
+	  ]
+	}
+
+Where `id` is a string representing the unique ID for the error, and
+`args` and an array of strings that are the substitution values that
+are meant to be insertted into the human-readable text associated
+with the error text.
 
 For example, the `docker inspect 123123123` command will generate
-the following headers, assuming there is no container with that name
+the following header, assuming there is no container with that name
 or ID:
 
-        X-Docker-Msg-Id: NoContainerID
-        X-Docker-Msg-Arg-1: 123123123
+        X-Docker-Err: {"id":"NoContainerID","args":["123123123"]}
 
-These headers should be used for automated detection and processing of errors
+This header should be used for automated detection and processing of errors
 rather than trying to parse the human-readable text that is within the HTTP
 body the response message.
 

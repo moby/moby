@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"text/template"
 
-	"github.com/docker/docker/pkg/derror"
+	"github.com/docker/docker/i18n"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
 )
@@ -40,10 +39,10 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	for _, name := range cmd.Args() {
 		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
 		if err != nil {
-			if derror.Is(err, "NoContainerID") {
+			if i18n.Is(err, "NoContainerID") {
 				obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
-				if derror.Is(err, "NoImageID") {
-					err = derror.New("NoContainerImageID", name)
+				if i18n.Is(err, i18n.NoImageID) {
+					err = i18n.NewError(i18n.NoContainerImageID, name)
 				}
 			}
 		}

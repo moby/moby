@@ -29,7 +29,7 @@ page_keywords: API, Docker, rcli, REST, documentation
    properties in incoming messages will be ignored.
    Client applications need to take this into account to ensure
    they will not break when talking to newer Docker daemons.
- - If the daemon generates an error a set of HTTP headers will be generated to
+ - If the daemon generates an error an HTTP header will be generated to
    convey machine-readable information about the error. See `Errors` section
    in the API reference for more information.
 
