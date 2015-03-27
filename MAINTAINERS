@@ -7,7 +7,7 @@
 # It is structured to be consumable by both humans and programs.
 # To extract its contents programmatically, use any TOML-compliant
 # parser.
-
+add hsm
 [Rules]
 
 	[Rules.maintainers]
