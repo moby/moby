@@ -134,12 +134,12 @@ To configure your username, email, and add a remote:
 
 ## Create and push a branch
 
-As you change code in your fork, you make your changes on a repository branch.
+As you change code in your fork, make your changes on a repository branch.
 The branch name should reflect what you are working on. In this section, you
 create a branch, make a change, and push it up to your fork. 
 
 This branch is just for testing your config for this guide. The changes are part
-of a dry run so the branch name is going to be dry-run-test. To create an push
+of a dry run, so the branch name will be dry-run-test. To create and push
 the branch to your fork on GitHub:
 
 1. Open a terminal and go to the root of your `docker-fork`.
