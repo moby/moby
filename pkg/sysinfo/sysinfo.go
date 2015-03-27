@@ -17,7 +17,7 @@ type SysInfo struct {
 	AppArmor               bool
 }
 
-// Returns a new SysInfo, using the filesystem to detect which features the kernel supports.
+// New returns a new SysInfo, using the filesystem to detect which features the kernel supports.
 func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
 	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
