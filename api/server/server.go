@@ -623,6 +623,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 	var job = eng.Job("search", r.Form.Get("term"))
 	job.SetenvJson("metaHeaders", metaHeaders)
 	job.SetenvJson("authConfig", authConfig)
+	job.SetenvBool("noIndex", r.Form.Get("noIndex") == "1")
 	streamJSON(job, w, false)
 
 	return job.Run()

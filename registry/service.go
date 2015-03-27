@@ -3,7 +3,6 @@ package registry
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
@@ -84,59 +83,73 @@ func (s *Service) Auth(job *engine.Job) error {
 	return nil
 }
 
-// Compare two registries taking into consideration just their index names.
-func cmpRepoNamesByIndexName(fst, snd string) int {
-	ia := strings.Index(fst, "/")
-	ib := strings.Index(snd, "/")
-	if ia >= 0 && ib >= 0 {
-		switch {
-		case fst[:ia] < snd[:ib]:
-			return -1
-		case fst[:ia] > snd[:ib]:
-			return 1
-		}
-	}
-	switch {
-	case ia < ib:
-		return -1
-	case ia > ib:
-		return 1
-	}
-	return 0
-}
+// Factory for search result comparison function. Either it takes index name
+// into consideration or not.
+func getSearchResultsCmpFunc(withIndex bool) func(fst, snd *engine.Env) int {
+	cmpByStarCount := func(fst, snd *engine.Env) int {
+		starsA := fst.Get("star_count")
+		starsB := snd.Get("star_count")
 
-// Compare two items in the result table of search command.
-// First compare the index name name. Second compare their rating. Then compare their name.
-func cmpSearchResults(fst, snd *engine.Env) int {
-	nameA := fst.Get("name")
-	nameB := snd.Get("name")
-	ret := cmpRepoNamesByIndexName(nameA, nameB)
-	if ret != 0 {
-		return ret
-	}
-	starsA := fst.Get("star_count")
-	starsB := snd.Get("star_count")
-	intA, errA := strconv.ParseInt(starsA, 10, 64)
-	intB, errB := strconv.ParseInt(starsB, 10, 64)
-	if errA == nil && errB == nil {
+		intA, errA := strconv.ParseInt(starsA, 10, 64)
+		intB, errB := strconv.ParseInt(starsB, 10, 64)
+		if errA == nil && errB == nil {
+			switch {
+			case intA > intB:
+				return -1
+			case intA < intB:
+				return 1
+			}
+		}
 		switch {
-		case intA > intB:
+		case starsA > starsB:
 			return -1
-		case intA < intB:
+		case starsA < starsB:
 			return 1
 		}
+		return 0
 	}
-	switch {
-	case starsA > starsB:
-		return -1
-	case starsA < starsB:
-		return 1
-	case nameA < nameB:
-		return -1
-	case nameA > nameB:
-		return 1
+
+	cmpStringField := func(field string, fst, snd *engine.Env) int {
+		valA := fst.Get(field)
+		valB := snd.Get(field)
+		switch {
+		case valA < valB:
+			return -1
+		case valA > valB:
+			return 1
+		}
+		return 0
 	}
-	return 0
+
+	// Compare two items in the result table of search command. First compare
+	// the index we found the result in. Second compare their rating. Then
+	// compare their fully qualified name (registry/name).
+	cmpFunc := func(fst, snd *engine.Env) int {
+		if withIndex {
+			if res := cmpStringField("index_name", fst, snd); res != 0 {
+				return res
+			}
+			if byStarCount := cmpByStarCount(fst, snd); byStarCount != 0 {
+				return byStarCount
+			}
+		}
+		if res := cmpStringField("registry_name", fst, snd); res != 0 {
+			return res
+		}
+		if !withIndex {
+			if byStarCount := cmpByStarCount(fst, snd); byStarCount != 0 {
+				return byStarCount
+			}
+		}
+		if res := cmpStringField("name", fst, snd); res != 0 {
+			return res
+		}
+		if res := cmpStringField("description", fst, snd); res != 0 {
+			return res
+		}
+		return 0
+	}
+	return cmpFunc
 }
 
 func searchTerm(job *engine.Job, outs *engine.Table, term string) error {
@@ -146,6 +159,7 @@ func searchTerm(job *engine.Job, outs *engine.Table, term string) error {
 	)
 	job.GetenvJson("authConfig", authConfig)
 	job.GetenvJson("metaHeaders", metaHeaders)
+	noIndex := job.GetenvBool("noIndex")
 
 	repoInfo, err := ResolveRepositoryInfo(job, term)
 	if err != nil {
@@ -165,11 +179,59 @@ func searchTerm(job *engine.Job, outs *engine.Table, term string) error {
 	}
 	for _, result := range results.Results {
 		out := &engine.Env{}
-		result.Name = repoInfo.Index.Name + "/" + result.Name
+		// Check if search result has is fully qualified with registry
+		// If not, assume REGISTRY = INDEX
+		registryName := repoInfo.Index.Name
+		if RepositoryNameHasIndex(result.Name) {
+			registryName, result.Name = SplitReposName(result.Name, false)
+		}
 		out.Import(result)
+		// Now add the index in which we found the result to the json. (not sure this is really the right place for this)
+		out.Set("registry_name", registryName)
+		if !noIndex {
+			out.Set("index_name", repoInfo.Index.Name)
+		}
 		outs.Add(out)
 	}
 	return nil
+}
+
+// Duplicate entries may occur in result table when omitting index from output because
+// different indexes may refer to same registries.
+func removeSearchDuplicates(data []*engine.Env) (res []*engine.Env) {
+	var prevIndex = 0
+
+	if len(data) > 0 {
+		res = []*engine.Env{data[0]}
+	}
+	for i := 1; i < len(data); i++ {
+		prev := res[prevIndex]
+		curr := data[i]
+		if prev.Get("registry_name") == curr.Get("registry_name") && prev.Get("name") == curr.Get("name") {
+			// Repositories are equal, delete one of them.
+			// Find out whose index has higher priority (the lower the number
+			// the higher the priority).
+			var prioPrev, prioCurr int
+			for prioPrev = 0; prioPrev < len(RegistryList); prioPrev++ {
+				if prev.Get("index_name") == RegistryList[prioPrev] {
+					break
+				}
+			}
+			for prioCurr = 0; prioCurr < len(RegistryList); prioCurr++ {
+				if curr.Get("index_name") == RegistryList[prioCurr] {
+					break
+				}
+			}
+			if prioPrev > prioCurr || (prioPrev == prioCurr && prev.Get("star_count") < curr.Get("star_count")) {
+				// replace previous entry with current one
+				res[prevIndex] = curr
+			} // otherwise keep previous entry
+		} else {
+			prevIndex++
+			res = append(res, curr)
+		}
+	}
+	return
 }
 
 // Search queries the public registry for images matching the specified
@@ -183,21 +245,24 @@ func searchTerm(job *engine.Job, outs *engine.Table, term string) error {
 //
 //	'metaHeaders': extra HTTP headers to include in the request to the registry.
 //		The headers should be passed as a json-encoded dictionary.
+//	'noIndex': boolean parameter saying wether to include index in results or
+//		not
 //
 // Output:
 //	Results are sent as a collection of structured messages (using engine.Table).
 //	Each result is sent as a separate message.
 //	Results are ordered by:
-//	    1. registry's index name
-//          2. number of stars on registry
-//          3. registry's name
+//		1. registry's index name
+//		2. number of stars on registry
+//		3. registry's name
 func (s *Service) Search(job *engine.Job) error {
 	if n := len(job.Args); n != 1 {
 		return fmt.Errorf("Usage: %s TERM", job.Name)
 	}
 	var (
-		term = job.Args[0]
-		outs = engine.NewTableWithCmpFunc(cmpSearchResults, 0)
+		term    = job.Args[0]
+		noIndex = job.GetenvBool("noIndex")
+		outs    = engine.NewTableWithCmpFunc(getSearchResultsCmpFunc(!noIndex), 0)
 	)
 
 	// helper for concurrent queries
@@ -240,6 +305,9 @@ func (s *Service) Search(job *engine.Job) error {
 		}
 	}
 	outs.Sort()
+	if noIndex {
+		outs.Data = removeSearchDuplicates(outs.Data)
+	}
 	if _, err := outs.WriteListTo(job.Stdout); err != nil {
 		return err
 	}
