@@ -20,6 +20,8 @@ Although you will be using Windows Docker client, the docker engine hosting the
 containers will still be running on Linux. Until the Docker engine for Windows
 is developed, you can launch only Linux containers from your Windows machine.
 
+![Windows Architecture Diagram](/installation/images/win_docker_host.svg)
+
 ## Demonstration
 
 <iframe width="640" height="480" src="//www.youtube.com/embed/oSHN8_uiZd4?rel=0" frameborder="0" allowfullscreen></iframe>
