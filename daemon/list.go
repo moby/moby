@@ -30,7 +30,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 		n           = job.GetenvInt("limit")
 		size        = job.GetenvBool("size")
 		psFilters   filters.Args
-		filt_exited []int
+		filtExited  []int
 	)
 	outs := engine.NewTable("Created", 0)
 
@@ -44,7 +44,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			if err != nil {
 				return err
 			}
-			filt_exited = append(filt_exited, code)
+			filtExited = append(filtExited, code)
 		}
 	}
 
@@ -109,15 +109,15 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 				return errLast
 			}
 		}
-		if len(filt_exited) > 0 {
-			should_skip := true
-			for _, code := range filt_exited {
+		if len(filtExited) > 0 {
+			shouldSkip := true
+			for _, code := range filtExited {
 				if code == container.ExitCode && !container.Running {
-					should_skip = false
+					shouldSkip = false
 					break
 				}
 			}
-			if should_skip {
+			if shouldSkip {
 				return nil
 			}
 		}

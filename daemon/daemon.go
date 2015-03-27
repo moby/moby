@@ -154,7 +154,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	}
 	// FIXME: this hack is necessary for legacy integration tests to access
 	// the daemon object.
-	eng.Hack_SetGlobalVar("httpapi.daemon", daemon)
+	eng.HackSetGlobalVar("httpapi.daemon", daemon)
 	return nil
 }
 

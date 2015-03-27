@@ -266,7 +266,7 @@ func InitDriver(job *engine.Job) error {
 	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
 
 	// https://github.com/docker/docker/issues/2768
-	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeIPv4Network.IP)
+	job.Eng.HackSetGlobalVar("httpapi.bridgeIP", bridgeIPv4Network.IP)
 
 	for name, f := range map[string]engine.Handler{
 		"allocate_interface": Allocate,
@@ -522,8 +522,8 @@ func Allocate(job *engine.Job) error {
 
 	if globalIPv6Network != nil {
 		// If globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
-		netmask_ones, _ := globalIPv6Network.Mask.Size()
-		if requestedIPv6 == nil && netmask_ones <= 80 {
+		netmaskOnes, _ := globalIPv6Network.Mask.Size()
+		if requestedIPv6 == nil && netmaskOnes <= 80 {
 			requestedIPv6 = make(net.IP, len(globalIPv6Network.IP))
 			copy(requestedIPv6, globalIPv6Network.IP)
 			for i, h := range mac {

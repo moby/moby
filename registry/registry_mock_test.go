@@ -171,7 +171,7 @@ func makePublicIndex() *IndexInfo {
 	return index
 }
 
-func makeServiceConfig(mirrors []string, insecure_registries []string) *ServiceConfig {
+func makeServiceConfig(mirrors []string, insecureRegistries []string) *ServiceConfig {
 	options := &Options{
 		Mirrors:            opts.NewListOpts(nil),
 		InsecureRegistries: opts.NewListOpts(nil),
@@ -181,9 +181,9 @@ func makeServiceConfig(mirrors []string, insecure_registries []string) *ServiceC
 			options.Mirrors.Set(mirror)
 		}
 	}
-	if insecure_registries != nil {
-		for _, insecure_registries := range insecure_registries {
-			options.InsecureRegistries.Set(insecure_registries)
+	if insecureRegistries != nil {
+		for _, insecureRegistries := range insecureRegistries {
+			options.InsecureRegistries.Set(insecureRegistries)
 		}
 	}
 

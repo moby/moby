@@ -184,16 +184,16 @@ func TestIPv6InterfaceAllocationAutoNetmaskLe80(t *testing.T) {
 
 	// ensure global ip with mac
 	ip := net.ParseIP(output.Get("GlobalIPv6"))
-	expected_ip := net.ParseIP("2001:db8:1234:1234:1234:abcd:abcd:abcd")
-	if ip.String() != expected_ip.String() {
-		t.Fatalf("Error ip %s should be %s", ip.String(), expected_ip.String())
+	expectedIP := net.ParseIP("2001:db8:1234:1234:1234:abcd:abcd:abcd")
+	if ip.String() != expectedIP.String() {
+		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP.String())
 	}
 
 	// ensure link local format
 	ip = net.ParseIP(output.Get("LinkLocalIPv6"))
-	expected_ip = net.ParseIP("fe80::a9cd:abff:fecd:abcd")
-	if ip.String() != expected_ip.String() {
-		t.Fatalf("Error ip %s should be %s", ip.String(), expected_ip.String())
+	expectedIP = net.ParseIP("fe80::a9cd:abff:fecd:abcd")
+	if ip.String() != expectedIP.String() {
+		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP.String())
 	}
 
 }
@@ -203,18 +203,18 @@ func TestIPv6InterfaceAllocationRequest(t *testing.T) {
 	input := engine.Env{}
 
 	_, subnet, _ := net.ParseCIDR("2001:db8:1234:1234:1234::/80")
-	expected_ip := net.ParseIP("2001:db8:1234:1234:1234::1328")
+	expectedIP := net.ParseIP("2001:db8:1234:1234:1234::1328")
 
 	// set global ipv6
 	input.Set("globalIPv6Network", subnet.String())
-	input.Set("RequestedIPv6", expected_ip.String())
+	input.Set("RequestedIPv6", expectedIP.String())
 
 	output := newInterfaceAllocation(t, input)
 
 	// ensure global ip with mac
 	ip := net.ParseIP(output.Get("GlobalIPv6"))
-	if ip.String() != expected_ip.String() {
-		t.Fatalf("Error ip %s should be %s", ip.String(), expected_ip.String())
+	if ip.String() != expectedIP.String() {
+		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP.String())
 	}
 
 	// retry -> fails for duplicated address

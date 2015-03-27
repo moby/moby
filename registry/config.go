@@ -60,10 +60,10 @@ func (ipnet *netIPNet) MarshalJSON() ([]byte, error) {
 }
 
 func (ipnet *netIPNet) UnmarshalJSON(b []byte) (err error) {
-	var ipnet_str string
-	if err = json.Unmarshal(b, &ipnet_str); err == nil {
+	var ipnetStr string
+	if err = json.Unmarshal(b, &ipnetStr); err == nil {
 		var cidr *net.IPNet
-		if _, cidr, err = net.ParseCIDR(ipnet_str); err == nil {
+		if _, cidr, err = net.ParseCIDR(ipnetStr); err == nil {
 			*ipnet = netIPNet(*cidr)
 		}
 	}

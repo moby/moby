@@ -251,11 +251,11 @@ func TestPsListContainersSize(t *testing.T) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
 	runCommandWithOutput(cmd)
 	cmd = exec.Command(dockerBinary, "ps", "-s", "-n=1")
-	base_out, _, err := runCommandWithOutput(cmd)
-	base_lines := strings.Split(strings.Trim(base_out, "\n "), "\n")
-	base_sizeIndex := strings.Index(base_lines[0], "SIZE")
-	base_foundSize := base_lines[1][base_sizeIndex:]
-	base_bytes, err := strconv.Atoi(strings.Split(base_foundSize, " ")[0])
+	baseOut, _, err := runCommandWithOutput(cmd)
+	baseLines := strings.Split(strings.Trim(baseOut, "\n "), "\n")
+	baseSizeIndex := strings.Index(baseLines[0], "SIZE")
+	baseFoundsize := baseLines[1][baseSizeIndex:]
+	baseBytes, err := strconv.Atoi(strings.Split(baseFoundsize, " ")[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestPsListContainersSize(t *testing.T) {
 	if foundID != id[:12] {
 		t.Fatalf("Expected id %s, got %s", id[:12], foundID)
 	}
-	expectedSize := fmt.Sprintf("%d B", (2 + base_bytes))
+	expectedSize := fmt.Sprintf("%d B", (2 + baseBytes))
 	foundSize := lines[1][sizeIndex:]
 	if foundSize != expectedSize {
 		t.Fatalf("Expected size %q, got %q", expectedSize, foundSize)

@@ -19,10 +19,10 @@ var acceptedImageFilterTags = map[string]struct{}{
 
 func (s *TagStore) CmdImages(job *engine.Job) error {
 	var (
-		allImages   map[string]*image.Image
-		err         error
-		filt_tagged = true
-		filt_label  = false
+		allImages  map[string]*image.Image
+		err        error
+		filtTagged = true
+		filtLabel  = false
 	)
 
 	imageFilters, err := filters.FromParam(job.Getenv("filters"))
@@ -38,14 +38,14 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 	if i, ok := imageFilters["dangling"]; ok {
 		for _, value := range i {
 			if strings.ToLower(value) == "true" {
-				filt_tagged = false
+				filtTagged = false
 			}
 		}
 	}
 
-	_, filt_label = imageFilters["label"]
+	_, filtLabel = imageFilters["label"]
 
-	if job.GetenvBool("all") && filt_tagged {
+	if job.GetenvBool("all") && filtTagged {
 		allImages, err = s.graph.Map()
 	} else {
 		allImages, err = s.graph.Heads()
@@ -70,7 +70,7 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 			}
 
 			if out, exists := lookup[id]; exists {
-				if filt_tagged {
+				if filtTagged {
 					if utils.DigestReference(ref) {
 						out.SetList("RepoDigests", append(out.GetList("RepoDigests"), imgRef))
 					} else { // Tag Ref.
@@ -83,7 +83,7 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 				if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
 					continue
 				}
-				if filt_tagged {
+				if filtTagged {
 					out := &engine.Env{}
 					out.SetJson("ParentId", image.Parent)
 					out.SetJson("Id", image.ID)
@@ -114,7 +114,7 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 	}
 
 	// Display images which aren't part of a repository/tag
-	if job.Getenv("filter") == "" || filt_label {
+	if job.Getenv("filter") == "" || filtLabel {
 		for _, image := range allImages {
 			if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
 				continue
