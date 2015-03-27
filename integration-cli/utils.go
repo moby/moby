@@ -166,7 +166,7 @@ func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 }
 
 func logDone(message string) {
-	fmt.Printf("[PASSED]: %s\n", message)
+	fmt.Printf("[PASSED]: %.69s\n", message)
 }
 
 func stripTrailingCharacters(target string) string {

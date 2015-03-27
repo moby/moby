@@ -1911,8 +1911,6 @@ func TestBuildWithInaccessibleFilesInContext(t *testing.T) {
 
 	}
 	logDone("build - ADD from context with inaccessible files must not pass")
-	logDone("build - ADD from context with accessible links must work")
-	logDone("build - ADD from context with ignored inaccessible files must work")
 }
 
 func TestBuildForceRm(t *testing.T) {
@@ -2152,7 +2150,6 @@ func TestBuildRm(t *testing.T) {
 	}
 
 	logDone("build - ensure --rm doesn't leave containers behind and that --rm=true is the default")
-	logDone("build - ensure --rm=false overrides the default")
 }
 
 func TestBuildWithVolumes(t *testing.T) {
@@ -3265,15 +3262,16 @@ CMD ["cat", "/foo"]`,
 	if out, _, err := runCommandWithOutput(buildCmd); err != nil {
 		t.Fatalf("build failed to complete: %v %v", out, err)
 	}
-	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", compression))
 }
 
 func TestBuildContextTarGzip(t *testing.T) {
 	testContextTar(t, archive.Gzip)
+	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", archive.Gzip))
 }
 
 func TestBuildContextTarNoCompression(t *testing.T) {
 	testContextTar(t, archive.Uncompressed)
+	logDone(fmt.Sprintf("build - build an image with a context tar, compression: %v", archive.Uncompressed))
 }
 
 func TestBuildNoContext(t *testing.T) {
