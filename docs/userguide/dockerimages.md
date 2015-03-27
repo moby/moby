@@ -115,14 +115,14 @@ by using the `docker search` command to find all the images that contain the
 term `sinatra`.
 
     $ docker search sinatra
-    NAME                                   DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
-    training/sinatra                       Sinatra training image                          0                    [OK]
-    marceldegraaf/sinatra                  Sinatra test app                                0
-    mattwarren/docker-sinatra-demo                                                         0                    [OK]
-    luisbebop/docker-sinatra-hello-world                                                   0                    [OK]
-    bmorearty/handson-sinatra              handson-ruby + Sinatra for Hands on with D...   0
-    subwiz/sinatra                                                                         0
-    bmorearty/sinatra                                                                      0
+    INDEX       NAME                                             DESCRIPTION                       STARS     OFFICIAL   AUTOMATED
+    docker.io   docker.io/tdiary/rpaproxy-sinatra                                                  1                    [OK]
+    docker.io   docker.io/andyshinn/sinatra-echo                                                   0                    [OK]
+    docker.io   docker.io/antonyfrancis/sinatra-org                                                0                    [OK]
+    docker.io   docker.io/crohr/docker-sinatra                                                     0                    [OK]
+    docker.io   docker.io/davidyoondrums/sinatra-skeleton                                          0                    [OK]
+    docker.io   docker.io/erikap/ruby-sinatra                    Docker for hosting Sinatra apps   0                    [OK]
+    docker.io   docker.io/garland/sinatra-hello                                                    0                    [OK]
     . . .
 
 You can see the command returns a lot of images that use the term `sinatra`.

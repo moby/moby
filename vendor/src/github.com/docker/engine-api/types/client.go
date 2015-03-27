@@ -204,6 +204,7 @@ type ImageRemoveOptions struct {
 type ImageSearchOptions struct {
 	Term         string
 	RegistryAuth string
+	NoIndex      bool
 }
 
 // ImageTagOptions holds parameters to tag an image

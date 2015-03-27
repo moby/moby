@@ -52,7 +52,7 @@ You can search the [Docker Hub](https://hub.docker.com) registry via its search
 interface or by using the command line interface. Searching can find images by image
 name, user name, or description:
 
-    $ docker search centos
+    $ docker search --no-index centos
     NAME           DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     centos         The official build of CentOS                    1223      [OK]
     tianon/centos  CentOS 5 and 6, created using rinse instea...   33

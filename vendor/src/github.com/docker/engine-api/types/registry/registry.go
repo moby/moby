@@ -99,3 +99,26 @@ type SearchResults struct {
 	// Results is a slice containing the actual results for the search
 	Results []SearchResult `json:"results"`
 }
+
+// SearchResultExt describes a search result returned from a registry extended for
+// IndexName and RegistryName.
+// GET "/images/search"
+type SearchResultExt struct {
+	// IndexName is a name of index server providing the data below.
+	IndexName string `json:"index_name"`
+	// RegistryName is a registry name part of the Name. If the Name is not fully
+	// qualified, it will be set to IndexName.
+	RegistryName string `json:"registry_name"`
+	// StarCount indicates the number of stars this repository has
+	StarCount int `json:"star_count"`
+	// IsOfficial indicates whether the result is an official repository or not
+	IsOfficial bool `json:"is_official"`
+	// Name is the name of the repository
+	Name string `json:"name"`
+	// IsOfficial indicates whether the result is trusted
+	IsTrusted bool `json:"is_trusted"`
+	// IsAutomated indicates whether the result is automated
+	IsAutomated bool `json:"is_automated"`
+	// Description is a textual description of the repository
+	Description string `json:"description"`
+}

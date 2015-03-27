@@ -1459,8 +1459,9 @@ func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (stri
 // term. authConfig is used to login.
 func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfigs map[string]types.AuthConfig,
-	headers map[string][]string) (*registrytypes.SearchResults, error) {
-	return daemon.RegistryService.Search(term, authConfigs, headers)
+	headers map[string][]string,
+	noIndex bool) ([]registrytypes.SearchResultExt, error) {
+	return daemon.RegistryService.Search(term, authConfigs, headers, noIndex)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
