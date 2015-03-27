@@ -123,9 +123,9 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		w      = tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	)
 	printHeader := func() {
-		fmt.Fprint(cli.out, "\033[2J")
-		fmt.Fprint(cli.out, "\033[H")
-		fmt.Fprintln(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O")
+		io.WriteString(cli.out, "\033[2J")
+		io.WriteString(cli.out, "\033[H")
+		io.WriteString(w, "CONTAINER\tCPU %\tMEM USAGE/LIMIT\tMEM %\tNET I/O\n")
 	}
 	for _, n := range names {
 		s := &containerStats{Name: n}
