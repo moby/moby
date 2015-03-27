@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -91,9 +90,8 @@ func TestTagValidPrefixedRepo(t *testing.T) {
 			continue
 		}
 		deleteImages(repo)
-		logMessage := fmt.Sprintf("tag - busybox %v", repo)
-		logDone(logMessage)
 	}
+	logDone("tag - tag valid prefixed repo")
 }
 
 // tag an image with an existed tag name without -f option should fail
@@ -162,9 +160,6 @@ func TestTagOfficialNames(t *testing.T) {
 		} else if strings.Contains(out, name) {
 			t.Errorf("images should not have listed '%s'", name)
 			deleteImages(name + ":latest")
-		} else {
-			logMessage := fmt.Sprintf("tag official name - busybox %v", name)
-			logDone(logMessage)
 		}
 	}
 
@@ -176,7 +171,6 @@ func TestTagOfficialNames(t *testing.T) {
 			continue
 		}
 		deleteImages("fooo/bar:latest")
-		logMessage := fmt.Sprintf("tag official name - %v fooo/bar", name)
-		logDone(logMessage)
 	}
+	logDone("tag - tag official names")
 }

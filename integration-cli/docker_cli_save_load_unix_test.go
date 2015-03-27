@@ -70,8 +70,6 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 
 	os.Remove("/tmp/foobar-save-load-test.tar")
 
-	logDone("save - save/load a repo using stdout")
-
 	pty, tty, err := pty.Open()
 	if err != nil {
 		t.Fatalf("Could not open pty: %v", err)
@@ -98,5 +96,5 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 		t.Fatal("help output is not being yielded", out)
 	}
 
-	logDone("save - do not save to a tty")
+	logDone("save - save/load a repo using stdout")
 }

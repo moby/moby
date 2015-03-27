@@ -295,8 +295,7 @@ func TestRunWorkingDirectory(t *testing.T) {
 		t.Errorf("--workdir failed to set working directory")
 	}
 
-	logDone("run - run with working directory set by -w")
-	logDone("run - run with working directory set by --workdir")
+	logDone("run - run with working directory set by -w/--workdir")
 }
 
 // pinging Google's DNS resolver should fail when we disable the networking
@@ -321,8 +320,7 @@ func TestRunWithoutNetworking(t *testing.T) {
 		t.Errorf("-n=false should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
 	}
 
-	logDone("run - disable networking with --net=none")
-	logDone("run - disable networking with -n=false")
+	logDone("run - disable networking with --net=none/-n=false")
 }
 
 //test --link use container name to link target

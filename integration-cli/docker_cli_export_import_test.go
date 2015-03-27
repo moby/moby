@@ -45,8 +45,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	deleteContainer(cleanedContainerID)
 	deleteImages("repo/testexp:v1")
 
-	logDone("export - export a container")
-	logDone("import - import an image")
+	logDone("export - export/import a container/image")
 }
 
 // Used to test output flag in the export command
@@ -94,6 +93,5 @@ func TestExportContainerWithOutputAndImportImage(t *testing.T) {
 
 	os.Remove("/tmp/testexp.tar")
 
-	logDone("export - export a container with output flag")
-	logDone("import - import an image with output flag")
+	logDone("export - export/import a container/image with output flag")
 }
