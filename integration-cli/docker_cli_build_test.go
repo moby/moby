@@ -3709,7 +3709,7 @@ func TestBuildDockerignoreExclude(t *testing.T) {
 		"LICENSE.md":       "must be included.",
 		"docs/useless.md":  "history",
 		"docs/config.json": "{ config: 1 }",
-		".dockerignore":    `.git
+		".dockerignore": `.git
 pkg
 gitignore
 src/_vendor
