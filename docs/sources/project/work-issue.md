@@ -119,11 +119,7 @@ Follow this workflow as you work:
         To https://github.com/moxiegirl/docker.git
          * [new branch]      11038-fix-rhel-link -> 11038-fix-rhel-link
         Branch 11038-fix-rhel-link set up to track remote branch 11038-fix-rhel-link from origin.
-        
-    The first time you push a change, you must specify the branch. Later, you can just do this:
-    
-    	git push origin
-    	
+
 ## Review your branch on GitHub
 
 After you push a new branch, you should verify it on GitHub:
@@ -155,19 +151,20 @@ You should pull and rebase frequently as you work.
 
 		$ git branch 11038-fix-rhel-link
 
-3. Fetch all the changes from the `upstream/master` branch.
+3. Fetch all the changes from the `upstream master` branch.
 
-		 $ git fetch upstream/master
+		 $ git fetch upstream master
 
   	This command says get all the changes from the `master` branch belonging to
   	the `upstream` remote.
 
-4. Rebase your local master with Docker's `upstream/master` branch.
+4. Rebase your master with the local copy of Docker's `master` branch.
 
 		 $ git rebase -i upstream/master
    
-  	This command starts an interactive rebase to merge code from Docker's
-  	`upstream/master` branch into your local branch. If you aren't familiar or
+  	This command starts an interactive rebase to rewrite all the commits from
+	Docker's `upstream/master` onto your local branch, and then re-apply each of
+	your commits on top of the upstream changes. If you aren't familiar or
   	comfortable with rebase, you can <a
   	href="http://nathanleclaire.com/blog/2014/09/14/dont-be-scared-of-git-
   	rebase" target="_blank">learn more about rebasing</a> on the web.
@@ -190,7 +187,7 @@ You should pull and rebase frequently as you work.
   	After closing the file, `git` opens your editor again to edit the commit
   	message. 
 
-7. Edit and save your commit message.
+7. Edit the commit message to reflect the entire change.
 
 	Make sure you include your signature.
 
