@@ -39,7 +39,7 @@ func New(quiet bool) *SysInfo {
 		}
 	}
 
-	// Check if AppArmor is supported
+	// Check if AppArmor is supported.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
 		sysInfo.AppArmor = false
 	} else {
