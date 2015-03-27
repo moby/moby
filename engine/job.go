@@ -17,12 +17,7 @@ import (
 // download an archive from the internet, serve the http api, etc.
 //
 // The job API is designed after unix processes: a job has a name, arguments,
-// environment variables, standard streams for input, output and error, and
-// an exit status which can indicate success (0) or error (anything else).
-//
-// For status, 0 indicates success, and any other integers indicates an error.
-// This allows for richer error reporting.
-//
+// environment variables, standard streams for input, output and error.
 type Job struct {
 	Eng     *Engine
 	Name    string
@@ -32,7 +27,6 @@ type Job struct {
 	Stderr  *Output
 	Stdin   *Input
 	handler Handler
-	err     error
 	end     time.Time
 	closeIO bool
 
@@ -45,7 +39,22 @@ type Job struct {
 
 // Run executes the job and blocks until the job completes.
 // If the job fails it returns an error
-func (job *Job) Run() error {
+func (job *Job) Run() (err error) {
+	defer func() {
+		// Wait for all background tasks to complete
+		if job.closeIO {
+			if err := job.Stdout.Close(); err != nil {
+				logrus.Error(err)
+			}
+			if err := job.Stderr.Close(); err != nil {
+				logrus.Error(err)
+			}
+			if err := job.Stdin.Close(); err != nil {
+				logrus.Error(err)
+			}
+		}
+	}()
+
 	if job.Eng.IsShutdown() && !job.GetenvBool("overrideShutdown") {
 		return fmt.Errorf("engine is shutdown")
 	}
@@ -69,32 +78,25 @@ func (job *Job) Run() error {
 	if job.Eng.Logging {
 		logrus.Infof("+job %s", job.CallString())
 		defer func() {
-			// what if err is nil?
-			logrus.Infof("-job %s%s", job.CallString(), job.err)
+			okerr := "OK"
+			if err != nil {
+				okerr = fmt.Sprintf("ERR: %s", err)
+			}
+			logrus.Infof("-job %s %s", job.CallString(), okerr)
 		}()
 	}
-	var errorMessage = bytes.NewBuffer(nil)
-	job.Stderr.Add(errorMessage)
+
 	if job.handler == nil {
-		job.err = fmt.Errorf("%s: command not found", job.Name)
-	} else {
-		job.err = job.handler(job)
-		job.end = time.Now()
-	}
-	if job.closeIO {
-		// Wait for all background tasks to complete
-		if err := job.Stdout.Close(); err != nil {
-			return err
-		}
-		if err := job.Stderr.Close(); err != nil {
-			return err
-		}
-		if err := job.Stdin.Close(); err != nil {
-			return err
-		}
+		return fmt.Errorf("%s: command not found", job.Name)
 	}
 
-	return job.err
+	var errorMessage = bytes.NewBuffer(nil)
+	job.Stderr.Add(errorMessage)
+
+	err = job.handler(job)
+	job.end = time.Now()
+
+	return
 }
 
 func (job *Job) CallString() string {
@@ -193,11 +195,6 @@ func (job *Job) ImportEnv(src interface{}) (err error) {
 
 func (job *Job) Environ() map[string]string {
 	return job.env.Map()
-}
-
-func (job *Job) Logf(format string, args ...interface{}) (n int, err error) {
-	prefixedFormat := fmt.Sprintf("[%s] %s\n", job, strings.TrimRight(format, "\n"))
-	return fmt.Fprintf(job.Stderr, prefixedFormat, args...)
 }
 
 func (job *Job) Printf(format string, args ...interface{}) (n int, err error) {
