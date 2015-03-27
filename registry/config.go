@@ -161,7 +161,7 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 			config.IndexConfigs[r] = &IndexInfo{
 				Name:     r,
 				Mirrors:  mirrors,
-				Secure:   r == INDEXNAME,
+				Secure:   config.isSecureIndex(r),
 				Official: r == INDEXNAME,
 			}
 		}
