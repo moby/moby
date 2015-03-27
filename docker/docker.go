@@ -89,6 +89,11 @@ func main() {
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
+	for _, lopt := range []string{"-add-registry", "-block-registry"} {
+		if flag.IsSet(lopt) {
+			logrus.Fatalf("The -%s option is recognized only by Docker daemon.", lopt)
+		}
+	}
 	var (
 		cli       *client.DockerCli
 		tlsConfig tls.Config

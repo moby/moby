@@ -251,7 +251,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *reques
 		return "", fmt.Errorf("Server Error: Server Address not set.")
 	}
 
-	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
+	loginAgainstOfficialIndex := serverAddress == INDEXSERVER
 
 	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig

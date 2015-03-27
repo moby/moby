@@ -1139,8 +1139,10 @@ _docker() {
 	)
 
 	local main_options_with_args="
+		--add-registry
 		--api-cors-header
 		--bip
+		--block-registry
 		--bridge -b
 		--default-ulimit
 		--dns

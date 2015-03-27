@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	repoName    = fmt.Sprintf("%v/dockercli/busybox-by-dgst", privateRegistryURL)
+	repoName    = fmt.Sprintf("%v/dockercli/busybox-by-dgst", privateRegistryURLs[0])
 	digestRegex = regexp.MustCompile("Digest: ([^\n]+)")
 )
 

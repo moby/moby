@@ -455,6 +455,13 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	}
 	image, err := b.Daemon.Repositories().LookupImage(name)
 	if err != nil {
+		if !registry.RepositoryNameHasIndex(name) {
+			// repository has been probably renamed to docker.io/<name>
+			qualifiedName := registry.INDEXNAME + "/" + name
+			if image, err = b.Daemon.Repositories().LookupImage(qualifiedName); err == nil {
+				return image, nil
+			}
+		}
 		return nil, err
 	}
 

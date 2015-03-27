@@ -26,6 +26,9 @@ To see the man page for a command run **man docker <command>**.
 **-h**, **--help**
   Print usage statement
 
+**--add-registry**=[]
+  **EXPERIMENTAL** Each given registry will be queried before a public Docker registry during image pulls or searches. They will be searched in the order given. Registry mirrors won't apply to them.
+
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
 
@@ -34,6 +37,9 @@ To see the man page for a command run **man docker <command>**.
 
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
+
+**--block-registry**=[]
+  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. There are two special keywords recognized. The first is "public" and represents public Docker registry. The second is "all" which causes all registries but those added with **--add-registry** flag to be blocked.
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
@@ -100,7 +106,7 @@ unix://[/path/to/socket] to use.
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
 **--registry-mirror**=<scheme>://<host>
-  Prepend a registry mirror to be used for image pulls. May be specified multiple times.
+  Prepend a registry mirror to be used for image pulls from public Docker registry. May be specified multiple times.
 
 **-s**, **--storage-driver**=""
   Force the Docker runtime to use a specific storage driver.

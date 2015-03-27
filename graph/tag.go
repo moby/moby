@@ -14,5 +14,5 @@ func (s *TagStore) CmdTag(job *engine.Job) error {
 	if len(job.Args) == 3 {
 		tag = job.Args[2]
 	}
-	return s.Set(job.Args[1], tag, job.Args[0], job.GetenvBool("force"))
+	return s.Set(job.Args[1], tag, job.Args[0], job.GetenvBool("force"), false)
 }
