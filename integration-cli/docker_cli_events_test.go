@@ -317,26 +317,7 @@ func TestEventsFilterContainerID(t *testing.T) {
 			t.Fatalf("Failed to get events, error: %s(%s)", err, out)
 		}
 		events := strings.Split(out, "\n")
-		events = events[:len(events)-1]
-		if len(events) == 0 || len(events) > 3 {
-			t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
-		}
-		createEvent := strings.Fields(events[0])
-		if createEvent[len(createEvent)-1] != "create" {
-			t.Fatalf("first event should be create, not %#v", createEvent)
-		}
-		if len(events) > 1 {
-			startEvent := strings.Fields(events[1])
-			if startEvent[len(startEvent)-1] != "start" {
-				t.Fatalf("second event should be start, not %#v", startEvent)
-			}
-		}
-		if len(events) == 3 {
-			dieEvent := strings.Fields(events[len(events)-1])
-			if dieEvent[len(dieEvent)-1] != "die" {
-				t.Fatalf("event should be die, not %#v", dieEvent)
-			}
-		}
+		checkEvents(t, events[:len(events)-1])
 	}
 
 	logDone("events - filters using container id")
@@ -363,27 +344,27 @@ func TestEventsFilterContainerName(t *testing.T) {
 			t.Fatalf("Failed to get events, error : %s(%s)", err, out)
 		}
 		events := strings.Split(out, "\n")
-		events = events[:len(events)-1]
-		if len(events) == 0 || len(events) > 3 {
-			t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
-		}
-		createEvent := strings.Fields(events[0])
-		if createEvent[len(createEvent)-1] != "create" {
-			t.Fatalf("first event should be create, not %#v", createEvent)
-		}
-		if len(events) > 1 {
-			startEvent := strings.Fields(events[1])
-			if startEvent[len(startEvent)-1] != "start" {
-				t.Fatalf("second event should be start, not %#v", startEvent)
-			}
-		}
-		if len(events) == 3 {
-			dieEvent := strings.Fields(events[len(events)-1])
-			if dieEvent[len(dieEvent)-1] != "die" {
-				t.Fatalf("event should be die, not %#v", dieEvent)
-			}
-		}
+		checkEvents(t, events[:len(events)-1])
 	}
 
 	logDone("events - filters using container name")
+}
+
+func checkEvents(t *testing.T, events []string) {
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
+	}
+	createEvent := strings.Fields(events[0])
+	if createEvent[len(createEvent)-1] != "create" {
+		t.Fatalf("first event should be create, not %#v", createEvent)
+	}
+	startEvent := strings.Fields(events[1])
+	if startEvent[len(startEvent)-1] != "start" {
+		t.Fatalf("second event should be start, not %#v", startEvent)
+	}
+	dieEvent := strings.Fields(events[len(events)-1])
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+
 }
