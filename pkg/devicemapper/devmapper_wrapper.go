@@ -219,7 +219,7 @@ func dmTaskGetDriverVersionFct(task *CDmTask) string {
 	return C.GoString((*C.char)(buffer))
 }
 
-func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, target, params *string) uintptr {
+func dmGetNextTargetFct(task *CDmTask, next unsafe.Pointer, start, length *uint64, target, params *string) unsafe.Pointer {
 	var (
 		Cstart, Clength      C.uint64_t
 		CtargetType, Cparams *C.char
@@ -231,8 +231,8 @@ func dmGetNextTargetFct(task *CDmTask, next uintptr, start, length *uint64, targ
 		*params = C.GoString(Cparams)
 	}()
 
-	nextp := C.dm_get_next_target((*C.struct_dm_task)(task), unsafe.Pointer(next), &Cstart, &Clength, &CtargetType, &Cparams)
-	return uintptr(nextp)
+	nextp := C.dm_get_next_target((*C.struct_dm_task)(task), next, &Cstart, &Clength, &CtargetType, &Cparams)
+	return nextp
 }
 
 func dmUdevSetSyncSupportFct(syncWithUdev int) {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"unsafe"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -226,7 +227,7 @@ func (t *Task) GetDriverVersion() (string, error) {
 	return res, nil
 }
 
-func (t *Task) GetNextTarget(next uintptr) (nextPtr uintptr, start uint64,
+func (t *Task) GetNextTarget(next unsafe.Pointer) (nextPtr unsafe.Pointer, start uint64,
 	length uint64, targetType string, params string) {
 
 	return DmGetNextTarget(t.unmanaged, next, &start, &length,
@@ -512,7 +513,7 @@ func GetStatus(name string) (uint64, uint64, string, string, error) {
 		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
 	}
 
-	_, start, length, targetType, params := task.GetNextTarget(0)
+	_, start, length, targetType, params := task.GetNextTarget(unsafe.Pointer(nil))
 	return start, length, targetType, params, nil
 }
 
