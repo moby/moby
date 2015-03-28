@@ -37,11 +37,13 @@ attached, the output is compatible with the
 [logfmt](http://godoc.org/github.com/kr/logfmt) format:
 
 ```text
-time="2014-04-20 15:36:23.830442383 -0400 EDT" level="info" msg="A group of walrus emerges from the ocean" animal="walrus" size=10
-time="2014-04-20 15:36:23.830584199 -0400 EDT" level="warning" msg="The group's number increased tremendously!" omg=true number=122
-time="2014-04-20 15:36:23.830596521 -0400 EDT" level="info" msg="A giant walrus appears!" animal="walrus" size=10
-time="2014-04-20 15:36:23.830611837 -0400 EDT" level="info" msg="Tremendously sized cow enters the ocean." animal="walrus" size=9
-time="2014-04-20 15:36:23.830626464 -0400 EDT" level="fatal" msg="The ice breaks!" omg=true number=100
+time="2015-03-26T01:27:38-04:00" level=debug msg="Started observing beach" animal=walrus number=8
+time="2015-03-26T01:27:38-04:00" level=info msg="A group of walrus emerges from the ocean" animal=walrus size=10
+time="2015-03-26T01:27:38-04:00" level=warning msg="The group's number increased tremendously!" number=122 omg=true
+time="2015-03-26T01:27:38-04:00" level=debug msg="Temperature changes" temperature=-4
+time="2015-03-26T01:27:38-04:00" level=panic msg="It's over 9000!" animal=orca size=9009
+time="2015-03-26T01:27:38-04:00" level=fatal msg="The ice breaks!" err=&{0x2082280c0 map[animal:orca size:9009] 2015-03-26 01:27:38.441574009 -0400 EDT panic It's over 9000!} number=100 omg=true
+exit status 1
 ```
 
 #### Example

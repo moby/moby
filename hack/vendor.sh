@@ -53,7 +53,7 @@ clone hg code.google.com/p/gosqlite 74691fb6f837
 
 clone git github.com/docker/libtrust 230dfd18c232
 
-clone git github.com/Sirupsen/logrus v0.7.1
+clone git github.com/Sirupsen/logrus v0.7.2
 
 clone git github.com/go-fsnotify/fsnotify v1.0.4
 
