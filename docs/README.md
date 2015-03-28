@@ -285,7 +285,7 @@ aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id 
 When using Docker on Mac OSX the man pages will be missing by default. You can manually generate them by following these steps:
 
 1. Checkout the docker source. You must clone into your `/Users` directory because Boot2Docker can only share this path
-   with docker containers.
+   with the docker containers.
 
         $ git clone https://github.com/docker/docker.git
 		
