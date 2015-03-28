@@ -115,18 +115,14 @@ func TestStartRecordError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error but got none, output %q", out)
 	}
-	stateErr, err = inspectField("test2", "State.Error")
-	if err != nil {
-		t.Fatalf("Failed to inspect %q state's error, got error %q", "test2", err)
-	}
-	expected := "port is already allocated"
-	if stateErr == "" || !strings.Contains(stateErr, expected) {
-		t.Fatalf("State.Error(%q) does not include %q", stateErr, expected)
+
+	if !strings.Contains(out, "port is already allocated") {
+		t.Fatal("Expected error but got none")
 	}
 
 	// Expect the conflict to be resolved when we stop the initial container
 	dockerCmd(t, "stop", "test")
-	dockerCmd(t, "start", "test2")
+	dockerCmd(t, "run", "-d", "-p", "9999:9999", "--name", "test2", "busybox", "top")
 	stateErr, err = inspectField("test2", "State.Error")
 	if err != nil {
 		t.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)

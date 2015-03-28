@@ -52,8 +52,8 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 		t.Fatalf("Missing expected event")
 	}
 
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
+	startEvent := strings.Fields(events[len(events)-4])
+	dieEvent := strings.Fields(events[len(events)-3])
 
 	if startEvent[len(startEvent)-1] != "start" {
 		t.Fatalf("event should be start, not %#v", startEvent)
@@ -310,6 +310,7 @@ func TestEventsFilterContainerID(t *testing.T) {
 	}
 	container2 := stripTrailingCharacters(out)
 
+	time.Sleep(1000 * time.Millisecond)
 	for _, s := range []string{container1, container2, container1[:12], container2[:12]} {
 		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
 		out, _, err := runCommandWithOutput(eventsCmd)
