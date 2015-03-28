@@ -5251,3 +5251,30 @@ func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
 	}
 
 }
+
+func TestBuildContainerWithCgroupParent(t *testing.T) {
+	testRequires(t, NativeExecDriver)
+	defer deleteImages()
+
+	cgroupParent := "test"
+	data, err := ioutil.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		t.Fatalf("failed to read '/proc/self/cgroup - %v", err)
+	}
+	selfCgroupPaths := parseCgroupPaths(string(data))
+	_, found := selfCgroupPaths["memory"]
+	if !found {
+		t.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
+	}
+	cmd := exec.Command(dockerBinary, "build", "--cgroup-parent", cgroupParent , "-")
+	cmd.Stdin = strings.NewReader(`
+FROM busybox
+RUN cat /proc/self/cgroup
+`)
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+	}
+	logDone("build - cgroup parent")
+}
