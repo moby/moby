@@ -166,7 +166,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		}
 	}
 	if err != nil {
-		if b.Daemon.Graph().IsNotExist(err) {
+		if b.Daemon.Graph().IsNotExist(err, name) {
 			image, err = b.pullImage(name)
 		}
 

@@ -2990,6 +2990,17 @@ func TestRunModeIpcContainer(t *testing.T) {
 	logDone("run - ipc container mode")
 }
 
+func TestRunModeIpcContainerNotExists(t *testing.T) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-d", "--ipc", "container:abcd1234", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if !strings.Contains(out, "abcd1234") || err == nil {
+		t.Fatalf("run IPC from a non exists container should with correct error out")
+	}
+
+	logDone("run - ipc from a non exists container failed with correct error out")
+}
+
 func TestContainerNetworkMode(t *testing.T) {
 	defer deleteAllContainers()
 	testRequires(t, SameHostDaemon)

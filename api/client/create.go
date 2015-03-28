@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/graph"
@@ -94,7 +95,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	//create the container
 	stream, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil)
 	//if image not found try to pull it
-	if statusCode == 404 {
+	if statusCode == 404 && strings.Contains(err.Error(), config.Image) {
 		repo, tag := parsers.ParseRepositoryTag(config.Image)
 		if tag == "" {
 			tag = graph.DEFAULTTAG
