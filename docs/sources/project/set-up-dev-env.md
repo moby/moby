@@ -75,8 +75,8 @@ To remove unnecessary artifacts,
         $ docker rmi -f $(docker images -q -a -f dangling=true)
 
     This command uses `docker images` to list all images (`-a` flag) by numeric
-    IDs (`-q` flag) and filter them to find dangling images (`-f
-    dangling=true`). Then, the `docker rmi` command forcibly (`-f` flag) removes
+    IDs (`-q` flag) and filter them to find dangling images (`-f dangling=true`).
+    Then, the `docker rmi` command forcibly (`-f` flag) removes
     the resulting list. To remove just one image, use the `docker rmi ID`
     command.
 
