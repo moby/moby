@@ -477,6 +477,42 @@ func TestRunWithVolumesFromExited(t *testing.T) {
 	logDone("run - regression test for #4979 - volumes-from on exited container")
 }
 
+// Test create volume in a dirctory which is a symbolic link
+func TestRunCreateVolumesInSymlinkDir(t *testing.T) {
+	defer deleteAllContainers()
+	// This test has to create a file on host
+	hostFile := "/tmp/abcd"
+	cmd := exec.Command("touch", hostFile)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatalf("failed to create file %s on host: %v, output: %q", hostFile, err, out)
+	}
+	defer func() {
+		cmd := exec.Command("rm", "-f", hostFile)
+		if out, _, err := runCommandWithOutput(cmd); err != nil {
+			t.Fatalf("failed to remove file %s on host: %v, output: %q", hostFile, err, out)
+		}
+	}()
+	// create symlink directory /home/test link to /tmp
+	cmd = exec.Command(dockerBinary, "run", "--name=test", "busybox", "ln", "-s", "/tmp", "/home/test")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	cmd = exec.Command(dockerBinary, "commit", "test", "busybox:test")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to commit container: %v, output: %q", err, out)
+	}
+	cleanedImageID := stripTrailingCharacters(out)
+	defer deleteImages(cleanedImageID)
+	// directory /home/test is link to /tmp, /home/test/abcd==/tmp/abcd
+	cmd = exec.Command(dockerBinary, "run", "-v", "/home/test/abcd", "busybox", "touch", "/home/test/abcd/Hello")
+	if out, _, err = runCommandWithOutput(cmd); err != nil {
+		t.Fatalf("failed to create volume in symlink directory: %v, output %q", err, out)
+	}
+
+	logDone("run - create volume in symlink directory")
+}
+
 // Regression test for #4830
 func TestRunWithRelativePath(t *testing.T) {
 	defer deleteAllContainers()
