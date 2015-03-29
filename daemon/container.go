@@ -944,6 +944,17 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		}
 	}
 
+	// Check if this is a special one (resolv.conf, hostname, ..)
+	if resource == "etc/resolv.conf" {
+		basePath = container.ResolvConfPath
+	}
+	if resource == "etc/hostname" {
+		basePath = container.HostnamePath
+	}
+	if resource == "etc/hosts" {
+		basePath = container.HostsPath
+	}
+
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		container.Unmount()

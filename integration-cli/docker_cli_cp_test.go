@@ -384,6 +384,70 @@ func TestCpUnprivilegedUser(t *testing.T) {
 	logDone("cp - unprivileged user")
 }
 
+func TestCpSpecialFiles(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
+	outDir, err := ioutil.TempDir("", "cp-test-special-files")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(outDir)
+
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
+	if err != nil || stripTrailingCharacters(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	// Copy actual /etc/resolv.conf
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/etc/resolv.conf", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from container: %s:%s %v", cleanedContainerID, "/etc/resolv.conf", err)
+	}
+
+	expected, err := ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/resolv.conf")
+	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
+
+	if !bytes.Equal(actual, expected) {
+		t.Fatalf("Expected copied file to be duplicate of the container resolvconf")
+	}
+
+	// Copy actual /etc/hosts
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/etc/hosts", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from container: %s:%s %v", cleanedContainerID, "/etc/hosts", err)
+	}
+
+	expected, err = ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/hosts")
+	actual, err = ioutil.ReadFile(outDir + "/hosts")
+
+	if !bytes.Equal(actual, expected) {
+		t.Fatalf("Expected copied file to be duplicate of the container hosts")
+	}
+
+	// Copy actual /etc/resolv.conf
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/etc/hostname", outDir)
+	if err != nil {
+		t.Fatalf("couldn't copy from container: %s:%s %v", cleanedContainerID, "/etc/hostname", err)
+	}
+
+	expected, err = ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/hostname")
+	actual, err = ioutil.ReadFile(outDir + "/hostname")
+
+	if !bytes.Equal(actual, expected) {
+		t.Fatalf("Expected copied file to be duplicate of the container resolvconf")
+	}
+
+	logDone("cp - special files (resolv.conf, hosts, hostname)")
+}
+
 func TestCpVolumePath(t *testing.T) {
 	testRequires(t, SameHostDaemon)
 
