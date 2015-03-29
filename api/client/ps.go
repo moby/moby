@@ -43,7 +43,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 	if *last == -1 && *nLatest {
 		*last = 1
 	}

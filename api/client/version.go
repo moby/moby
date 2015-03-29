@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdVersion shows Docker version information.
@@ -21,7 +20,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
 	cmd.Require(flag.Exact, 0)
 
-	utils.ParseFlags(cmd, args, false)
+	cmd.ParseFlags(args, false)
 
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)

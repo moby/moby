@@ -9,7 +9,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/timeutils"
-	"github.com/docker/docker/utils"
 )
 
 // CmdEvents prints a live stream of real time events from the server.
@@ -23,7 +22,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 	cmd.Require(flag.Exact, 0)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		v               = url.Values{}

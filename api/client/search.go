@@ -24,7 +24,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	stars := cmd.Int([]string{"s", "#stars", "-stars"}, 0, "Only displays with at least x stars")
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	name := cmd.Arg(0)
 	v := url.Values{}

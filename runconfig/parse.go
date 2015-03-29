@@ -96,7 +96,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	cmd.Require(flag.Min, 1)
 
-	if err := utils.ParseFlags(cmd, args, true); err != nil {
+	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, nil, cmd, err
 	}
 

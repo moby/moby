@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/units"
-	"github.com/docker/docker/utils"
 )
 
 // CmdInfo displays system-wide information.
@@ -18,7 +17,7 @@ import (
 func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd := cli.Subcmd("info", "", "Display system-wide information", true)
 	cmd.Require(flag.Exact, 0)
-	utils.ParseFlags(cmd, args, false)
+	cmd.ParseFlags(args, false)
 
 	body, _, err := readBody(cli.call("GET", "/info", nil, nil))
 	if err != nil {

@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var tmpl *template.Template
 	if *tmplStr != "" {

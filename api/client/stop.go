@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdStop stops one or more running containers.
@@ -19,7 +18,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing it")
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))

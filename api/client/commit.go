@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 // CmdCommit creates a new image from a container's changes.
@@ -28,7 +27,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	cmd.Require(flag.Max, 2)
 	cmd.Require(flag.Min, 1)
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		name            = cmd.Arg(0)

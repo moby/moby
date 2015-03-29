@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 func (cli *DockerCli) CmdRm(args ...string) error {
@@ -15,7 +14,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	val := url.Values{}
 	if *v {

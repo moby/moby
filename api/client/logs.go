@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdLogs fetches the logs of a given container.
@@ -21,7 +20,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	)
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	name := cmd.Arg(0)
 

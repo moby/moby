@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdUnpause unpauses all processes within a container, for one or more containers.
@@ -13,7 +12,7 @@ import (
 func (cli *DockerCli) CmdUnpause(args ...string) error {
 	cmd := cli.Subcmd("unpause", "CONTAINER [CONTAINER...]", "Unpause all processes within a container", true)
 	cmd.Require(flag.Min, 1)
-	utils.ParseFlags(cmd, args, false)
+	cmd.ParseFlags(args, false)
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
