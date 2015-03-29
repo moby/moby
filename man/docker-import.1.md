@@ -8,7 +8,7 @@ docker-import - Create an empty filesystem image and import the contents of the 
 **docker import**
 [**-c**|**--change**[= []**]]
 [**--help**]
-URL|- [REPOSITORY[:TAG]]
+file|URL|- [REPOSITORY[:TAG]]
 
 # OPTIONS
 **-c**, **--change**=[]
@@ -34,6 +34,11 @@ Create a new filesystem image from the contents of a tarball (`.tar`,
 Import to docker via pipe and stdin:
 
     # cat exampleimage.tgz | docker import - example/imagelocal
+
+Import to a Docker image from a local file.
+
+    # docker import /path/to/exampleimage.tgz 
+
 
 ## Import from a local file and tag
 
