@@ -203,7 +203,7 @@ func (container *Container) LogEvent(action string) {
 	d.EventsService.Log(
 		action,
 		container.ID,
-		d.Repositories().ImageName(container.ImageID),
+		container.Config.Image,
 	)
 }
 
