@@ -1,8 +1,9 @@
 package fileutils
 
 import (
-	"github.com/Sirupsen/logrus"
 	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Matches returns true if relFilePath matches any of the patterns
