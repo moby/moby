@@ -122,6 +122,7 @@ pages:
 - ['reference/commandline/cli.md', 'Reference', 'Docker command line']
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['faq.md', 'Reference', 'FAQ']
+- ['reference/glossary.md', 'Reference', 'Glossary']
 - ['reference/run.md', 'Reference', 'Run Reference']
 - ['compose/cli.md', 'Reference', 'Compose command line']
 - ['compose/yml.md', 'Reference', 'Compose yml']
