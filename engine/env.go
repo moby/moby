@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 type Env []string
@@ -258,7 +258,7 @@ func (env *Env) Encode(dst io.Writer) error {
 }
 
 func (env *Env) WriteTo(dst io.Writer) (int64, error) {
-	wc := utils.NewWriteCounter(dst)
+	wc := ioutils.NewWriteCounter(dst)
 	err := env.Encode(wc)
 	return wc.Count, err
 }

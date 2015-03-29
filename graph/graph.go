@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
@@ -154,7 +153,7 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 			graph.driver.Remove(img.ID)
 		}
 	}()
-	if err := utils.ValidateID(img.ID); err != nil {
+	if err := image.ValidateID(img.ID); err != nil {
 		return err
 	}
 	// (This is a convenience to save time. Race conditions are taken care of by os.Rename)

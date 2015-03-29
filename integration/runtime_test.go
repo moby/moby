@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
@@ -121,7 +122,7 @@ func init() {
 	spawnGlobalDaemon()
 	spawnLegitHttpsDaemon()
 	spawnRogueHttpsDaemon()
-	startFds, startGoroutines = utils.GetTotalUsedFds(), runtime.NumGoroutine()
+	startFds, startGoroutines = fileutils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
 func setupBaseImage() {

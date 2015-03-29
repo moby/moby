@@ -1063,7 +1063,7 @@ func (container *Container) setupContainerDns() error {
 			updatedResolvConf, modified := resolvconf.FilterResolvDns(latestResolvConf, container.daemon.config.Bridge.EnableIPv6)
 			if modified {
 				// changes have occurred during resolv.conf localhost cleanup: generate an updated hash
-				newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
+				newHash, err := ioutils.HashData(bytes.NewReader(updatedResolvConf))
 				if err != nil {
 					return err
 				}
@@ -1118,7 +1118,7 @@ func (container *Container) setupContainerDns() error {
 	}
 	//get a sha256 hash of the resolv conf at this point so we can check
 	//for changes when the host resolv.conf changes (e.g. network update)
-	resolvHash, err := utils.HashData(bytes.NewReader(resolvConf))
+	resolvHash, err := ioutils.HashData(bytes.NewReader(resolvConf))
 	if err != nil {
 		return err
 	}
@@ -1150,7 +1150,7 @@ func (container *Container) updateResolvConf(updatedResolvConf []byte, newResolv
 	if err != nil {
 		return err
 	}
-	curHash, err := utils.HashData(bytes.NewReader(resolvBytes))
+	curHash, err := ioutils.HashData(bytes.NewReader(resolvBytes))
 	if err != nil {
 		return err
 	}

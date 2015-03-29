@@ -11,7 +11,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/utils"
 )
 
 func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
@@ -156,7 +155,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 		if status != 0 {
-			return &utils.StatusError{StatusCode: status}
+			return &StatusError{StatusCode: status}
 		}
 	}
 	return nil
