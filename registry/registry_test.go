@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/requestdecorator"
 )
 
 var (
@@ -25,7 +25,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := NewSession(authConfig, utils.NewHTTPRequestFactory(), endpoint, true)
+	r, err := NewSession(authConfig, requestdecorator.NewRequestFactory(), endpoint, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestPublicSession(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r, err := NewSession(authConfig, utils.NewHTTPRequestFactory(), endpoint, true)
+		r, err := NewSession(authConfig, requestdecorator.NewRequestFactory(), endpoint, true)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/requestdecorator"
 	"github.com/docker/docker/registry/v2"
-	"github.com/docker/docker/utils"
 )
 
 // for mocking in unit tests
@@ -162,7 +162,7 @@ func (e *Endpoint) Ping() (RegistryInfo, error) {
 	return RegistryInfo{}, fmt.Errorf("unable to ping registry endpoint %s\nv2 ping attempt failed with error: %s\n v1 ping attempt failed with error: %s", e, errV2, errV1)
 }
 
-func (e *Endpoint) pingV1(factory *utils.HTTPRequestFactory) (RegistryInfo, error) {
+func (e *Endpoint) pingV1(factory *requestdecorator.RequestFactory) (RegistryInfo, error) {
 	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
 
 	if e.String() == IndexServerAddress() {
@@ -216,7 +216,7 @@ func (e *Endpoint) pingV1(factory *utils.HTTPRequestFactory) (RegistryInfo, erro
 	return info, nil
 }
 
-func (e *Endpoint) pingV2(factory *utils.HTTPRequestFactory) (RegistryInfo, error) {
+func (e *Endpoint) pingV2(factory *requestdecorator.RequestFactory) (RegistryInfo, error) {
 	logrus.Debugf("attempting v2 ping for registry endpoint %s", e)
 
 	req, err := factory.NewRequest("GET", e.Path(""), nil)

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/requestdecorator"
 )
 
 const (
@@ -225,7 +225,7 @@ func SaveConfig(configFile *ConfigFile) error {
 }
 
 // Login tries to register/login to the registry server.
-func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
+func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
 	// Separates the v2 registry login logic from the v1 logic.
 	if registryEndpoint.Version == APIVersion2 {
 		return loginV2(authConfig, registryEndpoint, factory)
@@ -235,7 +235,7 @@ func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HT
 }
 
 // loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
+func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
 	var (
 		status        string
 		reqBody       []byte
@@ -348,7 +348,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 // now, users should create their account through other means like directly from a web page
 // served by the v2 registry service provider. Whether this will be supported in the future
 // is to be determined.
-func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.HTTPRequestFactory) (string, error) {
+func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
 	logrus.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 	var (
 		err       error
@@ -381,7 +381,7 @@ func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *utils.
 	return "", fmt.Errorf("no successful auth challenge for %s - errors: %s", registryEndpoint, allErrors)
 }
 
-func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) error {
+func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
 	req, err := factory.NewRequest("GET", registryEndpoint.Path(""), nil)
 	if err != nil {
 		return err
@@ -402,7 +402,7 @@ func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 	return nil
 }
 
-func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) error {
+func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
 	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
 	if err != nil {
 		return err
