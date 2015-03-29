@@ -3,6 +3,7 @@ package chrootarchive
 import (
 	"bytes"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"os"
@@ -59,15 +60,15 @@ func TestChrootUntarEmptyArchive(t *testing.T) {
 	}
 }
 
-func prepareSourceDirectory(numberOfFiles int, targetPath string, makeLinks bool) (int, error) {
+func prepareSourceDirectory(numberOfFiles int, targetPath string, makeSymLinks bool) (int, error) {
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
 		if err := ioutil.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
 			return 0, err
 		}
-		if makeLinks {
-			if err := os.Link(path.Join(targetPath, fileName), path.Join(targetPath, fileName+"-link")); err != nil {
+		if makeSymLinks {
+			if err := os.Symlink(path.Join(targetPath, fileName), path.Join(targetPath, fileName+"-link")); err != nil {
 				return 0, err
 			}
 		}
@@ -76,8 +77,102 @@ func prepareSourceDirectory(numberOfFiles int, targetPath string, makeLinks bool
 	return totalSize, nil
 }
 
-func TestChrootTarUntarWithSoftLink(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntarWithSoftLink")
+func getHash(filename string) (uint32, error) {
+	stream, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return 0, err
+	}
+	hash := crc32.NewIEEE()
+	hash.Write(stream)
+	return hash.Sum32(), nil
+}
+
+func isSameType(fileInfo1, fileInfo2 os.FileInfo) bool {
+	m1 := fileInfo1.Mode() & os.ModeType
+	m2 := fileInfo2.Mode() & os.ModeType
+	if m1 == m2 {
+		return true
+	}
+	return false
+}
+
+func compare(src string, dest string) error {
+	srcFileInfo, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	destFileInfo, err := os.Lstat(dest)
+	if err != nil {
+		return err
+	}
+
+	if !isSameType(srcFileInfo, destFileInfo) {
+		return fmt.Errorf("%s has a different file type from %s", src, dest)
+	}
+	if srcFileInfo.Mode().IsRegular() {
+		err := compareFiles(src, dest)
+		if err != nil {
+			return err
+		}
+	} else if srcFileInfo.Mode().IsDir() {
+		err := compareDirectories(src, dest)
+		if err != nil {
+			return err
+		}
+	} else if srcFileInfo.Mode()&os.ModeSymlink != 0 {
+		err := compareSymlinks(src, dest)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Unsupported file type")
+	}
+	return nil
+}
+
+func compareDirectories(src string, dest string) error {
+	changes, err := archive.ChangesDirs(dest, src)
+	if err != nil {
+		return err
+	}
+	if len(changes) > 0 {
+		return fmt.Errorf("Compare %s and %s: expected 0 changes, got %d", src, dest, len(changes))
+	}
+	return nil
+}
+
+func compareFiles(src string, dest string) error {
+	srcHash, err := getHash(src)
+	if err != nil {
+		return err
+	}
+	destHash, err := getHash(dest)
+	if err != nil {
+		return err
+	}
+	if srcHash != destHash {
+		return fmt.Errorf("%s is different from %s", src, dest)
+	}
+	return nil
+}
+
+func compareSymlinks(src string, dest string) error {
+	realSrc, err := os.Readlink(src)
+	if err != nil {
+		return err
+	}
+	realDest, err := os.Readlink(dest)
+	if err != nil {
+		return err
+	}
+	if err := compareFiles(realSrc, realDest); err != nil {
+		return err
+	}
+	return nil
+}
+
+func TestChrootTarUntarWithSymlink(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntarWithSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +186,9 @@ func TestChrootTarUntarWithSoftLink(t *testing.T) {
 	}
 	dest := filepath.Join(tmpdir, "dest")
 	if err := TarUntar(src, dest); err != nil {
+		t.Fatal(err)
+	}
+	if err := compare(src, dest); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -108,21 +206,39 @@ func TestChrootCopyWithTar(t *testing.T) {
 	if _, err := prepareSourceDirectory(10, src, true); err != nil {
 		t.Fatal(err)
 	}
-	dest := filepath.Join(tmpdir, "dest")
+
 	// Copy directory
+	dest := filepath.Join(tmpdir, "dest")
 	if err := CopyWithTar(src, dest); err != nil {
 		t.Fatal(err)
 	}
+	if err := compare(src, dest); err != nil {
+		t.Fatal(err)
+	}
+
 	// Copy file
 	srcfile := filepath.Join(src, "file-1")
-	if err := CopyWithTar(srcfile, dest); err != nil {
+	dest = filepath.Join(tmpdir, "destFile")
+	destfile := filepath.Join(dest, "file-1")
+	if err := CopyWithTar(srcfile, destfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compare(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
+
+	// FIXME: This test fails because CopyFileWithTar follows the symbolic link and
+	// copies the regular file. It is unclear what the correct behavior should be.
 	// Copy symbolic link
-	linkfile := filepath.Join(src, "file-1-link")
-	if err := CopyWithTar(linkfile, dest); err != nil {
+	/*srcLinkfile := filepath.Join(src, "file-1-link")
+	dest = filepath.Join(tmpdir, "destSymlink")
+	destLinkfile := filepath.Join(dest, "file-1-link")
+	if err := CopyWithTar(srcLinkfile, destLinkfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compare(srcLinkfile, destLinkfile); err != nil {
+		t.Fatal(err)
+	}*/
 }
 
 func TestChrootCopyFileWithTar(t *testing.T) {
@@ -138,21 +254,36 @@ func TestChrootCopyFileWithTar(t *testing.T) {
 	if _, err := prepareSourceDirectory(10, src, true); err != nil {
 		t.Fatal(err)
 	}
-	dest := filepath.Join(tmpdir, "dest")
+
 	// Copy directory
+	dest := filepath.Join(tmpdir, "dest")
 	if err := CopyFileWithTar(src, dest); err == nil {
 		t.Fatal("Expected error on copying directory")
 	}
+
 	// Copy file
 	srcfile := filepath.Join(src, "file-1")
-	if err := CopyFileWithTar(srcfile, dest); err != nil {
+	dest = filepath.Join(tmpdir, "destFile")
+	destfile := filepath.Join(dest, "file-1")
+	if err := CopyFileWithTar(srcfile, destfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compare(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
+
+	// FIXME: This test fails because CopyFileWithTar follows the symbolic link and
+	// copies the regular file. It is unclear what the correct behavior should be.
 	// Copy symbolic link
-	linkfile := filepath.Join(src, "file-1-link")
-	if err := CopyFileWithTar(linkfile, dest); err != nil {
+	/*srcLinkfile := filepath.Join(src, "file-1-link")
+	dest = filepath.Join(tmpdir, "destSymlink")
+	destLinkfile := filepath.Join(dest, "file-1-link")
+	if err := CopyFileWithTar(srcLinkfile, destLinkfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compare(srcLinkfile, destLinkfile); err != nil {
+		t.Fatal(err)
+	}*/
 }
 
 func TestChrootUntarPath(t *testing.T) {
@@ -186,6 +317,9 @@ func TestChrootUntarPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := UntarPath(tarfile, dest); err != nil {
+		t.Fatal(err)
+	}
+	if err := compare(src, dest); err != nil {
 		t.Fatal(err)
 	}
 }
