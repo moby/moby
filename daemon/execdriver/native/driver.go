@@ -189,6 +189,8 @@ func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*o
 			return nil, err
 		}
 
+		processes, err := c.Processes()
+
 		process, err := os.FindProcess(pid)
 		s, err := process.Wait()
 		if err != nil {
