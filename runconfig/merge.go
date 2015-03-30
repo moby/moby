@@ -7,6 +7,14 @@ import (
 	"github.com/docker/docker/nat"
 )
 
+func remove(slice []string, start int) []string {
+	if len(slice) == start+1 {
+		return slice[:start]
+	} else if start == 0 {
+		return slice[1:]
+	}
+	return append(slice[:start-1], slice[start:]...)
+}
 func Merge(userConf, imageConf *Config) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User
@@ -66,20 +74,40 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
+	rm_pos := -1
 	if len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
 		for _, imageEnv := range imageConf.Env {
 			found := false
 			imageEnvKey := strings.Split(imageEnv, "=")[0]
-			for _, userEnv := range userConf.Env {
-				userEnvKey := strings.Split(userEnv, "=")[0]
-				if imageEnvKey == userEnvKey {
+			for i, userEnv := range userConf.Env {
+				userEnv := strings.Split(userEnv, "=")
+				userEnvKey := userEnv[0]
+				userEnvvalue := ""
+				if len(userEnv) == 2 {
+					userEnvvalue = userEnv[1]
+
+				}
+				if imageEnvKey == userEnvKey || userEnvvalue == "" {
 					found = true
+					if userEnvvalue == "" {
+						rm_pos = i
+					}
 				}
 			}
 			if !found {
 				userConf.Env = append(userConf.Env, imageEnv)
+			} else if rm_pos != -1 {
+				userConf.Env = remove(userConf.Env, rm_pos)
+				rm_pos = -1
+			}
+		}
+		for i := len(userConf.Env); i > 0; i-- {
+			userEnv := userConf.Env[i-1]
+			userEnvvalue := strings.Split(userEnv, "=")[1]
+			if userEnvvalue == "" {
+				userConf.Env = remove(userConf.Env, i)
 			}
 		}
 	}
