@@ -51,7 +51,7 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 	for {
 		line, err := w.buf.ReadString('\n')
 		if err != nil {
-			w.buf.Write([]byte(line))
+			w.buf.WriteString(line)
 			break
 		}
 		for stream, writers := range w.streams {
