@@ -75,37 +75,37 @@ func (container *Container) createVolumes() error {
 	return container.applyVolumesFrom()
 }
 
-func (m *Mount) initialize() error {
+func (mnt *Mount) initialize() error {
 	// No need to initialize anything since it's already been initialized
-	if hostPath, exists := m.container.Volumes[m.MountToPath]; exists {
+	if hostPath, exists := mnt.container.Volumes[mnt.MountToPath]; exists {
 		// If this is a bind-mount/volumes-from, maybe it was passed in at start instead of create
 		// We need to make sure bind-mounts/volumes-from passed on start can override existing ones.
-		if (!m.volume.IsBindMount && !m.isBind) && m.from == nil {
+		if (!mnt.volume.IsBindMount && !mnt.isBind) && mnt.from == nil {
 			return nil
 		}
-		if m.volume.Path == hostPath {
+		if mnt.volume.Path == hostPath {
 			return nil
 		}
 
 		// Make sure we remove these old volumes we don't actually want now.
 		// Ignore any errors here since this is just cleanup, maybe someone volumes-from'd this volume
-		if v := m.container.daemon.volumes.Get(hostPath); v != nil {
-			v.RemoveContainer(m.container.ID)
-			m.container.daemon.volumes.Delete(v.Path)
+		if v := mnt.container.daemon.volumes.Get(hostPath); v != nil {
+			v.RemoveContainer(mnt.container.ID)
+			mnt.container.daemon.volumes.Delete(v.Path)
 		}
 	}
 
 	// This is the full path to container fs + mntToPath
-	containerMntPath, err := symlink.FollowSymlinkInScope(filepath.Join(m.container.basefs, m.MountToPath), m.container.basefs)
+	containerMntPath, err := symlink.FollowSymlinkInScope(filepath.Join(mnt.container.basefs, mnt.MountToPath), mnt.container.basefs)
 	if err != nil {
 		return err
 	}
-	m.container.VolumesRW[m.MountToPath] = m.Writable
-	m.container.Volumes[m.MountToPath] = m.volume.Path
-	m.volume.AddContainer(m.container.ID)
-	if m.Writable && m.copyData {
+	mnt.container.VolumesRW[mnt.MountToPath] = mnt.Writable
+	mnt.container.Volumes[mnt.MountToPath] = mnt.volume.Path
+	mnt.volume.AddContainer(mnt.container.ID)
+	if mnt.Writable && mnt.copyData {
 		// Copy whatever is in the container at the mntToPath to the volume
-		copyExistingContents(containerMntPath, m.volume.Path)
+		copyExistingContents(containerMntPath, mnt.volume.Path)
 	}
 
 	return nil
@@ -233,7 +233,7 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 	}
 
 	if !filepath.IsAbs(path) {
-		return "", "", false, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", path)
+		return "", "", false, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute", path)
 	}
 
 	path = filepath.Clean(path)
