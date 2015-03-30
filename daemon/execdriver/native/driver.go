@@ -169,11 +169,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 	ps, err := waitF()
 	if err != nil {
-		if err, ok := err.(*exec.ExitError); !ok {
+		execErr, ok := err.(*exec.ExitError)
+		if !ok {
 			return execdriver.ExitStatus{ExitCode: -1}, err
-		} else {
-			ps = err.ProcessState
 		}
+		ps = execErr.ProcessState
 	}
 	cont.Destroy()
 
@@ -194,13 +194,12 @@ func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*o
 		process, err := os.FindProcess(pid)
 		s, err := process.Wait()
 		if err != nil {
-			if err, ok := err.(*exec.ExitError); !ok {
+			execErr, ok := err.(*exec.ExitError)
+			if !ok {
 				return s, err
-			} else {
-				s = err.ProcessState
 			}
+			s = execErr.ProcessState
 		}
-		processes, err := c.Processes()
 		if err != nil {
 			return s, err
 		}
