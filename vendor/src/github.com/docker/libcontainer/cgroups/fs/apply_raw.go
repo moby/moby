@@ -220,16 +220,16 @@ func getCgroupData(c *configs.Cgroup, pid int) (*data, error) {
 	}, nil
 }
 
-func (raw *data) parent(subsystem string) (string, error) {
+func (raw *data) parent(subsystem, mountpoint string) (string, error) {
 	initPath, err := cgroups.GetInitCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(raw.root, subsystem, initPath), nil
+	return filepath.Join(mountpoint, initPath), nil
 }
 
 func (raw *data) path(subsystem string) (string, error) {
-	_, err := cgroups.FindCgroupMountpoint(subsystem)
+	mnt, err := cgroups.FindCgroupMountpoint(subsystem)
 	// If we didn't mount the subsystem, there is no point we make the path.
 	if err != nil {
 		return "", err
@@ -240,7 +240,7 @@ func (raw *data) path(subsystem string) (string, error) {
 		return filepath.Join(raw.root, subsystem, raw.cgroup), nil
 	}
 
-	parent, err := raw.parent(subsystem)
+	parent, err := raw.parent(subsystem, mnt)
 	if err != nil {
 		return "", err
 	}

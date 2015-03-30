@@ -40,13 +40,14 @@ type network struct {
 
 // initConfig is used for transferring parameters from Exec() to Init()
 type initConfig struct {
-	Args     []string        `json:"args"`
-	Env      []string        `json:"env"`
-	Cwd      string          `json:"cwd"`
-	User     string          `json:"user"`
-	Config   *configs.Config `json:"config"`
-	Console  string          `json:"console"`
-	Networks []*network      `json:"network"`
+	Args         []string        `json:"args"`
+	Env          []string        `json:"env"`
+	Cwd          string          `json:"cwd"`
+	Capabilities []string        `json:"capabilities"`
+	User         string          `json:"user"`
+	Config       *configs.Config `json:"config"`
+	Console      string          `json:"console"`
+	Networks     []*network      `json:"network"`
 }
 
 type initer interface {
@@ -99,7 +100,12 @@ func finalizeNamespace(config *initConfig) error {
 	if err := utils.CloseExecFrom(3); err != nil {
 		return err
 	}
-	w, err := newCapWhitelist(config.Config.Capabilities)
+
+	capabilities := config.Config.Capabilities
+	if config.Capabilities != nil {
+		capabilities = config.Capabilities
+	}
+	w, err := newCapWhitelist(capabilities)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ package libcontainer
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -44,8 +45,12 @@ func (p *setnsProcess) startTime() (string, error) {
 	return system.GetProcessStartTime(p.pid())
 }
 
-func (p *setnsProcess) signal(s os.Signal) error {
-	return p.cmd.Process.Signal(s)
+func (p *setnsProcess) signal(sig os.Signal) error {
+	s, ok := sig.(syscall.Signal)
+	if !ok {
+		return errors.New("os: unsupported signal type")
+	}
+	return syscall.Kill(p.cmd.Process.Pid, s)
 }
 
 func (p *setnsProcess) start() (err error) {
@@ -235,6 +240,10 @@ func (p *initProcess) createNetworkInterfaces() error {
 	return nil
 }
 
-func (p *initProcess) signal(s os.Signal) error {
-	return p.cmd.Process.Signal(s)
+func (p *initProcess) signal(sig os.Signal) error {
+	s, ok := sig.(syscall.Signal)
+	if !ok {
+		return errors.New("os: unsupported signal type")
+	}
+	return syscall.Kill(p.cmd.Process.Pid, s)
 }
