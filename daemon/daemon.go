@@ -320,15 +320,6 @@ func (daemon *Daemon) ensureName(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) LogToDisk(src *broadcastwriter.BroadcastWriter, dst, stream string) error {
-	log, err := os.OpenFile(dst, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-	src.AddWriter(log, stream)
-	return nil
-}
-
 func (daemon *Daemon) restore() error {
 	var (
 		debug         = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
