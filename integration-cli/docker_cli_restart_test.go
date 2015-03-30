@@ -191,6 +191,16 @@ func TestRestartPolicyAlways(t *testing.T) {
 		t.Fatalf("Container restart policy name is %s, expected %s", name, "always")
 	}
 
+	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// MaximumRetryCount=0 if the restart policy is always
+	if MaximumRetryCount != "0" {
+		t.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "0")
+	}
+
 	logDone("restart - recording restart policy name for --restart=always")
 }
 
