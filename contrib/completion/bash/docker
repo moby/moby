@@ -802,7 +802,7 @@ _docker_run() {
 			__docker_capabilities
 			return
 			;;
-		--cidfile|--cgroup-parent|--env-file|--label-file)
+		--cidfile|--env-file|--label-file)
 			_filedir
 			return
 			;;
