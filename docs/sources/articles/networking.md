@@ -121,8 +121,23 @@ Finally, several networking options can only be provided when calling
  *  `-P` or `--publish-all=true|false` — see
     [Binding container ports](#binding-ports)
 
-The following sections tackle all of the above topics in an order that
-moves roughly from simplest to most complex.
+To supply networking options to the Docker server at startup, use the
+`DOCKER_OPTS` in the Docker upstart configuration file. For Ubuntu, edit the
+variable in `/etc/default/docker` and `/etc/sysconfig/docker` for Centos.
+
+The following example illustrates how to configure Docker on Ubuntu to recognize a
+newly build bridge. Edit the `/etc/default/docker` file:
+
+    $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker 
+
+Then, restart the Docker server.
+
+    $ sudo service docker start
+
+For additional information on bridges, see [building your own
+bridge](#building-your-own-bridge) later on this page.
+
+The following sections tackle all of the above topics in an order that we can move roughly from simplest to most complex.
 
 ## Configuring DNS
 
@@ -296,8 +311,7 @@ system level, by two factors.
     policy to `DROP` if `--icc=false`.
 
 It is a strategic question whether to leave `--icc=true` or change it to
-`--icc=false` (on Ubuntu, by editing the `DOCKER_OPTS` variable in
-`/etc/default/docker` and restarting the Docker server) so that
+`--icc=false` so that
 `iptables` will protect other containers — and the main host — from
 having arbitrary ports probed or accessed by a container that gets
 compromised.
@@ -426,8 +440,7 @@ you can use either `-p IP:host_port:container_port` or `-p IP::port` to
 specify the external interface for one particular binding.
 
 Or if you always want Docker port forwards to bind to one specific IP
-address, you can edit your system-wide Docker server settings (on
-Ubuntu, by editing `DOCKER_OPTS` in `/etc/default/docker`) and add the
+address, you can edit your system-wide Docker server settings and add the
 option `--ip=IP_ADDRESS`.  Remember to restart your Docker server after
 editing this setting.
 
@@ -692,9 +705,6 @@ options are configurable at server startup:
 
  *  `--mtu=BYTES` — override the maximum packet length on `docker0`.
 
-On Ubuntu you would add these to the `DOCKER_OPTS` setting in
-`/etc/default/docker` on your Docker host and restarting the Docker
-service.
 
 Once you have one or more containers up and running, you can confirm
 that Docker has properly connected them to the `docker0` bridge by
