@@ -477,37 +477,34 @@ func TestRunWithVolumesFromExited(t *testing.T) {
 	logDone("run - regression test for #4979 - volumes-from on exited container")
 }
 
-// Test create volume in a dirctory which is a symbolic link
+// Volume path is a symlink which also exists on the host, and the host side is a file not a dir
+// But the volume call is just a normal volume, not a bind mount
 func TestRunCreateVolumesInSymlinkDir(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	testRequires(t, NativeExecDriver)
 	defer deleteAllContainers()
-	// This test has to create a file on host
-	hostFile := "/tmp/abcd"
-	cmd := exec.Command("touch", hostFile)
-	if out, _, err := runCommandWithOutput(cmd); err != nil {
-		t.Fatalf("failed to create file %s on host: %v, output: %q", hostFile, err, out)
-	}
-	defer func() {
-		cmd := exec.Command("rm", "-f", hostFile)
-		if out, _, err := runCommandWithOutput(cmd); err != nil {
-			t.Fatalf("failed to remove file %s on host: %v, output: %q", hostFile, err, out)
-		}
-	}()
-	// create symlink directory /home/test link to /tmp
-	cmd = exec.Command(dockerBinary, "run", "--name=test", "busybox", "ln", "-s", "/tmp", "/home/test")
-	if out, _, err := runCommandWithOutput(cmd); err != nil {
-		t.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-	cmd = exec.Command(dockerBinary, "commit", "test", "busybox:test")
-	out, _, err := runCommandWithOutput(cmd)
+	name := "test-volume-symlink"
+
+	dir, err := ioutil.TempDir("", name)
 	if err != nil {
-		t.Fatalf("failed to commit container: %v, output: %q", err, out)
+		t.Fatal(err)
 	}
-	cleanedImageID := stripTrailingCharacters(out)
-	defer deleteImages(cleanedImageID)
-	// directory /home/test is link to /tmp, /home/test/abcd==/tmp/abcd
-	cmd = exec.Command(dockerBinary, "run", "-v", "/home/test/abcd", "busybox", "touch", "/home/test/abcd/Hello")
-	if out, _, err = runCommandWithOutput(cmd); err != nil {
-		t.Fatalf("failed to create volume in symlink directory: %v, output %q", err, out)
+	defer os.RemoveAll(dir)
+
+	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	dockerFile := fmt.Sprintf("FROM busybox\nRUN mkdir -p %s\nRUN ln -s %s /test", dir, dir)
+	if _, err := buildImage(name, dockerFile, false); err != nil {
+		t.Fatal(err)
+	}
+	defer deleteImages(name)
+
+	if out, _, err := dockerCmd(t, "run", "-v", "/test/test", name); err != nil {
+		t.Fatal(err, out)
 	}
 
 	logDone("run - create volume in symlink directory")

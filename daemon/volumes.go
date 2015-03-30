@@ -189,13 +189,13 @@ func (container *Container) parseVolumeMountConfig() (map[string]*Mount, error) 
 		if _, exists := container.Volumes[path]; exists {
 			continue
 		}
-		realpath, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, path), container.basefs)
+		realPath, err := container.getResourcePath(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to evaluate the absolute path of symlink")
 		}
-		if stat, err := os.Stat(realpath); err == nil {
+		if stat, err := os.Stat(realPath); err == nil {
 			if !stat.IsDir() {
-				return nil, fmt.Errorf("file exists at %s, can't create volume there", realpath)
+				return nil, fmt.Errorf("file exists at %s, can't create volume there", realPath)
 			}
 		}
 
