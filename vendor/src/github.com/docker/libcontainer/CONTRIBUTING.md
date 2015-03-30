@@ -42,7 +42,7 @@ Like the previous command, you can run this on OSX too!
 
 ### Building libcontainer directly
 
-> Note: You should add the `vendor` directory to your GOPATH to use the vendored libraries
+> Note: You should add the `vendor` directory to your GOPATH to use the vendor libraries
 
     ./update-vendor.sh
     go get -d ./...
