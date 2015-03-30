@@ -30,3 +30,8 @@ type ContainerWaitResponse struct {
 	// StatusCode is the status code of the wait job
 	StatusCode int `json:"StatusCode"`
 }
+
+// POST "/commit?container="+containerID
+type ContainerCommitResponse struct {
+	ID string `json:"Id"`
+}

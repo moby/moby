@@ -507,7 +507,6 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	}
 	var (
 		config       engine.Env
-		env          engine.Env
 		job          = eng.Job("commit", r.Form.Get("container"))
 		stdoutBuffer = bytes.NewBuffer(nil)
 	)
@@ -537,8 +536,9 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	if err := job.Run(); err != nil {
 		return err
 	}
-	env.Set("Id", engine.Tail(stdoutBuffer, 1))
-	return writeJSONEnv(w, http.StatusCreated, env)
+	return writeJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
+		ID: engine.Tail(stdoutBuffer, 1),
+	})
 }
 
 // Creates an image from Pull or from Import
