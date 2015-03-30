@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/common"
@@ -464,12 +462,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 		os.Remove(tf.Name())
 	}()
 
-	h := sha256.New()
-	size, err := bufferToFile(tf, io.TeeReader(arch, h))
-	if err != nil {
-		return "", err
-	}
-	dgst := digest.NewDigest("sha256", h)
+	size, dgst, err := bufferToFile(tf, arch)
 
 	// Send the layer
 	log.Debugf("rendered layer for %s of [%d] size", img.ID, size)
