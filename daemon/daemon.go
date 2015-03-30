@@ -857,8 +857,8 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		return nil, err
 	}
 
-	// set up the TempDir to use a canonical path
-	tmp, err := utils.TempDir(config.Root)
+	// set up the tmpDir to use a canonical path
+	tmp, err := tempDir(config.Root)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
 	}
@@ -1244,6 +1244,16 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 		}
 	}
 	return match, nil
+}
+
+// tempDir returns the default directory to use for temporary files.
+func tempDir(rootDir string) (string, error) {
+	var tmpDir string
+	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
+		tmpDir = filepath.Join(rootDir, "tmp")
+	}
+	err := os.MkdirAll(tmpDir, 0700)
+	return tmpDir, err
 }
 
 func checkKernel() error {
