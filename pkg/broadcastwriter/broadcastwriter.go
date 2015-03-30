@@ -34,8 +34,6 @@ func (w *BroadcastWriter) AddWriter(writer io.WriteCloser, stream string) {
 // Write writes bytes to all writers. Failed writers will be evicted during
 // this call.
 func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
-	var timestamp string
-	created := time.Now().UTC()
 	w.Lock()
 	if writers, ok := w.streams[""]; ok {
 		for sw := range writers {
@@ -44,11 +42,19 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 				delete(writers, sw)
 			}
 		}
+		// exit if there is no more writers
+		if len(w.streams) == 1 {
+			w.buf.Reset()
+			w.Unlock()
+			return len(p), nil
+		}
 	}
 	if w.jsLogBuf == nil {
 		w.jsLogBuf = new(bytes.Buffer)
 		w.jsLogBuf.Grow(1024)
 	}
+	var timestamp string
+	created := time.Now().UTC()
 	w.buf.Write(p)
 	for {
 		if n := w.buf.Len(); n == 0 {
