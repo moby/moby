@@ -58,6 +58,18 @@ __docker_containers_unpauseable() {
 	__docker_containers_all '.State.Paused'
 }
 
+__docker_container_names() {
+	local containers=( $(__docker_q ps -aq --no-trunc) )
+	local names=( $(__docker_q inspect --format '{{.Name}}' "${containers[@]}") )
+	names=( "${names[@]#/}" ) # trim off the leading "/" from the container names
+	COMPREPLY=( $(compgen -W "${names[*]}" -- "$cur") )
+}
+
+__docker_container_ids() {
+	local containers=( $(__docker_q ps -aq) )
+	COMPREPLY=( $(compgen -W "${containers[*]}" -- "$cur") )
+}
+
 __docker_image_repos() {
 	local repos="$(__docker_q images | awk 'NR>1 && $1 != "<none>" { print $1 }')"
 	COMPREPLY=( $(compgen -W "$repos" -- "$cur") )
@@ -437,7 +449,10 @@ _docker_history() {
 _docker_images() {
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -W "dangling=true" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "dangling=true label=" -- "$cur" ) )
+			if [ "$COMPREPLY" = "label=" ]; then
+				compopt -o nospace
+			fi
 			return
 			;;
 	esac
@@ -447,17 +462,20 @@ _docker_images() {
 			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
 			return
 			;;
+		*label=*)
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
+		=)
+			return
+			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_image_repos
-			fi
+			__docker_image_repos
 			;;
 	esac
 }
@@ -616,7 +634,7 @@ _docker_ps() {
 			__docker_containers_all
 			;;
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "exited status" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "exited id label name status" -- "$cur" ) )
 			compopt -o nospace
 			return
 			;;
@@ -626,6 +644,16 @@ _docker_ps() {
 	esac
 
 	case "${words[$cword-2]}$prev=" in
+		*id=*)
+			cur="${cur#=}"
+			__docker_container_ids
+			return
+			;;
+		*name=*)
+			cur="${cur#=}"
+			__docker_container_names
+			return
+			;;
 		*status=*)
 			COMPREPLY=( $( compgen -W "exited paused restarting running" -- "${cur#=}" ) )
 			return
