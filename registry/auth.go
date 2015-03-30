@@ -84,7 +84,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 				params[k] = v
 			}
 			params["scope"] = fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
-			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint, client, factory)
+			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, auth.authConfig.Email, params, auth.registryEndpoint, client, factory)
 			if err != nil {
 				return "", err
 			}
@@ -403,7 +403,7 @@ func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 }
 
 func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) error {
-	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
+	token, err := getToken(authConfig.Username, authConfig.Password, authConfig.Email, params, registryEndpoint, client, factory)
 	if err != nil {
 		return err
 	}
