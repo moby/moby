@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -81,6 +82,9 @@ func mainDaemon() {
 		flag.Usage()
 		return
 	}
+
+	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: timeutils.RFC3339NanoFixed})
+
 	eng := engine.New()
 	signal.Trap(eng.Shutdown)
 
