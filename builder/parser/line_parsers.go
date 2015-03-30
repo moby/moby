@@ -153,13 +153,18 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 		rootnode = node
 		strs := TOKEN_WHITESPACE.Split(rest, 2)
 
-		if len(strs) < 2 {
-			return nil, nil, fmt.Errorf(key + " must have two arguments")
+		if len(strs) < 1 {
+			return nil, nil, fmt.Errorf(key + " at least have one arguments")
+		} else if len(strs) == 1 {
+			node.Value = strs[0]
+			node.Next = &Node{}
+
+		} else {
+			node.Value = strs[0]
+			node.Next = &Node{}
+			node.Next.Value = strs[1]
 		}
 
-		node.Value = strs[0]
-		node.Next = &Node{}
-		node.Next.Value = strs[1]
 	} else {
 		var prevNode *Node
 		for i, word := range words {
