@@ -662,7 +662,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
 		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return err
+			return fmt.Errorf("Bad parameters and missing X-Registry-Auth: %v", err)
 		}
 	}
 
