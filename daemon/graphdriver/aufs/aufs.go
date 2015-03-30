@@ -23,6 +23,7 @@ package aufs
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -47,6 +48,9 @@ var (
 		graphdriver.FsMagicAufs,
 	}
 	backingFs = "<unknown>"
+
+	enableDirpermLock sync.Once
+	enableDirperm     bool
 )
 
 func init() {
@@ -152,6 +156,7 @@ func (a *Driver) Status() [][2]string {
 		{"Root Dir", a.rootPath()},
 		{"Backing Filesystem", backingFs},
 		{"Dirs", fmt.Sprintf("%d", len(ids))},
+		{"Dirperm1 Supported", fmt.Sprintf("%v", useDirperm())},
 	}
 }
 
@@ -422,7 +427,11 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	// Mount options are clipped to page size(4096 bytes). If there are more
 	// layers then these are remounted individually using append.
 
-	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-54) // room for xino & mountLabel
+	offset := 54
+	if useDirperm() {
+		offset += len("dirperm1")
+	}
+	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
 	firstMount := true
@@ -446,7 +455,11 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 
 		if firstMount {
-			data := label.FormatMountLabel(fmt.Sprintf("%s,dio,xino=/dev/shm/aufs.xino", string(b[:bp])), mountLabel)
+			opts := "dio,xino=/dev/shm/aufs.xino"
+			if useDirperm() {
+				opts += ",dirperm1"
+			}
+			data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
 			if err = mount("none", target, "aufs", 0, data); err != nil {
 				return
 			}
@@ -459,4 +472,34 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	}
 
 	return
+}
+
+// useDirperm checks dirperm1 mount option can be used with the current
+// version of aufs.
+func useDirperm() bool {
+	enableDirpermLock.Do(func() {
+		base, err := ioutil.TempDir("", "docker-aufs-base")
+		if err != nil {
+			log.Errorf("error checking dirperm1: %v", err)
+			return
+		}
+		defer os.RemoveAll(base)
+
+		union, err := ioutil.TempDir("", "docker-aufs-union")
+		if err != nil {
+			log.Errorf("error checking dirperm1: %v", err)
+			return
+		}
+		defer os.RemoveAll(union)
+
+		opts := fmt.Sprintf("br:%s,dirperm1,xino=/dev/shm/aufs.xino", base)
+		if err := mount("none", union, "aufs", 0, opts); err != nil {
+			return
+		}
+		enableDirperm = true
+		if err := Unmount(union); err != nil {
+			log.Errorf("error checking dirperm1: failed to unmount %v", err)
+		}
+	})
+	return enableDirperm
 }
