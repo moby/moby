@@ -117,7 +117,11 @@ func Merge(userConf, imageConf *Config) error {
 	}
 	if imageConf.Labels != nil {
 		for l := range userConf.Labels {
-			imageConf.Labels[l] = userConf.Labels[l]
+			if userConf.Labels[l] == "" {
+				delete(imageConf.Labels, l)
+			} else {
+				imageConf.Labels[l] = userConf.Labels[l]
+			}
 		}
 		userConf.Labels = imageConf.Labels
 	}
