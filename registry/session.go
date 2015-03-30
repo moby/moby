@@ -19,19 +19,20 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/requestdecorator"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/utils"
 )
 
 type Session struct {
 	authConfig    *AuthConfig
-	reqFactory    *utils.HTTPRequestFactory
+	reqFactory    *requestdecorator.RequestFactory
 	indexEndpoint *Endpoint
 	jar           *cookiejar.Jar
 	timeout       TimeoutType
 }
 
-func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpoint *Endpoint, timeout bool) (r *Session, err error) {
+func NewSession(authConfig *AuthConfig, factory *requestdecorator.RequestFactory, endpoint *Endpoint, timeout bool) (r *Session, err error) {
 	r = &Session{
 		authConfig:    authConfig,
 		indexEndpoint: endpoint,
@@ -55,7 +56,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 		}
 		if info.Standalone {
 			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", r.indexEndpoint.String())
-			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
+			dec := requestdecorator.NewAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}
 	}

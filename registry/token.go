@@ -8,14 +8,14 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/requestdecorator"
 )
 
 type tokenResponse struct {
 	Token string `json:"token"`
 }
 
-func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *utils.HTTPRequestFactory) (token string, err error) {
+func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) (token string, err error) {
 	realm, ok := params["realm"]
 	if !ok {
 		return "", errors.New("no realm specified for token auth challenge")
