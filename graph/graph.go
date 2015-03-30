@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/image"
@@ -242,18 +245,27 @@ func (graph *Graph) newTempFile() (*os.File, error) {
 	return ioutil.TempFile(tmp, "")
 }
 
-func bufferToFile(f *os.File, src io.Reader) (int64, error) {
-	n, err := io.Copy(f, src)
+func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
+	var (
+		h = sha256.New()
+		w = gzip.NewWriter(io.MultiWriter(f, h))
+	)
+	_, err := io.Copy(w, src)
+	w.Close()
 	if err != nil {
-		return n, err
+		return 0, "", err
 	}
 	if err = f.Sync(); err != nil {
-		return n, err
+		return 0, "", err
+	}
+	n, err := f.Seek(0, os.SEEK_CUR)
+	if err != nil {
+		return 0, "", err
 	}
 	if _, err := f.Seek(0, 0); err != nil {
-		return n, err
+		return 0, "", err
 	}
-	return n, nil
+	return n, digest.NewDigest("sha256", h), nil
 }
 
 // setupInitLayer populates a directory with mountpoints suitable
