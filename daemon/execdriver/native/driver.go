@@ -162,7 +162,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 	waitF := p.Wait
-	if nss := cont.Config().Namespaces; nss.Contains(configs.NEWPID) {
+	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
 		// we need such hack for tracking processes with inerited fds,
 		// because cmd.Wait() waiting for all streams to be copied
 		waitF = waitInPIDHost(p, cont)
