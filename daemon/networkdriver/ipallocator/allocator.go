@@ -128,7 +128,7 @@ func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
 }
 
 // return an available ip if one is currently available.  If not,
-// return the next available ip for the nextwork
+// return the next available ip for the network
 func (allocated *allocatedMap) getNextIP() (net.IP, error) {
 	pos := big.NewInt(0).Set(allocated.last)
 	allRange := big.NewInt(0).Sub(allocated.end, allocated.begin)
