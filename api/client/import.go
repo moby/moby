@@ -9,7 +9,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 )
 
 // CmdImport creates an empty filesystem image, imports the contents of the tarball into the image, and optionally tags the image.
@@ -23,7 +22,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		v          = url.Values{}

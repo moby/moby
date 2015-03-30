@@ -7,7 +7,6 @@ import (
 	"os"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdExport exports a filesystem as a tar archive.
@@ -20,7 +19,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to a file, instead of STDOUT")
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		output io.Writer = cli.out

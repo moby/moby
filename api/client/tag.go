@@ -6,7 +6,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 )
 
 // CmdTag tags an image into a repository.
@@ -17,7 +16,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	cmd.Require(flag.Exact, 2)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		repository, tag = parsers.ParseRepositoryTag(cmd.Arg(1))

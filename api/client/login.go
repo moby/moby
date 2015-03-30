@@ -14,7 +14,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 )
 
 // CmdLogin logs in or registers a user to a Docker registry service.
@@ -32,7 +31,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
 	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	serverAddress := registry.IndexServerAddress()
 	if len(cmd.Args()) > 0 {

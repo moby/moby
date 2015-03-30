@@ -21,7 +21,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil))
 	if err != nil {

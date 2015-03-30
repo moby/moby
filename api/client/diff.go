@@ -6,7 +6,6 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdDiff shows changes on a container's filesystem.
@@ -18,7 +17,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 	cmd := cli.Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem", true)
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	body, _, err := readBody(cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil))
 

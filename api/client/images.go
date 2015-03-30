@@ -102,7 +102,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 	cmd.Require(flag.Max, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.

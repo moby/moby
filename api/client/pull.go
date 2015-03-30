@@ -19,7 +19,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	allTags := cmd.Bool([]string{"a", "-all-tags"}, false, "Download all tagged images in the repository")
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		v         = url.Values{}

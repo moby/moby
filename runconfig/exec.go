@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 type ExecConfig struct {
@@ -50,7 +49,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		container string
 	)
 	cmd.Require(flag.Min, 2)
-	if err := utils.ParseFlags(cmd, args, true); err != nil {
+	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, err
 	}
 	container = cmd.Arg(0)

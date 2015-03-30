@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdRestart restarts one or more running containers.
@@ -17,7 +16,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container")
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))

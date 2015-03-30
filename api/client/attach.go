@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	)
 	cmd.Require(flag.Exact, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 	name := cmd.Arg(0)
 
 	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)

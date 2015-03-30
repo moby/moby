@@ -54,7 +54,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	)
 
 	cmd.Require(flag.Min, 1)
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {

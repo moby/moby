@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdRmi removes all images with the specified name(s).
@@ -20,7 +19,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 	)
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	v := url.Values{}
 	if *force {

@@ -7,7 +7,6 @@ import (
 	"os"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdSave saves one or more images to a tar archive.
@@ -20,7 +19,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to an file, instead of STDOUT")
 	cmd.Require(flag.Min, 1)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		output io.Writer = cli.out

@@ -5,7 +5,6 @@ import (
 	"os"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // CmdLoad loads an image from a tar archive.
@@ -18,7 +17,7 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
 	cmd.Require(flag.Exact, 0)
 
-	utils.ParseFlags(cmd, args, true)
+	cmd.ParseFlags(args, true)
 
 	var (
 		input io.Reader = cli.in
