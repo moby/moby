@@ -145,6 +145,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
+		os.Exit(1)
 	}
 	if config.Image == "" {
 		cmd.Usage()

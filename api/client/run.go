@@ -57,6 +57,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// just in case the Parse does not exit
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
+		os.Exit(1)
 	}
 
 	if len(hostConfig.Dns) > 0 {
