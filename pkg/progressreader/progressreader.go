@@ -64,6 +64,7 @@ func (config *Config) Read(p []byte) (n int, err error) {
 	return read, err
 }
 func (config *Config) Close() error {
+	config.Current = config.Size
 	config.Out.Write(config.Formatter.FormatProg(config.ID, config.Action, &JSONProg{Current: config.Current, Total: config.Size}))
 	return config.In.Close()
 }
