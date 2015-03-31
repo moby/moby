@@ -78,11 +78,18 @@ var (
 	bridgeIPv6Addr    net.IP
 	globalIPv6Network *net.IPNet
 	portMapper        *portmapper.PortMapper
+	once              sync.Once
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
 	ipAllocator       = ipallocator.New()
 )
+
+func initPortMapper() {
+	once.Do(func() {
+		portMapper = portmapper.New()
+	})
+}
 
 func InitDriver(job *engine.Job) error {
 	var (
@@ -100,7 +107,7 @@ func InitDriver(job *engine.Job) error {
 		fixedCIDR      = job.Getenv("FixedCIDR")
 		fixedCIDRv6    = job.Getenv("FixedCIDRv6")
 	)
-	portMapper = portmapper.New()
+	initPortMapper()
 
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
 		defaultBindingIP = net.ParseIP(defaultIP)
@@ -353,6 +360,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 }
 
 func RequestPort(ip net.IP, proto string, port int) (int, error) {
+	initPortMapper()
 	return portMapper.Allocator.RequestPort(ip, proto, port)
 }
 
