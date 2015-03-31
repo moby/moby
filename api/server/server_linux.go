@@ -95,7 +95,9 @@ func AcceptConnections(job *engine.Job) error {
 	go systemd.SdNotify("READY=1")
 
 	// close the lock so the listeners start accepting connections
-	if activationLock != nil {
+	select {
+	case <-activationLock:
+	default:
 		close(activationLock)
 	}
 
