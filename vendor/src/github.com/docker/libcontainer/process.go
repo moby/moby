@@ -41,6 +41,10 @@ type Process struct {
 	// consolePath is the path to the console allocated to the container.
 	consolePath string
 
+	// Capabilities specify the capabilities to keep when executing the process inside the container
+	// All capbilities not specified will be dropped from the processes capability mask
+	Capabilities []string
+
 	ops processOperations
 }
 

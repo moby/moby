@@ -193,12 +193,13 @@ func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, 
 
 func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
 	return &initConfig{
-		Config:  c.config,
-		Args:    process.Args,
-		Env:     process.Env,
-		User:    process.User,
-		Cwd:     process.Cwd,
-		Console: process.consolePath,
+		Config:       c.config,
+		Args:         process.Args,
+		Env:          process.Env,
+		User:         process.User,
+		Cwd:          process.Cwd,
+		Console:      process.consolePath,
+		Capabilities: process.Capabilities,
 	}
 }
 

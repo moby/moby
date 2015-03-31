@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -392,6 +393,90 @@ func TestProcessEnv(t *testing.T) {
 	// Make sure that HOME is set
 	if !strings.Contains(outputEnv, "HOME=/root") {
 		t.Fatal("Environment doesn't have HOME set: ", outputEnv)
+	}
+}
+
+func TestProcessCaps(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	root, err := newTestRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+
+	rootfs, err := newRootfs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+
+	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container, err := factory.Create("test", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer container.Destroy()
+
+	processCaps := append(config.Capabilities, "NET_ADMIN")
+
+	var stdout bytes.Buffer
+	pconfig := libcontainer.Process{
+		Args:         []string{"sh", "-c", "cat /proc/self/status"},
+		Env:          standardEnvironment,
+		Capabilities: processCaps,
+		Stdin:        nil,
+		Stdout:       &stdout,
+	}
+	err = container.Start(&pconfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for process
+	waitProcess(&pconfig, t)
+
+	outputStatus := string(stdout.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lines := strings.Split(outputStatus, "\n")
+
+	effectiveCapsLine := ""
+	for _, l := range lines {
+		line := strings.TrimSpace(l)
+		if strings.Contains(line, "CapEff:") {
+			effectiveCapsLine = line
+			break
+		}
+	}
+
+	if effectiveCapsLine == "" {
+		t.Fatal("Couldn't find effective caps: ", outputStatus)
+	}
+
+	parts := strings.Split(effectiveCapsLine, ":")
+	effectiveCapsStr := strings.TrimSpace(parts[1])
+
+	effectiveCaps, err := strconv.ParseUint(effectiveCapsStr, 16, 64)
+	if err != nil {
+		t.Fatal("Could not parse effective caps", err)
+	}
+
+	var netAdminMask uint64
+	var netAdminBit uint
+	netAdminBit = 12 // from capability.h
+	netAdminMask = 1 << netAdminBit
+	if effectiveCaps&netAdminMask != netAdminMask {
+		t.Fatal("CAP_NET_ADMIN is not set as expected")
 	}
 }
 
