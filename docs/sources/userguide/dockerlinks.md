@@ -35,9 +35,10 @@ range* on your Docker host. Next, when `docker ps` was run, you saw that port
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
 You also saw how you can bind a container's ports to a specific port using
-the `-p` flag:
+the `-p` flag. Here port 80 of the host is mapped to port 5000 of the 
+container:
 
-    $ docker run -d -p 5000:5000 training/webapp python app.py
+    $ docker run -d -p 80:5000 training/webapp python app.py
 
 And you saw why this isn't such a great idea because it constrains you to
 only one container on that specific port.
@@ -47,9 +48,9 @@ default the `-p` flag will bind the specified port to all interfaces on
 the host machine. But you can also specify a binding to a specific
 interface, for example only to the `localhost`.
 
-    $ docker run -d -p 127.0.0.1:5000:5000 training/webapp python app.py
+    $ docker run -d -p 127.0.0.1:80:5000 training/webapp python app.py
 
-This would bind port 5000 inside the container to port 5000 on the
+This would bind port 5000 inside the container to port 80 on the
 `localhost` or `127.0.0.1` interface on the host machine.
 
 Or, to bind port 5000 of the container to a dynamic port but only on the
@@ -59,7 +60,7 @@ Or, to bind port 5000 of the container to a dynamic port but only on the
 
 You can also bind UDP ports by adding a trailing `/udp`. For example:
 
-    $ docker run -d -p 127.0.0.1:5000:5000/udp training/webapp python app.py
+    $ docker run -d -p 127.0.0.1:80:5000/udp training/webapp python app.py
 
 You also learned about the useful `docker port` shortcut which showed us the
 current port bindings. This is also useful for showing you specific port

@@ -160,9 +160,9 @@ to a high port (from *ephemeral port range* which typically ranges from 32768
 to 61000) on the local Docker host. We can also bind Docker containers to
 specific ports using the `-p` flag, for example:
 
-    $ docker run -d -p 5000:5000 training/webapp python app.py
+    $ docker run -d -p 80:5000 training/webapp python app.py
 
-This would map port 5000 inside our container to port 5000 on our local
+This would map port 5000 inside our container to port 80 on our local
 host. You might be asking about now: why wouldn't we just want to always
 use 1:1 port mappings in Docker containers rather than mapping to high
 ports? Well 1:1 mappings have the constraint of only being able to map
