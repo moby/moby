@@ -140,6 +140,22 @@ func TestRmInvalidContainer(t *testing.T) {
 	logDone("rm - delete unknown container")
 }
 
+func TestRmContainerNameWithSlash(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "testContainer", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "rm", "/testContainer")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	logDone("rm - removed container with name prefix /")
+}
+
 func createRunningContainer(t *testing.T, name string) {
 	cmd := exec.Command(dockerBinary, "run", "-dt", "--name", name, "busybox", "top")
 	if _, err := runCommand(cmd); err != nil {

@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -30,6 +31,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
+		name = strings.TrimPrefix(name, "/")
 		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, nil))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
