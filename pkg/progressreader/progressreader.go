@@ -1,9 +1,10 @@
 package progressreader
 
 import (
+	"io"
+
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/streamformatter"
-	"io"
 )
 
 // Reader with progress bar
@@ -43,6 +44,7 @@ func (config *Config) Read(p []byte) (n int, err error) {
 	return read, err
 }
 func (config *Config) Close() error {
+	config.Current = config.Size
 	config.Out.Write(config.Formatter.FormatProgress(config.ID, config.Action, &jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}))
 	return config.In.Close()
 }
