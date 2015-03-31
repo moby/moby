@@ -12,8 +12,10 @@ import (
 	"net/url"
 	"os"
 	gosignal "os/signal"
+	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -279,13 +281,29 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 	cli.resizeTty(id, isExec)
 
-	sigchan := make(chan os.Signal, 1)
-	gosignal.Notify(sigchan, signal.SIGWINCH)
-	go func() {
-		for _ = range sigchan {
-			cli.resizeTty(id, isExec)
-		}
-	}()
+	if runtime.GOOS == "windows" {
+		go func() {
+			prevW, prevH := cli.getTtySize()
+			for {
+				time.Sleep(time.Millisecond * 250)
+				w, h := cli.getTtySize()
+
+				if prevW != w || prevH != h {
+					cli.resizeTty(id, isExec)
+				}
+				prevW = w
+				prevH = h
+			}
+		}()
+	} else {
+		sigchan := make(chan os.Signal, 1)
+		gosignal.Notify(sigchan, signal.SIGWINCH)
+		go func() {
+			for _ = range sigchan {
+				cli.resizeTty(id, isExec)
+			}
+		}()
+	}
 	return nil
 }
 
