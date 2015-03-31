@@ -11,7 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/registry/v2"
+	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/docker/utils"
 )
 
@@ -109,8 +109,8 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 // - Succeeded to head image blob (already exists)
 // - Failed with no error (continue to Push the Blob)
 // - Failed with error
-func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, auth *RequestAuthorization) (bool, error) {
-	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, sumType+":"+sum)
+func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Digest, auth *RequestAuthorization) (bool, error) {
+	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, dgst)
 	if err != nil {
 		return false, err
 	}
@@ -141,11 +141,11 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, 
 		return false, nil
 	}
 
-	return false, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying head request for %s - %s:%s", res.StatusCode, imageName, sumType, sum), res)
+	return false, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying head request for %s - %s", res.StatusCode, imageName, dgst), res)
 }
 
-func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, blobWrtr io.Writer, auth *RequestAuthorization) error {
-	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, sumType+":"+sum)
+func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Digest, blobWrtr io.Writer, auth *RequestAuthorization) error {
+	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, dgst)
 	if err != nil {
 		return err
 	}
@@ -175,8 +175,8 @@ func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName, sumType, sum string, b
 	return err
 }
 
-func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum string, auth *RequestAuthorization) (io.ReadCloser, int64, error) {
-	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, sumType+":"+sum)
+func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName string, dgst digest.Digest, auth *RequestAuthorization) (io.ReadCloser, int64, error) {
+	routeURL, err := getV2Builder(ep).BuildBlobURL(imageName, dgst)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -198,7 +198,7 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum str
 		if res.StatusCode == 401 {
 			return nil, 0, errLoginRequired
 		}
-		return nil, 0, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob - %s:%s", res.StatusCode, imageName, sumType, sum), res)
+		return nil, 0, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob - %s", res.StatusCode, imageName, dgst), res)
 	}
 	lenStr := res.Header.Get("Content-Length")
 	l, err := strconv.ParseInt(lenStr, 10, 64)
@@ -212,7 +212,7 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName, sumType, sum str
 // Push the image to the server for storage.
 // 'layer' is an uncompressed reader of the blob to be pushed.
 // The server will generate it's own checksum calculation.
-func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string, blobRdr io.Reader, auth *RequestAuthorization) error {
+func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Digest, blobRdr io.Reader, auth *RequestAuthorization) error {
 	location, err := r.initiateBlobUpload(ep, imageName, auth)
 	if err != nil {
 		return err
@@ -225,7 +225,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 		return err
 	}
 	queryParams := req.URL.Query()
-	queryParams.Add("digest", sumType+":"+sumStr)
+	queryParams.Add("digest", dgst.String())
 	req.URL.RawQuery = queryParams.Encode()
 	if err := auth.Authorize(req); err != nil {
 		return err
@@ -245,7 +245,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName, sumType, sumStr string
 			return err
 		}
 		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
-		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob - %s:%s", res.StatusCode, imageName, sumType, sumStr), res)
+		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob - %s", res.StatusCode, imageName, dgst), res)
 	}
 
 	return nil

@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/docker/pkg/requestdecorator"
-	"github.com/docker/docker/registry/v2"
 )
 
 // for mocking in unit tests
