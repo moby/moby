@@ -151,7 +151,6 @@ func mainDaemon() {
 	job.Setenv("TlsCa", *flCa)
 	job.Setenv("TlsCert", *flCert)
 	job.Setenv("TlsKey", *flKey)
-	job.SetenvBool("BufferRequests", true)
 
 	// The serve API job never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
