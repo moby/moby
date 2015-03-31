@@ -51,7 +51,7 @@ func getToken(username, password string, email string, params map[string]string,
 		reqParams.Add("scope", scopeField)
 	}
 
-	if scope == "" {
+	if email != "" {
 		reqParams.Add("email", email)
 	}
 
