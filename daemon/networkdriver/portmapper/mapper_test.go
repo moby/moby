@@ -125,7 +125,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	}()
 
 	for i := 0; i < 10; i++ {
-		start, end := pm.allocator.Begin, pm.allocator.End
+		start, end := pm.Allocator.Begin, pm.Allocator.End
 		for i := start; i < end; i++ {
 			if host, err = pm.Map(srcAddr1, dstIp1, 0); err != nil {
 				t.Fatal(err)
