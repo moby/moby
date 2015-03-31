@@ -229,8 +229,8 @@ func (s *DockerDaemonSuite) TestDaemonFlagD(c *check.C) {
 		c.Fatal(err)
 	}
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Missing level="debug" in log file using -D:\n%s`, string(content))
+	if strings.Contains(string(content), `level=debug`) {
+		c.Fatalf(`Should not have level="debug" in log file using -D:\n%s`, string(content))
 	}
 }
 
@@ -239,8 +239,8 @@ func (s *DockerDaemonSuite) TestDaemonFlagDebug(c *check.C) {
 		c.Fatal(err)
 	}
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Missing level="debug" in log file using --debug:\n%s`, string(content))
+	if strings.Contains(string(content), `level=debug`) {
+		c.Fatalf(`Should not have level="debug" in log file using --debug:\n%s`, string(content))
 	}
 }
 
@@ -249,8 +249,8 @@ func (s *DockerDaemonSuite) TestDaemonFlagDebugLogLevelFatal(c *check.C) {
 		c.Fatal(err)
 	}
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Missing level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
+	if strings.Contains(string(content), `level=debug`) {
+		c.Fatalf(`Should not have level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
 	}
 }
 
