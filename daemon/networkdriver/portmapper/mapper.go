@@ -18,14 +18,7 @@ type mapping struct {
 	container     net.Addr
 }
 
-var (
-	NewProxy = NewProxyCommand
-
-	DefaultPortMapper = NewWithPortAllocator(portallocator.DefaultPortAllocator)
-	SetIptablesChain  = DefaultPortMapper.SetIptablesChain
-	Map               = DefaultPortMapper.Map
-	Unmap             = DefaultPortMapper.Unmap
-)
+var NewProxy = NewProxyCommand
 
 var (
 	ErrUnknownBackendAddressType = errors.New("unknown container address type not supported")
