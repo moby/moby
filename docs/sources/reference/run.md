@@ -635,7 +635,7 @@ This can be overridden using a third `:rwm` set of options to each `--device` fl
 
 In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
-list of capabilities that are kept. Here is a table to list the reference information on capabilities.
+list of capabilities that are kept. The following table lists the Linux capability options which can be added or dropped.
 
 | Capability Key | Capability Description |
 | :----------------- | :---------------| :-------------------- |
@@ -645,7 +645,7 @@ list of capabilities that are kept. Here is a table to list the reference inform
 | SYS_PACCT | Use acct(2), switch process accounting on or off. |
 | SYS_ADMIN | Perform a range of system administration operations. |
 | SYS_NICE | Raise process nice value (nice(2), setpriority(2)) and change the nice value for arbitrary processes. |
-| SYS_RESOURCE | Override Resource Limits. |
+| SYS_RESOURCE | Override resource Limits. |
 | SYS_TIME | Set system clock (settimeofday(2), stime(2), adjtimex(2)); set real-time (hardware) clock. |
 | SYS_TTY_CONFIG | Use vhangup(2); employ various privileged ioctl(2) operations on virtual terminals. |
 | MKNOD | Create special files using mknod(2). |
@@ -665,7 +665,7 @@ list of capabilities that are kept. Here is a table to list the reference inform
 | SETGID | Make arbitrary manipulations of process GIDs and supplementary GID list. |
 | SETUID | Make arbitrary manipulations of process UIDs. |
 | LINUX_IMMUTABLE | Set the FS_APPEND_FL and FS_IMMUTABLE_FL i-node flags. |
-| NET_BIND_SERVICE  | Bind a socket to Internet domain privileged ports (port numbers less than 1024). |
+| NET_BIND_SERVICE  | Bind a socket to internet domain privileged ports (port numbers less than 1024). |
 | NET_BROADCAST |  Make socket broadcasts, and listen to multicasts. |
 | IPC_LOCK | Lock memory (mlock(2), mlockall(2), mmap(2), shmctl(2)). |
 | IPC_OWNER | Bypass permission checks for operations on System V IPC objects. |
@@ -677,7 +677,7 @@ list of capabilities that are kept. Here is a table to list the reference inform
 | WAKE_ALARM | Trigger something that will wake up the system. |
 | BLOCK_SUSPEND | Employ features that can block system suspend. |
 
-For futher understanding, please check [capabilities(7) - Linux man page](http://linux.die.net/man/7/capabilities)
+Further reference information is available on the [capabilities(7) - Linux man page](http://linux.die.net/man/7/capabilities)
 
 Both flags support the value `all`, so if the
 operator wants to have all capabilities but `MKNOD` they could use:
