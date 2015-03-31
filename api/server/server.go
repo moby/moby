@@ -400,6 +400,7 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	job.Setenv("before", r.Form.Get("before"))
 	job.Setenv("limit", r.Form.Get("limit"))
 	job.Setenv("filters", r.Form.Get("filters"))
+	job.SetenvList("labels", r.Form["labels"])
 
 	if version.GreaterThanOrEqualTo("1.5") {
 		streamJSON(job, w, false)

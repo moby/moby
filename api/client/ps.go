@@ -37,11 +37,13 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
 		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
+		flLabel  = opts.NewListOpts(nil)
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
 
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+	cmd.Var(&flLabel, []string{"-label"}, "Display some additional labels")
 
 	cmd.ParseFlags(args, true)
 	if *last == -1 && *nLatest {
@@ -85,6 +87,10 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("filters", filterJSON)
 	}
 
+	for _, label := range flLabel.GetAll() {
+		v.Add("labels", label)
+	}
+
 	body, _, err := readBody(cli.call("GET", "/containers/json?"+v.Encode(), nil, nil))
 	if err != nil {
 		return err
@@ -95,9 +101,21 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return err
 	}
 
+	labelsToDisplay := make(map[string]struct{})
+
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
 		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+
+		for _, out := range outs.Data {
+			for _, label := range out.GetList("Display") {
+				labelsToDisplay[label] = struct{}{}
+			}
+		}
+
+		for label := range labelsToDisplay {
+			fmt.Fprintf(w, "\t%s", strings.ToUpper(label))
+		}
 
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")
@@ -156,6 +174,11 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", outID, image, outCommand,
 			units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))),
 			out.Get("Status"), api.DisplayablePorts(ports), strings.Join(outNames, ","))
+
+		labels := out.GetSubEnv("Labels")
+		for label := range labelsToDisplay {
+			fmt.Fprintf(w, "%s\t", labels.Get(label))
+		}
 
 		if *size {
 			if out.GetInt("SizeRootFs") > 0 {
