@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 	_ "github.com/docker/docker/daemon/networkdriver/bridge"
-	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -818,12 +817,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
 
-	// register portallocator release on shutdown
-	eng.OnShutdown(func() {
-		if err := portallocator.ReleaseAll(); err != nil {
-			logrus.Errorf("portallocator.ReleaseAll(): %s", err)
-		}
-	})
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
 	if config.Pidfile != "" {

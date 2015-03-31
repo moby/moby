@@ -18,14 +18,7 @@ type mapping struct {
 	container     net.Addr
 }
 
-var (
-	NewProxy = NewProxyCommand
-
-	DefaultPortMapper = NewWithPortAllocator(portallocator.DefaultPortAllocator)
-	SetIptablesChain  = DefaultPortMapper.SetIptablesChain
-	Map               = DefaultPortMapper.Map
-	Unmap             = DefaultPortMapper.Unmap
-)
+var NewProxy = NewProxyCommand
 
 var (
 	ErrUnknownBackendAddressType = errors.New("unknown container address type not supported")
@@ -40,7 +33,7 @@ type PortMapper struct {
 	currentMappings map[string]*mapping
 	lock            sync.Mutex
 
-	allocator *portallocator.PortAllocator
+	Allocator *portallocator.PortAllocator
 }
 
 func New() *PortMapper {
@@ -50,7 +43,7 @@ func New() *PortMapper {
 func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
 	return &PortMapper{
 		currentMappings: make(map[string]*mapping),
-		allocator:       allocator,
+		Allocator:       allocator,
 	}
 }
 
@@ -72,7 +65,7 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int) (host
 	switch container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
-		if allocatedHostPort, err = pm.allocator.RequestPort(hostIP, proto, hostPort); err != nil {
+		if allocatedHostPort, err = pm.Allocator.RequestPort(hostIP, proto, hostPort); err != nil {
 			return nil, err
 		}
 
@@ -85,7 +78,7 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int) (host
 		proxy = NewProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
 	case *net.UDPAddr:
 		proto = "udp"
-		if allocatedHostPort, err = pm.allocator.RequestPort(hostIP, proto, hostPort); err != nil {
+		if allocatedHostPort, err = pm.Allocator.RequestPort(hostIP, proto, hostPort); err != nil {
 			return nil, err
 		}
 
@@ -103,7 +96,7 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int) (host
 	// release the allocated port on any further error during return.
 	defer func() {
 		if err != nil {
-			pm.allocator.ReleasePort(hostIP, proto, allocatedHostPort)
+			pm.Allocator.ReleasePort(hostIP, proto, allocatedHostPort)
 		}
 	}()
 
@@ -121,7 +114,7 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int) (host
 		// need to undo the iptables rules before we return
 		proxy.Stop()
 		pm.forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := pm.allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+		if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
 			return err
 		}
 
@@ -161,9 +154,9 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
-		return pm.allocator.ReleasePort(a.IP, "tcp", a.Port)
+		return pm.Allocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
-		return pm.allocator.ReleasePort(a.IP, "udp", a.Port)
+		return pm.Allocator.ReleasePort(a.IP, "udp", a.Port)
 	}
 	return nil
 }

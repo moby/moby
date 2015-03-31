@@ -4,7 +4,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/pkg/iptables"
 )
 
@@ -126,7 +125,7 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	}()
 
 	for i := 0; i < 10; i++ {
-		start, end := portallocator.PortRange()
+		start, end := pm.Allocator.Begin, pm.Allocator.End
 		for i := start; i < end; i++ {
 			if host, err = pm.Map(srcAddr1, dstIp1, 0); err != nil {
 				t.Fatal(err)

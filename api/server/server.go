@@ -27,7 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/networkdriver/portallocator"
+	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
@@ -1542,7 +1542,7 @@ func allocateDaemonPort(addr string) error {
 	}
 
 	for _, hostIP := range hostIPs {
-		if _, err := portallocator.RequestPort(hostIP, "tcp", intPort); err != nil {
+		if _, err := bridge.RequestPort(hostIP, "tcp", intPort); err != nil {
 			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
 		}
 	}
