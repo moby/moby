@@ -475,6 +475,39 @@ func TestRunWithVolumesFromExited(t *testing.T) {
 	logDone("run - regression test for #4979 - volumes-from on exited container")
 }
 
+// Volume path is a symlink which also exists on the host, and the host side is a file not a dir
+// But the volume call is just a normal volume, not a bind mount
+func TestRunCreateVolumesInSymlinkDir(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	testRequires(t, NativeExecDriver)
+	defer deleteAllContainers()
+	name := "test-volume-symlink"
+
+	dir, err := ioutil.TempDir("", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	dockerFile := fmt.Sprintf("FROM busybox\nRUN mkdir -p %s\nRUN ln -s %s /test", dir, dir)
+	if _, err := buildImage(name, dockerFile, false); err != nil {
+		t.Fatal(err)
+	}
+	defer deleteImages(name)
+
+	if out, _, err := dockerCmd(t, "run", "-v", "/test/test", name); err != nil {
+		t.Fatal(err, out)
+	}
+
+	logDone("run - create volume in symlink directory")
+}
+
 // Regression test for #4830
 func TestRunWithRelativePath(t *testing.T) {
 	defer deleteAllContainers()
