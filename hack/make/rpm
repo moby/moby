@@ -1,0 +1,155 @@
+#!/bin/bash
+
+DEST=$1
+
+# XXX - The package version in CentOS gets messed up and inserts a '~'
+#       (including the single quote) if we use the same package
+#       version scheme as the deb packages.  This doesn't work with
+#       rpmbuild.
+PKGVERSION="${VERSION}"
+# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
+if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
+	GIT_UNIX="$(git log -1 --pretty='%at')"
+	GIT_DATE="$(date --date "@$GIT_UNIX" +'%Y%m%d.%H%M%S')"
+	GIT_COMMIT="$(git log -1 --pretty='%h')"
+	GIT_VERSION="git${GIT_DATE}.0.${GIT_COMMIT}"
+	# GIT_VERSION is now something like 'git20150128.112847.0.17e840a'
+	PKGVERSION="$PKGVERSION~$GIT_VERSION"
+fi
+
+# $ dpkg --compare-versions 1.5.0 gt 1.5.0~rc1 && echo true || echo false
+# true
+# $ dpkg --compare-versions 1.5.0~rc1 gt 1.5.0~git20150128.112847.17e840a && echo true || echo false
+# true
+# $ dpkg --compare-versions 1.5.0~git20150128.112847.17e840a gt 1.5.0~dev~git20150128.112847.17e840a && echo true || echo false
+# true
+
+# ie, 1.5.0 > 1.5.0~rc1 > 1.5.0~git20150128.112847.17e840a > 1.5.0~dev~git20150128.112847.17e840a
+
+PACKAGE_ARCHITECTURE=`uname -i`
+
+PACKAGE_URL="http://www.docker.com/"
+PACKAGE_MAINTAINER="support@docker.com"
+PACKAGE_DESCRIPTION="Linux container runtime
+Docker complements LXC with a high-level API which operates at the process
+level. It runs unix processes with strong guarantees of isolation and
+repeatability across servers.
+Docker is a great building block for automating distributed systems:
+large-scale web deployments, database clusters, continuous deployment systems,
+private PaaS, service-oriented architectures, etc."
+PACKAGE_LICENSE="Apache-2.0"
+
+# bundle the RPM using FPM -- we may want to change this to rpmbuild at some point
+bundle_rpm() {
+	DIR=$DEST/build
+
+	# Include our udev rules
+	mkdir -p $DIR/etc/udev/rules.d
+	cp contrib/udev/80-docker.rules $DIR/etc/udev/rules.d/
+
+	mkdir -p $DIR/lib/systemd/system
+	cp contrib/init/systemd/docker.{service,socket} $DIR/lib/systemd/system/
+
+	# Include contributed completions
+	mkdir -p $DIR/etc/bash_completion.d
+	cp contrib/completion/bash/docker $DIR/etc/bash_completion.d/
+	mkdir -p $DIR/usr/share/zsh/vendor-completions
+	cp contrib/completion/zsh/_docker $DIR/usr/share/zsh/vendor-completions/
+	mkdir -p $DIR/etc/fish/completions
+	cp contrib/completion/fish/docker.fish $DIR/etc/fish/completions/
+
+	# Include contributed man pages
+	docs/man/md2man-all.sh -q
+	manRoot="$DIR/usr/share/man"
+	mkdir -p "$manRoot"
+	for manDir in docs/man/man?; do
+		manBase="$(basename "$manDir")" # "man1"
+		for manFile in "$manDir"/*; do
+			manName="$(basename "$manFile")" # "docker-build.1"
+			mkdir -p "$manRoot/$manBase"
+			gzip -c "$manFile" > "$manRoot/$manBase/$manName.gz"
+		done
+	done
+
+	# Copy the binary
+	# This will fail if the dynbinary bundle hasn't been built
+	mkdir -p $DIR/usr/bin
+	cp $DEST/../dynbinary/docker-$VERSION $DIR/usr/bin/docker
+	cp $DEST/../dynbinary/dockerinit-$VERSION $DIR/usr/bin/dockerinit
+
+	# Generate postinst/prerm/postrm scripts
+	cat > $DEST/postinst <<'EOF'
+EOF
+
+	cat > $DEST/preinst <<'EOF'
+if ! getent group docker > /dev/null; then
+	groupadd --system docker
+fi
+EOF
+
+	cat > $DEST/prerm <<'EOF'
+EOF
+
+	cat > $DEST/postrm <<'EOF'
+## In case this system is running systemd, we make systemd reload the unit files
+## to pick up changes.
+#if [ -d /run/systemd/system ] ; then
+#	systemctl --system daemon-reload > /dev/null || true
+#fi
+EOF
+
+	chmod +x $DEST/postinst $DEST/prerm $DEST/postrm $DEST/preinst
+
+	(
+		# switch directories so we create *.deb in the right folder
+		cd $DEST
+
+		# create lxc-docker-VERSION package
+		fpm -s dir -C $DIR \
+			--name lxc-docker-$VERSION --version "$PKGVERSION" \
+			--before-install $DEST/preinst \
+			--after-install $DEST/postinst \
+			--before-remove $DEST/prerm \
+			--after-remove $DEST/postrm \
+			--architecture "$PACKAGE_ARCHITECTURE" \
+			--prefix / \
+			--depends iptables \
+			--depends xz \
+			--depends device-mapper-libs \
+			--depends libselinux \
+			--depends libsepol \
+			--depends sqlite \
+			--description "$PACKAGE_DESCRIPTION" \
+			--maintainer "$PACKAGE_MAINTAINER" \
+			--conflicts docker \
+			--conflicts docker.io \
+			--conflicts lxc-docker-virtual-package \
+			--provides lxc-docker \
+			--provides lxc-docker-virtual-package \
+			--replaces lxc-docker \
+			--replaces lxc-docker-virtual-package \
+			--url "$PACKAGE_URL" \
+			--license "$PACKAGE_LICENSE" \
+			--config-files /etc/udev/rules.d/80-docker.rules \
+			--rpm-compression gzip \
+			-t rpm .
+#		# TODO replace "Suggests: cgroup-lite" with "Recommends: cgroupfs-mount | cgroup-lite" once cgroupfs-mount is available
+
+		fpm -s empty \
+			--name lxc-docker --version "$PKGVERSION" \
+			--architecture "$PACKAGE_ARCHITECTURE" \
+			--depends lxc-docker-$VERSION \
+			--description "$PACKAGE_DESCRIPTION" \
+			--maintainer "$PACKAGE_MAINTAINER" \
+			--url "$PACKAGE_URL" \
+			--license "$PACKAGE_LICENSE" \
+			--rpm-compression gzip \
+			-t rpm
+	)
+
+	# clean up after ourselves so we have a clean output directory
+	rm $DEST/postinst $DEST/prerm $DEST/postrm $DEST/preinst
+	rm -r $DIR
+}
+
+bundle_rpm
