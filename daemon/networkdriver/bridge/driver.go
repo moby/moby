@@ -77,6 +77,7 @@ var (
 	bridgeIPv4Network *net.IPNet
 	bridgeIPv6Addr    net.IP
 	globalIPv6Network *net.IPNet
+	portMapper        *portmapper.PortMapper
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
@@ -99,6 +100,7 @@ func InitDriver(job *engine.Job) error {
 		fixedCIDR      = job.Getenv("FixedCIDR")
 		fixedCIDRv6    = job.Getenv("FixedCIDRv6")
 	)
+	portMapper = portmapper.New()
 
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
 		defaultBindingIP = net.ParseIP(defaultIP)
@@ -235,7 +237,7 @@ func InitDriver(job *engine.Job) error {
 		if err != nil {
 			return err
 		}
-		portmapper.SetIptablesChain(chain)
+		portMapper.SetIptablesChain(chain)
 	}
 
 	bridgeIPv4Network = networkv4
@@ -348,6 +350,10 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		}
 	}
 	return nil
+}
+
+func RequestPort(ip net.IP, proto string, port int) (int, error) {
+	return portMapper.Allocator.RequestPort(ip, proto, port)
 }
 
 // configureBridge attempts to create and configure a network bridge interface named `bridgeIface` on the host
@@ -587,7 +593,7 @@ func Release(job *engine.Job) error {
 	}
 
 	for _, nat := range containerInterface.PortMappings {
-		if err := portmapper.Unmap(nat); err != nil {
+		if err := portMapper.Unmap(nat); err != nil {
 			logrus.Infof("Unable to unmap port %s: %s", nat, err)
 		}
 	}
@@ -644,7 +650,7 @@ func AllocatePort(job *engine.Job) error {
 
 	var host net.Addr
 	for i := 0; i < MaxAllocatedPortAttempts; i++ {
-		if host, err = portmapper.Map(container, ip, hostPort); err == nil {
+		if host, err = portMapper.Map(container, ip, hostPort); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly
