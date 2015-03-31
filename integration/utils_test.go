@@ -177,10 +177,6 @@ func newTestEngine(t Fataler, autorestart bool, root string) *engine.Engine {
 	if err := builtins.Register(eng); err != nil {
 		t.Fatal(err)
 	}
-	// load registry service
-	if err := registry.NewService(nil).Install(eng); err != nil {
-		t.Fatal(err)
-	}
 
 	// (This is manually copied and modified from main() until we have a more generic plugin system)
 	cfg := &daemon.Config{
@@ -193,7 +189,7 @@ func newTestEngine(t Fataler, autorestart bool, root string) *engine.Engine {
 		TrustKeyPath:                filepath.Join(root, "key.json"),
 		LogConfig:                   runconfig.LogConfig{Type: "json-file"},
 	}
-	d, err := daemon.NewDaemon(cfg, eng)
+	d, err := daemon.NewDaemon(cfg, eng, registry.NewService(nil))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
@@ -107,6 +108,7 @@ type Daemon struct {
 	trustStore       *trust.TrustStore
 	statsCollector   *statsCollector
 	defaultLogConfig runconfig.LogConfig
+	RegistryService  *registry.Service
 }
 
 // Install installs daemon capabilities to eng.
@@ -793,15 +795,15 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 }
 
 // FIXME: harmonize with NewGraph()
-func NewDaemon(config *Config, eng *engine.Engine) (*Daemon, error) {
-	daemon, err := NewDaemonFromDirectory(config, eng)
+func NewDaemon(config *Config, eng *engine.Engine, registryService *registry.Service) (*Daemon, error) {
+	daemon, err := NewDaemonFromDirectory(config, eng, registryService)
 	if err != nil {
 		return nil, err
 	}
 	return daemon, nil
 }
 
-func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error) {
+func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService *registry.Service) (*Daemon, error) {
 	if config.Mtu == 0 {
 		config.Mtu = getDefaultNetworkMtu()
 	}
@@ -931,7 +933,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 	}
 
 	logrus.Debug("Creating repository list")
-	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, trustKey)
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, trustKey, registryService)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -1022,6 +1024,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine) (*Daemon, error)
 		trustStore:       t,
 		statsCollector:   newStatsCollector(1 * time.Second),
 		defaultLogConfig: config.LogConfig,
+		RegistryService:  registryService,
 	}
 
 	eng.OnShutdown(func() {

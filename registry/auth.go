@@ -230,7 +230,6 @@ func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestd
 	if registryEndpoint.Version == APIVersion2 {
 		return loginV2(authConfig, registryEndpoint, factory)
 	}
-
 	return loginV1(authConfig, registryEndpoint, factory)
 }
 

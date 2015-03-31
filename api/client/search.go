@@ -49,6 +49,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	if _, err := outs.ReadListFrom(rawBody); err != nil {
 		return err
 	}
+	outs.ReverseSort()
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, out := range outs.Data {
