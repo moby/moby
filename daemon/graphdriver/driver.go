@@ -39,9 +39,8 @@ var (
 		"aufs",
 		"btrfs",
 		"devicemapper",
-		"vfs",
-		// experimental, has to be enabled manually for now
 		"overlay",
+		"vfs",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")
