@@ -289,7 +289,8 @@ type FlagSet struct {
 	// Usage is the function called when an error occurs while parsing flags.
 	// The field is a function (not a method) that may be changed to point to
 	// a custom error handler.
-	Usage func()
+	Usage      func()
+	ShortUsage func()
 
 	name             string
 	parsed           bool
@@ -562,6 +563,12 @@ func defaultUsage(f *FlagSet) {
 var Usage = func() {
 	fmt.Fprintf(CommandLine.Out(), "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
+}
+
+// Usage prints to standard error a usage message documenting the standard command layout
+// The function is a variable that may be changed to point to a custom function.
+var ShortUsage = func() {
+	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])
 }
 
 // FlagCount returns the number of flags that have been defined.
@@ -1073,6 +1080,8 @@ func (cmd *FlagSet) ParseFlags(args []string, withHelp bool) error {
 	}
 	if str := cmd.CheckArgs(); str != "" {
 		cmd.ReportError(str, withHelp)
+		cmd.ShortUsage()
+		os.Exit(1)
 	}
 	return nil
 }
@@ -1085,8 +1094,7 @@ func (cmd *FlagSet) ReportError(str string, withHelp bool) {
 			str += ". See '" + os.Args[0] + " " + cmd.Name() + " --help'"
 		}
 	}
-	fmt.Fprintf(cmd.Out(), "docker: %s\n", str)
-	os.Exit(1)
+	fmt.Fprintf(cmd.Out(), "docker: %s.\n", str)
 }
 
 // Parsed reports whether f.Parse has been called.
