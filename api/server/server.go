@@ -15,11 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"crypto/tls"
-	"crypto/x509"
-
 	"code.google.com/p/go.net/websocket"
-	"github.com/docker/libcontainer/user"
 	"github.com/gorilla/mux"
 
 	"github.com/Sirupsen/logrus"
@@ -27,7 +23,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -1409,90 +1404,6 @@ func ServeRequest(eng *engine.Engine, apiversion version.Version, w http.Respons
 	router.ServeHTTP(w, req)
 }
 
-func lookupGidByName(nameOrGid string) (int, error) {
-	groupFile, err := user.GetGroupPath()
-	if err != nil {
-		return -1, err
-	}
-	groups, err := user.ParseGroupFileFilter(groupFile, func(g user.Group) bool {
-		return g.Name == nameOrGid || strconv.Itoa(g.Gid) == nameOrGid
-	})
-	if err != nil {
-		return -1, err
-	}
-	if groups != nil && len(groups) > 0 {
-		return groups[0].Gid, nil
-	}
-	gid, err := strconv.Atoi(nameOrGid)
-	if err == nil {
-		logrus.Warnf("Could not find GID %d", gid)
-		return gid, nil
-	}
-	return -1, fmt.Errorf("Group %s not found", nameOrGid)
-}
-
-func setupTls(cert, key, ca string, l net.Listener) (net.Listener, error) {
-	tlsCert, err := tls.LoadX509KeyPair(cert, key)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Could not load X509 key pair (%s, %s): %v", cert, key, err)
-		}
-		return nil, fmt.Errorf("Error reading X509 key pair (%s, %s): %q. Make sure the key is encrypted.",
-			cert, key, err)
-	}
-	tlsConfig := &tls.Config{
-		NextProtos:   []string{"http/1.1"},
-		Certificates: []tls.Certificate{tlsCert},
-		// Avoid fallback on insecure SSL protocols
-		MinVersion: tls.VersionTLS10,
-	}
-
-	if ca != "" {
-		certPool := x509.NewCertPool()
-		file, err := ioutil.ReadFile(ca)
-		if err != nil {
-			return nil, fmt.Errorf("Could not read CA certificate: %v", err)
-		}
-		certPool.AppendCertsFromPEM(file)
-		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		tlsConfig.ClientCAs = certPool
-	}
-
-	return tls.NewListener(l, tlsConfig), nil
-}
-
-func newListener(proto, addr string, bufferRequests bool) (net.Listener, error) {
-	if bufferRequests {
-		return listenbuffer.NewListenBuffer(proto, addr, activationLock)
-	}
-	return net.Listen(proto, addr)
-}
-
-func changeGroup(addr string, nameOrGid string) error {
-	gid, err := lookupGidByName(nameOrGid)
-	if err != nil {
-		return err
-	}
-
-	logrus.Debugf("%s group found. gid: %d", nameOrGid, gid)
-	return os.Chown(addr, 0, gid)
-}
-
-func setSocketGroup(addr, group string) error {
-	if group == "" {
-		return nil
-	}
-
-	if err := changeGroup(addr, group); err != nil {
-		if group != "docker" {
-			return err
-		}
-		logrus.Debugf("Warning: could not chgrp %s to docker: %v", addr, err)
-	}
-
-	return nil
-}
-
 func allocateDaemonPort(addr string) error {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -1517,35 +1428,6 @@ func allocateDaemonPort(addr string) error {
 		}
 	}
 	return nil
-}
-
-func setupTcpHttp(addr string, job *engine.Job) (*HttpServer, error) {
-	if !job.GetenvBool("TlsVerify") {
-		logrus.Infof("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-	}
-
-	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
-
-	l, err := newListener("tcp", addr, job.GetenvBool("BufferRequests"))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := allocateDaemonPort(addr); err != nil {
-		return nil, err
-	}
-
-	if job.GetenvBool("Tls") || job.GetenvBool("TlsVerify") {
-		var tlsCa string
-		if job.GetenvBool("TlsVerify") {
-			tlsCa = job.Getenv("TlsCa")
-		}
-		l, err = setupTls(job.Getenv("TlsCert"), job.Getenv("TlsKey"), tlsCa, l)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &HttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
 }
 
 type Server interface {
