@@ -4,6 +4,8 @@ import (
 	"syscall"
 )
 
+// Stat_t type contains status of a file. It contains metadata
+// like permission, owner, group, size, etc about a file
 type Stat_t struct {
 	mode uint32
 	uid  uint32
