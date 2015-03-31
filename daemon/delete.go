@@ -70,7 +70,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 				if v := daemon.volumes.Get(id); v != nil && !v.IsBindMount {
 					containers := v.Containers()
 					if len(containers) == 1 {
-						return job.Errorf("Cannot remove a container with sole ownership of volumes. Volume %s must be removed with -v.", v.Path)
+						return fmt.Errorf("Cannot remove a container with sole ownership of volumes. Volume %s must be removed with -v.", v.Path)
 					}
 				}
 			}
