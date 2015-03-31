@@ -6,13 +6,11 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
-	"expvar"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
@@ -1308,38 +1306,11 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 	}
 }
 
-// Replicated from expvar.go as not public.
-func expvarHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
-	first := true
-	expvar.Do(func(kv expvar.KeyValue) {
-		if !first {
-			fmt.Fprintf(w, ",\n")
-		}
-		first = false
-		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
-	})
-	fmt.Fprintf(w, "\n}\n")
-}
-
-func AttachProfiler(router *mux.Router) {
-	router.HandleFunc("/debug/vars", expvarHandler)
-	router.HandleFunc("/debug/pprof/", pprof.Index)
-	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	router.HandleFunc("/debug/pprof/block", pprof.Handler("block").ServeHTTP)
-	router.HandleFunc("/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
-	router.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
-	router.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
-}
-
 // we keep enableCors just for legacy usage, need to be removed in the future
 func createRouter(eng *engine.Engine, logging, enableCors bool, corsHeaders string, dockerVersion string) *mux.Router {
 	r := mux.NewRouter()
 	if os.Getenv("DEBUG") != "" {
-		AttachProfiler(r)
+		r.Handle("/debug", NewProfiler())
 	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
@@ -1494,7 +1465,6 @@ func newListener(proto, addr string, bufferRequests bool) (net.Listener, error) 
 	if bufferRequests {
 		return listenbuffer.NewListenBuffer(proto, addr, activationLock)
 	}
-
 	return net.Listen(proto, addr)
 }
 
