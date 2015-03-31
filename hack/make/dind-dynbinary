@@ -1,0 +1,23 @@
+#!/bin/bash
+
+DEST=$1
+DOCKERBIN=$DEST/../binary/docker
+BUILDDIR=$DEST/../dynbinary/
+RPM_PATH=$DEST/../rpm/
+
+build_rpm() {
+	if [ ! -x $DOCKERBIN ]; then
+		echo "No docker binary was found to execute.  This step requires 'binary' to be run first."
+		exit 1
+	fi
+
+	$DOCKERBIN -d 2>/dev/null &
+	$DOCKERBIN build -t centos-build -f Dockerfile.centos ./
+	$DOCKERBIN run -it --rm --privileged -v /go:/go -v /usr/local:/usr/local -e "KEEPBUNDLE=true" --name centos-build-container centos-build hack/make.sh dynbinary
+
+	# turn off the docker daemon
+	$DOCKERBIN rmi centos-build
+	cat /var/run/docker.pid | xargs kill
+}
+
+build_rpm
