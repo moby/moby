@@ -39,7 +39,7 @@ import (
 )
 
 var (
-	activationLock chan struct{}
+	activationLock chan struct{} = make(chan struct{})
 )
 
 type HttpServer struct {
@@ -1593,7 +1593,6 @@ func ServeApi(job *engine.Job) error {
 		protoAddrs = job.Args
 		chErrors   = make(chan error, len(protoAddrs))
 	)
-	activationLock = make(chan struct{})
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
