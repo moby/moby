@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -29,6 +30,7 @@ type execConfig struct {
 	OpenStderr bool
 	OpenStdout bool
 	Container  *Container
+	waitChan   chan struct{}
 }
 
 type execStore struct {
@@ -78,13 +80,15 @@ func (d *Daemon) registerExecCommand(execConfig *execConfig) {
 	execConfig.Container.execCommands.Add(execConfig.ID, execConfig)
 	// Storing execs in daemon for easy access via remote API.
 	d.execCommands.Add(execConfig.ID, execConfig)
+	d.execIDIndex.Add(execConfig.ID)
 }
 
 func (d *Daemon) getExecConfig(name string) (*execConfig, error) {
+	id, _ := d.execIDIndex.Get(name) // get full ID if needed
+	if id != "" {
+		name = id
+	}
 	if execConfig := d.execCommands.Get(name); execConfig != nil {
-		if !execConfig.Container.IsRunning() {
-			return nil, fmt.Errorf("Container %s is not running", execConfig.Container.ID)
-		}
 		return execConfig, nil
 	}
 
@@ -149,6 +153,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) error {
 		ProcessConfig: processConfig,
 		Container:     container,
 		Running:       false,
+		waitChan:      make(chan struct{}),
 	}
 
 	container.LogEvent("exec_create: " + execConfig.ProcessConfig.Entrypoint + " " + strings.Join(execConfig.ProcessConfig.Arguments, " "))
@@ -246,6 +251,21 @@ func (d *Daemon) ContainerExecStart(job *engine.Job) error {
 	return nil
 }
 
+func (daemon *Daemon) ContainerExecWait(job *engine.Job) error {
+	if len(job.Args) != 1 {
+		return fmt.Errorf("Usage: %s", job.Name)
+	}
+	name := job.Args[0]
+	execConfig, err := daemon.getExecConfig(name)
+	if err != nil {
+		return err
+	}
+
+	exitCode, _ := execConfig.WaitStop(-1 * time.Second)
+	job.Printf("%d\n", exitCode)
+	return nil
+}
+
 func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	exitStatus, err := d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
 
@@ -256,6 +276,7 @@ func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pi
 
 	execConfig.ExitCode = exitStatus
 	execConfig.Running = false
+	close(execConfig.waitChan)
 
 	return exitStatus, err
 }
@@ -327,4 +348,19 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 	}
 
 	return err
+}
+
+func (eConfig *execConfig) WaitStop(timeout time.Duration) (int, error) {
+	eConfig.Lock()
+	if !eConfig.Running {
+		exitCode := eConfig.ExitCode
+		eConfig.Unlock()
+		return exitCode, nil
+	}
+	waitChan := eConfig.waitChan
+	eConfig.Unlock()
+	if err := wait(waitChan, timeout); err != nil {
+		return -1, err
+	}
+	return eConfig.ExitCode, nil
 }

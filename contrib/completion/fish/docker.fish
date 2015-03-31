@@ -171,6 +171,11 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from exec' -s i -l interacti
 complete -c docker -A -f -n '__fish_seen_subcommand_from exec' -s t -l tty -d 'Allocate a pseudo-TTY'
 complete -c docker -A -f -n '__fish_seen_subcommand_from exec' -a '(__fish_print_docker_containers running)' -d "Container"
 
+# execwait
+complete -c docker -f -n '__fish_docker_no_subcommand' -a execwait -d 'Block until an exec stops, then print its exit code'
+complete -c docker -A -f -n '__fish_seen_subcommand_from execwait' -l help -d 'Print usage'
+complete -c docker -A -f -n '__fish_seen_subcommand_from execwait' -a '(__fish_print_docker_containers running)' -d "Exec"
+
 # export
 complete -c docker -f -n '__fish_docker_no_subcommand' -a export -d 'Stream the contents of a container as a tar archive'
 complete -c docker -A -f -n '__fish_seen_subcommand_from export' -l help -d 'Print usage'

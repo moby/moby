@@ -144,7 +144,7 @@ func TestHelpTextVerify(t *testing.T) {
 			}
 		}
 
-		expected := 39
+		expected := 40
 		if len(cmds) != expected {
 			t.Fatalf("Wrong # of cmds(%d), it should be: %d\nThe list:\n%q",
 				len(cmds), expected, cmds)

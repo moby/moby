@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -224,6 +225,31 @@ func TestExecEnv(t *testing.T) {
 	logDone("exec - exec inherits correct env")
 }
 
+func TestExecDetach(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
+		t.Fatalf("Could not run top: err=%v\n%s", err, out)
+	}
+
+	out, err := d.Cmd("exec", "-d", "top", "echo", "hello")
+	if err != nil {
+		t.Fatalf("Could not exec on container top: err=%v\n%s", err, out)
+	}
+
+	outStr := strings.TrimSpace(string(out))
+	if strings.Contains(outStr, "hello") {
+		t.Fatalf("Should have printed the execID, not: %q", outStr)
+	}
+
+	logDone("exec - exec running detached")
+}
+
 func TestExecExitStatus(t *testing.T) {
 	defer deleteAllContainers()
 
@@ -238,6 +264,33 @@ func TestExecExitStatus(t *testing.T) {
 
 	if ec != 23 {
 		t.Fatalf("Should have had an ExitCode of 23, not: %d", ec)
+	}
+
+	// Now make sure we can work with the detach option too
+	cmd = exec.Command(dockerBinary, "exec", "-d", "top", "sh", "-c", "exit 22")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to create exec: %s, %v", out, err)
+	}
+
+	execID := strings.TrimSpace(string(out))
+
+	// Give the exec time to complete
+	time.Sleep(2 * time.Second)
+
+	body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
+	if err != nil {
+		t.Fatalf("sockRequest failed but didn't")
+	}
+
+	var inspectJSON map[string]interface{}
+	if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		t.Fatalf("unable to unmarshal body: %v", err)
+	}
+
+	rc := inspectJSON["ExitCode"]
+	if rc != 22.0 {
+		t.Fatalf("Should have had an ExitCode of 22, not: %d", rc)
 	}
 
 	logDone("exec - exec non-zero ExitStatus")
@@ -664,4 +717,158 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 		}
 	}
 	logDone("run - mutable network files")
+}
+
+func TestExecWait(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal case first
+	cmd := exec.Command(dockerBinary, "exec", "-d", "top", "sh", "-c", "sleep 5; exit 29")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to create exec: %s, %v", out, err)
+	}
+
+	execID := strings.TrimSpace(out)
+
+	cmd = exec.Command(dockerBinary, "execwait", execID)
+	out, _, err = runCommandWithOutput(cmd)
+
+	ec := strings.TrimSpace(out)
+	if ec != "29" {
+		t.Fatalf("Should have an ExitCode of 29, not: %v", ec)
+	}
+
+	// Now check it again to make sure wait on an exec that's already done works
+	cmd = exec.Command(dockerBinary, "execwait", execID)
+	out, _, err = runCommandWithOutput(cmd)
+
+	ec = strings.TrimSpace(out)
+	if ec != "29" {
+		t.Fatalf("Should have an ExitCode of 29, not: %v", ec)
+	}
+
+	// Test with a bad execID
+	cmd = exec.Command(dockerBinary, "execwait", "999000")
+	out, _, _ = runCommandWithOutput(cmd)
+
+	if !strings.Contains(out, "No such exec instance '999000'") {
+		t.Fatalf("Missing error msg, got: %s", out)
+	}
+
+	// Now test with multiple execs running, and end with an error case
+	cmd1 := exec.Command(dockerBinary, "exec", "-d", "top", "sh", "-c", "sleep 5; exit 11")
+	cmd2 := exec.Command(dockerBinary, "exec", "-d", "top", "sh", "-c", "sleep 5; exit 12")
+
+	out1, _, _ := runCommandWithOutput(cmd1)
+	out2, _, _ := runCommandWithOutput(cmd2)
+
+	// make 'out2' a shortID just for fun
+	out2 = out2[:10]
+
+	out1 = strings.TrimSpace(out1)
+	out2 = strings.TrimSpace(out2)
+
+	cmd = exec.Command(dockerBinary, "execwait", out1, out2, "999000")
+	out, _, err = runCommandWithOutput(cmd)
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+
+	if lines[0] != "11" || lines[1] != "12" || !strings.Contains(lines[2], "No such exec instance '999000'") {
+		t.Fatalf("Wrong output from multiple wait: %v", out)
+	}
+
+	logDone("exec - exec wait")
+}
+
+func TestExecWaitKillContainer(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	// Test normal case first
+	cmd := exec.Command(dockerBinary, "exec", "-d", "top", "sh", "-c", "sleep 500")
+	execID, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to create exec: %s, %v", execID, err)
+	}
+
+	execID = strings.TrimSpace(execID)
+
+	// Now, in the background kill the container and make sure that the
+	// wait gets back the correct response (non-zero)
+	go func() {
+		time.Sleep(2 * time.Second)
+		runCommand(exec.Command(dockerBinary, "rm", "-f", "top"))
+	}()
+
+	cmd = exec.Command(dockerBinary, "execwait", execID)
+	out, _, err := runCommandWithOutput(cmd)
+
+	ec := strings.TrimSpace(out)
+	if ec != "137" {
+		t.Fatalf("Should have an ExitCode of 137, not: %q", ec)
+	}
+
+	logDone("exec - exec wait kill container")
+}
+
+func TestExecShortIDs(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "topShort", "busybox", "top")
+	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "-d", "topShort", "sh", "-c", "exit 24")
+	id, _, _ := runCommandWithOutput(cmd)
+	id = strings.Trim(id, "\r\n")
+
+	// give exec time to finish
+	time.Sleep(1 * time.Second)
+
+	// First make sure full ID works
+	body, err := sockRequest("GET", "/exec/"+id+"/json", nil)
+	if err != nil {
+		t.Fatalf("sockRequest failed for full ID(%s): %v", id, err)
+	}
+
+	var inspectJSON map[string]interface{}
+	if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		t.Fatalf("unable to unmarshal body for full ID: %v", err)
+	}
+
+	ec := inspectJSON["ExitCode"]
+	if ec != 24.0 {
+		t.Fatalf("Long should have had an ExitCode of 24, not: %v\nBody:%s", ec, body)
+	}
+
+	// Now try again with shorter ID
+	id = id[:10]
+	body, err = sockRequest("GET", "/exec/"+id+"/json", nil)
+	if err != nil {
+		t.Fatalf("sockRequest failed for short ID(%s): %v", id, err)
+	}
+
+	if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		t.Fatalf("unable to unmarshal body for short ID: %v", err)
+	}
+
+	ec = inspectJSON["ExitCode"]
+	if ec != 24.0 {
+		t.Fatalf("Short should have had an ExitCode of 24, not: %v\nBody:%s", ec, body)
+	}
+
+	logDone("exec - exec short IDs")
 }

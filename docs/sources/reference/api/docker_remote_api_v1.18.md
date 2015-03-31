@@ -1149,12 +1149,12 @@ or being killed.
 
 Query Parameters:
 
--   **dockerfile** - path within the build context to the Dockerfile. This is 
+-   **dockerfile** - path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
-        URI specifies a filename, the file's contents are placed into a file 
+-   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
+        URI specifies a filename, the file's contents are placed into a file
 		called `Dockerfile`.
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
@@ -2019,6 +2019,29 @@ Status Codes:
 -   **404** – no such exec instance
 -   **500** - server error
 
+### Exec Wait
+
+`POST /exec/(id)/wait`
+
+Block until exec `id` stops, then returns the exit code
+
+**Example request**:
+
+        POST /exec/16253994b7c4/wait HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"ExitCode": 0}
+
+Status Codes:
+
+-   **200** – no error
+-   **404** – no such container
+-   **500** – server error
+
 # 3. Going further
 
 ## 3.1 Inside `docker run`
@@ -2058,7 +2081,7 @@ This might change in the future.
 
 ## 3.3 CORS Requests
 
-To set cross origin requests to the remote api please give values to 
+To set cross origin requests to the remote api please give values to
 "--api-cors-header" when running docker in daemon mode. Set * will allow all,
 default or blank means CORS disabled
 

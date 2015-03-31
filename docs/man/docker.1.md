@@ -146,6 +146,9 @@ unix://[/path/to/socket] to use.
 **docker-exec(1)**
   Run a command in a running container
 
+**docker-execwait(1)**
+  Block until an exec stops, then print its exit code
+
 **docker-export(1)**
   Stream the contents of a container as a tar archive
 

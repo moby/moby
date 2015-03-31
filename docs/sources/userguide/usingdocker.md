@@ -87,7 +87,7 @@ This will display the help text and all available flags:
       --no-stdin=false: Do not attach stdin
       --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
 
-> **Note:** 
+> **Note:**
 > You can see a full list of Docker's commands
 > [here](/reference/commandline/cli/).
 
@@ -116,7 +116,7 @@ application.
 
 Lastly, we've specified a command for our container to run: `python app.py`. This launches our web application.
 
-> **Note:** 
+> **Note:**
 > You can see more detail on the `docker run` command in the [command
 > reference](/reference/commandline/cli/#run) and the [Docker Run
 > Reference](/reference/run/).
@@ -133,7 +133,7 @@ You can see we've specified a new flag, `-l`, for the `docker ps`
 command. This tells the `docker ps` command to return the details of the
 *last* container started.
 
-> **Note:** 
+> **Note:**
 > By default, the `docker ps` command only shows information about running
 > containers. If you want to see stopped containers too use the `-a` flag.
 
@@ -147,7 +147,7 @@ column.
 When we passed the `-P` flag to the `docker run` command Docker mapped any
 ports exposed in our image to our host.
 
-> **Note:** 
+> **Note:**
 > We'll learn more about how to expose ports in Docker images when
 > [we learn how to build images](/userguide/dockerimages).
 
@@ -183,10 +183,10 @@ Our Python application is live!
 > you'll need to get the IP of the virtual host instead of using localhost.
 > You can do this by running the following in
 > the boot2docker shell.
-> 
+>
 >     $ boot2docker ip
 >     The VM's Host only interface IP address is: 192.168.59.103
-> 
+>
 > In this case you'd browse to http://192.168.59.103:49155 for the above example.
 
 ## A Network Port Shortcut
@@ -231,7 +231,7 @@ the container.
 
 ## Inspecting our Web Application Container
 
-Lastly, we can take a low-level dive into our Docker container using the
+We can also take a low-level dive into our Docker container using the
 `docker inspect` command. It returns a JSON hash of useful configuration
 and status information about Docker containers.
 
@@ -257,6 +257,51 @@ specific element, for example to return the container's IP address we would:
 
     $ docker inspect -f '{{ .NetworkSettings.IPAddress }}' nostalgic_morse
     172.17.0.5
+
+## Entering the Web Application Container
+
+Sometimes it may be necessary to run additional commands within a Docker
+container. For example, to help debug a situation or to simply run additional
+processes alongside the main one that was started when the container was
+created, in these situations you can use the `docker exec` command.
+
+For our example, let's run the `bash` shell command so we can look around
+the container:
+
+    $ sudo docker exec -it nostalgic_morse bash
+
+That command should result in the `bash` shell being run as a new process
+in the container, and due to the `-it` options (which attaches `STDIN` and
+allocates a tty), you should be presented with a normal command line
+prompt.  From there you should be able to look at any log file or even
+the processes running:
+
+    $ ps -Aef
+    UID        PID  PPID  C STIME TTY          TIME CMD
+    root         1     0  0 19:35 ?        00:00:00 python app.py
+    root        18     0  0 19:36 ?        00:00:00 bash
+    root        27    18  0 19:45 ?        00:00:00 ps -Aef
+
+Notice that we not only see our `bash` and `ps -Aef` commands, but also
+the Web Application (`python app.py`) process too.
+
+To leave, and as a result stop this additional process, just use the standard
+`exit` command.
+
+The `docker exec` command, like the `docker run` command allows for the
+`-d` option to be included, which starts the specified command in
+detached mode. In this case the command will print an unique ID for the
+command which can be used later on.  For example, you can then use the
+ID in the `docker execwait` command to wait for the specified exec command
+to complete:
+
+    $ sudo docker exec -d nostalgic_morse sh -c "sleep 60 ; exit 2"
+    dd0d7f861b4ad50df8ae3bea61514f3f935a7d6c9a7b6747ff7a83f3272a06a9
+    $ sudo docker execwait dd0d7f861b4ad50df8a
+	2
+
+Notice that when the `docker execwait` command completes it will print
+the exit code from the `docker exec` command that was being watched.
 
 ## Stopping our Web Application Container
 
@@ -285,7 +330,7 @@ Now quickly run `docker ps -l` again to see the running container is
 back up or browse to the container's URL to see if the application
 responds.
 
-> **Note:** 
+> **Note:**
 > Also available is the `docker restart` command that runs a stop and
 > then start on the container.
 
