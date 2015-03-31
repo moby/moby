@@ -42,9 +42,12 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 				delete(writers, sw)
 			}
 		}
-		// exit if there is no more writers
 		if len(w.streams) == 1 {
-			w.buf.Reset()
+			if w.buf.Len() >= 4096 {
+				w.buf.Reset()
+			} else {
+				w.buf.Write(p)
+			}
 			w.Unlock()
 			return len(p), nil
 		}
