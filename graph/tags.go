@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -221,6 +222,10 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 }
 
 func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
+	return store.SetLoad(repoName, tag, imageName, force, nil)
+}
+
+func (store *TagStore) SetLoad(repoName, tag, imageName string, force bool, out io.Writer) error {
 	img, err := store.LookupImage(imageName)
 	store.Lock()
 	defer store.Unlock()
@@ -243,8 +248,17 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
-		if old, exists := store.Repositories[repoName][tag]; exists && !force {
-			return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", tag, old)
+		if old, exists := store.Repositories[repoName][tag]; exists {
+
+			if !force {
+				return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", tag, old)
+			}
+
+			if old != img.ID && out != nil {
+
+				fmt.Fprintf(out, "The image %s:%s already exists, renaming the old one with ID %s to empty string\n", repoName, tag, old[:12])
+
+			}
 		}
 	} else {
 		repo = make(map[string]string)

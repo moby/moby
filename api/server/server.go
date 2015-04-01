@@ -698,6 +698,7 @@ func getImagesGet(eng *engine.Engine, version version.Version, w http.ResponseWr
 func postImagesLoad(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	job := eng.Job("load")
 	job.Stdin.Add(r.Body)
+	job.Stdout.Add(w)
 	return job.Run()
 }
 
