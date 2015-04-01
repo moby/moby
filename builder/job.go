@@ -150,7 +150,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		OutOld:          job.Stdout,
 		StreamFormatter: sf,
 		AuthConfig:      authConfig,
-		AuthConfigFile:  configFile,
+		ConfigFile:      configFile,
 		dockerfileName:  dockerfileName,
 		cpuShares:       cpuShares,
 		cpuSetCpus:      cpuSetCpus,

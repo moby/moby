@@ -65,6 +65,13 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 	if err != nil {
 		return nil, "", -1, err
 	}
+
+	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
+	// then the user can't change OUR headers
+	for k, v := range cli.configFile.HttpHeaders {
+		req.Header.Set(k, v)
+	}
+
 	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
@@ -299,7 +306,7 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 		sigchan := make(chan os.Signal, 1)
 		gosignal.Notify(sigchan, signal.SIGWINCH)
 		go func() {
-			for _ = range sigchan {
+			for range sigchan {
 				cli.resizeTty(id, isExec)
 			}
 		}()

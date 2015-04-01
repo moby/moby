@@ -101,8 +101,8 @@ type Builder struct {
 	// the final configs of the Dockerfile but dont want the layers
 	disableCommit bool
 
-	AuthConfig     *registry.AuthConfig
-	AuthConfigFile *registry.ConfigFile
+	AuthConfig *registry.AuthConfig
+	ConfigFile *registry.ConfigFile
 
 	// Deprecated, original writer used for ImagePull. To be removed.
 	OutOld          io.Writer

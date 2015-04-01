@@ -22,14 +22,13 @@ func (cli *DockerCli) CmdLogout(args ...string) error {
 		serverAddress = cmd.Arg(0)
 	}
 
-	cli.LoadConfigFile()
-	if _, ok := cli.configFile.Configs[serverAddress]; !ok {
+	if _, ok := cli.configFile.AuthConfigs[serverAddress]; !ok {
 		fmt.Fprintf(cli.out, "Not logged in to %s\n", serverAddress)
 	} else {
 		fmt.Fprintf(cli.out, "Remove login credentials for %s\n", serverAddress)
-		delete(cli.configFile.Configs, serverAddress)
+		delete(cli.configFile.AuthConfigs, serverAddress)
 
-		if err := registry.SaveConfig(cli.configFile); err != nil {
+		if err := cli.configFile.Save(); err != nil {
 			return fmt.Errorf("Failed to save docker config: %v", err)
 		}
 	}
