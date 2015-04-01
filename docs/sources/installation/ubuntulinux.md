@@ -283,7 +283,7 @@ To specify a DNS server for use by Docker:
 **Or, as an alternative to the previous procedure,** disable `dnsmasq` in
 NetworkManager (this might slow your network).
 
-1. Open the `/etc/default/docker` file for editing.
+1. Open the `/etc/NetworkManager/NetworkManager.conf` file for editing.
 
 		$ sudo nano /etc/NetworkManager/NetworkManager.conf
 
