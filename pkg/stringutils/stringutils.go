@@ -1,22 +1,9 @@
 package stringutils
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"io"
 	mathrand "math/rand"
 	"time"
 )
-
-// Generate 32 chars random string
-func GenerateRandomString() string {
-	id := make([]byte, 32)
-
-	if _, err := io.ReadFull(rand.Reader, id); err != nil {
-		panic(err) // This shouldn't happen
-	}
-	return hex.EncodeToString(id)
-}
 
 // Generate alpha only random stirng with length n
 func GenerateRandomAlphaOnlyString(n int) string {
