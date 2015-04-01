@@ -1300,7 +1300,7 @@ func makeHttpHandler(eng *engine.Engine, logging bool, localMethod string, local
 func createRouter(eng *engine.Engine, logging, enableCors bool, corsHeaders string, dockerVersion string) *mux.Router {
 	r := mux.NewRouter()
 	if os.Getenv("DEBUG") != "" {
-		r.Handle("/debug", NewProfiler())
+		ProfilerSetup(r, "/debug/")
 	}
 	m := map[string]map[string]HttpApiFunc{
 		"GET": {
