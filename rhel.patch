@@ -1,0 +1,59 @@
+diff --git a/Dockerfile b/Dockerfile
+index 5d6e5f2..2605a9f 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -23,33 +23,33 @@
+ # the case. Therefore, you don't have to disable it anymore.
+ #
+ 
+-FROM ubuntu:14.04
++FROM rhel7
+ MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
+ 
+ # Packaged dependencies
+-RUN apt-get update && apt-get install -y \
+-	apparmor \
+-	aufs-tools \
++RUN yum -y update && yum install -y \
+ 	automake \
+ 	btrfs-tools \
++	btrfs-progs-devel \
+ 	build-essential \
+ 	curl \
+-	dpkg-sig \
++	gcc \
+ 	git \
++	glibc-static \
+ 	iptables \
+-	libapparmor-dev \
+-	libcap-dev \
+-	libsqlite3-dev \
++	libcap-devel \
++	libsqlite3x-devel \
++        make \
+ 	mercurial \
+ 	parallel \
+ 	python-mock \
+ 	python-pip \
+-	python-websocket \
++	python-websocket-client \
+ 	reprepro \
+-	ruby1.9.1 \
+-	ruby1.9.1-dev \
++	ruby \
++	ruby-devel \
+ 	s3cmd=1.1.0* \
+-	--no-install-recommends
++	tar
+ 
+ # Get lvm2 source for compiling statically
+ RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
+@@ -140,7 +140,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
+ 
+ VOLUME /var/lib/docker
+ WORKDIR /go/src/github.com/docker/docker
+-ENV DOCKER_BUILDTAGS apparmor selinux btrfs_noversion
++ENV DOCKER_BUILDTAGS selinux
+ 
+ # Install man page generator
+ COPY vendor /go/src/github.com/docker/docker/vendor
