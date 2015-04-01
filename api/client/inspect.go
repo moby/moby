@@ -39,12 +39,6 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	for _, name := range cmd.Args() {
 		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
 		if err != nil {
-			if strings.Contains(err.Error(), "Too many") {
-				fmt.Fprintf(cli.err, "Error: %v", err)
-				status = 1
-				continue
-			}
-
 			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
 			if err != nil {
 				if strings.Contains(err.Error(), "No such") {
