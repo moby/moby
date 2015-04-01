@@ -8,7 +8,7 @@ MAINTAINER Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 COPY . /src
 
 # Reset the /docs dir so we can replace the theme meta with the new repo's git info
-RUN git reset --hard
+# RUN git reset --hard
 
 # Then copy the desired docs into the /docs/sources/ dir
 COPY ./sources/ /docs/sources
@@ -22,6 +22,20 @@ COPY ./VERSION VERSION
 COPY ./mkdocs.yml mkdocs.yml
 COPY ./s3_website.json s3_website.json
 COPY ./release.sh release.sh
+
+
+# Docker Distribution
+#ADD https://raw.githubusercontent.com/moxiegirl/distribution/doc-tooling-changes/docs/mkdocs.yml /docs/mkdocs-distribution.yml
+
+ADD https://raw.githubusercontent.com/moxiegirl/distribution/doc-tooling-changes/docs/overview.md /docs/sources/distribution/overview.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/distribution/overview.md
+
+ADD https://raw.githubusercontent.com/moxiegirl/distribution/doc-tooling-changes/docs/install.md /docs/sources/distribution/install.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/distribution/install.md
+
+ADD https://raw.githubusercontent.com/moxiegirl/distribution/doc-tooling-changes/docs/architecture.md /docs/sources/distribution/architecture.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/distribution/architecture.md
+
 
 # Docker Swarm
 #ADD https://raw.githubusercontent.com/docker/swarm/master/docs/mkdocs.yml /docs/mkdocs-swarm.yml

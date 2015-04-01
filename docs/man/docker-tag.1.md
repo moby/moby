@@ -8,11 +8,14 @@ docker-tag - Tag an image into a repository
 **docker tag**
 [**-f**|**--force**[=*false*]]
 [**--help**]
-IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
+IMAGE[:TAG] [REGISTRY_HOST/][USERNAME/]NAME[:TAG]
 
 # DESCRIPTION
-This will give a new alias to an image in the repository. This refers to the
-entire image name including the optional TAG after the ':'. 
+Assigns a new alias to an image in a registry. An alias refers to the
+entire image name including the optional `TAG` after the ':'. 
+
+If you do not specify a `REGISTRY_HOST`, the command uses Docker's public
+registry located at `registry-1.docker.io` by default. 
 
 # "OPTIONS"
 **-f**, **--force**=*true*|*false*
@@ -58,3 +61,5 @@ April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+April 2015, updated by Mary Anthony for v2 <mary@docker.com>
+
