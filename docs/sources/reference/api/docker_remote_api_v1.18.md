@@ -1338,6 +1338,7 @@ Push the image `name` on the registry
 
 Query Parameters:
 
+-   **force** - force push to public Docker registry
 -   **tag** – the tag to associate with the image on the registry, optional
 
 Request Headers:
@@ -1348,6 +1349,7 @@ Request Headers:
 Status Codes:
 
 -   **200** – no error
+-   **403** - refused to push to public registry
 -   **404** – no such image
 -   **500** – server error
 
@@ -1434,23 +1436,29 @@ Search for an image on [Docker Hub](https://hub.docker.com).
         [
                 {
                     "description": "",
+                    "index_name" : "docker.io"
                     "is_official": false,
                     "is_automated": false,
                     "name": "wma55/u1210sshd",
+                    "registry_name" : "docker.io",
                     "star_count": 0
                 },
                 {
                     "description": "",
+                    "index_name" : "docker.io"
                     "is_official": false,
                     "is_automated": false,
                     "name": "jdswinbank/sshd",
+                    "registry_name" : "docker.io",
                     "star_count": 0
                 },
                 {
                     "description": "",
+                    "index_name" : "docker.io"
                     "is_official": false,
                     "is_automated": false,
                     "name": "vgauthier/sshd",
+                    "registry_name" : "docker.io",
                     "star_count": 0
                 }
         ...
@@ -1459,6 +1467,7 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 Query Parameters:
 
 -   **term** – term to search
+-   **noIndex** - whether to include `index_name` in result respons and sort results with it
 
 Status Codes:
 

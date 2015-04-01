@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/registry"
 )
 
 func TestImagesEnsureImageIsListed(t *testing.T) {
@@ -191,7 +192,7 @@ func TestImagesEnsureDanglingImageOnlyListedOnce(t *testing.T) {
 	containerId1 := strings.TrimSpace(out)
 
 	// tag as foobox
-	c = exec.Command(dockerBinary, "commit", containerId1, "foobox")
+	c = exec.Command(dockerBinary, "commit", containerId1, registry.IndexServerName()+"/foobox")
 	out, _, err = runCommandWithOutput(c)
 	if err != nil {
 		t.Fatalf("error tagging foobox: %s", err)

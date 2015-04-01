@@ -139,6 +139,18 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	return img, nil
 }
 
+// Returns local name for given registry name unless the name already
+// exists. Id of existing local image won't be touched neither.
+func (store *TagStore) NormalizeLocalName(name string) string {
+	if _, exists := store.Repositories[name]; exists {
+		return name
+	}
+	if _, err := store.graph.idIndex.Get(name); err == nil {
+		return name
+	}
+	return registry.NormalizeLocalName(name)
+}
+
 // Return a reverse-lookup table of all the names which refer to each image
 // Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
 func (store *TagStore) ByID() map[string][]string {
@@ -189,36 +201,44 @@ func (store *TagStore) DeleteAll(id string) error {
 func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	store.Lock()
 	defer store.Unlock()
-	deleted := false
-	if err := store.reload(); err != nil {
+	err := store.reload()
+	if err != nil {
 		return false, err
 	}
 
-	repoName = registry.NormalizeLocalName(repoName)
+	matching := store.getRepositoryList(repoName)
+	for _, namedRepo := range matching {
+		deleted := false
+		for name, repoRefs := range namedRepo {
+			if ref == "" {
+				// Delete the whole repository.
+				delete(store.Repositories, name)
+				deleted = true
+				break
+			}
 
-	if ref == "" {
-		// Delete the whole repository.
-		delete(store.Repositories, repoName)
-		return true, store.save()
-	}
-
-	repoRefs, exists := store.Repositories[repoName]
-	if !exists {
-		return false, fmt.Errorf("No such repository: %s", repoName)
-	}
-
-	if _, exists := repoRefs[ref]; exists {
-		delete(repoRefs, ref)
-		if len(repoRefs) == 0 {
-			delete(store.Repositories, repoName)
+			if _, exists := repoRefs[ref]; exists {
+				delete(repoRefs, ref)
+				if len(repoRefs) == 0 {
+					delete(store.Repositories, name)
+				}
+				deleted = true
+				break
+			}
+			err = fmt.Errorf("No such reference: %s:%s", repoName, ref)
 		}
-		deleted = true
+		if deleted {
+			return true, store.save()
+		}
 	}
 
-	return deleted, store.save()
+	if err != nil {
+		return false, err
+	}
+	return false, fmt.Errorf("No such repository: %s", repoName)
 }
 
-func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
+func (store *TagStore) Set(repoName, tag, imageName string, force, preserveName bool) error {
 	img, err := store.LookupImage(imageName)
 	store.Lock()
 	defer store.Unlock()
@@ -238,7 +258,9 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 		return err
 	}
 	var repo Repository
-	repoName = registry.NormalizeLocalName(repoName)
+	if !preserveName {
+		repoName = registry.NormalizeLocalName(repoName)
+	}
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
 		if old, exists := store.Repositories[repoName][tag]; exists && !force {
@@ -253,7 +275,7 @@ func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
 }
 
 // SetDigest creates a digest reference to an image ID.
-func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
+func (store *TagStore) SetDigest(repoName, digest, imageName string, preserveName bool) error {
 	img, err := store.LookupImage(imageName)
 	if err != nil {
 		return err
@@ -273,7 +295,9 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 		return err
 	}
 
-	repoName = registry.NormalizeLocalName(repoName)
+	if !preserveName {
+		repoName = registry.NormalizeLocalName(repoName)
+	}
 	repoRefs, exists := store.Repositories[repoName]
 	if !exists {
 		repoRefs = Repository{}
@@ -286,42 +310,86 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	return store.save()
 }
 
+// Get a list of local repositories matching given repository name. If
+// repository is fully qualified, there will be one match at the most.
+// Otherwise results will be sorted in following way:
+//   1. precise match
+//   2. precise match after normalization
+//   3. match after prefixing with default registry name and normalization
+//   4. match against remote name of repository prefixed with non-default registry
+// *Default registry* here means any registry in registry.RegistryList.
+// Returned is a list of maps with just one entry {"repositoryName": Repository}
+func (store *TagStore) getRepositoryList(repoName string) (result []map[string]Repository) {
+	if r, exists := store.Repositories[repoName]; exists {
+		result = []map[string]Repository{
+			map[string]Repository{repoName: r},
+		}
+	}
+	if r, exists := store.Repositories[registry.NormalizeLocalName(repoName)]; exists {
+		result = append(result, map[string]Repository{registry.NormalizeLocalName(repoName): r})
+	}
+	if !registry.RepositoryNameHasIndex(repoName) {
+		defaultRegistries := make(map[string]struct{}, len(registry.RegistryList))
+		for i := 0; i < len(registry.RegistryList); i++ {
+			defaultRegistries[registry.RegistryList[i]] = struct{}{}
+			if i < 1 {
+				continue
+			}
+			fqn := registry.NormalizeLocalName(registry.RegistryList[i] + "/" + repoName)
+			if r, exists := store.Repositories[fqn]; exists {
+				result = append(result, map[string]Repository{fqn: r})
+			}
+		}
+		for name, r := range store.Repositories {
+			indexName, remoteName := registry.SplitReposName(name, false)
+			if indexName != "" && remoteName == repoName {
+				if _, exists := defaultRegistries[indexName]; !exists {
+					result = append(result, map[string]Repository{name: r})
+				}
+			}
+		}
+	}
+	return
+}
+
 func (store *TagStore) Get(repoName string) (Repository, error) {
 	store.Lock()
 	defer store.Unlock()
 	if err := store.reload(); err != nil {
 		return nil, err
 	}
-	repoName = registry.NormalizeLocalName(repoName)
-	if r, exists := store.Repositories[repoName]; exists {
-		return r, nil
+	matching := store.getRepositoryList(repoName)
+	if len(matching) > 0 {
+		for _, repoRefs := range matching[0] {
+			return repoRefs, nil
+		}
 	}
 	return nil, nil
 }
 
 func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) {
-	repo, err := store.Get(repoName)
-
-	if err != nil {
-		return nil, err
-	}
-	if repo == nil {
-		return nil, nil
-	}
-
 	store.Lock()
 	defer store.Unlock()
-	if imgID, exists := repo[refOrID]; exists {
-		return store.graph.Get(imgID)
-	}
 
-	// If no matching tag is found, search through images for a matching image id
-	for _, revision := range repo {
-		if strings.HasPrefix(revision, refOrID) {
-			return store.graph.Get(revision)
+	matching := store.getRepositoryList(repoName)
+	for _, namedRepo := range matching {
+		for _, repoRefs := range namedRepo {
+			if revision, exists := repoRefs[refOrID]; exists {
+				return store.graph.Get(revision)
+			}
 		}
 	}
-
+	// If no matching reference is found, search through images for a matching
+	// image id
+	for _, namedRepo := range matching {
+		for _, repoRefs := range namedRepo {
+			for _, revision := range repoRefs {
+				if strings.HasPrefix(revision, refOrID) {
+					return store.graph.Get(revision)
+				}
+			}
+		}
+	}
 	return nil, nil
 }
 

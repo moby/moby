@@ -2,20 +2,37 @@ package main
 
 import (
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestRmiWithContainerFails(t *testing.T) {
 	errSubstr := "is using it"
+	imageName := regexp.MustCompile(`(?m)^([^/ ]+/busybox)\s+`)
+
+	// remove any fully-qualified busybox images created by prior tests
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images"))
+	if err != nil {
+		t.Fatalf("failed to list images: %v", err)
+	}
+	args := []string{"rmi", "-f"}
+	for _, name := range imageName.FindAllStringSubmatch(out, -1) {
+		args = append(args, name[1])
+	}
+	if len(args) > 2 {
+		rmiCmd := exec.Command(dockerBinary, args...)
+		if out, _, err = runCommandWithOutput(rmiCmd); err != nil {
+			t.Errorf("failed to remove all fully-qualified busybox images: %s, %v", out, err)
+		}
+	}
 
 	// create a container
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("failed to create a container: %s, %v", out, err)
 	}
-
 	cleanedContainerID := stripTrailingCharacters(out)
 
 	// try to delete the image
