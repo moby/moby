@@ -5266,7 +5266,7 @@ func TestBuildContainerWithCgroupParent(t *testing.T) {
 	if !found {
 		t.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
 	}
-	cmd := exec.Command(dockerBinary, "build", "--cgroup-parent", cgroupParent , "-")
+	cmd := exec.Command(dockerBinary, "build", "--cgroup-parent", cgroupParent, "-")
 	cmd.Stdin = strings.NewReader(`
 FROM busybox
 RUN cat /proc/self/cgroup
