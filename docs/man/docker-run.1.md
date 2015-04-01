@@ -101,7 +101,7 @@ the number of containers running on the system.
 For example, consider three containers, one has a cpu-share of 1024 and
 two others have a cpu-share setting of 512. When processes in all three
 containers attempt to use 100% of CPU, the first container would receive
-50% of the total CPU time. If you add a fouth container with a cpu-share
+50% of the total CPU time. If you add a fourth container with a cpu-share
 of 1024, the first container only gets 33% of the CPU. The remaining containers
 receive 16.5%, 16.5% and 33% of the CPU.
 
@@ -239,7 +239,7 @@ system's page size (the value would be very large, that's millions of trillions)
    Total memory limit (memory + swap)
 
    Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
-This value should always larger than **-m**, so you should alway use this with **-m**.
+This value should always larger than **-m**, so you should always use this with **-m**.
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
