@@ -311,6 +311,10 @@ func TestEventsFilterContainerID(t *testing.T) {
 	container2 := stripTrailingCharacters(out)
 
 	for _, s := range []string{container1, container2, container1[:12], container2[:12]} {
+		if err := waitInspect(s, "{{.State.Running}}", "false", 5); err != nil {
+			t.Fatalf("Failed to get container %s state, error: %s", s, err)
+		}
+
 		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
 		out, _, err := runCommandWithOutput(eventsCmd)
 		if err != nil {
@@ -338,6 +342,10 @@ func TestEventsFilterContainerName(t *testing.T) {
 	}
 
 	for _, s := range []string{"container_1", "container_2"} {
+		if err := waitInspect(s, "{{.State.Running}}", "false", 5); err != nil {
+			t.Fatalf("Failed to get container %s state, error: %s", s, err)
+		}
+
 		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
 		out, _, err := runCommandWithOutput(eventsCmd)
 		if err != nil {
