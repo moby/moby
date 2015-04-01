@@ -232,9 +232,6 @@ There are a number of projects under development that are based on Docker's
 core technology. These projects expand the tooling built around the
 Docker platform to broaden its application and utility. 
 
-If you know of another project underway that should be listed here, please help
-us keep this list up-to-date by submitting a PR.
-
 * [Docker Registry](https://github.com/docker/distribution): Registry 
 server for Docker (hosting/delivery of repositories and images)
 * [Docker Machine](https://github.com/docker/machine): Machine management 
@@ -243,4 +240,8 @@ for a container-centric world
 system 
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
+* [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
+Docker on a Mac
 
+If you know of another project underway that should be listed here, please help 
+us keep this list up-to-date by submitting a PR.
