@@ -49,7 +49,7 @@ working with our known issues.
 
 An existing issue is something reported by a Docker user. As issues come in,
 our maintainers triage them. Triage is its own topic. For now, it is important
-for you to know that triage includes ranking issues according to difficulty. 
+for you to know that triage includes ranking issues according to difficulty.
 
 Triaged issues have one of these labels:
 
@@ -96,7 +96,7 @@ In this section, you find and claim an open documentation lines issue.
 
 2. Click on the "Issues" link.
 
-    A list of the open issues appears. 
+    A list of the open issues appears.
 
     ![Open issues](/project/images/issue_list.png)
 
@@ -108,14 +108,14 @@ In this section, you find and claim an open documentation lines issue.
 
 5. Open an issue that interests you.
 
-    The comments on the issues can tell you both the problem and the potential 
+    The comments on the issues can tell you both the problem and the potential
     solution.
 
 6. Make sure that no other user has chosen to work on the issue.
 
     We don't allow external contributors to assign issues to themselves. So, you
     need to read the comments to find if a user claimed the issue by leaving a
-    `#dibs` comment on the issue.  
+    `#dibs` comment on the issue.
 
 7. When you find an open issue that both interests you and is unclaimed, add a
 `#dibs` comment.
@@ -202,7 +202,7 @@ To sync your repository:
 
         $ git push origin
         Username for 'https://github.com': moxiegirl
-        Password for 'https://moxiegirl@github.com': 
+        Password for 'https://moxiegirl@github.com':
         Counting objects: 223, done.
         Compressing objects: 100% (38/38), done.
         Writing objects: 100% (69/69), 8.76 KiB | 0 bytes/s, done.

@@ -89,16 +89,16 @@ As shown in the diagram above, the Docker daemon runs on a host machine. The
 user does not directly interact with the daemon, but instead through the Docker
 client.
 
-### The Docker client 
+### The Docker client
 The Docker client, in the form of the `docker` binary, is the primary user
 interface to Docker. It accepts commands from the user and communicates back and
 forth with a Docker daemon.
 
-### Inside Docker 
+### Inside Docker
 To understand Docker's internals, you need to know about three components:
 
-* Docker images. 
-* Docker registries. 
+* Docker images.
+* Docker registries.
 * Docker containers.
 
 #### Docker images
@@ -114,7 +114,7 @@ Docker registries hold images. These are public or private stores from which you
 or download images. The public Docker registry is called
 [Docker Hub](http://hub.docker.com). It provides a huge collection of existing
 images for your use. These can be images you create yourself or you
-can use images that others have previously created. Docker registries are the 
+can use images that others have previously created. Docker registries are the
 **distribution** component of Docker.
 
 ####Docker containers
@@ -124,7 +124,7 @@ image. Docker containers can be run, started, stopped, moved, and deleted. Each
 container is an isolated and secure application platform. Docker containers are the
  **run** component of Docker.
 
-##So how does Docker work? 
+##So how does Docker work?
 So far, we've learned that:
 
 1. You can build Docker images that hold your applications.
@@ -135,7 +135,7 @@ So far, we've learned that:
 
 Let's look at how these elements combine together to make Docker work.
 
-### How does a Docker Image work? 
+### How does a Docker Image work?
 We've already seen that Docker images are read-only templates from which Docker
 containers are launched. Each image consists of a series of layers. Docker
 makes use of [union file systems](http://en.wikipedia.org/wiki/UnionFS) to
@@ -162,8 +162,8 @@ Docker images are then built from these base images using a simple, descriptive
 set of steps we call *instructions*. Each instruction creates a new layer in our
 image. Instructions include actions like:
 
-* Run a command. 
-* Add a file or directory. 
+* Run a command.
+* Add a file or directory.
 * Create an environment variable.
 * What process to run when launching a container from this image.
 
@@ -173,7 +173,7 @@ returns a final image.
 
 ### How does a Docker registry work?
 The Docker registry is the store for your Docker images. Once you build a Docker
-image you can *push* it to a public registry [Docker Hub](https://hub.docker.com) or to 
+image you can *push* it to a public registry [Docker Hub](https://hub.docker.com) or to
 your own registry running behind your firewall.
 
 Using the Docker client, you can search for already published images and then
@@ -206,7 +206,7 @@ minimum the Docker client needs to tell the Docker daemon to run the container
 is:
 
 * What Docker image to build the container from, here `ubuntu`, a base Ubuntu
-image; 
+image;
 * The command you want to run inside the container when it is launched,
 here `/bin/bash`, to start the Bash shell inside the new container.
 
@@ -217,16 +217,16 @@ In order, Docker does the following:
 - **Pulls the `ubuntu` image:** Docker checks for the presence of the `ubuntu`
 image and, if it doesn't exist locally on the host, then Docker downloads it from
 [Docker Hub](https://hub.docker.com). If the image already exists, then Docker
-uses it for the new container. 
+uses it for the new container.
 - **Creates a new container:** Once Docker has the image, it uses it to create a
-container. 
-- **Allocates a filesystem and mounts a read-write _layer_:** The container is created in 
+container.
+- **Allocates a filesystem and mounts a read-write _layer_:** The container is created in
 the file system and a read-write layer is added to the image.
-- **Allocates a network / bridge interface:** Creates a network interface that allows the 
-Docker container to talk to the local host. 
-- **Sets up an IP address:** Finds and attaches an available IP address from a pool. 
-- **Executes a process that you specify:** Runs your application, and; 
-- **Captures and provides application output:** Connects and logs standard input, outputs 
+- **Allocates a network / bridge interface:** Creates a network interface that allows the
+Docker container to talk to the local host.
+- **Sets up an IP address:** Finds and attaches an available IP address from a pool.
+- **Executes a process that you specify:** Runs your application, and;
+- **Captures and provides application output:** Connects and logs standard input, outputs
 and errors for you to see how your application is running.
 
 You now have a running container! From here you can manage your container, interact with
@@ -246,12 +246,12 @@ namespace and does not have access outside it.
 
 Some of the namespaces that Docker uses are:
 
- - **The `pid` namespace:** Used for process isolation (PID: Process ID). 
+ - **The `pid` namespace:** Used for process isolation (PID: Process ID).
  - **The `net` namespace:** Used for managing network interfaces (NET:
- Networking). 
+ Networking).
  - **The `ipc` namespace:** Used for managing access to IPC
- resources (IPC: InterProcess Communication). 
- - **The `mnt` namespace:** Used for managing mount-points (MNT: Mount). 
+ resources (IPC: InterProcess Communication).
+ - **The `mnt` namespace:** Used for managing mount-points (MNT: Mount).
  - **The `uts` namespace:** Used for isolating kernel and version identifiers. (UTS: Unix
 Timesharing System).
 
@@ -269,10 +269,10 @@ making them very lightweight and fast. Docker uses union file systems to provide
 the building blocks for containers. Docker can make use of several union file system variants
 including: AUFS, btrfs, vfs, and DeviceMapper.
 
-### Container format 
+### Container format
 Docker combines these components into a wrapper we call a container format. The
 default container format is called `libcontainer`. Docker also supports
-traditional Linux containers using [LXC](https://linuxcontainers.org/). In the 
+traditional Linux containers using [LXC](https://linuxcontainers.org/). In the
 future, Docker may support other container formats, for example, by integrating with
 BSD Jails or Solaris Zones.
 

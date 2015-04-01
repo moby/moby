@@ -18,7 +18,7 @@ container that ran a Python Flask application:
 
     $ docker run -d -P training/webapp python app.py
 
-> **Note:** 
+> **Note:**
 > Containers have an internal network and an IP address
 > (as we saw when we used the `docker inspect` command to show the container's
 > IP address in the [Using Docker](/userguide/usingdocker/) section).
@@ -35,7 +35,7 @@ range* on your Docker host. Next, when `docker ps` was run, you saw that port
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
 You also saw how you can bind a container's ports to a specific port using
-the `-p` flag. Here port 80 of the host is mapped to port 5000 of the 
+the `-p` flag. Here port 80 of the host is mapped to port 5000 of the
 container:
 
     $ docker run -d -p 80:5000 training/webapp python app.py
@@ -70,7 +70,7 @@ configurations. For example, if you've bound the container port to the
     $ docker port nostalgic_morse 5000
     127.0.0.1:49155
 
-> **Note:** 
+> **Note:**
 > The `-p` flag can be used multiple times to configure multiple ports.
 
 ## Connect with the linking system
@@ -114,7 +114,7 @@ You can also use `docker inspect` to return the container's name.
     $ docker inspect -f "{{ .Name }}" aed84ee21bde
     /web
 
-> **Note:** 
+> **Note:**
 > Container names have to be unique. That means you can only call
 > one container `web`. If you want to re-use a container name you must delete
 > the old container (with `docker rm`) before you can create a new
@@ -179,7 +179,7 @@ recipient container in two ways:
 
 Docker creates several environment variables when you link containers. Docker
 automatically creates environment variables in the target container based on
-the `--link` parameters.  It will also expose all environment variables 
+the `--link` parameters.  It will also expose all environment variables
 originating from Docker from the source container. These include variables from:
 
 * the `ENV` commands in the source container's Dockerfile
@@ -232,8 +232,8 @@ that port is used for both tcp and udp, then the tcp one is specified.
 
 Finally, Docker also exposes each Docker originated environment variable
 from the source container as an environment variable in the target. For each
-variable Docker creates an `<alias>_ENV_<name>` variable in the target 
-container. The variable's value is set to the value Docker used when it 
+variable Docker creates an `<alias>_ENV_<name>` variable in the target
+container. The variable's value is set to the value Docker used when it
 started the source container.
 
 Returning back to our database example, you can run the `env`
@@ -285,7 +285,7 @@ container:
 
 You can see two relevant host entries. The first is an entry for the `web`
 container that uses the Container ID as a host name. The second entry uses the
-link alias to reference the IP address of the `db` container. In addition to 
+link alias to reference the IP address of the `db` container. In addition to
 the alias you provide, the linked container's name--if unique from the alias
 provided to the `--link` parameter--and the linked container's hostname will
 also be added in `/etc/hosts` for the linked container's IP address. You can ping
@@ -298,7 +298,7 @@ that host now via any of these entries:
     56 bytes from 172.17.0.5: icmp_seq=1 ttl=64 time=0.250 ms
     56 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.256 ms
 
-> **Note:** 
+> **Note:**
 > In the example, you'll note you had to install `ping` because it was not included
 > in the container initially.
 
@@ -306,7 +306,7 @@ Here, you used the `ping` command to ping the `db` container using its host entr
 which resolves to `172.17.0.5`. You can use this host entry to configure an application
 to make use of your `db` container.
 
-> **Note:** 
+> **Note:**
 > You can link multiple recipient containers to a single source. For
 > example, you could have multiple (differently named) web containers attached to your
 >`db` container.

@@ -114,7 +114,7 @@ Wrapping is allowed by using a backslash (`\`) as continuation marker:
 
 Docker recommends you add multiple labels in a single `LABEL` instruction. Using
 individual instructions for each label can result in an inefficient image. This
-is because each `LABEL` instruction in a Dockerfile produces a new IMAGE layer. 
+is because each `LABEL` instruction in a Dockerfile produces a new IMAGE layer.
 
 You can view the labels via the `docker inspect` command:
 

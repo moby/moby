@@ -24,7 +24,7 @@ If you want Docker to start at boot, you should also:
 ## Custom Docker daemon options
 
 There are a number of ways to configure the daemon flags and environment variables
-for your Docker daemon. 
+for your Docker daemon.
 
 If the `docker.service` file is set to use an `EnvironmentFile`
 (often pointing to `/etc/sysconfig/docker`) then you can modify the

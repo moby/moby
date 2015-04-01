@@ -12,10 +12,10 @@ IMAGE[:TAG] [REGISTRY_HOST/][USERNAME/]NAME[:TAG]
 
 # DESCRIPTION
 Assigns a new alias to an image in a registry. An alias refers to the
-entire image name including the optional `TAG` after the ':'. 
+entire image name including the optional `TAG` after the ':'.
 
 If you do not specify a `REGISTRY_HOST`, the command uses Docker's public
-registry located at `registry-1.docker.io` by default. 
+registry located at `registry-1.docker.io` by default.
 
 # "OPTIONS"
 **-f**, **--force**=*true*|*false*
@@ -44,7 +44,7 @@ Note that here TAG is a part of the overall name or "tag".
 
 ## Giving an image a new alias
 
-Here is an example of aliasing an image (e.g., 0e5574283393) as "httpd" and 
+Here is an example of aliasing an image (e.g., 0e5574283393) as "httpd" and
 tagging it into the "fedora" repository with "version1.0":
 
     docker tag 0e5574283393 fedora/httpd:version1.0

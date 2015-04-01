@@ -37,7 +37,7 @@ altering the external behavior. To make this type of proposal:
     **Cleanup:** _short title_
 
     If your changes required logic changes, note that in your request.
-	
+
 5. Work through Docker's review process until merge.
 
 
@@ -67,8 +67,8 @@ The following provides greater detail on the process:
 
     The design proposals are <a
     href="https://github.com/docker/docker/pulls?q=is%3Aopen+is%3Apr+label%
-    3AProposal" target="_blank">all online in our GitHub pull requests</a>. 
-    
+    3AProposal" target="_blank">all online in our GitHub pull requests</a>.
+
 3. Talk to the community about your idea.
 
     We have lots of <a href="../get-help/" target="_blank">community forums</a>
@@ -77,10 +77,10 @@ The following provides greater detail on the process:
 
 4. Fork `docker/docker` and clone the repo to your local host.
 
-5. Create a new Markdown file in the area you wish to change.  
+5. Create a new Markdown file in the area you wish to change.
 
     For example, if you want to redesign our daemon create a new file under the
-    `daemon/` folder. 
+    `daemon/` folder.
 
 6. Name the file descriptively, for example `redesign-daemon-proposal.md`.
 
@@ -95,7 +95,7 @@ The following provides greater detail on the process:
     * Which design/implementation do you think is best and why?
     * What are the risks or limitations of your proposal?
 
-    This is your chance to convince people your idea is sound. 
+    This is your chance to convince people your idea is sound.
 
 8. Submit your proposal in a pull request to `docker/docker`.
 
@@ -115,7 +115,7 @@ The following provides greater detail on the process:
 10. Pull request accepted.
 
     Your request may also be rejected. Not every idea is a good fit for Docker.
-    Let's assume though your proposal succeeded. 
+    Let's assume though your proposal succeeded.
 
 11. Implement your idea.
 
@@ -133,7 +133,7 @@ The following provides greater detail on the process:
 13. Review and iterate on your code.
 
     If you are making a large code change, you can expect greater scrutiny
-    during this phase. 
+    during this phase.
 
 14. Acceptance and merge!
 

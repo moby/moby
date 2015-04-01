@@ -62,7 +62,7 @@ which is officially supported by Docker.
 2. Restart your system. This is necessary for Debian to use your new kernel.
 
 3. Install Docker using the get.docker.com script:
- 
+
     `curl -sSL https://get.docker.com/ | sh`
 
 ## Giving non-root access

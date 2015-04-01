@@ -31,7 +31,7 @@ Docker is located in the *extras* channel. To install Docker:
 
 2. Install Docker:
 
-        $ sudo yum install docker 
+        $ sudo yum install docker
 
 Additional installation, configuration, and usage information,
 including a [Get Started with Docker Containers in Red Hat

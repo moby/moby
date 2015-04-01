@@ -145,19 +145,19 @@ the container will continue to as well. You can see a more substantial example
 
 Linux:
 
- - Ubuntu 12.04, 13.04 et al 
- - Fedora 19/20+ 
- - RHEL 6.5+ 
- - CentOS 6+ 
- - Gentoo 
- - ArchLinux 
- - openSUSE 12.3+ 
+ - Ubuntu 12.04, 13.04 et al
+ - Fedora 19/20+
+ - RHEL 6.5+
+ - CentOS 6+
+ - Gentoo
+ - ArchLinux
+ - openSUSE 12.3+
  - CRUX 3.0+
 
 Cloud:
 
- - Amazon EC2 
- - Google Compute Engine 
+ - Amazon EC2
+ - Google Compute Engine
  - Rackspace
 
 ### How do I report a security issue with Docker?
@@ -253,11 +253,11 @@ how to do this, check the documentation for your OS.
 You can find more answers on:
 
 
-- [Docker user mailinglist](https://groups.google.com/d/forum/docker-user) 
-- [Docker developer mailinglist](https://groups.google.com/d/forum/docker-dev) 
-- [IRC, docker on freenode](irc://chat.freenode.net#docker) 
-- [GitHub](https://github.com/docker/docker) 
-- [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker) 
+- [Docker user mailinglist](https://groups.google.com/d/forum/docker-user)
+- [Docker developer mailinglist](https://groups.google.com/d/forum/docker-dev)
+- [IRC, docker on freenode](irc://chat.freenode.net#docker)
+- [GitHub](https://github.com/docker/docker)
+- [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 
 Looking for something else to read? Checkout the [User Guide](/userguide/).

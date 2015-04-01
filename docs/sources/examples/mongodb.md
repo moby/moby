@@ -18,8 +18,8 @@ instances will bring several benefits, such as:
  - Based on globally accessible and shareable images.
 
 > **Note:**
-> 
-> If you do **_not_** like `sudo`, you might want to check out: 
+>
+> If you do **_not_** like `sudo`, you might want to check out:
 > [*Giving non-root access*](/installation/binaries/#giving-non-root-access).
 
 ## Creating a Dockerfile for MongoDB
@@ -69,7 +69,7 @@ After this initial preparation we can update our packages and install MongoDB.
 
 > **Tip:** You can install a specific version of MongoDB by using a list
 > of required packages with versions, e.g.:
-> 
+>
 >     RUN apt-get update && apt-get install -y mongodb-org=2.6.1 mongodb-org-server=2.6.1 mongodb-org-shell=2.6.1 mongodb-org-mongos=2.6.1 mongodb-org-tools=2.6.1
 
 MongoDB requires a data directory. Let's create it as the final step of our
@@ -91,7 +91,7 @@ the `EXPOSE` instruction.
 Now save the file and let's build our image.
 
 > **Note:**
-> 
+>
 > The full version of this `Dockerfile` can be found [here](/examples/mongodb/Dockerfile).
 
 ## Building the MongoDB Docker image
@@ -144,7 +144,7 @@ as daemon process(es).
     $ docker logs mongo_instance_001
 
     # Playing with MongoDB
-    # Usage: mongo --port <port you get from `docker ps`> 
+    # Usage: mongo --port <port you get from `docker ps`>
     $ mongo --port 12345
 
  - [Linking containers](/userguide/dockerlinks)

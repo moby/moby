@@ -20,7 +20,7 @@ Automated Builds have several advantages:
 image was built exactly as specified.
 
 * The `Dockerfile` will be available to anyone with access to
-your repository on the Docker Hub registry. 
+your repository on the Docker Hub registry.
 
 * Because the process is automated, Automated Builds help to
 make sure that your repository is always up to date.
@@ -39,10 +39,10 @@ In order to set up an Automated Build, you need to first link your
 [Docker Hub](https://hub.docker.com) account with a GitHub account.
 This will allow the registry to see your repositories.
 
-> *Note:* 
+> *Note:*
 > Automated Builds currently require *read* and *write* access since
 > [Docker Hub](https://hub.docker.com) needs to setup a GitHub service
-> hook. We have no choice here, this is how GitHub manages permissions, sorry! 
+> hook. We have no choice here, this is how GitHub manages permissions, sorry!
 > We do guarantee nothing else will be touched in your account.
 
 To get started, log into your Docker Hub account and click the
@@ -114,7 +114,7 @@ can be limited to read-only access to just the repositories required to build.
     </tr>
   </tbody>
 </table>
-     
+
 ### GitHub Organizations
 
 GitHub organizations will appear once your membership to that organization is
@@ -249,7 +249,7 @@ $ curl --data "build=true" -X POST https://registry.hub.docker.com/u/svendowidei
 OK
 ```
 
-> **Note:** 
+> **Note:**
 > You can only trigger one build at a time and no more than one
 > every five minutes. If you already have a build pending, or if you
 > recently submitted a build request, those requests *will be ignored*.

@@ -23,7 +23,7 @@ for fixing simple issues looks like this:
 
 All Docker repositories have code and documentation. You use this same workflow
 for either content type. For example, you can find and fix doc or code issues.
-Also, you can propose a new Docker feature or propose a new Docker tutorial. 
+Also, you can propose a new Docker feature or propose a new Docker tutorial.
 
 Some workflow stages do have slight differences for code or documentation
 contributions. When you reach that point in the flow, we make sure to tell you.

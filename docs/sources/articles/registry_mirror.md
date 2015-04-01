@@ -61,7 +61,7 @@ With your mirror running, pull an image that you haven't pulled before (using
     $ time docker pull node:latest
     Pulling repository node
     [...]
-    
+
     real   1m14.078s
     user   0m0.176s
     sys    0m0.120s
@@ -75,7 +75,7 @@ Finally, re-pull the image:
     $ time docker pull node:latest
     Pulling repository node
     [...]
-    
+
     real   0m51.376s
     user   0m0.120s
     sys    0m0.116s

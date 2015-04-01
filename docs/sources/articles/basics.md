@@ -13,7 +13,7 @@ your Docker install, run the following command:
 If you get `docker: command not found` or something like
 `/var/lib/docker/repositories: permission denied` you may have an
 incomplete Docker installation or insufficient privileges to access
-Docker on your machine. Please 
+Docker on your machine. Please
 
 Additionally, depending on your Docker system configuration, you may be required
 to preface each `docker` command with `sudo`. To avoid having to use `sudo` with

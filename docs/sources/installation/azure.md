@@ -13,7 +13,7 @@ machines on Azure:
 
 * [Docker Virtual Machine Extensions on Azure][1]
     * [How to use the Docker VM Extension from Azure Cross-Platform Interface][2]
-    * [How to use the Docker VM Extension with the Azure Portal][3] 
+    * [How to use the Docker VM Extension with the Azure Portal][3]
 * [Using Docker Machine with Azure][4]
 
 ## What next?

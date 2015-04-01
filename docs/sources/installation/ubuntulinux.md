@@ -1,13 +1,13 @@
-page_title: Installation on Ubuntu 
-page_description: Instructions for installing Docker on Ubuntu. 
+page_title: Installation on Ubuntu
+page_description: Instructions for installing Docker on Ubuntu.
 page_keywords: Docker, Docker documentation, requirements, virtualbox, installation, ubuntu
 
 #Ubuntu
 
 Docker is supported on these Ubuntu operating systems:
 
-- Ubuntu Trusty 14.04 (LTS) 
-- Ubuntu Precise 12.04 (LTS) 
+- Ubuntu Trusty 14.04 (LTS)
+- Ubuntu Precise 12.04 (LTS)
 - Ubuntu Saucy 13.10
 
 This page instructs you to install using Docker-managed release packages and
@@ -28,7 +28,7 @@ and frequently panic under certain conditions.
 To check your current kernel version, open a terminal and use `uname -r` to display
 your kernel version:
 
-	$ uname -r 
+	$ uname -r
 	3.11.0-15-generic
 
 >**Caution** Some Ubuntu OS versions **require a version higher than 3.10** to
@@ -121,17 +121,17 @@ install Docker using the following:
 
 	This command downloads a test image and runs it in a container.
 
-## Optional Configurations for Docker on Ubuntu 
+## Optional Configurations for Docker on Ubuntu
 
 This section contains optional procedures for configuring your Ubuntu to work
 better with Docker.
 
-* [Create a docker group](#create-a-docker-group) 
-* [Adjust memory and swap accounting](#adjust-memory-and-swap-accounting) 
-* [Enable UFW forwarding](#enable-ufw-forwarding) 
+* [Create a docker group](#create-a-docker-group)
+* [Adjust memory and swap accounting](#adjust-memory-and-swap-accounting)
+* [Enable UFW forwarding](#enable-ufw-forwarding)
 * [Configure a DNS server for use by Docker](#configure-a-dns-server-for-docker)
 
-### Create a docker group		
+### Create a docker group
 
 The `docker` daemon binds to a Unix socket instead of a TCP port. By default
 that Unix socket is owned by the user `root` and other users can access it with

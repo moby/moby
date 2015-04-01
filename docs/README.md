@@ -22,7 +22,7 @@ After a release, documentation updates are continually merged into `master` as
 they occur. This work includes new documentation for forthcoming features, bug
 fixes, and other updates. Docker's CI system automatically builds and updates
 the `master` documentation after each merge and posts it to
-[http://docs.master.dockerproject.com](http://docs.master.dockerproject.com). 
+[http://docs.master.dockerproject.com](http://docs.master.dockerproject.com).
 
 Periodically, the Docker maintainers update `docs.docker.com` between official
 releases of Docker. They do this by cherry-picking commits from `master`,
@@ -52,7 +52,7 @@ own.
 
 	By basing from `master` your work is automatically included in the next
 	release. It also allows docs maintainers to easily cherry-pick your changes
-	into the `docs` release branch. 
+	into the `docs` release branch.
 
 4. Modify existing or add new `.md` files to the `docs/sources` directory.
 
@@ -67,15 +67,15 @@ own.
 	run a container running the Docker documentation website. To build the
 	documentation site, enter `make docs` at the root of your `docker/docker`
 	fork:
-	
+
 		$ make docs
 		.... (lots of output) ....
 		docker run --rm -it  -e AWS_S3_BUCKET -p 8000:8000 "docker-docs:master" mkdocs serve
 		Running at: http://0.0.0.0:8000/
 		Live reload enabled.
 		Hold ctrl+c to quit.
-	
-	
+
+
 	The build creates an image containing all the required tools, adds the local
 	`docs/` directory and generates the HTML files. Then, it runs a Docker
 	container with this image.
@@ -178,13 +178,13 @@ For example, to update the current release's docs, do the following:
 1. Go to your `docker/docker` fork and get the latest from master.
 
     	$ git fetch upstream
-        
+
 2. Checkout a new branch based on `upstream/docs`.
 
 	You should give your new branch a descriptive name.
 
 		$ git checkout -b post-1.2.0-docs-update-1 upstream/docs
-	
+
 3. In a browser window, open [https://github.com/docker/docker/commits/master].
 
 4. Locate the merges you want to publish.
@@ -196,9 +196,9 @@ For example, to update the current release's docs, do the following:
 5. Copy the commit SHA from GitHub.
 
 6. Cherry-pick the commit.
-	
+
 	 	$ git cherry-pick -x fe845c4
-	
+
 7. Repeat until you have cherry-picked everything you want to merge.
 
 8. Push your changes to your fork.
@@ -220,13 +220,13 @@ For example, to update the current release's docs, do the following:
 13. Fetch your merged pull request from `docs`.
 
 		$ git fetch upstream/docs
-	
+
 14. Ensure your branch is clean and set to the latest.
 
    	 	$ git reset --hard upstream/docs
-    
+
 15. Copy the `awsconfig` file into the `docs` directory.
-    
+
 16. Make the beta documentation
 
     	$ make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
@@ -288,9 +288,9 @@ When using Docker on Mac OSX the man pages will be missing by default. You can m
    with the docker containers.
 
         $ git clone https://github.com/docker/docker.git
-		
+
 2. Build the docker image.
-   
+
         $ cd docker/docs/man
         $ docker build -t docker/md2man .
 

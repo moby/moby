@@ -7,7 +7,7 @@ page_keywords: contribute, pull request, review, workflow, beginner, squash, com
 
 The work you do for your issue depends on the specific issue you picked.
 This section gives you a step-by-step workflow. Where appropriate, it provides
-command examples. 
+command examples.
 
 However, this is a generalized workflow, depending on your issue you may repeat
 steps or even skip some. How much time the work takes depends on you --- you
@@ -21,14 +21,14 @@ Follow this workflow as you work:
 
     If you are changing code, review the <a href="../coding-style"
     target="_blank">coding style guide</a>. Changing documentation? Review the
-    <a href="../doc-style" target="_blank">documentation style guide</a>. 
-	
+    <a href="../doc-style" target="_blank">documentation style guide</a>.
+
 2. Make changes in your feature branch.
 
     Your feature branch you created in the last section. Here you use the
     development container. If you are making a code change, you can mount your
     source into a development container and iterate that way. For documentation
-    alone, you can work on your local host. 
+    alone, you can work on your local host.
 
     Make sure you don't change files in the `vendor` directory and its
     subdirectories; they contain third-party dependency code. Review <a
@@ -42,15 +42,15 @@ Follow this workflow as you work:
     runs the entire test suite and `make docs` builds the documentation. If you
     forgot the other test targets, see the documentation for <a
     href="../test-and-docs" target="_blank">testing both code and
-    documentation</a>.  
-	
+    documentation</a>.
+
 4. For code changes, add unit tests if appropriate.
 
     If you add new functionality or change existing functionality, you should
     add a unit test also. Use the existing test files for inspiration. Aren't
     sure if you need tests? Skip this step; you can add them later in the
     process if necessary.
-	
+
 5. Format your source files correctly.
 
     <table>
@@ -111,7 +111,7 @@ Follow this workflow as you work:
 
         $ git push origin
         Username for 'https://github.com': moxiegirl
-        Password for 'https://moxiegirl@github.com': 
+        Password for 'https://moxiegirl@github.com':
         Counting objects: 60, done.
         Compressing objects: 100% (7/7), done.
         Writing objects: 100% (7/7), 582 bytes | 0 bytes/s, done.
@@ -131,19 +131,19 @@ After you push a new branch, you should verify it on GitHub:
 3. Select your branch from the dropdown.
 
 	![Find branch](/project/images/locate_branch.png)
-	
+
 4. Use the "Compare" button to compare the differences between your branch and master.
 
 	 Depending how long you've been working on your branch, your branch maybe
-	 behind Docker's upstream repository. 
-	 
+	 behind Docker's upstream repository.
+
 5. Review the commits.
 
 	 Make sure your branch only shows the work you've done.
-	 
+
 ## Pull and rebase frequently
 
-You should pull and rebase frequently as you work.  
+You should pull and rebase frequently as you work.
 
 1. Return to the terminal on your local machine.
 
@@ -161,22 +161,22 @@ You should pull and rebase frequently as you work.
 4. Rebase your master with the local copy of Docker's `master` branch.
 
 		 $ git rebase -i upstream/master
-   
+
   	This command starts an interactive rebase to rewrite all the commits from
 	Docker's `upstream/master` onto your local branch, and then re-apply each of
 	your commits on top of the upstream changes. If you aren't familiar or
   	comfortable with rebase, you can <a
   	href="http://nathanleclaire.com/blog/2014/09/14/dont-be-scared-of-git-
   	rebase" target="_blank">learn more about rebasing</a> on the web.
-  
+
 5. Rebase opens an editor with a list of commits.
 
-			pick 1a79f55 Tweak some of the other text for grammar 
-			pick 53e4983 Fix a link 
+			pick 1a79f55 Tweak some of the other text for grammar
+			pick 53e4983 Fix a link
 			pick 3ce07bb Add a new line about RHEL
-        
+
   	If you run into trouble, `git --rebase abort` removes any changes and gets
-  	you back to where you started. 
+  	you back to where you started.
 
 6. Squash the `pick` keyword with `squash` on all but the first commit.
 
@@ -185,7 +185,7 @@ You should pull and rebase frequently as you work.
 			squash 3ce07bb Add a new line about RHEL
 
   	After closing the file, `git` opens your editor again to edit the commit
-  	message. 
+  	message.
 
 7. Edit the commit message to reflect the entire change.
 

@@ -7,7 +7,7 @@ page_keywords: contribute, pull request, review, workflow, beginner, squash, com
 
 Creating a pull request is nearly the end of the contribution process. At this
 point, your code is reviewed both by our continuous integration (CI) systems and
-by our maintainers. 
+by our maintainers.
 
 The CI system is an automated system. The maintainers are human beings that also
 work on Docker.  You need to understand and work with both the "bots" and the
@@ -22,22 +22,22 @@ problem, he'll send an email through your GitHub user account:
 
 ![Gordon](/project/images/gordon.jpeg)
 
-Our build bot system starts building your changes while Gordon sends any emails. 
+Our build bot system starts building your changes while Gordon sends any emails.
 
 The build system double-checks your work by compiling your code with Docker's master
 code. Building includes running the same tests you ran locally. If you forgot
 to run tests or missed something in fixing problems, the automated build is our
-safety check. 
+safety check.
 
 After Gordon and the bots, the "beings" review your work. Docker maintainers look
 at your pull request and comment on it. The shortest comment you might see is
 `LGTM` which means **l**ooks-**g**ood-**t**o-**m**e. If you get an `LGTM`, that
-is a good thing, you passed that review. 
+is a good thing, you passed that review.
 
 For complex changes, maintainers may ask you questions or ask you to change
 something about your submission. All maintainer comments on a PR go to the
-email address associated with your GitHub account. Any GitHub user who 
-"participates" in a PR receives an email to. Participating means creating or 
+email address associated with your GitHub account. Any GitHub user who
+"participates" in a PR receives an email to. Participating means creating or
 commenting on a PR.
 
 Our maintainers are very experienced Docker users and open source contributors.
@@ -53,13 +53,13 @@ To update your existing pull request:
 
 2. Commit the change with the `git commit --amend` command.
 
-    	$ git commit --amend 
+    	$ git commit --amend
 
     Git opens an editor containing your last commit message.
 
 3. Adjust your last comment to reflect this new change.
 
-        Added a new sentence per Anaud's suggestion	
+        Added a new sentence per Anaud's suggestion
 
         Signed-off-by: Mary Anthony <mary@docker.com>
 
@@ -89,12 +89,12 @@ To update your existing pull request:
 A change requires LGTMs from an absolute majority of an affected component's
 maintainers. For example, if you change `docs/` and `registry/` code, an
 absolute majority of the `docs/` and the `registry/` maintainers must approve
-your PR. Once you get approval, we merge your pull request into Docker's 
-`master` code branch. 
+your PR. Once you get approval, we merge your pull request into Docker's
+`master` code branch.
 
 ## After the merge
 
-It can take time to see a merged pull request in Docker's official release. 
+It can take time to see a merged pull request in Docker's official release.
 A master build is available almost immediately though. Docker builds and
 updates its development binaries after each merge to `master`.
 
@@ -107,18 +107,18 @@ updates its development binaries after each merge to `master`.
     You might want to run the binary in a container though. This
     will keep your local host environment clean.
 
-4. View any documentation changes at <a href="http://docs.master.dockerproject.com/" target="_blank">docs.master.dockerproject.com</a>. 
+4. View any documentation changes at <a href="http://docs.master.dockerproject.com/" target="_blank">docs.master.dockerproject.com</a>.
 
 Once you've verified everything merged, feel free to delete your feature branch
-from your fork. For information on how to do this, 
+from your fork. For information on how to do this,
 <a href="https://help.github.com/articles/deleting-unused-branches/" target="_blank">
-see the GitHub help on deleting branches</a>.  
+see the GitHub help on deleting branches</a>.
 
 ## Where to go next
 
 At this point, you have completed all the basic tasks in our contributors guide.
 If you enjoyed contributing, let us know by completing another beginner
-issue or two. We really appreciate the help. 
+issue or two. We really appreciate the help.
 
-If you are very experienced and want to make a major change, go on to 
+If you are very experienced and want to make a major change, go on to
 [learn about advanced contributing](/project/advanced-contributing).

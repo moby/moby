@@ -15,7 +15,7 @@ list of active pull requests to Docker</a> on GitHub.
 
 Before you create a pull request, check your work.
 
-1. In a terminal window, go to the root of your `docker-fork` repository. 
+1. In a terminal window, go to the root of your `docker-fork` repository.
 
         $ cd ~/repos/docker-fork
 
@@ -29,8 +29,8 @@ Before you create a pull request, check your work.
 		$ make test
 
 	All the tests should pass. If they don't, find out why and correct the
-	situation. 
-    
+	situation.
+
 4. Optionally, if modified the documentation, build the documentation:
 
 		$ make docs
@@ -39,7 +39,7 @@ Before you create a pull request, check your work.
 
 ## Rebase your branch
 
-Always rebase and squash your commits before making a pull request. 
+Always rebase and squash your commits before making a pull request.
 
 1. Fetch any of the last minute changes from `docker/docker`.
 
@@ -56,9 +56,9 @@ Always rebase and squash your commits before making a pull request.
         pick 1a79f55 Tweak some of the other text for grammar
         pick 53e4983 Fix a link
         pick 3ce07bb Add a new line about RHEL
-        
+
     If you run into trouble, `git --rebase abort` removes any changes and gets
-    you back to where you started. 
+    you back to where you started.
 
 4. Squash the `pick` keyword with `squash` on all but the first commit.
 
@@ -67,7 +67,7 @@ Always rebase and squash your commits before making a pull request.
         squash 3ce07bb Add a new line about RHEL
 
     After closing the file, `git` opens your editor again to edit the commit
-    message. 
+    message.
 
 5. Edit and save your commit message.
 
@@ -78,7 +78,7 @@ Always rebase and squash your commits before making a pull request.
 8. Push any changes to your fork on GitHub.
 
         $ git push origin 11038-fix-rhel-link
-        
+
 ## Create a PR on GitHub
 
 You create and manage PRs on GitHub:
@@ -92,7 +92,7 @@ You create and manage PRs on GitHub:
 
 2. Click "Compare & pull request."
 
-    The system displays the pull request dialog. 
+    The system displays the pull request dialog.
 
     ![PR dialog](/project/images/to_from_pr.png)
 

@@ -8,10 +8,10 @@ In this section, you learn to develop like a member of Docker's core team.
 The `docker` repository includes a `Dockerfile` at its root. This file defines
 Docker's development environment.  The `Dockerfile` lists the environment's
 dependencies: system libraries and binaries, Go environment, Go dependencies,
-etc. 
+etc.
 
 Docker's development environment is itself, ultimately a Docker container.
-You use the `docker` repository and its `Dockerfile` to create a Docker image, 
+You use the `docker` repository and its `Dockerfile` to create a Docker image,
 run a Docker container, and develop code in the container. Docker itself builds,
 tests, and releases new Docker versions using this container.
 
@@ -80,10 +80,10 @@ To remove unnecessary artifacts,
     the resulting list. To remove just one image, use the `docker rmi ID`
     command.
 
-	
+
 ## Build an image
 
-If you followed the last procedure, your host is clean of unnecessary images 
+If you followed the last procedure, your host is clean of unnecessary images
 and containers. In this section, you build an image from the Docker development
 environment.
 
@@ -95,8 +95,8 @@ environment.
 
 3. Change into the root of your forked repository.
 
-        $ cd ~/repos/docker-fork 
-        
+        $ cd ~/repos/docker-fork
+
 	If you are following along with this guide, you created a `dry-run-test`
 	branch when you <a href="/project/set-up-git" target="_blank"> set up Git for
 	contributing</a>.
@@ -104,7 +104,7 @@ environment.
 4. Ensure you are on your `dry-run-test` branch.
 
         $ git checkout dry-run-test
-        
+
     If you get a message that the branch doesn't exist, add the `-b` flag (git checkout -b dry-run-test) so the
     command both creates the branch and checks it out.
 
@@ -181,7 +181,7 @@ environment.
     Locate your new `dry-run-test` image in the list. You should also see a
     number of `ubuntu` images. The build process creates these. They are the
     ancestors of your new Docker development image. When you next rebuild your
-    image, the build process reuses these ancestors images if they exist. 
+    image, the build process reuses these ancestors images if they exist.
 
     Keeping the ancestor images improves the build performance. When you rebuild
     the child image, the build process uses the local ancestors rather than
@@ -206,7 +206,7 @@ build and run a `docker` binary in your container.
 2. In a terminal, create a new container from your `dry-run-test` image.
 
         $ docker run --privileged --rm -ti dry-run-test /bin/bash
-        root@5f8630b873fe:/go/src/github.com/docker/docker# 
+        root@5f8630b873fe:/go/src/github.com/docker/docker#
 
     The command creates a container from your `dry-run-test` image. It opens an
     interactive terminal (`-ti`) running a `/bin/bash shell`.  The
@@ -222,16 +222,16 @@ build and run a `docker` binary in your container.
     ![List example](/project/images/list_example.png)
 
 
-3. Investigate your container bit. 
+3. Investigate your container bit.
 
     If you do a `go version` you'll find the `go` language is part of the
-    container. 
+    container.
 
         root@31ed86e9ddcf:/go/src/github.com/docker/docker# go version
         go version go1.4.2 linux/amd64
 
     Similarly, if you do a `docker version` you find the container
-    has no `docker` binary. 
+    has no `docker` binary.
 
         root@31ed86e9ddcf:/go/src/github.com/docker/docker# docker version
         bash: docker: command not found
@@ -245,7 +245,7 @@ with the `make.sh` script.
 
     You only call `hack/make.sh` to build a binary _inside_ a Docker
     development container as you are now. On your host, you'll use `make`
-    commands (more about this later). 
+    commands (more about this later).
 
     As it makes the binary, the `make.sh` script reports the build's progress.
     When the command completes successfully, you should see the following
@@ -253,7 +253,7 @@ with the `make.sh` script.
 
 	---> Making bundle: binary (in bundles/1.5.0-dev/binary)
 	Created binary: /go/src/github.com/docker/docker/bundles/1.5.0-dev/binary/docker-1.5.0-dev
-	
+
 5. List all the contents of the `binary` directory.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker#  ls bundles/1.5.0-dev/binary/
@@ -322,7 +322,7 @@ with the `make.sh` script.
     development container. One terminal is running a debug session. The other
     terminal is displaying a `bash` prompt.
 
-12. At the prompt, test the Docker client by running the `hello-world` container.	
+12. At the prompt, test the Docker client by running the `hello-world` container.
 
         root@9337c96e017a:/go/src/github.com/docker/docker#  docker run hello-world
 
@@ -361,7 +361,7 @@ container.
         $ pwd
         /Users/mary/go/src/github.com/moxiegirl/docker-fork
 
-    Your location will be different because it reflects your environment. 
+    Your location will be different because it reflects your environment.
 
 3. Create a container using `dry-run-test`, but this time, mount your repository
 onto the `/go` directory inside the container.
@@ -376,7 +376,7 @@ onto the `/go` directory inside the container.
         ls: cannot access binary: No such file or directory
 
     Your `dry-run-test` image does not retain any of the changes you made inside
-    the container.  This is the expected behavior for a container. 
+    the container.  This is the expected behavior for a container.
 
 5. In a fresh terminal on your local host, change to the `docker-fork` root.
 
@@ -395,7 +395,7 @@ onto the `/go` directory inside the container.
 7. Back in the terminal running the container, list your `binary` directory.
 
         root@074626fc4b43:/go/src/github.com/docker/docker# ls bundles/1.5.0-dev/binary
-        docker	docker-1.5.0-dev  docker-1.5.0-dev.md5	docker-1.5.0-dev.sha256 
+        docker	docker-1.5.0-dev  docker-1.5.0-dev.md5	docker-1.5.0-dev.sha256
 
     The compiled binaries created from your repository on your local host are
     now available inside your running Docker development container.
@@ -407,13 +407,13 @@ onto the `/go` directory inside the container.
     * start `docker -dD` to launch the Docker daemon inside the container
     * run `docker ps` on local host to get the development container's name
     * connect to your running container `docker exec -it container_name bash`
-    * use the `docker run hello-world` command to create and run a container 
+    * use the `docker run hello-world` command to create and run a container
       inside your development container
 
 ## Where to go next
 
 Congratulations, you have successfully achieved Docker inception. At this point,
 you've set up your development environment and verified almost all the essential
-processes you need to contribute. Of course, before you start contributing, 
+processes you need to contribute. Of course, before you start contributing,
 [you'll need to learn one more piece of the development environment, the test
 framework](/project/test-and-docs/).

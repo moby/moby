@@ -4,7 +4,7 @@ page_keywords: docker, example, package installation, node, centos
 
 # Dockerizing a Node.js Web App
 
-> **Note**: 
+> **Note**:
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#giving-non-root-access)
 

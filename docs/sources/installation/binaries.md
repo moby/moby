@@ -108,7 +108,7 @@ starts. The `docker` daemon must always run as the root user, but if you
 run the `docker` client as a user in the *docker* group then you don't
 need to add `sudo` to all the client commands.
 
-> **Warning**: 
+> **Warning**:
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
 > see [*Docker Daemon Attack Surface*](
 > /articles/security/#docker-daemon-attack-surface) details.

@@ -10,7 +10,7 @@ Over time, different publishing communities have written standards for the style
 and grammar they prefer in their publications. These standards are called
 [style guides](http://en.wikipedia.org/wiki/Style_guide). Generally, Docker’s
 documentation uses the standards described in the
-[Associated Press's (AP) style guide](http://en.wikipedia.org/wiki/AP_Stylebook). 
+[Associated Press's (AP) style guide](http://en.wikipedia.org/wiki/AP_Stylebook).
 If a question about syntactical, grammatical, or lexical practice comes up,
 refer to the AP guide first. If you don’t have a copy of (or online subscription
 to) the AP guide, you can almost always find an answer to a specific question by
@@ -97,7 +97,7 @@ pick one and stick to it. Which one you choose is up to you. One common
 convention is to use the pronoun of the author's gender, but if you prefer to
 default to "he" or "she", that's fine too.
 
-### Capitalization 
+### Capitalization
 
 #### In general
 
@@ -123,7 +123,7 @@ for titles](http://www.quickanddirtytips.com/education/grammar/capitalizing-titl
 
 ## Periods
 
-We prefer one space after a period at the end of a sentence, not two. 
+We prefer one space after a period at the end of a sentence, not two.
 
 See [lists](#lists) below for how to punctuate list items.
 
@@ -181,7 +181,7 @@ say what it is: "This thing is …"
 
 ### Preferred usages
 
-#### Login vs. log in. 
+#### Login vs. log in.
 
 A "login" is a noun (one word), as in "Enter your login". "Log in" is a compound
 verb (two words), as in "Log in to the terminal".
@@ -197,7 +197,7 @@ position on this controversial topic, we won't change our mind, and that’s tha
 We require `code font` styling (monospace, sans-serif) for all text that refers
 to a command or other input or output from the CLI. This includes file paths
 (e.g., `/etc/hosts/docker.conf`). If you enclose text in backticks (`) markdown
-will style the text as code. 
+will style the text as code.
 
 Text from a CLI should be quoted verbatim, even if it contains errors or its
 style contradicts this guide. You can add "(sic)" after the quote to indicate
@@ -210,7 +210,7 @@ the GUI. E.g., Click "Continue" to save the settings.
 Text that refers to a keyboard command or hotkey is  capitalized (e.g., Ctrl-D).
 
 When writing CLI examples, give the user hints by making the examples resemble
-exactly what they see in their shell: 
+exactly what they see in their shell:
 
 * Indent shell examples by 4 spaces so they get rendered as code blocks.
 * Start typed commands with `$ ` (dollar space), so that they are easily
@@ -237,7 +237,7 @@ following:
 Writing a PR that is singular in focus and has clear objectives will encourage
 all of the above. Done correctly, the process allows reviewers (maintainers and
 community members) to validate the claims of the documentation and identify
-potential problems in communication or presentation. 
+potential problems in communication or presentation.
 
 ### Commit messages
 
@@ -263,7 +263,7 @@ Usually, graphics should go in the same directory as the .md file that
 references them, or in a subdirectory for images if one already exists.
 
 The preferred file format for graphics is PNG, but GIF and JPG are also
-acceptable. 
+acceptable.
 
 If you are referring to a specific part of the UI in an image, use
 call-outs (circles and arrows or lines) to highlight what you’re referring to.
