@@ -81,7 +81,7 @@ fi
 
 lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
 case "$lsb_dist" in
-	amzn|fedora)
+	amzn|fedora|centos)
 		if [ "$lsb_dist" = 'amzn' ]; then
 			(
 				set -x
