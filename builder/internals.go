@@ -34,7 +34,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -439,7 +438,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	pullRegistryAuth := b.AuthConfig
 	if len(b.AuthConfigFile.Configs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
-		repoInfo, err := registry.ResolveRepositoryInfo(job, remote)
+		repoInfo, err := b.Daemon.RegistryService.ResolveRepository(remote)
 		if err != nil {
 			return nil, err
 		}

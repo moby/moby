@@ -498,7 +498,7 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := registry.ResolveRepositoryInfo(job, localName)
+	repoInfo, err := s.registryService.ResolveRepository(localName)
 	if err != nil {
 		return err
 	}

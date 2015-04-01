@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -21,6 +20,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers"
@@ -169,29 +169,25 @@ func getBoolParam(value string) (bool, error) {
 	return ret, nil
 }
 
+func getDaemon(eng *engine.Engine) *daemon.Daemon {
+	return eng.HackGetGlobalVar("httpapi.daemon").(*daemon.Daemon)
+}
+
 func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var (
-		authConfig, err = ioutil.ReadAll(r.Body)
-		job             = eng.Job("auth")
-		stdoutBuffer    = bytes.NewBuffer(nil)
-	)
+	var config *registry.AuthConfig
+	err := json.NewDecoder(r.Body).Decode(&config)
+	r.Body.Close()
 	if err != nil {
 		return err
 	}
-	job.Setenv("authConfig", string(authConfig))
-	job.Stdout.Add(stdoutBuffer)
-	if err = job.Run(); err != nil {
+	d := getDaemon(eng)
+	status, err := d.RegistryService.Auth(config)
+	if err != nil {
 		return err
 	}
-	if status := engine.Tail(stdoutBuffer, 1); status != "" {
-		var env engine.Env
-		env.Set("Status", status)
-		return writeJSON(w, http.StatusOK, &types.AuthResponse{
-			Status: status,
-		})
-	}
-	w.WriteHeader(http.StatusNoContent)
-	return nil
+	return writeJSON(w, http.StatusOK, &types.AuthResponse{
+		Status: status,
+	})
 }
 
 func getVersion(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -601,31 +597,30 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 		return err
 	}
 	var (
+		config      *registry.AuthConfig
 		authEncoded = r.Header.Get("X-Registry-Auth")
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders = map[string][]string{}
+		headers     = map[string][]string{}
 	)
 
 	if authEncoded != "" {
 		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+		if err := json.NewDecoder(authJson).Decode(&config); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &registry.AuthConfig{}
+			config = &registry.AuthConfig{}
 		}
 	}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
-			metaHeaders[k] = v
+			headers[k] = v
 		}
 	}
-
-	var job = eng.Job("search", r.Form.Get("term"))
-	job.SetenvJson("metaHeaders", metaHeaders)
-	job.SetenvJson("authConfig", authConfig)
-	streamJSON(job, w, false)
-
-	return job.Run()
+	d := getDaemon(eng)
+	query, err := d.RegistryService.Search(r.Form.Get("term"), config, headers)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(w).Encode(query.Results)
 }
 
 func postImagesPush(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

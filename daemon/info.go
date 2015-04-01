@@ -56,15 +56,6 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 	if err := cjob.Run(); err != nil {
 		return err
 	}
-	registryJob := job.Eng.Job("registry_config")
-	registryEnv, _ := registryJob.Stdout.AddEnv()
-	if err := registryJob.Run(); err != nil {
-		return err
-	}
-	registryConfig := registry.ServiceConfig{}
-	if err := registryEnv.GetJson("config", &registryConfig); err != nil {
-		return err
-	}
 	v := &engine.Env{}
 	v.SetJson("ID", daemon.ID)
 	v.SetInt("Containers", len(daemon.List()))
@@ -83,7 +74,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("OperatingSystem", operatingSystem)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
-	v.SetJson("RegistryConfig", registryConfig)
+	v.SetJson("RegistryConfig", daemon.RegistryService.Config)
 	v.Set("InitSha1", dockerversion.INITSHA1)
 	v.Set("InitPath", initPath)
 	v.SetInt("NCPU", runtime.NumCPU())

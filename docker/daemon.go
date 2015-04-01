@@ -98,17 +98,13 @@ func mainDaemon() {
 		logrus.Fatal(err)
 	}
 
-	// load registry service
-	if err := registry.NewService(registryCfg).Install(eng); err != nil {
-		logrus.Fatal(err)
-	}
-
+	registryService := registry.NewService(registryCfg)
 	// load the daemon in the background so we can immediately start
 	// the http api so that connections don't fail while the daemon
 	// is booting
 	daemonInitWait := make(chan error)
 	go func() {
-		d, err := daemon.NewDaemon(daemonCfg, eng)
+		d, err := daemon.NewDaemon(daemonCfg, eng, registryService)
 		if err != nil {
 			daemonInitWait <- err
 			return
