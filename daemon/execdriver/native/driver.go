@@ -156,11 +156,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		startCallback(&c.ProcessConfig, pid)
 	}
 
-	oomKillNotification, err := cont.NotifyOOM()
-	if err != nil {
-		oomKillNotification = nil
-		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
-	}
+	oom := notifyOnOOM(cont)
 	waitF := p.Wait
 	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
 		// we need such hack for tracking processes with inerited fds,
@@ -176,10 +172,22 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		ps = execErr.ProcessState
 	}
 	cont.Destroy()
-
-	_, oomKill := <-oomKillNotification
-
+	_, oomKill := <-oom
 	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
+}
+
+// notifyOnOOM returns a channel that signals if the container received an OOM notification
+// for any process.  If it is unable to subscribe to OOM notifications then a closed
+// channel is returned as it will be non-blocking and return the correct result when read.
+func notifyOnOOM(container libcontainer.Container) <-chan struct{} {
+	oom, err := container.NotifyOOM()
+	if err != nil {
+		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
+		c := make(chan struct{})
+		close(c)
+		return c
+	}
+	return oom
 }
 
 func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*os.ProcessState, error) {
