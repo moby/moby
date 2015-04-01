@@ -329,6 +329,7 @@ func TestDaemonVolumesBindsRefs(t *testing.T) {
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatal(err)
 	}
+	defer d.Stop()
 
 	tmp, err := ioutil.TempDir(os.TempDir(), "")
 	if err != nil {
@@ -418,6 +419,7 @@ func TestDaemonUpgradeWithVolumes(t *testing.T) {
 	if err := d.StartWithBusybox("-g", graphDir); err != nil {
 		t.Fatal(err)
 	}
+	defer d.Stop()
 
 	tmpDir := filepath.Join(os.TempDir(), "test")
 	defer os.RemoveAll(tmpDir)
@@ -516,6 +518,7 @@ func TestDaemonUlimitDefaults(t *testing.T) {
 	if err := d.StartWithBusybox("--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024"); err != nil {
 		t.Fatal(err)
 	}
+	defer d.Stop()
 
 	out, err := d.Cmd("run", "--ulimit", "nproc=2048", "--name=test", "busybox", "/bin/sh", "-c", "echo $(ulimit -n); echo $(ulimit -p)")
 	if err != nil {
@@ -569,6 +572,7 @@ func TestDaemonRestartRenameContainer(t *testing.T) {
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatal(err)
 	}
+	defer d.Stop()
 
 	if out, err := d.Cmd("run", "--name=test", "busybox"); err != nil {
 		t.Fatal(err, out)
@@ -760,6 +764,7 @@ func TestDaemonDots(t *testing.T) {
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatal(err)
 	}
+	defer d.Stop()
 
 	// Now create 4 containers
 	if _, err := d.Cmd("create", "busybox"); err != nil {
@@ -813,6 +818,7 @@ func TestDaemonUnixSockCleanedUp(t *testing.T) {
 	if err := d.Start("--host", "unix://"+sockPath); err != nil {
 		t.Fatal(err)
 	}
+	defer d.Stop()
 
 	if _, err := os.Stat(sockPath); err != nil {
 		t.Fatal("socket does not exist")
