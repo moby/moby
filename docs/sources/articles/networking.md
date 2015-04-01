@@ -652,7 +652,7 @@ for Docker. When adding a third host you would add a route for the subnet
 Remember the subnet for Docker containers should at least have a size of `/80`.
 This way an IPv6 address can end with the container's MAC address and you
 prevent NDP neighbor cache invalidation issues in the Docker layer. So if you
-have a `/64` for your whole environment use `/68` subnets for the hosts and
+have a `/64` for your whole environment use `/78` subnets for the hosts and
 `/80` for the containers. This way you can use 4096 hosts with 16 `/80` subnets
 each.
 
