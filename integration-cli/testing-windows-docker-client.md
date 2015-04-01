@@ -1,11 +1,6 @@
-page_title: Set up a Windows server for client testing
-page_description: How to set up a server to test Docker Windows client
-page_keywords: development, inception, container, image Dockerfile, dependencies, Go, artifacts, windows
-
-
 # Building and testing the Windows Docker client
 
-In this section, you will learn how to setup a Windows machine for building and
+In this document, you will learn how to setup a Windows machine for building and
 testing the Docker Windows client.
 
 Things you will need:
@@ -40,7 +35,7 @@ Things you will need:
    shown below, then select Installation > Apply Changes, to install the
    selected packages.
 
-    ![windows-mingw](/project/images/windows-mingw.png)
+    ![windows-mingw](images/windows-mingw.png)
 
 ## Installing Golang with linux/amd64 cross-compiling
 
@@ -53,7 +48,7 @@ Things you will need:
    variable under System variables, and double-click it to see what it
    includes.
 
-    ![windows-env-vars](/project/images/windows-env-vars.png)
+    ![windows-env-vars](images/windows-env-vars.png)
 
 4. Make sure it has at least `C:\TDM-GCC64` so we can cross compile Go.
 
