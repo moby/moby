@@ -172,10 +172,10 @@ inside it)
   Load an image from a tar archive
 
 **docker-login(1)**
-  Register or Login to a Docker registry server
+  Register or login to a Docker Registry Service
 
 **docker-logout(1)**
-  Log the user out of a Docker registry server
+  Log the user out of a Docker Registry Service
 
 **docker-logs(1)**
   Fetch the logs of a container
@@ -190,10 +190,10 @@ inside it)
   List containers
 
 **docker-pull(1)**
-  Pull an image or a repository from a Docker registry server
+  Pull an image or a repository from a Docker Registry Service
 
 **docker-push(1)**
-  Push an image or a repository to a Docker registry server
+  Push an image or a repository to a Docker Registry Service
 
 **docker-restart(1)**
   Restart a running container

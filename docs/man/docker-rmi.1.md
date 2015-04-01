@@ -13,10 +13,9 @@ IMAGE [IMAGE...]
 
 # DESCRIPTION
 
-This will remove one or more images from the host node. This does not
-remove images from a registry. You cannot remove an image of a running
-container unless you use the **-f** option. To see all images on a host
-use the **docker images** command.
+Removes one or more images from the host node. This does not remove images from
+a registry. You cannot remove an image of a running container unless you use the
+**-f** option. To see all images on a host use the **docker images** command.
 
 # OPTIONS
 **-f**, **--force**=*true*|*false*
@@ -40,3 +39,4 @@ Here is an example of removing and image:
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+April 2015, updated by Mary Anthony for v2 <mary@docker.com>
