@@ -175,6 +175,7 @@ func TestRunContainerWithCgroupParentAbsPath(t *testing.T) {
 }
 
 func TestRunDeviceDirectory(t *testing.T) {
+	testRequires(t, NativeExecDriver)
 	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 
