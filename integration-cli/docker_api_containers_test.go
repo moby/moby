@@ -232,7 +232,7 @@ func TestContainerApiStartVolumesFrom(t *testing.T) {
 // This is pretty much the same as TestRunApplyVolumesFromBeforeVolumes, except with passing the VolumesFrom and the bind on start
 func TestVolumesFromHasPriority(t *testing.T) {
 	defer deleteAllContainers()
-	volName := "voltst"
+	volName := "voltst2"
 	volPath := "/tmp"
 
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", volName, "-v", volPath, "busybox")); err != nil {
