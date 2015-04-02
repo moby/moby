@@ -21,34 +21,48 @@ type Winsize struct {
 	y      uint16
 }
 
-// GetWinsize gets the window size of the given terminal
+func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
+	switch {
+	case os.Getenv("ConEmuANSI") == "ON":
+		// The ConEmu shell emulates ANSI well by default.
+		return os.Stdin, os.Stdout, os.Stderr
+	case os.Getenv("MSYSTEM") != "":
+		// MSYS (mingw) does not emulate ANSI well.
+		return winconsole.WinConsoleStreams()
+	default:
+		return winconsole.WinConsoleStreams()
+	}
+}
+
+// GetFdInfo returns file descriptor and bool indicating whether the file is a terminal.
+func GetFdInfo(in interface{}) (uintptr, bool) {
+	return winconsole.GetHandleInfo(in)
+}
+
+// GetWinsize retrieves the window size of the terminal connected to the passed file descriptor.
 func GetWinsize(fd uintptr) (*Winsize, error) {
-	ws := &Winsize{}
-	var info *winconsole.CONSOLE_SCREEN_BUFFER_INFO
 	info, err := winconsole.GetConsoleScreenBufferInfo(fd)
 	if err != nil {
 		return nil, err
 	}
 
-	ws.Width = uint16(info.Window.Right - info.Window.Left + 1)
-	ws.Height = uint16(info.Window.Bottom - info.Window.Top + 1)
-
-	ws.x = 0 // todo azlinux -- this is the pixel size of the Window, and not currently used by any caller
-	ws.y = 0
-
-	return ws, nil
+	// TODO(azlinux): Set the pixel width / height of the console (currently unused by any caller)
+	return &Winsize{
+		Width:  uint16(info.Window.Bottom - info.Window.Top + 1),
+		Height: uint16(info.Window.Right - info.Window.Left + 1),
+		x:      0,
+		y:      0}, nil
 }
 
-// SetWinsize sets the terminal connected to the given file descriptor to a
-// given size.
+// SetWinsize sets the size of the given terminal connected to the passed file descriptor.
 func SetWinsize(fd uintptr, ws *Winsize) error {
+	// TODO(azlinux): Implement SetWinsize
 	return nil
 }
 
 // IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd uintptr) bool {
-	_, e := winconsole.GetConsoleMode(fd)
-	return e == nil
+	return winconsole.IsConsole(fd)
 }
 
 // RestoreTerminal restores the terminal connected to the given file descriptor to a
@@ -57,7 +71,7 @@ func RestoreTerminal(fd uintptr, state *State) error {
 	return winconsole.SetConsoleMode(fd, state.mode)
 }
 
-// SaveState saves the state of the given console
+// SaveState saves the state of the terminal connected to the given file descriptor.
 func SaveState(fd uintptr) (*State, error) {
 	mode, e := winconsole.GetConsoleMode(fd)
 	if e != nil {
@@ -66,72 +80,58 @@ func SaveState(fd uintptr) (*State, error) {
 	return &State{mode}, nil
 }
 
-// DisableEcho disbales the echo for given file descriptor and returns previous state
-// see http://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx for these flag settings
+// DisableEcho disables echo for the terminal connected to the given file descriptor.
+// -- See http://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
 func DisableEcho(fd uintptr, state *State) error {
-	state.mode &^= (winconsole.ENABLE_ECHO_INPUT)
-	state.mode |= (winconsole.ENABLE_PROCESSED_INPUT | winconsole.ENABLE_LINE_INPUT)
-	return winconsole.SetConsoleMode(fd, state.mode)
+	mode := state.mode
+	mode &^= winconsole.ENABLE_ECHO_INPUT
+	mode |= winconsole.ENABLE_PROCESSED_INPUT | winconsole.ENABLE_LINE_INPUT
+	// TODO(azlinux): Core code registers a goroutine to catch os.Interrupt and reset the terminal state.
+	return winconsole.SetConsoleMode(fd, mode)
 }
 
 // SetRawTerminal puts the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
 func SetRawTerminal(fd uintptr) (*State, error) {
-	oldState, err := MakeRaw(fd)
+	state, err := MakeRaw(fd)
 	if err != nil {
 		return nil, err
 	}
-	// TODO (azlinux): implement handling interrupt and restore state of terminal
-	return oldState, err
+	// TODO(azlinux): Core code registers a goroutine to catch os.Interrupt and reset the terminal state.
+	return state, err
 }
 
 // MakeRaw puts the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
 func MakeRaw(fd uintptr) (*State, error) {
-	var state *State
 	state, err := SaveState(fd)
 	if err != nil {
 		return nil, err
 	}
 
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
-	// All three input modes, along with processed output mode, are designed to work together.
-	// It is best to either enable or disable all of these modes as a group.
-	// When all are enabled, the application is said to be in "cooked" mode, which means that most of the processing is handled for the application.
-	// When all are disabled, the application is in "raw" mode, which means that input is unfiltered and any processing is left to the application.
-	state.mode = 0
-	err = winconsole.SetConsoleMode(fd, state.mode)
+	// See
+	// -- https://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
+	// -- https://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
+	mode := state.mode
+
+	// Disable these modes
+	mode &^= winconsole.ENABLE_ECHO_INPUT
+	mode &^= winconsole.ENABLE_LINE_INPUT
+	mode &^= winconsole.ENABLE_MOUSE_INPUT
+	// TODO(azlinux): Enable window input to handle window resizing
+	mode |= winconsole.ENABLE_WINDOW_INPUT
+
+	// Enable these modes
+	mode |= winconsole.ENABLE_PROCESSED_INPUT
+	mode |= winconsole.ENABLE_EXTENDED_FLAGS
+	mode |= winconsole.ENABLE_INSERT_MODE
+	mode |= winconsole.ENABLE_QUICK_EDIT_MODE
+
+	err = winconsole.SetConsoleMode(fd, mode)
 	if err != nil {
 		return nil, err
 	}
 	return state, nil
-}
-
-// GetFdInfo returns file descriptor and bool indicating whether the file is a terminal
-func GetFdInfo(in interface{}) (uintptr, bool) {
-	return winconsole.GetHandleInfo(in)
-}
-
-func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
-	var shouldEmulateANSI bool
-	switch {
-	case os.Getenv("ConEmuANSI") == "ON":
-		// ConEmu shell, ansi emulated by default and ConEmu does an extensively
-		// good emulation.
-		shouldEmulateANSI = false
-	case os.Getenv("MSYSTEM") != "":
-		// MSYS (mingw) cannot fully emulate well and still shows escape characters
-		// mostly because it's still running on cmd.exe window.
-		shouldEmulateANSI = true
-	default:
-		shouldEmulateANSI = true
-	}
-
-	if shouldEmulateANSI {
-		return winconsole.StdStreams()
-	}
-
-	return os.Stdin, os.Stdout, os.Stderr
 }
