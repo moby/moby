@@ -1225,12 +1225,6 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	logrus.Debugf("[devmapper] deactivateDevice(%s)", info.Hash)
 	defer logrus.Debugf("[devmapper] deactivateDevice END(%s)", info.Hash)
 
-	// Wait for the unmount to be effective,
-	// by watching the value of Info.OpenCount for the device
-	if err := devices.waitClose(info); err != nil {
-		logrus.Errorf("Error waiting for device %s to close: %s", info.Hash, err)
-	}
-
 	devinfo, err := devicemapper.GetInfo(info.Name())
 	if err != nil {
 		return err
@@ -1251,7 +1245,7 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 	logrus.Debugf("[devmapper] removeDevice START(%s)", devname)
 	defer logrus.Debugf("[devmapper] removeDevice END(%s)", devname)
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 2000; i++ {
 		err = devicemapper.RemoveDevice(devname)
 		if err == nil {
 			break
@@ -1268,32 +1262,6 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 	}
 
 	return err
-}
-
-// waitClose blocks until either:
-// a) the device registered at <device_set_prefix>-<hash> is closed,
-// or b) the 10 second timeout expires.
-func (devices *DeviceSet) waitClose(info *DevInfo) error {
-	i := 0
-	for ; i < 1000; i++ {
-		devinfo, err := devicemapper.GetInfo(info.Name())
-		if err != nil {
-			return err
-		}
-		if i%100 == 0 {
-			logrus.Debugf("Waiting for unmount of %s: opencount=%d", info.Hash, devinfo.OpenCount)
-		}
-		if devinfo.OpenCount == 0 {
-			break
-		}
-		devices.Unlock()
-		time.Sleep(10 * time.Millisecond)
-		devices.Lock()
-	}
-	if i == 1000 {
-		return fmt.Errorf("Timeout while waiting for device %s to close", info.Hash)
-	}
-	return nil
 }
 
 func (devices *DeviceSet) Shutdown() error {
