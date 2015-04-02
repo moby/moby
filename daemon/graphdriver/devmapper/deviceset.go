@@ -33,6 +33,10 @@ var (
 	DefaultThinpBlockSize       uint32 = 128      // 64K = 128 512b sectors
 	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
 	DeviceIdMapSz               int    = (MaxDeviceId + 1) / 8
+	// We retry device removal so many a times that even error messages
+	// will fill up console during normal operation. So only log Fatal
+	// messages by default.
+	DMLogLevel int = devicemapper.LogLevelFatal
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -723,14 +727,22 @@ func setCloseOnExec(name string) {
 }
 
 func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
-	if level >= devicemapper.LogLevelDebug {
-		// (vbatts) libdm debug is very verbose. If you're debugging libdm, you can
-		// comment out this check yourself
-		level = devicemapper.LogLevelInfo
+	// By default libdm sends us all the messages including debug ones.
+	// We need to filter out messages here and figure out which one
+	// should be printed.
+	if level > DMLogLevel {
+		return
 	}
 
 	// FIXME(vbatts) push this back into ./pkg/devicemapper/
-	logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	if level <= devicemapper.LogLevelErr {
+		logrus.Errorf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	} else if level <= devicemapper.LogLevelInfo {
+		logrus.Infof("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	} else {
+		// FIXME(vbatts) push this back into ./pkg/devicemapper/
+		logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	}
 }
 
 func major(device uint64) uint64 {
@@ -947,11 +959,6 @@ func (devices *DeviceSet) closeTransaction() error {
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
-	if os.Getenv("DEBUG") != "" {
-		devicemapper.LogInitVerbose(devicemapper.LogLevelDebug)
-	} else {
-		devicemapper.LogInitVerbose(devicemapper.LogLevelWarn)
-	}
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
