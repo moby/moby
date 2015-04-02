@@ -379,7 +379,7 @@ var SyscallMap = map[string]int{
 }
 
 var SyscallMapMin = map[string]int{
-    "read":                     syscall.SYS_READ,                              // 0
+        "read":                     syscall.SYS_READ,                              // 0
 	"write":                    syscall.SYS_WRITE,                             // 1
 	"open":                     syscall.SYS_OPEN,                              // 2
 	"close":                    syscall.SYS_CLOSE,                             // 3
@@ -410,19 +410,19 @@ var SyscallMapMin = map[string]int{
 	"getdents":                 syscall.SYS_GETDENTS,                          // 78
 	"getcwd":                   syscall.SYS_GETCWD,                            // 79
 	"chdir":                    syscall.SYS_CHDIR,                             // 80
-	"umask":                    syscall.SYS_UMASK,                             // 95	
-    "gettimeofday":             syscall.SYS_GETTIMEOFDAY,                      // 96	
-    "getrlimit":                syscall.SYS_GETRLIMIT,                         // 97
-    "getuid":                   syscall.SYS_GETUID,                            // 102
+ 	"umask":                    syscall.SYS_UMASK,                             // 95	
+        "gettimeofday":             syscall.SYS_GETTIMEOFDAY,                      // 96	
+        "getrlimit":                syscall.SYS_GETRLIMIT,                         // 97
+        "getuid":                   syscall.SYS_GETUID,                            // 102
 	"getgid":                   syscall.SYS_GETGID,                            // 104
 	"geteuid":                  syscall.SYS_GETEUID,                           // 107
 	"getegid":                  syscall.SYS_GETEGID,                           // 108
 	"setpgid":                  syscall.SYS_SETPGID,                           // 109
 	"getppid":                  syscall.SYS_GETPPID,                           // 110	
-    "getpgrp":                  syscall.SYS_GETPGRP,                           // 111	
-    "statfs":                   syscall.SYS_STATFS,                            // 137
+        "getpgrp":                  syscall.SYS_GETPGRP,                           // 111	
+        "statfs":                   syscall.SYS_STATFS,                            // 137
 	"sysfs":                    syscall.SYS_SYSFS,                             // 139	
-    "arch_prctl":               syscall.SYS_ARCH_PRCTL,                        // 158
+        "arch_prctl":               syscall.SYS_ARCH_PRCTL,                        // 158
 	"gettid":                   syscall.SYS_GETTID,                            // 186
 	"futex":                    syscall.SYS_FUTEX,                             // 202
 	"set_tid_address":          syscall.SYS_SET_TID_ADDRESS,                   // 218
