@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -41,6 +42,10 @@ func (s *FreezerGroup) Set(path string, cgroup *configs.Cgroup) error {
 			}
 			time.Sleep(1 * time.Millisecond)
 		}
+	case configs.Undefined:
+		return nil
+	default:
+		return fmt.Errorf("Invalid argument '%s' to freezer.state", string(cgroup.Freezer))
 	}
 
 	return nil

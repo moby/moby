@@ -13,7 +13,8 @@ import (
 )
 
 type linuxStandardInit struct {
-	config *initConfig
+	parentPid int
+	config    *initConfig
 }
 
 func (l *linuxStandardInit) Init() error {
@@ -85,9 +86,10 @@ func (l *linuxStandardInit) Init() error {
 	if err := pdeath.Restore(); err != nil {
 		return err
 	}
-	// Signal self if parent is already dead. Does nothing if running in a new
-	// PID namespace, as Getppid will always return 0.
-	if syscall.Getppid() == 1 {
+	// compare the parent from the inital start of the init process and make sure that it did not change.
+	// if the parent changes that means it died and we were reparened to something else so we should
+	// just kill ourself and not cause problems for someone else.
+	if syscall.Getppid() != l.parentPid {
 		return syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
 	}
 	return system.Execv(l.config.Args[0], l.config.Args[0:], os.Environ())
