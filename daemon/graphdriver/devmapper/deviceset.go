@@ -1245,7 +1245,7 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 	logrus.Debugf("[devmapper] removeDevice START(%s)", devname)
 	defer logrus.Debugf("[devmapper] removeDevice END(%s)", devname)
 
-	for i := 0; i < 2000; i++ {
+	for i := 0; i < 200; i++ {
 		err = devicemapper.RemoveDevice(devname)
 		if err == nil {
 			break
@@ -1257,7 +1257,7 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 		// If we see EBUSY it may be a transient error,
 		// sleep a bit a retry a few times.
 		devices.Unlock()
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		devices.Lock()
 	}
 
