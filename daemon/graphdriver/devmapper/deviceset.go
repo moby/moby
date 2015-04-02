@@ -1157,7 +1157,7 @@ func (devices *DeviceSet) deleteDevice(info *DevInfo) error {
 
 	devinfo, _ := devicemapper.GetInfo(info.Name())
 	if devinfo != nil && devinfo.Exists != 0 {
-		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
+		if err := devices.removeDevice(info.Name()); err != nil {
 			logrus.Debugf("Error removing device: %s", err)
 			return err
 		}
@@ -1236,7 +1236,7 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 		return err
 	}
 	if devinfo.Exists != 0 {
-		if err := devices.removeDeviceAndWait(info.Name()); err != nil {
+		if err := devices.removeDevice(info.Name()); err != nil {
 			return err
 		}
 	}
@@ -1244,13 +1244,12 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	return nil
 }
 
-// Issues the underlying dm remove operation and then waits
-// for it to finish.
-func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
+// Issues the underlying dm remove operation.
+func (devices *DeviceSet) removeDevice(devname string) error {
 	var err error
 
-	logrus.Debugf("[devmapper] removeDeviceAndWait START(%s)", devname)
-	defer logrus.Debugf("[devmapper] removeDeviceAndWait END(%s)", devname)
+	logrus.Debugf("[devmapper] removeDevice START(%s)", devname)
+	defer logrus.Debugf("[devmapper] removeDevice END(%s)", devname)
 
 	for i := 0; i < 1000; i++ {
 		err = devicemapper.RemoveDevice(devname)
@@ -1267,45 +1266,8 @@ func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 		time.Sleep(10 * time.Millisecond)
 		devices.Lock()
 	}
-	if err != nil {
-		return err
-	}
 
-	if err := devices.waitRemove(devname); err != nil {
-		return err
-	}
-	return nil
-}
-
-// waitRemove blocks until either:
-// a) the device registered at <device_set_prefix>-<hash> is removed,
-// or b) the 10 second timeout expires.
-func (devices *DeviceSet) waitRemove(devname string) error {
-	logrus.Debugf("[deviceset %s] waitRemove(%s)", devices.devicePrefix, devname)
-	defer logrus.Debugf("[deviceset %s] waitRemove(%s) END", devices.devicePrefix, devname)
-	i := 0
-	for ; i < 1000; i++ {
-		devinfo, err := devicemapper.GetInfo(devname)
-		if err != nil {
-			// If there is an error we assume the device doesn't exist.
-			// The error might actually be something else, but we can't differentiate.
-			return nil
-		}
-		if i%100 == 0 {
-			logrus.Debugf("Waiting for removal of %s: exists=%d", devname, devinfo.Exists)
-		}
-		if devinfo.Exists == 0 {
-			break
-		}
-
-		devices.Unlock()
-		time.Sleep(10 * time.Millisecond)
-		devices.Lock()
-	}
-	if i == 1000 {
-		return fmt.Errorf("Timeout while waiting for device %s to be removed", devname)
-	}
-	return nil
+	return err
 }
 
 // waitClose blocks until either:
