@@ -22,7 +22,7 @@ Using an existing container's name or ID you can create a new image.
 
 **-c** , **--change**=[]
    Apply specified Dockerfile instructions while committing the image
-   Supported Dockerfile instructions: ADD|CMD|ENTRYPOINT|ENV|EXPOSE|FROM|MAINTAINER|RUN|USER|LABEL|VOLUME|WORKDIR|COPY
+   Supported Dockerfile instructions: `ADD`|`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`FROM`|`MAINTAINER`|`RUN`|`USER`|`LABEL`|`VOLUME`|`WORKDIR`|`COPY`
 
 **--help**
   Print usage statement
