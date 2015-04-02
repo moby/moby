@@ -286,6 +286,9 @@ func TestPsListContainersSize(t *testing.T) {
 		t.Fatal(out, err)
 	}
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("Expected 2 lines for 'ps -s -n=1' output, got %d", len(lines))
+	}
 	sizeIndex := strings.Index(lines[0], "SIZE")
 	idIndex := strings.Index(lines[0], "CONTAINER ID")
 	foundID := lines[1][idIndex : idIndex+12]
