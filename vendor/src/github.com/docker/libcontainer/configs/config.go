@@ -57,6 +57,9 @@ type Config struct {
 	// All capbilities not specified will be dropped from the processes capability mask
 	Capabilities []string `json:"capabilities"`
 
+	// SysCalls specify the system calls to keep when executing the process inside the container
+	SysCalls []string `json:"syscalls"`
+
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks"`
 

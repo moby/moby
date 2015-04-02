@@ -51,6 +51,9 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		if err := d.setCapabilities(container, c); err != nil {
 			return nil, err
 		}
+		if err := d.setSeccomp(container, c); err != nil {
+			return nil, err
+		}
 	}
 
 	if c.AppArmorProfile != "" {
@@ -195,6 +198,11 @@ func (d *driver) setPrivileged(container *configs.Config) (err error) {
 
 func (d *driver) setCapabilities(container *configs.Config, c *execdriver.Command) (err error) {
 	container.Capabilities, err = execdriver.TweakCapabilities(container.Capabilities, c.CapAdd, c.CapDrop)
+	return err
+}
+
+func (d *driver) setSeccomp(container *configs.Config, c *execdriver.Command) (err error) {
+	container.SysCalls, err = execdriver.TweakSeccomp(container.SysCalls, c.SyscallAdd, c.SyscallDrop)
 	return err
 }
 
