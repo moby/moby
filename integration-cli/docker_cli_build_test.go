@@ -214,13 +214,19 @@ func TestBuildEnvironmentReplacementAddCopy(t *testing.T) {
   ENV baz foo
   ENV quux bar
   ENV dot .
+  ENV fee fff
+  ENV gee ggg
 
   ADD ${baz} ${dot}
   COPY ${quux} ${dot}
+  ADD ${zzz:-${fee}} ${dot}
+  COPY ${zzz:-${gee}} ${dot}
   `,
 		map[string]string{
 			"foo": "test1",
 			"bar": "test2",
+			"fff": "test3",
+			"ggg": "test4",
 		})
 
 	if err != nil {
@@ -284,6 +290,11 @@ func TestBuildEnvironmentReplacementEnv(t *testing.T) {
 		} else if strings.HasPrefix(parts[0], "env") {
 			envCount++
 			if parts[1] != "zzz" {
+				t.Fatalf("%s should be 'foo' but instead its %q", parts[0], parts[1])
+			}
+		} else if strings.HasPrefix(parts[0], "env") {
+			envCount++
+			if parts[1] != "foo" {
 				t.Fatalf("%s should be 'foo' but instead its %q", parts[0], parts[1])
 			}
 		}
@@ -4068,6 +4079,27 @@ ENV    abc \'foo\'
 RUN    [ "$abc" = "'foo'" ]
 ENV    abc \"foo\"
 RUN    [ "$abc" = '"foo"' ]
+
+ENV    abc=ABC
+RUN    [ "$abc" = "ABC" ]
+ENV    def=${abc:-DEF}
+RUN    [ "$def" = "ABC" ]
+ENV    def=${ccc:-DEF}
+RUN    [ "$def" = "DEF" ]
+ENV    def=${ccc:-${def}xx}
+RUN    [ "$def" = "DEFxx" ]
+ENV    def=${def:+ALT}
+RUN    [ "$def" = "ALT" ]
+ENV    def=${def:+${abc}:}
+RUN    [ "$def" = "ABC:" ]
+ENV    def=${ccc:-\$abc:}
+RUN    [ "$def" = '$abc:' ]
+ENV    def=${ccc:-\${abc}:}
+RUN    [ "$def" = '${abc:}' ]
+ENV    mypath=${mypath:+$mypath:}/home
+RUN    [ "$mypath" = '/home' ]
+ENV    mypath=${mypath:+$mypath:}/away
+RUN    [ "$mypath" = '/home:/away' ]
 
 ENV    e1=bar
 ENV    e2=$e1
