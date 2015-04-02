@@ -500,6 +500,11 @@ made through a pull request.
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
 
+	[people.cpuguy83]
+	Name = "Brian Goff"
+	Email = "cpuguy83@gmail.com"
+	Github = "cpuguy83"
+
 	[people.crosbymichael]
 	Name = "Michael Crosby"
 	Email = "crosbymichael@gmail.com"
