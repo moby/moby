@@ -2768,7 +2768,6 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 	name2 := name + "2"
 	name3 := name + "3"
 	name4 := name + "4"
-	name5 := name + "5"
 	dockerfile := `
         FROM scratch
         MAINTAINER dockerio
@@ -2806,7 +2805,8 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 	if id2 == id3 {
 		c.Fatal("The cache should have been invalided but hasn't.")
 	}
-	// Check that changing file to same content invalidate cache of "ADD ."
+	// Check that changing file to same content with different mtime does not
+	// invalidate cache of "ADD ."
 	time.Sleep(1 * time.Second) // wait second because of mtime precision
 	if err := ctx.Add("foo", "hello1"); err != nil {
 		c.Fatal(err)
@@ -2815,14 +2815,7 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if id3 == id4 {
-		c.Fatal("The cache should have been invalided but hasn't.")
-	}
-	id5, err := buildImageFromContext(name5, ctx, true)
-	if err != nil {
-		c.Fatal(err)
-	}
-	if id4 != id5 {
+	if id3 != id4 {
 		c.Fatal("The cache should have been used but hasn't.")
 	}
 }
@@ -2921,7 +2914,6 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 	name := "testbuildaddremotefilemtime"
 	name2 := name + "2"
 	name3 := name + "3"
-	name4 := name + "4"
 
 	files := map[string]string{"baz": "hello"}
 	server, err := fakeStorage(files)
@@ -2951,8 +2943,8 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 		c.Fatal("The cache should have been used but wasn't - #1")
 	}
 
-	// Now create a different server withsame contents (causes different mtim)
-	// This time the cache should not be used
+	// Now create a different server with same contents (causes different mtime)
+	// The cache should still be used
 
 	// allow some time for clock to pass as mtime precision is only 1s
 	time.Sleep(2 * time.Second)
@@ -2974,17 +2966,8 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if id1 == id3 {
-		c.Fatal("The cache should not have been used but was")
-	}
-
-	// And for good measure do it again and make sure cache is used this time
-	id4, err := buildImageFromContext(name4, ctx2, true)
-	if err != nil {
-		c.Fatal(err)
-	}
-	if id3 != id4 {
-		c.Fatal("The cache should have been used but wasn't - #2")
+	if id1 != id3 {
+		c.Fatal("The cache should have been used but wasn't")
 	}
 }
 
