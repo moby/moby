@@ -16,6 +16,8 @@ const (
 	Expose     = "expose"
 	Volume     = "volume"
 	User       = "user"
+	Squash     = "squash"
+	Mark       = "mark"
 	Insert     = "insert"
 )
 
@@ -35,5 +37,7 @@ var Commands = map[string]struct{}{
 	Expose:     {},
 	Volume:     {},
 	User:       {},
+	Squash:     {},
+	Mark:       {},
 	Insert:     {},
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/image"
 	imagepkg "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -108,6 +109,9 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 	if err != nil {
 		return err
 	}
+
+	b.incrementMark()
+
 	b.image = image.ID
 	return nil
 }
@@ -492,7 +496,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 			switch strings.ToUpper(n.Value) {
 			case "ONBUILD":
 				return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-			case "MAINTAINER", "FROM":
+			case "MAINTAINER", "FROM", "MARK", "SQUASH":
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
 
@@ -761,4 +765,126 @@ func (b *Builder) clearTmp() {
 		delete(b.TmpContainers, c)
 		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", stringid.TruncateID(c))
 	}
+}
+
+// squashRebase is used to implement the SQUASH instruction. Given a number of
+// layers to rewrite into a single squashed layer, and a new description for
+// that layer, it:
+//
+//  1. Follows the `Parent` pointer back from the top image (`leaf`) `distance`
+//     times to find the `base` image.
+//  2. Mounts both images and exports their relative diff to an
+//     `archive.ArchiveReader`.
+//  3. Generates a new layer, whose:
+//     * parent is `base`;
+//     * `ContainerConfig.Cmd` is `description`;
+//     * `ContainerConfig` and `Config` are otherwise identical to `leaf`'s;
+//     * contents are imported from the `archive.ArchiveReader`.
+//  4. Sets the builder's top image to this new image.
+//
+// Thus, we're able to squash away several layers of history without
+// invalidating the cache in any way, since those squashed-away layers are
+// still present on disk on the node building the image, and the cache key for
+// the squashed layer is derived from the last pre-squash image, the squash
+// distance, and the provided description.
+func (b *Builder) squashRebase(distance int, description []string) (*image.Image, error) {
+	var (
+		leaf *image.Image
+		err  error
+	)
+	leaf, err = b.Daemon.Graph().Get(b.image)
+	if err != nil {
+		return nil, err
+	}
+
+	base := leaf
+
+	for i := 0; i < distance; i++ {
+		base, err = b.Daemon.Graph().Get(base.Parent)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	basePath, err := b.Daemon.GraphDriver().Get(base.ID, "")
+	if err != nil {
+		return nil, err
+	}
+	defer b.Daemon.GraphDriver().Put(base.ID)
+
+	leafPath, err := b.Daemon.GraphDriver().Get(leaf.ID, "")
+	if err != nil {
+		return nil, err
+	}
+	defer b.Daemon.GraphDriver().Put(leaf.ID)
+
+	changes, err := archive.ChangesDirs(leafPath, basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	archive, err := archive.ExportChanges(leafPath, changes)
+	if err != nil {
+		return nil, err
+	}
+	defer archive.Close()
+
+	var (
+		cConfig runconfig.Config = leaf.ContainerConfig
+		rConfig runconfig.Config = *leaf.Config
+	)
+
+	savedCmd := b.Config.Cmd
+	// It's important that the squash distance be factored into the cache key
+	b.Config.Cmd = append(description, fmt.Sprintf("%d", distance))
+	hit, err := b.probeCache()
+	b.Config.Cmd = savedCmd
+
+	if err != nil {
+		return nil, err
+	}
+	if hit {
+		return b.Daemon.Graph().Get(b.image)
+	}
+
+	cConfig.Cmd = description
+
+	// This part is a little weird because we don't actually have a container
+	// that was used to generate this image, but we do want to set the
+	// ContainerConfig. Since the containerID argument isn't used for much other
+	// than to decide whether to use the provided Container Config, we can just
+	// provide it an arbitrary string.
+	return b.Daemon.Graph().Create(
+		archive, // archive of changes
+		"irrelevant, but can't be empty", // imaginary genesis container ID
+		base.ID, // parent image ID
+		leaf.Comment,
+		leaf.Author,
+		&cConfig, // config of imaginary genesis container
+		&rConfig) // config for image.
+}
+
+// Called after adding a new layer to the hierarchy. Increases the tracked
+// number of layers between the leaf and the layer marked by MARK so that when
+// we call SQUASH, we know how far back to go.
+func (b *Builder) incrementMark() {
+	if b.markActive {
+		b.mark++
+	}
+}
+
+// After calling SQUASH, we don't want to allow another SQUASH until MARK is
+// called again.
+func (b *Builder) clearMark() {
+	b.markActive = false
+	b.mark = 0
+}
+
+// Called by the MARK dispatcher. The initial distance is zero -- that is, the
+// number of layers to be squashed will become 1 after the next commit. SQUASH
+// will bail if it's called before a layer is committed, i.e. if it is called
+// while b.mark is zero.
+func (b *Builder) setMark() {
+	b.markActive = true
+	b.mark = 0
 }

@@ -7,6 +7,59 @@ import (
 	"testing"
 )
 
+func TestBuildHistoryRewriting(t *testing.T) {
+	name := "testbuildhistoryrewriting"
+	defer deleteImages(name)
+	_, err := buildImage(name, `FROM busybox
+RUN echo "A"
+RUN echo "B"
+MARK
+RUN echo "C"
+RUN echo "D"
+RUN echo "E"
+RUN echo "F"
+RUN echo "G"
+RUN echo "H"
+SQUASH my new thing
+RUN echo "I"
+MARK
+RUN echo "J"
+SQUASH
+RUN echo "K"
+MARK
+RUN echo "L"
+RUN echo "M"
+SQUASH ["test", "json"]
+RUN echo "N"`,
+		true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistoryrewriting"))
+	if err != nil || exitCode != 0 {
+		t.Fatalf("failed to get image history: %s, %v", out, err)
+	}
+
+	history := strings.Split(strings.TrimSpace(out), "\n")[1:]
+
+	assertLine := func(n int, search string) {
+		if !strings.Contains(history[n], search) {
+			t.Fatalf("Expected to find `%s` in history line `%s`", search, history[n])
+		}
+	}
+	assertLine(0, "echo \"N\"")
+	assertLine(1, "test json")
+	assertLine(2, "echo \"K\"")
+	assertLine(3, "#(nop) SQUASH")
+	assertLine(4, "echo \"I\"")
+	assertLine(5, "my new thing")
+	assertLine(6, "echo \"B\"")
+
+	logDone("history - build history rewriting")
+}
+
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
 func TestBuildHistory(t *testing.T) {
