@@ -22,7 +22,7 @@ is developed, you can launch only Linux containers from your Windows machine.
 
 ## Demonstration
 
-<iframe width="640" height="480" src="//www.youtube.com/embed/oSHN8_uiZd4?rel=0" frameborder="0" allowfullscreen></iframe>
+<iframe width="640" height="480" src="//www.youtube.com/embed/TjMU3bDX4vo?rel=0" frameborder="0" allowfullscreen></iframe>
 
 ## Installation
 
@@ -147,3 +147,10 @@ You can do this with
   `%USERPROFILE%\.ssh\id_boot2docker`
 - then click: "Save Private Key".
 - Then use the saved file to login with PuTTY using `docker@127.0.0.1:2022`.
+
+## References
+
+If you have Docker hosts running and if you don't wish to do a 
+Boot2Docker installation, you can install the docker.exe using
+unofficial Windows package manager Chocolately. For information
+on how to do this, see [Docker package on Chocolatey](http://chocolatey.org/packages/docker).
