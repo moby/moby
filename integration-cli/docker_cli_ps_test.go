@@ -638,7 +638,7 @@ func TestPsLinkedWithNoTrunc(t *testing.T) {
 func TestPsGroupPortRange(t *testing.T) {
 	defer deleteAllContainers()
 
-	portRange := "3300-3900"
+	portRange := "3800-3900"
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top"))
 	if err != nil {
 		t.Fatal(out, err)
