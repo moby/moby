@@ -16,14 +16,16 @@ import (
 
 const (
 	// Consts for Get/SetConsoleMode function
-	// see http://msdn.microsoft.com/en-us/library/windows/desktop/ms683167(v=vs.85).aspx
-	ENABLE_ECHO_INPUT      = 0x0004
-	ENABLE_INSERT_MODE     = 0x0020
-	ENABLE_LINE_INPUT      = 0x0002
-	ENABLE_MOUSE_INPUT     = 0x0010
+	// -- See https://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
 	ENABLE_PROCESSED_INPUT = 0x0001
-	ENABLE_QUICK_EDIT_MODE = 0x0040
+	ENABLE_LINE_INPUT      = 0x0002
+	ENABLE_ECHO_INPUT      = 0x0004
 	ENABLE_WINDOW_INPUT    = 0x0008
+	ENABLE_MOUSE_INPUT     = 0x0010
+	ENABLE_INSERT_MODE     = 0x0020
+	ENABLE_QUICK_EDIT_MODE = 0x0040
+	ENABLE_EXTENDED_FLAGS  = 0x0080
+
 	// If parameter is a screen buffer handle, additional values
 	ENABLE_PROCESSED_OUTPUT   = 0x0001
 	ENABLE_WRAP_AT_EOL_OUTPUT = 0x0002
@@ -97,27 +99,27 @@ const (
 	VK_HOME     = 0x24 // HOME key
 	VK_LEFT     = 0x25 // LEFT ARROW key
 	VK_UP       = 0x26 // UP ARROW key
-	VK_RIGHT    = 0x27 //RIGHT ARROW key
-	VK_DOWN     = 0x28 //DOWN ARROW key
-	VK_SELECT   = 0x29 //SELECT key
-	VK_PRINT    = 0x2A //PRINT key
-	VK_EXECUTE  = 0x2B //EXECUTE key
-	VK_SNAPSHOT = 0x2C //PRINT SCREEN key
-	VK_INSERT   = 0x2D //INS key
-	VK_DELETE   = 0x2E //DEL key
-	VK_HELP     = 0x2F //HELP key
-	VK_F1       = 0x70 //F1 key
-	VK_F2       = 0x71 //F2 key
-	VK_F3       = 0x72 //F3 key
-	VK_F4       = 0x73 //F4 key
-	VK_F5       = 0x74 //F5 key
-	VK_F6       = 0x75 //F6 key
-	VK_F7       = 0x76 //F7 key
-	VK_F8       = 0x77 //F8 key
-	VK_F9       = 0x78 //F9 key
-	VK_F10      = 0x79 //F10 key
-	VK_F11      = 0x7A //F11 key
-	VK_F12      = 0x7B //F12 key
+	VK_RIGHT    = 0x27 // RIGHT ARROW key
+	VK_DOWN     = 0x28 // DOWN ARROW key
+	VK_SELECT   = 0x29 // SELECT key
+	VK_PRINT    = 0x2A // PRINT key
+	VK_EXECUTE  = 0x2B // EXECUTE key
+	VK_SNAPSHOT = 0x2C // PRINT SCREEN key
+	VK_INSERT   = 0x2D // INS key
+	VK_DELETE   = 0x2E // DEL key
+	VK_HELP     = 0x2F // HELP key
+	VK_F1       = 0x70 // F1 key
+	VK_F2       = 0x71 // F2 key
+	VK_F3       = 0x72 // F3 key
+	VK_F4       = 0x73 // F4 key
+	VK_F5       = 0x74 // F5 key
+	VK_F6       = 0x75 // F6 key
+	VK_F7       = 0x76 // F7 key
+	VK_F8       = 0x77 // F8 key
+	VK_F9       = 0x78 // F9 key
+	VK_F10      = 0x79 // F10 key
+	VK_F11      = 0x7A // F11 key
+	VK_F12      = 0x7B // F12 key
 )
 
 var kernel32DLL = syscall.NewLazyDLL("kernel32.dll")
@@ -140,7 +142,12 @@ var (
 // types for calling various windows API
 // see http://msdn.microsoft.com/en-us/library/windows/desktop/ms682093(v=vs.85).aspx
 type (
-	SHORT      int16
+	SHORT int16
+	BOOL  int32
+	WORD  uint16
+	WCHAR uint16
+	DWORD uint32
+
 	SMALL_RECT struct {
 		Left   SHORT
 		Top    SHORT
@@ -152,11 +159,6 @@ type (
 		X SHORT
 		Y SHORT
 	}
-
-	BOOL  int32
-	WORD  uint16
-	WCHAR uint16
-	DWORD uint32
 
 	CONSOLE_SCREEN_BUFFER_INFO struct {
 		Size              COORD
@@ -192,6 +194,10 @@ type (
 	}
 )
 
+// TODO(azlinux): Basic type clean-up
+// -- Convert all uses of uintptr to syscall.Handle to be consistent with Windows syscall
+// -- Convert, as appropriate, types to use defined Windows types (e.g., DWORD instead of uint32)
+
 // Implements the TerminalEmulator interface
 type WindowsTerminal struct {
 	outMutex            sync.Mutex
@@ -211,14 +217,14 @@ func getStdHandle(stdhandle int) uintptr {
 	return uintptr(handle)
 }
 
-func StdStreams() (stdIn io.ReadCloser, stdOut io.Writer, stdErr io.Writer) {
+func WinConsoleStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	handler := &WindowsTerminal{
 		inputBuffer:         make([]byte, MAX_INPUT_BUFFER),
 		inputEscapeSequence: []byte(KEY_ESC_CSI),
 		inputEvents:         make([]INPUT_RECORD, MAX_INPUT_EVENTS),
 	}
 
-	if IsTerminal(os.Stdin.Fd()) {
+	if IsConsole(os.Stdin.Fd()) {
 		stdIn = &terminalReader{
 			wrappedReader: os.Stdin,
 			emulator:      handler,
@@ -229,7 +235,7 @@ func StdStreams() (stdIn io.ReadCloser, stdOut io.Writer, stdErr io.Writer) {
 		stdIn = os.Stdin
 	}
 
-	if IsTerminal(os.Stdout.Fd()) {
+	if IsConsole(os.Stdout.Fd()) {
 		stdoutHandle := getStdHandle(syscall.STD_OUTPUT_HANDLE)
 
 		// Save current screen buffer info
@@ -253,7 +259,7 @@ func StdStreams() (stdIn io.ReadCloser, stdOut io.Writer, stdErr io.Writer) {
 		stdOut = os.Stdout
 	}
 
-	if IsTerminal(os.Stderr.Fd()) {
+	if IsConsole(os.Stderr.Fd()) {
 		stdErr = &terminalWriter{
 			wrappedWriter: os.Stderr,
 			emulator:      handler,
@@ -267,25 +273,21 @@ func StdStreams() (stdIn io.ReadCloser, stdOut io.Writer, stdErr io.Writer) {
 	return stdIn, stdOut, stdErr
 }
 
-// GetHandleInfo returns file descriptor and bool indicating whether the file is a terminal
+// GetHandleInfo returns file descriptor and bool indicating whether the file is a console.
 func GetHandleInfo(in interface{}) (uintptr, bool) {
 	var inFd uintptr
 	var isTerminalIn bool
+
+	switch t := in.(type) {
+	case *terminalReader:
+		in = t.wrappedReader
+	case *terminalWriter:
+		in = t.wrappedWriter
+	}
+
 	if file, ok := in.(*os.File); ok {
 		inFd = file.Fd()
-		isTerminalIn = IsTerminal(inFd)
-	}
-	if tr, ok := in.(*terminalReader); ok {
-		if file, ok := tr.wrappedReader.(*os.File); ok {
-			inFd = file.Fd()
-			isTerminalIn = IsTerminal(inFd)
-		}
-	}
-	if tr, ok := in.(*terminalWriter); ok {
-		if file, ok := tr.wrappedWriter.(*os.File); ok {
-			inFd = file.Fd()
-			isTerminalIn = IsTerminal(inFd)
-		}
+		isTerminalIn = IsConsole(inFd)
 	}
 	return inFd, isTerminalIn
 }
@@ -318,12 +320,12 @@ func SetConsoleMode(handle uintptr, mode uint32) error {
 // SetCursorVisible sets the cursor visbility
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms686019(v=vs.85).aspx
 func SetCursorVisible(handle uintptr, isVisible BOOL) (bool, error) {
-	var cursorInfo CONSOLE_CURSOR_INFO
-	if err := getError(getConsoleCursorInfoProc.Call(handle, uintptr(unsafe.Pointer(&cursorInfo)), 0)); err != nil {
+	var cursorInfo *CONSOLE_CURSOR_INFO = &CONSOLE_CURSOR_INFO{}
+	if err := getError(getConsoleCursorInfoProc.Call(handle, uintptr(unsafe.Pointer(cursorInfo)), 0)); err != nil {
 		return false, err
 	}
 	cursorInfo.Visible = isVisible
-	if err := getError(setConsoleCursorInfoProc.Call(handle, uintptr(unsafe.Pointer(&cursorInfo)), 0)); err != nil {
+	if err := getError(setConsoleCursorInfoProc.Call(handle, uintptr(unsafe.Pointer(cursorInfo)), 0)); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -493,7 +495,7 @@ func setConsoleCursorPosition(handle uintptr, isRelative bool, column int16, lin
 
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms683207(v=vs.85).aspx
 func getNumberOfConsoleInputEvents(handle uintptr) (uint16, error) {
-	var n WORD
+	var n DWORD
 	if err := getError(getNumberOfConsoleInputEventsProc.Call(handle, uintptr(unsafe.Pointer(&n)))); err != nil {
 		return 0, err
 	}
@@ -502,7 +504,7 @@ func getNumberOfConsoleInputEvents(handle uintptr) (uint16, error) {
 
 //http://msdn.microsoft.com/en-us/library/windows/desktop/ms684961(v=vs.85).aspx
 func readConsoleInputKey(handle uintptr, inputBuffer []INPUT_RECORD) (int, error) {
-	var nr WORD
+	var nr DWORD
 	if err := getError(readConsoleInputProc.Call(handle, uintptr(unsafe.Pointer(&inputBuffer[0])), uintptr(len(inputBuffer)), uintptr(unsafe.Pointer(&nr)))); err != nil {
 		return 0, err
 	}
@@ -636,14 +638,14 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 			return n, err
 		}
 		if line > int16(screenBufferInfo.Window.Bottom) {
-			line = int16(screenBufferInfo.Window.Bottom)
+			line = int16(screenBufferInfo.Window.Bottom) + 1
 		}
 		column, err := parseInt16OrDefault(parsedCommand.getParam(1), 1)
 		if err != nil {
 			return n, err
 		}
 		if column > int16(screenBufferInfo.Window.Right) {
-			column = int16(screenBufferInfo.Window.Right)
+			column = int16(screenBufferInfo.Window.Right) + 1
 		}
 		// The numbers are not 0 based, but 1 based
 		if err := setConsoleCursorPosition(handle, false, column-1, line-1); err != nil {
@@ -1039,8 +1041,9 @@ func marshal(c COORD) uintptr {
 	return uintptr(uint32(uint32(uint16(c.Y))<<16 | uint32(uint16(c.X))))
 }
 
-// IsTerminal returns true if the given file descriptor is a terminal.
-func IsTerminal(fd uintptr) bool {
+// IsConsole returns true if the given file descriptor is a terminal.
+// -- The code assumes that GetConsoleMode will return an error for file descriptors that are not a console.
+func IsConsole(fd uintptr) bool {
 	_, e := GetConsoleMode(fd)
 	return e == nil
 }
