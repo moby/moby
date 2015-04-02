@@ -59,7 +59,7 @@ func (e *Events) Get(job *engine.Job) error {
 	}
 
 	// If no until, disable timeout
-	if until == 0 {
+	if job.Getenv("until") == "" {
 		timeout.Stop()
 	}
 
@@ -70,7 +70,7 @@ func (e *Events) Get(job *engine.Job) error {
 	job.Stdout.Write(nil)
 
 	// Resend every event in the [since, until] time interval.
-	if since != 0 {
+	if job.Getenv("since") != "" {
 		if err := e.writeCurrent(job, since, until, eventFilters); err != nil {
 			return err
 		}

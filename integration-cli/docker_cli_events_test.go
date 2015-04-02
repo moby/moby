@@ -112,6 +112,41 @@ func TestEventsContainerEvents(t *testing.T) {
 	logDone("events - container create, start, die, destroy is logged")
 }
 
+func TestEventsContainerEventsSinceUnixEpoch(t *testing.T) {
+	dockerCmd(t, "run", "--rm", "busybox", "true")
+	timeBeginning := time.Unix(0, 0).Format(time.RFC3339Nano)
+	timeBeginning = strings.Replace(timeBeginning, "Z", ".000000000Z", -1)
+	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since='%s'", timeBeginning),
+		fmt.Sprintf("--until=%d", daemonTime(t).Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		t.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) < 4 {
+		t.Fatalf("Missing expected event")
+	}
+	createEvent := strings.Fields(events[len(events)-4])
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+	destroyEvent := strings.Fields(events[len(events)-1])
+	if createEvent[len(createEvent)-1] != "create" {
+		t.Fatalf("event should be create, not %#v", createEvent)
+	}
+	if startEvent[len(startEvent)-1] != "start" {
+		t.Fatalf("event should be start, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		t.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if destroyEvent[len(destroyEvent)-1] != "destroy" {
+		t.Fatalf("event should be destroy, not %#v", destroyEvent)
+	}
+
+	logDone("events - container create, start, die, destroy since Unix Epoch time")
+}
+
 func TestEventsImageUntagDelete(t *testing.T) {
 	name := "testimageevents"
 	defer deleteImages(name)
