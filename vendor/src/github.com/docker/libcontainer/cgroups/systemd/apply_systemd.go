@@ -218,16 +218,7 @@ func (m *Manager) Apply(pid int) error {
 	}
 
 	paths := make(map[string]string)
-	for _, sysname := range []string{
-		"devices",
-		"memory",
-		"cpu",
-		"cpuset",
-		"cpuacct",
-		"blkio",
-		"perf_event",
-		"freezer",
-	} {
+	for sysname := range subsystems {
 		subsystemPath, err := getSubsystemPath(m.Cgroups, sysname)
 		if err != nil {
 			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem

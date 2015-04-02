@@ -69,7 +69,8 @@ func newContainerInit(t initType, pipe *os.File) (initer, error) {
 		}, nil
 	case initStandard:
 		return &linuxStandardInit{
-			config: config,
+			parentPid: syscall.Getppid(),
+			config:    config,
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown init type %q", t)
