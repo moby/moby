@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/docker/docker/engine"
@@ -17,21 +18,12 @@ func (daemon *Daemon) ContainerChanges(job *engine.Job) error {
 		return err
 	}
 
-	outs := engine.NewTable("", 0)
 	changes, err := container.Changes()
 	if err != nil {
 		return err
 	}
 
-	for _, change := range changes {
-		out := &engine.Env{}
-		if err := out.Import(change); err != nil {
-			return err
-		}
-		outs.Add(out)
-	}
-
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+	if err = json.NewEncoder(job.Stdout).Encode(changes); err != nil {
 		return err
 	}
 
