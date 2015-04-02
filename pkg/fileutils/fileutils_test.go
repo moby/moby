@@ -28,7 +28,7 @@ func TestExclusionPatternMatches(t *testing.T) {
 func TestSingleExclamationError(t *testing.T) {
 	_, err := Matches("fileutils.go", []string{"!"})
 	if err == nil {
-		t.Errorf("failed to get an error for a single exclamation point", err)
+		t.Errorf("failed to get an error for a single exclamation point, got %v", err)
 	}
 }
 
