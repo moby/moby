@@ -75,7 +75,7 @@ rm -rf src/github.com/docker/distribution
 mkdir -p src/github.com/docker/distribution
 mv tmp-digest src/github.com/docker/distribution/digest
 
-clone git github.com/docker/libcontainer c8512754166539461fd860451ff1a0af7491c197
+clone git github.com/docker/libcontainer d00b8369852285d6a830a8d3b966608b2ed89705
 # see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
 rm -rf src/github.com/docker/libcontainer/vendor
 eval "$(grep '^clone ' src/github.com/docker/libcontainer/update-vendor.sh | grep -v 'github.com/codegangsta/cli' | grep -v 'github.com/Sirupsen/logrus')"
