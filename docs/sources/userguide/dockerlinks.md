@@ -197,7 +197,7 @@ target container of information related to the source container.
 Docker sets an `<alias>_NAME` environment variable for each target container
 listed in the `--link` parameter. For example, if a new container called
 `web` is linked to a database container called `db` via `--link db:webdb`,
-then Docker creates a `WEBDB_NAME=/web/webdb` variable in the `web` container.
+then Docker creates a `WEBDB_NAME=/db/webdb` variable in the `web` container.
 
 Docker also defines a set of environment variables for each port exposed by the
 source container.  Each variable has a unique prefix in the form:
