@@ -349,8 +349,6 @@ func CookieSupported() bool {
 
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
-	logrus.Debugf("[devmapper] RemoveDevice START(%s)", name)
-	defer logrus.Debugf("[devmapper] RemoveDevice END(%s)", name)
 	task, err := TaskCreateNamed(DeviceRemove, name)
 	if task == nil {
 		return err

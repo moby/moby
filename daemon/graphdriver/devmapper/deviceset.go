@@ -1249,6 +1249,9 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 func (devices *DeviceSet) removeDeviceAndWait(devname string) error {
 	var err error
 
+	logrus.Debugf("[devmapper] removeDeviceAndWait START(%s)", devname)
+	defer logrus.Debugf("[devmapper] removeDeviceAndWait END(%s)", devname)
+
 	for i := 0; i < 1000; i++ {
 		err = devicemapper.RemoveDevice(devname)
 		if err == nil {
