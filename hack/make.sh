@@ -255,6 +255,12 @@ main() {
 		rm -fr bundles/$VERSION && mkdir bundles/$VERSION || exit 1
 		echo
 	fi
+
+	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
+		# Windows and symlinks don't get along well
+		ln -sfT $VERSION bundles/latest
+	fi
+
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})
