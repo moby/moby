@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/network"
@@ -22,12 +23,23 @@ import (
 	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/resolvconf"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/netlink"
 )
 
 const (
 	DefaultNetworkBridge     = "docker0"
 	MaxAllocatedPortAttempts = 10
+)
+
+// Enumeration type saying which versions of IP protocol to process.
+type ipVersion int
+
+const (
+	ipvnone ipVersion = iota
+	ipv4
+	ipv6
+	ipvboth
 )
 
 // Network interface represents the networking stack of a container
@@ -113,6 +125,108 @@ type Config struct {
 	InterContainerCommunication bool
 }
 
+// Get kernel param path saying whether IPv${ipVer} traffic is being forwarded
+// on particular interface. Interface may be specified for IPv6 only. If
+// `iface` is empty, `default` will be assumed, which represents default value
+// for new interfaces.
+func getForwardingKernelParam(ipVer ipVersion, iface string) string {
+	switch ipVer {
+	case ipv4:
+		return "/proc/sys/net/ipv4/ip_forward"
+	case ipv6:
+		if iface == "" {
+			iface = "default"
+		}
+		return fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/forwarding", iface)
+	default:
+		return ""
+	}
+}
+
+// Get kernel param path saying whether bridged IPv${ipVer} traffic shall be
+// passed to ip${ipVer}tables' chains.
+func getBridgeNFKernelParam(ipVer ipVersion) string {
+	switch ipVer {
+	case ipv4:
+		return "/proc/sys/net/bridge/bridge-nf-call-iptables"
+	case ipv6:
+		return "/proc/sys/net/bridge/bridge-nf-call-ip6tables"
+	default:
+		return ""
+	}
+}
+
+func getKernelBoolParam(path string) (bool, error) {
+	enabled := false
+	line, err := ioutil.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	if len(line) > 0 {
+		enabled = line[0] == '1'
+	}
+	return enabled, err
+}
+
+func setKernelBoolParam(path string, on bool) error {
+	value := byte('0')
+	if on {
+		value = byte('1')
+	}
+	return ioutil.WriteFile(path, []byte{value, '\n'}, 0644)
+}
+
+func isPacketForwardingEnabled(ipVer ipVersion, iface string) (bool, error) {
+	switch ipVer {
+	case ipv4, ipv6:
+		return getKernelBoolParam(getForwardingKernelParam(ipVer, iface))
+	case ipvboth:
+		enabled, err := getKernelBoolParam(getForwardingKernelParam(ipv4, ""))
+		if err != nil || !enabled {
+			return enabled, err
+		}
+		return getKernelBoolParam(getForwardingKernelParam(ipv6, iface))
+	default:
+		return true, nil
+	}
+}
+
+func enableBridgeNetFiltering(ipVer ipVersion, iface string) error {
+	doEnable := func(ipVer ipVersion) error {
+		var ipVerName string
+		if ipVer == ipv4 {
+			ipVerName = "IPv4"
+		} else {
+			ipVerName = "IPv6"
+		}
+		enabled, err := isPacketForwardingEnabled(ipVer, iface)
+		if err != nil {
+			logrus.Warnf("Failed to check %s forwarding: %v", ipVerName, err)
+		} else if enabled {
+			enabled, err := getKernelBoolParam(getBridgeNFKernelParam(ipVer))
+			if err != nil || enabled {
+				return err
+			}
+			return setKernelBoolParam(getBridgeNFKernelParam(ipVer), true)
+		}
+		return nil
+	}
+
+	switch ipVer {
+	case ipv4, ipv6:
+		return doEnable(ipVer)
+	case ipvboth:
+		v4err := doEnable(ipv4)
+		v6err := doEnable(ipv6)
+		if v4err == nil {
+			return v6err
+		}
+		return v4err
+	default:
+		return nil
+	}
+}
+
 func InitDriver(config *Config) error {
 	var (
 		networkv4  *net.IPNet
@@ -125,7 +239,7 @@ func InitDriver(config *Config) error {
 	// try to modprobe bridge first
 	// see gh#12177
 	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").Output(); err != nil {
-		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+		logrus.Warnf("Running modprobe bridge nf_nat br_netfilter failed with message: %s, error: %v", out, err)
 	}
 
 	initPortMapper()
@@ -249,17 +363,40 @@ func InitDriver(config *Config) error {
 
 	if config.EnableIpForward {
 		// Enable IPv4 forwarding
-		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+		if err := setKernelBoolParam(getForwardingKernelParam(ipv4, ""), true); err != nil {
 			logrus.Warnf("Unable to enable IPv4 forwarding: %v", err)
 		}
 
 		if config.FixedCIDRv6 != "" {
 			// Enable IPv6 forwarding
-			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, 0644); err != nil {
+			if err := setKernelBoolParam(getForwardingKernelParam(ipv6, ""), true); err != nil {
 				logrus.Warnf("Unable to enable IPv6 default forwarding: %v", err)
 			}
-			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
+			if err := setKernelBoolParam(getForwardingKernelParam(ipv6, "all"), true); err != nil {
 				logrus.Warnf("Unable to enable IPv6 all forwarding: %v", err)
+			}
+		}
+	}
+
+	if !config.InterContainerCommunication && config.EnableIptables {
+		ipVersion := ipv4
+		if config.FixedCIDR != "" || config.EnableIPv6 {
+			ipVersion |= ipv6
+		}
+		err := enableBridgeNetFiltering(ipVersion, bridgeIface)
+		if err != nil {
+			if ptherr, ok := err.(*os.PathError); ok {
+				if errno, ok := ptherr.Err.(syscall.Errno); ok && errno == syscall.ENOENT {
+					if utils.RunningInsideDockerContainer() {
+						logrus.Warnf("Running inside docker container, ignoring missing kernel params: %v", err)
+						err = nil
+					} else {
+						err = fmt.Errorf("please ensure that br_netfilter kernel module is loaded")
+					}
+				}
+			}
+			if err != nil {
+				return fmt.Errorf("Cannot restrict inter-container communication: %v", err)
 			}
 		}
 	}
@@ -514,7 +651,7 @@ func setupIPv6Bridge(bridgeIPv6 string) error {
 	}
 	// Enable IPv6 on the bridge
 	procFile := "/proc/sys/net/ipv6/conf/" + iface.Name + "/disable_ipv6"
-	if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
+	if err := setKernelBoolParam(procFile, false); err != nil {
 		return fmt.Errorf("Unable to enable IPv6 addresses on bridge: %v", err)
 	}
 
