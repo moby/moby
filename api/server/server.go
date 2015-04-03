@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	activationLock chan struct{} = make(chan struct{})
+	activationLock = make(chan struct{})
 )
 
 type HttpServer struct {
