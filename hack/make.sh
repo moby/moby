@@ -98,6 +98,14 @@ if [ "$DOCKER_EXECDRIVER" = 'lxc' ]; then
 	DOCKER_BUILDTAGS+=' test_no_exec'
 fi
 
+# test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately
+if \
+	command -v gcc &> /dev/null \
+	&& ! gcc -E - &> /dev/null <<<'#include <btrfs/version.h>' \
+; then
+	DOCKER_BUILDTAGS+=' btrfs_noversion'
+fi
+
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
