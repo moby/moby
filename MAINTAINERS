@@ -476,6 +476,22 @@ made through a pull request.
 				"tibor"
 			]
 
+	[Org.Curators]
+
+	# The curators help ensure that incoming issues and pull requests are properly triaged and
+	# that our various contribution and reviewing processes are respected. With their knowledge of
+	# the repository activity, they can also guide contributors to relevant material or
+	# discussions.
+	#
+	# They are neither code nor docs reviewers, so they are never expected to merge. They can
+	# however:
+	# - close an issue or pull request when it's an exact duplicate
+	# - close an issue or pull request when it's inappropriate or off-topic
+
+	people = [
+		"thajeztah"
+	]
+
 
 [people]
 
@@ -599,6 +615,11 @@ made through a pull request.
 	Name = "Sven Dowideit"
 	Email = "SvenDowideit@home.org.au"
 	GitHub = "SvenDowideit"
+
+	[people.thajeztah]
+	Name = "Sebastiaan van Stijn"
+	Email = "github@gone.nl"
+	GitHub = "thaJeztah"
 
 	[people.tianon]
 	Name = "Tianon Gravi"
