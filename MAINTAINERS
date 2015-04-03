@@ -131,7 +131,7 @@ for each.
 """
 
 		# Triage
-		[Rules.review.states.0-triage]
+		[Rules.review.states.0-needs-triage]
 
 			# Maintainers are expected to triage new incoming pull requests by removing
 			# the `0-triage` label and adding the correct labels (e.g. `1-design-review`)
@@ -149,7 +149,7 @@ for each.
 			1-design-review = "general case"
 
 		# Design review
-		[Rules.review.states.1-design-review]
+		[Rules.review.states.1-needs-design-review]
 
 			# Maintainers are expected to comment on the design of the pull request.
 			# Review of documentation is expected only in the context of design validation,
@@ -166,7 +166,7 @@ for each.
 			2-code-review = "general case"
 
 		# Code review
-		[Rules.review.states.2-code-review]
+		[Rules.review.states.2-needs-code-review]
 
 			# Maintainers are expected to review the code and ensure that it is good
 			# quality and in accordance with the documentation in the PR.
@@ -184,7 +184,7 @@ for each.
 			3-docs-review = "general case"
 
 		# Docs review
-		[Rules.review.states.3-docs-review]
+		[Rules.review.states.3-needs-docs-review]
 
 			# Maintainers are expected to review the documentation in its bigger context,
 			# ensuring consistency, completeness, validity, and breadth of coverage across
@@ -207,7 +207,7 @@ for each.
 			4-merge = "general case"
 
 		# Merge
-		[Rules.review.states.4-merge]
+		[Rules.review.states.4-needs-merge]
 
 			# Maintainers are expected to merge this pull request as soon as possible.
 			# They can ask for a rebase, or carry the pull request themselves.
