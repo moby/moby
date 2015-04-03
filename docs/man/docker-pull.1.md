@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-pull - Pull an image or a repository from the registry
+docker-pull - Pull an image or a repository from a registry
 
 # SYNOPSIS
 **docker pull**
@@ -12,10 +12,12 @@ NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
 # DESCRIPTION
 
-This command pulls down an image or a repository from the registry. If
+This command pulls down an image or a repository from a registry. If
 there is more than one image for a repository (e.g., fedora) then all
 images for that repository name are pulled down including any tags.
-It is also possible to specify a non-default registry to pull from.
+
+If you do not specify a `REGISTRY_HOST`, the command uses Docker's public
+registry located at `registry-1.docker.io` by default. 
 
 # OPTIONS
 **-a**, **--all-tags**=*true*|*false*
@@ -45,7 +47,7 @@ It is also possible to specify a non-default registry to pull from.
     fedora       heisenbug   105182bb5e8b    5 days ago   372.7 MB
     fedora       latest      105182bb5e8b    5 days ago   372.7 MB
 
-# Pull an image, manually specifying path to the registry and tag
+# Pull an image, manually specifying path to Docker's public registry and tag
 # Note that if the  image is previously downloaded then the status would be
 # 'Status: Image is up to date for registry.hub.docker.com/fedora:20'
 
@@ -68,3 +70,4 @@ based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 April 2015, updated by John Willis <john.willis@docker.com>
+April 2015, updated by Mary Anthony for v2 <mary@docker.com>

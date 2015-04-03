@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-login - Register or log in to a Docker registry server, if no server is specified "https://index.docker.io/v1/" is the default.
+docker-login - Register or log in to a Docker registry. 
 
 # SYNOPSIS
 **docker login**
@@ -13,12 +13,14 @@ docker-login - Register or log in to a Docker registry server, if no server is s
 [SERVER]
 
 # DESCRIPTION
-Register or Login to a docker registry server, if no server is
-specified "https://index.docker.io/v1/" is the default. If you want to
-login to a private registry you can specify this by adding the server name.
+Register or log in to a Docker Registry Service located on the specified
+`SERVER`.  You can specify a URL or a `hostname` for the `SERVER` value. If you
+do not specify a `SERVER`, the command uses Docker's public registry located at
+`https://registry-1.docker.io/` by default.  To get a username/password for Docker's public registry, create an account on Docker Hub.
 
-This stores encoded credentials in `$HOME/.dockercfg` on Linux or `%USERPROFILE%/.dockercfg`
-on Windows.
+You can log into any public or private repository for which you have
+credentials.  When you log in, the command stores encoded credentials in
+`$HOME/.dockercfg` on Linux or `%USERPROFILE%/.dockercfg` on Windows.
 
 # OPTIONS
 **-e**, **--email**=""
@@ -35,7 +37,7 @@ on Windows.
 
 # EXAMPLES
 
-## Login to a local registry
+## Login to a registry on your localhost
 
     # docker login localhost:8080
 
@@ -46,3 +48,4 @@ on Windows.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+April 2015, updated by Mary Anthony for v2 <mary@docker.com>
