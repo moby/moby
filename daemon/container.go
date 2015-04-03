@@ -200,9 +200,11 @@ func (container *Container) WriteHostConfig() error {
 
 func (container *Container) LogEvent(action string) {
 	d := container.daemon
-	if err := d.eng.Job("log", action, container.ID, d.Repositories().ImageName(container.ImageID)).Run(); err != nil {
-		logrus.Errorf("Error logging event %s for %s: %s", action, container.ID, err)
-	}
+	d.EventsService.Log(
+		action,
+		container.ID,
+		d.Repositories().ImageName(container.ImageID),
+	)
 }
 
 func (container *Container) getResourcePath(path string) (string, error) {

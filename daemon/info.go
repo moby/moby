@@ -51,11 +51,6 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 		initPath = daemon.SystemInitPath()
 	}
 
-	cjob := job.Eng.Job("subscribers_count")
-	env, _ := cjob.Stdout.AddEnv()
-	if err := cjob.Run(); err != nil {
-		return err
-	}
 	v := &engine.Env{}
 	v.SetJson("ID", daemon.ID)
 	v.SetInt("Containers", len(daemon.List()))
@@ -71,7 +66,7 @@ func (daemon *Daemon) CmdInfo(job *engine.Job) error {
 	v.Set("SystemTime", time.Now().Format(time.RFC3339Nano))
 	v.Set("ExecutionDriver", daemon.ExecutionDriver().Name())
 	v.Set("LoggingDriver", daemon.defaultLogConfig.Type)
-	v.SetInt("NEventsListener", env.GetInt("count"))
+	v.SetInt("NEventsListener", daemon.EventsService.SubscribersCount())
 	v.Set("KernelVersion", kernelVersion)
 	v.Set("OperatingSystem", operatingSystem)
 	v.Set("IndexServerAddress", registry.IndexServerAddress())
