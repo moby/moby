@@ -986,7 +986,7 @@ Using multiple filters will be handled as a *AND*; for example
 `--filter container=588a23dac085 --filter event=start` will display events for container
 container 588a23dac085 *AND* the event type is *start*
 
-Current filters:
+The currently supported filters are:
 
 * container
 * event
@@ -1233,9 +1233,10 @@ also reference by digest in `create`, `run`, and `rmi` commands, as well as the
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
 
-Current filters:
- * dangling (boolean - true or false)
- * label (`label=<key>` or `label=<key>=<value>`)
+The currently supported filters are:
+
+* dangling (boolean - true or false)
+* label (`label=<key>` or `label=<key>=<value>`)
 
 ##### Untagged images
 
@@ -1584,11 +1585,13 @@ Running `docker ps --no-trunc` showing 2 linked containers.
 The filtering flag (`-f` or `--filter)` format is a `key=value` pair. If there is more
 than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`)
 
-Current filters:
- * id (container's id)
- * name (container's name)
- * exited (int - the code of exited containers. Only useful with '--all')
- * status (restarting|running|paused|exited)
+The currently supported filters are:
+
+* id (container's id)
+* label (`label=<key>` or `label=<key>=<value>`)
+* name (container's name)
+* exited (int - the code of exited containers. Only useful with `--all`)
+* status (restarting|running|paused|exited)
 
 ##### Successfully exited containers
 
