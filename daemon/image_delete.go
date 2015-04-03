@@ -1,9 +1,11 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -16,21 +18,22 @@ func (daemon *Daemon) ImageDelete(job *engine.Job) error {
 	if n := len(job.Args); n != 1 {
 		return fmt.Errorf("Usage: %s IMAGE", job.Name)
 	}
-	imgs := engine.NewTable("", 0)
-	if err := daemon.DeleteImage(job.Eng, job.Args[0], imgs, true, job.GetenvBool("force"), job.GetenvBool("noprune")); err != nil {
+
+	list := []types.ImageDelete{}
+	if err := daemon.DeleteImage(job.Eng, job.Args[0], &list, true, job.GetenvBool("force"), job.GetenvBool("noprune")); err != nil {
 		return err
 	}
-	if len(imgs.Data) == 0 {
+	if len(list) == 0 {
 		return fmt.Errorf("Conflict, %s wasn't deleted", job.Args[0])
 	}
-	if _, err := imgs.WriteListTo(job.Stdout); err != nil {
+	if err := json.NewEncoder(job.Stdout).Encode(list); err != nil {
 		return err
 	}
 	return nil
 }
 
 // FIXME: make this private and use the job instead
-func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.Table, first, force, noprune bool) error {
+func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, list *[]types.ImageDelete, first, force, noprune bool) error {
 	var (
 		repoName, tag string
 		tags          = []string{}
@@ -102,9 +105,9 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 			return err
 		}
 		if tagDeleted {
-			out := &engine.Env{}
-			out.Set("Untagged", utils.ImageReference(repoName, tag))
-			imgs.Add(out)
+			*list = append(*list, types.ImageDelete{
+				Untagged: utils.ImageReference(repoName, tag),
+			})
 			eng.Job("log", "untag", img.ID, "").Run()
 		}
 	}
@@ -117,12 +120,12 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 			if err := daemon.Graph().Delete(img.ID); err != nil {
 				return err
 			}
-			out := &engine.Env{}
-			out.SetJson("Deleted", img.ID)
-			imgs.Add(out)
+			*list = append(*list, types.ImageDelete{
+				Deleted: img.ID,
+			})
 			eng.Job("log", "delete", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
-				err := daemon.DeleteImage(eng, img.Parent, imgs, false, force, noprune)
+				err := daemon.DeleteImage(eng, img.Parent, list, false, force, noprune)
 				if first {
 					return err
 				}

@@ -1,11 +1,12 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/units"
@@ -20,16 +21,16 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	cmd.Require(flag.Exact, 1)
-
 	cmd.ParseFlags(args, true)
 
-	body, _, err := readBody(cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil))
+	rdr, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
 	if err != nil {
 		return err
 	}
 
-	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadListFrom(body); err != nil {
+	history := []types.ImageHistory{}
+	err = json.NewDecoder(rdr).Decode(&history)
+	if err != nil {
 		return err
 	}
 
@@ -38,30 +39,23 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE")
 	}
 
-	for _, out := range outs.Data {
-		outID := out.Get("Id")
-		if !*quiet {
-			if *noTrunc {
-				fmt.Fprintf(w, "%s\t", outID)
-			} else {
-				fmt.Fprintf(w, "%s\t", stringid.TruncateID(outID))
-			}
-
-			fmt.Fprintf(w, "%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))))
-
-			if *noTrunc {
-				fmt.Fprintf(w, "%s\t", out.Get("CreatedBy"))
-			} else {
-				fmt.Fprintf(w, "%s\t", utils.Trunc(out.Get("CreatedBy"), 45))
-			}
-			fmt.Fprintf(w, "%s\n", units.HumanSize(float64(out.GetInt64("Size"))))
+	for _, entry := range history {
+		if *noTrunc {
+			fmt.Fprintf(w, entry.ID)
 		} else {
-			if *noTrunc {
-				fmt.Fprintln(w, outID)
-			} else {
-				fmt.Fprintln(w, stringid.TruncateID(outID))
-			}
+			fmt.Fprintf(w, stringid.TruncateID(entry.ID))
 		}
+		if !*quiet {
+			fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))))
+
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\t", entry.CreatedBy)
+			} else {
+				fmt.Fprintf(w, "%s\t", utils.Trunc(entry.CreatedBy, 45))
+			}
+			fmt.Fprintf(w, "%s", units.HumanSize(float64(entry.Size)))
+		}
+		fmt.Fprintf(w, "\n")
 	}
 	w.Flush()
 	return nil

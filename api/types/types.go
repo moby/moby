@@ -41,3 +41,18 @@ type ContainerChange struct {
 	Kind int
 	Path string
 }
+
+// GET "/images/{name:.*}/history"
+type ImageHistory struct {
+	ID        string `json:"Id"`
+	Created   int64
+	CreatedBy string
+	Tags      []string
+	Size      int64
+}
+
+// DELETE "/images/{name:.*}"
+type ImageDelete struct {
+	Untagged string `json:",omitempty"`
+	Deleted  string `json:",omitempty"`
+}

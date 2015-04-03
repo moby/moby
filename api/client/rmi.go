@@ -1,10 +1,11 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -18,7 +19,6 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	)
 	cmd.Require(flag.Min, 1)
-
 	cmd.ParseFlags(args, true)
 
 	v := url.Values{}
@@ -31,22 +31,24 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
-		body, _, err := readBody(cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil))
+		rdr, _, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
-			outs := engine.NewTable("Created", 0)
-			if _, err := outs.ReadListFrom(body); err != nil {
+			dels := []types.ImageDelete{}
+			err = json.NewDecoder(rdr).Decode(&dels)
+			if err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 				continue
 			}
-			for _, out := range outs.Data {
-				if out.Get("Deleted") != "" {
-					fmt.Fprintf(cli.out, "Deleted: %s\n", out.Get("Deleted"))
+
+			for _, del := range dels {
+				if del.Deleted != "" {
+					fmt.Fprintf(cli.out, "Deleted: %s\n", del.Deleted)
 				} else {
-					fmt.Fprintf(cli.out, "Untagged: %s\n", out.Get("Untagged"))
+					fmt.Fprintf(cli.out, "Untagged: %s\n", del.Untagged)
 				}
 			}
 		}
