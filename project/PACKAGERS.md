@@ -58,8 +58,7 @@ To build the Docker daemon, you will additionally need:
 * libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version
   2.02.89 or later
 * btrfs-progs version 3.16.1 or later (unless using an older version is
-  absolutely necessary, in which case 3.8 is the minimum and the note below
-  regarding `btrfs_noversion` applies)
+  absolutely necessary, in which case 3.8 is the minimum)
 
 Be sure to also check out Docker's Dockerfile for the most up-to-date list of
 these build-time dependencies.
@@ -161,12 +160,6 @@ If you're building a binary that may need to be used on platforms that include
 SELinux, you will need to use the `selinux` build tag:
 ```bash
 export DOCKER_BUILDTAGS='selinux'
-```
-
-If your version of btrfs-progs (also called btrfs-tools) is < 3.16.1, then you
-will need the following tag to not check for btrfs version headers:
-```bash
-export DOCKER_BUILDTAGS='btrfs_noversion'
 ```
 
 There are build tags for disabling graphdrivers as well. By default, support
