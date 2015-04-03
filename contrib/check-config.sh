@@ -151,8 +151,14 @@ check_flags "${flags[@]}"
 echo
 
 echo 'Optional Features:'
+{
+	check_flags MEMCG_SWAP 
+	check_flags MEMCG_SWAP_ENABLED
+	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
+		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	fi
+}
 flags=(
-	MEMCG_SWAP
 	RESOURCE_COUNTERS
 	CGROUP_PERF
 )
