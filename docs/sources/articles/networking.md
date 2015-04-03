@@ -122,15 +122,17 @@ Finally, several networking options can only be provided when calling
     [Binding container ports](#binding-ports)
 
 To supply networking options to the Docker server at startup, use the
-`DOCKER_OPTS` in the Docker upstart configuration file. For Ubuntu, edit the
-variable in `/etc/default/docker` and `/etc/sysconfig/docker` for Centos.
+`DOCKER_OPTS` variable in the Docker upstart configuration file. For Ubuntu, edit the
+variable in `/etc/default/docker` or `/etc/sysconfig/docker` for CentOS.
 
 The following example illustrates how to configure Docker on Ubuntu to recognize a
-newly build bridge. Edit the `/etc/default/docker` file:
+newly built bridge. 
+
+Edit the `/etc/default/docker` file:
 
     $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker 
 
-Then, restart the Docker server.
+Then restart the Docker server.
 
     $ sudo service docker start
 
