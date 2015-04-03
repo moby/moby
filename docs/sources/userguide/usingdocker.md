@@ -181,8 +181,8 @@ Our Python application is live!
 > **Note:**
 > If you have used the boot2docker virtual machine on OS X, Windows or Linux,
 > you'll need to get the IP of the virtual host instead of using localhost.
-> You can do this by running the following in
-> the boot2docker shell.
+> You can do this by running the following outside of
+> the boot2docker shell (i.e. your command line or terminal application).
 > 
 >     $ boot2docker ip
 >     The VM's Host only interface IP address is: 192.168.59.103
