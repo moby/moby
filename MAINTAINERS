@@ -193,6 +193,11 @@ for each.
 			# They should ask for any editorial change that makes the documentation more
 			# consistent and easier to understand.
 			#
+			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of
+			# two docs sub-project maintainers. If the docs change originates with a docs
+			# maintainer, only one additional LGTM is required (since we assume a docs maintainer
+			# approves of their own PR).
+			#
 			# Once documentation is approved (see below), a maintainer should make sure to remove this
 			# label and add the next one.
 
@@ -200,11 +205,6 @@ for each.
 			2-code-review = "requires more code changes"
 			1-design-review = "raises design concerns"
 			4-merge = "general case"
-
-		# Docs approval
-		[Rules.review.docs-approval]
-			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs sub-project maintainers.
-			# If the docs change originates with a docs maintainer, only one additional LGTM is required (since we assume a docs maintainer approves of their own PR).
 
 		# Merge
 		[Rules.review.states.4-merge]
