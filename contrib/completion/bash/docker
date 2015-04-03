@@ -220,6 +220,10 @@ _docker_docker() {
 			_filedir -d
 			return
 			;;
+		--log-driver)
+			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur" ) )
+			return
+			;;
 		--log-level|-l)
 			COMPREPLY=( $( compgen -W "debug info warn error fatal" -- "$cur" ) )
 			return
@@ -275,7 +279,7 @@ _docker_build() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--file -f --force-rm --help --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--cpu-shares -c --cpuset-cpus --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag '--tag|-t')"
@@ -469,7 +473,7 @@ _docker_images() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --digests --filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		=)
 			return
@@ -1154,6 +1158,7 @@ _docker() {
 		--insecure-registry
 		--ip
 		--label
+		--log-driver
 		--log-level -l
 		--mtu
 		--pidfile -p
