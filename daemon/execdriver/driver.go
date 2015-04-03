@@ -158,6 +158,8 @@ type Command struct {
 	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`
+	SyscallAdd         []string          `json:"syscall_add"`
+	SyscallDrop        []string          `json:"syscall_drop"`
 	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
 	ProcessConfig      ProcessConfig     `json:"process_config"` // Describes the init process of the container.
 	ProcessLabel       string            `json:"process_label"`

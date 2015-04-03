@@ -126,6 +126,8 @@ type HostConfig struct {
 	PidMode         PidMode
 	CapAdd          []string
 	CapDrop         []string
+	SyscallAdd      []string
+	SyscallDrop     []string
 	RestartPolicy   RestartPolicy
 	SecurityOpt     []string
 	ReadonlyRootfs  bool
@@ -224,6 +226,11 @@ func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
 	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
 		hostConfig.CapDrop = CapDrop
 	}
-
+	if SyscallAdd := job.GetenvList("SyscallAdd"); SyscallAdd != nil {
+		hostConfig.SyscallAdd = SyscallAdd
+	}
+	if SyscallDrop := job.GetenvList("SyscallDrop"); SyscallDrop != nil {
+		hostConfig.SyscallDrop = SyscallDrop
+	}
 	return hostConfig
 }

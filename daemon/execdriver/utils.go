@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer"
 	"github.com/syndtr/gocapability/capability"
 )
 
@@ -130,4 +131,70 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 	}
 
 	return newCaps, nil
+}
+
+func GetAllSyscall() []string {
+	index := 0
+	output := make([]string, len(libcontainer.SyscallMap))
+	for key := range libcontainer.SyscallMap {
+		output[index] = key
+		index++
+	}
+	return output
+}
+
+func TweakSeccomp(basics, adds, drops []string) ([]string, error) {
+	var (
+		newCalls []string
+		allCalls = GetAllSyscall()
+	)
+
+	// look for invalid syscall in the drop list
+	for _, call := range drops {
+		if strings.ToLower(call) == "all" {
+			continue
+		}
+		if !utils.StringsContainsNoCase(allCalls, call) {
+			return nil, fmt.Errorf("Unknown syscall drop: %q", call)
+		}
+	}
+
+	// handle --scmp-add or no --scmp-add=all
+	if 0 == len(adds) {
+		basics = allCalls
+	} else if utils.StringsContainsNoCase(adds, "all") {
+		basics = allCalls
+	}
+
+	if !utils.StringsContainsNoCase(drops, "all") {
+		for _, call := range basics {
+			// skip `all` aready handled above
+			if strings.ToLower(call) == "all" {
+				continue
+			}
+
+			// if we don't drop `all`, add back all the non-dropped caps
+			if !utils.StringsContainsNoCase(drops, call) {
+				newCalls = append(newCalls, strings.ToLower(call))
+			}
+		}
+	}
+
+	for _, call := range adds {
+		// skip `all` aready handled above
+		if strings.ToLower(call) == "all" {
+			continue
+		}
+
+		if !utils.StringsContainsNoCase(allCalls, call) {
+			return nil, fmt.Errorf("Unknown syscall to add: %q", call)
+		}
+
+		// add cap if not already in the list
+		if !utils.StringsContainsNoCase(newCalls, call) {
+			newCalls = append(newCalls, strings.ToLower(call))
+		}
+	}
+
+	return newCalls, nil
 }
