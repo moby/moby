@@ -21,7 +21,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	trusted := cmd.Bool([]string{"#t", "#trusted", "#-trusted"}, false, "Only show trusted builds")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
-	stars := cmd.Int([]string{"s", "#stars", "-stars"}, 0, "Only displays with at least x stars")
+	stars := cmd.Uint([]string{"s", "#stars", "-stars"}, 0, "Only displays with at least x stars")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
@@ -53,7 +53,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, out := range outs.Data {
-		if ((*automated || *trusted) && (!out.GetBool("is_trusted") && !out.GetBool("is_automated"))) || (*stars > out.GetInt("star_count")) {
+		if ((*automated || *trusted) && (!out.GetBool("is_trusted") && !out.GetBool("is_automated"))) || (*stars > uint(out.GetInt("star_count"))) {
 			continue
 		}
 		desc := strings.Replace(out.Get("description"), "\n", " ", -1)
@@ -61,7 +61,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		if !*noTrunc && len(desc) > 45 {
 			desc = utils.Trunc(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Get("name"), desc, out.GetInt("star_count"))
+		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Get("name"), desc, uint(out.GetInt("star_count")))
 		if out.GetBool("is_official") {
 			fmt.Fprint(w, "[OK]")
 
