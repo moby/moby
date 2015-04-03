@@ -1,17 +1,24 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
+
+type ByStars []registry.SearchResult
+
+func (r ByStars) Len() int           { return len(r) }
+func (r ByStars) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r ByStars) Less(i, j int) bool { return r[i].StarCount < r[j].StarCount }
 
 // CmdSearch searches the Docker Hub for images.
 //
@@ -39,35 +46,37 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	cli.LoadConfigFile()
 
-	body, statusCode, errReq := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
-	rawBody, _, err := readBody(body, statusCode, errReq)
+	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
 	if err != nil {
 		return err
 	}
 
-	outs := engine.NewTable("star_count", 0)
-	if _, err := outs.ReadListFrom(rawBody); err != nil {
+	results := ByStars{}
+	err = json.NewDecoder(rdr).Decode(&results)
+	if err != nil {
 		return err
 	}
-	outs.ReverseSort()
+
+	sort.Sort(sort.Reverse(results))
+
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
-	for _, out := range outs.Data {
-		if ((*automated || *trusted) && (!out.GetBool("is_trusted") && !out.GetBool("is_automated"))) || (*stars > uint(out.GetInt("star_count"))) {
+	for _, res := range results {
+		if ((*automated || *trusted) && (!res.IsTrusted && !res.IsAutomated)) || (int(*stars) > res.StarCount) {
 			continue
 		}
-		desc := strings.Replace(out.Get("description"), "\n", " ", -1)
+		desc := strings.Replace(res.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
 		if !*noTrunc && len(desc) > 45 {
 			desc = utils.Trunc(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t", out.Get("name"), desc, uint(out.GetInt("star_count")))
-		if out.GetBool("is_official") {
+		fmt.Fprintf(w, "%s\t%s\t%d\t", res.Name, desc, res.StarCount)
+		if res.IsOfficial {
 			fmt.Fprint(w, "[OK]")
 
 		}
 		fmt.Fprint(w, "\t")
-		if out.GetBool("is_automated") || out.GetBool("is_trusted") {
+		if res.IsAutomated || res.IsTrusted {
 			fmt.Fprint(w, "[OK]")
 		}
 		fmt.Fprint(w, "\n")
