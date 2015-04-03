@@ -35,3 +35,9 @@ type ContainerWaitResponse struct {
 type ContainerCommitResponse struct {
 	ID string `json:"Id"`
 }
+
+// GET "/containers/{name:.*}/changes"
+type ContainerChange struct {
+	Kind int
+	Path string
+}
