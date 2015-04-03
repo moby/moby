@@ -56,8 +56,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return string(line)
 	}
 
-	cli.LoadConfigFile()
-	authconfig, ok := cli.configFile.Configs[serverAddress]
+	authconfig, ok := cli.configFile.AuthConfigs[serverAddress]
 	if !ok {
 		authconfig = registry.AuthConfig{}
 	}
@@ -113,11 +112,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.Password = password
 	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
-	cli.configFile.Configs[serverAddress] = authconfig
+	cli.configFile.AuthConfigs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], nil)
+	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
 	if statusCode == 401 {
-		delete(cli.configFile.Configs, serverAddress)
+		delete(cli.configFile.AuthConfigs, serverAddress)
 		registry.SaveConfig(cli.configFile)
 		return err
 	}
@@ -127,7 +126,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	var response types.AuthResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
-		cli.configFile, _ = registry.LoadConfig(homedir.Get())
+		// Upon error, remove entry
+		delete(cli.configFile.AuthConfigs, serverAddress)
 		return err
 	}
 
