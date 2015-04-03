@@ -339,7 +339,6 @@ made through a pull request.
 
 
 		people = [
-			"unclejack",
 			"crosbymichael",
 			"erikh",
 			"estesp",
@@ -347,6 +346,7 @@ made through a pull request.
 			"jfrazelle",
 			"lk4d4",
 			"tibor",
+			"unclejack",
 			"vbatts",
 			"vieux",
 			"vishh"
@@ -408,31 +408,31 @@ made through a pull request.
 			people = [
 				"fredlf",
 				"james",
-				"sven",
+				"mary",
 				"spf13",
-				"mary"
+				"sven"
 			]
 
 		[Org.Subsystems.libcontainer]
 
 			people = [
 				"crosbymichael",
-				"vmarmol",
-				"mpatel",
 				"jnagal",
-				"lk4d4"
+				"lk4d4",
+				"mpatel",
+				"vmarmol"
 			]
 
 		[Org.Subsystems.registry]
 
 			people = [
+				"dmcg",
 				"dmp42",
-				"vbatts",
+				"jlhawn",
 				"joffrey",
 				"samalba",
 				"sday",
-				"jlhawn",
-				"dmcg"
+				"vbatts"
 			]
 
 		[Org.Subsystems."build tools"]
@@ -471,9 +471,9 @@ made through a pull request.
 		[Org.Subsystem.builder]
 
 			people = [
+				"duglin",
 				"erikh",
-				"tibor",
-				"duglin"
+				"tibor"
 			]
 
 
