@@ -575,7 +575,7 @@ func TestPostContainersAttach(t *testing.T) {
 	// Try to avoid the timeout in destroy. Best effort, don't check error
 	defer func() {
 		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
-		containerKill(eng, containerID, t)
+		//containerKill(eng, containerID, t)
 	}()
 
 	// Attach to it
@@ -651,7 +651,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	// Try to avoid the timeout in destroy. Best effort, don't check error
 	defer func() {
 		closeWrap(stdin, stdinPipe, stdout, stdoutPipe)
-		containerKill(eng, containerID, t)
+		//containerKill(eng, containerID, t)
 	}()
 
 	// Attach to it
