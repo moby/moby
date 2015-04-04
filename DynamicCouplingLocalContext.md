@@ -70,3 +70,5 @@ Create three different go applications within one Dockerfile using the [google/g
     FROM google/golang-runtime CONTEXT /app3/:/
 
 In each FROM above, the go source code is mapped to the root directory of the <a href="#TermLocalBuildContext">*LocalBuildContext*</a> seen by the trigger statements executing within the <a href="#TermImageContext">*ImageContext*</a> defined by google/golang-runtime.  Therefore, files like the Dockerfile, that would typically be silently consumed and appear in the image derived from google/golang-runtime are excluded.
+
+Signed-off-by: Rich Moyse <rich@moyse.us>
