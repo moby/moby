@@ -37,13 +37,18 @@ daemon, not by the CLI, so the whole context must be transferred to the daemon.
 The Docker CLI reports "Sending build context to Docker daemon" when the context is sent to 
 the daemon.
 
-When a single Dockerfile is given as the URL, then no context is set.
-When a Git repository is set as the **URL**, the repository is used
-as context.
+When the URL to a tarball archive or to a single Dockerfile is given, no context is sent from
+the client to the Docker daemon. When a Git repository is set as the **URL**, the repository is
+cloned locally and then sent as the context.
 
 # OPTIONS
 **-f**, **--file**=*PATH/Dockerfile*
-   Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile*.
+   Path to the Dockerfile to use. If the path is a relative path and you are
+   building from a local directory, then the path must be relative to that
+   directory. If you are building from a remote URL pointing to either a
+   tarball or a Git repository, then the path must be relative to the root of
+   the remote context. In all cases, the file must be within the build context.
+   The default is *Dockerfile*.
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.
@@ -208,6 +213,17 @@ repository.
     docker build github.com/scollier/Fedora-Dockerfiles/tree/master/apache
 
 Note: You can set an arbitrary Git repository via the `git://` schema.
+
+## Building an image using a URL to a tarball'ed context
+
+This will send the URL itself to the Docker daemon. The daemon will fetch the
+tarball archive, decompress it and use its contents as the build context. If you
+pass an *-f PATH/Dockerfile* option as well, the system will look for that file
+inside the contents of the tarball.
+
+    docker build -f dev/Dockerfile https://10.10.10.1/docker/context.tar.gz
+
+Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
 # HISTORY
 March 2014, Originally compiled by William Henry (whenry at redhat dot com)
