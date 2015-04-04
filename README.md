@@ -210,7 +210,7 @@ We are always open to suggestions on process improvements, and are always lookin
 ### Legal
 
 *Brought to you courtesy of our legal counsel. For more context,
-please see the "NOTICE" document in this repo.*
+please see the [NOTICE](https://github.com/docker/docker/blob/master/NOTICE) document in this repo.*
 
 Use and transfer of Docker may be subject to certain restrictions by the
 United States and other governments.  
