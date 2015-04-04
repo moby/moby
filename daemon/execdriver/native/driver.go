@@ -159,7 +159,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	oom := notifyOnOOM(cont)
 	waitF := p.Wait
 	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
-		// we need such hack for tracking processes with inerited fds,
+		// we need such hack for tracking processes with inherited fds,
 		// because cmd.Wait() waiting for all streams to be copied
 		waitF = waitInPIDHost(p, cont)
 	}
