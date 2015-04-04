@@ -1,11 +1,14 @@
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"path"
+	"sort"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -16,6 +19,12 @@ var acceptedImageFilterTags = map[string]struct{}{
 	"dangling": {},
 	"label":    {},
 }
+
+type ByCreated []*types.Image
+
+func (r ByCreated) Len() int           { return len(r) }
+func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 func (s *TagStore) CmdImages(job *engine.Job) error {
 	var (
@@ -53,7 +62,8 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 	if err != nil {
 		return err
 	}
-	lookup := make(map[string]*engine.Env)
+
+	lookup := make(map[string]*types.Image)
 	s.Lock()
 	for repoName, repository := range s.Repositories {
 		if job.Getenv("filter") != "" {
@@ -69,12 +79,12 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 				continue
 			}
 
-			if out, exists := lookup[id]; exists {
+			if lImage, exists := lookup[id]; exists {
 				if filtTagged {
 					if utils.DigestReference(ref) {
-						out.SetList("RepoDigests", append(out.GetList("RepoDigests"), imgRef))
+						lImage.RepoDigests = append(lImage.RepoDigests, imgRef)
 					} else { // Tag Ref.
-						out.SetList("RepoTags", append(out.GetList("RepoTags"), imgRef))
+						lImage.RepoTags = append(lImage.RepoTags, imgRef)
 					}
 				}
 			} else {
@@ -84,23 +94,23 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 					continue
 				}
 				if filtTagged {
-					out := &engine.Env{}
-					out.SetJson("ParentId", image.Parent)
-					out.SetJson("Id", image.ID)
-					out.SetInt64("Created", image.Created.Unix())
-					out.SetInt64("Size", image.Size)
-					out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-					out.SetJson("Labels", image.ContainerConfig.Labels)
+					newImage := new(types.Image)
+					newImage.ParentId = image.Parent
+					newImage.ID = image.ID
+					newImage.Created = int(image.Created.Unix())
+					newImage.Size = int(image.Size)
+					newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
+					newImage.Labels = image.ContainerConfig.Labels
 
 					if utils.DigestReference(ref) {
-						out.SetList("RepoTags", []string{})
-						out.SetList("RepoDigests", []string{imgRef})
+						newImage.RepoTags = []string{}
+						newImage.RepoDigests = []string{imgRef}
 					} else {
-						out.SetList("RepoTags", []string{imgRef})
-						out.SetList("RepoDigests", []string{})
+						newImage.RepoTags = []string{imgRef}
+						newImage.RepoDigests = []string{}
 					}
 
-					lookup[id] = out
+					lookup[id] = newImage
 				}
 			}
 
@@ -108,9 +118,9 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 	}
 	s.Unlock()
 
-	outs := engine.NewTable("Created", len(lookup))
+	images := []*types.Image{}
 	for _, value := range lookup {
-		outs.Add(value)
+		images = append(images, value)
 	}
 
 	// Display images which aren't part of a repository/tag
@@ -119,21 +129,23 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 			if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
 				continue
 			}
-			out := &engine.Env{}
-			out.SetJson("ParentId", image.Parent)
-			out.SetList("RepoTags", []string{"<none>:<none>"})
-			out.SetList("RepoDigests", []string{"<none>@<none>"})
-			out.SetJson("Id", image.ID)
-			out.SetInt64("Created", image.Created.Unix())
-			out.SetInt64("Size", image.Size)
-			out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-			out.SetJson("Labels", image.ContainerConfig.Labels)
-			outs.Add(out)
+			newImage := new(types.Image)
+			newImage.ParentId = image.Parent
+			newImage.RepoTags = []string{"<none>:<none>"}
+			newImage.RepoDigests = []string{"<none>@<none>"}
+			newImage.ID = image.ID
+			newImage.Created = int(image.Created.Unix())
+			newImage.Size = int(image.Size)
+			newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
+			newImage.Labels = image.ContainerConfig.Labels
+
+			images = append(images, newImage)
 		}
 	}
 
-	outs.ReverseSort()
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+	sort.Sort(sort.Reverse(ByCreated(images)))
+
+	if err = json.NewEncoder(job.Stdout).Encode(images); err != nil {
 		return err
 	}
 	return nil
