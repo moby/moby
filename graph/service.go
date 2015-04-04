@@ -68,7 +68,7 @@ func (s *TagStore) CmdSet(job *engine.Job) error {
 	}
 	// We have to pass an *image.Image object, even though it will be completely
 	// ignored in favor of the redundant json data.
-	// FIXME: the current prototype of Graph.Register is stupid and redundant.
+	// FIXME: the current prototype of Graph.Register is redundant.
 	img, err := image.NewImgJSON(imgJSON)
 	if err != nil {
 		return err
