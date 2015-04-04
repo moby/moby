@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/iptables"
 )
 
@@ -16,7 +17,7 @@ func init() {
 	portmapper.NewProxy = portmapper.NewMockProxyCommand
 }
 
-func findFreePort(t *testing.T) int {
+func findFreePort(t *testing.T) string {
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal("Failed to find a free port")
@@ -27,143 +28,85 @@ func findFreePort(t *testing.T) int {
 	if err != nil {
 		t.Fatal("Failed to resolve address to identify free port")
 	}
-	return result.Port
-}
-
-func newPortAllocationJob(eng *engine.Engine, port int) (job *engine.Job) {
-	strPort := strconv.Itoa(port)
-
-	job = eng.Job("allocate_port", "container_id")
-	job.Setenv("HostIP", "127.0.0.1")
-	job.Setenv("HostPort", strPort)
-	job.Setenv("Proto", "tcp")
-	job.Setenv("ContainerPort", strPort)
-	return
-}
-
-func newPortAllocationJobWithInvalidHostIP(eng *engine.Engine, port int) (job *engine.Job) {
-	strPort := strconv.Itoa(port)
-
-	job = eng.Job("allocate_port", "container_id")
-	job.Setenv("HostIP", "localhost")
-	job.Setenv("HostPort", strPort)
-	job.Setenv("Proto", "tcp")
-	job.Setenv("ContainerPort", strPort)
-	return
+	return strconv.Itoa(result.Port)
 }
 
 func TestAllocatePortDetection(t *testing.T) {
-	eng := engine.New()
-	eng.Logging = false
-
 	freePort := findFreePort(t)
 
-	// Init driver
-	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != nil {
+	if err := InitDriver(new(Config)); err != nil {
 		t.Fatal("Failed to initialize network driver")
 	}
 
 	// Allocate interface
-	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != nil {
+	if _, err := Allocate("container_id", "", "", ""); err != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
+	port := nat.Port(freePort + "/tcp")
+	binding := nat.PortBinding{HostIp: "127.0.0.1", HostPort: freePort}
+
 	// Allocate same port twice, expect failure on second call
-	job = newPortAllocationJob(eng, freePort)
-	if res := AllocatePort(job); res != nil {
+	if _, err := AllocatePort("container_id", port, binding); err != nil {
 		t.Fatal("Failed to find a free port to allocate")
 	}
-	if res := AllocatePort(job); res == nil {
+	if _, err := AllocatePort("container_id", port, binding); err == nil {
 		t.Fatal("Duplicate port allocation granted by AllocatePort")
 	}
 }
 
 func TestHostnameFormatChecking(t *testing.T) {
-	eng := engine.New()
-	eng.Logging = false
-
 	freePort := findFreePort(t)
 
-	// Init driver
-	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != nil {
+	if err := InitDriver(new(Config)); err != nil {
 		t.Fatal("Failed to initialize network driver")
 	}
 
 	// Allocate interface
-	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != nil {
+	if _, err := Allocate("container_id", "", "", ""); err != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
-	// Allocate port with invalid HostIP, expect failure with Bad Request http status
-	job = newPortAllocationJobWithInvalidHostIP(eng, freePort)
-	if res := AllocatePort(job); res == nil {
+	port := nat.Port(freePort + "/tcp")
+	binding := nat.PortBinding{HostIp: "localhost", HostPort: freePort}
+
+	if _, err := AllocatePort("container_id", port, binding); err == nil {
 		t.Fatal("Failed to check invalid HostIP")
 	}
 }
 
-func newInterfaceAllocation(t *testing.T, input engine.Env) (output engine.Env) {
-	eng := engine.New()
-	eng.Logging = false
-
-	done := make(chan bool)
-
+func newInterfaceAllocation(t *testing.T, globalIPv6 *net.IPNet, requestedMac, requestedIP, requestedIPv6 string, expectFail bool) *network.Settings {
 	// set IPv6 global if given
-	if input.Exists("globalIPv6Network") {
-		_, globalIPv6Network, _ = net.ParseCIDR(input.Get("globalIPv6Network"))
+	if globalIPv6 != nil {
+		globalIPv6Network = globalIPv6
 	}
 
-	job := eng.Job("allocate_interface", "container_id")
-	job.Env().Init(&input)
-	reader, _ := job.Stdout.AddPipe()
-	go func() {
-		output.Decode(reader)
-		done <- true
-	}()
+	networkSettings, err := Allocate("container_id", requestedMac, requestedIP, requestedIPv6)
+	if err == nil && expectFail {
+		t.Fatal("Doesn't fail to allocate network interface")
+	} else if err != nil && !expectFail {
+		t.Fatal("Failed to allocate network interface")
 
-	res := Allocate(job)
-	job.Stdout.Close()
-	<-done
-
-	if input.Exists("expectFail") && input.GetBool("expectFail") {
-		if res == nil {
-			t.Fatal("Doesn't fail to allocate network interface")
-		}
-	} else {
-		if res != nil {
-			t.Fatal("Failed to allocate network interface")
-		}
 	}
 
-	if input.Exists("globalIPv6Network") {
+	if globalIPv6 != nil {
 		// check for bug #11427
-		_, subnet, _ := net.ParseCIDR(input.Get("globalIPv6Network"))
-		if globalIPv6Network.IP.String() != subnet.IP.String() {
+		if globalIPv6Network.IP.String() != globalIPv6.IP.String() {
 			t.Fatal("globalIPv6Network was modified during allocation")
 		}
 		// clean up IPv6 global
 		globalIPv6Network = nil
 	}
 
-	return
+	return networkSettings
 }
 
 func TestIPv6InterfaceAllocationAutoNetmaskGt80(t *testing.T) {
-
-	input := engine.Env{}
-
 	_, subnet, _ := net.ParseCIDR("2001:db8:1234:1234:1234::/81")
-
-	// set global ipv6
-	input.Set("globalIPv6Network", subnet.String())
-
-	output := newInterfaceAllocation(t, input)
+	networkSettings := newInterfaceAllocation(t, subnet, "", "", "", false)
 
 	// ensure low manually assigend global ip
-	ip := net.ParseIP(output.Get("GlobalIPv6"))
+	ip := net.ParseIP(networkSettings.GlobalIPv6Address)
 	_, subnet, _ = net.ParseCIDR(fmt.Sprintf("%s/%d", subnet.IP.String(), 120))
 	if !subnet.Contains(ip) {
 		t.Fatalf("Error ip %s not in subnet %s", ip.String(), subnet.String())
@@ -171,26 +114,18 @@ func TestIPv6InterfaceAllocationAutoNetmaskGt80(t *testing.T) {
 }
 
 func TestIPv6InterfaceAllocationAutoNetmaskLe80(t *testing.T) {
-
-	input := engine.Env{}
-
 	_, subnet, _ := net.ParseCIDR("2001:db8:1234:1234:1234::/80")
-
-	// set global ipv6
-	input.Set("globalIPv6Network", subnet.String())
-	input.Set("RequestedMac", "ab:cd:ab:cd:ab:cd")
-
-	output := newInterfaceAllocation(t, input)
+	networkSettings := newInterfaceAllocation(t, subnet, "ab:cd:ab:cd:ab:cd", "", "", false)
 
 	// ensure global ip with mac
-	ip := net.ParseIP(output.Get("GlobalIPv6"))
+	ip := net.ParseIP(networkSettings.GlobalIPv6Address)
 	expectedIP := net.ParseIP("2001:db8:1234:1234:1234:abcd:abcd:abcd")
 	if ip.String() != expectedIP.String() {
 		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP.String())
 	}
 
 	// ensure link local format
-	ip = net.ParseIP(output.Get("LinkLocalIPv6"))
+	ip = net.ParseIP(networkSettings.LinkLocalIPv6Address)
 	expectedIP = net.ParseIP("fe80::a9cd:abff:fecd:abcd")
 	if ip.String() != expectedIP.String() {
 		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP.String())
@@ -199,27 +134,19 @@ func TestIPv6InterfaceAllocationAutoNetmaskLe80(t *testing.T) {
 }
 
 func TestIPv6InterfaceAllocationRequest(t *testing.T) {
-
-	input := engine.Env{}
-
 	_, subnet, _ := net.ParseCIDR("2001:db8:1234:1234:1234::/80")
-	expectedIP := net.ParseIP("2001:db8:1234:1234:1234::1328")
+	expectedIP := "2001:db8:1234:1234:1234::1328"
 
-	// set global ipv6
-	input.Set("globalIPv6Network", subnet.String())
-	input.Set("RequestedIPv6", expectedIP.String())
-
-	output := newInterfaceAllocation(t, input)
+	networkSettings := newInterfaceAllocation(t, subnet, "", "", expectedIP, false)
 
 	// ensure global ip with mac
-	ip := net.ParseIP(output.Get("GlobalIPv6"))
-	if ip.String() != expectedIP.String() {
-		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP.String())
+	ip := net.ParseIP(networkSettings.GlobalIPv6Address)
+	if ip.String() != expectedIP {
+		t.Fatalf("Error ip %s should be %s", ip.String(), expectedIP)
 	}
 
 	// retry -> fails for duplicated address
-	input.SetBool("expectFail", true)
-	output = newInterfaceAllocation(t, input)
+	_ = newInterfaceAllocation(t, subnet, "", "", expectedIP, true)
 }
 
 func TestMacAddrGeneration(t *testing.T) {
@@ -239,40 +166,27 @@ func TestMacAddrGeneration(t *testing.T) {
 }
 
 func TestLinkContainers(t *testing.T) {
-	eng := engine.New()
-	eng.Logging = false
-
 	// Init driver
-	job := eng.Job("initdriver")
-	if res := InitDriver(job); res != nil {
+	if err := InitDriver(new(Config)); err != nil {
 		t.Fatal("Failed to initialize network driver")
 	}
 
 	// Allocate interface
-	job = eng.Job("allocate_interface", "container_id")
-	if res := Allocate(job); res != nil {
+	if _, err := Allocate("container_id", "", "", ""); err != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
-	job.Args[0] = "-I"
-
-	job.Setenv("ChildIP", "172.17.0.2")
-	job.Setenv("ParentIP", "172.17.0.1")
-	job.SetenvBool("IgnoreErrors", false)
-	job.SetenvList("Ports", []string{"1234"})
-
 	bridgeIface = "lo"
-	_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter)
-	if err != nil {
+	if _, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter); err != nil {
 		t.Fatal(err)
 	}
 
-	if res := LinkContainers(job); res != nil {
-		t.Fatalf("LinkContainers failed")
+	if err := LinkContainers("-I", "172.17.0.1", "172.17.0.2", []nat.Port{nat.Port("1234")}, false); err != nil {
+		t.Fatal("LinkContainers failed")
 	}
 
 	// flush rules
-	if _, err = iptables.Raw([]string{"-F", "DOCKER"}...); err != nil {
+	if _, err := iptables.Raw([]string{"-F", "DOCKER"}...); err != nil {
 		t.Fatal(err)
 	}
 

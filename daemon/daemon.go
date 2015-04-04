@@ -25,7 +25,8 @@ import (
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
-	_ "github.com/docker/docker/daemon/networkdriver/bridge"
+	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -445,7 +446,7 @@ func (daemon *Daemon) setupResolvconfWatcher() error {
 						logrus.Debugf("Error retrieving updated host resolv.conf: %v", err)
 					} else if updatedResolvConf != nil {
 						// because the new host resolv.conf might have localhost nameservers..
-						updatedResolvConf, modified := resolvconf.FilterResolvDns(updatedResolvConf, daemon.config.EnableIPv6)
+						updatedResolvConf, modified := resolvconf.FilterResolvDns(updatedResolvConf, daemon.config.Bridge.EnableIPv6)
 						if modified {
 							// changes have occurred during localhost cleanup: generate an updated hash
 							newHash, err := utils.HashData(bytes.NewReader(updatedResolvConf))
@@ -653,7 +654,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 		Config:          config,
 		hostConfig:      &runconfig.HostConfig{},
 		ImageID:         imgID,
-		NetworkSettings: &NetworkSettings{},
+		NetworkSettings: &network.Settings{},
 		Name:            name,
 		Driver:          daemon.driver.String(),
 		ExecDriver:      daemon.execDriver.Name(),
@@ -807,16 +808,16 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 		config.Mtu = getDefaultNetworkMtu()
 	}
 	// Check for mutually incompatible config options
-	if config.BridgeIface != "" && config.BridgeIP != "" {
+	if config.Bridge.Iface != "" && config.Bridge.IP != "" {
 		return nil, fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
-	if !config.EnableIptables && !config.InterContainerCommunication {
+	if !config.Bridge.EnableIptables && !config.Bridge.InterContainerCommunication {
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
-	if !config.EnableIptables && config.EnableIpMasq {
-		config.EnableIpMasq = false
+	if !config.Bridge.EnableIptables && config.Bridge.EnableIpMasq {
+		config.Bridge.EnableIpMasq = false
 	}
-	config.DisableNetwork = config.BridgeIface == disableNetworkBridge
+	config.DisableNetwork = config.Bridge.Iface == disableNetworkBridge
 
 	// Claim the pidfile first, to avoid any and all unexpected race conditions.
 	// Some of the init doesn't need a pidfile lock - but let's not try to be smart.
@@ -948,20 +949,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 	}
 
 	if !config.DisableNetwork {
-		job := eng.Job("init_networkdriver")
-
-		job.SetenvBool("EnableIptables", config.EnableIptables)
-		job.SetenvBool("InterContainerCommunication", config.InterContainerCommunication)
-		job.SetenvBool("EnableIpForward", config.EnableIpForward)
-		job.SetenvBool("EnableIpMasq", config.EnableIpMasq)
-		job.SetenvBool("EnableIPv6", config.EnableIPv6)
-		job.Setenv("BridgeIface", config.BridgeIface)
-		job.Setenv("BridgeIP", config.BridgeIP)
-		job.Setenv("FixedCIDR", config.FixedCIDR)
-		job.Setenv("FixedCIDRv6", config.FixedCIDRv6)
-		job.Setenv("DefaultBindingIP", config.DefaultIp.String())
-
-		if err := job.Run(); err != nil {
+		if err := bridge.InitDriver(&config.Bridge); err != nil {
 			return nil, err
 		}
 	}
