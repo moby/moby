@@ -131,7 +131,7 @@ for each.
 """
 
 		# Triage
-		[Rules.review.states.0-triage]
+		[Rules.review.states.0-needs-triage]
 
 			# Maintainers are expected to triage new incoming pull requests by removing
 			# the `0-triage` label and adding the correct labels (e.g. `1-design-review`)
@@ -149,7 +149,7 @@ for each.
 			1-design-review = "general case"
 
 		# Design review
-		[Rules.review.states.1-design-review]
+		[Rules.review.states.1-needs-design-review]
 
 			# Maintainers are expected to comment on the design of the pull request.
 			# Review of documentation is expected only in the context of design validation,
@@ -166,7 +166,7 @@ for each.
 			2-code-review = "general case"
 
 		# Code review
-		[Rules.review.states.2-code-review]
+		[Rules.review.states.2-needs-code-review]
 
 			# Maintainers are expected to review the code and ensure that it is good
 			# quality and in accordance with the documentation in the PR.
@@ -184,7 +184,7 @@ for each.
 			3-docs-review = "general case"
 
 		# Docs review
-		[Rules.review.states.3-docs-review]
+		[Rules.review.states.3-needs-docs-review]
 
 			# Maintainers are expected to review the documentation in its bigger context,
 			# ensuring consistency, completeness, validity, and breadth of coverage across
@@ -192,6 +192,11 @@ for each.
 			#
 			# They should ask for any editorial change that makes the documentation more
 			# consistent and easier to understand.
+			#
+			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of
+			# two docs sub-project maintainers. If the docs change originates with a docs
+			# maintainer, only one additional LGTM is required (since we assume a docs maintainer
+			# approves of their own PR).
 			#
 			# Once documentation is approved (see below), a maintainer should make sure to remove this
 			# label and add the next one.
@@ -201,13 +206,8 @@ for each.
 			1-design-review = "raises design concerns"
 			4-merge = "general case"
 
-		# Docs approval
-		[Rules.review.docs-approval]
-			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs sub-project maintainers.
-			# If the docs change originates with a docs maintainer, only one additional LGTM is required (since we assume a docs maintainer approves of their own PR).
-
 		# Merge
-		[Rules.review.states.4-merge]
+		[Rules.review.states.4-needs-merge]
 
 			# Maintainers are expected to merge this pull request as soon as possible.
 			# They can ask for a rebase, or carry the pull request themselves.
@@ -339,7 +339,6 @@ made through a pull request.
 
 
 		people = [
-			"unclejack",
 			"crosbymichael",
 			"erikh",
 			"estesp",
@@ -347,6 +346,7 @@ made through a pull request.
 			"jfrazelle",
 			"lk4d4",
 			"tibor",
+			"unclejack",
 			"vbatts",
 			"vieux",
 			"vishh"
@@ -408,31 +408,31 @@ made through a pull request.
 			people = [
 				"fredlf",
 				"james",
-				"sven",
+				"mary",
 				"spf13",
-				"mary"
+				"sven"
 			]
 
 		[Org.Subsystems.libcontainer]
 
 			people = [
 				"crosbymichael",
-				"vmarmol",
-				"mpatel",
 				"jnagal",
-				"lk4d4"
+				"lk4d4",
+				"mpatel",
+				"vmarmol"
 			]
 
 		[Org.Subsystems.registry]
 
 			people = [
+				"dmcg",
 				"dmp42",
-				"vbatts",
+				"jlhawn",
 				"joffrey",
 				"samalba",
 				"sday",
-				"jlhawn",
-				"dmcg"
+				"vbatts"
 			]
 
 		[Org.Subsystems."build tools"]
@@ -471,10 +471,26 @@ made through a pull request.
 		[Org.Subsystem.builder]
 
 			people = [
+				"duglin",
 				"erikh",
-				"tibor",
-				"duglin"
+				"tibor"
 			]
+
+	[Org.Curators]
+
+	# The curators help ensure that incoming issues and pull requests are properly triaged and
+	# that our various contribution and reviewing processes are respected. With their knowledge of
+	# the repository activity, they can also guide contributors to relevant material or
+	# discussions.
+	#
+	# They are neither code nor docs reviewers, so they are never expected to merge. They can
+	# however:
+	# - close an issue or pull request when it's an exact duplicate
+	# - close an issue or pull request when it's inappropriate or off-topic
+
+	people = [
+		"thajeztah"
+	]
 
 
 [people]
@@ -599,6 +615,11 @@ made through a pull request.
 	Name = "Sven Dowideit"
 	Email = "SvenDowideit@home.org.au"
 	GitHub = "SvenDowideit"
+
+	[people.thajeztah]
+	Name = "Sebastiaan van Stijn"
+	Email = "github@gone.nl"
+	GitHub = "thaJeztah"
 
 	[people.tianon]
 	Name = "Tianon Gravi"
