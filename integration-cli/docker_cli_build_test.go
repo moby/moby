@@ -4167,6 +4167,46 @@ func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildFromRemoteTarball(c *check.C) {
+	name := "testbuildfromremotetarball"
+
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	dockerfile := []byte(`FROM busybox
+					MAINTAINER docker`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(dockerfile)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		c.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+		"testT.tar": buffer,
+	})
+	c.Assert(err, check.IsNil)
+
+	defer server.Close()
+
+	_, err = buildImageFromPath(name, server.URL()+"/testT.tar", true)
+	c.Assert(err, check.IsNil)
+
+	res, err := inspectField(name, "Author")
+	c.Assert(err, check.IsNil)
+
+	if res != "docker" {
+		c.Fatalf("Maintainer should be docker, got %s", res)
+	}
+}
+
 func (s *DockerSuite) TestBuildCleanupCmdOnEntrypoint(c *check.C) {
 	name := "testbuildcmdcleanuponentrypoint"
 	if _, err := buildImage(name,
