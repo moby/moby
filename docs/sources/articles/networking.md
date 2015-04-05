@@ -643,7 +643,7 @@ adapted to the individual environment.
 
 #### Routed Network Environment
 
-In a routed network environment you replace the level 2 switch with a level 3
+In a routed network environment you replace the layer 2 switch with a layer 3
 router. Now the hosts just have to know their default gateway (the router) and
 the route to their own containers (managed by Docker). The router holds all
 routing information about the Docker subnets. When you add or remove a host to
