@@ -706,6 +706,8 @@ Stop the container `id`
 Query Parameters:
 
 -   **t** – number of seconds to wait before killing the container
+-   **r** – 1/True/true or 0/False/false, Remove the container and
+        the volumes associated to it when it stops. Default false
 
 Status Codes:
 

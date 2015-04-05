@@ -8,6 +8,7 @@ docker-stop - Stop a running container by sending SIGTERM and then SIGKILL after
 **docker stop**
 [**--help**]
 [**-t**|**--time**[=*10*]]
+[**--rm**[=*false*]]
 CONTAINER [CONTAINER...]
 
 # DESCRIPTION
@@ -20,6 +21,9 @@ Stop a running container (Send SIGTERM, and then SIGKILL after
 
 **-t**, **--time**=10
    Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
+
+**--rm**=*true*|*false*
+   Automatically remove the container and the volumes associated to it when it stops. The default is *false*.
 
 #See also
 **docker-start(1)** to restart a stopped container.
