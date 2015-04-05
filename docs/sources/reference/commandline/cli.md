@@ -2284,6 +2284,7 @@ containers. Stopped containers will not return any data.
 	grace period
 
       -t, --time=10      Seconds to wait for stop before killing it
+      --rm=false         Automatically remove the container and the volumes associated to it when it stops
 
 The main process inside the container will receive `SIGTERM`, and after a
 grace period, `SIGKILL`.
