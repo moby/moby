@@ -133,7 +133,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, ErrConflictHostNetworkAndDns
 	}
 
-	if *flNetMode == "container" && flDns.Len() > 0 {
+	if strings.HasPrefix(*flNetMode, "container") && flDns.Len() > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
 	}
 
