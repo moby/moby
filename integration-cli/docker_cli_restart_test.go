@@ -16,7 +16,7 @@ func TestRestartStoppedContainer(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "wait", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
@@ -60,7 +60,7 @@ func TestRestartRunningContainer(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	time.Sleep(1 * time.Second)
 
@@ -104,7 +104,7 @@ func TestRestartWithVolumes(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "inspect", "--format", "{{ len .Volumes }}", cleanedContainerID)
 	out, _, err = runCommandWithOutput(runCmd)

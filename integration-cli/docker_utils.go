@@ -526,7 +526,7 @@ func getContainerCount() (int, error) {
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, containers) {
-			output := stripTrailingCharacters(line)
+			output := strings.TrimSpace(line)
 			output = strings.TrimLeft(output, containers)
 			output = strings.Trim(output, " ")
 			containerCount, err := strconv.Atoi(output)

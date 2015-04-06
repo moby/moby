@@ -18,14 +18,14 @@ func TestPsListContainers(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	firstID := stripTrailingCharacters(out)
+	firstID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	secondID := stripTrailingCharacters(out)
+	secondID := strings.TrimSpace(out)
 
 	// not long running
 	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "true")
@@ -33,14 +33,14 @@ func TestPsListContainers(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	thirdID := stripTrailingCharacters(out)
+	thirdID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	fourthID := stripTrailingCharacters(out)
+	fourthID := strings.TrimSpace(out)
 
 	// make sure third one is not running
 	runCmd = exec.Command(dockerBinary, "wait", thirdID)
@@ -312,7 +312,7 @@ func TestPsListContainersFilterStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	firstID := stripTrailingCharacters(out)
+	firstID := strings.TrimSpace(out)
 
 	// make sure the exited cintainer is not running
 	runCmd = exec.Command(dockerBinary, "wait", firstID)
@@ -326,7 +326,7 @@ func TestPsListContainersFilterStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	secondID := stripTrailingCharacters(out)
+	secondID := strings.TrimSpace(out)
 
 	// filter containers by exited
 	runCmd = exec.Command(dockerBinary, "ps", "-q", "--filter=status=exited")
@@ -361,7 +361,7 @@ func TestPsListContainersFilterID(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	firstID := stripTrailingCharacters(out)
+	firstID := strings.TrimSpace(out)
 
 	// start another container
 	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "sleep 360")
@@ -391,7 +391,7 @@ func TestPsListContainersFilterName(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	firstID := stripTrailingCharacters(out)
+	firstID := strings.TrimSpace(out)
 
 	// start another container
 	runCmd = exec.Command(dockerBinary, "run", "-d", "--name=b_name_to_match", "busybox", "sh", "-c", "sleep 360")
@@ -419,21 +419,21 @@ func TestPsListContainersFilterLabel(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	firstID := stripTrailingCharacters(out)
+	firstID := strings.TrimSpace(out)
 
 	// start another container
 	runCmd = exec.Command(dockerBinary, "run", "-d", "-l", "match=me too", "busybox")
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}
-	secondID := stripTrailingCharacters(out)
+	secondID := strings.TrimSpace(out)
 
 	// start third container
 	runCmd = exec.Command(dockerBinary, "run", "-d", "-l", "nomatch=me", "busybox")
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}
-	thirdID := stripTrailingCharacters(out)
+	thirdID := strings.TrimSpace(out)
 
 	// filter containers by exact match
 	runCmd = exec.Command(dockerBinary, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")

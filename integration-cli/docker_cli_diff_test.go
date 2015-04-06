@@ -15,7 +15,7 @@ func TestDiffFilenameShownInOutput(t *testing.T) {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
 	}
 
-	cleanCID := stripTrailingCharacters(out)
+	cleanCID := strings.TrimSpace(out)
 
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
 	out, _, err = runCommandWithOutput(diffCmd)
@@ -52,7 +52,7 @@ func TestDiffEnsureDockerinitFilesAreIgnored(t *testing.T) {
 			t.Fatal(out, err)
 		}
 
-		cleanCID := stripTrailingCharacters(out)
+		cleanCID := strings.TrimSpace(out)
 
 		diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
 		out, _, err = runCommandWithOutput(diffCmd)
@@ -79,7 +79,7 @@ func TestDiffEnsureOnlyKmsgAndPtmx(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanCID := stripTrailingCharacters(out)
+	cleanCID := strings.TrimSpace(out)
 
 	diffCmd := exec.Command(dockerBinary, "diff", cleanCID)
 	out, _, err = runCommandWithOutput(diffCmd)

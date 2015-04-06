@@ -15,7 +15,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		t.Fatal("failed to create a container", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
@@ -35,7 +35,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		t.Fatalf("failed to import image: %s, %v", out, err)
 	}
 
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", cleanedImageID)
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
@@ -56,7 +56,7 @@ func TestExportContainerWithOutputAndImportImage(t *testing.T) {
 		t.Fatal("failed to create a container", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
@@ -81,7 +81,7 @@ func TestExportContainerWithOutputAndImportImage(t *testing.T) {
 		t.Fatalf("failed to import image: %s, %v", out, err)
 	}
 
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", cleanedImageID)
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {

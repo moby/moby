@@ -13,7 +13,7 @@ func TestTopMultipleArgs(t *testing.T) {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
 	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID, "-o", "pid")
@@ -36,7 +36,7 @@ func TestTopNonPrivileged(t *testing.T) {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID)
 	out1, _, err := runCommandWithOutput(topCmd)
@@ -75,7 +75,7 @@ func TestTopPrivileged(t *testing.T) {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID)
 	out1, _, err := runCommandWithOutput(topCmd)

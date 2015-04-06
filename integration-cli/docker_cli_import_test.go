@@ -12,7 +12,7 @@ func TestImportDisplay(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to create a container", out, err)
 	}
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
 	out, _, err = runCommandPipelineWithOutput(

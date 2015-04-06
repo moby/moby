@@ -13,7 +13,7 @@ func TestResizeApiResponse(t *testing.T) {
 		t.Fatalf(out, err)
 	}
 	defer deleteAllContainers()
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
 	_, err = sockRequest("POST", endpoint, nil)
@@ -31,7 +31,7 @@ func TestResizeApiResponseWhenContainerNotStarted(t *testing.T) {
 		t.Fatalf(out, err)
 	}
 	defer deleteAllContainers()
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	// make sure the exited cintainer is not running
 	runCmd = exec.Command(dockerBinary, "wait", cleanedContainerID)

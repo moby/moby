@@ -16,7 +16,7 @@ func TestRmiWithContainerFails(t *testing.T) {
 		t.Fatalf("failed to create a container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	// try to delete the image
 	runCmd = exec.Command(dockerBinary, "rmi", "busybox")

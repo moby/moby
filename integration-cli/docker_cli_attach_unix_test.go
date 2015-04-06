@@ -21,7 +21,7 @@ func TestAttachClosedOnContainerStop(t *testing.T) {
 		t.Fatalf("failed to start container: %v (%v)", out, err)
 	}
 
-	id := stripTrailingCharacters(out)
+	id := strings.TrimSpace(out)
 	if err := waitRun(id); err != nil {
 		t.Fatal(err)
 	}

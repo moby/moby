@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func TestCreateArgs(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
@@ -73,7 +74,7 @@ func TestCreateHostConfig(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
@@ -114,7 +115,7 @@ func TestCreateWithPortRange(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
@@ -163,7 +164,7 @@ func TestCreateWithiLargePortRange(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
@@ -213,7 +214,7 @@ func TestCreateEchoStdout(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "start", "-ai", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(runCmd)

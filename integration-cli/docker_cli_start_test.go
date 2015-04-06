@@ -49,7 +49,7 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	out = stripTrailingCharacters(out)
+	out = strings.TrimSpace(out)
 
 	// make sure the container has exited before trying the "start -a"
 	waitCmd := exec.Command(dockerBinary, "wait", out)

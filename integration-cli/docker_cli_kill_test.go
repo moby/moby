@@ -13,7 +13,7 @@ func TestKillContainer(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
@@ -47,7 +47,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
