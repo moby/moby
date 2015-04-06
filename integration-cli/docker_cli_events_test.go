@@ -425,7 +425,7 @@ func TestEventsStreaming(t *testing.T) {
 	eventDestroy := make(chan struct{})
 
 	go func() {
-		eventsCmd := exec.Command(dockerBinary, "events", "--since", string(start))
+		eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(start, 10))
 		stdout, err := eventsCmd.StdoutPipe()
 		if err != nil {
 			t.Fatal(err)
