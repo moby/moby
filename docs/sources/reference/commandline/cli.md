@@ -441,7 +441,7 @@ the proxy
 
 `--default-ulimit` allows you to set the default `ulimit` options to use for all
 containers. It takes the same options as `--ulimit` for `docker run`. If these
-defaults are not set, `ulimit` settings will be inheritted, if not set on
+defaults are not set, `ulimit` settings will be inherited, if not set on
 `docker run`, from the Docker daemon. Any `--ulimit` options passed to
 `docker run` will overwrite these defaults.
 
@@ -485,7 +485,7 @@ attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 #### Examples
 
-    $ docker run -d --name topdemo ubuntu /usr/bin/top -b)
+    $ docker run -d --name topdemo ubuntu /usr/bin/top -b
     $ docker attach topdemo
     top - 02:05:52 up  3:05,  0 users,  load average: 0.01, 0.02, 0.05
     Tasks:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
@@ -549,7 +549,7 @@ is returned by the `docker attach` command to its caller too:
       -m, --memory=""          Memory limit for all build containers
       --memory-swap=""         Total memory (memory + swap), `-1` to disable swap
       -c, --cpu-shares         CPU Shares (relative weight)
-      --cpuset-cpus=""         CPUs in which to allow exection, e.g. `0-3`, `0,1`
+      --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`.  The build process can
@@ -1975,7 +1975,7 @@ labels file in the current directory:
     $ docker run --label-file ./labels ubuntu bash
 
 The label-file format is similar to the format for loading environment
-variables. (Unlike environment variables, labels are not visislbe to processes
+variables. (Unlike environment variables, labels are not visible to processes
 running inside a container.) The following example illustrates a label-file
 format:
 
