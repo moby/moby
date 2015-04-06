@@ -29,6 +29,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 		before      = job.Getenv("before")
 		n           = job.GetenvInt("limit")
 		size        = job.GetenvBool("size")
+		labels      = job.GetenvList("labels")
 		psFilters   filters.Args
 		filtExited  []int
 	)
@@ -162,6 +163,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			out.SetInt64("SizeRw", sizeRw)
 			out.SetInt64("SizeRootFs", sizeRootFs)
 		}
+		out.SetList("Display", labels)
 		out.SetJson("Labels", container.Config.Labels)
 		outs.Add(out)
 		return nil
