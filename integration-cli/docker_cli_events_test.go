@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -410,4 +411,103 @@ func checkEvents(t *testing.T, events []string) {
 		t.Fatalf("event should be die, not %#v", dieEvent)
 	}
 
+}
+
+func TestEventsStreaming(t *testing.T) {
+	start := daemonTime(t).Unix()
+
+	finish := make(chan struct{})
+	defer close(finish)
+	id := make(chan string)
+	eventCreate := make(chan struct{})
+	eventStart := make(chan struct{})
+	eventDie := make(chan struct{})
+	eventDestroy := make(chan struct{})
+
+	go func() {
+		eventsCmd := exec.Command(dockerBinary, "events", "--since", string(start))
+		stdout, err := eventsCmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = eventsCmd.Start()
+		if err != nil {
+			t.Fatalf("failed to start 'docker events': %s", err)
+		}
+
+		go func() {
+			<-finish
+			eventsCmd.Process.Kill()
+		}()
+
+		containerID := <-id
+
+		matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create$`)
+		matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start$`)
+		matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die$`)
+		matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy$`)
+
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			switch {
+			case matchCreate.MatchString(scanner.Text()):
+				close(eventCreate)
+			case matchStart.MatchString(scanner.Text()):
+				close(eventStart)
+			case matchDie.MatchString(scanner.Text()):
+				close(eventDie)
+			case matchDestroy.MatchString(scanner.Text()):
+				close(eventDestroy)
+			}
+		}
+
+		err = eventsCmd.Wait()
+		if err != nil && !IsKilled(err) {
+			t.Fatalf("docker events had bad exit status: %s", err)
+		}
+	}()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	cleanedContainerID := strings.TrimSpace(out)
+	id <- cleanedContainerID
+
+	select {
+	case <-time.After(30 * time.Second):
+		t.Fatal("failed to observe container create in timely fashion")
+	case <-eventCreate:
+		// ignore, done
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		t.Fatal("failed to observe container start in timely fashion")
+	case <-eventStart:
+		// ignore, done
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		t.Fatal("failed to observe container die in timely fashion")
+	case <-eventDie:
+		// ignore, done
+	}
+
+	rmCmd := exec.Command(dockerBinary, "rm", cleanedContainerID)
+	out, _, err = runCommandWithOutput(rmCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		t.Fatal("failed to observe container destroy in timely fashion")
+	case <-eventDestroy:
+		// ignore, done
+	}
+
+	logDone("events - streamed to stdout")
 }
