@@ -476,21 +476,21 @@ func TestEventsStreaming(t *testing.T) {
 	id <- cleanedContainerID
 
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("failed to observe container create in timely fashion")
 	case <-eventCreate:
 		// ignore, done
 	}
 
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("failed to observe container start in timely fashion")
 	case <-eventStart:
 		// ignore, done
 	}
 
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("failed to observe container die in timely fashion")
 	case <-eventDie:
 		// ignore, done
@@ -503,7 +503,7 @@ func TestEventsStreaming(t *testing.T) {
 	}
 
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("failed to observe container destroy in timely fashion")
 	case <-eventDestroy:
 		// ignore, done
