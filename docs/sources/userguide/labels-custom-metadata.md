@@ -171,6 +171,7 @@ These labels appear as part of the `docker info` output for the daemon:
      Backing Filesystem: extfs
      Dirs: 697
     Execution Driver: native-0.2
+    Logging Driver: json-file
     Kernel Version: 3.13.0-32-generic
     Operating System: Ubuntu 14.04.1 LTS
     CPUs: 1

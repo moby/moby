@@ -57,6 +57,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if remoteInfo.Exists("ExecutionDriver") {
 		fmt.Fprintf(cli.out, "Execution Driver: %s\n", remoteInfo.Get("ExecutionDriver"))
 	}
+	if remoteInfo.Exists("LoggingDriver") {
+		fmt.Fprintf(cli.out, "Logging Driver: %s\n", remoteInfo.Get("LoggingDriver"))
+	}
 	if remoteInfo.Exists("KernelVersion") {
 		fmt.Fprintf(cli.out, "Kernel Version: %s\n", remoteInfo.Get("KernelVersion"))
 	}

@@ -1333,6 +1333,7 @@ For example:
      Backing Filesystem: extfs
      Dirs: 545
     Execution Driver: native-0.2
+    Logging Driver: json-file
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
     CPUs: 1
