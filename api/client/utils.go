@@ -283,16 +283,16 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 
 	if runtime.GOOS == "windows" {
 		go func() {
-			prevW, prevH := cli.getTtySize()
+			prevH, prevW := cli.getTtySize()
 			for {
 				time.Sleep(time.Millisecond * 250)
-				w, h := cli.getTtySize()
+				h, w := cli.getTtySize()
 
 				if prevW != w || prevH != h {
 					cli.resizeTty(id, isExec)
 				}
-				prevW = w
 				prevH = h
+				prevW = w
 			}
 		}()
 	} else {
