@@ -2196,7 +2196,7 @@ available in the default container, you can set these using the `--ulimit` flag.
 values. If no `ulimits` are set, they will be inherited from the default `ulimits`
 set on the daemon.
 > `as` option is disabled now. In other words, the following script is not supported:
->   `$docker run -it --ulimit as=1024 fedora /bin/bash`
+>   `$ docker run -it --ulimit as=1024 fedora /bin/bash`
 
 ## save
 
