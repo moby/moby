@@ -56,3 +56,36 @@ type ImageDelete struct {
 	Untagged string `json:",omitempty"`
 	Deleted  string `json:",omitempty"`
 }
+
+// GET "/images/json"
+type Image struct {
+	ID          string `json:"Id"`
+	ParentId    string
+	RepoTags    []string
+	RepoDigests []string
+	Created     int
+	Size        int
+	VirtualSize int
+	Labels      map[string]string
+}
+
+// GET  "/containers/json"
+type Port struct {
+	IP          string
+	PrivatePort int
+	PublicPort  int
+	Type        string
+}
+
+type Container struct {
+	ID         string            `json:"Id"`
+	Names      []string          `json:,omitempty"`
+	Image      string            `json:,omitempty"`
+	Command    string            `json:,omitempty"`
+	Created    int               `json:,omitempty"`
+	Ports      []Port            `json:,omitempty"`
+	SizeRw     int               `json:,omitempty"`
+	SizeRootFs int               `json:,omitempty"`
+	Labels     map[string]string `json:,omitempty"`
+	Status     string            `json:,omitempty"`
+}

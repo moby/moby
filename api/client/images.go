@@ -1,13 +1,14 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
@@ -18,26 +19,26 @@ import (
 )
 
 // FIXME: --viz and --tree are deprecated. Remove them in a future version.
-func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[string]*engine.Table, prefix string, printNode func(cli *DockerCli, noTrunc bool, image *engine.Env, prefix string)) {
-	length := images.Len()
+func (cli *DockerCli) WalkTree(noTrunc bool, images []*types.Image, byParent map[string][]*types.Image, prefix string, printNode func(cli *DockerCli, noTrunc bool, image *types.Image, prefix string)) {
+	length := len(images)
 	if length > 1 {
-		for index, image := range images.Data {
+		for index, image := range images {
 			if index+1 == length {
 				printNode(cli, noTrunc, image, prefix+"└─")
-				if subimages, exists := byParent[image.Get("Id")]; exists {
+				if subimages, exists := byParent[image.ID]; exists {
 					cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
 				}
 			} else {
 				printNode(cli, noTrunc, image, prefix+"\u251C─")
-				if subimages, exists := byParent[image.Get("Id")]; exists {
+				if subimages, exists := byParent[image.ID]; exists {
 					cli.WalkTree(noTrunc, subimages, byParent, prefix+"\u2502 ", printNode)
 				}
 			}
 		}
 	} else {
-		for _, image := range images.Data {
+		for _, image := range images {
 			printNode(cli, noTrunc, image, prefix+"└─")
-			if subimages, exists := byParent[image.Get("Id")]; exists {
+			if subimages, exists := byParent[image.ID]; exists {
 				cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
 			}
 		}
@@ -45,41 +46,41 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images *engine.Table, byParent map[
 }
 
 // FIXME: --viz and --tree are deprecated. Remove them in a future version.
-func (cli *DockerCli) printVizNode(noTrunc bool, image *engine.Env, prefix string) {
+func (cli *DockerCli) printVizNode(noTrunc bool, image *types.Image, prefix string) {
 	var (
 		imageID  string
 		parentID string
 	)
 	if noTrunc {
-		imageID = image.Get("Id")
-		parentID = image.Get("ParentId")
+		imageID = image.ID
+		parentID = image.ParentId
 	} else {
-		imageID = stringid.TruncateID(image.Get("Id"))
-		parentID = stringid.TruncateID(image.Get("ParentId"))
+		imageID = stringid.TruncateID(image.ID)
+		parentID = stringid.TruncateID(image.ParentId)
 	}
 	if parentID == "" {
 		fmt.Fprintf(cli.out, " base -> \"%s\" [style=invis]\n", imageID)
 	} else {
 		fmt.Fprintf(cli.out, " \"%s\" -> \"%s\"\n", parentID, imageID)
 	}
-	if image.GetList("RepoTags")[0] != "<none>:<none>" {
+	if image.RepoTags[0] != "<none>:<none>" {
 		fmt.Fprintf(cli.out, " \"%s\" [label=\"%s\\n%s\",shape=box,fillcolor=\"paleturquoise\",style=\"filled,rounded\"];\n",
-			imageID, imageID, strings.Join(image.GetList("RepoTags"), "\\n"))
+			imageID, imageID, strings.Join(image.RepoTags, "\\n"))
 	}
 }
 
 // FIXME: --viz and --tree are deprecated. Remove them in a future version.
-func (cli *DockerCli) printTreeNode(noTrunc bool, image *engine.Env, prefix string) {
+func (cli *DockerCli) printTreeNode(noTrunc bool, image *types.Image, prefix string) {
 	var imageID string
 	if noTrunc {
-		imageID = image.Get("Id")
+		imageID = image.ID
 	} else {
-		imageID = stringid.TruncateID(image.Get("Id"))
+		imageID = stringid.TruncateID(image.ID)
 	}
 
-	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, units.HumanSize(float64(image.GetInt64("VirtualSize"))))
-	if image.GetList("RepoTags")[0] != "<none>:<none>" {
-		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.GetList("RepoTags"), ", "))
+	fmt.Fprintf(cli.out, "%s%s Virtual Size: %s", prefix, imageID, units.HumanSize(float64(image.VirtualSize)))
+	if image.RepoTags[0] != "<none>:<none>" {
+		fmt.Fprintf(cli.out, " Tags: %s\n", strings.Join(image.RepoTags, ", "))
 	} else {
 		fmt.Fprint(cli.out, "\n")
 	}
@@ -101,7 +102,6 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 	cmd.Require(flag.Max, 1)
-
 	cmd.ParseFlags(args, true)
 
 	// Consolidate all filter flags, and sanity check them early.
@@ -129,44 +129,44 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			v.Set("filters", filterJSON)
 		}
 
-		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, nil))
+		rdr, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
 		if err != nil {
 			return err
 		}
 
-		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadListFrom(body); err != nil {
+		images := []types.Image{}
+		err = json.NewDecoder(rdr).Decode(&images)
+		if err != nil {
 			return err
 		}
 
 		var (
-			printNode  func(cli *DockerCli, noTrunc bool, image *engine.Env, prefix string)
-			startImage *engine.Env
+			printNode  func(cli *DockerCli, noTrunc bool, image *types.Image, prefix string)
+			startImage *types.Image
 
-			roots    = engine.NewTable("Created", outs.Len())
-			byParent = make(map[string]*engine.Table)
+			roots    = []*types.Image{}
+			byParent = make(map[string][]*types.Image)
 		)
 
-		for _, image := range outs.Data {
-			if image.Get("ParentId") == "" {
-				roots.Add(image)
+		for _, image := range images {
+			if image.ParentId == "" {
+				roots = append(roots, &image)
 			} else {
-				if children, exists := byParent[image.Get("ParentId")]; exists {
-					children.Add(image)
+				if children, exists := byParent[image.ParentId]; exists {
+					children = append(children, &image)
 				} else {
-					byParent[image.Get("ParentId")] = engine.NewTable("Created", 1)
-					byParent[image.Get("ParentId")].Add(image)
+					byParent[image.ParentId] = []*types.Image{&image}
 				}
 			}
 
 			if matchName != "" {
-				if matchName == image.Get("Id") || matchName == stringid.TruncateID(image.Get("Id")) {
-					startImage = image
+				if matchName == image.ID || matchName == stringid.TruncateID(image.ID) {
+					startImage = &image
 				}
 
-				for _, repotag := range image.GetList("RepoTags") {
+				for _, repotag := range image.RepoTags {
 					if repotag == matchName {
-						startImage = image
+						startImage = &image
 					}
 				}
 			}
@@ -180,8 +180,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 
 		if startImage != nil {
-			root := engine.NewTable("Created", 1)
-			root.Add(startImage)
+			root := []*types.Image{startImage}
 			cli.WalkTree(*noTrunc, root, byParent, "", printNode)
 		} else if matchName == "" {
 			cli.WalkTree(*noTrunc, roots, byParent, "", printNode)
@@ -207,14 +206,14 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			v.Set("all", "1")
 		}
 
-		body, _, err := readBody(cli.call("GET", "/images/json?"+v.Encode(), nil, nil))
-
+		rdr, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
 		if err != nil {
 			return err
 		}
 
-		outs := engine.NewTable("Created", 0)
-		if _, err := outs.ReadListFrom(body); err != nil {
+		images := []types.Image{}
+		err = json.NewDecoder(rdr).Decode(&images)
+		if err != nil {
 			return err
 		}
 
@@ -227,14 +226,14 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 			}
 		}
 
-		for _, out := range outs.Data {
-			outID := out.Get("Id")
+		for _, image := range images {
+			ID := image.ID
 			if !*noTrunc {
-				outID = stringid.TruncateID(outID)
+				ID = stringid.TruncateID(ID)
 			}
 
-			repoTags := out.GetList("RepoTags")
-			repoDigests := out.GetList("RepoDigests")
+			repoTags := image.RepoTags
+			repoDigests := image.RepoDigests
 
 			if len(repoTags) == 1 && repoTags[0] == "<none>:<none>" && len(repoDigests) == 1 && repoDigests[0] == "<none>@<none>" {
 				// dangling image - clear out either repoTags or repoDigsts so we only show it once below
@@ -256,12 +255,12 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 				if !*quiet {
 					if *showDigests {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
 					} else {
-						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, outID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0))), units.HumanSize(float64(out.GetInt64("VirtualSize"))))
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
 					}
 				} else {
-					fmt.Fprintln(w, outID)
+					fmt.Fprintln(w, ID)
 				}
 			}
 		}

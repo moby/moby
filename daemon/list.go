@@ -1,24 +1,33 @@
 package daemon
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/graph"
-	"github.com/docker/docker/pkg/graphdb"
-	"github.com/docker/docker/utils"
-
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/graph"
+	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/utils"
 )
 
 // List returns an array of all containers registered in the daemon.
 func (daemon *Daemon) List() []*Container {
 	return daemon.containers.List()
 }
+
+type ByCreated []types.Container
+
+func (r ByCreated) Len() int           { return len(r) }
+func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 func (daemon *Daemon) Containers(job *engine.Job) error {
 	var (
@@ -32,7 +41,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 		psFilters   filters.Args
 		filtExited  []int
 	)
-	outs := engine.NewTable("Created", 0)
+	containers := []types.Container{}
 
 	psFilters, err := filters.FromParam(job.Getenv("filters"))
 	if err != nil {
@@ -126,15 +135,16 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			return nil
 		}
 		displayed++
-		out := &engine.Env{}
-		out.SetJson("Id", container.ID)
-		out.SetList("Names", names[container.ID])
+		newC := types.Container{
+			ID:    container.ID,
+			Names: names[container.ID],
+		}
 		img := container.Config.Image
 		_, tag := parsers.ParseRepositoryTag(container.Config.Image)
 		if tag == "" {
 			img = utils.ImageReference(img, graph.DEFAULTTAG)
 		}
-		out.SetJson("Image", img)
+		newC.Image = img
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {
@@ -146,24 +156,41 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			}
 			argsAsString := strings.Join(args, " ")
 
-			out.Set("Command", fmt.Sprintf("\"%s %s\"", container.Path, argsAsString))
+			newC.Command = fmt.Sprintf("%s %s", container.Path, argsAsString)
 		} else {
-			out.Set("Command", fmt.Sprintf("\"%s\"", container.Path))
+			newC.Command = fmt.Sprintf("%s", container.Path)
 		}
-		out.SetInt64("Created", container.Created.Unix())
-		out.Set("Status", container.State.String())
-		str, err := container.NetworkSettings.PortMappingAPI().ToListString()
-		if err != nil {
-			return err
+		newC.Created = int(container.Created.Unix())
+		newC.Status = container.State.String()
+
+		newC.Ports = []types.Port{}
+		for port, bindings := range container.NetworkSettings.Ports {
+			p, _ := nat.ParsePort(port.Port())
+			if len(bindings) == 0 {
+				newC.Ports = append(newC.Ports, types.Port{
+					PrivatePort: p,
+					Type:        port.Proto(),
+				})
+				continue
+			}
+			for _, binding := range bindings {
+				h, _ := nat.ParsePort(binding.HostPort)
+				newC.Ports = append(newC.Ports, types.Port{
+					PrivatePort: p,
+					PublicPort:  h,
+					Type:        port.Proto(),
+					IP:          binding.HostIp,
+				})
+			}
 		}
-		out.Set("Ports", str)
+
 		if size {
 			sizeRw, sizeRootFs := container.GetSize()
-			out.SetInt64("SizeRw", sizeRw)
-			out.SetInt64("SizeRootFs", sizeRootFs)
+			newC.SizeRw = int(sizeRw)
+			newC.SizeRootFs = int(sizeRootFs)
 		}
-		out.SetJson("Labels", container.Config.Labels)
-		outs.Add(out)
+		newC.Labels = container.Config.Labels
+		containers = append(containers, newC)
 		return nil
 	}
 
@@ -175,8 +202,8 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			break
 		}
 	}
-	outs.ReverseSort()
-	if _, err := outs.WriteListTo(job.Stdout); err != nil {
+	sort.Sort(sort.Reverse(ByCreated(containers)))
+	if err = json.NewEncoder(job.Stdout).Encode(containers); err != nil {
 		return err
 	}
 	return nil
