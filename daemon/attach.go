@@ -2,57 +2,36 @@ package daemon
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/utils"
 )
 
-func (daemon *Daemon) ContainerAttach(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("Usage: %s CONTAINER\n", job.Name)
-	}
-
-	var (
-		name   = job.Args[0]
-		logs   = job.GetenvBool("logs")
-		stream = job.GetenvBool("stream")
-		stdin  = job.GetenvBool("stdin")
-		stdout = job.GetenvBool("stdout")
-		stderr = job.GetenvBool("stderr")
-	)
-
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
-	//logs
+func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
 	if logs {
-		cLog, err := container.ReadLog("json")
+		cLog, err := c.ReadLog("json")
 		if err != nil && os.IsNotExist(err) {
 			// Legacy logs
 			logrus.Debugf("Old logs format")
-			if stdout {
-				cLog, err := container.ReadLog("stdout")
+			if stdout != nil {
+				cLog, err := c.ReadLog("stdout")
 				if err != nil {
 					logrus.Errorf("Error reading logs (stdout): %s", err)
-				} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
+				} else if _, err := io.Copy(stdout, cLog); err != nil {
 					logrus.Errorf("Error streaming logs (stdout): %s", err)
 				}
 			}
-			if stderr {
-				cLog, err := container.ReadLog("stderr")
+			if stderr != nil {
+				cLog, err := c.ReadLog("stderr")
 				if err != nil {
 					logrus.Errorf("Error reading logs (stderr): %s", err)
-				} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
+				} else if _, err := io.Copy(stderr, cLog); err != nil {
 					logrus.Errorf("Error streaming logs (stderr): %s", err)
 				}
 			}
@@ -69,11 +48,11 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) error {
 					logrus.Errorf("Error streaming logs: %s", err)
 					break
 				}
-				if l.Stream == "stdout" && stdout {
-					io.WriteString(job.Stdout, l.Log)
+				if l.Stream == "stdout" && stdout != nil {
+					io.WriteString(stdout, l.Log)
 				}
-				if l.Stream == "stderr" && stderr {
-					io.WriteString(job.Stderr, l.Log)
+				if l.Stream == "stderr" && stderr != nil {
+					io.WriteString(stderr, l.Log)
 				}
 			}
 		}
@@ -81,38 +60,29 @@ func (daemon *Daemon) ContainerAttach(job *engine.Job) error {
 
 	//stream
 	if stream {
-		var (
-			cStdin           io.ReadCloser
-			cStdout, cStderr io.Writer
-		)
-
-		if stdin {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer logrus.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, job.Stdin)
-			}()
-			cStdin = r
-		}
-		if stdout {
-			cStdout = job.Stdout
-		}
-		if stderr {
-			cStderr = job.Stderr
-		}
-
-		<-daemon.Attach(&container.StreamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, cStdin, cStdout, cStderr)
+		var stdinPipe io.ReadCloser
+		r, w := io.Pipe()
+		go func() {
+			defer w.Close()
+			defer logrus.Debugf("Closing buffered stdin pipe")
+			io.Copy(w, stdin)
+		}()
+		stdinPipe = r
+		<-c.Attach(stdinPipe, stdout, stderr)
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
-		if container.Config.StdinOnce && !container.Config.Tty {
-			container.WaitStop(-1 * time.Second)
+		if c.Config.StdinOnce && !c.Config.Tty {
+			c.WaitStop(-1 * time.Second)
 		}
 	}
 	return nil
 }
 
-func (daemon *Daemon) Attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
+func (c *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
+	return attach(&c.StreamConfig, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, stdin, stdout, stderr)
+}
+
+func attach(streamConfig *StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser

@@ -573,7 +573,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 func (b *Builder) run(c *daemon.Container) error {
 	var errCh chan error
 	if b.Verbose {
-		errCh = b.Daemon.Attach(&c.StreamConfig, c.Config.OpenStdin, c.Config.StdinOnce, c.Config.Tty, nil, b.OutStream, b.ErrStream)
+		errCh = c.Attach(nil, b.OutStream, b.ErrStream)
 	}
 
 	//start the container

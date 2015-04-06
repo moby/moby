@@ -904,14 +904,10 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var (
-		job    = eng.Job("container_inspect", vars["name"])
-		c, err = job.Stdout.AddEnv()
-	)
+	d := getDaemon(eng)
+
+	cont, err := d.Get(vars["name"])
 	if err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
 		return err
 	}
 
@@ -929,25 +925,17 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	}
 
-	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
+	if !cont.Config.Tty && version.GreaterThanOrEqualTo("1.6") {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	} else {
 		errStream = outStream
 	}
+	logs := r.Form.Get("logs") != ""
+	stream := r.Form.Get("stream") != ""
 
-	job = eng.Job("attach", vars["name"])
-	job.Setenv("logs", r.Form.Get("logs"))
-	job.Setenv("stream", r.Form.Get("stream"))
-	job.Setenv("stdin", r.Form.Get("stdin"))
-	job.Setenv("stdout", r.Form.Get("stdout"))
-	job.Setenv("stderr", r.Form.Get("stderr"))
-	job.Stdin.Add(inStream)
-	job.Stdout.Add(outStream)
-	job.Stderr.Set(errStream)
-	if err := job.Run(); err != nil {
+	if err := cont.AttachWithLogs(inStream, outStream, errStream, logs, stream); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
-
 	}
 	return nil
 }
@@ -959,23 +947,19 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+	d := getDaemon(eng)
 
-	if err := eng.Job("container_inspect", vars["name"]).Run(); err != nil {
+	cont, err := d.Get(vars["name"])
+	if err != nil {
 		return err
 	}
 
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
-		job := eng.Job("attach", vars["name"])
-		job.Setenv("logs", r.Form.Get("logs"))
-		job.Setenv("stream", r.Form.Get("stream"))
-		job.Setenv("stdin", r.Form.Get("stdin"))
-		job.Setenv("stdout", r.Form.Get("stdout"))
-		job.Setenv("stderr", r.Form.Get("stderr"))
-		job.Stdin.Add(ws)
-		job.Stdout.Add(ws)
-		job.Stderr.Set(ws)
-		if err := job.Run(); err != nil {
+		logs := r.Form.Get("logs") != ""
+		stream := r.Form.Get("stream") != ""
+
+		if err := cont.AttachWithLogs(ws, ws, ws, logs, stream); err != nil {
 			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
