@@ -48,8 +48,8 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 
 	// TODO(azlinux): Set the pixel width / height of the console (currently unused by any caller)
 	return &Winsize{
-		Width:  uint16(info.Window.Bottom - info.Window.Top + 1),
-		Height: uint16(info.Window.Right - info.Window.Left + 1),
+		Width:  uint16(info.Window.Right - info.Window.Left + 1),
+		Height: uint16(info.Window.Bottom - info.Window.Top + 1),
 		x:      0,
 		y:      0}, nil
 }
