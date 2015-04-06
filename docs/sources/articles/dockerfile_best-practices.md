@@ -248,12 +248,7 @@ auto-magically bump the version of the software in your container.
 
 ### [`ADD`](https://docs.docker.com/reference/builder/#add) or [`COPY`](https://docs.docker.com/reference/builder/#copy)
 
-Although `ADD` and `COPY` are functionally similar, generally speaking, `COPY`
-is preferred. That’s because it’s more transparent than `ADD`. `COPY` only
-supports the basic copying of local files into the container, while `ADD` has
-some features (like local-only tar extraction and remote URL support) that are
-not immediately obvious. Consequently, the best use for `ADD` is local tar file
-auto-extraction into the image, as in `ADD rootfs.tar.xz /`.
+Note that `COPY` has been deprecated in the most recent release of Docker and you'll be prompted as such when you use it. It is recommended to use `ADD` from this point onward.
 
 If you have multiple `Dockerfile` steps that use different files from your
 context, `COPY` them individually, rather than all at once. This will ensure that
