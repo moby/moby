@@ -169,10 +169,6 @@ func logDone(message string) {
 	fmt.Printf("[PASSED]: %.69s\n", message)
 }
 
-func stripTrailingCharacters(target string) string {
-	return strings.TrimSpace(target)
-}
-
 func unmarshalJSON(data []byte, result interface{}) error {
 	err := json.Unmarshal(data, result)
 	if err != nil {

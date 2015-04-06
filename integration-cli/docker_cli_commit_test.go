@@ -13,7 +13,7 @@ func TestCommitAfterContainerIsDone(t *testing.T) {
 		t.Fatalf("failed to run container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	waitCmd := exec.Command(dockerBinary, "wait", cleanedContainerID)
 	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
@@ -26,7 +26,7 @@ func TestCommitAfterContainerIsDone(t *testing.T) {
 		t.Fatalf("failed to commit container to image: %s, %v", out, err)
 	}
 
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedImageID)
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
@@ -46,7 +46,7 @@ func TestCommitWithoutPause(t *testing.T) {
 		t.Fatalf("failed to run container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	waitCmd := exec.Command(dockerBinary, "wait", cleanedContainerID)
 	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
@@ -59,7 +59,7 @@ func TestCommitWithoutPause(t *testing.T) {
 		t.Fatalf("failed to commit container to image: %s, %v", out, err)
 	}
 
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedImageID)
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
@@ -82,7 +82,7 @@ func TestCommitPausedContainer(t *testing.T) {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	cmd = exec.Command(dockerBinary, "pause", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(cmd)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestCommitPausedContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to commit container to image: %s, %v", out, err)
 	}
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 	defer deleteImages(cleanedImageID)
 
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Paused}}", cleanedContainerID)

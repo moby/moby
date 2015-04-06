@@ -20,7 +20,7 @@ func TestSaveXzAndLoadRepoStdout(t *testing.T) {
 		t.Fatalf("failed to create a container: %v %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	repoName := "foobar-save-load-test-xz-gz"
 
@@ -77,7 +77,7 @@ func TestSaveXzGzAndLoadRepoStdout(t *testing.T) {
 		t.Fatalf("failed to create a container: %v %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	repoName := "foobar-save-load-test-xz-gz"
 
@@ -142,7 +142,7 @@ func TestSaveSingleTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get repo ID: %s, %v", out, err)
 	}
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 
 	out, _, err = runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", fmt.Sprintf("%v:latest", repoName)),
@@ -170,7 +170,7 @@ func TestSaveImageId(t *testing.T) {
 		t.Fatalf("failed to get repo ID: %s, %v", out, err)
 	}
 
-	cleanedLongImageID := stripTrailingCharacters(out)
+	cleanedLongImageID := strings.TrimSpace(out)
 
 	idShortCmd := exec.Command(dockerBinary, "images", "-q", repoName)
 	out, _, err = runCommandWithOutput(idShortCmd)
@@ -178,7 +178,7 @@ func TestSaveImageId(t *testing.T) {
 		t.Fatalf("failed to get repo short ID: %s, %v", out, err)
 	}
 
-	cleanedShortImageID := stripTrailingCharacters(out)
+	cleanedShortImageID := strings.TrimSpace(out)
 
 	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
 	tarCmd := exec.Command("tar", "t")
@@ -218,7 +218,7 @@ func TestSaveAndLoadRepoFlags(t *testing.T) {
 		t.Fatalf("failed to create a container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
 	repoName := "foobar-save-load-test"
@@ -302,14 +302,14 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		if out, _, err = runCommandWithOutput(runCmd); err != nil {
 			t.Fatalf("failed to create a container: %v %v", out, err)
 		}
-		cleanedContainerID := stripTrailingCharacters(out)
+		cleanedContainerID := strings.TrimSpace(out)
 		defer deleteContainer(cleanedContainerID)
 
 		commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, tag)
 		if out, _, err = runCommandWithOutput(commitCmd); err != nil {
 			t.Fatalf("failed to commit container: %v %v", out, err)
 		}
-		imageID := stripTrailingCharacters(out)
+		imageID := strings.TrimSpace(out)
 		return imageID
 	}
 
@@ -333,7 +333,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to save multiple images: %s, %v", out, err)
 	}
-	actual := strings.Split(stripTrailingCharacters(out), "\n")
+	actual := strings.Split(strings.TrimSpace(out), "\n")
 
 	// make the list of expected layers
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "history", "-q", "--no-trunc", "busybox:latest"))
@@ -341,7 +341,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 		t.Fatalf("failed to get history: %s, %v", out, err)
 	}
 
-	expected := append(strings.Split(stripTrailingCharacters(out), "\n"), idFoo, idBar)
+	expected := append(strings.Split(strings.TrimSpace(out), "\n"), idFoo, idBar)
 
 	sort.Strings(actual)
 	sort.Strings(expected)

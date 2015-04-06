@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/vendor/src/github.com/kr/pty"
@@ -20,7 +21,7 @@ func TestSaveAndLoadRepoStdout(t *testing.T) {
 		t.Fatalf("failed to create a container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	repoName := "foobar-save-load-test"
 

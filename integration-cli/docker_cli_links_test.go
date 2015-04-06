@@ -111,9 +111,9 @@ func TestLinksPingLinkedContainersAfterRename(t *testing.T) {
 	defer deleteAllContainers()
 
 	out, _, _ := dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
-	idA := stripTrailingCharacters(out)
+	idA := strings.TrimSpace(out)
 	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container2", "busybox", "sleep", "10")
-	idB := stripTrailingCharacters(out)
+	idB := strings.TrimSpace(out)
 	dockerCmd(t, "rename", "container1", "container_new")
 	dockerCmd(t, "run", "--rm", "--link", "container_new:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	dockerCmd(t, "kill", idA)

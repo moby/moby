@@ -503,7 +503,7 @@ func TestBuildOnBuildForbiddenMaintainerInSourceImage(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"MAINTAINER docker.io\"]}", cleanedContainerID, "onbuild")
 
@@ -537,7 +537,7 @@ func TestBuildOnBuildForbiddenFromInSourceImage(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"FROM busybox\"]}", cleanedContainerID, "onbuild")
 
@@ -571,7 +571,7 @@ func TestBuildOnBuildForbiddenChainedInSourceImage(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"ONBUILD RUN ls\"]}", cleanedContainerID, "onbuild")
 
@@ -5566,7 +5566,7 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 		t.Fatal(err, out)
 	}
 
-	cID := stripTrailingCharacters(out)
+	cID := strings.TrimSpace(out)
 
 	type hostConfig struct {
 		Memory     float64 // Use float64 here since the json decoder sees it that way

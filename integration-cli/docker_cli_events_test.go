@@ -217,7 +217,7 @@ func TestEventsImageImport(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to create a container", out, err)
 	}
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	out, _, err = runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),
@@ -293,13 +293,13 @@ func TestEventsFilterImageName(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	container1 := stripTrailingCharacters(out)
+	container1 := strings.TrimSpace(out)
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_2", "-d", "busybox", "true"))
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	container2 := stripTrailingCharacters(out)
+	container2 := strings.TrimSpace(out)
 
 	for _, s := range []string{"busybox", "busybox:latest"} {
 		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("image=%s", s))
@@ -337,13 +337,13 @@ func TestEventsFilterContainerID(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	container1 := stripTrailingCharacters(out)
+	container1 := strings.TrimSpace(out)
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	container2 := stripTrailingCharacters(out)
+	container2 := strings.TrimSpace(out)
 
 	for _, s := range []string{container1, container2, container1[:12], container2[:12]} {
 		if err := waitInspect(s, "{{.State.Running}}", "false", 5); err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -15,7 +16,7 @@ func TestInspectApiContainerResponse(t *testing.T) {
 		t.Fatalf("failed to create a container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
 	// test on json marshal version
 	// and latest version

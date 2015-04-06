@@ -16,7 +16,7 @@ func TestPortList(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	firstID := stripTrailingCharacters(out)
+	firstID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "port", firstID, "80")
 	out, _, err = runCommandWithOutput(runCmd)
@@ -52,7 +52,7 @@ func TestPortList(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	ID := stripTrailingCharacters(out)
+	ID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "port", ID, "80")
 	out, _, err = runCommandWithOutput(runCmd)
@@ -93,7 +93,7 @@ func TestPortList(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	ID = stripTrailingCharacters(out)
+	ID = strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "port", ID, "80")
 	out, _, err = runCommandWithOutput(runCmd)

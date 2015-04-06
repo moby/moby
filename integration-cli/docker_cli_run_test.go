@@ -199,7 +199,7 @@ func TestRunStdinPipe(t *testing.T) {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	out = stripTrailingCharacters(out)
+	out = strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", out)
 	if out, _, err := runCommandWithOutput(inspectCmd); err != nil {
@@ -217,7 +217,7 @@ func TestRunStdinPipe(t *testing.T) {
 		t.Fatalf("error thrown while trying to get container logs: %s, %v", logsOut, err)
 	}
 
-	containerLogs := stripTrailingCharacters(logsOut)
+	containerLogs := strings.TrimSpace(logsOut)
 
 	if containerLogs != "blahblah" {
 		t.Errorf("logs didn't print the container's logs %s", containerLogs)
@@ -241,7 +241,7 @@ func TestRunDetachedContainerIDPrinting(t *testing.T) {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	out = stripTrailingCharacters(out)
+	out = strings.TrimSpace(out)
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", out)
 	if inspectOut, _, err := runCommandWithOutput(inspectCmd); err != nil {
@@ -259,7 +259,7 @@ func TestRunDetachedContainerIDPrinting(t *testing.T) {
 		t.Fatalf("rm failed to remove container: %s, %v", rmOut, err)
 	}
 
-	rmOut = stripTrailingCharacters(rmOut)
+	rmOut = strings.TrimSpace(rmOut)
 	if rmOut != out {
 		t.Errorf("rm didn't print the container ID %s %s", out, rmOut)
 	}
@@ -277,7 +277,7 @@ func TestRunWorkingDirectory(t *testing.T) {
 		t.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 
-	out = stripTrailingCharacters(out)
+	out = strings.TrimSpace(out)
 
 	if out != "/root" {
 		t.Errorf("-w failed to set working directory")
@@ -289,7 +289,7 @@ func TestRunWorkingDirectory(t *testing.T) {
 		t.Fatal(out, err)
 	}
 
-	out = stripTrailingCharacters(out)
+	out = strings.TrimSpace(out)
 
 	if out != "/root" {
 		t.Errorf("--workdir failed to set working directory")
@@ -2215,7 +2215,7 @@ func TestRunWriteHostsFileAndNotCommit(t *testing.T) {
 func eqToBaseDiff(out string, t *testing.T) bool {
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
 	out1, _, err := runCommandWithOutput(cmd)
-	cID := stripTrailingCharacters(out1)
+	cID := strings.TrimSpace(out1)
 	cmd = exec.Command(dockerBinary, "diff", cID)
 	baseDiff, _, err := runCommandWithOutput(cmd)
 	if err != nil {

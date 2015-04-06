@@ -2,6 +2,7 @@ package main
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -15,7 +16,7 @@ func TestWaitNonBlockedExitZero(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	containerID := stripTrailingCharacters(out)
+	containerID := strings.TrimSpace(out)
 
 	status := "true"
 	for i := 0; status != "false"; i++ {
@@ -24,7 +25,7 @@ func TestWaitNonBlockedExitZero(t *testing.T) {
 		if err != nil {
 			t.Fatal(status, err)
 		}
-		status = stripTrailingCharacters(status)
+		status = strings.TrimSpace(status)
 
 		time.Sleep(time.Second)
 		if i >= 60 {
@@ -35,7 +36,7 @@ func TestWaitNonBlockedExitZero(t *testing.T) {
 	runCmd = exec.Command(dockerBinary, "wait", containerID)
 	out, _, err = runCommandWithOutput(runCmd)
 
-	if err != nil || stripTrailingCharacters(out) != "0" {
+	if err != nil || strings.TrimSpace(out) != "0" {
 		t.Fatal("failed to set up container", out, err)
 	}
 
@@ -51,12 +52,12 @@ func TestWaitBlockedExitZero(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	containerID := stripTrailingCharacters(out)
+	containerID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "wait", containerID)
 	out, _, err = runCommandWithOutput(runCmd)
 
-	if err != nil || stripTrailingCharacters(out) != "0" {
+	if err != nil || strings.TrimSpace(out) != "0" {
 		t.Fatal("failed to set up container", out, err)
 	}
 
@@ -72,7 +73,7 @@ func TestWaitNonBlockedExitRandom(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	containerID := stripTrailingCharacters(out)
+	containerID := strings.TrimSpace(out)
 
 	status := "true"
 	for i := 0; status != "false"; i++ {
@@ -81,7 +82,7 @@ func TestWaitNonBlockedExitRandom(t *testing.T) {
 		if err != nil {
 			t.Fatal(status, err)
 		}
-		status = stripTrailingCharacters(status)
+		status = strings.TrimSpace(status)
 
 		time.Sleep(time.Second)
 		if i >= 60 {
@@ -92,7 +93,7 @@ func TestWaitNonBlockedExitRandom(t *testing.T) {
 	runCmd = exec.Command(dockerBinary, "wait", containerID)
 	out, _, err = runCommandWithOutput(runCmd)
 
-	if err != nil || stripTrailingCharacters(out) != "99" {
+	if err != nil || strings.TrimSpace(out) != "99" {
 		t.Fatal("failed to set up container", out, err)
 	}
 
@@ -108,12 +109,12 @@ func TestWaitBlockedExitRandom(t *testing.T) {
 	if err != nil {
 		t.Fatal(out, err)
 	}
-	containerID := stripTrailingCharacters(out)
+	containerID := strings.TrimSpace(out)
 
 	runCmd = exec.Command(dockerBinary, "wait", containerID)
 	out, _, err = runCommandWithOutput(runCmd)
 
-	if err != nil || stripTrailingCharacters(out) != "99" {
+	if err != nil || strings.TrimSpace(out) != "99" {
 		t.Fatal("failed to set up container", out, err)
 	}
 

@@ -20,7 +20,7 @@ func TestLogsContainerSmallerThanPage(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
@@ -47,7 +47,7 @@ func TestLogsContainerBiggerThanPage(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
@@ -74,7 +74,7 @@ func TestLogsContainerMuchBiggerThanPage(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
@@ -101,7 +101,7 @@ func TestLogsTimestamps(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", "-t", cleanedContainerID)
@@ -144,7 +144,7 @@ func TestLogsSeparateStderr(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
@@ -176,7 +176,7 @@ func TestLogsStderrInStdout(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
@@ -208,7 +208,7 @@ func TestLogsTail(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", "--tail", "5", cleanedContainerID)
@@ -259,7 +259,7 @@ func TestLogsFollowStopped(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	exec.Command(dockerBinary, "wait", cleanedContainerID).Run()
 
 	logsCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
@@ -294,7 +294,7 @@ func TestLogsFollowSlowStdoutConsumer(t *testing.T) {
 		t.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
 	stopSlowRead := make(chan bool)

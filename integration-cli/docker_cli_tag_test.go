@@ -32,7 +32,7 @@ func TestTagUnprefixedRepoByID(t *testing.T) {
 		t.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
 	}
 
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 	tagCmd := exec.Command(dockerBinary, "tag", cleanedImageID, "testfoobarbaz")
 	if out, _, err = runCommandWithOutput(tagCmd); err != nil {
 		t.Fatal(out, err)
