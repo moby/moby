@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
@@ -793,12 +794,14 @@ func TestDeleteImages(t *testing.T) {
 		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
 	}
 
-	outs := engine.NewTable("Created", 0)
-	if _, err := outs.ReadListFrom(r2.Body.Bytes()); err != nil {
+	delImages := []types.ImageDelete{}
+	err = json.Unmarshal(r2.Body.Bytes(), &delImages)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(outs.Data) != 1 {
-		t.Fatalf("Expected %d event (untagged), got %d", 1, len(outs.Data))
+
+	if len(delImages) != 1 {
+		t.Fatalf("Expected %d event (untagged), got %d", 1, len(delImages))
 	}
 	images = getImages(eng, t, false, "")
 

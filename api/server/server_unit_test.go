@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/version"
 )
@@ -122,7 +123,7 @@ func TestGetImagesJSON(t *testing.T) {
 	eng.Register("images", func(job *engine.Job) error {
 		called = true
 		v := createEnvFromGetImagesJSONStruct(sampleImage)
-		if _, err := v.WriteTo(job.Stdout); err != nil {
+		if err := json.NewEncoder(job.Stdout).Encode(v); err != nil {
 			return err
 		}
 		return nil
@@ -186,9 +187,10 @@ func TestGetImagesJSONLegacyFormat(t *testing.T) {
 	var called bool
 	eng.Register("images", func(job *engine.Job) error {
 		called = true
-		outsLegacy := engine.NewTable("Created", 0)
-		outsLegacy.Add(createEnvFromGetImagesJSONStruct(sampleImage))
-		if _, err := outsLegacy.WriteListTo(job.Stdout); err != nil {
+		images := []types.Image{
+			createEnvFromGetImagesJSONStruct(sampleImage),
+		}
+		if err := json.NewEncoder(job.Stdout).Encode(images); err != nil {
 			return err
 		}
 		return nil
@@ -526,14 +528,14 @@ func assertHttpNotError(r *httptest.ResponseRecorder, t *testing.T) {
 	}
 }
 
-func createEnvFromGetImagesJSONStruct(data getImagesJSONStruct) *engine.Env {
-	v := &engine.Env{}
-	v.SetList("RepoTags", data.RepoTags)
-	v.Set("Id", data.Id)
-	v.SetInt64("Created", data.Created)
-	v.SetInt64("Size", data.Size)
-	v.SetInt64("VirtualSize", data.VirtualSize)
-	return v
+func createEnvFromGetImagesJSONStruct(data getImagesJSONStruct) types.Image {
+	return types.Image{
+		RepoTags:    data.RepoTags,
+		ID:          data.Id,
+		Created:     int(data.Created),
+		Size:        int(data.Size),
+		VirtualSize: int(data.VirtualSize),
+	}
 }
 
 type getImagesJSONStruct struct {
