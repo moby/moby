@@ -46,7 +46,7 @@ func TestInspectApiContainerResponse(t *testing.T) {
 
 		for _, key := range keys {
 			if _, ok := inspectJSON[key]; !ok {
-				t.Fatalf("%s does not exist in reponse for %s version", key, testVersion)
+				t.Fatalf("%s does not exist in response for %s version", key, testVersion)
 			}
 		}
 		//Issue #6830: type not properly converted to JSON/back
