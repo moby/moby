@@ -19,7 +19,7 @@ that is program code or code that is documentation code.
 * Run `gofmt -s -w file.go` on each changed file before
   committing your changes. Most editors have plug-ins that do this automatically.
 
-* Update the documentation when creating or modifying features. 
+* Update the documentation when creating or modifying features.
 
 * Commits that fix or close an issue should reference them in the commit message
   `Closes #XXXX` or `Fixes #XXXX`. Mentions help by automatically closing the
@@ -36,11 +36,11 @@ that is program code or code that is documentation code.
 
 ## Tests and testing
 
-* Submit unit tests for your changes. 
+* Submit unit tests for your changes.
 
-* Make use of the builtin Go test framework built. 
+* Make use of the builtin Go test framework built.
 
-* Use existing Docker test files (`name_test.go`) for inspiration. 
+* Use existing Docker test files (`name_test.go`) for inspiration.
 
 * Run <a href="../test-and-docs" target="_blank">the full test suite</a> on your
   branch before submitting a pull request.
@@ -57,14 +57,14 @@ that is program code or code that is documentation code.
   mixed into the PR.
 
 * Before the pull request, squash your commits into logical units of work using
-  `git rebase -i` and `git push -f`. 
+  `git rebase -i` and `git push -f`.
 
 * Include documentation changes in the same commit so that a revert would
   remove all traces of the feature or fix.
 
 * Reference each issue in your pull request description (`#XXXX`)
 
-## Respond to pull requests reviews 
+## Respond to pull requests reviews
 
 * Docker maintainers use LGTM (**l**ooks-**g**ood-**t**o-**m**e) in PR comments
   to indicate acceptance.

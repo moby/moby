@@ -1,6 +1,6 @@
 page_title: Get the required software
 page_description: Describes the software required to contribute to Docker
-page_keywords: GitHub account, repository, Docker, Git, Go, make, 
+page_keywords: GitHub account, repository, Docker, Git, Go, make,
 
 # Get the required software
 
@@ -8,7 +8,7 @@ Before you begin contributing you must have:
 
 *  a GitHub account
 * `git`
-* `make` 
+* `make`
 * `docker`
 
 You'll notice that `go`, the language that Docker is written in, is not listed.
@@ -22,14 +22,14 @@ href="https://github.com" target="_blank">GitHub account</a>. A free account is
 fine. All the Docker project repositories are public and visible to everyone.
 
 You should also have some experience using both the GitHub application and `git`
-on the command line. 
+on the command line.
 
 ### Install git
 
 Install `git` on your local system. You can check if `git` is on already on your
 system and properly installed with the following command:
 
-    $ git --version 
+    $ git --version
 
 
 This documentation is written using `git` version 2.2.2. Your version may be
@@ -40,17 +40,17 @@ different depending on your OS.
 Install `make`. You can check if `make` is on your system with the following
 command:
 
-    $ make -v 
+    $ make -v
 
 This documentation is written using GNU Make 3.81. Your version may be different
 depending on your OS.
 
-### Install or upgrade Docker 
+### Install or upgrade Docker
 
-If you haven't already, install the Docker software using the 
+If you haven't already, install the Docker software using the
 <a href="/installation" target="_blank">instructions for your operating system</a>.
 If you have an existing installation, check your version and make sure you have
-the latest Docker. 
+the latest Docker.
 
 To check if `docker` is already installed on Linux:
 

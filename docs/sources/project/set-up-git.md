@@ -1,12 +1,12 @@
 page_title: Configure Git for contributing
 page_description: Describes how to set up your local machine and repository
-page_keywords: GitHub account, repository, clone, fork, branch, upstream, Git, Go, make, 
+page_keywords: GitHub account, repository, clone, fork, branch, upstream, Git, Go, make,
 
 # Configure Git for contributing
 
 Work through this page to configure Git and a repository you'll use throughout
 the Contributor Guide. The work you do further in the guide, depends on the work
-you do here. 
+you do here.
 
 ## Fork and clone the Docker code
 
@@ -17,7 +17,7 @@ originates.
 As you make contributions, you change your fork's code. When you are ready,
 you make a pull request back to the original Docker repository. If you aren't
 familiar with this workflow, don't worry, this guide walks you through all the
-steps. 
+steps.
 
 To fork and clone Docker:
 
@@ -37,7 +37,7 @@ target="_blank">docker/docker repository</a>.
 4. Copy your fork's clone URL from GitHub.
 
     GitHub allows you to use HTTPS or SSH protocols for clones. You can use the
-    `git` command line or clients like Subversion to clone a repository. 
+    `git` command line or clients like Subversion to clone a repository.
 
     ![Copy clone URL](/project/images/copy_url.png)
 
@@ -70,11 +70,11 @@ target="_blank">docker/docker repository</a>.
         $ cd docker-fork
 
     Take a moment to familiarize yourself with the repository's contents. List
-    the contents. 
+    the contents.
 
 ##  Set your signature and an upstream remote
 
-When you contribute to Docker, you must certify you agree with the 
+When you contribute to Docker, you must certify you agree with the
 <a href="http://developercertificate.org/" target="_blank">Developer Certificate of Origin</a>.
 You indicate your agreement by signing your `git` commits like this:
 
@@ -104,7 +104,7 @@ To configure your username, email, and add a remote:
 
         $ git config --local user.email "emailname@mycompany.com"
 
-4. Set your local repo to track changes upstream, on the `docker` repository. 
+4. Set your local repo to track changes upstream, on the `docker` repository.
 
         $ git remote add upstream https://github.com/docker/docker.git
 
@@ -136,7 +136,7 @@ To configure your username, email, and add a remote:
 
 As you change code in your fork, make your changes on a repository branch.
 The branch name should reflect what you are working on. In this section, you
-create a branch, make a change, and push it up to your fork. 
+create a branch, make a change, and push it up to your fork.
 
 This branch is just for testing your config for this guide. The changes are part
 of a dry run, so the branch name will be dry-run-test. To create and push
@@ -159,12 +159,12 @@ the branch to your fork on GitHub:
           master
 
     The current branch has an * (asterisk) marker. So, these results shows you
-    are on the right branch. 
+    are on the right branch.
 
 4. Create a `TEST.md` file in the repository's root.
 
         $ touch TEST.md
-	
+
 5. Edit the file and add your email and location.
 
     ![Add your information](/project/images/contributor-edit.png)
@@ -173,15 +173,15 @@ the branch to your fork on GitHub:
 
 6. Close and save the file.
 
-7. Check the status of your branch. 
+7. Check the status of your branch.
 
         $ git status
         On branch dry-run-test
         Untracked files:
           (use "git add <file>..." to include in what will be committed)
-    
+
             TEST.md
-    
+
         nothing added to commit but untracked files present (use "git add" to track)
 
 	You've only changed the one file. It is untracked so far by git.
@@ -209,7 +209,7 @@ the branch to your fork on GitHub:
 
         $ git push --set-upstream origin dry-run-test
         Username for 'https://github.com': moxiegirl
-        Password for 'https://moxiegirl@github.com': 
+        Password for 'https://moxiegirl@github.com':
 
     Git prompts you for your GitHub username and password. Then, the command
     returns a result.

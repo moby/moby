@@ -56,7 +56,7 @@ latest`and `ruby:onbuild`, or `ruby:2` and  `ruby:2-onbuild`
 
 Include a brief description of your image (in plaintext). Only one description
 is required; you don’t need additional descriptions for each tag. The file
-should also: 
+should also:
 
 * Be named `README-short.txt`
 * Reside in the repo for the “latest” tag
@@ -66,7 +66,7 @@ should also:
 
 Include a logo of your company or the product (png format preferred). Only one
 logo is required; you don’t need additional logo files for each tag. The logo
-file should have the following characteristics: 
+file should have the following characteristics:
 
 * Be named `logo.png`
 * Should reside in the repo for the “latest” tag
@@ -77,9 +77,9 @@ can be made based on the logo needed
 
 ### A long description
 
-Include a comprehensive description of your image (in Markdown format, GitHub 
+Include a comprehensive description of your image (in Markdown format, GitHub
 flavor preferred). Only one description is required; you don’t need additional
-descriptions for each tag. The file should also: 
+descriptions for each tag. The file should also:
 
 * Be named `README.md`
 * Reside in the repo for the “latest” tag
@@ -173,7 +173,7 @@ Test it by visiting `http://container-ip:3000` in a browser. On the other hand, 
 Then go to `http://localhost:8080` or `http://host-ip:8080` in a browser.
 ```
 
-For more examples, take a look at these repos: 
+For more examples, take a look at these repos:
 
 * [Go](https://github.com/docker-library/golang)
 * [PostgreSQL](https://github.com/docker-library/postgres)

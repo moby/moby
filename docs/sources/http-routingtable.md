@@ -8,8 +8,8 @@
 [**/version**](#cap-/version)
 
   -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----
-                                                                                                                                                                          
-     **/api**                                                                                                                                                             
+      
+     **/api**
      [`GET /api/v1.1/o/authorize/`](../reference/api/docker_io_oauth_api/#get--api-v1.1-o-authorize-)                                                              **
      [`POST /api/v1.1/o/token/`](../reference/api/docker_io_oauth_api/#post--api-v1.1-o-token-)                                                                    **
      [`GET /api/v1.1/users/:username/`](../reference/api/docker_io_accounts_api/#get--api-v1.1-users--username-)                                                   **
@@ -18,18 +18,18 @@
      [`PATCH /api/v1.1/users/:username/emails/`](../reference/api/docker_io_accounts_api/#patch--api-v1.1-users--username-emails-)                                 **
      [`POST /api/v1.1/users/:username/emails/`](../reference/api/docker_io_accounts_api/#post--api-v1.1-users--username-emails-)                                   **
      [`DELETE /api/v1.1/users/:username/emails/`](../reference/api/docker_io_accounts_api/#delete--api-v1.1-users--username-emails-)                               **
-                                                                                                                                                                          
-     **/auth**                                                                                                                                                            
+      
+     **/auth**
      [`GET /auth`](../reference/api/docker_remote_api/#get--auth)                                                                                                  **
      [`POST /auth`](../reference/api/docker_remote_api_v1.9/#post--auth)                                                                                           **
-                                                                                                                                                                          
-     **/build**                                                                                                                                                           
+      
+     **/build**
      [`POST /build`](../reference/api/docker_remote_api_v1.9/#post--build)                                                                                         **
-                                                                                                                                                                          
-     **/commit**                                                                                                                                                          
+      
+     **/commit**
      [`POST /commit`](../reference/api/docker_remote_api_v1.9/#post--commit)                                                                                       **
-                                                                                                                                                                          
-     **/containers**                                                                                                                                                      
+      
+     **/containers**
      [`DELETE /containers/(id)`](../reference/api/docker_remote_api_v1.9/#delete--containers-(id))                                                                 **
      [`POST /containers/(id)/attach`](../reference/api/docker_remote_api_v1.9/#post--containers-(id)-attach)                                                       **
      [`GET /containers/(id)/changes`](../reference/api/docker_remote_api_v1.9/#get--containers-(id)-changes)                                                       **
@@ -45,14 +45,14 @@
      [`POST /containers/create`](/reference/api/docker_remote_api_v1.9/#create-a-container)                                                                 **
      [`GET /containers/json`](../reference/api/docker_remote_api_v1.9/#get--containers-json)                                                                       **
      [`POST /containers/(id)/resize`](../reference/api/docker_remote_api_v1.9/#get--containers-resize)                                                                  **
-                                                                                                                                                                          
-     **/events**                                                                                                                                                          
+      
+     **/events**
      [`GET /events`](../reference/api/docker_remote_api_v1.9/#get--events)                                                                                         **
-                                                                                                                                                                          
-     **/events:**                                                                                                                                                         
+      
+     **/events:**
      [`GET /events:`](../reference/api/docker_remote_api/#get--events-)                                                                                            **
-                                                                                                                                                                          
-     **/images**                                                                                                                                                          
+      
+     **/images**
      [`GET /images/(format)`](../reference/api/archive/docker_remote_api_v1.6/#get--images-(format))                                                               **
      [`DELETE /images/(name)`](../reference/api/docker_remote_api_v1.9/#delete--images-(name))                                                                     **
      [`GET /images/(name)/get`](../reference/api/docker_remote_api_v1.9/#get--images-(name)-get)                                                                   **
@@ -67,11 +67,11 @@
      [`POST /images/load`](../reference/api/docker_remote_api_v1.9/#post--images-load)                                                                             **
      [`GET /images/search`](../reference/api/docker_remote_api_v1.9/#get--images-search)                                                                           **
      [`GET /images/viz`](../reference/api/docker_remote_api/#get--images-viz)                                                                                      **
-                                                                                                                                                                          
-     **/info**                                                                                                                                                            
+      
+     **/info**
      [`GET /info`](../reference/api/docker_remote_api_v1.9/#get--info)                                                                                             **
-                                                                                                                                                                          
-     **/v1**                                                                                                                                                              
+      
+     **/v1**
      [`GET /v1/_ping`](../reference/api/registry_api/#get--v1-_ping)                                                                                               **
      [`GET /v1/images/(image_id)/ancestry`](../reference/api/registry_api/#get--v1-images-(image_id)-ancestry)                                                     **
      [`GET /v1/images/(image_id)/json`](../reference/api/registry_api/#get--v1-images-(image_id)-json)                                                             **
@@ -97,8 +97,8 @@
      [`GET /v1/users`](../reference/api/index_api/#get--v1-users)                                                                                                  **
      [`POST /v1/users`](../reference/api/index_api/#post--v1-users)                                                                                                **
      [`PUT /v1/users/(username)/`](../reference/api/index_api/#put--v1-users-(username)-)                                                                          **
-                                                                                                                                                                          
-     **/version**                                                                                                                                                         
+      
+     **/version**
      [`GET /version`](../reference/api/docker_remote_api_v1.9/#get--version)                                                                                       **
   -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----
 

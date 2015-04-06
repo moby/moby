@@ -208,7 +208,7 @@ the daemon filters out all localhost IP address `nameserver` entries from
 the host's original file.
 
 Filtering is necessary because all localhost addresses on the host are
-unreachable from the container's network.  After this filtering, if there 
+unreachable from the container's network.  After this filtering, if there
 are no more `nameserver` entries left in the container's `/etc/resolv.conf`
 file, the daemon adds public Google DNS nameservers
 (8.8.8.8 and 8.8.4.4) to the container's DNS configuration.  If IPv6 is
@@ -226,7 +226,7 @@ notifier active which will watch for changes to the host DNS configuration.
 
 > **Note**:
 > The file change notifier relies on the Linux kernel's inotify feature.
-> Because this feature is currently incompatible with the overlay filesystem 
+> Because this feature is currently incompatible with the overlay filesystem
 > driver, a Docker daemon using "overlay" will not be able to take advantage
 > of the `/etc/resolv.conf` auto-update feature.
 
@@ -238,7 +238,7 @@ of a facility to ensure atomic writes of the `resolv.conf` file while the
 container is running. If the container's `resolv.conf` has been edited since
 it was started with the default configuration, no replacement will be
 attempted as it would overwrite the changes performed by the container.
-If the options (`--dns` or `--dns-search`) have been used to modify the 
+If the options (`--dns` or `--dns-search`) have been used to modify the
 default host configuration, then the replacement with an updated host's
 `/etc/resolv.conf` will not happen as well.
 
@@ -654,7 +654,7 @@ on every host.
 
 In this scenario containers of the same host can communicate directly with each
 other. The traffic between containers on different hosts will be routed via
-their hosts and the router. For example packet from `Container1-1` to 
+their hosts and the router. For example packet from `Container1-1` to
 `Container2-1` will be routed through `Host1`, `Router` and `Host2` until it
 arrives at `Container2-1`.
 

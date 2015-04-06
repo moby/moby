@@ -27,7 +27,7 @@ this throughout the Docker repo. Use these files for inspiration when writing
 your own tests. For information on Go's test framework, see <a
 href="http://golang.org/pkg/testing/" target="_blank">Go's testing package
 documentation</a> and the <a href="http://golang.org/cmd/go/#hdr-Test_packages"
-target="_blank">go test help</a>. 
+target="_blank">go test help</a>.
 
 You are responsible for _unit testing_ your contribution when you add new or
 change existing Docker code. A unit test is a piece of code that invokes a
@@ -121,7 +121,7 @@ Run the entire test suite on your current repository:
         .................................................................
         ----------------------------------------------------------------------
         Ran 65 tests in 89.266s
- 
+
 
 ### Run test targets inside the development container
 
@@ -157,7 +157,7 @@ Most test targets require that you build these precursor targets first:
 `dynbinary binary cross`
 
 
-## Running individual or multiple named tests 
+## Running individual or multiple named tests
 
 You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from

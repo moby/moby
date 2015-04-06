@@ -87,7 +87,7 @@ This will display the help text and all available flags:
       --no-stdin=false: Do not attach stdin
       --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
 
-> **Note:** 
+> **Note:**
 > You can see a full list of Docker's commands
 > [here](/reference/commandline/cli/).
 
@@ -116,7 +116,7 @@ application.
 
 Lastly, we've specified a command for our container to run: `python app.py`. This launches our web application.
 
-> **Note:** 
+> **Note:**
 > You can see more detail on the `docker run` command in the [command
 > reference](/reference/commandline/cli/#run) and the [Docker Run
 > Reference](/reference/run/).
@@ -133,7 +133,7 @@ You can see we've specified a new flag, `-l`, for the `docker ps`
 command. This tells the `docker ps` command to return the details of the
 *last* container started.
 
-> **Note:** 
+> **Note:**
 > By default, the `docker ps` command only shows information about running
 > containers. If you want to see stopped containers too use the `-a` flag.
 
@@ -147,7 +147,7 @@ column.
 When we passed the `-P` flag to the `docker run` command Docker mapped any
 ports exposed in our image to our host.
 
-> **Note:** 
+> **Note:**
 > We'll learn more about how to expose ports in Docker images when
 > [we learn how to build images](/userguide/dockerimages).
 
@@ -181,12 +181,13 @@ Our Python application is live!
 > **Note:**
 > If you have used the `boot2docker` virtual machine on OS X, Windows or Linux,
 > you'll need to get the IP of the virtual host instead of using localhost.
+
 > You can do this by running the following outside of the `boot2docker` shell
 > (i.e., from your comment line or terminal application).
-> 
+>
 >     $ boot2docker ip
 >     The VM's Host only interface IP address is: 192.168.59.103
-> 
+>
 > In this case you'd browse to http://192.168.59.103:49155 for the above example.
 
 ## A Network Port Shortcut
@@ -285,7 +286,7 @@ Now quickly run `docker ps -l` again to see the running container is
 back up or browse to the container's URL to see if the application
 responds.
 
-> **Note:** 
+> **Note:**
 > Also available is the `docker restart` command that runs a stop and
 > then start on the container.
 

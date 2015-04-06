@@ -122,7 +122,7 @@ privilege separation.
 
 Eventually, it is expected that the Docker daemon will run restricted
 privileges, delegating operations well-audited sub-processes,
-each with its own (very limited) scope of Linux capabilities, 
+each with its own (very limited) scope of Linux capabilities,
 virtual network setup, filesystem management, etc. That is, most likely,
 pieces of the Docker engine itself will run inside of containers.
 

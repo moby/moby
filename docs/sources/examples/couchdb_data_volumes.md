@@ -4,7 +4,7 @@ page_keywords: docker, example, package installation, networking, couchdb, data 
 
 # Dockerizing a CouchDB Service
 
-> **Note**: 
+> **Note**:
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](/installation/binaries/#giving-non-root-access)
 

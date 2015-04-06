@@ -14,7 +14,7 @@ CONTAINER COMMAND [ARG...]
 
 # DESCRIPTION
 
-Run a process in a running container. 
+Run a process in a running container.
 
 The command started using `docker exec` will only run while the container's primary
 process (`PID 1`) is running, and will not be restarted if the container is restarted.

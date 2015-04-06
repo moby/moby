@@ -12,7 +12,7 @@ docker-logout - Log out from a Docker Registry Service.
 Log out of a Docker Registry Service located on the specified `SERVER`. You can
 specify a URL or a `hostname` for the `SERVER` value. If you do not specify a
 `SERVER`, the command attempts to log you out of Docker's public registry
-located at `https://registry-1.docker.io/` by default.  
+located at `https://registry-1.docker.io/` by default.
 
 # OPTIONS
 There are no available options.

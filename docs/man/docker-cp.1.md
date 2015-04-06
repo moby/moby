@@ -12,9 +12,9 @@ CONTAINER:PATH HOSTDIR|-
 
 # DESCRIPTION
 
-Copy files or folders from a `CONTAINER:PATH` to the `HOSTDIR` or to `STDOUT`. 
+Copy files or folders from a `CONTAINER:PATH` to the `HOSTDIR` or to `STDOUT`.
 The `CONTAINER:PATH` is relative to the root of the container's filesystem. You
-can copy from either a running or stopped container. 
+can copy from either a running or stopped container.
 
 The `PATH` can be a file or directory. The `docker cp` command assumes all
 `PATH` values start at the `/` (root) directory. This means supplying the
@@ -35,7 +35,7 @@ the leading slash in the command. If you execute this command from your home dir
 
 		$ docker cp compassionate_darwin:tmp/foo tmp
 
-Docker creates a `~/tmp/foo` subdirectory.  
+Docker creates a `~/tmp/foo` subdirectory.
 
 When copying files to an existing `HOSTDIR`, the `cp` command adds the new files to
 the directory. For example, this command:
@@ -51,7 +51,7 @@ Your host's `/tmp/foo` directory will contain both files:
 
 		$ ls /tmp/foo
 		myfile.txt secondfile.txt
-		
+
 Finally, use '-' to write the data as a `tar` file to STDOUT.
 
 # OPTIONS

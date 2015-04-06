@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-login - Register or log in to a Docker registry. 
+docker-login - Register or log in to a Docker registry.
 
 # SYNOPSIS
 **docker login**

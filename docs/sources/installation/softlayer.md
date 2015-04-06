@@ -1,4 +1,4 @@
-page_title: Installation on IBM SoftLayer 
+page_title: Installation on IBM SoftLayer
 page_description: Installation instructions for Docker on IBM Softlayer.
 page_keywords: IBM SoftLayer, virtualization, cloud, docker, documentation, installation
 

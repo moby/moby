@@ -2,7 +2,7 @@ page_title: README first
 page_description: Introduction to project contribution at Docker
 page_keywords: Gordon, introduction, turtle, machine, libcontainer, how to
 
-# README first 
+# README first
 
 This section of the documentation contains a guide for Docker users who want to
 contribute code or documentation to the Docker project. As a community, we

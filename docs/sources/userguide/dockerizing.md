@@ -123,7 +123,7 @@ a really long string:
 This really long string is called a *container ID*. It uniquely
 identifies a container so we can work with it.
 
-> **Note:** 
+> **Note:**
 > The container ID is a bit long and unwieldy and a bit later
 > on we'll see a shorter ID and some ways to name our containers to make
 > working with them easier.
@@ -145,9 +145,9 @@ information about it, starting with a shorter variant of its container ID:
 
 We can also see the image we used to build it, `ubuntu:14.04`, the command it
 is running, its status and an automatically assigned name,
-`insane_babbage`. 
+`insane_babbage`.
 
-> **Note:** 
+> **Note:**
 > Docker automatically names any containers you start, a
 > little later on we'll see how you can specify your own names.
 

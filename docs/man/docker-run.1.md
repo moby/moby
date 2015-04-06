@@ -283,7 +283,7 @@ ports and the exposed ports, use `docker port`.
 **-p**, **--publish**=[]
    Publish a container's port, or range of ports, to the host.
                                format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
-                               Both hostPort and containerPort can be specified as a range of ports. 
+                               Both hostPort and containerPort can be specified as a range of ports.
                                When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
 
@@ -314,7 +314,7 @@ its root filesystem mounted as read only prohibiting any writes.
 
 **--restart**="no"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
-      
+
 **--rm**=*true*|*false*
    Automatically remove the container when it exits (incompatible with -d). The default is *false*.
 
@@ -363,14 +363,14 @@ read-write. See examples.
    Mount volumes from the specified container(s)
 
    Mounts already mounted volumes from a source container onto another
-   container. You must supply the source's container-id. To share 
+   container. You must supply the source's container-id. To share
    a volume, use the **--volumes-from** option when running
-   the target container. You can share volumes even if the source container 
+   the target container. You can share volumes even if the source container
    is not running.
 
-   By default, Docker mounts the volumes in the same mode (read-write or 
-   read-only) as it is mounted in the source container. Optionally, you 
-   can change this by suffixing the container-id with either the `:ro` or 
+   By default, Docker mounts the volumes in the same mode (read-write or
+   read-only) as it is mounted in the source container. Optionally, you
+   can change this by suffixing the container-id with either the `:ro` or
    `:rw ` keyword.
 
    If the location of the volume from the source container overlaps with
@@ -426,8 +426,8 @@ Host shows a shared memory segment with 7 pids attached, happens to be from http
  $ sudo ipcs -m
 
  ------ Shared Memory Segments --------
- key        shmid      owner      perms      bytes      nattch     status      
- 0x01128e25 0          root       600        1000       7                       
+ key        shmid      owner      perms      bytes      nattch     status
+ 0x01128e25 0          root       600        1000       7
 ```
 
 Now run a regular container, and it correctly does NOT see the shared memory segment from the host:
@@ -435,8 +435,8 @@ Now run a regular container, and it correctly does NOT see the shared memory seg
 ```
  $ docker run -it shm ipcs -m
 
- ------ Shared Memory Segments --------	
- key        shmid      owner      perms      bytes      nattch     status      
+ ------ Shared Memory Segments --------
+ key        shmid      owner      perms      bytes      nattch     status
 ```
 
 Run a container with the new `--ipc=host` option, and it now sees the shared memory segment from the host httpd:
@@ -445,8 +445,8 @@ Run a container with the new `--ipc=host` option, and it now sees the shared mem
  $ docker run -it --ipc=host shm ipcs -m
 
  ------ Shared Memory Segments --------
- key        shmid      owner      perms      bytes      nattch     status      
- 0x01128e25 0          root       600        1000       7                   
+ key        shmid      owner      perms      bytes      nattch     status
+ 0x01128e25 0          root       600        1000       7
 ```
 Testing `--ipc=container:CONTAINERID` mode:
 
@@ -457,15 +457,15 @@ Start a container with a program to create a shared memory segment:
  $ sudo ipcs -m
 
  ------ Shared Memory Segments --------
- key        shmid      owner      perms      bytes      nattch     status      
- 0x0000162e 0          root       666        27         1                       
+ key        shmid      owner      perms      bytes      nattch     status
+ 0x0000162e 0          root       666        27         1
 ```
 Create a 2nd container correctly shows no shared memory segment from 1st container:
 ```
  $ docker run shm ipcs -m
 
  ------ Shared Memory Segments --------
- key        shmid      owner      perms      bytes      nattch     status      
+ key        shmid      owner      perms      bytes      nattch     status
 ```
 
 Create a 3rd container using the new --ipc=container:CONTAINERID option, now it shows the shared memory segment from the first:
@@ -475,7 +475,7 @@ Create a 3rd container using the new --ipc=container:CONTAINERID option, now it 
  $ sudo ipcs -m
 
  ------ Shared Memory Segments --------
- key        shmid      owner      perms      bytes      nattch     status      
+ key        shmid      owner      perms      bytes      nattch     status
  0x0000162e 0          root       666        27         1
 ```
 

@@ -113,7 +113,7 @@ indicates the number of page faults which happened since the creation of
 the cgroup; this number can never decrease).
 
 
- - **cache:**  
+ - **cache:**
    the amount of memory used by the processes of this control group
    that can be associated precisely with a block on a block device.
    When you read from and write to files on disk, this amount will
@@ -123,16 +123,16 @@ the cgroup; this number can never decrease).
    `mmap`). It also accounts for the memory used by
    `tmpfs` mounts, though the reasons are unclear.
 
- - **rss:**  
+ - **rss:**
    the amount of memory that *doesn't* correspond to anything on disk:
    stacks, heaps, and anonymous memory maps.
 
- - **mapped_file:**  
+ - **mapped_file:**
    indicates the amount of memory mapped by the processes in the
    control group. It doesn't give you information about *how much*
    memory is used; it rather tells you *how* it is used.
 
- - **pgfault and pgmajfault:**  
+ - **pgfault and pgmajfault:**
    indicate the number of times that a process of the cgroup triggered
    a "page fault" and a "major fault", respectively. A page fault
    happens when a process accesses a part of its virtual memory space
@@ -151,10 +151,10 @@ the cgroup; this number can never decrease).
    it just has to duplicate an existing page, or allocate an empty
    page, it's a regular (or "minor") fault.
 
- - **swap:**  
+ - **swap:**
    the amount of swap currently used by the processes in this cgroup.
 
- - **active_anon and inactive_anon:**  
+ - **active_anon and inactive_anon:**
    the amount of *anonymous* memory that has been identified has
    respectively *active* and *inactive* by the kernel. "Anonymous"
    memory is the memory that is *not* linked to disk pages. In other
@@ -169,7 +169,7 @@ the cgroup; this number can never decrease).
    retagged "active". When the kernel is almost out of memory, and time
    comes to swap out to disk, the kernel will swap "inactive" pages.
 
- - **active_file and inactive_file:**  
+ - **active_file and inactive_file:**
    cache memory, with *active* and *inactive* similar to the *anon*
    memory above. The exact formula is cache = **active_file** +
    **inactive_file** + **tmpfs**. The exact rules used by the kernel
@@ -180,14 +180,14 @@ the cgroup; this number can never decrease).
    since it can be reclaimed immediately (while anonymous pages and
    dirty/modified pages have to be written to disk first).
 
- - **unevictable:**  
+ - **unevictable:**
    the amount of memory that cannot be reclaimed; generally, it will
    account for memory that has been "locked" with `mlock`.
    It is often used by crypto frameworks to make sure that
    secret keys and other sensitive material never gets swapped out to
    disk.
 
- - **memory and memsw limits:**  
+ - **memory and memsw limits:**
    These are not really metrics, but a reminder of the limits applied
    to this cgroup. The first one indicates the maximum amount of
    physical memory that can be used by the processes of this control
@@ -235,21 +235,21 @@ file in the kernel documentation, here is a short list of the most
 relevant ones:
 
 
- - **blkio.sectors:**  
+ - **blkio.sectors:**
    contain the number of 512-bytes sectors read and written by the
    processes member of the cgroup, device by device. Reads and writes
    are merged in a single counter.
 
- - **blkio.io_service_bytes:**  
+ - **blkio.io_service_bytes:**
    indicates the number of bytes read and written by the cgroup. It has
    4 counters per device, because for each device, it differentiates
    between synchronous vs. asynchronous I/O, and reads vs. writes.
 
- - **blkio.io_serviced:**  
+ - **blkio.io_serviced:**
    the number of I/O operations performed, regardless of their size. It
    also has 4 counters per device.
 
- - **blkio.io_queued:**  
+ - **blkio.io_queued:**
    indicates the number of I/O operations currently queued for this
    cgroup. In other words, if the cgroup isn't doing any I/O, this will
    be zero. Note that the opposite is not true. In other words, if

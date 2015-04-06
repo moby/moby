@@ -36,7 +36,7 @@ What is the Dockerfile instruction to specify the base image?<br>
 	<input type="text" class="level">
 	<div style="display:none;" id="level2_error7" class="alert alert-error level_error">The right answer was <code>ENTRYPOINT</code> or <code>CMD</code></div><br>
 	<p>
-	
+
 	<div class="alert alert-success" id="all_good" style="display:none;">Congratulations, you made no mistake!<br />
 	Tell the world <a href="https://twitter.com/share" class="twitter-share-button" data-url="http://www.docker.io/learn/dockerfile/level1/" data-text="I just successfully answered questions of the #Dockerfile tutorial Level 1. What's your score?" data-via="docker" >Tweet</a><br />
 	And try the next challenge: <a href="#fill-the-dockerfile">Fill the Dockerfile</a>
@@ -86,10 +86,10 @@ RUN apt-get install -y <input id="gcc" class="l_fill" type="text"><br>
 <br>
 <button class="btn btn-primary" id="check_level2_fill">Check the Dockerfile</button></p>
 </div>
-    
+
 ## What's next?
 <p>
-Thanks for going through our tutorial! We will be posting Level 3 in the future. 
+Thanks for going through our tutorial! We will be posting Level 3 in the future.
 
 To improve your Dockerfile writing skills even further, visit the <a href="https://docs.docker.com/articles/dockerfile_best-practices/">Dockerfile best practices page</a>.
 
