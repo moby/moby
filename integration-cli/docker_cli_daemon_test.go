@@ -834,3 +834,65 @@ func TestDaemonUnixSockCleanedUp(t *testing.T) {
 
 	logDone("daemon - unix socket is cleaned up")
 }
+
+func TestDaemonwithwrongkey(t *testing.T) {
+	type Config struct {
+		Crv string `json:"crv"`
+		D   string `json:"d"`
+		Kid string `json:"kid"`
+		Kty string `json:"kty"`
+		X   string `json:"x"`
+		Y   string `json:"y"`
+	}
+
+	os.Remove("/etc/docker/key.json")
+	d := NewDaemon(t)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Failed to start daemon: %v", err)
+	}
+
+	if err := d.Stop(); err != nil {
+		t.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	config := &Config{}
+	bytes, err := ioutil.ReadFile("/etc/docker/key.json")
+	if err != nil {
+		t.Fatalf("Error reading key.json file: %s", err)
+	}
+
+	// byte[] to Data-Struct
+	if err := json.Unmarshal(bytes, &config); err != nil {
+		t.Fatalf("Error Unmarshal: %s", err)
+	}
+
+	//replace config.Kid with the fake value
+	config.Kid = "VSAJ:FUYR:X3H2:B2VZ:KZ6U:CJD5:K7BX:ZXHY:UZXT:P4FT:MJWG:HRJ4"
+
+	// NEW Data-Struct to byte[]
+	newBytes, err := json.Marshal(&config)
+	if err != nil {
+		t.Fatalf("Error Marshal: %s", err)
+	}
+
+	// write back
+	if err := ioutil.WriteFile("/etc/docker/key.json", newBytes, 0400); err != nil {
+		t.Fatalf("Error ioutil.WriteFile: %s", err)
+	}
+
+	d1 := NewDaemon(t)
+
+	if err := d1.Start(); err == nil {
+		d1.Stop()
+		t.Fatalf("It should not be succssful to start daemon with wrong key: %v", err)
+	}
+
+	content, _ := ioutil.ReadFile(d1.logFile.Name())
+
+	if !strings.Contains(string(content), "Public Key ID does not match") {
+		t.Fatal("Missing KeyID message from daemon logs")
+	}
+
+	os.Remove("/etc/docker/key.json")
+	logDone("daemon - it should be failed to start daemon with wrong key")
+}
