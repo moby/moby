@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
-func NewDriver(name, root, libPath, initPath string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
+func NewDriver(name string, options []string, root, libPath, initPath string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
 	switch name {
 	case "lxc":
 		// we want to give the lxc driver the full docker root because it needs
@@ -18,7 +18,7 @@ func NewDriver(name, root, libPath, initPath string, sysInfo *sysinfo.SysInfo) (
 		// to be backwards compatible
 		return lxc.NewDriver(root, libPath, initPath, sysInfo.AppArmor)
 	case "native":
-		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath)
+		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath, options)
 	}
 	return nil, fmt.Errorf("unknown exec driver %s", name)
 }

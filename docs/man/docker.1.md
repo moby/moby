@@ -324,15 +324,15 @@ for data and metadata:
 
 # EXEC DRIVER OPTIONS
 
-Options to the exec-driver can be specified with the **--exec-opt** flags. The
-only driver accepting options is the *native* (libcontainer) driver. Therefore
-use these flags with **-s=**native.
-
-The following is the only *native* option:
+Use the **--exec-opt** flags to specify options to the exec-driver. The only
+driver that accepts this flag is the *native* (libcontainer) driver. As a
+result, you must also specify **-s=**native for this option to have effect. The 
+following is the only *native* option:
 
 #### native.cgroupdriver
-Specifies the management of the container's cgroups. As of now the only viable
-options are `cgroupfs` and `systemd`. The option will always fallback to `cgroupfs`.
+Specifies the management of the container's `cgroups`. You can specify 
+`cgroupfs` or `systemd`. If you specify `systemd` and it is not available, the 
+system uses `cgroupfs`.
 
 #### Client
 For specific client examples please see the man page for the specific Docker

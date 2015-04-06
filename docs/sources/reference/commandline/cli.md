@@ -442,7 +442,7 @@ Currently supported options are:
     > Otherwise, set this flag for migrating existing Docker daemons to a
     > daemon with a supported environment.
 
-### Docker exec-driver option
+### Docker execdriver option
 
 The Docker daemon uses a specifically built `libcontainer` execution driver as its
 interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
@@ -452,27 +452,21 @@ https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
 not where the primary development of new functionality is taking place.
 Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
 
-#### Exec driver options
+#### Options for the native execdriver
 
-Particular exec-driver can be configured with options specified with
-`--exec-opt` flags. The only driver accepting options is `native`
-(libcontainer) as of now. All its options are prefixed with `native`.
+You can configure the `native` (libcontainer) execdriver using options specified
+with the `--exec-opt` flag. All the flag's options have the `native` prefix. A
+single `native.cgroupdriver` option is available.
 
-Currently supported options are:
+The `native.cgroupdriver` option specifies the management of the container's 
+cgroups. You can specify `cgroupfs` or `systemd`. If you specify `systemd` and 
+it is not available, the system uses `cgroupfs`. By default, if no option is 
+specified, the execdriver first tries `systemd` and falls back to `cgroupfs`. 
+This example sets the execdriver to `cgroupfs`:
 
- *  `native.cgroupdriver`
-
-    Specifies the management of the container's cgroups. As of now the only
-    viable options are `cgroupfs` and `systemd`. The option will always
-    fallback to `cgroupfs`. By default, if no option is specified, the
-    execdriver will try `systemd` and fallback to `cgroupfs`. Same applies if
-    `systemd` is passed as the `cgroupdriver` but is not capable of being used.
-
-    Example use:
-
-        $ sudo docker -d --exec-opt native.cgroupdriver=cgroupfs
-
-
+    $ sudo docker -d --exec-opt native.cgroupdriver=cgroupfs
+     
+Setting this option applies to all containers the daemon launches.
 
 ### Daemon DNS options
 
