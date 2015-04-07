@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/configs"
 )
 
@@ -481,6 +482,17 @@ func TestProcessCaps(t *testing.T) {
 }
 
 func TestFreeze(t *testing.T) {
+	testFreeze(t, false)
+}
+
+func TestSystemdFreeze(t *testing.T) {
+	if !systemd.UseSystemd() {
+		t.Skip("Systemd is unsupported")
+	}
+	testFreeze(t, true)
+}
+
+func testFreeze(t *testing.T, systemd bool) {
 	if testing.Short() {
 		return
 	}
@@ -497,6 +509,9 @@ func TestFreeze(t *testing.T) {
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
+	if systemd {
+		config.Cgroups.Slice = "system.slice"
+	}
 
 	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
 	if err != nil {
@@ -558,4 +573,78 @@ func TestFreeze(t *testing.T) {
 	if !s.Success() {
 		t.Fatal(s.String())
 	}
+}
+
+func TestContainerState(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	root, err := newTestRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+
+	rootfs, err := newRootfs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	l, err := os.Readlink("/proc/1/ns/ipc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := newTemplateConfig(rootfs)
+	config.Namespaces = configs.Namespaces([]configs.Namespace{
+		{Type: configs.NEWNS},
+		{Type: configs.NEWUTS},
+		// host for IPC
+		//{Type: configs.NEWIPC},
+		{Type: configs.NEWPID},
+		{Type: configs.NEWNET},
+	})
+
+	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container, err := factory.Create("test", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer container.Destroy()
+
+	stdinR, stdinW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &libcontainer.Process{
+		Args:  []string{"cat"},
+		Env:   standardEnvironment,
+		Stdin: stdinR,
+	}
+	err = container.Start(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdinR.Close()
+	defer p.Signal(os.Kill)
+
+	st, err := container.State()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l1, err := os.Readlink(st.NamespacePaths[configs.NEWIPC])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l1 != l {
+		t.Fatal("Container using non-host ipc namespace")
+	}
+	stdinW.Close()
+	p.Wait()
 }

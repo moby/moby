@@ -29,3 +29,5 @@ local:
 validate:
 	hack/validate.sh
 
+binary: all
+	docker run --rm --privileged -v $(CURDIR)/bundles:/go/bin dockercore/libcontainer make direct-install
