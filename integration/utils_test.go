@@ -329,10 +329,6 @@ func fakeTar() (io.ReadCloser, error) {
 	return ioutil.NopCloser(buf), nil
 }
 
-func getAllImages(eng *engine.Engine, t *testing.T) *engine.Table {
-	return getImages(eng, t, true, "")
-}
-
 func getImages(eng *engine.Engine, t *testing.T, all bool, filter string) *engine.Table {
 	job := eng.Job("images")
 	job.SetenvBool("all", all)
