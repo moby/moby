@@ -10,7 +10,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/libtrust"
@@ -32,65 +31,13 @@ func ValidateHost(val string) (string, error) {
 	return host, nil
 }
 
-// TODO remove, used on < 1.5 in getContainersJSON
-// TODO this can go away when we get rid of engine.table
-func DisplayablePorts(ports *engine.Table) string {
-	var (
-		result          = []string{}
-		hostMappings    = []string{}
-		firstInGroupMap map[string]int
-		lastInGroupMap  map[string]int
-	)
-	firstInGroupMap = make(map[string]int)
-	lastInGroupMap = make(map[string]int)
-	ports.SetKey("PrivatePort")
-	ports.Sort()
-	for _, port := range ports.Data {
-		var (
-			current      = port.GetInt("PrivatePort")
-			portKey      = port.Get("Type")
-			firstInGroup int
-			lastInGroup  int
-		)
-		if port.Get("IP") != "" {
-			if port.GetInt("PublicPort") != current {
-				hostMappings = append(hostMappings, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
-				continue
-			}
-			portKey = fmt.Sprintf("%s/%s", port.Get("IP"), port.Get("Type"))
-		}
-		firstInGroup = firstInGroupMap[portKey]
-		lastInGroup = lastInGroupMap[portKey]
-
-		if firstInGroup == 0 {
-			firstInGroupMap[portKey] = current
-			lastInGroupMap[portKey] = current
-			continue
-		}
-
-		if current == (lastInGroup + 1) {
-			lastInGroupMap[portKey] = current
-			continue
-		}
-		result = append(result, FormGroup(portKey, firstInGroup, lastInGroup))
-		firstInGroupMap[portKey] = current
-		lastInGroupMap[portKey] = current
-	}
-	for portKey, firstInGroup := range firstInGroupMap {
-		result = append(result, FormGroup(portKey, firstInGroup, lastInGroupMap[portKey]))
-	}
-	result = append(result, hostMappings...)
-	return strings.Join(result, ", ")
-}
-
 type ByPrivatePort []types.Port
 
 func (r ByPrivatePort) Len() int           { return len(r) }
 func (r ByPrivatePort) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r ByPrivatePort) Less(i, j int) bool { return r[i].PrivatePort < r[j].PrivatePort }
 
-// TODO Rename to DisplayablePorts (remove "New") when engine.Table goes away
-func NewDisplayablePorts(ports []types.Port) string {
+func DisplayablePorts(ports []types.Port) string {
 	var (
 		result          = []string{}
 		hostMappings    = []string{}

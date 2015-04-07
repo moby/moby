@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 )
 
@@ -114,21 +115,17 @@ func TestRestartKillWait(t *testing.T) {
 
 	id := createTestContainer(eng, config, t)
 
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err := job.Stdout.AddListTable()
+	containers, err := runtime.Containers(&daemon.ContainersConfig{All: true})
+
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
+		t.Errorf("Error getting containers1: %q", err)
 	}
 
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	if len(containers) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(containers))
 	}
 
-	job = eng.Job("start", id)
+	job := eng.Job("start", id)
 	if err := job.ImportEnv(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -141,23 +138,19 @@ func TestRestartKillWait(t *testing.T) {
 	}
 
 	eng = newTestEngine(t, false, runtime.Config().Root)
+	runtime = mkDaemonFromEngine(eng, t)
 
-	job = eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err = job.Stdout.AddListTable()
+	containers, err = runtime.Containers(&daemon.ContainersConfig{All: true})
+
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("Error getting containers1: %q", err)
 	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
+	if len(containers) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(containers))
 	}
 
 	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
-		job = eng.Job("wait", outs.Data[0].Get("Id"))
+		job = eng.Job("wait", containers[0].ID)
 		if err := job.Run(); err != nil {
 			t.Fatal(err)
 		}
@@ -166,7 +159,8 @@ func TestRestartKillWait(t *testing.T) {
 
 func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
+	runtime := mkDaemonFromEngine(eng, t)
+	defer runtime.Nuke()
 
 	config, hostConfig, _, err := parseRun([]string{"-i", unitTestImageID, "/bin/cat"})
 	if err != nil {
@@ -174,22 +168,13 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 	}
 
 	id := createTestContainer(eng, config, t)
+	containers, err := runtime.Containers(&daemon.ContainersConfig{All: true})
 
-	job := eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err := job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
+	if len(containers) != 1 {
+		t.Errorf("Expected 1 container, %v found", len(containers))
 	}
 
-	if len(outs.Data) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(outs.Data))
-	}
-
-	job = eng.Job("start", id)
+	job := eng.Job("start", id)
 	if err := job.ImportEnv(hostConfig); err != nil {
 		t.Fatal(err)
 	}
@@ -228,18 +213,10 @@ func TestCreateStartRestartStopStartKillRm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job = eng.Job("containers")
-	job.SetenvBool("all", true)
-	outs, err = job.Stdout.AddListTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
+	containers, err = runtime.Containers(&daemon.ContainersConfig{All: true})
 
-	if len(outs.Data) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(outs.Data))
+	if len(containers) != 0 {
+		t.Errorf("Expected 0 container, %v found", len(containers))
 	}
 }
 

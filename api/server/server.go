@@ -374,42 +374,32 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 }
 
 func getContainersJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+	var err error
+	if err = parseForm(r); err != nil {
 		return err
 	}
-	var (
-		err  error
-		outs *engine.Table
-		job  = eng.Job("containers")
-	)
 
-	job.Setenv("all", r.Form.Get("all"))
-	job.Setenv("size", r.Form.Get("size"))
-	job.Setenv("since", r.Form.Get("since"))
-	job.Setenv("before", r.Form.Get("before"))
-	job.Setenv("limit", r.Form.Get("limit"))
-	job.Setenv("filters", r.Form.Get("filters"))
+	config := &daemon.ContainersConfig{
+		All:     r.Form.Get("all") == "1",
+		Size:    r.Form.Get("size") == "1",
+		Since:   r.Form.Get("since"),
+		Before:  r.Form.Get("before"),
+		Filters: r.Form.Get("filters"),
+	}
 
-	if version.GreaterThanOrEqualTo("1.5") {
-		streamJSON(job, w, false)
-	} else if outs, err = job.Stdout.AddTable(); err != nil {
-		return err
-	}
-	if err = job.Run(); err != nil {
-		return err
-	}
-	if version.LessThan("1.5") { // Convert to legacy format
-		for _, out := range outs.Data {
-			ports := engine.NewTable("", 0)
-			ports.ReadListFrom([]byte(out.Get("Ports")))
-			out.Set("Ports", api.DisplayablePorts(ports))
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if _, err = outs.WriteListTo(w); err != nil {
+	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
+		config.Limit, err = strconv.Atoi(tmpLimit)
+		if err != nil {
 			return err
 		}
 	}
-	return nil
+
+	containers, err := getDaemon(eng).Containers(config)
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, containers)
 }
 
 func getContainersStats(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
