@@ -237,7 +237,7 @@ func TestEventsImageImport(t *testing.T) {
 	event := strings.TrimSpace(events[len(events)-1])
 
 	if !strings.HasSuffix(event, ": import") {
-		t.Fatalf("Missing pull event - got:%q", event)
+		t.Fatalf("Missing import event - got:%q", event)
 	}
 
 	logDone("events - image import is logged")
