@@ -141,6 +141,9 @@ container.Resume()
 It is able to spawn new containers or join existing containers.  A root
 filesystem must be provided for use along with a container configuration file.
 
+To build `nsinit`, run `make binary`. It will save the binary into
+`bundles/nsinit`.
+
 To use `nsinit`, cd into a Linux rootfs and copy a `container.json` file into 
 the directory with your specified configuration. Environment, networking, 
 and different capabilities for the container are specified in this file. 

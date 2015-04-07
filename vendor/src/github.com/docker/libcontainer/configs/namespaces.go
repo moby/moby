@@ -16,6 +16,17 @@ const (
 	NEWUSER NamespaceType = "NEWUSER"
 )
 
+func NamespaceTypes() []NamespaceType {
+	return []NamespaceType{
+		NEWNET,
+		NEWPID,
+		NEWNS,
+		NEWUTS,
+		NEWIPC,
+		NEWUSER,
+	}
+}
+
 // Namespace defines configuration for each namespace.  It specifies an
 // alternate path that is able to be joined via setns.
 type Namespace struct {
