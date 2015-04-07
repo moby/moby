@@ -3,10 +3,8 @@
 package native
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -301,14 +299,6 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 		return nil, fmt.Errorf("active container for %s does not exist", id)
 	}
 	return active.Processes()
-}
-
-func (d *driver) writeContainerFile(container *configs.Config, id string) error {
-	data, err := json.Marshal(container)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(filepath.Join(d.root, id, "container.json"), data, 0655)
 }
 
 func (d *driver) cleanContainer(id string) error {
