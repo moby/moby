@@ -306,5 +306,11 @@ func (c *linuxContainer) currentState() (*State, error) {
 	for _, ns := range c.config.Namespaces {
 		state.NamespacePaths[ns.Type] = ns.GetPath(c.initProcess.pid())
 	}
+	for _, nsType := range configs.NamespaceTypes() {
+		if _, ok := state.NamespacePaths[nsType]; !ok {
+			ns := configs.Namespace{Type: nsType}
+			state.NamespacePaths[ns.Type] = ns.GetPath(c.initProcess.pid())
+		}
+	}
 	return state, nil
 }

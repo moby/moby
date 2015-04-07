@@ -3249,6 +3249,35 @@ func TestRunNetHost(t *testing.T) {
 	logDone("run - net host mode")
 }
 
+func TestRunNetContainerWhichHost(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
+
+	hostNet, err := os.Readlink("/proc/1/ns/net")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--net=host", "--name=test", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--net=container:test", "busybox", "readlink", "/proc/self/ns/net")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	out = strings.Trim(out, "\n")
+	if hostNet != out {
+		t.Fatalf("Container should have host network namespace")
+	}
+
+	logDone("run - net container mode, where container in host mode")
+}
+
 func TestRunAllowPortRangeThroughPublish(t *testing.T) {
 	defer deleteAllContainers()
 
