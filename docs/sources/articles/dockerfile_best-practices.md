@@ -398,7 +398,15 @@ troubleshoot, and maintain.
 
 ### [`ONBUILD`](https://docs.docker.com/reference/builder/#onbuild)
 
-`ONBUILD` is only useful for images that are going to be built `FROM` a given
+An `ONBUILD` command executes after the current `Dockerfile` build completes.
+`ONBUILD` executes in any child image derived `FROM` the current image.  Think
+of the `ONBUILD` command as an instruction the parent `Dockerfile` gives
+to the child `Dockerfile`.
+
+A Docker build executes `ONBUILD` commands before any command in a child
+`Dockerfile`.
+
+`ONBUILD` is useful for images that are going to be built `FROM` a given
 image. For example, you would use `ONBUILD` for a language stack image that
 builds arbitrary user software written in that language within the
 `Dockerfile`, as you can see in [Ruby’s `ONBUILD` variants](https://github.com/docker-library/ruby/blob/master/2.1/onbuild/Dockerfile). 
