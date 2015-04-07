@@ -284,9 +284,9 @@ func FindLoopDeviceFor(file *os.File) *os.File {
 	return nil
 }
 
-func UdevWait(cookie uint) error {
-	if res := DmUdevWait(cookie); res != 1 {
-		logrus.Debugf("Failed to wait on udev cookie %d", cookie)
+func UdevWait(cookie *uint) error {
+	if res := DmUdevWait(*cookie); res != 1 {
+		logrus.Debugf("Failed to wait on udev cookie %d", *cookie)
 		return ErrUdevWait
 	}
 	return nil
@@ -349,8 +349,6 @@ func CookieSupported() bool {
 
 // Useful helper for cleanup
 func RemoveDevice(name string) error {
-	logrus.Debugf("[devmapper] RemoveDevice START(%s)", name)
-	defer logrus.Debugf("[devmapper] RemoveDevice END(%s)", name)
 	task, err := TaskCreateNamed(DeviceRemove, name)
 	if task == nil {
 		return err
@@ -360,7 +358,7 @@ func RemoveDevice(name string) error {
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can not set cookie: %s", err)
 	}
-	defer UdevWait(cookie)
+	defer UdevWait(&cookie)
 
 	dmSawBusy = false // reset before the task is run
 	if err = task.Run(); err != nil {
@@ -427,7 +425,7 @@ func CreatePool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	if err := task.SetCookie(&cookie, flags); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
-	defer UdevWait(cookie)
+	defer UdevWait(&cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (CreatePool) %s", err)
@@ -558,7 +556,7 @@ func ResumeDevice(name string) error {
 	if err := task.SetCookie(&cookie, 0); err != nil {
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
-	defer UdevWait(cookie)
+	defer UdevWait(&cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceResume %s", err)
@@ -634,7 +632,7 @@ func ActivateDevice(poolName string, name string, deviceId int, size uint64) err
 		return fmt.Errorf("Can't set cookie %s", err)
 	}
 
-	defer UdevWait(cookie)
+	defer UdevWait(&cookie)
 
 	if err := task.Run(); err != nil {
 		return fmt.Errorf("Error running DeviceCreate (ActivateDevice) %s", err)
