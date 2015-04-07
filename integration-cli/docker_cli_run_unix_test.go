@@ -196,7 +196,7 @@ func TestRunDeviceDirectory(t *testing.T) {
 	}
 
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "seq") {
-		t.Fatalf("expected output /dev/othersnd/timer, received %s", actual)
+		t.Fatalf("expected output /dev/othersnd/seq, received %s", actual)
 	}
 
 	logDone("run - test --device directory mounts all internal devices")
