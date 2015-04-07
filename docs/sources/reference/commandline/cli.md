@@ -86,11 +86,18 @@ be set to the non-default value by explicitly setting them to `false`:
 
 Options like `-a=[]` indicate they can be specified multiple times:
 
-    $ docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
+    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+    # or
+    $ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
 
 Sometimes this can use a more complex value string, as for `-v`:
 
     $ docker run -v /host:/container example/mysql
+
+> **Note:**
+> `-t` and `-a stderr` should not be used together due to a limitation
+> in the way pty is currently implemented.  All stderr in pty mode will
+> currently just go to stdout.
 
 ### Strings and Integers
 
@@ -870,7 +877,7 @@ Creates a new container.
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --security-opt=[]          Security options
-      -t, --tty=false            Allocate a pseudo-TTY
+      -t, --tty=false            Allocate a pseudo-TTY (NOTE: Do not use with -a stderr)
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
@@ -1801,7 +1808,7 @@ To remove an image using its digest:
       --rm=false                 Automatically remove the container when it exits
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process
-      -t, --tty=false            Allocate a pseudo-TTY
+      -t, --tty=false            Allocate a pseudo-TTY (NOTE: Do not use with -a stderr)
       -u, --user=""              Username or UID (format: <name|uid>[:<group|gid>])
       -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
