@@ -230,7 +230,10 @@ func parseBindMountSpec(spec string) (string, string, bool, error) {
 	case 3:
 		path = arr[0]
 		mountToPath = arr[1]
-		writable = validMountMode(arr[2]) && arr[2] == "rw"
+		if !validMountMode(arr[2]) {
+			return "", "", false, fmt.Errorf("invalid mode for volume: %s", arr[2])
+		}
+		writable = (arr[2] == "rw")
 	default:
 		return "", "", false, fmt.Errorf("Invalid volume specification: %s", spec)
 	}
