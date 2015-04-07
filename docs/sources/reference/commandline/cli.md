@@ -84,13 +84,19 @@ be set to the non-default value by explicitly setting them to `false`:
 
 ### Multi
 
-Options like `-a=[]` indicate they can be specified multiple times:
+You can specify options like `-a=[]` multiple times in a single command line,
+for example in these commands:
 
-    $ docker run -a stdin -a stdout -a stderr -i -t ubuntu /bin/bash
+    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+    $ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
 
-Sometimes this can use a more complex value string, as for `-v`:
+Sometimes, multiple options can call for a more complex value string as for `-v`:
 
     $ docker run -v /host:/container example/mysql
+
+> **Note**:
+> Do not use the `-t` and `-a stderr` options together due to limitations
+> in the `pty` implementation. All `stderr` in `pty` mode simply goes to `stdout`.
 
 ### Strings and Integers
 
