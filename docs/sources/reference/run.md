@@ -281,7 +281,7 @@ when sharing the host's network stack.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack
-wheras the bridge has to go through one level of virtualizaion through the
+whereas the bridge has to go through one level of virtualization through the
 docker daemon. It is recommended to run containers in this mode when their
 networking performance is critical, for example, a production Load Balancer
 or a High Performance Web Server.
