@@ -69,8 +69,8 @@ A Dockerfile is similar to a Makefile.
   multiple images. Make a note of the last image ID output by the commit before
   each new **FROM** command.
 
-  -- If no tag is given to the **FROM** instruction, latest is assumed. If the
-  used tag does not exist, an error is returned.
+  -- If no tag is given to the **FROM** instruction, Docker applies the 
+  `latest` tag. If the used tag does not exist, an error is returned.
 
 **MAINTAINER**
   -- **MAINTAINER** sets the Author field for the generated images.
