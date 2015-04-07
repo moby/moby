@@ -2,7 +2,7 @@ Docker: the Linux container engine
 ==================================
 
 Docker is an open source project to pack, ship and run any application
-as a lightweight container
+as a lightweight container.
 
 Docker containers are both *hardware-agnostic* and *platform-agnostic*.
 This means they can run anywhere, from your laptop to the largest
@@ -105,7 +105,7 @@ This is usually difficult for several reasons:
     these situations with various degrees of ease - but they all
     handle them in different and incompatible ways, which again forces
     the developer to do extra work.
-  
+
   * *Custom dependencies*. A developer may need to prepare a custom
     version of their application's dependency. Some packaging systems
     can handle custom versions of a dependency, others can't - and all
@@ -156,7 +156,7 @@ Usage examples
 ==============
 
 Docker can be used to run short-lived commands, long-running daemons
-(app servers, databases etc.), interactive shell sessions, etc.
+(app servers, databases, etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
 examples](http://docs.docker.com/examples/) in the
@@ -213,9 +213,10 @@ We are always open to suggestions on process improvements, and are always lookin
 please see the [NOTICE](https://github.com/docker/docker/blob/master/NOTICE) document in this repo.*
 
 Use and transfer of Docker may be subject to certain restrictions by the
-United States and other governments.  
+United States and other governments.
+
 It is your responsibility to ensure that your use and/or transfer does not
-violate applicable laws. 
+violate applicable laws.
 
 For more information, please see http://www.bis.doc.gov
 
@@ -230,14 +231,14 @@ Other Docker Related Projects
 =============================
 There are a number of projects under development that are based on Docker's
 core technology. These projects expand the tooling built around the
-Docker platform to broaden its application and utility. 
+Docker platform to broaden its application and utility.
 
 * [Docker Registry](https://github.com/docker/distribution): Registry 
 server for Docker (hosting/delivery of repositories and images)
 * [Docker Machine](https://github.com/docker/machine): Machine management 
-for a container-centric world 
+for a container-centric world
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
-system 
+system
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
 * [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
