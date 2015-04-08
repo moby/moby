@@ -377,7 +377,7 @@ func TestPsListContainersFilterID(t *testing.T) {
 	firstID := strings.TrimSpace(out)
 
 	// start another container
-	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "sleep 360")
+	runCmd = exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}
@@ -407,7 +407,7 @@ func TestPsListContainersFilterName(t *testing.T) {
 	firstID := strings.TrimSpace(out)
 
 	// start another container
-	runCmd = exec.Command(dockerBinary, "run", "-d", "--name=b_name_to_match", "busybox", "sh", "-c", "sleep 360")
+	runCmd = exec.Command(dockerBinary, "run", "-d", "--name=b_name_to_match", "busybox", "top")
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
 		t.Fatal(out, err)
 	}

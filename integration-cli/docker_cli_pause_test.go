@@ -14,7 +14,7 @@ func TestPause(t *testing.T) {
 	name := "testeventpause"
 	out, _, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	dockerCmd(t, "run", "-d", "--name", name, image, "sleep", "2")
+	dockerCmd(t, "run", "-d", "--name", name, image, "top")
 
 	dockerCmd(t, "pause", name)
 	pausedContainers, err := getSliceOfPausedContainers()
@@ -44,11 +44,6 @@ func TestPause(t *testing.T) {
 		t.Fatalf("event should be unpause, not %#v", unpauseEvent)
 	}
 
-	waitCmd := exec.Command(dockerBinary, "wait", name)
-	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
-		t.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
-	}
-
 	logDone("pause - pause/unpause is logged")
 }
 
@@ -63,7 +58,7 @@ func TestPauseMultipleContainers(t *testing.T) {
 	out, _, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	for _, name := range containers {
-		dockerCmd(t, "run", "-d", "--name", name, image, "sleep", "2")
+		dockerCmd(t, "run", "-d", "--name", name, image, "top")
 	}
 	dockerCmd(t, append([]string{"pause"}, containers...)...)
 	pausedContainers, err := getSliceOfPausedContainers()
@@ -98,13 +93,6 @@ func TestPauseMultipleContainers(t *testing.T) {
 	for _, unpauseEvent := range unpauseEvents {
 		if unpauseEvent[len(unpauseEvent)-1] != "unpause" {
 			t.Fatalf("event should be unpause, not %#v", unpauseEvent)
-		}
-	}
-
-	for _, name := range containers {
-		waitCmd := exec.Command(dockerBinary, "wait", name)
-		if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
-			t.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
 		}
 	}
 
