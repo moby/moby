@@ -62,8 +62,15 @@ which is officially supported by Docker.
 2. Restart your system. This is necessary for Debian to use your new kernel.
 
 3. Install Docker using the get.docker.com script:
- 
+
     `curl -sSL https://get.docker.com/ | sh`
+
+>**Note**: If your company is behind a filtering proxy, you may find that the
+>`apt-key`
+>command fails for the Docker repo during installation. To work around this,
+>add the key directly using the following:
+>
+>       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
 
 ## Giving non-root access
 
