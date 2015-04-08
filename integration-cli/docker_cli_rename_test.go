@@ -97,7 +97,7 @@ func TestRenameCheckNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	logDone("rename - running container")
+	logDone("rename - old name released")
 }
 
 func TestRenameInvalidName(t *testing.T) {
