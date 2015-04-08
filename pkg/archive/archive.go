@@ -388,22 +388,6 @@ func Tar(path string, compression Compression) (io.ReadCloser, error) {
 	return TarWithOptions(path, &TarOptions{Compression: compression})
 }
 
-func escapeName(name string) string {
-	escaped := make([]byte, 0)
-	for i, c := range []byte(name) {
-		if i == 0 && c == '/' {
-			continue
-		}
-		// all printable chars except "-" which is 0x2d
-		if (0x20 <= c && c <= 0x7E) && c != 0x2d {
-			escaped = append(escaped, c)
-		} else {
-			escaped = append(escaped, fmt.Sprintf("\\%03o", c)...)
-		}
-	}
-	return string(escaped)
-}
-
 // TarWithOptions creates an archive from the directory at `path`, only including files whose relative
 // paths are included in `options.IncludeFiles` (if non-nil) or not in `options.ExcludePatterns`.
 func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) {
