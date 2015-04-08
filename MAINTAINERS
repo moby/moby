@@ -429,7 +429,6 @@ made through a pull request.
 				"dmcg",
 				"dmp42",
 				"jlhawn",
-				"joffrey",
 				"samalba",
 				"sday",
 				"vbatts"
@@ -580,11 +579,6 @@ made through a pull request.
 	Name = "Josh Hawn"
 	Email = "josh.hawn@docker.com"
 	Github = "jlhawn"
-
-	[people.joffrey]
-	Name = "Joffrey Fuhrer"
-	Email = "joffrey@docker.com"
-	Github = "shin-"
 
 	[people.lk4d4]
 	Name = "Alexander Morozov"
