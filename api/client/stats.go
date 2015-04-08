@@ -99,9 +99,9 @@ func (s *containerStats) Display(w io.Writer) error {
 	fmt.Fprintf(w, "%s\t%.2f%%\t%s/%s\t%.2f%%\t%s/%s\n",
 		s.Name,
 		s.CPUPercentage,
-		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
+		units.HumanSize(s.Memory), units.HumanSize(s.MemoryLimit),
 		s.MemoryPercentage,
-		units.BytesSize(s.NetworkRx), units.BytesSize(s.NetworkTx))
+		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx))
 	return nil
 }
 
