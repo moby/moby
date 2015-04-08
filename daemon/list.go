@@ -1,15 +1,12 @@
 package daemon
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/graphdb"
@@ -23,35 +20,35 @@ func (daemon *Daemon) List() []*Container {
 	return daemon.containers.List()
 }
 
-type ByCreated []types.Container
+type ContainersConfig struct {
+	All     bool
+	Since   string
+	Before  string
+	Limit   int
+	Size    bool
+	Filters string
+}
 
-func (r ByCreated) Len() int           { return len(r) }
-func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
-
-func (daemon *Daemon) Containers(job *engine.Job) error {
+func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
 	var (
 		foundBefore bool
 		displayed   int
-		all         = job.GetenvBool("all")
-		since       = job.Getenv("since")
-		before      = job.Getenv("before")
-		n           = job.GetenvInt("limit")
-		size        = job.GetenvBool("size")
+		all         = config.All
+		n           = config.Limit
 		psFilters   filters.Args
 		filtExited  []int
 	)
-	containers := []types.Container{}
+	containers := []*types.Container{}
 
-	psFilters, err := filters.FromParam(job.Getenv("filters"))
+	psFilters, err := filters.FromParam(config.Filters)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if i, ok := psFilters["exited"]; ok {
 		for _, value := range i {
 			code, err := strconv.Atoi(value)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			filtExited = append(filtExited, code)
 		}
@@ -71,17 +68,17 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 	}, 1)
 
 	var beforeCont, sinceCont *Container
-	if before != "" {
-		beforeCont, err = daemon.Get(before)
+	if config.Before != "" {
+		beforeCont, err = daemon.Get(config.Before)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	if since != "" {
-		sinceCont, err = daemon.Get(since)
+	if config.Since != "" {
+		sinceCont, err = daemon.Get(config.Since)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -89,7 +86,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 	writeCont := func(container *Container) error {
 		container.Lock()
 		defer container.Unlock()
-		if !container.Running && !all && n <= 0 && since == "" && before == "" {
+		if !container.Running && !all && n <= 0 && config.Since == "" && config.Before == "" {
 			return nil
 		}
 		if !psFilters.Match("name", container.Name) {
@@ -104,7 +101,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			return nil
 		}
 
-		if before != "" && !foundBefore {
+		if config.Before != "" && !foundBefore {
 			if container.ID == beforeCont.ID {
 				foundBefore = true
 			}
@@ -113,7 +110,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 		if n > 0 && displayed == n {
 			return errLast
 		}
-		if since != "" {
+		if config.Since != "" {
 			if container.ID == sinceCont.ID {
 				return errLast
 			}
@@ -135,7 +132,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			return nil
 		}
 		displayed++
-		newC := types.Container{
+		newC := &types.Container{
 			ID:    container.ID,
 			Names: names[container.ID],
 		}
@@ -184,7 +181,7 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 			}
 		}
 
-		if size {
+		if config.Size {
 			sizeRw, sizeRootFs := container.GetSize()
 			newC.SizeRw = int(sizeRw)
 			newC.SizeRootFs = int(sizeRootFs)
@@ -197,14 +194,10 @@ func (daemon *Daemon) Containers(job *engine.Job) error {
 	for _, container := range daemon.List() {
 		if err := writeCont(container); err != nil {
 			if err != errLast {
-				return err
+				return nil, err
 			}
 			break
 		}
 	}
-	sort.Sort(sort.Reverse(ByCreated(containers)))
-	if err = json.NewEncoder(job.Stdout).Encode(containers); err != nil {
-		return err
-	}
-	return nil
+	return containers, nil
 }
