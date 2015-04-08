@@ -562,7 +562,7 @@ the number of containers running on the system.
 For example, consider three containers, one has a cpu-share of 1024 and
 two others have a cpu-share setting of 512. When processes in all three
 containers attempt to use 100% of CPU, the first container would receive
-50% of the total CPU time. If you add a fouth container with a cpu-share
+50% of the total CPU time. If you add a fourth container with a cpu-share
 of 1024, the first container only gets 33% of the CPU. The remaining containers
 receive 16.5%, 16.5% and 33% of the CPU.
 
