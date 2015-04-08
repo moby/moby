@@ -472,7 +472,7 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
+	defer dockerCmd(t, "rm", "-fv", cleanedContainerID)
 
 	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
 	if err != nil || strings.TrimSpace(out) != "0" {

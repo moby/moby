@@ -340,16 +340,11 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte,
 }
 
 func deleteContainer(container string) error {
-	container = strings.Replace(container, "\n", " ", -1)
-	container = strings.Trim(container, " ")
-	killArgs := fmt.Sprintf("kill %v", container)
-	killSplitArgs := strings.Split(killArgs, " ")
-	killCmd := exec.Command(dockerBinary, killSplitArgs...)
-	runCommand(killCmd)
-	rmArgs := fmt.Sprintf("rm -v %v", container)
-	rmSplitArgs := strings.Split(rmArgs, " ")
-	rmCmd := exec.Command(dockerBinary, rmSplitArgs...)
-	exitCode, err := runCommand(rmCmd)
+	container = strings.TrimSpace(strings.Replace(container, "\n", " ", -1))
+	killArgs := strings.Split(fmt.Sprintf("kill %v", container), " ")
+	runCommand(exec.Command(dockerBinary, killArgs...))
+	rmArgs := strings.Split(fmt.Sprintf("rm -v %v", container), " ")
+	exitCode, err := runCommand(exec.Command(dockerBinary, rmArgs...))
 	// set error manually if not set
 	if exitCode != 0 && err == nil {
 		err = fmt.Errorf("failed to remove container: `docker rm` exit is non-zero")
