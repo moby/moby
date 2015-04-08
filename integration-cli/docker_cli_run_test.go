@@ -3428,13 +3428,24 @@ func TestRunVolumesFromRestartAfterRemoved(t *testing.T) {
 func TestRunContainerWithRmFlagExitCodeNotEqualToZero(t *testing.T) {
 	defer deleteAllContainers()
 
-	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "ls", "/notexists")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err == nil {
-		t.Fatal("Expected docker run to fail", out, err)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "ls", "/notexists")
+		out, _, err := runCommandWithOutput(runCmd)
+		if err == nil {
+			t.Fatal("Expected docker run to fail", out, err)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("container is running but should have failed")
 	}
 
-	out, err = getAllContainers()
+	out, err := getAllContainers()
 	if err != nil {
 		t.Fatal(out, err)
 	}
@@ -3449,13 +3460,24 @@ func TestRunContainerWithRmFlagExitCodeNotEqualToZero(t *testing.T) {
 func TestRunContainerWithRmFlagCannotStartContainer(t *testing.T) {
 	defer deleteAllContainers()
 
-	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "commandNotFound")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err == nil {
-		t.Fatal("Expected docker run to fail", out, err)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "commandNotFound")
+		out, _, err := runCommandWithOutput(runCmd)
+		if err == nil {
+			t.Fatal("Expected docker run to fail", out, err)
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("container is running but should have failed")
 	}
 
-	out, err = getAllContainers()
+	out, err := getAllContainers()
 	if err != nil {
 		t.Fatal(out, err)
 	}
