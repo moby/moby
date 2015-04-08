@@ -77,7 +77,8 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 		return nil, err
 	}
 
-	return v, r.add(v)
+	r.add(v)
+	return v, nil
 }
 
 func (r *Repository) restore() error {
@@ -103,9 +104,7 @@ func (r *Repository) restore() error {
 				continue
 			}
 		}
-		if err := r.add(vol); err != nil {
-			logrus.Debugf("Error restoring volume: %v", err)
-		}
+		r.add(vol)
 	}
 	return nil
 }
@@ -125,12 +124,11 @@ func (r *Repository) get(path string) *Volume {
 	return r.volumes[filepath.Clean(path)]
 }
 
-func (r *Repository) add(volume *Volume) error {
+func (r *Repository) add(volume *Volume) {
 	if vol := r.get(volume.Path); vol != nil {
-		return fmt.Errorf("Volume exists: %s", volume.ID)
+		return
 	}
 	r.volumes[volume.Path] = volume
-	return nil
 }
 
 func (r *Repository) Delete(path string) error {
