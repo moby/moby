@@ -117,6 +117,11 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	errors := make(chan error)
 
 	layersDownloaded := false
+	imgIDs := []string{}
+	sessionID := p.session.ID()
+	defer func() {
+		p.graph.Release(sessionID, imgIDs...)
+	}()
 	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
@@ -143,6 +148,10 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 				return
 			}
 			defer p.poolRemove("pull", "img:"+img.ID)
+
+			// we need to retain it until tagging
+			p.graph.Retain(sessionID, img.ID)
+			imgIDs = append(imgIDs, img.ID)
 
 			out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, p.repoInfo.CanonicalName), nil))
 			success := false
@@ -225,6 +234,11 @@ func (p *v1Puller) pullImage(imgID, endpoint string, token []string) (bool, erro
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Pulling dependent layers", nil))
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
+
+	sessionID := p.session.ID()
+	// As imgID has been retained in pullRepository, no need to retain again
+	p.graph.Retain(sessionID, history[1:]...)
+	defer p.graph.Release(sessionID, history[1:]...)
 
 	layersDownloaded := false
 	for i := len(history) - 1; i >= 0; i-- {
