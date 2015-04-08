@@ -161,17 +161,6 @@ func streamJSON(job *engine.Job, w http.ResponseWriter, flush bool) {
 	}
 }
 
-func getBoolParam(value string) (bool, error) {
-	if value == "" {
-		return false, nil
-	}
-	ret, err := strconv.ParseBool(value)
-	if err != nil {
-		return false, fmt.Errorf("Bad parameter")
-	}
-	return ret, nil
-}
-
 func getDaemon(eng *engine.Engine) *daemon.Daemon {
 	return eng.HackGetGlobalVar("httpapi.daemon").(*daemon.Daemon)
 }
