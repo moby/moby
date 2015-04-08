@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -85,46 +84,43 @@ func TestHistoryNonExistentImage(t *testing.T) {
 }
 
 func TestHistoryImageWithComment(t *testing.T) {
+	name := "testhistoryimagewithcomment"
+	defer deleteContainer(name)
+	defer deleteImages(name)
 
 	// make a image through docker commit <container id> [ -m messages ]
-	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	//runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("failed to run container: %s, %v", out, err)
 	}
 
-	cleanedContainerID := stripTrailingCharacters(out)
-
-	waitCmd := exec.Command(dockerBinary, "wait", cleanedContainerID)
-	if _, _, err = runCommandWithOutput(waitCmd); err != nil {
+	waitCmd := exec.Command(dockerBinary, "wait", name)
+	if out, _, err := runCommandWithOutput(waitCmd); err != nil {
 		t.Fatalf("error thrown while waiting for container: %s, %v", out, err)
 	}
 
-	commitCmd := exec.Command(dockerBinary, "commit", "-m=This is a comment", cleanedContainerID)
-	out, _, err = runCommandWithOutput(commitCmd)
-	if err != nil {
+	comment := "This_is_a_comment"
+
+	commitCmd := exec.Command(dockerBinary, "commit", "-m="+comment, name, name)
+	if out, _, err := runCommandWithOutput(commitCmd); err != nil {
 		t.Fatalf("failed to commit container to image: %s, %v", out, err)
 	}
 
-	cleanedImageID := stripTrailingCharacters(out)
-	deleteContainer(cleanedContainerID)
-	defer deleteImages(cleanedImageID)
-
 	// test docker history <image id> to check comment messages
-	historyCmd := exec.Command(dockerBinary, "history", cleanedImageID)
+	historyCmd := exec.Command(dockerBinary, "history", name)
 	out, exitCode, err := runCommandWithOutput(historyCmd)
 	if err != nil || exitCode != 0 {
 		t.Fatalf("failed to get image history: %s, %v", out, err)
 	}
 
-	expectedValue := "This is a comment"
-
-	outputLine := strings.Split(out, "\n")[1]
-	outputTabs := regexp.MustCompile("  +").Split(outputLine, -1)
+	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
+	//outputTabs := regexp.MustCompile("  +").Split(outputLine, -1)
 	actualValue := outputTabs[len(outputTabs)-1]
 
-	if !strings.Contains(actualValue, expectedValue) {
-		t.Fatalf("Expected comments \"%s\", but found \"%s\"", expectedValue, actualValue)
+	if !strings.Contains(actualValue, comment) {
+		t.Fatalf("Expected comments %q, but found %q", comment, actualValue)
 	}
 
 	logDone("history - history on image with comment")

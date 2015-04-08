@@ -1151,17 +1151,7 @@ This will create a new Bash session in the container `ubuntu_bash`.
 
 To see how the `docker:latest` image was built:
 
-<<<<<<< HEAD
     $ docker history docker
-    IMAGE                                                              CREATED             CREATED BY                                                                                                                                                 SIZE
-    3e23a5875458790b7a806f95f7ec0d0b2a5c1659bfc899c89f939f6d5b8f7094   8 days ago          /bin/sh -c #(nop) ENV LC_ALL=C.UTF-8                                                                                                                       0 B
-    8578938dd17054dce7993d21de79e96a037400e8d28e15e7290fea4f65128a36   8 days ago          /bin/sh -c dpkg-reconfigure locales &&    locale-gen C.UTF-8 &&    /usr/sbin/update-locale LANG=C.UTF-8                                                    1.245 MB
-    be51b77efb42f67a5e96437b3e102f81e0a1399038f77bf28cea0ed23a65cf60   8 days ago          /bin/sh -c apt-get update && apt-get install -y    git    libxml2-dev    python    build-essential    make    gcc    python-dev    locales    python-pip   338.3 MB
-    4b137612be55ca69776c7f30c2d2dd0aa2e7d72059820abf3e25b629f887a084   6 weeks ago         /bin/sh -c #(nop) ADD jessie.tar.xz in /                                                                                                                   121 MB
-    750d58736b4b6cc0f9a9abe8f258cef269e3e9dceced1146503522be9f985ada   6 weeks ago         /bin/sh -c #(nop) MAINTAINER Tianon Gravi <admwiggin@gmail.com> - mkimage-debootstrap.sh -t jessie.tar.xz jessie http://http.debian.net/debian             0 B
-    511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158   9 months ago                                                                                                                                                                   0 B
-=======
-    $ sudo docker history docker
     IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
     3e23a5875458        8 days ago          /bin/sh -c #(nop) ENV LC_ALL=C.UTF-8            0 B
     8578938dd170        8 days ago          /bin/sh -c dpkg-reconfigure locales &&    loc   1.245 MB
@@ -1172,14 +1162,13 @@ To see how the `docker:latest` image was built:
 
 To see how the `docker:apache` image was added to a container's base image:
 
-    $ sudo docker history docker:scm
+    $ docker history docker:scm
     IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
     2ac9d1098bf1        3 months ago        /bin/bash                                       241.4 MB            Added Apache to Fedora base image
     88b42ffd1f7c        5 months ago        /bin/sh -c #(nop) ADD file:1fd8d7f9f6557cafc7   373.7 MB            
     c69cab00d6ef        5 months ago        /bin/sh -c #(nop) MAINTAINER Lokesh Mandvekar   0 B                 
     511136ea3c5a        19 months ago                                                       0 B                 Imported from -
 
->>>>>>> Add comment column in docker history command output
 
 ## images
 

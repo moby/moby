@@ -54,7 +54,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 				fmt.Fprintf(w, "%s\t", utils.Trunc(entry.CreatedBy, 45))
 			}
 			fmt.Fprintf(w, "%s\t", units.HumanSize(float64(entry.Size)))
-			fmt.Fprintf(w, "%s\n", entry.Comment)
+			fmt.Fprintf(w, "%s", entry.Comment)
 		}
 		fmt.Fprintf(w, "\n")
 	}

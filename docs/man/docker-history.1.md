@@ -26,21 +26,13 @@ Show the history of when and how an image was created.
    Only show numeric IDs. The default is *false*.
 
 # EXAMPLES
-<<<<<<< HEAD
     $ docker history fedora
-    IMAGE          CREATED          CREATED BY                                      SIZE
-=======
-
-## Show the history of images created through docker build command
-
-    $ sudo docker history fedora
     IMAGE          CREATED          CREATED BY                                      SIZE                COMMENT
->>>>>>> Add comment column in docker history command output
     105182bb5e8b   5 days ago       /bin/sh -c #(nop) ADD file:71356d2ad59aa3119d   372.7 MB
     73bd853d2ea5   13 days ago      /bin/sh -c #(nop) MAINTAINER Lokesh Mandvekar   0 B
     511136ea3c5a   10 months ago                                                    0 B                 Imported from -
 
-## Show the history of images created through docker commit command
+## Display comments in the image history
 The `docker commit` command has a **-m** flag for adding comments to the image. These comments will be displayed in the image history.
 
     $ sudo docker history docker:scm
