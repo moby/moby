@@ -79,13 +79,13 @@ type Port struct {
 
 type Container struct {
 	ID         string            `json:"Id"`
-	Names      []string          `json:,omitempty"`
-	Image      string            `json:,omitempty"`
-	Command    string            `json:,omitempty"`
-	Created    int               `json:,omitempty"`
-	Ports      []Port            `json:,omitempty"`
-	SizeRw     int               `json:,omitempty"`
-	SizeRootFs int               `json:,omitempty"`
-	Labels     map[string]string `json:,omitempty"`
-	Status     string            `json:,omitempty"`
+	Names      []string          `json:",omitempty"`
+	Image      string            `json:",omitempty"`
+	Command    string            `json:",omitempty"`
+	Created    int               `json:",omitempty"`
+	Ports      []Port            `json:",omitempty"`
+	SizeRw     int               `json:",omitempty"`
+	SizeRootFs int               `json:",omitempty"`
+	Labels     map[string]string `json:",omitempty"`
+	Status     string            `json:",omitempty"`
 }
