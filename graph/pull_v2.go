@@ -21,11 +21,12 @@ import (
 
 type v2Puller struct {
 	*TagStore
-	endpoint registry.APIEndpoint
-	config   *ImagePullConfig
-	sf       *streamformatter.StreamFormatter
-	repoInfo *registry.RepositoryInfo
-	repo     distribution.Repository
+	endpoint  registry.APIEndpoint
+	config    *ImagePullConfig
+	sf        *streamformatter.StreamFormatter
+	repoInfo  *registry.RepositoryInfo
+	repo      distribution.Repository
+	sessionID string
 }
 
 func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
@@ -35,6 +36,8 @@ func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return true, err
 	}
+
+	p.sessionID = stringid.GenerateRandomID()
 
 	if err := p.pullV2Repository(tag); err != nil {
 		if registry.ContinueOnError(err) {
@@ -198,6 +201,12 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 	out.Write(p.sf.FormatStatus(tag, "Pulling from %s", p.repo.Name()))
 
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
+
+	layerIDs := []string{}
+	defer func() {
+		p.graph.Release(p.sessionID, layerIDs...)
+	}()
+
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
 		img, err := NewImgJSON([]byte(manifest.History[i].V1Compatibility))
 		if err != nil {
@@ -206,6 +215,9 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 		}
 		downloads[i].img = img
 		downloads[i].digest = manifest.FSLayers[i].BlobSum
+
+		p.graph.Retain(p.sessionID, img.ID)
+		layerIDs = append(layerIDs, img.ID)
 
 		// Check if exists
 		if p.graph.Exists(img.ID) {
