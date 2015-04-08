@@ -102,15 +102,6 @@ func (v *Volume) initialize() error {
 	if err := os.MkdirAll(v.configPath, 0755); err != nil {
 		return err
 	}
-	jsonPath, err := v.jsonPath()
-	if err != nil {
-		return err
-	}
-	f, err := os.Create(jsonPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 
 	return v.toDisk()
 }
