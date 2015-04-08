@@ -410,25 +410,25 @@ func getNumberOfChars(fromCoord COORD, toCoord COORD, screenSize COORD) uint32 {
 
 var buffer []CHAR_INFO
 
-func clearDisplayRect(handle uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (uint32, error) {
+func clearDisplayRect(handle uintptr, attributes WORD, fromCoord COORD, toCoord COORD) (uint32, error) {
 	var writeRegion SMALL_RECT
-	writeRegion.Top = fromCoord.Y
 	writeRegion.Left = fromCoord.X
+	writeRegion.Top = fromCoord.Y
 	writeRegion.Right = toCoord.X
 	writeRegion.Bottom = toCoord.Y
 
 	// allocate and initialize buffer
 	width := toCoord.X - fromCoord.X + 1
 	height := toCoord.Y - fromCoord.Y + 1
-	size := width * height
+	size := uint32(width) * uint32(height)
 	if size > 0 {
-		for i := 0; i < int(size); i++ {
-			buffer[i].UnicodeChar = WCHAR(fillChar)
-			buffer[i].Attributes = attributes
+		buffer := make([]CHAR_INFO, size)
+		for i := range buffer {
+			buffer[i] = CHAR_INFO{WCHAR(' '), attributes}
 		}
 
 		// Write to buffer
-		r, err := writeConsoleOutput(handle, buffer[:size], windowSize, COORD{X: 0, Y: 0}, &writeRegion)
+		r, err := writeConsoleOutput(handle, buffer, COORD{X: width, Y: height}, COORD{X: 0, Y: 0}, &writeRegion)
 		if !r {
 			if err != nil {
 				return 0, err
@@ -439,18 +439,18 @@ func clearDisplayRect(handle uintptr, fillChar rune, attributes WORD, fromCoord 
 	return uint32(size), nil
 }
 
-func clearDisplayRange(handle uintptr, fillChar rune, attributes WORD, fromCoord COORD, toCoord COORD, windowSize COORD) (uint32, error) {
+func clearDisplayRange(handle uintptr, attributes WORD, fromCoord COORD, toCoord COORD) (uint32, error) {
 	nw := uint32(0)
 	// start and end on same line
 	if fromCoord.Y == toCoord.Y {
-		return clearDisplayRect(handle, fillChar, attributes, fromCoord, toCoord, windowSize)
+		return clearDisplayRect(handle, attributes, fromCoord, toCoord)
 	}
 	// TODO(azlinux): if full screen, optimize
 
 	// spans more than one line
 	if fromCoord.Y < toCoord.Y {
 		// from start position till end of line for first line
-		n, err := clearDisplayRect(handle, fillChar, attributes, fromCoord, COORD{X: windowSize.X - 1, Y: fromCoord.Y}, windowSize)
+		n, err := clearDisplayRect(handle, attributes, fromCoord, COORD{X: toCoord.X, Y: fromCoord.Y})
 		if err != nil {
 			return nw, err
 		}
@@ -458,14 +458,14 @@ func clearDisplayRange(handle uintptr, fillChar rune, attributes WORD, fromCoord
 		// lines between
 		linesBetween := toCoord.Y - fromCoord.Y - 1
 		if linesBetween > 0 {
-			n, err = clearDisplayRect(handle, fillChar, attributes, COORD{X: 0, Y: fromCoord.Y + 1}, COORD{X: windowSize.X - 1, Y: toCoord.Y - 1}, windowSize)
+			n, err = clearDisplayRect(handle, attributes, COORD{X: 0, Y: fromCoord.Y + 1}, COORD{X: toCoord.X, Y: toCoord.Y - 1})
 			if err != nil {
 				return nw, err
 			}
 			nw += n
 		}
 		// lines at end
-		n, err = clearDisplayRect(handle, fillChar, attributes, COORD{X: 0, Y: toCoord.Y}, toCoord, windowSize)
+		n, err = clearDisplayRect(handle, attributes, COORD{X: 0, Y: toCoord.Y}, toCoord)
 		if err != nil {
 			return nw, err
 		}
@@ -715,9 +715,9 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 		switch value {
 		case 0:
 			start = screenBufferInfo.CursorPosition
-			// end of the screen
-			end.X = screenBufferInfo.MaximumWindowSize.X - 1
-			end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			// end of the buffer
+			end.X = screenBufferInfo.Size.X - 1
+			end.Y = screenBufferInfo.Size.Y - 1
 			// cursor
 			cursor = screenBufferInfo.CursorPosition
 		case 1:
@@ -733,20 +733,21 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 			// start of the screen
 			start.X = 0
 			start.Y = 0
-			// end of the screen
-			end.X = screenBufferInfo.MaximumWindowSize.X - 1
-			end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			// end of the buffer
+			end.X = screenBufferInfo.Size.X - 1
+			end.Y = screenBufferInfo.Size.Y - 1
 			// cursor
 			cursor.X = 0
 			cursor.Y = 0
 		}
-		if _, err := clearDisplayRange(uintptr(handle), ' ', term.screenBufferInfo.Attributes, start, end, screenBufferInfo.MaximumWindowSize); err != nil {
+		if _, err := clearDisplayRange(uintptr(handle), term.screenBufferInfo.Attributes, start, end); err != nil {
 			return n, err
 		}
 		// remember the the cursor position is 1 based
 		if err := setConsoleCursorPosition(handle, false, int16(cursor.X), int16(cursor.Y)); err != nil {
 			return n, err
 		}
+
 	case "K":
 		// [K
 		// Clears all characters from the cursor position to the end of the line (including the character at the cursor position).
@@ -766,7 +767,7 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 			// start is where cursor is
 			start = screenBufferInfo.CursorPosition
 			// end of line
-			end.X = screenBufferInfo.MaximumWindowSize.X - 1
+			end.X = screenBufferInfo.Size.X - 1
 			end.Y = screenBufferInfo.CursorPosition.Y
 			// cursor remains the same
 			cursor = screenBufferInfo.CursorPosition
@@ -782,15 +783,15 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 		case 2:
 			// start of the line
 			start.X = 0
-			start.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			start.Y = screenBufferInfo.CursorPosition.Y - 1
 			// end of the line
-			end.X = screenBufferInfo.MaximumWindowSize.X - 1
-			end.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			end.X = screenBufferInfo.Size.X - 1
+			end.Y = screenBufferInfo.CursorPosition.Y - 1
 			// cursor
 			cursor.X = 0
-			cursor.Y = screenBufferInfo.MaximumWindowSize.Y - 1
+			cursor.Y = screenBufferInfo.CursorPosition.Y - 1
 		}
-		if _, err := clearDisplayRange(uintptr(handle), ' ', term.screenBufferInfo.Attributes, start, end, screenBufferInfo.MaximumWindowSize); err != nil {
+		if _, err := clearDisplayRange(uintptr(handle), term.screenBufferInfo.Attributes, start, end); err != nil {
 			return n, err
 		}
 		// remember the the cursor position is 1 based
