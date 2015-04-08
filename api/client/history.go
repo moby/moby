@@ -46,11 +46,11 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 			fmt.Fprintf(w, stringid.TruncateID(entry.ID))
 		}
 		if !*quiet {
-			fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))))
-
 			if *noTrunc {
+				fmt.Fprintf(w, "\t%s\t", time.Unix(entry.Created, 0).Format(time.RFC3339))
 				fmt.Fprintf(w, "%s\t", entry.CreatedBy)
 			} else {
+				fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))))
 				fmt.Fprintf(w, "%s\t", stringutils.Truncate(entry.CreatedBy, 45))
 			}
 			fmt.Fprintf(w, "%s\t", units.HumanSize(float64(entry.Size)))
