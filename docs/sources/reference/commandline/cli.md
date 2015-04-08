@@ -134,7 +134,7 @@ expect an integer, and they can only be specified once.
       --ipv6=false                           Enable IPv6 networking
       -l, --log-level="info"                 Set the logging level
       --label=[]                             Set key=value labels to the daemon
-      --log-driver="json-file"               Container's logging driver (json-file/none)
+      --log-driver="json-file"               Default driver for container logs
       --mtu=0                                Set the containers network MTU
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
