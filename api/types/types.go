@@ -69,6 +69,15 @@ type Image struct {
 	Labels      map[string]string
 }
 
+type LegacyImage struct {
+	ID          string `json:"Id"`
+	Repository  string
+	Tag         string
+	Created     int
+	Size        int
+	VirtualSize int
+}
+
 // GET  "/containers/json"
 type Port struct {
 	IP          string

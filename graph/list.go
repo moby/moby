@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"path"
@@ -9,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/utils"
@@ -20,13 +18,19 @@ var acceptedImageFilterTags = map[string]struct{}{
 	"label":    {},
 }
 
+type ImagesConfig struct {
+	Filters string
+	Filter  string
+	All     bool
+}
+
 type ByCreated []*types.Image
 
 func (r ByCreated) Len() int           { return len(r) }
 func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
-func (s *TagStore) CmdImages(job *engine.Job) error {
+func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	var (
 		allImages  map[string]*image.Image
 		err        error
@@ -34,13 +38,13 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 		filtLabel  = false
 	)
 
-	imageFilters, err := filters.FromParam(job.Getenv("filters"))
+	imageFilters, err := filters.FromParam(config.Filters)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for name := range imageFilters {
 		if _, ok := acceptedImageFilterTags[name]; !ok {
-			return fmt.Errorf("Invalid filter '%s'", name)
+			return nil, fmt.Errorf("Invalid filter '%s'", name)
 		}
 	}
 
@@ -54,20 +58,20 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 
 	_, filtLabel = imageFilters["label"]
 
-	if job.GetenvBool("all") && filtTagged {
+	if config.All && filtTagged {
 		allImages, err = s.graph.Map()
 	} else {
 		allImages, err = s.graph.Heads()
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	lookup := make(map[string]*types.Image)
 	s.Lock()
 	for repoName, repository := range s.Repositories {
-		if job.Getenv("filter") != "" {
-			if match, _ := path.Match(job.Getenv("filter"), repoName); !match {
+		if config.Filter != "" {
+			if match, _ := path.Match(config.Filter, repoName); !match {
 				continue
 			}
 		}
@@ -124,7 +128,7 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 	}
 
 	// Display images which aren't part of a repository/tag
-	if job.Getenv("filter") == "" || filtLabel {
+	if config.Filter == "" || filtLabel {
 		for _, image := range allImages {
 			if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
 				continue
@@ -145,8 +149,5 @@ func (s *TagStore) CmdImages(job *engine.Job) error {
 
 	sort.Sort(sort.Reverse(ByCreated(images)))
 
-	if err = json.NewEncoder(job.Stdout).Encode(images); err != nil {
-		return err
-	}
-	return nil
+	return images, nil
 }

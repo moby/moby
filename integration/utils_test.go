@@ -16,9 +16,11 @@ import (
 
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/graph"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -329,19 +331,17 @@ func fakeTar() (io.ReadCloser, error) {
 	return ioutil.NopCloser(buf), nil
 }
 
-func getImages(eng *engine.Engine, t *testing.T, all bool, filter string) *engine.Table {
-	job := eng.Job("images")
-	job.SetenvBool("all", all)
-	job.Setenv("filter", filter)
-	images, err := job.Stdout.AddListTable()
+func getImages(eng *engine.Engine, t *testing.T, all bool, filter string) []*types.Image {
+	config := graph.ImagesConfig{
+		Filter: filter,
+		All:    all,
+	}
+	images, err := getDaemon(eng).Repositories().Images(&config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-	return images
 
+	return images
 }
 
 func parseRun(args []string) (*runconfig.Config, *runconfig.HostConfig, *flag.FlagSet, error) {
@@ -349,4 +349,8 @@ func parseRun(args []string) (*runconfig.Config, *runconfig.HostConfig, *flag.Fl
 	cmd.SetOutput(ioutil.Discard)
 	cmd.Usage = nil
 	return runconfig.Parse(cmd, args)
+}
+
+func getDaemon(eng *engine.Engine) *daemon.Daemon {
+	return eng.HackGetGlobalVar("httpapi.daemon").(*daemon.Daemon)
 }

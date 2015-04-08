@@ -253,25 +253,25 @@ func TestImagesFilter(t *testing.T) {
 
 	images := getImages(eng, t, false, "utest*/*")
 
-	if len(images.Data[0].GetList("RepoTags")) != 2 {
+	if len(images[0].RepoTags) != 2 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
 	images = getImages(eng, t, false, "utest")
 
-	if len(images.Data[0].GetList("RepoTags")) != 1 {
+	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
 	images = getImages(eng, t, false, "utest*")
 
-	if len(images.Data[0].GetList("RepoTags")) != 1 {
+	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 
 	images = getImages(eng, t, false, "*5000*/*")
 
-	if len(images.Data[0].GetList("RepoTags")) != 1 {
+	if len(images[0].RepoTags) != 1 {
 		t.Fatal("incorrect number of matches returned")
 	}
 }
