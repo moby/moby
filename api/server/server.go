@@ -351,10 +351,24 @@ func getContainersChanges(eng *engine.Engine, version version.Version, w http.Re
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("container_changes", vars["name"])
-	streamJSON(job, w, false)
 
-	return job.Run()
+	name := vars["name"]
+	if name == "" {
+		return fmt.Errorf("Container name cannot be empty")
+	}
+
+	d := getDaemon(eng)
+	cont, err := d.Get(name)
+	if err != nil {
+		return err
+	}
+
+	changes, err := cont.Changes()
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, changes)
 }
 
 func getContainersTop(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
