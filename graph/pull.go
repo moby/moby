@@ -256,6 +256,10 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
+	layers := append(history, imgID)
+	s.graph.Retain(layers, imgID)
+	defer s.graph.Unretain(history, imgID)
+
 	layersDownloaded := false
 	for i := len(history) - 1; i >= 0; i-- {
 		id := history[i]
@@ -434,6 +438,8 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	}
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
+	layers := []string{}
+	defer s.graph.Unretain(layers, manifest.Name)
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
@@ -447,6 +453,9 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 			return false, fmt.Errorf("failed to parse json: %s", err)
 		}
 		downloads[i].img = img
+
+		layers = append(layers, img.ID)
+		s.graph.Retain([]string{img.ID}, manifest.Name)
 
 		// Check if exists
 		if s.graph.Exists(img.ID) {

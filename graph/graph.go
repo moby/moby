@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -27,11 +28,64 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+type retainedLayers struct {
+	layers map[string][]string
+	sync.Mutex
+}
+
+func (r *retainedLayers) Add(layerIDs []string, imgID string) {
+	r.Lock()
+	defer r.Unlock()
+	for _, layerID := range layerIDs {
+		if imgs, exists := r.layers[layerID]; exists {
+			r.layers[layerID] = append(imgs, imgID)
+		} else {
+			r.layers[layerID] = []string{imgID}
+		}
+	}
+}
+
+func (r *retainedLayers) Delete(layerIDs []string, imgID string) {
+	r.Lock()
+	defer r.Unlock()
+	for _, layerID := range layerIDs {
+		imgIDs, ok := r.layers[layerID]
+		if !ok {
+			continue // no references for this layerID
+		}
+
+		var filtered []string
+		for _, candidate := range imgIDs {
+			if candidate == imgID {
+				continue // skip matching ids
+			}
+
+			filtered = append(filtered, candidate)
+		}
+
+		if len(filtered) > 0 {
+			r.layers[layerID] = filtered
+		} else {
+			delete(r.layers, layerID) // delete empty reference slice
+		}
+	}
+}
+
+func (r *retainedLayers) Exists(layerID string) bool {
+	r.Lock()
+	defer r.Unlock()
+	if _, exists := r.layers[layerID]; exists {
+		return true
+	}
+	return false
+}
+
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root    string
-	idIndex *truncindex.TruncIndex
-	driver  graphdriver.Driver
+	Root     string
+	idIndex  *truncindex.TruncIndex
+	driver   graphdriver.Driver
+	retained *retainedLayers
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -47,9 +101,10 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 	}
 
 	graph := &Graph{
-		Root:    abspath,
-		idIndex: truncindex.NewTruncIndex([]string{}),
-		driver:  driver,
+		Root:     abspath,
+		idIndex:  truncindex.NewTruncIndex([]string{}),
+		driver:   driver,
+		retained: &retainedLayers{layers: make(map[string][]string)},
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
@@ -410,6 +465,17 @@ func (graph *Graph) ByParent() (map[string][]*image.Image, error) {
 	return byParent, err
 }
 
+// If the images and layers are in pulling chain, retain them.
+// If not, they may be deleted by rmi with dangling condition.
+func (graph *Graph) Retain(layerIDs []string, imgID string) {
+	graph.retained.Add(layerIDs, imgID)
+}
+
+// Unretain removes the referenced image id from the provided set of layers.
+func (graph *Graph) Unretain(layerIDs []string, imgID string) {
+	graph.retained.Delete(layerIDs, imgID)
+}
+
 // Heads returns all heads in the graph, keyed by id.
 // A head is an image which is not the parent of another image in the graph.
 func (graph *Graph) Heads() (map[string]*image.Image, error) {
@@ -420,9 +486,11 @@ func (graph *Graph) Heads() (map[string]*image.Image, error) {
 	}
 	err = graph.walkAll(func(image *image.Image) {
 		// If it's not in the byParent lookup table, then
-		// it's not a parent -> so it's a head!
+		// it's not a parent and not pulling -> so it's a head!
 		if _, exists := byParent[image.ID]; !exists {
-			heads[image.ID] = image
+			if exists := graph.retained.Exists(image.ID); !exists {
+				heads[image.ID] = image
+			}
 		}
 	})
 	return heads, err

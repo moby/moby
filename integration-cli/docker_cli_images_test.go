@@ -201,3 +201,50 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	}
 
 }
+
+// See issue docker/docker#8926
+func (s *DockerSuite) TestImagesEnsureDanglingImagesExcludePullingImages(c *check.C) {
+	testRequires(c, Network)
+	defer deleteImages("hello-world")
+
+	cmd := exec.Command(dockerBinary, "images", "-q", "-f", "dangling=true")
+	initialOut, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("listing images failed with errors: %s, %v", initialOut, err)
+	}
+	images := strings.Split(initialOut, "\n")
+	sort.Strings(images)
+	imagesStr := strings.Join(images, " ")
+
+	signalchan := make(chan int)
+	go func() {
+		defer close(signalchan)
+		pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
+		if out, _, err := runCommandWithOutput(pullCmd); err != nil {
+			c.Fatalf("Failed to pull %v: error %v, output %q", "hello-world", err, out)
+		}
+	}()
+
+	end := 0
+	for {
+		select {
+		case <-signalchan:
+			end = 1
+		case <-time.After(1 * time.Second):
+			cmd := exec.Command(dockerBinary, "images", "-q", "-f", "dangling=true")
+			out, _, err := runCommandWithOutput(cmd)
+			totalImages := strings.Split(initialOut, "\n")
+			sort.Strings(totalImages)
+			totalImagesStr := strings.Join(totalImages, " ")
+			if err != nil {
+				c.Fatalf("listing images failed with errors: %s, %v", out, err)
+			}
+			if imagesStr != totalImagesStr {
+				c.Fatal("danging images include pulling images")
+			}
+		}
+		if end == 1 {
+			break
+		}
+	}
+}
