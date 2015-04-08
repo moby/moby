@@ -19,6 +19,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/execdriver/lxc"
@@ -109,6 +110,7 @@ type Daemon struct {
 	statsCollector   *statsCollector
 	defaultLogConfig runconfig.LogConfig
 	RegistryService  *registry.Service
+	EventsService    *events.Events
 }
 
 // Install installs daemon capabilities to eng.
@@ -930,8 +932,9 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 		return nil, err
 	}
 
+	eventsService := events.New()
 	logrus.Debug("Creating repository list")
-	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, trustKey, registryService)
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, trustKey, registryService, eventsService)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
@@ -1023,6 +1026,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 		statsCollector:   newStatsCollector(1 * time.Second),
 		defaultLogConfig: config.LogConfig,
 		RegistryService:  registryService,
+		EventsService:    eventsService,
 	}
 
 	eng.OnShutdown(func() {

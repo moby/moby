@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
@@ -40,6 +41,7 @@ type TagStore struct {
 	pullingPool     map[string]chan struct{}
 	pushingPool     map[string]chan struct{}
 	registryService *registry.Service
+	eventsService   *events.Events
 }
 
 type Repository map[string]string
@@ -62,7 +64,7 @@ func (r Repository) Contains(u Repository) bool {
 	return true
 }
 
-func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey, registryService *registry.Service) (*TagStore, error) {
+func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey, registryService *registry.Service, eventsService *events.Events) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -76,6 +78,7 @@ func NewTagStore(path string, graph *Graph, key libtrust.PrivateKey, registrySer
 		pullingPool:     make(map[string]chan struct{}),
 		pushingPool:     make(map[string]chan struct{}),
 		registryService: registryService,
+		eventsService:   eventsService,
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {

@@ -252,47 +252,6 @@ func TestGetContainersByName(t *testing.T) {
 	}
 }
 
-func TestGetEvents(t *testing.T) {
-	eng := engine.New()
-	var called bool
-	eng.Register("events", func(job *engine.Job) error {
-		called = true
-		since := job.Getenv("since")
-		if since != "1" {
-			t.Fatalf("'since' should be 1, found %#v instead", since)
-		}
-		until := job.Getenv("until")
-		if until != "0" {
-			t.Fatalf("'until' should be 0, found %#v instead", until)
-		}
-		v := &engine.Env{}
-		v.Set("since", since)
-		v.Set("until", until)
-		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequest("GET", "/events?since=1&until=0", nil, eng, t)
-	if !called {
-		t.Fatal("handler was not called")
-	}
-	assertContentType(r, "application/json", t)
-	var stdoutJSON struct {
-		Since int
-		Until int
-	}
-	if err := json.Unmarshal(r.Body.Bytes(), &stdoutJSON); err != nil {
-		t.Fatal(err)
-	}
-	if stdoutJSON.Since != 1 {
-		t.Errorf("since != 1: %#v", stdoutJSON.Since)
-	}
-	if stdoutJSON.Until != 0 {
-		t.Errorf("until != 0: %#v", stdoutJSON.Until)
-	}
-}
-
 func TestLogs(t *testing.T) {
 	eng := engine.New()
 	var inspect bool

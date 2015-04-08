@@ -85,9 +85,7 @@ func (s *TagStore) CmdPull(job *engine.Job) error {
 
 		logrus.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
 		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err == nil {
-			if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
-				logrus.Errorf("Error logging event 'pull' for %s: %s", logName, err)
-			}
+			s.eventsService.Log("pull", logName, "")
 			return nil
 		} else if err != registry.ErrDoesNotExist && err != ErrV2RegistryUnavailable {
 			logrus.Errorf("Error from V2 registry: %s", err)
@@ -101,9 +99,7 @@ func (s *TagStore) CmdPull(job *engine.Job) error {
 		return err
 	}
 
-	if err = job.Eng.Job("log", "pull", logName, "").Run(); err != nil {
-		logrus.Errorf("Error logging event 'pull' for %s: %s", logName, err)
-	}
+	s.eventsService.Log("pull", logName, "")
 
 	return nil
 }

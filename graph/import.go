@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progressreader"
@@ -92,8 +91,7 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 	if tag != "" {
 		logID = utils.ImageReference(logID, tag)
 	}
-	if err = job.Eng.Job("log", "import", logID, "").Run(); err != nil {
-		logrus.Errorf("Error logging event 'import' for %s: %s", logID, err)
-	}
+
+	s.eventsService.Log("import", logID, "")
 	return nil
 }
