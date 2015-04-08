@@ -106,6 +106,7 @@ type Resources struct {
 	CpuShares      int64            `json:"cpu_shares"`
 	CpusetCpus     string           `json:"cpuset_cpus"`
 	CpusetMems     string           `json:"cpuset_mems"`
+	CpuPeriod      int64            `json:"cpu_period"`
 	CpuQuota       int64            `json:"cpu_quota"`
 	BlkioWeight    int64            `json:"blkio_weight"`
 	Rlimits        []*ulimit.Rlimit `json:"rlimits"`

@@ -124,6 +124,7 @@ type Builder struct {
 	cpuSetCpus   string
 	cpuSetMems   string
 	cpuShares    int64
+	cpuPeriod    int64
 	cpuQuota     int64
 	cgroupParent string
 	memory       int64

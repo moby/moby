@@ -1170,6 +1170,10 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
+	if hostConfig.CpuPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
+		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
+		hostConfig.CpuPeriod = 0
+	}
 	if hostConfig.CpuQuota > 0 && !daemon.SystemConfig().CpuCfsQuota {
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0

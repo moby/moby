@@ -1164,6 +1164,28 @@ func (s *DockerSuite) TestRunProcWritableInPrivilegedContainers(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	out = strings.TrimSpace(out)
+	if strings.Contains(out, "Your kernel does not support CPU cfs period") {
+		c.Skip("Your kernel does not support CPU cfs period, skip this test")
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.CpuPeriod}}", "test")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+	out = strings.TrimSpace(out)
+	if out != "50000" {
+		c.Errorf("setting the CPU CFS period failed")
+	}
+}
+
 func (s *DockerSuite) TestRunWithCpuset(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "--cpuset", "0", "busybox", "true")
 	if code, err := runCommand(cmd); err != nil || code != 0 {

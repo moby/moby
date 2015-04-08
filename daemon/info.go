@@ -64,6 +64,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		DriverStatus:       daemon.GraphDriver().Status(),
 		MemoryLimit:        daemon.SystemConfig().MemoryLimit,
 		SwapLimit:          daemon.SystemConfig().SwapLimit,
+		CpuCfsPeriod:       daemon.SystemConfig().CpuCfsPeriod,
 		CpuCfsQuota:        daemon.SystemConfig().CpuCfsQuota,
 		IPv4Forwarding:     !daemon.SystemConfig().IPv4ForwardingDisabled,
 		Debug:              os.Getenv("DEBUG") != "",

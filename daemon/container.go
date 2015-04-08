@@ -383,6 +383,7 @@ func populateCommand(c *Container, env []string) error {
 		CpuShares:      c.hostConfig.CpuShares,
 		CpusetCpus:     c.hostConfig.CpusetCpus,
 		CpusetMems:     c.hostConfig.CpusetMems,
+		CpuPeriod:      c.hostConfig.CpuPeriod,
 		CpuQuota:       c.hostConfig.CpuQuota,
 		BlkioWeight:    c.hostConfig.BlkioWeight,
 		Rlimits:        rlimits,

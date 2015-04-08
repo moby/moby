@@ -64,6 +64,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCpuPeriod       = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flCpuQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS quota")
@@ -319,6 +320,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Memory:          flMemory,
 		MemorySwap:      MemorySwap,
 		CpuShares:       *flCpuShares,
+		CpuPeriod:       *flCpuPeriod,
 		CpusetCpus:      *flCpusetCpus,
 		CpusetMems:      *flCpusetMems,
 		CpuQuota:        *flCpuQuota,
