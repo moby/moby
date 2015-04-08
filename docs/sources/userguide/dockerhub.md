@@ -10,7 +10,7 @@ including how to create an account.
 
 The [Docker Hub](https://hub.docker.com) is a centralized resource for working with
 Docker and its components. Docker Hub helps you collaborate with colleagues and get the
-most out of Docker.To do this, it provides services such as:
+most out of Docker. To do this, it provides services such as:
 
 * Docker image hosting.
 * User authentication.
