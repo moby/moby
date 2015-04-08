@@ -8,6 +8,9 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 source "$(dirname "$BASH_SOURCE")/.go-autogen"
 
+if [[ "${BUILDFLAGS[@]}" =~ 'netgo ' ]]; then
+	EXTLDFLAGS_STATIC_DOCKER+=' -lnetgo'
+fi
 go build -compiler=gccgo \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \
