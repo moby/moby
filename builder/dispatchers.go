@@ -171,7 +171,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		}
 
 		// note that the top level err will still be !nil here if IsNotExist is
-		// not the error. This approach just simplifies hte logic a bit.
+		// not the error. This approach just simplifies the logic a bit.
 		if err != nil {
 			return err
 		}
