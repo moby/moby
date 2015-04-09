@@ -531,6 +531,21 @@ func TestRunVolumesMountedAsReadonly(t *testing.T) {
 	logDone("run - volumes as readonly mount")
 }
 
+func TestVolumesMountedModeCheck(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "-v", "/test:/test:abc", "busybox", "/bin/sh")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatalf("run should fail because volume mode is illegal")
+	}
+	cmd = exec.Command(dockerBinary, "run", "-d", "-v", "/test:/test:", "busybox", "/bin/sh")
+	if _, err := runCommand(cmd); err == nil {
+		t.Fatalf("run should fail because volume mode is illegal: err info %v", err)
+	}
+
+	logDone("run - volumes mount mode check")
+}
+
 func TestRunVolumesFromInReadonlyMode(t *testing.T) {
 	defer deleteAllContainers()
 	cmd := exec.Command(dockerBinary, "run", "--name", "parent", "-v", "/test", "busybox", "true")
