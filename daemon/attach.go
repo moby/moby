@@ -61,13 +61,15 @@ func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer
 	//stream
 	if stream {
 		var stdinPipe io.ReadCloser
-		r, w := io.Pipe()
-		go func() {
-			defer w.Close()
-			defer logrus.Debugf("Closing buffered stdin pipe")
-			io.Copy(w, stdin)
-		}()
-		stdinPipe = r
+		if stdin != nil {
+			r, w := io.Pipe()
+			go func() {
+				defer w.Close()
+				defer logrus.Debugf("Closing buffered stdin pipe")
+				io.Copy(w, stdin)
+			}()
+			stdinPipe = r
+		}
 		<-c.Attach(stdinPipe, stdout, stderr)
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return

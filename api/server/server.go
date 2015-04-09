@@ -1011,10 +1011,23 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 	} else {
 		errStream = outStream
 	}
-	logs := r.Form.Get("logs") != ""
-	stream := r.Form.Get("stream") != ""
+	logs := toBool(r.Form.Get("logs"))
+	stream := toBool(r.Form.Get("stream"))
 
-	if err := cont.AttachWithLogs(inStream, outStream, errStream, logs, stream); err != nil {
+	var stdin io.ReadCloser
+	var stdout, stderr io.Writer
+
+	if toBool(r.Form.Get("stdin")) {
+		stdin = inStream
+	}
+	if toBool(r.Form.Get("stdout")) {
+		stdout = outStream
+	}
+	if toBool(r.Form.Get("stderr")) {
+		stderr = errStream
+	}
+
+	if err := cont.AttachWithLogs(stdin, stdout, stderr, logs, stream); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
