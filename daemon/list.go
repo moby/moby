@@ -7,12 +7,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/graph"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/graphdb"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
-	"github.com/docker/docker/utils"
 )
 
 // List returns an array of all containers registered in the daemon.
@@ -136,12 +133,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 			ID:    container.ID,
 			Names: names[container.ID],
 		}
-		img := container.Config.Image
-		_, tag := parsers.ParseRepositoryTag(container.Config.Image)
-		if tag == "" {
-			img = utils.ImageReference(img, graph.DEFAULTTAG)
-		}
-		newC.Image = img
+		newC.Image = container.Config.Image
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {

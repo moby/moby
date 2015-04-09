@@ -2009,8 +2009,16 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 		}()
 
 		var started, died bool
-		matchStart := regexp.MustCompile(" \\(from busybox\\:latest\\) start$")
-		matchDie := regexp.MustCompile(" \\(from busybox\\:latest\\) die$")
+		var imageID string
+
+		if out, err := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox").CombinedOutput(); err != nil {
+			t.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
+		} else {
+			imageID = strings.TrimSpace(string(out))
+		}
+
+		matchStart := regexp.MustCompile(" \\(from " + imageID + "\\) start$")
+		matchDie := regexp.MustCompile(" \\(from " + imageID + "\\) die$")
 
 		//
 		// Read lines of `docker events` looking for container start and stop.

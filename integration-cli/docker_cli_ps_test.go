@@ -594,6 +594,21 @@ func TestPsRightTagName(t *testing.T) {
 	} else {
 		id2 = strings.TrimSpace(string(out))
 	}
+
+	var imageID string
+	if out, err := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox").CombinedOutput(); err != nil {
+		t.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
+	} else {
+		imageID = strings.TrimSpace(string(out))
+	}
+
+	var id3 string
+	if out, err := exec.Command(dockerBinary, "run", "-d", imageID, "top").CombinedOutput(); err != nil {
+		t.Fatalf("Failed to run container: %s, out: %q", err, out)
+	} else {
+		id3 = strings.TrimSpace(string(out))
+	}
+
 	out, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run 'ps': %s, out: %q", err, out)
@@ -601,22 +616,26 @@ func TestPsRightTagName(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// skip header
 	lines = lines[1:]
-	if len(lines) != 2 {
-		t.Fatalf("There should be 2 running container, got %d", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("There should be 3 running container, got %d", len(lines))
 	}
 	for _, line := range lines {
 		f := strings.Fields(line)
 		switch f[0] {
 		case id1:
-			if f[1] != "busybox:latest" {
+			if f[1] != "busybox" {
 				t.Fatalf("Expected %s tag for id %s, got %s", "busybox", id1, f[1])
 			}
 		case id2:
 			if f[1] != tag {
-				t.Fatalf("Expected %s tag for id %s, got %s", tag, id1, f[1])
+				t.Fatalf("Expected %s tag for id %s, got %s", tag, id2, f[1])
+			}
+		case id3:
+			if f[1] != imageID {
+				t.Fatalf("Expected %s imageID for id %s, got %s", tag, id3, f[1])
 			}
 		default:
-			t.Fatalf("Unexpected id %s, expected %s and %s", f[0], id1, id2)
+			t.Fatalf("Unexpected id %s, expected %s and %s and %s", f[0], id1, id2, id3)
 		}
 	}
 	logDone("ps - right tags for containers")
