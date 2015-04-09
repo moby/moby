@@ -330,87 +330,68 @@ func TestEventsFilterImageName(t *testing.T) {
 	logDone("events - filters using image")
 }
 
-func TestEventsFilterContainerID(t *testing.T) {
-	since := daemonTime(t).Unix()
+func TestEventsFilterContainer(t *testing.T) {
 	defer deleteAllContainers()
+	since := fmt.Sprintf("%d", daemonTime(t).Unix())
+	nameID := make(map[string]string)
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
-	if err != nil {
-		t.Fatal(out, err)
-	}
-	container1 := strings.TrimSpace(out)
-
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
-	if err != nil {
-		t.Fatal(out, err)
-	}
-	container2 := strings.TrimSpace(out)
-
-	for _, s := range []string{container1, container2, container1[:12], container2[:12]} {
-		if err := waitInspect(s, "{{.State.Running}}", "false", 5); err != nil {
-			t.Fatalf("Failed to get container %s state, error: %s", s, err)
+	for _, name := range []string{"container_1", "container_2"} {
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "true"))
+		if err != nil {
+			t.Fatal(err)
 		}
+		nameID[name] = strings.TrimSpace(out)
+		waitInspect(name, "{{.State.Runing }}", "false", 5)
+	}
 
-		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
+	until := fmt.Sprintf("%d", daemonTime(t).Unix())
+
+	checkEvents := func(id string, events []string) error {
+		if len(events) != 3 { // create, start, die
+			return fmt.Errorf("expected 3 events, got %v", events)
+		}
+		for _, event := range events {
+			e := strings.Fields(event)
+			if len(e) < 3 {
+				return fmt.Errorf("got malformed event: %s", event)
+			}
+
+			// Check the id
+			parsedID := strings.TrimSuffix(e[1], ":")
+			if parsedID != id {
+				return fmt.Errorf("expected event for container id %s: %s - parsed container id: %s", id, event, parsedID)
+			}
+		}
+		return nil
+	}
+
+	for name, ID := range nameID {
+		// filter by names
+		eventsCmd := exec.Command(dockerBinary, "events", "--since", since, "--until", until, "--filter", "container="+name)
 		out, _, err := runCommandWithOutput(eventsCmd)
 		if err != nil {
-			t.Fatalf("Failed to get events, error: %s(%s)", err, out)
-		}
-		events := strings.Split(out, "\n")
-		checkEvents(t, events[:len(events)-1])
-	}
-
-	logDone("events - filters using container id")
-}
-
-func TestEventsFilterContainerName(t *testing.T) {
-	since := daemonTime(t).Unix()
-	defer deleteAllContainers()
-
-	_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_1", "busybox", "true"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_2", "busybox", "true"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, s := range []string{"container_1", "container_2"} {
-		if err := waitInspect(s, "{{.State.Running}}", "false", 5); err != nil {
-			t.Fatalf("Failed to get container %s state, error: %s", s, err)
+			t.Fatal(err)
 		}
 
-		eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", s))
-		out, _, err := runCommandWithOutput(eventsCmd)
+		events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+		if err := checkEvents(ID, events); err != nil {
+			t.Fatal(err)
+		}
+
+		// filter by ID's
+		eventsCmd = exec.Command(dockerBinary, "events", "--since", since, "--until", until, "--filter", "container="+ID)
+		out, _, err = runCommandWithOutput(eventsCmd)
 		if err != nil {
-			t.Fatalf("Failed to get events, error : %s(%s)", err, out)
+			t.Fatal(err)
 		}
-		events := strings.Split(out, "\n")
-		checkEvents(t, events[:len(events)-1])
+
+		events = strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+		if err := checkEvents(ID, events); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	logDone("events - filters using container name")
-}
-
-func checkEvents(t *testing.T, events []string) {
-	if len(events) != 3 {
-		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
-	}
-	createEvent := strings.Fields(events[0])
-	if createEvent[len(createEvent)-1] != "create" {
-		t.Fatalf("first event should be create, not %#v", createEvent)
-	}
-	startEvent := strings.Fields(events[1])
-	if startEvent[len(startEvent)-1] != "start" {
-		t.Fatalf("second event should be start, not %#v", startEvent)
-	}
-	dieEvent := strings.Fields(events[len(events)-1])
-	if dieEvent[len(dieEvent)-1] != "die" {
-		t.Fatalf("event should be die, not %#v", dieEvent)
-	}
-
 }
 
 func TestEventsStreaming(t *testing.T) {
