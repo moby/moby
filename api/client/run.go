@@ -181,8 +181,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 
+	var ErrStartContainerFailureAndDeleted error = nil
 	defer func() {
-		if *flAutoRemove {
+		if *flAutoRemove || ErrStartContainerFailureAndDeleted != nil {
 			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
 				logrus.Errorf("Error deleting container: %s", err)
 			}
@@ -191,6 +192,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	//start the container
 	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
+		ErrStartContainerFailureAndDeleted = err
 		return err
 	}
 

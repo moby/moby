@@ -53,8 +53,8 @@ func TestEventsContainerFailStartDie(t *testing.T) {
 		t.Fatalf("Missing expected event")
 	}
 
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
+	startEvent := strings.Fields(events[len(events)-4])
+	dieEvent := strings.Fields(events[len(events)-3])
 
 	if startEvent[len(startEvent)-1] != "start" {
 		t.Fatalf("event should be start, not %#v", startEvent)
@@ -346,6 +346,7 @@ func TestEventsFilterContainerID(t *testing.T) {
 	}
 	container2 := strings.TrimSpace(out)
 
+	time.Sleep(1000 * time.Millisecond)
 	for _, s := range []string{container1, container2, container1[:12], container2[:12]} {
 		if err := waitInspect(s, "{{.State.Running}}", "false", 5); err != nil {
 			t.Fatalf("Failed to get container %s state, error: %s", s, err)
