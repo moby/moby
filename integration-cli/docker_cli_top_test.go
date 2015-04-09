@@ -7,7 +7,7 @@ import (
 )
 
 func TestTopMultipleArgs(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox", "sleep", "20")
+	runCmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
@@ -30,7 +30,7 @@ func TestTopMultipleArgs(t *testing.T) {
 }
 
 func TestTopNonPrivileged(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox", "sleep", "20")
+	runCmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
@@ -57,19 +57,19 @@ func TestTopNonPrivileged(t *testing.T) {
 
 	deleteContainer(cleanedContainerID)
 
-	if !strings.Contains(out1, "sleep 20") && !strings.Contains(out2, "sleep 20") {
-		t.Fatal("top should've listed `sleep 20` in the process list, but failed twice")
-	} else if !strings.Contains(out1, "sleep 20") {
-		t.Fatal("top should've listed `sleep 20` in the process list, but failed the first time")
-	} else if !strings.Contains(out2, "sleep 20") {
-		t.Fatal("top should've listed `sleep 20` in the process list, but failed the second itime")
+	if !strings.Contains(out1, "top") && !strings.Contains(out2, "top") {
+		t.Fatal("top should've listed `top` in the process list, but failed twice")
+	} else if !strings.Contains(out1, "top") {
+		t.Fatal("top should've listed `top` in the process list, but failed the first time")
+	} else if !strings.Contains(out2, "top") {
+		t.Fatal("top should've listed `top` in the process list, but failed the second itime")
 	}
 
-	logDone("top - sleep process should be listed in non privileged mode")
+	logDone("top - top process should be listed in non privileged mode")
 }
 
 func TestTopPrivileged(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "--privileged", "-i", "-d", "busybox", "sleep", "20")
+	runCmd := exec.Command(dockerBinary, "run", "--privileged", "-i", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatalf("failed to start the container: %s, %v", out, err)
@@ -96,13 +96,13 @@ func TestTopPrivileged(t *testing.T) {
 
 	deleteContainer(cleanedContainerID)
 
-	if !strings.Contains(out1, "sleep 20") && !strings.Contains(out2, "sleep 20") {
-		t.Fatal("top should've listed `sleep 20` in the process list, but failed twice")
-	} else if !strings.Contains(out1, "sleep 20") {
-		t.Fatal("top should've listed `sleep 20` in the process list, but failed the first time")
-	} else if !strings.Contains(out2, "sleep 20") {
-		t.Fatal("top should've listed `sleep 20` in the process list, but failed the second itime")
+	if !strings.Contains(out1, "top") && !strings.Contains(out2, "top") {
+		t.Fatal("top should've listed `top` in the process list, but failed twice")
+	} else if !strings.Contains(out1, "top") {
+		t.Fatal("top should've listed `top` in the process list, but failed the first time")
+	} else if !strings.Contains(out2, "top") {
+		t.Fatal("top should've listed `top` in the process list, but failed the second itime")
 	}
 
-	logDone("top - sleep process should be listed in privileged mode")
+	logDone("top - top process should be listed in privileged mode")
 }
