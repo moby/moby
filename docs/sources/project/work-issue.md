@@ -149,7 +149,7 @@ You should pull and rebase frequently as you work.
 
 2. Make sure you are in your branch.
 
-		$ git branch 11038-fix-rhel-link
+		$ git checkout 11038-fix-rhel-link
 
 3. Fetch all the changes from the `upstream master` branch.
 

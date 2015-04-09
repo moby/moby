@@ -158,7 +158,7 @@ To sync your repository:
         origin	https://github.com/moxiegirl/docker.git (fetch)
         origin	https://github.com/moxiegirl/docker.git (push)
         upstream	https://github.com/docker/docker.git (fetch)
-        upstream	https://github.com/docker/docker.git (
+        upstream	https://github.com/docker/docker.git (push)
 
     If the `upstream` is missing, add it.
 
