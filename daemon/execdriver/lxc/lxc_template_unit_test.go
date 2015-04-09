@@ -29,14 +29,14 @@ func TestLXCConfig(t *testing.T) {
 	os.MkdirAll(path.Join(root, "containers", "1"), 0777)
 
 	// Memory is allocated randomly for testing
-	rand.Seed(time.Now().UTC().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	var (
 		memMin = 33554432
 		memMax = 536870912
-		mem    = memMin + rand.Intn(memMax-memMin)
+		mem    = memMin + r.Intn(memMax-memMin)
 		cpuMin = 100
 		cpuMax = 10000
-		cpu    = cpuMin + rand.Intn(cpuMax-cpuMin)
+		cpu    = cpuMin + r.Intn(cpuMax-cpuMin)
 	)
 
 	driver, err := NewDriver(root, root, "", false)
