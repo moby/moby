@@ -471,16 +471,21 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 	if version.LessThan("1.4") {
 		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
 	}
+
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
+
 	if err := parseForm(r); err != nil {
 		return err
 	}
 
-	job := eng.Job("top", vars["name"], r.Form.Get("ps_args"))
-	streamJSON(job, w, false)
-	return job.Run()
+	procList, err := getDaemon(eng).ContainerTop(vars["name"], r.Form.Get("ps_args"))
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, procList)
 }
 
 func getContainersJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

@@ -1,12 +1,13 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -28,17 +29,17 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 	if err != nil {
 		return err
 	}
-	var procs engine.Env
-	if err := procs.Decode(stream); err != nil {
+
+	procList := types.ContainerProcessList{}
+	err = json.NewDecoder(stream).Decode(&procList)
+	if err != nil {
 		return err
 	}
+
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	fmt.Fprintln(w, strings.Join(procs.GetList("Titles"), "\t"))
-	processes := [][]string{}
-	if err := procs.GetJson("Processes", &processes); err != nil {
-		return err
-	}
-	for _, proc := range processes {
+	fmt.Fprintln(w, strings.Join(procList.Titles, "\t"))
+
+	for _, proc := range procList.Processes {
 		fmt.Fprintln(w, strings.Join(proc, "\t"))
 	}
 	w.Flush()
