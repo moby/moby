@@ -125,7 +125,6 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"info":              daemon.CmdInfo,
 		"kill":              daemon.ContainerKill,
 		"logs":              daemon.ContainerLogs,
-		"resize":            daemon.ContainerResize,
 		"restart":           daemon.ContainerRestart,
 		"start":             daemon.ContainerStart,
 		"stop":              daemon.ContainerStop,
@@ -133,7 +132,6 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"wait":              daemon.ContainerWait,
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
-		"execResize":        daemon.ContainerExecResize,
 		"execInspect":       daemon.ContainerExecInspect,
 	} {
 		if err := eng.Register(name, method); err != nil {
