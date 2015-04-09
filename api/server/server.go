@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -253,48 +254,40 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 		return err
 	}
 
-	var (
-		err  error
-		outs *engine.Table
-		job  = eng.Job("images")
-	)
+	imagesConfig := graph.ImagesConfig{
+		Filters: r.Form.Get("filters"),
+		// FIXME this parameter could just be a match filter
+		Filter: r.Form.Get("filter"),
+		All:    toBool(r.Form.Get("all")),
+	}
 
-	job.Setenv("filters", r.Form.Get("filters"))
-	// FIXME this parameter could just be a match filter
-	job.Setenv("filter", r.Form.Get("filter"))
-	job.Setenv("all", r.Form.Get("all"))
+	images, err := getDaemon(eng).Repositories().Images(&imagesConfig)
+	if err != nil {
+		return err
+	}
 
 	if version.GreaterThanOrEqualTo("1.7") {
-		streamJSON(job, w, false)
-	} else if outs, err = job.Stdout.AddListTable(); err != nil {
-		return err
+		return writeJSON(w, http.StatusOK, images)
 	}
 
-	if err := job.Run(); err != nil {
-		return err
-	}
+	legacyImages := []types.LegacyImage{}
 
-	if version.LessThan("1.7") && outs != nil { // Convert to legacy format
-		outsLegacy := engine.NewTable("Created", 0)
-		for _, out := range outs.Data {
-			for _, repoTag := range out.GetList("RepoTags") {
-				repo, tag := parsers.ParseRepositoryTag(repoTag)
-				outLegacy := &engine.Env{}
-				outLegacy.Set("Repository", repo)
-				outLegacy.SetJson("Tag", tag)
-				outLegacy.Set("Id", out.Get("Id"))
-				outLegacy.SetInt64("Created", out.GetInt64("Created"))
-				outLegacy.SetInt64("Size", out.GetInt64("Size"))
-				outLegacy.SetInt64("VirtualSize", out.GetInt64("VirtualSize"))
-				outsLegacy.Add(outLegacy)
+	for _, image := range images {
+		for _, repoTag := range image.RepoTags {
+			repo, tag := parsers.ParseRepositoryTag(repoTag)
+			legacyImage := types.LegacyImage{
+				Repository:  repo,
+				Tag:         tag,
+				ID:          image.ID,
+				Created:     image.Created,
+				Size:        image.Size,
+				VirtualSize: image.VirtualSize,
 			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if _, err := outsLegacy.WriteListTo(w); err != nil {
-			return err
+			legacyImages = append(legacyImages, legacyImage)
 		}
 	}
-	return nil
+
+	return writeJSON(w, http.StatusOK, legacyImages)
 }
 
 func getImagesViz(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -477,8 +470,8 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	config := &daemon.ContainersConfig{
-		All:     r.Form.Get("all") == "1",
-		Size:    r.Form.Get("size") == "1",
+		All:     toBool(r.Form.Get("all")),
+		Size:    toBool(r.Form.Get("size")),
 		Since:   r.Form.Get("since"),
 		Before:  r.Form.Get("before"),
 		Filters: r.Form.Get("filters"),
@@ -1129,14 +1122,14 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
 
-	if r.FormValue("forcerm") == "1" && version.GreaterThanOrEqualTo("1.12") {
+	if toBool(r.FormValue("forcerm")) && version.GreaterThanOrEqualTo("1.12") {
 		job.Setenv("rm", "1")
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
 		job.Setenv("rm", "1")
 	} else {
 		job.Setenv("rm", r.FormValue("rm"))
 	}
-	if r.FormValue("pull") == "1" && version.GreaterThanOrEqualTo("1.16") {
+	if toBool(r.FormValue("pull")) && version.GreaterThanOrEqualTo("1.16") {
 		job.Setenv("pull", "1")
 	}
 	job.Stdin.Add(r.Body)
@@ -1545,4 +1538,9 @@ func ServeApi(job *engine.Job) error {
 	}
 
 	return nil
+}
+
+func toBool(s string) bool {
+	s = strings.ToLower(strings.TrimSpace(s))
+	return !(s == "" || s == "0" || s == "no" || s == "false" || s == "none")
 }

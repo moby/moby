@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/ioutils"
@@ -65,17 +66,13 @@ func cleanup(eng *engine.Engine, t *testing.T) error {
 		container.Kill()
 		daemon.Rm(container)
 	}
-	job := eng.Job("images")
-	images, err := job.Stdout.AddTable()
+	images, err := daemon.Repositories().Images(&graph.ImagesConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-	for _, image := range images.Data {
-		if image.Get("Id") != unitTestImageID {
-			eng.Job("image_delete", image.Get("Id")).Run()
+	for _, image := range images {
+		if image.ID != unitTestImageID {
+			eng.Job("image_delete", image.ID).Run()
 		}
 	}
 	return nil

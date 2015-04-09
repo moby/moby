@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -90,106 +89,6 @@ func TestGetInfo(t *testing.T) {
 		t.Fatalf("%#v\n", v)
 	}
 	assertContentType(r, "application/json", t)
-}
-
-func TestGetImagesJSON(t *testing.T) {
-	eng := engine.New()
-	var called bool
-	eng.Register("images", func(job *engine.Job) error {
-		called = true
-		v := createEnvFromGetImagesJSONStruct(sampleImage)
-		if err := json.NewEncoder(job.Stdout).Encode(v); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequest("GET", "/images/json", nil, eng, t)
-	if !called {
-		t.Fatal("handler was not called")
-	}
-	assertHttpNotError(r, t)
-	assertContentType(r, "application/json", t)
-	var observed getImagesJSONStruct
-	if err := json.Unmarshal(r.Body.Bytes(), &observed); err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(observed, sampleImage) {
-		t.Errorf("Expected %#v but got %#v", sampleImage, observed)
-	}
-}
-
-func TestGetImagesJSONFilter(t *testing.T) {
-	eng := engine.New()
-	filter := "nothing"
-	eng.Register("images", func(job *engine.Job) error {
-		filter = job.Getenv("filter")
-		return nil
-	})
-	serveRequest("GET", "/images/json?filter=aaaa", nil, eng, t)
-	if filter != "aaaa" {
-		t.Errorf("%#v", filter)
-	}
-}
-
-func TestGetImagesJSONFilters(t *testing.T) {
-	eng := engine.New()
-	filter := "nothing"
-	eng.Register("images", func(job *engine.Job) error {
-		filter = job.Getenv("filters")
-		return nil
-	})
-	serveRequest("GET", "/images/json?filters=nnnn", nil, eng, t)
-	if filter != "nnnn" {
-		t.Errorf("%#v", filter)
-	}
-}
-
-func TestGetImagesJSONAll(t *testing.T) {
-	eng := engine.New()
-	allFilter := "-1"
-	eng.Register("images", func(job *engine.Job) error {
-		allFilter = job.Getenv("all")
-		return nil
-	})
-	serveRequest("GET", "/images/json?all=1", nil, eng, t)
-	if allFilter != "1" {
-		t.Errorf("%#v", allFilter)
-	}
-}
-
-func TestGetImagesJSONLegacyFormat(t *testing.T) {
-	eng := engine.New()
-	var called bool
-	eng.Register("images", func(job *engine.Job) error {
-		called = true
-		images := []types.Image{
-			createEnvFromGetImagesJSONStruct(sampleImage),
-		}
-		if err := json.NewEncoder(job.Stdout).Encode(images); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequestUsingVersion("GET", "/images/json", "1.6", nil, eng, t)
-	if !called {
-		t.Fatal("handler was not called")
-	}
-	assertHttpNotError(r, t)
-	assertContentType(r, "application/json", t)
-	images := engine.NewTable("Created", 0)
-	if _, err := images.ReadListFrom(r.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	if images.Len() != 1 {
-		t.Fatalf("Expected 1 image, %d found", images.Len())
-	}
-	image := images.Data[0]
-	if image.Get("Tag") != "test-tag" {
-		t.Errorf("Expected tag 'test-tag', found '%s'", image.Get("Tag"))
-	}
-	if image.Get("Repository") != "test-name" {
-		t.Errorf("Expected repository 'test-name', found '%s'", image.Get("Repository"))
-	}
 }
 
 func TestGetContainersByName(t *testing.T) {

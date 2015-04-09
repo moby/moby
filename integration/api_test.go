@@ -767,8 +767,8 @@ func TestDeleteImages(t *testing.T) {
 
 	images := getImages(eng, t, true, "")
 
-	if len(images.Data[0].GetList("RepoTags")) != len(initialImages.Data[0].GetList("RepoTags"))+1 {
-		t.Errorf("Expected %d images, %d found", len(initialImages.Data[0].GetList("RepoTags"))+1, len(images.Data[0].GetList("RepoTags")))
+	if len(images[0].RepoTags) != len(initialImages[0].RepoTags)+1 {
+		t.Errorf("Expected %d images, %d found", len(initialImages[0].RepoTags)+1, len(images[0].RepoTags))
 	}
 
 	req, err := http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
@@ -805,8 +805,8 @@ func TestDeleteImages(t *testing.T) {
 	}
 	images = getImages(eng, t, false, "")
 
-	if images.Len() != initialImages.Len() {
-		t.Errorf("Expected %d image, %d found", initialImages.Len(), images.Len())
+	if len(images) != len(initialImages) {
+		t.Errorf("Expected %d image, %d found", len(initialImages), len(images))
 	}
 }
 
