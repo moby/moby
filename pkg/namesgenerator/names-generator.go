@@ -188,6 +188,12 @@ var (
 		// Karen Spärck Jones came up with the concept of inverse document frequency, which is used in most search engines today. https://en.wikipedia.org/wiki/Karen_Sp%C3%A4rck_Jones
 		"jones",
 
+		// Jack Kilby and Robert Noyce have invented silicone integrated circuits and gave Silicon Valley its name.
+		// - https://en.wikipedia.org/wiki/Jack_Kilby
+		// - https://en.wikipedia.org/wiki/Robert_Noyce
+		"kilby",
+		"noyce",
+
 		// Maria Kirch - German astronomer and first woman to discover a comet - https://en.wikipedia.org/wiki/Maria_Margarethe_Kirch
 		"kirch",
 
