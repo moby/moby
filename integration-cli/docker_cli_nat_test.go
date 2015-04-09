@@ -53,9 +53,8 @@ func TestNetworkNat(t *testing.T) {
 		t.Fatalf("Unexpected output. Expected: %q, received: %q for iface %s", expected, out, ifaceIP)
 	}
 
-	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(killCmd); err != nil {
-		t.Fatalf("failed to kill container: %s, %v", out, err)
+	if err := waitInspect(cleanedContainerID, "{{.State.Running}}", "false", 5); err != nil {
+		t.Fatal(err)
 	}
 
 	logDone("network - make sure nat works through the host")

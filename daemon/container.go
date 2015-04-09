@@ -723,7 +723,7 @@ func (container *Container) KillSig(sig int) error {
 	}
 
 	if !container.Running {
-		return nil
+		return fmt.Errorf("Cannot kill not running container %s", container.ID)
 	}
 
 	// signal to the monitor that it should not restart the container
@@ -772,7 +772,7 @@ func (container *Container) Unpause() error {
 
 func (container *Container) Kill() error {
 	if !container.IsRunning() {
-		return nil
+		return fmt.Errorf("Cannot kill not running container %s", container.ID)
 	}
 
 	// 1. Send SIGKILL

@@ -394,6 +394,67 @@ func TestEventsFilterContainerName(t *testing.T) {
 	logDone("events - filters using container name")
 }
 
+func TestEventsContainerKillNotRunning(t *testing.T) {
+	since := daemonTime(t).Unix()
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "true"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+	defer deleteContainer(cleanedContainerID)
+
+	if err := waitInspect(cleanedContainerID, "{{.State.Running}}", "false", 5); err != nil {
+		t.Fatalf("Failed to get container %s state, error: %s", cleanedContainerID, err)
+	}
+
+	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
+	_, _, _ = runCommandWithOutput(killCmd)
+
+	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", cleanedContainerID))
+	out, _, err = runCommandWithOutput(eventsCmd)
+	if err != nil {
+		t.Fatalf("Failed to get events, error : %s(%s)", err, out)
+	}
+	events := strings.Split(out, "\n")
+	checkEvents(t, events[:len(events)-1])
+
+	logDone("events - no kill event if container is not running")
+}
+
+func TestEventsContainerKill(t *testing.T) {
+	since := daemonTime(t).Unix()
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "sleep", "10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+	defer deleteContainer(cleanedContainerID)
+
+	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
+	_, _, _ = runCommandWithOutput(killCmd)
+
+	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(t).Unix()), "--filter", fmt.Sprintf("container=%s", cleanedContainerID))
+	out, _, err = runCommandWithOutput(eventsCmd)
+	if err != nil {
+		t.Fatalf("Failed to get events, error : %s(%s)", err, out)
+	}
+
+	events := strings.Split(out, "\n")
+
+	eventsClean := events[:len(events)-1]
+	if len(eventsClean) != 4 {
+		t.Fatalf("Expected 4 events, got %d: %v", len(eventsClean), eventsClean)
+	}
+	killEvent := strings.Fields(eventsClean[len(eventsClean)-1])
+	if killEvent[len(killEvent)-1] != "kill" {
+		t.Fatalf("last event should be kill, not %#v", killEvent)
+	}
+
+	logDone("events - kill event is logged if container is running")
+}
+
 func checkEvents(t *testing.T, events []string) {
 	if len(events) != 3 {
 		t.Fatalf("Expected 3 events, got %d: %v", len(events), events)
@@ -410,7 +471,6 @@ func checkEvents(t *testing.T, events []string) {
 	if dieEvent[len(dieEvent)-1] != "die" {
 		t.Fatalf("event should be die, not %#v", dieEvent)
 	}
-
 }
 
 func TestEventsStreaming(t *testing.T) {

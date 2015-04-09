@@ -155,7 +155,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		// And canonicalize dockerfile name to a platform-independent one
 		*dockerfileName, err = archive.CanonicalTarNameForPath(*dockerfileName)
 		if err != nil {
-			return fmt.Errorf("Cannot canonicalize dockerfile path %s: %v", dockerfileName, err)
+			return fmt.Errorf("Cannot canonicalize dockerfile path %s: %v", *dockerfileName, err)
 		}
 
 		if _, err = os.Lstat(filename); os.IsNotExist(err) {

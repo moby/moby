@@ -73,3 +73,34 @@ func TestKillDifferentUserContainer(t *testing.T) {
 
 	logDone("kill - kill container running sleep 10 from a different user")
 }
+
+func TestKillNotRunningContainer(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+	defer deleteContainer(cleanedContainerID)
+
+	if err := waitInspect(cleanedContainerID, "{{.State.Running}}", "false", 5); err != nil {
+		t.Fatal(err)
+	}
+
+	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
+	out, exitCode, err := runCommandWithOutput(killCmd)
+	if err == nil {
+		t.Fatalf("expected to get an error, got %s", out)
+	}
+
+	if exitCode != 1 {
+		t.Fatalf("expected to have exit code 1, got %d", exitCode)
+	}
+
+	if !strings.Contains(out, "Cannot kill not running container") {
+		t.Fatalf("expected output contains cannot kill not running container ID, got %s", out)
+	}
+
+	logDone("kill - kill not running container error")
+}
