@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/i18n"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -103,6 +104,22 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 		if len(body) == 0 {
 			return nil, "", statusCode, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(statusCode), req.URL)
 		}
+
+		errHeader := resp.Header["X-Docker-Err"]
+		if errHeader != nil {
+			err := new(jsonmessage.JSONError)
+
+			e := json.Unmarshal([]byte(errHeader[0]), err)
+			err.Code = statusCode // Indicates its not a streaming err
+			err.Message = err.Error()
+			if e != nil {
+				return nil, "", 500,
+					fmt.Errorf("Error unmarshaling(%s):%s", errHeader[0], e)
+			}
+
+			return nil, "", statusCode, err
+		}
+
 		return nil, "", statusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
 	}
 
@@ -326,11 +343,11 @@ func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, err
 		defer stream.Close()
 	}
 	if err != nil {
-		return nil, statusCode, err
+		return nil, statusCode, i18n.NewError(err)
 	}
 	body, err := ioutil.ReadAll(stream)
 	if err != nil {
-		return nil, -1, err
+		return nil, -1, i18n.NewError(err)
 	}
 	return body, statusCode, nil
 }

@@ -12,13 +12,85 @@ import (
 	"github.com/docker/docker/pkg/units"
 )
 
+type messageEntry struct {
+	Code int    // HTTP response code
+	Str  string // Text of message with Sprintf sub vars
+}
+
+type MessageMap map[string]messageEntry
+
+var msgs *MessageMap
+
 type JSONError struct {
-	Code    int    `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
+	error
+	MessageID string        `json:"id"`             // Unique ID per msg
+	Args      []interface{} `json:"args,omitempty"` // Substitution values
+	Code      int           `json:"-"`              // HTTP code (default 500)
+	Message   string        `json:"message,omitempty"`
+
+	// Message should not be used - it's there for old code.  Instead the
+	// message text should be generated dynamically based on the MessageID
+	// and the Args.
+}
+
+func SetMessageMap(daMap *MessageMap) {
+	msgs = daMap
 }
 
 func (e *JSONError) Error() string {
+	if e.MessageID != "" {
+		return T(e.MessageID, e.Args...)
+	}
 	return e.Message
+}
+
+func NewError(msgID interface{}, args ...interface{}) error {
+	var id string
+
+	id = msgID.(string)
+	err := &JSONError{
+		MessageID: id,
+		Args:      args,
+	}
+
+	// Should only happen during unit testing
+	if msgs != nil {
+		err.Code = (*msgs)[id].Code
+	}
+
+	if err.Code == 0 {
+		err.Code = 500
+	}
+
+	return err
+}
+
+func T(msgID string, args ...interface{}) string {
+	// Should never happen except during unit-testing
+	if msgs == nil {
+		return fmt.Sprintf("Error:", args...)
+	}
+
+	entry, ok := (*msgs)[msgID]
+	if !ok {
+		entry = (*msgs)["Generic"]
+	}
+
+	return fmt.Sprintf(entry.Str, args...)
+}
+
+func (e *JSONError) Is(id string) bool {
+	return e.MessageID == id
+}
+
+func Is(e error, id string) bool {
+	if e == nil {
+		return false
+	}
+	if e1, ok := e.(*JSONError); ok && e1.Is(id) {
+		return true
+	}
+	return false
 }
 
 type JSONProgress struct {

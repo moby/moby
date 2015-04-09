@@ -223,7 +223,7 @@ func TestRemoveImageByDigest(t *testing.T) {
 	// try to inspect again - it should error this time
 	if _, err := inspectField(imageReference, "Id"); err == nil {
 		t.Fatalf("unexpected nil err trying to inspect what should be a non-existent image")
-	} else if !strings.Contains(err.Error(), "No such image") {
+	} else if !strings.Contains(err.Error(), "No SUCH image") {
 		t.Fatalf("expected 'No such image' output, got %v", err)
 	}
 

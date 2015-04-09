@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/i18n"
 	"github.com/docker/docker/image"
 )
 
@@ -154,7 +155,7 @@ func (s *TagStore) CmdLookup(job *engine.Job) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("No such image: %s", name)
+	return i18n.NewError(i18n.NoImageID, name)
 }
 
 // CmdTarLayer return the tarLayer of the image

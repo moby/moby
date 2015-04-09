@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"text/template"
 
+	"github.com/docker/docker/i18n"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
 )
@@ -39,16 +39,17 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	for _, name := range cmd.Args() {
 		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
 		if err != nil {
-			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
-			if err != nil {
-				if strings.Contains(err.Error(), "No such") {
-					fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
+			if i18n.Is(err, "NoContainerID") {
+				obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
+				if i18n.Is(err, i18n.NoImageID) {
+					err = i18n.NewError(i18n.NoContainerImageID, name)
 				}
-				status = 1
-				continue
 			}
+		}
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			status = 1
+			continue
 		}
 
 		if tmpl == nil {

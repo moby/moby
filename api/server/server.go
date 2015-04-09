@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
+	"github.com/docker/docker/i18n"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -111,10 +112,12 @@ func parseMultipartForm(r *http.Request) error {
 }
 
 func httpError(w http.ResponseWriter, err error) {
+	if err == nil {
+		return
+	}
+
 	statusCode := http.StatusInternalServerError
-	// FIXME: this is brittle and should not be necessary.
-	// If we need to differentiate between different possible error types, we should
-	// create appropriate error types with clearly defined meaning.
+
 	errStr := strings.ToLower(err.Error())
 	if strings.Contains(errStr, "no such") {
 		statusCode = http.StatusNotFound
@@ -131,8 +134,23 @@ func httpError(w http.ResponseWriter, err error) {
 	}
 
 	if err != nil {
-		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
-		http.Error(w, err.Error(), statusCode)
+		err2, _ := i18n.NewError(err).(*jsonmessage.JSONError)
+
+		if !err2.Is(i18n.Generic) {
+			statusCode = err2.Code
+		}
+
+		hdr, e := json.Marshal(err2)
+		if e != nil {
+			http.Error(w, "Can't marshal error:"+e.Error(),
+				http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Add("X-Docker-Err", string(hdr))
+
+		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err2)
+		http.Error(w, err2.Error(), statusCode)
 	}
 }
 

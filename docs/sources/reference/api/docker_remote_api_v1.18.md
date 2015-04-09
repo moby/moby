@@ -1149,12 +1149,12 @@ or being killed.
 
 Query Parameters:
 
--   **dockerfile** - path within the build context to the Dockerfile. This is 
+-   **dockerfile** - path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
-        URI specifies a filename, the file's contents are placed into a file 
+-   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
+        URI specifies a filename, the file's contents are placed into a file
 		called `Dockerfile`.
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
@@ -2058,8 +2058,40 @@ This might change in the future.
 
 ## 3.3 CORS Requests
 
-To set cross origin requests to the remote api please give values to 
+To set cross origin requests to the remote api please give values to
 "--api-cors-header" when running docker in daemon mode. Set * will allow all,
 default or blank means CORS disabled
 
     $ docker -d -H="192.168.1.9:2375" --api-cors-header="http://foo.bar"
+
+
+## 3.4 Errors
+
+If there is an error while processing a request, the daemon will generate
+an HTTP Header to indicate the error:
+
+    X-Docker-Err: { json-encoded-error-data }
+
+The `X-Docker-Err` header will contain JSON encoded data for the error:
+    {
+	  "id": "..."
+      "args": [
+        "..."
+	  ]
+	}
+
+Where `id` is a string representing the unique ID for the error, and
+`args` and an array of strings that are the substitution values that
+are meant to be insertted into the human-readable text associated
+with the error text.
+
+For example, the `docker inspect 123123123` command will generate
+the following header, assuming there is no container with that name
+or ID:
+
+        X-Docker-Err: {"id":"NoContainerID","args":["123123123"]}
+
+This header should be used for automated detection and processing of errors
+rather than trying to parse the human-readable text that is within the HTTP
+body the response message.
+

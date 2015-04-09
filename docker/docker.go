@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/i18n"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
@@ -26,6 +27,7 @@ const (
 )
 
 func main() {
+	i18n.Init()
 	if reexec.Init() {
 		return
 	}

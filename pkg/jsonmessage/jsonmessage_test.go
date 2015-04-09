@@ -5,7 +5,7 @@ import (
 )
 
 func TestError(t *testing.T) {
-	je := JSONError{404, "Not found"}
+	je := JSONError{Code: 404, Message: "Not found"}
 	if je.Error() != "Not found" {
 		t.Fatalf("Expected 'Not found' got '%s'", je.Error())
 	}
