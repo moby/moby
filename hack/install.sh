@@ -125,7 +125,7 @@ case "$lsb_dist" in
 
 		# aufs is preferred over devicemapper; try to ensure the driver is available.
 		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-			if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -q '^ii' 2>/dev/null; then
+			if uname -r | grep -E -q -- '(-generic)|(-virtual)' && dpkg -l 'linux-image-*' | grep -E -- '(-generic)|(-virtual)' | grep -q '^ii' 2>/dev/null; then
 				kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
 
 				apt_get_update
