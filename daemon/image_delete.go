@@ -1,12 +1,10 @@
 package daemon
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
@@ -14,26 +12,20 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (daemon *Daemon) ImageDelete(job *engine.Job) error {
-	if n := len(job.Args); n != 1 {
-		return fmt.Errorf("Usage: %s IMAGE", job.Name)
-	}
-
+// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
+func (daemon *Daemon) ImageDelete(name string, force, noprune bool) ([]types.ImageDelete, error) {
 	list := []types.ImageDelete{}
-	if err := daemon.DeleteImage(job.Eng, job.Args[0], &list, true, job.GetenvBool("force"), job.GetenvBool("noprune")); err != nil {
-		return err
+	if err := daemon.imgDeleteHelper(name, &list, true, force, noprune); err != nil {
+		return nil, err
 	}
 	if len(list) == 0 {
-		return fmt.Errorf("Conflict, %s wasn't deleted", job.Args[0])
+		return nil, fmt.Errorf("Conflict, %s wasn't deleted", name)
 	}
-	if err := json.NewEncoder(job.Stdout).Encode(list); err != nil {
-		return err
-	}
-	return nil
+
+	return list, nil
 }
 
-// FIXME: make this private and use the job instead
-func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, list *[]types.ImageDelete, first, force, noprune bool) error {
+func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, first, force, noprune bool) error {
 	var (
 		repoName, tag string
 		tags          = []string{}
@@ -124,9 +116,8 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, list *[]types
 				Deleted: img.ID,
 			})
 			daemon.EventsService.Log("delete", img.ID, "")
-			eng.Job("log", "delete", img.ID, "").Run()
 			if img.Parent != "" && !noprune {
-				err := daemon.DeleteImage(eng, img.Parent, list, false, force, noprune)
+				err := daemon.imgDeleteHelper(img.Parent, list, false, force, noprune)
 				if first {
 					return err
 				}

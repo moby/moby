@@ -115,7 +115,6 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"commit":            daemon.ContainerCommit,
 		"container_copy":    daemon.ContainerCopy,
@@ -134,7 +133,6 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"top":               daemon.ContainerTop,
 		"unpause":           daemon.ContainerUnpause,
 		"wait":              daemon.ContainerWait,
-		"image_delete":      daemon.ImageDelete, // FIXME: see above
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
 		"execResize":        daemon.ContainerExecResize,

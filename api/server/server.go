@@ -887,12 +887,18 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("image_delete", vars["name"])
-	streamJSON(job, w, false)
-	job.Setenv("force", r.Form.Get("force"))
-	job.Setenv("noprune", r.Form.Get("noprune"))
 
-	return job.Run()
+	d := getDaemon(eng)
+	name := vars["name"]
+	force := toBool(r.Form.Get("force"))
+	noprune := toBool(r.Form.Get("noprune"))
+
+	list, err := d.ImageDelete(name, force, noprune)
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, list)
 }
 
 func postContainersStart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
