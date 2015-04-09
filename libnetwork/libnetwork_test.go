@@ -1,8 +1,8 @@
 package libnetwork_test
 
 import (
+	"flag"
 	"net"
-	"os"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -12,16 +12,15 @@ import (
 )
 
 var bridgeName = "docker0"
-
-func TestMain(m *testing.M) {
-	// Cleanup any existing docker0 bridge if needed. Ignore errors
-	bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}
-	netlink.LinkDel(bridge)
-
-	os.Exit(m.Run())
-}
+var enableBridgeTest = flag.Bool("enable-bridge-test", false, "")
 
 func TestSimplebridge(t *testing.T) {
+	if *enableBridgeTest == false {
+		t.Skip()
+	}
+
+	bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}
+	netlink.LinkDel(bridge)
 
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
 	if err != nil {
