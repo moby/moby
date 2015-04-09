@@ -7,14 +7,7 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func (daemon *Daemon) ContainerStart(job *engine.Job) error {
-	if len(job.Args) < 1 {
-		return fmt.Errorf("Usage: %s container_id", job.Name)
-	}
-	var (
-		name = job.Args[0]
-	)
-
+func (daemon *Daemon) ContainerStart(name string, env *engine.Env) error {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return err
@@ -31,8 +24,8 @@ func (daemon *Daemon) ContainerStart(job *engine.Job) error {
 	// If no environment was set, then no hostconfig was passed.
 	// This is kept for backward compatibility - hostconfig should be passed when
 	// creating a container, not during start.
-	if len(job.Environ()) > 0 {
-		hostConfig := runconfig.ContainerHostConfigFromJob(job)
+	if len(env.Map()) > 0 {
+		hostConfig := runconfig.ContainerHostConfigFromJob(env)
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
 			return err
 		}

@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) error {
 	}
 
 	config := runconfig.ContainerConfigFromJob(job)
-	hostConfig := runconfig.ContainerHostConfigFromJob(job)
+	hostConfig := runconfig.ContainerHostConfigFromJob(job.env)
 
 	if len(hostConfig.LxcConf) > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())

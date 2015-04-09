@@ -152,80 +152,80 @@ func MergeConfigs(config *Config, hostConfig *HostConfig) *ConfigAndHostConfig {
 	}
 }
 
-func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
-	if job.EnvExists("HostConfig") {
+func ContainerHostConfigFromJob(env *engine.Env) *HostConfig {
+	if env.Exists("HostConfig") {
 		hostConfig := HostConfig{}
-		job.GetenvJson("HostConfig", &hostConfig)
+		env.GetJson("HostConfig", &hostConfig)
 
 		// FIXME: These are for backward compatibility, if people use these
 		// options with `HostConfig`, we should still make them workable.
-		if job.EnvExists("Memory") && hostConfig.Memory == 0 {
-			hostConfig.Memory = job.GetenvInt64("Memory")
+		if env.Exists("Memory") && hostConfig.Memory == 0 {
+			hostConfig.Memory = env.GetInt64("Memory")
 		}
-		if job.EnvExists("MemorySwap") && hostConfig.MemorySwap == 0 {
-			hostConfig.MemorySwap = job.GetenvInt64("MemorySwap")
+		if env.Exists("MemorySwap") && hostConfig.MemorySwap == 0 {
+			hostConfig.MemorySwap = env.GetInt64("MemorySwap")
 		}
-		if job.EnvExists("CpuShares") && hostConfig.CpuShares == 0 {
-			hostConfig.CpuShares = job.GetenvInt64("CpuShares")
+		if env.Exists("CpuShares") && hostConfig.CpuShares == 0 {
+			hostConfig.CpuShares = env.GetInt64("CpuShares")
 		}
-		if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
-			hostConfig.CpusetCpus = job.Getenv("Cpuset")
+		if env.Exists("Cpuset") && hostConfig.CpusetCpus == "" {
+			hostConfig.CpusetCpus = env.Get("Cpuset")
 		}
 
 		return &hostConfig
 	}
 
 	hostConfig := &HostConfig{
-		ContainerIDFile: job.Getenv("ContainerIDFile"),
-		Memory:          job.GetenvInt64("Memory"),
-		MemorySwap:      job.GetenvInt64("MemorySwap"),
-		CpuShares:       job.GetenvInt64("CpuShares"),
-		CpusetCpus:      job.Getenv("CpusetCpus"),
-		Privileged:      job.GetenvBool("Privileged"),
-		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
-		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
-		IpcMode:         IpcMode(job.Getenv("IpcMode")),
-		PidMode:         PidMode(job.Getenv("PidMode")),
-		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
-		CgroupParent:    job.Getenv("CgroupParent"),
+		ContainerIDFile: env.Get("ContainerIDFile"),
+		Memory:          env.GetInt64("Memory"),
+		MemorySwap:      env.GetInt64("MemorySwap"),
+		CpuShares:       env.GetInt64("CpuShares"),
+		CpusetCpus:      env.Get("CpusetCpus"),
+		Privileged:      env.GetBool("Privileged"),
+		PublishAllPorts: env.GetBool("PublishAllPorts"),
+		NetworkMode:     NetworkMode(env.Get("NetworkMode")),
+		IpcMode:         IpcMode(env.Get("IpcMode")),
+		PidMode:         PidMode(env.Get("PidMode")),
+		ReadonlyRootfs:  env.GetBool("ReadonlyRootfs"),
+		CgroupParent:    env.Get("CgroupParent"),
 	}
 
 	// FIXME: This is for backward compatibility, if people use `Cpuset`
 	// in json, make it workable, we will only pass hostConfig.CpusetCpus
 	// to execDriver.
-	if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
-		hostConfig.CpusetCpus = job.Getenv("Cpuset")
+	if env.Exists("Cpuset") && hostConfig.CpusetCpus == "" {
+		hostConfig.CpusetCpus = env.Get("Cpuset")
 	}
 
-	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
-	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
-	job.GetenvJson("Devices", &hostConfig.Devices)
-	job.GetenvJson("RestartPolicy", &hostConfig.RestartPolicy)
-	job.GetenvJson("Ulimits", &hostConfig.Ulimits)
-	job.GetenvJson("LogConfig", &hostConfig.LogConfig)
-	hostConfig.SecurityOpt = job.GetenvList("SecurityOpt")
-	if Binds := job.GetenvList("Binds"); Binds != nil {
+	env.GetJson("LxcConf", &hostConfig.LxcConf)
+	env.GetJson("PortBindings", &hostConfig.PortBindings)
+	env.GetJson("Devices", &hostConfig.Devices)
+	env.GetJson("RestartPolicy", &hostConfig.RestartPolicy)
+	env.GetJson("Ulimits", &hostConfig.Ulimits)
+	env.GetJson("LogConfig", &hostConfig.LogConfig)
+	hostConfig.SecurityOpt = env.GetList("SecurityOpt")
+	if Binds := env.GetList("Binds"); Binds != nil {
 		hostConfig.Binds = Binds
 	}
-	if Links := job.GetenvList("Links"); Links != nil {
+	if Links := env.GetList("Links"); Links != nil {
 		hostConfig.Links = Links
 	}
-	if Dns := job.GetenvList("Dns"); Dns != nil {
+	if Dns := env.GetList("Dns"); Dns != nil {
 		hostConfig.Dns = Dns
 	}
-	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
+	if DnsSearch := env.GetList("DnsSearch"); DnsSearch != nil {
 		hostConfig.DnsSearch = DnsSearch
 	}
-	if ExtraHosts := job.GetenvList("ExtraHosts"); ExtraHosts != nil {
+	if ExtraHosts := env.GetList("ExtraHosts"); ExtraHosts != nil {
 		hostConfig.ExtraHosts = ExtraHosts
 	}
-	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
+	if VolumesFrom := env.GetList("VolumesFrom"); VolumesFrom != nil {
 		hostConfig.VolumesFrom = VolumesFrom
 	}
-	if CapAdd := job.GetenvList("CapAdd"); CapAdd != nil {
+	if CapAdd := env.GetList("CapAdd"); CapAdd != nil {
 		hostConfig.CapAdd = CapAdd
 	}
-	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
+	if CapDrop := env.GetList("CapDrop"); CapDrop != nil {
 		hostConfig.CapDrop = CapDrop
 	}
 

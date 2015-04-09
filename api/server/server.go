@@ -926,7 +926,7 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	}
 	var (
 		name = vars["name"]
-		job  = eng.Job("start", name)
+		env  = new(engine.Env)
 	)
 
 	// If contentLength is -1, we can assumed chunked encoding
@@ -940,12 +940,12 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 			return err
 		}
 
-		if err := job.DecodeEnv(r.Body); err != nil {
+		if err := env.Decode(r.Body); err != nil {
 			return err
 		}
 	}
 
-	if err := job.Run(); err != nil {
+	if err := getDaemon(eng).ContainerStart(name, env); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
