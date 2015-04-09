@@ -896,3 +896,44 @@ func TestDaemonwithwrongkey(t *testing.T) {
 	os.Remove("/etc/docker/key.json")
 	logDone("daemon - it should be failed to start daemon with wrong key")
 }
+
+func TestDaemonRestartKillWait(t *testing.T) {
+	d := NewDaemon(t)
+	if err := d.StartWithBusybox(); err != nil {
+		t.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-d", "busybox", "/bin/cat")
+	if err != nil {
+		t.Fatalf("Could not run /bin/cat: err=%v\n%s", err, out)
+	}
+	containerID := strings.TrimSpace(out)
+
+	if out, err := d.Cmd("kill", containerID); err != nil {
+		t.Fatalf("Could not kill %s: err=%v\n%s", containerID, err, out)
+	}
+
+	if err := d.Restart(); err != nil {
+		t.Fatalf("Could not restart daemon: %v", err)
+	}
+
+	errchan := make(chan error)
+	go func() {
+		if out, err := d.Cmd("wait", containerID); err != nil {
+			errchan <- fmt.Errorf("%v:\n%s", err, out)
+		}
+		close(errchan)
+	}()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("Waiting on a stopped (killed) container timed out")
+	case err := <-errchan:
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	logDone("wait - wait on a stopped container doesn't timeout")
+}
