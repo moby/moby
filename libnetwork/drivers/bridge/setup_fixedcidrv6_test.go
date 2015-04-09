@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/daemon/networkdriver/ipallocator"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/ipallocator"
 )
 
 func TestSetupFixedCIDRv6(t *testing.T) {

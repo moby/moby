@@ -2,11 +2,10 @@ package bridge
 
 import (
 	"fmt"
-	"math/rand"
-	"net"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/libnetwork"
 	"github.com/vishvananda/netlink"
 )
 
@@ -29,7 +28,7 @@ func setupDevice(i *bridgeInterface) error {
 	// was not supported before that.
 	kv, err := kernel.GetKernelVersion()
 	if err == nil && (kv.Kernel >= 3 && kv.Major >= 3) {
-		i.Link.Attrs().HardwareAddr = generateRandomMAC()
+		i.Link.Attrs().HardwareAddr = libnetwork.GenerateRandomMAC()
 		log.Debugf("Setting bridge mac address to %s", i.Link.Attrs().HardwareAddr)
 	}
 
@@ -50,14 +49,4 @@ func setupDeviceUp(i *bridgeInterface) error {
 		i.Link = lnk
 	}
 	return nil
-}
-
-func generateRandomMAC() net.HardwareAddr {
-	hw := make(net.HardwareAddr, 6)
-	for i := 0; i < 6; i++ {
-		hw[i] = byte(rand.Intn(255))
-	}
-	hw[0] &^= 0x1 // clear multicast bit
-	hw[0] |= 0x2  // set local assignment bit (IEEE802)
-	return hw
 }
