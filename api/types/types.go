@@ -98,3 +98,8 @@ type Container struct {
 	Labels     map[string]string `json:",omitempty"`
 	Status     string            `json:",omitempty"`
 }
+
+// POST "/containers/"+containerID+"/copy"
+type CopyConfig struct {
+	Resource string
+}
