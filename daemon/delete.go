@@ -6,24 +6,19 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
 )
 
-func (daemon *Daemon) ContainerRm(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
-	}
-	name := job.Args[0]
-	removeVolume := job.GetenvBool("removeVolume")
-	removeLink := job.GetenvBool("removeLink")
-	forceRemove := job.GetenvBool("forceRemove")
+type ContainerRmConfig struct {
+	ForceRemove, RemoveVolume, RemoveLink bool
+}
 
+func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return err
 	}
 
-	if removeLink {
+	if config.RemoveLink {
 		name, err := GetFullContainerName(name)
 		if err != nil {
 			return err
@@ -55,7 +50,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 		// if stats are currently getting collected.
 		daemon.statsCollector.stopCollection(container)
 		if container.IsRunning() {
-			if forceRemove {
+			if config.ForceRemove {
 				if err := container.Kill(); err != nil {
 					return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
 				}
@@ -64,7 +59,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 			}
 		}
 
-		if forceRemove {
+		if config.ForceRemove {
 			if err := daemon.ForceRm(container); err != nil {
 				logrus.Errorf("Cannot destroy container %s: %v", name, err)
 			}
@@ -74,7 +69,7 @@ func (daemon *Daemon) ContainerRm(job *engine.Job) error {
 			}
 		}
 		container.LogEvent("destroy")
-		if removeVolume {
+		if config.RemoveVolume {
 			daemon.DeleteVolumes(container.VolumePaths())
 		}
 	}

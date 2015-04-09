@@ -858,16 +858,25 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("rm", vars["name"])
 
-	job.Setenv("forceRemove", r.Form.Get("force"))
+	name := vars["name"]
+	if name == "" {
+		return fmt.Errorf("Container name cannot be empty")
+	}
 
-	job.Setenv("removeVolume", r.Form.Get("v"))
-	job.Setenv("removeLink", r.Form.Get("link"))
-	if err := job.Run(); err != nil {
+	d := getDaemon(eng)
+	config := &daemon.ContainerRmConfig{
+		ForceRemove:  toBool(r.Form.Get("force")),
+		RemoveVolume: toBool(r.Form.Get("v")),
+		RemoveLink:   toBool(r.Form.Get("link")),
+	}
+
+	if err := d.ContainerRm(name, config); err != nil {
 		return err
 	}
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 

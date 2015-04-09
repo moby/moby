@@ -157,69 +157,6 @@ func TestRestartKillWait(t *testing.T) {
 	})
 }
 
-func TestCreateStartRestartStopStartKillRm(t *testing.T) {
-	eng := NewTestEngine(t)
-	runtime := mkDaemonFromEngine(eng, t)
-	defer runtime.Nuke()
-
-	config, hostConfig, _, err := parseRun([]string{"-i", unitTestImageID, "/bin/cat"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := createTestContainer(eng, config, t)
-	containers, err := runtime.Containers(&daemon.ContainersConfig{All: true})
-
-	if len(containers) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(containers))
-	}
-
-	job := eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("restart", id)
-	job.SetenvInt("t", 2)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("stop", id)
-	job.SetenvInt("t", 2)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	job = eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := eng.Job("kill", id).Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	// FIXME: this failed once with a race condition ("Unable to remove filesystem for xxx: directory not empty")
-	job = eng.Job("rm", id)
-	job.SetenvBool("removeVolume", true)
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	containers, err = runtime.Containers(&daemon.ContainersConfig{All: true})
-
-	if len(containers) != 0 {
-		t.Errorf("Expected 0 container, %v found", len(containers))
-	}
-}
-
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()

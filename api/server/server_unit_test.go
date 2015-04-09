@@ -286,29 +286,6 @@ func TestGetImagesByName(t *testing.T) {
 	}
 }
 
-func TestDeleteContainers(t *testing.T) {
-	eng := engine.New()
-	name := "foo"
-	var called bool
-	eng.Register("rm", func(job *engine.Job) error {
-		called = true
-		if len(job.Args) == 0 {
-			t.Fatalf("Job arguments is empty")
-		}
-		if job.Args[0] != name {
-			t.Fatalf("name != '%s': %#v", name, job.Args[0])
-		}
-		return nil
-	})
-	r := serveRequest("DELETE", "/containers/"+name, nil, eng, t)
-	if !called {
-		t.Fatalf("handler was not called")
-	}
-	if r.Code != http.StatusNoContent {
-		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusNoContent)
-	}
-}
-
 func serveRequest(method, target string, body io.Reader, eng *engine.Engine, t *testing.T) *httptest.ResponseRecorder {
 	return serveRequestUsingVersion(method, target, api.APIVERSION, body, eng, t)
 }
