@@ -809,30 +809,23 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 		return err
 	}
 	var (
-		job          = eng.Job("create", r.Form.Get("name"))
-		outWarnings  []string
-		stdoutBuffer = bytes.NewBuffer(nil)
-		warnings     = bytes.NewBuffer(nil)
+		warnings []string
+		name     = r.Form.Get("name")
+		env      = new(engine.Env)
 	)
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	if err := env.Decode(r.Body); err != nil {
 		return err
 	}
-	// Read container ID from the first line of stdout
-	job.Stdout.Add(stdoutBuffer)
-	// Read warnings from stderr
-	job.Stderr.Add(warnings)
-	if err := job.Run(); err != nil {
+
+	containerId, warnings, err := getDaemon(eng).ContainerCreate(name, env)
+	if err != nil {
 		return err
 	}
-	// Parse warnings from stderr
-	scanner := bufio.NewScanner(warnings)
-	for scanner.Scan() {
-		outWarnings = append(outWarnings, scanner.Text())
-	}
+
 	return writeJSON(w, http.StatusCreated, &types.ContainerCreateResponse{
-		ID:       engine.Tail(stdoutBuffer, 1),
-		Warnings: outWarnings,
+		ID:       containerId,
+		Warnings: warnings,
 	})
 }
 
