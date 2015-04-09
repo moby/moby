@@ -2,10 +2,12 @@ package links
 
 import (
 	"fmt"
-	"github.com/docker/docker/engine"
-	"github.com/docker/docker/nat"
 	"path"
 	"strings"
+
+	"github.com/docker/docker/daemon/networkdriver/bridge"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/nat"
 )
 
 type Link struct {
@@ -158,21 +160,5 @@ func (l *Link) Disable() {
 }
 
 func (l *Link) toggle(action string, ignoreErrors bool) error {
-	job := l.eng.Job("link", action)
-
-	job.Setenv("ParentIP", l.ParentIP)
-	job.Setenv("ChildIP", l.ChildIP)
-	job.SetenvBool("IgnoreErrors", ignoreErrors)
-
-	out := make([]string, len(l.Ports))
-	for i, p := range l.Ports {
-		out[i] = string(p)
-	}
-	job.SetenvList("Ports", out)
-
-	if err := job.Run(); err != nil {
-		// TODO: get ouput from job
-		return err
-	}
-	return nil
+	return bridge.LinkContainers(action, l.ParentIP, l.ChildIP, l.Ports, ignoreErrors)
 }

@@ -1,13 +1,8 @@
-package daemon
+package network
 
-import (
-	"github.com/docker/docker/nat"
-)
+import "github.com/docker/docker/nat"
 
-// FIXME: move deprecated port stuff to nat to clean up the core.
-type PortMapping map[string]string // Deprecated
-
-type NetworkSettings struct {
+type Settings struct {
 	IPAddress              string
 	IPPrefixLen            int
 	MacAddress             string
@@ -18,6 +13,6 @@ type NetworkSettings struct {
 	Gateway                string
 	IPv6Gateway            string
 	Bridge                 string
-	PortMapping            map[string]PortMapping // Deprecated
+	PortMapping            map[string]map[string]string // Deprecated
 	Ports                  nat.PortMap
 }
