@@ -214,11 +214,21 @@ func postContainersPause(eng *engine.Engine, version version.Version, w http.Res
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	job := eng.Job("pause", vars["name"])
-	if err := job.Run(); err != nil {
+
+	name := vars["name"]
+	d := getDaemon(eng)
+	cont, err := d.Get(name)
+	if err != nil {
 		return err
 	}
+
+	if err := cont.Pause(); err != nil {
+		return fmt.Errorf("Cannot pause container %s: %s", name, err)
+	}
+	cont.LogEvent("pause")
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
@@ -229,11 +239,21 @@ func postContainersUnpause(eng *engine.Engine, version version.Version, w http.R
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	job := eng.Job("unpause", vars["name"])
-	if err := job.Run(); err != nil {
+
+	name := vars["name"]
+	d := getDaemon(eng)
+	cont, err := d.Get(name)
+	if err != nil {
 		return err
 	}
+
+	if err := cont.Unpause(); err != nil {
+		return fmt.Errorf("Cannot unpause container %s: %s", name, err)
+	}
+	cont.LogEvent("unpause")
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
