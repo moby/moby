@@ -1963,8 +1963,8 @@ func TestBuildForceRm(t *testing.T) {
 // * When docker events sees container start, close the "docker build" command
 // * Wait for docker events to emit a dying event.
 func TestBuildCancelationKillsSleep(t *testing.T) {
-	// TODO(jfrazelle): Make this work on Windows.
-	testRequires(t, SameHostDaemon)
+	var wg sync.WaitGroup
+	defer wg.Wait()
 
 	name := "testbuildcancelation"
 	defer deleteImages(name)
@@ -1977,26 +1977,23 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 	}
 	defer ctx.Close()
 
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	finish := make(chan struct{})
 	defer close(finish)
 
 	eventStart := make(chan struct{})
 	eventDie := make(chan struct{})
+	containerID := make(chan string)
 
-	// Start one second ago, to avoid rounding problems
-	startEpoch := time.Now().Add(-1 * time.Second)
+	startEpoch := daemonTime(t).Unix()
 
-	// Goroutine responsible for watching start/die events from `docker events`
 	wg.Add(1)
+	// Goroutine responsible for watching start/die events from `docker events`
 	go func() {
 		defer wg.Done()
-
 		// Watch for events since epoch.
-		eventsCmd := exec.Command(dockerBinary, "events",
-			"-since", fmt.Sprint(startEpoch.Unix()))
+		eventsCmd := exec.Command(
+			dockerBinary, "events",
+			"--since", strconv.FormatInt(startEpoch, 10))
 		stdout, err := eventsCmd.StdoutPipe()
 		err = eventsCmd.Start()
 		if err != nil {
@@ -2008,36 +2005,21 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 			eventsCmd.Process.Kill()
 		}()
 
-		var started, died bool
-		var imageID string
+		cid := <-containerID
 
-		if out, err := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox").CombinedOutput(); err != nil {
-			t.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
-		} else {
-			imageID = strings.TrimSpace(string(out))
-		}
-
-		matchStart := regexp.MustCompile(" \\(from " + imageID + "\\) start$")
-		matchDie := regexp.MustCompile(" \\(from " + imageID + "\\) die$")
+		matchStart := regexp.MustCompile(cid + `(.*) start$`)
+		matchDie := regexp.MustCompile(cid + `(.*) die$`)
 
 		//
 		// Read lines of `docker events` looking for container start and stop.
 		//
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
-			if ok := matchStart.MatchString(scanner.Text()); ok {
-				if started {
-					t.Fatal("assertion fail: more than one container started")
-				}
+			switch {
+			case matchStart.MatchString(scanner.Text()):
 				close(eventStart)
-				started = true
-			}
-			if ok := matchDie.MatchString(scanner.Text()); ok {
-				if died {
-					t.Fatal("assertion fail: more than one container died")
-				}
+			case matchDie.MatchString(scanner.Text()):
 				close(eventDie)
-				died = true
 			}
 		}
 
@@ -2050,13 +2032,24 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 	buildCmd.Dir = ctx.Dir
 
+	stdoutBuild, err := buildCmd.StdoutPipe()
 	err = buildCmd.Start()
 	if err != nil {
 		t.Fatalf("failed to run build: %s", err)
 	}
 
+	matchCID := regexp.MustCompile("Running in ")
+	scanner := bufio.NewScanner(stdoutBuild)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if ok := matchCID.MatchString(line); ok {
+			containerID <- line[len(line)-12:]
+			break
+		}
+	}
+
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("failed to observe build container start in timely fashion")
 	case <-eventStart:
 		// Proceeds from here when we see the container fly past in the
@@ -2078,7 +2071,7 @@ func TestBuildCancelationKillsSleep(t *testing.T) {
 	}
 
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		// If we don't get here in a timely fashion, it wasn't killed.
 		t.Fatal("container cancel did not succeed")
 	case <-eventDie:

@@ -44,12 +44,14 @@ func processExitCode(err error) (exitCode int) {
 
 func IsKilled(err error) bool {
 	if exitErr, ok := err.(*exec.ExitError); ok {
-		sys := exitErr.ProcessState.Sys()
-		status, ok := sys.(syscall.WaitStatus)
+		status, ok := exitErr.Sys().(syscall.WaitStatus)
 		if !ok {
 			return false
 		}
-		return status.Signaled() && status.Signal() == os.Kill
+		// status.ExitStatus() is required on Windows because it does not
+		// implement Signal() nor Signaled(). Just check it had a bad exit
+		// status could mean it was killed (and in tests we do kill)
+		return (status.Signaled() && status.Signal() == os.Kill) || status.ExitStatus() != 0
 	}
 	return false
 }
