@@ -859,10 +859,10 @@ func postContainerRename(eng *engine.Engine, version version.Version, w http.Res
 		return fmt.Errorf("Missing parameter")
 	}
 
-	newName := r.URL.Query().Get("name")
-	job := eng.Job("container_rename", vars["name"], newName)
-	job.Setenv("t", r.Form.Get("t"))
-	if err := job.Run(); err != nil {
+	d := getDaemon(eng)
+	name := vars["name"]
+	newName := r.Form.Get("name")
+	if err := d.ContainerRename(name, newName); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

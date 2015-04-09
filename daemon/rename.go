@@ -2,16 +2,12 @@ package daemon
 
 import (
 	"fmt"
-
-	"github.com/docker/docker/engine"
 )
 
-func (daemon *Daemon) ContainerRename(job *engine.Job) error {
-	if len(job.Args) != 2 {
-		return fmt.Errorf("usage: %s OLD_NAME NEW_NAME", job.Name)
+func (daemon *Daemon) ContainerRename(oldName, newName string) error {
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("usage: docker rename OLD_NAME NEW_NAME")
 	}
-	oldName := job.Args[0]
-	newName := job.Args[1]
 
 	container, err := daemon.Get(oldName)
 	if err != nil {
