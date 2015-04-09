@@ -422,14 +422,13 @@ func TestGet(t *testing.T) {
 
 func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daemon.Container, string) {
 	var (
-		err          error
-		id           string
-		outputBuffer = bytes.NewBuffer(nil)
-		strPort      string
-		eng          = NewTestEngine(t)
-		daemon       = mkDaemonFromEngine(eng, t)
-		port         = 5554
-		p            nat.Port
+		err     error
+		id      string
+		strPort string
+		eng     = NewTestEngine(t)
+		daemon  = mkDaemonFromEngine(eng, t)
+		port    = 5554
+		p       nat.Port
 	)
 	defer func() {
 		if err != nil {
@@ -452,16 +451,13 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 		p = nat.Port(fmt.Sprintf("%s/%s", strPort, proto))
 		ep[p] = struct{}{}
 
-		jobCreate := eng.Job("create")
-		jobCreate.Setenv("Image", unitTestImageID)
-		jobCreate.SetenvList("Cmd", []string{"sh", "-c", cmd})
-		jobCreate.SetenvList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
-		jobCreate.SetenvJson("ExposedPorts", ep)
-		jobCreate.Stdout.Add(outputBuffer)
-		if err := jobCreate.Run(); err != nil {
-			t.Fatal(err)
-		}
-		id = engine.Tail(outputBuffer, 1)
+		env := new(engine.Env)
+		env.Set("Image", unitTestImageID)
+		env.SetList("Cmd", []string{"sh", "-c", cmd})
+		env.SetList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
+		env.SetJson("ExposedPorts", ep)
+
+		id, _, err = daemon.ContainerCreate(unitTestImageID, env)
 		// FIXME: this relies on the undocumented behavior of daemon.Create
 		// which will return a nil error AND container if the exposed ports
 		// are invalid. That behavior should be fixed!
@@ -472,15 +468,16 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 
 	}
 
-	jobStart := eng.Job("start", id)
 	portBindings := make(map[nat.Port][]nat.PortBinding)
 	portBindings[p] = []nat.PortBinding{
 		{},
 	}
-	if err := jobStart.SetenvJson("PortsBindings", portBindings); err != nil {
+
+	env := new(engine.Env)
+	if err := env.SetJson("PortsBindings", portBindings); err != nil {
 		t.Fatal(err)
 	}
-	if err := jobStart.Run(); err != nil {
+	if err := daemon.ContainerStart(id, env); err != nil {
 		t.Fatal(err)
 	}
 
@@ -731,20 +728,20 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var outputBuffer = bytes.NewBuffer(nil)
-		job := eng.Job("create", test.Name)
-		if err := job.ImportEnv(config); err != nil {
+		env := new(engine.Env)
+		if err := env.Import(config); err != nil {
 			t.Fatal(err)
 		}
-		job.Stdout.Add(outputBuffer)
-		if err := job.Run(); err != nil {
+
+		containerId, _, err := daemon.ContainerCreate(test.Name, env)
+		if err != nil {
 			if !test.Valid {
 				continue
 			}
 			t.Fatal(err)
 		}
 
-		container, err := daemon.Get(engine.Tail(outputBuffer, 1))
+		container, err := daemon.Get(containerId)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -759,7 +756,6 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatalf("Container /%s has ID %s instead of %s", test.Name, c.ID, container.ID)
 		}
 	}
-
 }
 
 func TestLinkChildContainer(t *testing.T) {
