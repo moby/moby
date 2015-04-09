@@ -1203,37 +1203,48 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var copyData engine.Env
-
 	if err := checkForJson(r); err != nil {
 		return err
 	}
 
-	if err := copyData.Decode(r.Body); err != nil {
+	cfg := types.CopyConfig{}
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
 		return err
 	}
 
-	if copyData.Get("Resource") == "" {
+	if cfg.Resource == "" {
 		return fmt.Errorf("Path cannot be empty")
 	}
 
-	origResource := copyData.Get("Resource")
+	res := cfg.Resource
 
-	if copyData.Get("Resource")[0] == '/' {
-		copyData.Set("Resource", copyData.Get("Resource")[1:])
+	if res[0] == '/' {
+		res = res[1:]
 	}
 
-	job := eng.Job("container_copy", vars["name"], copyData.Get("Resource"))
-	job.Stdout.Add(w)
-	w.Header().Set("Content-Type", "application/x-tar")
-	if err := job.Run(); err != nil {
+	cont, err := getDaemon(eng).Get(vars["name"])
+	if err != nil {
 		logrus.Errorf("%v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
-		} else if strings.Contains(err.Error(), "no such file or directory") {
-			return fmt.Errorf("Could not find the file %s in container %s", origResource, vars["name"])
+			return nil
 		}
 	}
+
+	data, err := cont.Copy(res)
+	if err != nil {
+		logrus.Errorf("%v", err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, vars["name"])
+		}
+		return err
+	}
+	defer data.Close()
+	w.Header().Set("Content-Type", "application/x-tar")
+	if _, err := io.Copy(w, data); err != nil {
+		return err
+	}
+
 	return nil
 }
 
