@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
@@ -193,16 +194,34 @@ func postContainersKill(eng *engine.Engine, version version.Version, w http.Resp
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	if err := parseForm(r); err != nil {
+	err := parseForm(r)
+	if err != nil {
 		return err
 	}
-	job := eng.Job("kill", vars["name"])
-	if sig := r.Form.Get("signal"); sig != "" {
-		job.Args = append(job.Args, sig)
+
+	var sig uint64
+	name := vars["name"]
+
+	// If we have a signal, look at it. Otherwise, do nothing
+	if sigStr := vars["signal"]; sigStr != "" {
+		// Check if we passed the signal as a number:
+		// The largest legal signal is 31, so let's parse on 5 bits
+		sig, err = strconv.ParseUint(sigStr, 10, 5)
+		if err != nil {
+			// The signal is not a number, treat it as a string (either like
+			// "KILL" or like "SIGKILL")
+			sig = uint64(signal.SignalMap[strings.TrimPrefix(sigStr, "SIG")])
+		}
+
+		if sig == 0 {
+			return fmt.Errorf("Invalid signal: %s", sigStr)
+		}
 	}
-	if err := job.Run(); err != nil {
+
+	if err = getDaemon(eng).ContainerKill(name, sig); err != nil {
 		return err
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
