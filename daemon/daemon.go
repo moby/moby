@@ -1202,28 +1202,15 @@ func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 }
 
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
-	// Retrieve all images
-	images, err := daemon.Graph().Map()
+	// Retrieve images parent map.
+	parentMap, err := daemon.Graph().ByParent()
 	if err != nil {
 		return nil, err
 	}
 
-	// Store the tree in a map of map (map[parentId][childId])
-	imageMap := make(map[string]map[string]struct{})
-	for _, img := range images {
-		if _, exists := imageMap[img.Parent]; !exists {
-			imageMap[img.Parent] = make(map[string]struct{})
-		}
-		imageMap[img.Parent][img.ID] = struct{}{}
-	}
-
-	// Loop on the children of the given image and check the config
+	// Loop on the children of the given image, and return the most recent matching the config.
 	var match *image.Image
-	for elem := range imageMap[imgID] {
-		img, ok := images[elem]
-		if !ok {
-			return nil, fmt.Errorf("unable to find image %q", elem)
-		}
+	for _, img := range parentMap[imgID] {
 		if runconfig.Compare(&img.ContainerConfig, config) {
 			if match == nil || match.Created.Before(img.Created) {
 				match = img

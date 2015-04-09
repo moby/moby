@@ -1,11 +1,16 @@
 package daemon
 
 import (
-	"github.com/docker/docker/pkg/graphdb"
-	"github.com/docker/docker/pkg/truncindex"
+	"bytes"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/docker/docker/graph"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/runconfig"
 )
 
 //
@@ -98,4 +103,73 @@ func TestGet(t *testing.T) {
 	}
 
 	os.Remove(daemonTestDbPath)
+}
+
+type nullDriver struct{}
+
+func (d *nullDriver) String() string                                      { return "" }
+func (d *nullDriver) Create(id, parent string) error                      { return nil }
+func (d *nullDriver) Remove(id string) error                              { return nil }
+func (d *nullDriver) Get(id, mountLabel string) (dir string, err error)   { return "", nil }
+func (d *nullDriver) Put(id string) error                                 { return nil }
+func (d *nullDriver) Exists(id string) bool                               { return false }
+func (d *nullDriver) Status() [][2]string                                 { return nil }
+func (d *nullDriver) Cleanup() error                                      { return nil }
+func (d *nullDriver) Diff(id, parent string) (archive.Archive, error)     { return nil, nil }
+func (d *nullDriver) Changes(id, parent string) ([]archive.Change, error) { return nil, nil }
+func (d *nullDriver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error) {
+	return 0, nil
+}
+func (d *nullDriver) DiffSize(id, parent string) (size int64, err error) { return 0, nil }
+
+func TestImageGetCached(t *testing.T) {
+	testGraphPath := path.Join(os.TempDir(), "daemon_test.graph")
+	defer os.RemoveAll(testGraphPath)
+	testGraph, err := graph.NewGraph(testGraphPath, &nullDriver{})
+	if err != nil {
+		t.Fatalf("error initializing test graph: %v", err)
+	}
+	daemon := &Daemon{
+		graph: testGraph,
+	}
+	img, err := daemon.ImageGetCached("unlikely-to-exist-parent", nil)
+	if err != nil {
+		t.Fatalf("expected no error for cache hit, got: %v", err)
+	}
+	if img != nil {
+		t.Fatalf("expected a cache miss, got: %v", img)
+	}
+	parentLayer := bytes.NewBufferString("parent layer data")
+	parentImg, err := testGraph.Create(parentLayer, "", "", "parent image", "me", nil, &runconfig.Config{})
+	if err != nil {
+		t.Fatalf("error creating parent image: %v", err)
+	}
+	img, err = daemon.ImageGetCached(parentImg.ID, nil)
+	if err != nil {
+		t.Fatalf("expected no error for cache hit, got: %v", err)
+	}
+	if img != nil {
+		t.Fatalf("expected a cache miss, got: %v", img)
+	}
+	childLayer := bytes.NewBufferString("child layer data")
+	catNull := []string{"cat", "/dev/null"}
+	childImg, err := testGraph.Create(childLayer, "some-container-id", parentImg.ID, "null cat", "me", &runconfig.Config{Cmd: catNull}, &runconfig.Config{})
+	if err != nil {
+		t.Fatalf("error creating child image for null cat: %v", err)
+	}
+	img, err = daemon.ImageGetCached(parentImg.ID, &runconfig.Config{Cmd: catNull})
+	if err != nil {
+		t.Fatalf("expected no error for cache hit, got: %v", err)
+	}
+	if img == nil || (img.ID != childImg.ID) {
+		t.Fatalf("expected cache hit %q, got: %v", childImg.ID, img)
+	}
+	catRandom := []string{"cat", "/dev/random"}
+	img, err = daemon.ImageGetCached(parentImg.ID, &runconfig.Config{Cmd: catRandom})
+	if err != nil {
+		t.Fatalf("expected no error for cache miss, got: %v", err)
+	}
+	if img != nil {
+		t.Fatalf("expected cache miss, got: %v", img)
+	}
 }
