@@ -20,21 +20,41 @@ command_exists() {
 	command -v "$@" > /dev/null 2>&1
 }
 
-do_docker_install() {
+echo_docker_as_nonroot() {
+	your_user=your-user
+	[ "$user" != 'root' ] && your_user="$user"
+	# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-EOF", spaces are kept in the output
+	cat <<-EOF
+
+	If you would like to use Docker as a non-root user, you should now consider
+	adding your user to the "docker" group with something like:
+
+	  sudo usermod -aG docker $your_user
+
+	Remember that you will have to log out and back in for this to take effect!
+
+	EOF
+}
+
+do_install() {
 	case "$(uname -m)" in
 		*64)
 			;;
 		*)
-			echo >&2 'Error: you are not using a 64bit platform.'
-			echo >&2 'Docker currently only supports 64bit platforms.'
+			cat >&2 <<-'EOF'
+			Error: you are not using a 64bit platform.
+			Docker currently only supports 64bit platforms.
+			EOF
 			exit 1
 			;;
 	esac
 
 	if command_exists docker || command_exists lxc-docker; then
-		echo >&2 'Warning: "docker" or "lxc-docker" command appears to already exist.'
-		echo >&2 'Please ensure that you do not already have docker installed.'
-		echo >&2 'You may press Ctrl+C now to abort this process and rectify this situation.'
+		cat >&2 <<-'EOF'
+		Warning: "docker" or "lxc-docker" command appears to already exist.
+		Please ensure that you do not already have docker installed.
+		You may press Ctrl+C now to abort this process and rectify this situation.
+		EOF
 		( set -x; sleep 20 )
 	fi
 
@@ -47,8 +67,10 @@ do_docker_install() {
 		elif command_exists su; then
 			sh_c='su -c'
 		else
-			echo >&2 'Error: this installer needs the ability to run commands as root.'
-			echo >&2 'We are unable to find either "sudo" or "su" available to make this happen.'
+			cat >&2 <<-'EOF'
+			Error: this installer needs the ability to run commands as root.
+			We are unable to find either "sudo" or "su" available to make this happen.
+			EOF
 			exit 1
 		fi
 	fi
@@ -100,16 +122,7 @@ do_docker_install() {
 					$sh_c 'docker version'
 				) || true
 			fi
-			your_user=your-user
-			[ "$user" != 'root' ] && your_user="$user"
-			echo
-			echo 'If you would like to use Docker as a non-root user, you should now consider'
-			echo 'adding your user to the "docker" group with something like:'
-			echo
-			echo '  sudo usermod -aG docker' $your_user
-			echo
-			echo 'Remember that you will have to log out and back in for this to take effect!'
-			echo
+			echo_docker_as_nonroot
 			exit 0
 			;;
 
@@ -184,31 +197,28 @@ do_docker_install() {
 					$sh_c 'docker version'
 				) || true
 			fi
-			your_user=your-user
-			[ "$user" != 'root' ] && your_user="$user"
-			echo
-			echo 'If you would like to use Docker as a non-root user, you should now consider'
-			echo 'adding your user to the "docker" group with something like:'
-			echo
-			echo '  sudo usermod -aG docker' $your_user
-			echo
-			echo 'Remember that you will have to log out and back in for this to take effect!'
-			echo
+			echo_docker_as_nonroot
 			exit 0
 			;;
 
 		gentoo)
 			if [ "$url" = "https://test.docker.com/" ]; then
-				echo >&2
-				echo >&2 '  You appear to be trying to install the latest nightly build in Gentoo.'
-				echo >&2 '  The portage tree should contain the latest stable release of Docker, but'
-				echo >&2 '  if you want something more recent, you can always use the live ebuild'
-				echo >&2 '  provided in the "docker" overlay available via layman.  For more'
-				echo >&2 '  instructions, please see the following URL:'
-				echo >&2 '	https://github.com/tianon/docker-overlay#using-this-overlay'
-				echo >&2 '  After adding the "docker" overlay, you should be able to:'
-				echo >&2 '	emerge -av =app-emulation/docker-9999'
-				echo >&2
+				# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-'EOF'", spaces are kept in the output
+				cat >&2 <<-'EOF'
+
+				  You appear to be trying to install the latest nightly build in Gentoo.'
+				  The portage tree should contain the latest stable release of Docker, but'
+				  if you want something more recent, you can always use the live ebuild'
+				  provided in the "docker" overlay available via layman.  For more'
+				  instructions, please see the following URL:'
+
+				    https://github.com/tianon/docker-overlay#using-this-overlay'
+
+				  After adding the "docker" overlay, you should be able to:'
+
+				    emerge -av =app-emulation/docker-9999'
+
+				EOF
 				exit 1
 			fi
 
@@ -220,16 +230,20 @@ do_docker_install() {
 			;;
 	esac
 
-	echo >&2
-	echo >&2 'Either your platform is not easily detectable, is not supported by this'
-	echo >&2 'installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have'
-	echo >&2 'a package for Docker.  Please visit the following URL for more detailed'
-	echo >&2 'installation instructions:'
-	echo >&2
-	echo >&2 ' https://docs.docker.com/en/latest/installation/'
-	echo >&2
-    exit 1
+	# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-'EOF'", spaces are kept in the output
+	cat >&2 <<-'EOF'
+
+	  Either your platform is not easily detectable, is not supported by this
+	  installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
+	  a package for Docker.  Please visit the following URL for more detailed
+	  installation instructions:
+
+	    https://docs.docker.com/en/latest/installation/
+
+	EOF
+	exit 1
 }
 
-do_docker_install
-exit 1
+# wrapped up in a function so that we have some protection against only getting
+# half the file during "curl | sh"
+do_install
