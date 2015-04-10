@@ -63,6 +63,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		memorySwap     = job.GetenvInt64("memswap")
 		cpuShares      = job.GetenvInt64("cpushares")
 		cpuSetCpus     = job.Getenv("cpusetcpus")
+		privileged     = job.GetenvBool("privileged")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -151,11 +152,14 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		AuthConfig:      authConfig,
 		AuthConfigFile:  configFile,
 		dockerfileName:  dockerfileName,
-		cpuShares:       cpuShares,
-		cpuSetCpus:      cpuSetCpus,
-		memory:          memory,
-		memorySwap:      memorySwap,
-		cancelled:       job.WaitCancelled(),
+		hostConfig: &runconfig.HostConfig{
+			CpuShares:  cpuShares,
+			CpusetCpus: cpuSetCpus,
+			Memory:     memory,
+			MemorySwap: memorySwap,
+			Privileged: privileged,
+		},
+		cancelled: job.WaitCancelled(),
 	}
 
 	id, err := builder.Run(context)

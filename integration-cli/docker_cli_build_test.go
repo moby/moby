@@ -4655,7 +4655,7 @@ func TestBuildExoticShellInterpolation(t *testing.T) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-		
+
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]
@@ -5627,4 +5627,35 @@ func TestBuildEmptyStringVolume(t *testing.T) {
 	}
 
 	logDone("build - empty string volume")
+}
+
+func TestBuildPrivileged(t *testing.T) {
+	defer deleteAllContainers()
+	name := "testbuildprivileged"
+
+	ctx, err := fakeContext(`
+	FROM busybox
+	RUN mkdir /dir1 && mkdir /dir2 && touch /dir1/test
+	RUN mount --bind /dir1 /dir2 && cat /dir2/test
+	`, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer deleteImages(name)
+
+	cmd := exec.Command(dockerBinary, "build", "--privileged", "-t", name, ".")
+	cmd.Dir = ctx.Dir
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		t.Fatalf("expected mount to work in privileged build: %v\n%s", err, out)
+	}
+
+	dockerCmd(t, "run", "-d", "--name", name, name)
+	out, err := inspectField(name, "HostConfig.Privileged")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.TrimSpace(out) != "false" {
+		t.Fatal("expected privileged to not persist from image")
+	}
 }

@@ -18,6 +18,7 @@ docker-build - Build a new image from the source code at PATH
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
+[**--privileged**[=*false*]]
 
 PATH | URL | -
 
@@ -61,6 +62,27 @@ as context.
 
 **-t**, **--tag**=""
    Repository name (and optionally a tag) to be applied to the resulting image in case of success
+
+**-m**, **--memory**=""
+   Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+
+   Allows you to constrain the memory available to a container. If the host
+supports swap memory, then the **-m** memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value would be very large, that's millions of trillions).
+
+**--memory-swap**=""
+   Total memory limit (memory + swap)
+
+**-c**, **--cpu-shares**=0
+   CPU shares (relative weight)
+
+**--cpuset-cpus**=""
+   CPUs in which to allow execution (0-3, 0,1)
+
+**--prvileged**=*true*|*false*
+   Give extended privileges to all containers used for this build
 
 # EXAMPLES
 

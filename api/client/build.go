@@ -56,6 +56,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
 	flCPUShares := cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+	flPrivileged := cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to the build's containers")
 
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
@@ -275,6 +276,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	if *pull {
 		v.Set("pull", "1")
+	}
+
+	if *flPrivileged {
+		v.Set("privileged", "1")
 	}
 
 	v.Set("cpusetcpus", *flCPUSetCpus)

@@ -1164,6 +1164,7 @@ Query Parameters:
 -   **memswap** - Total memory (memory + swap), `-1` to disable swap
 -   **cpushares** - CPU shares (relative weight)
 -   **cpusetcpus** - CPUs in which to allow exection, e.g., `0-3`, `0,1`
+-   **privileged** - Use privileged mode for all `RUN` commands in a build
 
     Request Headers:
 
