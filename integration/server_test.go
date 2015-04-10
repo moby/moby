@@ -1,6 +1,12 @@
 package docker
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+
+	"github.com/docker/docker/builder"
+	"github.com/docker/docker/engine"
+)
 
 func TestCreateNumberHostname(t *testing.T) {
 	eng := NewTestEngine(t)
@@ -14,18 +20,84 @@ func TestCreateNumberHostname(t *testing.T) {
 	createTestContainer(eng, config, t)
 }
 
-func TestRunWithTooLowMemoryLimit(t *testing.T) {
+func TestCommit(t *testing.T) {
 	eng := NewTestEngine(t)
+	b := &builder.BuilderJob{Engine: eng}
+	b.Install()
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
-	// Try to create a container with a memory limit of 1 byte less than the minimum allowed limit.
-	job := eng.Job("create")
-	job.Setenv("Image", unitTestImageID)
-	job.Setenv("Memory", "524287")
-	job.Setenv("CpuShares", "1000")
-	job.SetenvList("Cmd", []string{"/bin/cat"})
-	if err := job.Run(); err == nil {
-		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
+	config, _, _, err := parseRun([]string{unitTestImageID, "/bin/cat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := createTestContainer(eng, config, t)
+
+	job := eng.Job("commit", id)
+	job.Setenv("repo", "testrepo")
+	job.Setenv("tag", "testtag")
+	job.SetenvJson("config", config)
+	if err := job.Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMergeConfigOnCommit(t *testing.T) {
+	eng := NewTestEngine(t)
+	b := &builder.BuilderJob{Engine: eng}
+	b.Install()
+	runtime := mkDaemonFromEngine(eng, t)
+	defer runtime.Nuke()
+
+	container1, _, _ := mkContainer(runtime, []string{"-e", "FOO=bar", unitTestImageID, "echo test > /tmp/foo"}, t)
+	defer runtime.Rm(container1)
+
+	config, _, _, err := parseRun([]string{container1.ID, "cat /tmp/foo"})
+	if err != nil {
+		t.Error(err)
+	}
+
+	job := eng.Job("commit", container1.ID)
+	job.Setenv("repo", "testrepo")
+	job.Setenv("tag", "testtag")
+	job.SetenvJson("config", config)
+	var outputBuffer = bytes.NewBuffer(nil)
+	job.Stdout.Add(outputBuffer)
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	container2, _, _ := mkContainer(runtime, []string{engine.Tail(outputBuffer, 1)}, t)
+	defer runtime.Rm(container2)
+
+	job = eng.Job("container_inspect", container1.Name)
+	baseContainer, _ := job.Stdout.AddEnv()
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	job = eng.Job("container_inspect", container2.Name)
+	commitContainer, _ := job.Stdout.AddEnv()
+	if err := job.Run(); err != nil {
+		t.Error(err)
+	}
+
+	baseConfig := baseContainer.GetSubEnv("Config")
+	commitConfig := commitContainer.GetSubEnv("Config")
+
+	if commitConfig.Get("Env") != baseConfig.Get("Env") {
+		t.Fatalf("Env config in committed container should be %v, was %v",
+			baseConfig.Get("Env"), commitConfig.Get("Env"))
+	}
+
+	if baseConfig.Get("Cmd") != "[\"echo test \\u003e /tmp/foo\"]" {
+		t.Fatalf("Cmd in base container should be [\"echo test \\u003e /tmp/foo\"], was %s",
+			baseConfig.Get("Cmd"))
+	}
+
+	if commitConfig.Get("Cmd") != "[\"cat /tmp/foo\"]" {
+		t.Fatalf("Cmd in committed container should be [\"cat /tmp/foo\"], was %s",
+			commitConfig.Get("Cmd"))
 	}
 }
 
