@@ -618,39 +618,37 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	var (
-		config       engine.Env
-		job          = eng.Job("commit", r.Form.Get("container"))
-		stdoutBuffer = bytes.NewBuffer(nil)
-	)
 
 	if err := checkForJson(r); err != nil {
 		return err
 	}
 
-	if err := config.Decode(r.Body); err != nil {
-		logrus.Errorf("%s", err)
-	}
+	cont := r.Form.Get("container")
 
+	pause := toBool(r.Form.Get("pause"))
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
-		job.Setenv("pause", "1")
-	} else {
-		job.Setenv("pause", r.FormValue("pause"))
+		pause = true
 	}
 
-	job.Setenv("repo", r.Form.Get("repo"))
-	job.Setenv("tag", r.Form.Get("tag"))
-	job.Setenv("author", r.Form.Get("author"))
-	job.Setenv("comment", r.Form.Get("comment"))
-	job.SetenvList("changes", r.Form["changes"])
-	job.SetenvSubEnv("config", &config)
+	containerCommitConfig := &daemon.ContainerCommitConfig{
+		Pause:   pause,
+		Repo:    r.Form.Get("repo"),
+		Tag:     r.Form.Get("tag"),
+		Author:  r.Form.Get("author"),
+		Comment: r.Form.Get("comment"),
+		Changes: r.Form["changes"],
+		Config:  r.Body,
+	}
 
-	job.Stdout.Add(stdoutBuffer)
-	if err := job.Run(); err != nil {
+	d := getDaemon(eng)
+
+	imgID, err := d.ContainerCommit(cont, containerCommitConfig)
+	if err != nil {
 		return err
 	}
+
 	return writeJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
-		ID: engine.Tail(stdoutBuffer, 1),
+		ID: imgID,
 	})
 }
 
