@@ -1005,20 +1005,18 @@ func postContainersWait(eng *engine.Engine, version version.Version, w http.Resp
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		stdoutBuffer = bytes.NewBuffer(nil)
-		job          = eng.Job("wait", vars["name"])
-	)
-	job.Stdout.Add(stdoutBuffer)
-	if err := job.Run(); err != nil {
-		return err
-	}
-	statusCode, err := strconv.Atoi(engine.Tail(stdoutBuffer, 1))
+
+	name := vars["name"]
+	d := getDaemon(eng)
+	cont, err := d.Get(name)
 	if err != nil {
 		return err
 	}
+
+	status, _ := cont.WaitStop(-1 * time.Second)
+
 	return writeJSON(w, http.StatusOK, &types.ContainerWaitResponse{
-		StatusCode: statusCode,
+		StatusCode: status,
 	})
 }
 

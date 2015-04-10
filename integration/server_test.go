@@ -3,10 +3,8 @@ package docker
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
 )
 
@@ -101,60 +99,6 @@ func TestMergeConfigOnCommit(t *testing.T) {
 		t.Fatalf("Cmd in committed container should be [\"cat /tmp/foo\"], was %s",
 			commitConfig.Get("Cmd"))
 	}
-}
-
-func TestRestartKillWait(t *testing.T) {
-	eng := NewTestEngine(t)
-	runtime := mkDaemonFromEngine(eng, t)
-	defer runtime.Nuke()
-
-	config, hostConfig, _, err := parseRun([]string{"-i", unitTestImageID, "/bin/cat"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := createTestContainer(eng, config, t)
-
-	containers, err := runtime.Containers(&daemon.ContainersConfig{All: true})
-
-	if err != nil {
-		t.Errorf("Error getting containers1: %q", err)
-	}
-
-	if len(containers) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(containers))
-	}
-
-	job := eng.Job("start", id)
-	if err := job.ImportEnv(hostConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := job.Run(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := runtime.ContainerKill(id, 0); err != nil {
-		t.Fatal(err)
-	}
-
-	eng = newTestEngine(t, false, runtime.Config().Root)
-	runtime = mkDaemonFromEngine(eng, t)
-
-	containers, err = runtime.Containers(&daemon.ContainersConfig{All: true})
-
-	if err != nil {
-		t.Errorf("Error getting containers1: %q", err)
-	}
-	if len(containers) != 1 {
-		t.Errorf("Expected 1 container, %v found", len(containers))
-	}
-
-	setTimeout(t, "Waiting on stopped container timedout", 5*time.Second, func() {
-		job = eng.Job("wait", containers[0].ID)
-		if err := job.Run(); err != nil {
-			t.Fatal(err)
-		}
-	})
 }
 
 func TestRunWithTooLowMemoryLimit(t *testing.T) {
