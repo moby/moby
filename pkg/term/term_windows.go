@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term/winconsole"
 )
 
@@ -57,6 +58,7 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 // SetWinsize sets the size of the given terminal connected to the passed file descriptor.
 func SetWinsize(fd uintptr, ws *Winsize) error {
 	// TODO(azlinux): Implement SetWinsize
+	logrus.Debugf("[windows] SetWinsize: WARNING -- Unsupported method invoked")
 	return nil
 }
 
@@ -120,11 +122,10 @@ func MakeRaw(fd uintptr) (*State, error) {
 	mode &^= winconsole.ENABLE_ECHO_INPUT
 	mode &^= winconsole.ENABLE_LINE_INPUT
 	mode &^= winconsole.ENABLE_MOUSE_INPUT
-	// TODO(azlinux): Enable window input to handle window resizing
-	mode |= winconsole.ENABLE_WINDOW_INPUT
+	mode &^= winconsole.ENABLE_WINDOW_INPUT
+	mode &^= winconsole.ENABLE_PROCESSED_INPUT
 
 	// Enable these modes
-	mode |= winconsole.ENABLE_PROCESSED_INPUT
 	mode |= winconsole.ENABLE_EXTENDED_FLAGS
 	mode |= winconsole.ENABLE_INSERT_MODE
 	mode |= winconsole.ENABLE_QUICK_EDIT_MODE

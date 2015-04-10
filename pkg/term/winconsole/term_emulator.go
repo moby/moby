@@ -1,6 +1,7 @@
 package winconsole
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -204,6 +205,21 @@ func (c *ansiCommand) getParam(index int) string {
 		return c.Parameters[index]
 	}
 	return ""
+}
+
+func (ac *ansiCommand) String() string {
+	return fmt.Sprintf("0x%v \"%v\" (\"%v\")",
+		bytesToHex(ac.CommandBytes),
+		ac.Command,
+		strings.Join(ac.Parameters, "\",\""))
+}
+
+func bytesToHex(b []byte) string {
+	hex := make([]string, len(b))
+	for i, ch := range b {
+		hex[i] = fmt.Sprintf("%X", ch)
+	}
+	return strings.Join(hex, "")
 }
 
 func parseInt16OrDefault(s string, defaultValue int16) (n int16, err error) {
