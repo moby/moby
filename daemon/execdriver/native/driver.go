@@ -190,14 +190,40 @@ func notifyOnOOM(container libcontainer.Container) <-chan struct{} {
 	return oom
 }
 
+func killCgroupProcs(c libcontainer.Container) {
+	var procs []*os.Process
+	if err := c.Pause(); err != nil {
+		log.Warn(err)
+	}
+	pids, err := c.Processes()
+	if err != nil {
+		// don't care about childs if we can't get them, this is mostly because cgroup already deleted
+		log.Warnf("Failed to get processes from container %s: %v", c.ID(), err)
+	}
+	for _, pid := range pids {
+		if p, err := os.FindProcess(pid); err == nil {
+			procs = append(procs, p)
+			if err := p.Kill(); err != nil {
+				log.Warn(err)
+			}
+		}
+	}
+	if err := c.Resume(); err != nil {
+		log.Warn(err)
+	}
+	for _, p := range procs {
+		if _, err := p.Wait(); err != nil {
+			log.Warn(err)
+		}
+	}
+}
+
 func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*os.ProcessState, error) {
 	return func() (*os.ProcessState, error) {
 		pid, err := p.Pid()
 		if err != nil {
 			return nil, err
 		}
-
-		processes, err := c.Processes()
 
 		process, err := os.FindProcess(pid)
 		s, err := process.Wait()
@@ -208,19 +234,7 @@ func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*o
 			}
 			s = execErr.ProcessState
 		}
-		if err != nil {
-			return s, err
-		}
-
-		for _, pid := range processes {
-			process, err := os.FindProcess(pid)
-			if err != nil {
-				log.Errorf("Failed to kill process: %d", pid)
-				continue
-			}
-			process.Kill()
-		}
-
+		killCgroupProcs(c)
 		p.Wait()
 		return s, err
 	}
