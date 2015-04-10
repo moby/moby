@@ -389,6 +389,9 @@ func getPausedContainers() (string, error) {
 func getSliceOfPausedContainers() ([]string, error) {
 	out, err := getPausedContainers()
 	if err == nil {
+		if len(out) == 0 {
+			return nil, err
+		}
 		slice := strings.Split(strings.TrimSpace(out), "\n")
 		return slice, err
 	}

@@ -3,14 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestContainerApiGetAll(t *testing.T) {
@@ -552,4 +552,46 @@ func TestPostContainerBindNormalVolume(t *testing.T) {
 	}
 
 	logDone("container REST API - can use path from normal volume as bind-mount to overwrite another volume")
+}
+
+func TestContainerApiPause(t *testing.T) {
+	defer deleteAllContainers()
+	defer unpauseAllContainers()
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sleep", "30")
+	out, _, err := runCommandWithOutput(runCmd)
+
+	if err != nil {
+		t.Fatalf("failed to create a container: %s, %v", out, err)
+	}
+	ContainerID := strings.TrimSpace(out)
+
+	if _, err = sockRequest("POST", "/containers/"+ContainerID+"/pause", nil); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+		t.Fatalf("POST a container pause: sockRequest failed: %v", err)
+	}
+
+	pausedContainers, err := getSliceOfPausedContainers()
+
+	if err != nil {
+		t.Fatalf("error thrown while checking if containers were paused: %v", err)
+	}
+
+	if len(pausedContainers) != 1 || stringid.TruncateID(ContainerID) != pausedContainers[0] {
+		t.Fatalf("there should be one paused container and not %d", len(pausedContainers))
+	}
+
+	if _, err = sockRequest("POST", "/containers/"+ContainerID+"/unpause", nil); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+		t.Fatalf("POST a container pause: sockRequest failed: %v", err)
+	}
+
+	pausedContainers, err = getSliceOfPausedContainers()
+
+	if err != nil {
+		t.Fatalf("error thrown while checking if containers were paused: %v", err)
+	}
+
+	if pausedContainers != nil {
+		t.Fatalf("There should be no paused container.")
+	}
+
+	logDone("container REST API - check POST containers/pause nad unpause")
 }
