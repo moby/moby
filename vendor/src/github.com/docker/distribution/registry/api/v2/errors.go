@@ -13,6 +13,12 @@ const (
 	// ErrorCodeUnknown is a catch-all for errors not defined below.
 	ErrorCodeUnknown ErrorCode = iota
 
+	// ErrorCodeUnsupported is returned when an operation is not supported.
+	ErrorCodeUnsupported
+
+	// ErrorCodeUnauthorized is returned if a request is not authorized.
+	ErrorCodeUnauthorized
+
 	// ErrorCodeDigestInvalid is returned when uploading a blob if the
 	// provided digest does not match the blob contents.
 	ErrorCodeDigestInvalid
@@ -51,6 +57,9 @@ const (
 
 	// ErrorCodeBlobUploadUnknown is returned when an upload is unknown.
 	ErrorCodeBlobUploadUnknown
+
+	// ErrorCodeBlobUploadInvalid is returned when an upload is invalid.
+	ErrorCodeBlobUploadInvalid
 )
 
 // ParseErrorCode attempts to parse the error code string, returning

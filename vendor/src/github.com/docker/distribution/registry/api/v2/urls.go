@@ -3,7 +3,9 @@ package v2
 import (
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/docker/distribution/digest"
 	"github.com/gorilla/mux"
 )
 
@@ -42,9 +44,40 @@ func NewURLBuilderFromString(root string) (*URLBuilder, error) {
 // NewURLBuilderFromRequest uses information from an *http.Request to
 // construct the root url.
 func NewURLBuilderFromRequest(r *http.Request) *URLBuilder {
+	var scheme string
+
+	forwardedProto := r.Header.Get("X-Forwarded-Proto")
+
+	switch {
+	case len(forwardedProto) > 0:
+		scheme = forwardedProto
+	case r.TLS != nil:
+		scheme = "https"
+	case len(r.URL.Scheme) > 0:
+		scheme = r.URL.Scheme
+	default:
+		scheme = "http"
+	}
+
+	host := r.Host
+	forwardedHost := r.Header.Get("X-Forwarded-Host")
+	if len(forwardedHost) > 0 {
+		host = forwardedHost
+	}
+
+	basePath := routeDescriptorsMap[RouteNameBase].Path
+
+	requestPath := r.URL.Path
+	index := strings.Index(requestPath, basePath)
+
 	u := &url.URL{
-		Scheme: r.URL.Scheme,
-		Host:   r.Host,
+		Scheme: scheme,
+		Host:   host,
+	}
+
+	if index > 0 {
+		// N.B. index+1 is important because we want to include the trailing /
+		u.Path = requestPath[0 : index+1]
 	}
 
 	return NewURLBuilder(u)
@@ -74,7 +107,8 @@ func (ub *URLBuilder) BuildTagsURL(name string) (string, error) {
 	return tagsURL.String(), nil
 }
 
-// BuildManifestURL constructs a url for the manifest identified by name and reference.
+// BuildManifestURL constructs a url for the manifest identified by name and
+// reference. The argument reference may be either a tag or digest.
 func (ub *URLBuilder) BuildManifestURL(name, reference string) (string, error) {
 	route := ub.cloneRoute(RouteNameManifest)
 
@@ -87,10 +121,10 @@ func (ub *URLBuilder) BuildManifestURL(name, reference string) (string, error) {
 }
 
 // BuildBlobURL constructs the url for the blob identified by name and dgst.
-func (ub *URLBuilder) BuildBlobURL(name string, dgst string) (string, error) {
+func (ub *URLBuilder) BuildBlobURL(name string, dgst digest.Digest) (string, error) {
 	route := ub.cloneRoute(RouteNameBlob)
 
-	layerURL, err := route.URL("name", name, "digest", dgst)
+	layerURL, err := route.URL("name", name, "digest", dgst.String())
 	if err != nil {
 		return "", err
 	}
@@ -147,6 +181,10 @@ func (cr clonedRoute) URL(pairs ...string) (*url.URL, error) {
 	routeURL, err := cr.Route.URL(pairs...)
 	if err != nil {
 		return nil, err
+	}
+
+	if routeURL.Scheme == "" && routeURL.User == nil && routeURL.Host == "" {
+		routeURL.Path = routeURL.Path[1:]
 	}
 
 	return cr.root.ResolveReference(routeURL), nil

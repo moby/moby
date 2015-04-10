@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
@@ -376,13 +376,13 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 
 			var exists bool
 			if len(checksum) > 0 {
-				sumParts := strings.SplitN(checksum, ":", 2)
-				if len(sumParts) < 2 {
-					return fmt.Errorf("Invalid checksum: %s", checksum)
+				dgst, err := digest.ParseDigest(checksum)
+				if err != nil {
+					return fmt.Errorf("Invalid checksum %s: %s", checksum, err)
 				}
 
 				// Call mount blob
-				exists, err = r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, sumParts[0], sumParts[1], auth)
+				exists, err = r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, dgst, auth)
 				if err != nil {
 					out.Write(sf.FormatProgress(stringid.TruncateID(layer.ID), "Image push failed", nil))
 					return err
@@ -468,7 +468,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", img.ID, size)
 
-	if err := r.PutV2ImageBlob(endpoint, imageName, dgst.Algorithm(), dgst.Hex(),
+	if err := r.PutV2ImageBlob(endpoint, imageName, dgst,
 		progressreader.New(progressreader.Config{
 			In:        tf,
 			Out:       out,
