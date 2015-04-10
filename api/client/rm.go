@@ -30,6 +30,10 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 	var encounteredError error
 	for _, name := range cmd.Args() {
+		if name == "" {
+			return fmt.Errorf("Container name cannot be empty")
+		}
+
 		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, nil))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)

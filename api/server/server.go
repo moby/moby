@@ -466,10 +466,6 @@ func getContainersChanges(eng *engine.Engine, version version.Version, w http.Re
 	}
 
 	name := vars["name"]
-	if name == "" {
-		return fmt.Errorf("Container name cannot be empty")
-	}
-
 	d := getDaemon(eng)
 	cont, err := d.Get(name)
 	if err != nil {
@@ -883,10 +879,6 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	}
 
 	name := vars["name"]
-	if name == "" {
-		return fmt.Errorf("Container name cannot be empty")
-	}
-
 	d := getDaemon(eng)
 	config := &daemon.ContainerRmConfig{
 		ForceRemove:  toBool(r.Form.Get("force")),
@@ -895,6 +887,10 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	}
 
 	if err := d.ContainerRm(name, config); err != nil {
+		// Force a 404 for the empty string
+		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
+			return fmt.Errorf("no such id: \"\"")
+		}
 		return err
 	}
 
