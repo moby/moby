@@ -22,10 +22,17 @@ EOF
 }
 
 create_robots_txt() {
-	cat > ./sources/robots.txt <<'EOF'
-User-agent: *
-Disallow: /
-EOF
+	if [ "$AWS_S3_BUCKET" == "docs.docker.com" ]; then
+		cat > ./sources/robots.txt <<-'EOF'
+		User-agent: *
+		Allow: /
+		EOF
+	else
+		cat > ./sources/robots.txt <<-'EOF'
+		User-agent: *
+		Disallow: /
+		EOF
+	fi
 }
 
 setup_s3() {
