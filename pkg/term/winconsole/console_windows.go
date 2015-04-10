@@ -12,6 +12,8 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -593,6 +595,7 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 	n = len(command)
 
 	parsedCommand := parseAnsiCommand(command)
+	logrus.Debugf("[windows] HandleOutputCommand: %v", parsedCommand)
 
 	// console settings changes need to happen in atomic way
 	term.outMutex.Lock()
@@ -648,6 +651,7 @@ func (term *WindowsTerminal) HandleOutputCommand(handle uintptr, command []byte)
 			column = int16(screenBufferInfo.Window.Right) + 1
 		}
 		// The numbers are not 0 based, but 1 based
+		logrus.Debugf("[windows] HandleOutputCommmand: Moving cursor to (%v,%v)", column-1, line-1)
 		if err := setConsoleCursorPosition(handle, false, column-1, line-1); err != nil {
 			return n, err
 		}
@@ -1038,8 +1042,7 @@ func (term *WindowsTerminal) HandleInputSequence(fd uintptr, command []byte) (n 
 }
 
 func marshal(c COORD) uintptr {
-	// works only on intel-endian machines
-	return uintptr(uint32(uint32(uint16(c.Y))<<16 | uint32(uint16(c.X))))
+	return uintptr(*((*DWORD)(unsafe.Pointer(&c))))
 }
 
 // IsConsole returns true if the given file descriptor is a terminal.
