@@ -61,6 +61,9 @@ docs-release: docs-build
 docs-test: docs-build
 	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./test.sh
 
+dynbinary: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary
+
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration test-integration-cli test-docker-py
 
