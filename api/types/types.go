@@ -104,3 +104,9 @@ type Container struct {
 type CopyConfig struct {
 	Resource string
 }
+
+// GET "/containers/{name:.*}/top"
+type ContainerProcessList struct {
+	Processes [][]string
+	Titles    []string
+}
