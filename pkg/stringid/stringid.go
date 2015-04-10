@@ -4,19 +4,27 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"regexp"
 	"strconv"
 )
+
+const shortLen = 12
+
+// Determine if an arbitrary string *looks like* a short ID.
+func IsShortID(id string) bool {
+	return regexp.MustCompile("^[a-z0-9]{12}$").MatchString(id)
+}
 
 // TruncateID returns a shorthand version of a string identifier for convenience.
 // A collision with other shorthands is very unlikely, but possible.
 // In case of a collision a lookup with TruncIndex.Get() will fail, and the caller
 // will need to use a langer prefix, or the full-length Id.
 func TruncateID(id string) string {
-	shortLen := 12
+	trimTo := shortLen
 	if len(id) < shortLen {
-		shortLen = len(id)
+		trimTo = len(id)
 	}
-	return id[:shortLen]
+	return id[:trimTo]
 }
 
 // GenerateRandomID returns an unique id
