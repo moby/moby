@@ -41,6 +41,7 @@ func (s *TagStore) CmdHistory(job *engine.Job) error {
 			CreatedBy: strings.Join(img.ContainerConfig.Cmd, " "),
 			Tags:      lookupMap[img.ID],
 			Size:      img.Size,
+			Comment:   img.Comment,
 		})
 		return nil
 	})

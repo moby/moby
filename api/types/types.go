@@ -49,6 +49,7 @@ type ImageHistory struct {
 	CreatedBy string
 	Tags      []string
 	Size      int64
+	Comment   string
 }
 
 // DELETE "/images/{name:.*}"
