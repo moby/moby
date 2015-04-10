@@ -33,7 +33,7 @@ func TestResizeApiResponseWhenContainerNotStarted(t *testing.T) {
 	defer deleteAllContainers()
 	cleanedContainerID := strings.TrimSpace(out)
 
-	// make sure the exited cintainer is not running
+	// make sure the exited container is not running
 	runCmd = exec.Command(dockerBinary, "wait", cleanedContainerID)
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
