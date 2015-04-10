@@ -44,9 +44,6 @@ type Interface struct {
 	// network namespace.
 	DstName string
 
-	// MAC address for the interface.
-	MacAddress string
-
 	// IPv4 address for the interface.
 	Address string
 
@@ -58,9 +55,6 @@ type Interface struct {
 
 	// IPv6 gateway for the interface.
 	GatewayIPv6 string
-
-	// Network MTU.
-	MTU int
 }
 
 // A Network represents a logical connectivity zone that containers may

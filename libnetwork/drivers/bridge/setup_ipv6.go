@@ -33,5 +33,7 @@ func setupBridgeIPv6(i *bridgeInterface) error {
 		return fmt.Errorf("Failed to add IPv6 address %s to bridge: %v", bridgeIPv6, err)
 	}
 
+	i.bridgeIPv6 = bridgeIPv6
+
 	return nil
 }

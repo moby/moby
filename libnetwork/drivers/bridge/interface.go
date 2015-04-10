@@ -1,6 +1,10 @@
 package bridge
 
-import "github.com/vishvananda/netlink"
+import (
+	"net"
+
+	"github.com/vishvananda/netlink"
+)
 
 const (
 	// DefaultBridgeName is the default name for the bridge interface managed
@@ -10,8 +14,10 @@ const (
 
 // Interface models the bridge network device.
 type bridgeInterface struct {
-	Config *Configuration
-	Link   netlink.Link
+	Config     *Configuration
+	Link       netlink.Link
+	bridgeIPv4 *net.IPNet
+	bridgeIPv6 *net.IPNet
 }
 
 // NewInterface creates a new bridge interface structure. It attempts to find

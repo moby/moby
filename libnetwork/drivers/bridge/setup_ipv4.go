@@ -52,6 +52,8 @@ func setupBridgeIPv4(i *bridgeInterface) error {
 		return fmt.Errorf("Failed to add IPv4 address %s to bridge: %v", bridgeIPv4, err)
 	}
 
+	i.bridgeIPv4 = bridgeIPv4
+
 	return nil
 }
 

@@ -14,10 +14,8 @@ func configureInterface(iface netlink.Link, settings *Interface) error {
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, settings.DstName)},
-		{setInterfaceMAC, fmt.Sprintf("error setting interface %q MAC address to %q", ifaceName, settings.MacAddress)},
 		{setInterfaceIP, fmt.Sprintf("error setting interface %q IP to %q", ifaceName, settings.Address)},
 		{setInterfaceIPv6, fmt.Sprintf("error setting interface %q IPv6 to %q", ifaceName, settings.AddressIPv6)},
-		{setInterfaceMTU, fmt.Sprintf("error setting interface %q MTU to %q", ifaceName, settings.MTU)},
 		{setInterfaceGateway, fmt.Sprintf("error setting interface %q gateway to %q", ifaceName, settings.Gateway)},
 		{setInterfaceGatewayIPv6, fmt.Sprintf("error setting interface %q IPv6 gateway to %q", ifaceName, settings.GatewayIPv6)},
 	}
@@ -76,18 +74,6 @@ func setInterfaceIPv6(iface netlink.Link, settings *Interface) (err error) {
 		err = netlink.AddrAdd(iface, ipAddr)
 	}
 	return err
-}
-
-func setInterfaceMAC(iface netlink.Link, settings *Interface) (err error) {
-	var hwAddr net.HardwareAddr
-	if hwAddr, err = net.ParseMAC(settings.MacAddress); err == nil {
-		err = netlink.LinkSetHardwareAddr(iface, hwAddr)
-	}
-	return err
-}
-
-func setInterfaceMTU(iface netlink.Link, settings *Interface) error {
-	return netlink.LinkSetMTU(iface, settings.MTU)
 }
 
 func setInterfaceName(iface netlink.Link, settings *Interface) error {
