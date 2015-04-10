@@ -19,19 +19,20 @@ func TestProgramIPTable(t *testing.T) {
 
 	// Store various iptables chain rules we care for.
 	rules := []struct {
-		ruleArgs []string
-		descr    string
-	}{{[]string{"FORWARD", "-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}, "Test Loopback"},
-		{[]string{"POSTROUTING", "-t", "nat", "-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}, "NAT Test"},
-		{[]string{"FORWARD", "-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}, "Test ACCEPT NON_ICC OUTGOING"},
-		{[]string{"FORWARD", "-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}, "Test ACCEPT INCOMING"},
-		{[]string{"FORWARD", "-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}, "Test enable ICC"},
-		{[]string{"FORWARD", "-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}, "Test disable ICC"},
+		rule  iptRule
+		descr string
+	}{
+		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
+		{iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", iptablesTestBridgeIP, "!", "-o", DefaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
+		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "!", "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
+		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", DefaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
+		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
+		{iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", DefaultBridgeName, "-o", DefaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
 	}
 
 	// Assert the chain rules' insertion and removal.
 	for _, c := range rules {
-		assertIPTableChainProgramming(c.ruleArgs, c.descr, t)
+		assertIPTableChainProgramming(c.rule, c.descr, t)
 	}
 }
 
@@ -74,20 +75,20 @@ func createTestBridge(br *bridgeInterface, t *testing.T) {
 }
 
 // Assert base function which pushes iptables chain rules on insertion and removal.
-func assertIPTableChainProgramming(args []string, descr string, t *testing.T) {
+func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 	// Add
-	if err := programChainRule(args, descr, true); err != nil {
+	if err := programChainRule(rule, descr, true); err != nil {
 		t.Fatalf("Failed to program iptable rule %s: %s", descr, err.Error())
 	}
-	if iptables.Exists(args...) == false {
+	if iptables.Exists(rule.table, rule.chain, rule.args...) == false {
 		t.Fatalf("Failed to effectively program iptable rule: %s", descr)
 	}
 
 	// Remove
-	if err := programChainRule(args, descr, false); err != nil {
+	if err := programChainRule(rule, descr, false); err != nil {
 		t.Fatalf("Failed to remove iptable rule %s: %s", descr, err.Error())
 	}
-	if iptables.Exists(args...) == true {
+	if iptables.Exists(rule.table, rule.chain, rule.args...) == true {
 		t.Fatalf("Failed to effectively remove iptable rule: %s", descr)
 	}
 }

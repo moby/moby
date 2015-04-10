@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/libcontainer/utils"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/ipallocator"
 	"github.com/vishvananda/netlink"
 )
 
@@ -78,14 +77,14 @@ func (b *bridgeNetwork) Link(name string) ([]*libnetwork.Interface, error) {
 		return nil, err
 	}
 
-	ip4, err := ipallocator.RequestIP(b.bridge.bridgeIPv4, nil)
+	ip4, err := ipAllocator.RequestIP(b.bridge.bridgeIPv4, nil)
 	if err != nil {
 		return nil, err
 	}
 	ipv4Addr := net.IPNet{IP: ip4, Mask: b.bridge.bridgeIPv4.Mask}
 
 	if b.bridge.Config.EnableIPv6 {
-		ip6, err := ipallocator.RequestIP(b.bridge.bridgeIPv6, nil)
+		ip6, err := ipAllocator.RequestIP(b.bridge.bridgeIPv6, nil)
 		if err != nil {
 			return nil, err
 		}
