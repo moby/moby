@@ -1,6 +1,7 @@
 package chrootarchive
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -29,7 +30,8 @@ func untar() {
 
 	var options *archive.TarOptions
 
-	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
+	//read the options from the pipe "ExtraFiles"
+	if err := json.NewDecoder(os.NewFile(3, "options")).Decode(&options); err != nil {
 		fatal(err)
 	}
 
@@ -62,28 +64,39 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 		}
 	}
 
-	// We can't pass the exclude list directly via cmd line
-	// because we easily overrun the shell max argument list length
-	// when the full image list is passed (e.g. when this is used
-	// by `docker load`). Instead we will add the JSON marshalled
-	// and placed in the env, which has significantly larger
-	// max size
-	data, err := json.Marshal(options)
-	if err != nil {
-		return fmt.Errorf("Untar json encode: %v", err)
-	}
 	decompressedArchive, err := archive.DecompressStream(tarArchive)
 	if err != nil {
 		return err
 	}
 	defer decompressedArchive.Close()
 
+	// We can't pass a potentially large exclude list directly via cmd line
+	// because we easily overrun the kernel's max argument/environment size
+	// when the full image list is passed (e.g. when this is used by
+	// `docker load`). We will marshall the options via a pipe to the
+	// child
+	r, w, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("Untar pipe failure: %v", err)
+	}
 	cmd := reexec.Command("docker-untar", dest)
 	cmd.Stdin = decompressedArchive
-	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Untar %s %s", err, out)
+	cmd.ExtraFiles = append(cmd.ExtraFiles, r)
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
+	}
+	//write the options to the pipe for the untar exec to read
+	if err := json.NewEncoder(w).Encode(options); err != nil {
+		return fmt.Errorf("Untar json encode to pipe failed: %v", err)
+	}
+	w.Close()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("Untar re-exec error: %v: output: %s", err, output)
 	}
 	return nil
 }
