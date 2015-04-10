@@ -1005,9 +1005,26 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	if err := eng.Job("resize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
+
+	height, err := strconv.Atoi(r.Form.Get("h"))
+	if err != nil {
+		return nil
+	}
+	width, err := strconv.Atoi(r.Form.Get("w"))
+	if err != nil {
+		return nil
+	}
+
+	d := getDaemon(eng)
+	cont, err := d.Get(vars["name"])
+	if err != nil {
 		return err
 	}
+
+	if err := cont.Resize(height, width); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1363,9 +1380,21 @@ func postContainerExecResize(eng *engine.Engine, version version.Version, w http
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	if err := eng.Job("execResize", vars["name"], r.Form.Get("h"), r.Form.Get("w")).Run(); err != nil {
+
+	height, err := strconv.Atoi(r.Form.Get("h"))
+	if err != nil {
+		return nil
+	}
+	width, err := strconv.Atoi(r.Form.Get("w"))
+	if err != nil {
+		return nil
+	}
+
+	d := getDaemon(eng)
+	if err := d.ContainerExecResize(vars["name"], height, width); err != nil {
 		return err
 	}
+
 	return nil
 }
 
