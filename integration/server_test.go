@@ -132,8 +132,8 @@ func TestRestartKillWait(t *testing.T) {
 	if err := job.Run(); err != nil {
 		t.Fatal(err)
 	}
-	job = eng.Job("kill", id)
-	if err := job.Run(); err != nil {
+
+	if err := runtime.ContainerKill(id, 0); err != nil {
 		t.Fatal(err)
 	}
 
