@@ -434,13 +434,13 @@ func getImagesHistory(eng *engine.Engine, version version.Version, w http.Respon
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var job = eng.Job("history", vars["name"])
-	streamJSON(job, w, false)
-
-	if err := job.Run(); err != nil {
+	name := vars["name"]
+	history, err := getDaemon(eng).Repositories().History(name)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	return writeJSON(w, http.StatusOK, history)
 }
 
 func getContainersChanges(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

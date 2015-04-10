@@ -219,36 +219,6 @@ func TestLogsNoStreams(t *testing.T) {
 	}
 }
 
-func TestGetImagesHistory(t *testing.T) {
-	eng := engine.New()
-	imageName := "docker-test-image"
-	var called bool
-	eng.Register("history", func(job *engine.Job) error {
-		called = true
-		if len(job.Args) == 0 {
-			t.Fatal("Job arguments is empty")
-		}
-		if job.Args[0] != imageName {
-			t.Fatalf("name != '%s': %#v", imageName, job.Args[0])
-		}
-		v := &engine.Env{}
-		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequest("GET", "/images/"+imageName+"/history", nil, eng, t)
-	if !called {
-		t.Fatalf("handler was not called")
-	}
-	if r.Code != http.StatusOK {
-		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusOK)
-	}
-	if r.HeaderMap.Get("Content-Type") != "application/json" {
-		t.Fatalf("%#v\n", r)
-	}
-}
-
 func TestGetImagesByName(t *testing.T) {
 	eng := engine.New()
 	name := "image_name"
