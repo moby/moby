@@ -69,7 +69,7 @@ func TestStartAttachCorrectExitCode(t *testing.T) {
 	logDone("start - correct exit code returned with -a")
 }
 
-func TestStartSilentAttach(t *testing.T) {
+func TestStartAttachSilent(t *testing.T) {
 	defer deleteAllContainers()
 
 	name := "teststartattachcorrectexitcode"
