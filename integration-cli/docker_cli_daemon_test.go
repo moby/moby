@@ -884,8 +884,10 @@ func TestDaemonwithwrongkey(t *testing.T) {
 
 	if err := d1.Start(); err == nil {
 		d1.Stop()
+		os.Remove("/etc/docker/key.json")
 		t.Fatalf("It should not be succssful to start daemon with wrong key: %v", err)
 	}
+	os.Remove("/etc/docker/key.json")
 
 	content, _ := ioutil.ReadFile(d1.logFile.Name())
 
@@ -893,6 +895,5 @@ func TestDaemonwithwrongkey(t *testing.T) {
 		t.Fatal("Missing KeyID message from daemon logs")
 	}
 
-	os.Remove("/etc/docker/key.json")
 	logDone("daemon - it should be failed to start daemon with wrong key")
 }
