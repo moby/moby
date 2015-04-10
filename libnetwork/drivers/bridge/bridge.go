@@ -2,14 +2,29 @@ package bridge
 
 import (
 	"net"
+	"sync"
 
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/ipallocator"
+	"github.com/docker/libnetwork/portmapper"
 )
 
 const (
 	networkType = "simplebridge"
 	vethPrefix  = "veth"
 )
+
+var (
+	once        sync.Once
+	ipAllocator *ipallocator.IPAllocator
+	portMapper  *portmapper.PortMapper
+)
+
+func initPortMapper() {
+	once.Do(func() {
+		portMapper = portmapper.New()
+	})
+}
 
 // Configuration info for the "simplebridge" driver.
 type Configuration struct {
@@ -27,6 +42,8 @@ type Configuration struct {
 type driver struct{}
 
 func init() {
+	ipAllocator = ipallocator.New()
+	initPortMapper()
 	libnetwork.RegisterNetworkType(networkType, &driver{}, &Configuration{})
 }
 

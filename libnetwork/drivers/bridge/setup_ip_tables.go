@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/portmapper"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -38,17 +37,25 @@ func setupIPTables(i *bridgeInterface) error {
 		return fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
 	}
 
-	portmapper.SetIptablesChain(chain)
+	portMapper.SetIptablesChain(chain)
 
 	return nil
 }
 
+type iptRule struct {
+	table   iptables.Table
+	chain   string
+	preArgs []string
+	args    []string
+}
+
 func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, enable bool) error {
+
 	var (
 		address = addr.String()
-		natRule = []string{"POSTROUTING", "-t", "nat", "-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}
-		outRule = []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
-		inRule  = []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+		natRule = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}}
+		outRule = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
+		inRule  = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}
 	)
 
 	// Set NAT.
@@ -76,28 +83,32 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, enabl
 	return nil
 }
 
-func programChainRule(ruleArgs []string, ruleDescr string, insert bool) error {
+func programChainRule(rule iptRule, ruleDescr string, insert bool) error {
 	var (
 		prefix    []string
 		operation string
 		condition bool
+		doesExist = iptables.Exists(rule.table, rule.chain, rule.args...)
 	)
 
 	if insert {
-		condition = !iptables.Exists(ruleArgs...)
-		prefix = []string{"-I"}
+		condition = !doesExist
+		prefix = []string{"-I", rule.chain}
 		operation = "enable"
 	} else {
-		condition = iptables.Exists(ruleArgs...)
-		prefix = []string{"-D"}
+		condition = doesExist
+		prefix = []string{"-D", rule.chain}
 		operation = "disable"
+	}
+	if rule.preArgs != nil {
+		prefix = append(rule.preArgs, prefix...)
 	}
 
 	if condition {
-		if output, err := iptables.Raw(append(prefix, ruleArgs...)...); err != nil {
+		if output, err := iptables.Raw(append(prefix, rule.args...)...); err != nil {
 			return fmt.Errorf("Unable to %s %s rule: %s", operation, ruleDescr, err.Error())
 		} else if len(output) != 0 {
-			return &iptables.ChainError{Chain: ruleDescr, Output: output}
+			return &iptables.ChainError{Chain: rule.chain, Output: output}
 		}
 	}
 
@@ -106,27 +117,29 @@ func programChainRule(ruleArgs []string, ruleDescr string, insert bool) error {
 
 func setIcc(bridgeIface string, iccEnable, insert bool) error {
 	var (
-		args       = []string{"FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j"}
+		table      = iptables.Filter
+		chain      = "FORWARD"
+		args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
 		acceptArgs = append(args, "ACCEPT")
 		dropArgs   = append(args, "DROP")
 	)
 
 	if insert {
 		if !iccEnable {
-			iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
+			iptables.Raw(append([]string{"-D", chain}, acceptArgs...)...)
 
-			if !iptables.Exists(dropArgs...) {
-				if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
+			if !iptables.Exists(table, chain, dropArgs...) {
+				if output, err := iptables.Raw(append([]string{"-I", chain}, dropArgs...)...); err != nil {
 					return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
 				} else if len(output) != 0 {
 					return fmt.Errorf("Error disabling intercontainer communication: %s", output)
 				}
 			}
 		} else {
-			iptables.Raw(append([]string{"-D"}, dropArgs...)...)
+			iptables.Raw(append([]string{"-D", chain}, dropArgs...)...)
 
-			if !iptables.Exists(acceptArgs...) {
-				if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
+			if !iptables.Exists(table, chain, acceptArgs...) {
+				if output, err := iptables.Raw(append([]string{"-I", chain}, acceptArgs...)...); err != nil {
 					return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
 				} else if len(output) != 0 {
 					return fmt.Errorf("Error enabling intercontainer communication: %s", output)
@@ -136,12 +149,12 @@ func setIcc(bridgeIface string, iccEnable, insert bool) error {
 	} else {
 		// Remove any ICC rule.
 		if !iccEnable {
-			if iptables.Exists(dropArgs...) {
-				iptables.Raw(append([]string{"-D"}, dropArgs...)...)
+			if iptables.Exists(table, chain, dropArgs...) {
+				iptables.Raw(append([]string{"-D", chain}, dropArgs...)...)
 			}
 		} else {
-			if iptables.Exists(acceptArgs...) {
-				iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
+			if iptables.Exists(table, chain, acceptArgs...) {
+				iptables.Raw(append([]string{"-D", chain}, acceptArgs...)...)
 			}
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/ipallocator"
 )
 
 func setupFixedCIDRv4(i *bridgeInterface) error {
@@ -14,7 +13,7 @@ func setupFixedCIDRv4(i *bridgeInterface) error {
 	}
 
 	log.Debugf("Using IPv4 subnet: %v", i.Config.FixedCIDR)
-	if err := ipallocator.RegisterSubnet(addrv4.IPNet, i.Config.FixedCIDR); err != nil {
+	if err := ipAllocator.RegisterSubnet(addrv4.IPNet, i.Config.FixedCIDR); err != nil {
 		return fmt.Errorf("Setup FixedCIDRv4 failed for subnet %s in %s: %v", i.Config.FixedCIDR, addrv4.IPNet, err)
 	}
 
