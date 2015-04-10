@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DEST=$1
+PACKAGE_NAME=${PACKAGE_NAME:-docker-engine}
 
 # XXX - The package version in CentOS gets messed up and inserts a '~'
 #       (including the single quote) if we use the same package
@@ -152,9 +153,9 @@ EOF
 		# switch directories so we create *.deb in the right folder
 		cd $DEST
 
-		# create lxc-docker-VERSION package
+		# create PACKAGE_NAME-VERSION package
 		fpm -s dir -C $DIR \
-			--name lxc-docker-$VERSION --version "$PKGVERSION" \
+			--name $PACKAGE_NAME-$VERSION --version "$PKGVERSION" \
 			--epoch 7 \
 			--before-install $DEST/preinst \
 			--after-install $DEST/postinst \
@@ -166,18 +167,16 @@ EOF
 			--depends xz \
 			--depends "systemd >= 208-20" \
 			--depends "device-mapper-libs >= 7:1.02.90-1" \
+			--depends "device-mapper-event-libs >= 7:1.02.90-1" \
 			--depends libselinux \
 			--depends libsepol \
 			--depends sqlite \
 			--description "$PACKAGE_DESCRIPTION" \
 			--maintainer "$PACKAGE_MAINTAINER" \
 			--conflicts docker \
-			--conflicts docker.io \
+			--conflicts docker-io \
 			--conflicts lxc-docker-virtual-package \
-			--provides lxc-docker \
-			--provides lxc-docker-virtual-package \
-			--replaces lxc-docker \
-			--replaces lxc-docker-virtual-package \
+			--conflicts lxc-docker \
 			--url "$PACKAGE_URL" \
 			--license "$PACKAGE_LICENSE" \
 			--config-files etc/sysconfig \
