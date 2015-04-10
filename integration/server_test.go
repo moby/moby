@@ -2,18 +2,6 @@ package docker
 
 import "testing"
 
-func TestCreateNumberHostname(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	config, _, _, err := parseRun([]string{"-h", "web.0", unitTestImageID, "echo test"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	createTestContainer(eng, config, t)
-}
-
 func TestImagesFilter(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer nuke(mkDaemonFromEngine(eng, t))
