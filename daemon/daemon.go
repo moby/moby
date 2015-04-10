@@ -119,7 +119,6 @@ type Daemon struct {
 func (daemon *Daemon) Install(eng *engine.Engine) error {
 	for name, method := range map[string]engine.Handler{
 		"container_inspect": daemon.ContainerInspect,
-		"info":              daemon.CmdInfo,
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
 	} {
