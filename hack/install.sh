@@ -79,7 +79,7 @@ if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 	lsb_dist="$(. /etc/os-release && echo "$ID")"
 fi
 
-lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]'|  cut -d' ' -f1)"
 case "$lsb_dist" in
 	amzn|fedora|centos)
 		if [ "$lsb_dist" = 'amzn' ]; then
@@ -112,7 +112,7 @@ case "$lsb_dist" in
 		exit 0
 		;;
 
-	ubuntu|debian|linuxmint)
+	ubuntu|debian|linuxmint|elementary)
 		export DEBIAN_FRONTEND=noninteractive
 
 		did_apt_get_update=
