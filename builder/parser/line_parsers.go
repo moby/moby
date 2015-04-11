@@ -279,7 +279,7 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 }
 
 // parseMaybeJSONToList determines if the argument appears to be a JSON array. If
-// so, passes to parseJSON; if not, attmpts to parse it as a whitespace
+// so, passes to parseJSON; if not, attempts to parse it as a whitespace
 // delimited string.
 func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 	node, attrs, err := parseJSON(rest)
