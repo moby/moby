@@ -164,7 +164,7 @@ However, there might be a way to implement that feature *on top of* Docker.
     <td>Stack Overflow</td>
     <td>
       Stack Overflow has over 7000K Docker questions listed. We regularly 
-      monitor <a href="http://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
+      monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
       and so do many other knowledgeable Docker users.
     </td>
   </tr>
