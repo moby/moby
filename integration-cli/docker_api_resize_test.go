@@ -16,7 +16,7 @@ func TestResizeApiResponse(t *testing.T) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
-	_, err = sockRequest("POST", endpoint, nil)
+	_, _, err = sockRequest("POST", endpoint, nil)
 	if err != nil {
 		t.Fatalf("resize Request failed %v", err)
 	}
@@ -41,7 +41,7 @@ func TestResizeApiResponseWhenContainerNotStarted(t *testing.T) {
 	}
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
-	body, err := sockRequest("POST", endpoint, nil)
+	_, body, err := sockRequest("POST", endpoint, nil)
 	if err == nil {
 		t.Fatalf("resize should fail when container is not started")
 	}

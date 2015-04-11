@@ -8,7 +8,7 @@ import (
 )
 
 func TestLegacyImages(t *testing.T) {
-	body, err := sockRequest("GET", "/v1.6/images/json", nil)
+	_, body, err := sockRequest("GET", "/v1.6/images/json", nil)
 	if err != nil {
 		t.Fatalf("Error on GET: %s", err)
 	}

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api"
@@ -123,99 +122,6 @@ func TestGetContainersByName(t *testing.T) {
 	}
 	if stdoutJson.(map[string]interface{})["dirty"].(float64) != 1 {
 		t.Fatalf("%#v", stdoutJson)
-	}
-}
-
-func TestLogs(t *testing.T) {
-	eng := engine.New()
-	var inspect bool
-	var logs bool
-	eng.Register("container_inspect", func(job *engine.Job) error {
-		inspect = true
-		if len(job.Args) == 0 {
-			t.Fatal("Job arguments is empty")
-		}
-		if job.Args[0] != "test" {
-			t.Fatalf("Container name %s, must be test", job.Args[0])
-		}
-		return nil
-	})
-	expected := "logs"
-	eng.Register("logs", func(job *engine.Job) error {
-		logs = true
-		if len(job.Args) == 0 {
-			t.Fatal("Job arguments is empty")
-		}
-		if job.Args[0] != "test" {
-			t.Fatalf("Container name %s, must be test", job.Args[0])
-		}
-		follow := job.Getenv("follow")
-		if follow != "1" {
-			t.Fatalf("follow: %s, must be 1", follow)
-		}
-		stdout := job.Getenv("stdout")
-		if stdout != "1" {
-			t.Fatalf("stdout %s, must be 1", stdout)
-		}
-		stderr := job.Getenv("stderr")
-		if stderr != "" {
-			t.Fatalf("stderr %s, must be empty", stderr)
-		}
-		timestamps := job.Getenv("timestamps")
-		if timestamps != "1" {
-			t.Fatalf("timestamps %s, must be 1", timestamps)
-		}
-		job.Stdout.Write([]byte(expected))
-		return nil
-	})
-	r := serveRequest("GET", "/containers/test/logs?follow=1&stdout=1&timestamps=1", nil, eng, t)
-	if r.Code != http.StatusOK {
-		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusOK)
-	}
-	if !inspect {
-		t.Fatal("container_inspect job was not called")
-	}
-	if !logs {
-		t.Fatal("logs job was not called")
-	}
-	res := r.Body.String()
-	if res != expected {
-		t.Fatalf("Output %s, expected %s", res, expected)
-	}
-}
-
-func TestLogsNoStreams(t *testing.T) {
-	eng := engine.New()
-	var inspect bool
-	var logs bool
-	eng.Register("container_inspect", func(job *engine.Job) error {
-		inspect = true
-		if len(job.Args) == 0 {
-			t.Fatal("Job arguments is empty")
-		}
-		if job.Args[0] != "test" {
-			t.Fatalf("Container name %s, must be test", job.Args[0])
-		}
-		return nil
-	})
-	eng.Register("logs", func(job *engine.Job) error {
-		logs = true
-		return nil
-	})
-	r := serveRequest("GET", "/containers/test/logs", nil, eng, t)
-	if r.Code != http.StatusBadRequest {
-		t.Fatalf("Got status %d, expected %d", r.Code, http.StatusBadRequest)
-	}
-	if inspect {
-		t.Fatal("container_inspect job was called, but it shouldn't")
-	}
-	if logs {
-		t.Fatal("logs job was called, but it shouldn't")
-	}
-	res := strings.TrimSpace(r.Body.String())
-	expected := "Bad parameters: you must choose at least one stream"
-	if !strings.Contains(res, expected) {
-		t.Fatalf("Output %s, expected %s in it", res, expected)
 	}
 }
 

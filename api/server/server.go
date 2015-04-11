@@ -557,43 +557,26 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var (
-		inspectJob = eng.Job("container_inspect", vars["name"])
-		logsJob    = eng.Job("logs", vars["name"])
-		c, err     = inspectJob.Stdout.AddEnv()
-	)
-	if err != nil {
-		return err
-	}
-	logsJob.Setenv("follow", r.Form.Get("follow"))
-	logsJob.Setenv("tail", r.Form.Get("tail"))
-	logsJob.Setenv("stdout", r.Form.Get("stdout"))
-	logsJob.Setenv("stderr", r.Form.Get("stderr"))
-	logsJob.Setenv("timestamps", r.Form.Get("timestamps"))
 	// Validate args here, because we can't return not StatusOK after job.Run() call
-	stdout, stderr := logsJob.GetenvBool("stdout"), logsJob.GetenvBool("stderr")
+	stdout, stderr := toBool(r.Form.Get("stdout")), toBool(r.Form.Get("stderr"))
 	if !(stdout || stderr) {
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
-	if err = inspectJob.Run(); err != nil {
-		return err
+
+	logsConfig := &daemon.ContainerLogsConfig{
+		Follow:     toBool(r.Form.Get("follow")),
+		Timestamps: toBool(r.Form.Get("timestamps")),
+		Tail:       r.Form.Get("tail"),
+		UseStdout:  stdout,
+		UseStderr:  stderr,
+		OutStream:  utils.NewWriteFlusher(w),
 	}
 
-	var outStream, errStream io.Writer
-	outStream = utils.NewWriteFlusher(w)
-
-	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
+	d := getDaemon(eng)
+	if err := d.ContainerLogs(vars["name"], logsConfig); err != nil {
+		fmt.Fprintf(w, "Error running logs job: %s\n", err)
 	}
 
-	logsJob.Stdout.Add(outStream)
-	logsJob.Stderr.Set(errStream)
-	if err := logsJob.Run(); err != nil {
-		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
-	}
 	return nil
 }
 
