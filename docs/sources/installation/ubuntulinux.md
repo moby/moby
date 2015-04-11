@@ -94,7 +94,7 @@ prerequisite installed, Docker's installation process adds it.
 
 ##Installing Docker on Ubuntu
 
-Make sure you have intalled the prerequisites for your Ubuntu version. Then,
+Make sure you have installed the prerequisites for your Ubuntu version. Then,
 install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
@@ -253,7 +253,7 @@ The warning occurs because Docker containers can't use the local DNS nameserver.
 Instead, Docker defaults to using an external nameserver.
 
 To avoid this warning, you can specify a DNS server for use by Docker
-containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabiling
+containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabling
 `dnsmasq` might make DNS resolution slower on some networks.
 
 To specify a DNS server for use by Docker:
