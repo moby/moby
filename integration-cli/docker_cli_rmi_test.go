@@ -77,6 +77,43 @@ func TestRmiTag(t *testing.T) {
 	logDone("rmi - tag,rmi - tagging the same images multiple times then removing tags")
 }
 
+func TestRmiImgIDForce(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("failed to create a container:%s, %v", out, err)
+	}
+	containerID := strings.TrimSpace(out)
+	runCmd = exec.Command(dockerBinary, "commit", containerID, "busybox-test")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("failed to commit a new busybox-test:%s, %v", out, err)
+	}
+
+	imagesBefore, _, _ := dockerCmd(t, "images", "-a")
+	dockerCmd(t, "tag", "busybox-test", "utest:tag1")
+	dockerCmd(t, "tag", "busybox-test", "utest:tag2")
+	dockerCmd(t, "tag", "busybox-test", "utest/docker:tag3")
+	dockerCmd(t, "tag", "busybox-test", "utest:5000/docker:tag4")
+	{
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+4 {
+			t.Fatalf("tag busybox to create 4 more images with same imageID; docker images shows: %q\n", imagesAfter)
+		}
+	}
+	out, _, _ = dockerCmd(t, "inspect", "-f", "{{.Id}}", "busybox-test")
+	imgID := strings.TrimSpace(out)
+	dockerCmd(t, "rmi", "-f", imgID)
+	{
+		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		if strings.Contains(imagesAfter, imgID[:12]) {
+			t.Fatalf("rmi -f %s failed, image still exists: %q\n\n", imgID, imagesAfter)
+		}
+
+	}
+	logDone("rmi - imgID,rmi -f imgID  delete all tagged repos of specific imgID")
+}
+
 func TestRmiTagWithExistingContainers(t *testing.T) {
 	defer deleteAllContainers()
 

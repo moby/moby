@@ -30,6 +30,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		repoName, tag string
 		tags          = []string{}
 	)
+	repoAndTags := make(map[string][]string)
 
 	// FIXME: please respect DRY and centralize repo+tag parsing in a single central place! -- shykes
 	repoName, tag = parsers.ParseRepositoryTag(name)
@@ -68,19 +69,25 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 			if repoName == "" || repoName == parsedRepo {
 				repoName = parsedRepo
 				if parsedTag != "" {
-					tags = append(tags, parsedTag)
+					repoAndTags[repoName] = append(repoAndTags[repoName], parsedTag)
 				}
 			} else if repoName != parsedRepo && !force && first {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
 				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
+			} else {
+				//the id belongs to multiple repos, with -f just delete all
+				repoName = parsedRepo
+				if parsedTag != "" {
+					repoAndTags[repoName] = append(repoAndTags[repoName], parsedTag)
+				}
 			}
 		}
 	} else {
-		tags = append(tags, tag)
+		repoAndTags[repoName] = append(repoAndTags[repoName], tag)
 	}
 
-	if !first && len(tags) > 0 {
+	if !first && len(repoAndTags) > 0 {
 		return nil
 	}
 
@@ -91,16 +98,18 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 	}
 
 	// Untag the current image
-	for _, tag := range tags {
-		tagDeleted, err := daemon.Repositories().Delete(repoName, tag)
-		if err != nil {
-			return err
-		}
-		if tagDeleted {
-			*list = append(*list, types.ImageDelete{
-				Untagged: utils.ImageReference(repoName, tag),
-			})
-			daemon.EventsService.Log("untag", img.ID, "")
+	for repoName, tags := range repoAndTags {
+		for _, tag := range tags {
+			tagDeleted, err := daemon.Repositories().Delete(repoName, tag)
+			if err != nil {
+				return err
+			}
+			if tagDeleted {
+				*list = append(*list, types.ImageDelete{
+					Untagged: utils.ImageReference(repoName, tag),
+				})
+				daemon.EventsService.Log("untag", img.ID, "")
+			}
 		}
 	}
 	tags = daemon.Repositories().ByID()[img.ID]
