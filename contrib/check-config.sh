@@ -27,7 +27,7 @@ is_set() {
 	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
 }
 
-# see http://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 declare -A colors=(
 	[black]=30
 	[red]=31
