@@ -183,14 +183,14 @@ Json Parameters:
       container.
 -   **Domainname** - A string value containing the desired domain name to use
       for the container.
--   **User** - A string value containg the user to use inside the container.
+-   **User** - A string value containing the user to use inside the container.
 -   **Memory** - Memory limit in bytes.
 -   **MemorySwap**- Total memory limit (memory + swap); set `-1` to disable swap,
       always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
-      (ie. the relative weight vs othercontainers).
+      (ie. the relative weight vs other containers).
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
--   **CpusetCpus** - String value containg the cgroups CpusetCpus to use.
+-   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -207,7 +207,7 @@ Json Parameters:
       container to empty objects.
 -   **WorkingDir** - A string value containing the working dir for commands to
       run in.
--   **NetworkDisabled** - Boolean value, when true disables neworking for the
+-   **NetworkDisabled** - Boolean value, when true disables networking for the
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
@@ -237,8 +237,8 @@ Json Parameters:
         container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
     -   **VolumesFrom** - A list of volumes to inherit from another container.
           Specified in the form `<container name>[:<ro|rw>]`
-    -   **CapAdd** - A list of kernel capabilties to add to the container.
-    -   **Capdrop** - A list of kernel capabilties to drop from the container.
+    -   **CapAdd** - A list of kernel capabilities to add to the container.
+    -   **Capdrop** - A list of kernel capabilities to drop from the container.
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart or `"on-failure"` to restart only when the container
@@ -734,8 +734,8 @@ Json Parameters:
     container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
 -   **VolumesFrom** - A list of volumes to inherit from another container.
       Specified in the form `<container name>[:<ro|rw>]`
--   **CapAdd** - A list of kernel capabilties to add to the container.
--   **Capdrop** - A list of kernel capabilties to drop from the container.
+-   **CapAdd** - A list of kernel capabilities to add to the container.
+-   **Capdrop** - A list of kernel capabilities to drop from the container.
 -   **RestartPolicy** – The behavior to apply when the container exits.  The
         value is an object with a `Name` property of either `"always"` to
         always restart or `"on-failure"` to restart only when the container
@@ -985,7 +985,7 @@ Status Codes:
 
     1.  Read 8 bytes
     2.  chose stdout or stderr depending on the first byte
-    3.  Extract the frame size from the last 4 byets
+    3.  Extract the frame size from the last 4 bytes
     4.  Read the extracted size and output it on the correct output
     5.  Goto 1
 
@@ -1242,7 +1242,7 @@ Query Parameters:
 -   **memory** - set memory limit for build
 -   **memswap** - Total memory (memory + swap), `-1` to disable swap
 -   **cpushares** - CPU shares (relative weight)
--   **cpusetcpus** - CPUs in which to allow exection, e.g., `0-3`, `0,1`
+-   **cpusetcpus** - CPUs in which to allow execution, e.g., `0-3`, `0,1`
 
     Request Headers:
 
