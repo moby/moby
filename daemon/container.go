@@ -1282,13 +1282,13 @@ func (container *Container) initializeNetworking() error {
 
 // Make sure the config is compatible with the current kernel
 func (container *Container) verifyDaemonSettings() {
-	if container.Config.Memory > 0 && !container.daemon.sysInfo.MemoryLimit {
+	if container.hostConfig.Memory > 0 && !container.daemon.sysInfo.MemoryLimit {
 		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
-		container.Config.Memory = 0
+		container.hostConfig.Memory = 0
 	}
-	if container.Config.Memory > 0 && !container.daemon.sysInfo.SwapLimit {
+	if container.hostConfig.Memory > 0 && !container.daemon.sysInfo.SwapLimit {
 		logrus.Warnf("Your kernel does not support swap limit capabilities. Limitation discarded.")
-		container.Config.MemorySwap = -1
+		container.hostConfig.MemorySwap = -1
 	}
 	if container.daemon.sysInfo.IPv4ForwardingDisabled {
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
