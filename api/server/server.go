@@ -988,9 +988,14 @@ func postContainersStop(eng *engine.Engine, version version.Version, w http.Resp
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("stop", vars["name"])
-	job.Setenv("t", r.Form.Get("t"))
-	if err := job.Run(); err != nil {
+
+	d := getDaemon(eng)
+	seconds, err := strconv.Atoi(r.Form.Get("t"))
+	if err != nil {
+		return err
+	}
+
+	if err := d.ContainerStop(vars["name"], seconds); err != nil {
 		if err.Error() == "Container already stopped" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
@@ -998,6 +1003,7 @@ func postContainersStop(eng *engine.Engine, version version.Version, w http.Resp
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
