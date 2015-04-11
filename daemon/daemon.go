@@ -957,7 +957,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 	localCopy := path.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
-		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See http://docs.docker.com/contributing/devenvironment for official build instructions.")
+		return nil, fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See https://docs.docker.com/contributing/devenvironment for official build instructions.")
 	}
 
 	if sysInitPath != localCopy {
@@ -1227,7 +1227,7 @@ func checkKernel() error {
 	// Unfortunately we can't test for the feature "does not cause a kernel panic"
 	// without actually causing a kernel panic, so we need this workaround until
 	// the circumstances of pre-3.8 crashes are clearer.
-	// For details see http://github.com/docker/docker/issues/407
+	// For details see https://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
 		logrus.Warnf("%s", err)
 	} else {

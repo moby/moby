@@ -62,7 +62,7 @@ lxc.pivotdir = lxc_putold
 # NOTICE: These mounts must be applied within the namespace
 {{if .ProcessConfig.Privileged}}
 # WARNING: mounting procfs and/or sysfs read-write is a known attack vector.
-# See e.g. http://blog.zx2c4.com/749 and http://bit.ly/T9CkqJ
+# See e.g. http://blog.zx2c4.com/749 and https://bit.ly/T9CkqJ
 # We mount them read-write here, but later, dockerinit will call the Restrict() function to remount them read-only.
 # We cannot mount them directly read-only, because that would prevent loading AppArmor profiles.
 lxc.mount.entry = proc {{escapeFstabSpaces $ROOTFS}}/proc proc nosuid,nodev,noexec 0 0
