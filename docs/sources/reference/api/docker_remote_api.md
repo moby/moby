@@ -46,6 +46,10 @@ You can still call an old version of the API using
 
 ### What's new
 
+`POST /build`
+
+**New!**
+Builds can now use privileged mode for all `RUN` commands.
 
 ## v1.18
 
