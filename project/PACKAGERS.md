@@ -47,7 +47,7 @@ To build Docker, you will need the following:
 * A recent version of Git and Mercurial
 * Go version 1.3 or later
 * A clean checkout of the source added to a valid [Go
-  workspace](http://golang.org/doc/code.html#Workspaces) under the path
+  workspace](https://golang.org/doc/code.html#Workspaces) under the path
   *src/github.com/docker/docker* (unless you plan to use `AUTO_GOPATH`,
   explained in more detail below)
 
@@ -237,9 +237,9 @@ are as follows (in order):
   installed at "/usr/bin/docker", then "/usr/bin/dockerinit" will be the first
   place this file is searched for)
 * "/usr/libexec/docker/dockerinit" or "/usr/local/libexec/docker/dockerinit"
-  ([FHS 3.0 Draft](http://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec))
+  ([FHS 3.0 Draft](https://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec))
 * "/usr/lib/docker/dockerinit" or "/usr/local/lib/docker/dockerinit" ([FHS
-  2.3](http://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA))
+  2.3](https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA))
 
 If (and please, only if) one of the paths above is insufficient due to distro
 policy or similar issues, you may use the `DOCKER_INITPATH` environment variable

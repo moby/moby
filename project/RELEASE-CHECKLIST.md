@@ -145,7 +145,7 @@ To test locally:
 make docs
 ```
 
-To make a shared test at http://beta-docs.docker.io:
+To make a shared test at https://beta-docs.docker.io:
 
 (You will need the `awsconfig` file added to the `docs/` dir)
 
@@ -341,7 +341,7 @@ git push -f origin docs
 make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes DISTRIBUTION_ID=C2K6......FL2F docs-release
 ```
 
-The docs will appear on http://docs.docker.com/ (though there may be cached
+The docs will appear on https://docs.docker.com/ (though there may be cached
 versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
 For more information about documentation releases, see `docs/README.md`.
 
