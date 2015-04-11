@@ -14,7 +14,7 @@ func TestRestartStdin(t *testing.T) {
 	defer nuke(daemon)
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"cat"},
+		Cmd:   runconfig.NewCommand("cat"),
 
 		OpenStdin: true,
 	},
@@ -79,7 +79,7 @@ func TestStdin(t *testing.T) {
 	defer nuke(daemon)
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"cat"},
+		Cmd:   runconfig.NewCommand("cat"),
 
 		OpenStdin: true,
 	},
@@ -119,7 +119,7 @@ func TestTty(t *testing.T) {
 	defer nuke(daemon)
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"cat"},
+		Cmd:   runconfig.NewCommand("cat"),
 
 		OpenStdin: true,
 	},
@@ -160,7 +160,7 @@ func BenchmarkRunSequential(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		container, _, err := daemon.Create(&runconfig.Config{
 			Image: GetTestImage(daemon).ID,
-			Cmd:   []string{"echo", "-n", "foo"},
+			Cmd:   runconfig.NewCommand("echo", "-n", "foo"),
 		},
 			&runconfig.HostConfig{},
 			"",
@@ -194,7 +194,7 @@ func BenchmarkRunParallel(b *testing.B) {
 		go func(i int, complete chan error) {
 			container, _, err := daemon.Create(&runconfig.Config{
 				Image: GetTestImage(daemon).ID,
-				Cmd:   []string{"echo", "-n", "foo"},
+				Cmd:   runconfig.NewCommand("echo", "-n", "foo"),
 			},
 				&runconfig.HostConfig{},
 				"",

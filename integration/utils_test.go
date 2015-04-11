@@ -44,11 +44,7 @@ func mkDaemon(f Fataler) *daemon.Daemon {
 }
 
 func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler, name string) (shortId string) {
-	env := new(engine.Env)
-	if err := env.Import(config); err != nil {
-		f.Fatal(err)
-	}
-	containerId, _, err := getDaemon(eng).ContainerCreate(name, env)
+	containerId, _, err := getDaemon(eng).ContainerCreate(name, config, &runconfig.HostConfig{})
 	if err != nil {
 		f.Fatal(err)
 	}
@@ -60,8 +56,7 @@ func createTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler
 }
 
 func startContainer(eng *engine.Engine, id string, t Fataler) {
-	env := new(engine.Env)
-	if err := getDaemon(eng).ContainerStart(id, env); err != nil {
+	if err := getDaemon(eng).ContainerStart(id, &runconfig.HostConfig{}); err != nil {
 		t.Fatal(err)
 	}
 }

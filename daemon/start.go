@@ -3,11 +3,10 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
 )
 
-func (daemon *Daemon) ContainerStart(name string, env *engine.Env) error {
+func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConfig) error {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return err
@@ -21,15 +20,14 @@ func (daemon *Daemon) ContainerStart(name string, env *engine.Env) error {
 		return fmt.Errorf("Container already started")
 	}
 
-	// If no environment was set, then no hostconfig was passed.
 	// This is kept for backward compatibility - hostconfig should be passed when
 	// creating a container, not during start.
-	if len(env.Map()) > 0 {
-		hostConfig := runconfig.ContainerHostConfigFromJob(env)
+	if hostConfig != nil {
 		if err := daemon.setHostConfig(container, hostConfig); err != nil {
 			return err
 		}
 	}
+
 	if err := container.Start(); err != nil {
 		container.LogEvent("die")
 		return fmt.Errorf("Cannot start container %s: %s", name, err)

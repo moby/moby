@@ -119,12 +119,8 @@ type Daemon struct {
 func (daemon *Daemon) Install(eng *engine.Engine) error {
 	for name, method := range map[string]engine.Handler{
 		"container_inspect": daemon.ContainerInspect,
-		"container_stats":   daemon.ContainerStats,
-		"export":            daemon.ContainerExport,
 		"info":              daemon.CmdInfo,
 		"restart":           daemon.ContainerRestart,
-		"stop":              daemon.ContainerStop,
-		"wait":              daemon.ContainerWait,
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
 	} {
@@ -485,7 +481,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 			return nil, err
 		}
 	}
-	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
+	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 {
 		return nil, fmt.Errorf("No command specified")
 	}
 	return warnings, nil
@@ -577,17 +573,20 @@ func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	}
 }
 
-func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint, configCmd []string) (string, []string) {
+func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *runconfig.Entrypoint, configCmd *runconfig.Command) (string, []string) {
 	var (
 		entrypoint string
 		args       []string
 	)
-	if len(configEntrypoint) != 0 {
-		entrypoint = configEntrypoint[0]
-		args = append(configEntrypoint[1:], configCmd...)
+
+	cmdSlice := configCmd.Slice()
+	if configEntrypoint.Len() != 0 {
+		eSlice := configEntrypoint.Slice()
+		entrypoint = eSlice[0]
+		args = append(eSlice[1:], cmdSlice...)
 	} else {
-		entrypoint = configCmd[0]
-		args = configCmd[1:]
+		entrypoint = cmdSlice[0]
+		args = cmdSlice[1:]
 	}
 	return entrypoint, args
 }

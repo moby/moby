@@ -11,15 +11,6 @@ func Merge(userConf, imageConf *Config) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
-	if userConf.Memory == 0 {
-		userConf.Memory = imageConf.Memory
-	}
-	if userConf.MemorySwap == 0 {
-		userConf.MemorySwap = imageConf.MemorySwap
-	}
-	if userConf.CpuShares == 0 {
-		userConf.CpuShares = imageConf.CpuShares
-	}
 	if len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
 	} else if imageConf.ExposedPorts != nil {
@@ -94,8 +85,8 @@ func Merge(userConf, imageConf *Config) error {
 		userConf.Labels = imageConf.Labels
 	}
 
-	if len(userConf.Entrypoint) == 0 {
-		if len(userConf.Cmd) == 0 {
+	if userConf.Entrypoint.Len() == 0 {
+		if userConf.Cmd.Len() == 0 {
 			userConf.Cmd = imageConf.Cmd
 		}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
@@ -12,13 +11,10 @@ import (
 	"github.com/docker/libcontainer/label"
 )
 
-func (daemon *Daemon) ContainerCreate(name string, env *engine.Env) (string, []string, error) {
+func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig) (string, []string, error) {
 	var warnings []string
 
-	config := runconfig.ContainerConfigFromJob(env)
-	hostConfig := runconfig.ContainerHostConfigFromJob(env)
-
-	if len(hostConfig.LxcConf) > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
+	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return "", warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
 	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {

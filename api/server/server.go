@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -811,14 +812,14 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 	var (
 		warnings []string
 		name     = r.Form.Get("name")
-		env      = new(engine.Env)
 	)
 
-	if err := env.Decode(r.Body); err != nil {
+	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	if err != nil {
 		return err
 	}
 
-	containerId, warnings, err := getDaemon(eng).ContainerCreate(name, env)
+	containerId, warnings, err := getDaemon(eng).ContainerCreate(name, config, hostConfig)
 	if err != nil {
 		return err
 	}
@@ -917,10 +918,6 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		name = vars["name"]
-		env  = new(engine.Env)
-	)
 
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
@@ -928,17 +925,21 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
+	var hostConfig *runconfig.HostConfig
 	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
 		if err := checkForJson(r); err != nil {
 			return err
 		}
 
-		if err := env.Decode(r.Body); err != nil {
+		c, err := runconfig.DecodeHostConfig(r.Body)
+		if err != nil {
 			return err
 		}
+
+		hostConfig = c
 	}
 
-	if err := getDaemon(eng).ContainerStart(name, env); err != nil {
+	if err := getDaemon(eng).ContainerStart(vars["name"], hostConfig); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
