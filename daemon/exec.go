@@ -139,6 +139,7 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) error {
 		Entrypoint: entrypoint,
 		Arguments:  args,
 		User:       config.User,
+		Privileged: config.Privileged,
 	}
 
 	execConfig := &execConfig{
