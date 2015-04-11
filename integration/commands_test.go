@@ -9,11 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/term"
-	"github.com/kr/pty"
 )
 
 func closeWrap(args ...io.Closer) error {
@@ -110,79 +108,6 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 		}
 	}
 	return nil
-}
-
-// Expected behaviour, the process stays alive when the client disconnects
-func TestAttachDisconnect(t *testing.T) {
-	stdout, stdoutPipe := io.Pipe()
-	cpty, tty, err := pty.Open()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cli := client.NewDockerCli(tty, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	go func() {
-		// Start a process in daemon mode
-		if err := cli.CmdRun("-d", "-i", unitTestImageID, "/bin/cat"); err != nil {
-			logrus.Debugf("Error CmdRun: %s", err)
-		}
-	}()
-
-	setTimeout(t, "Waiting for CmdRun timed out", 10*time.Second, func() {
-		if _, err := bufio.NewReader(stdout).ReadString('\n'); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	setTimeout(t, "Waiting for the container to be started timed out", 10*time.Second, func() {
-		for {
-			l := globalDaemon.List()
-			if len(l) == 1 && l[0].IsRunning() {
-				break
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-	})
-
-	container := globalDaemon.List()[0]
-
-	// Attach to it
-	c1 := make(chan struct{})
-	go func() {
-		// We're simulating a disconnect so the return value doesn't matter. What matters is the
-		// fact that CmdAttach returns.
-		cli.CmdAttach(container.ID)
-		close(c1)
-	}()
-
-	setTimeout(t, "First read/write assertion timed out", 2*time.Second, func() {
-		if err := assertPipe("hello\n", "hello", stdout, cpty, 150); err != nil {
-			t.Fatal(err)
-		}
-	})
-	// Close pipes (client disconnects)
-	if err := closeWrap(cpty, stdout, stdoutPipe); err != nil {
-		t.Fatal(err)
-	}
-
-	// Wait for attach to finish, the client disconnected, therefore, Attach finished his job
-	setTimeout(t, "Waiting for CmdAttach timed out", 2*time.Second, func() {
-		<-c1
-	})
-
-	// We closed stdin, expect /bin/cat to still be running
-	// Wait a little bit to make sure container.monitor() did his thing
-	_, err = container.WaitStop(500 * time.Millisecond)
-	if err == nil || !container.IsRunning() {
-		t.Fatalf("/bin/cat is not running after closing stdin")
-	}
-
-	// Try to avoid the timeout in destroy. Best effort, don't check error
-	cStdin := container.StdinPipe()
-	cStdin.Close()
-	container.WaitStop(-1 * time.Second)
 }
 
 // Expected behaviour: container gets deleted automatically after exit
