@@ -18,9 +18,7 @@ func TestShutdownEmpty(t *testing.T) {
 
 func TestShutdownAfterRun(t *testing.T) {
 	eng := New()
-	var called bool
 	eng.Register("foo", func(job *Job) error {
-		called = true
 		return nil
 	})
 	if err := eng.Job("foo").Run(); err != nil {
