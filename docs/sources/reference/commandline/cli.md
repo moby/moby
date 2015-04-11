@@ -1794,6 +1794,21 @@ before the image is removed.
     Untagged: test:latest
     Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
 
+If you use the `-f` flag and specify the image's short or long ID, then this
+command untags and removes all images that match the specified ID.
+
+    $ docker images
+    REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
+    test1                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test                      latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+    test2                     latest              fd484f19954f        23 seconds ago      7 B (virtual 4.964 MB)
+
+    $ docker rmi -f fd484f19954f
+    Untagged: test1:latest
+    Untagged: test:latest
+    Untagged: test2:latest
+    Deleted: fd484f19954f4920da7ff372b5067f5b7ddb2fd3830cecd17b96ea9e286ba5b8
+
 An image pulled by digest has no tag associated with it:
 
     $ docker images --digests
