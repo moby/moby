@@ -21,8 +21,7 @@ type ExecConfig struct {
 
 func ExecConfigFromJob(job *engine.Job) (*ExecConfig, error) {
 	execConfig := &ExecConfig{
-		// TODO(vishh): Expose 'User' once it is supported.
-		//User:         job.Getenv("User"),
+		User:         job.Getenv("User"),
 		// TODO(vishh): Expose 'Privileged' once it is supported.
 		//Privileged:   job.GetenvBool("Privileged"),
 		Tty:          job.GetenvBool("Tty"),
@@ -45,6 +44,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		flUser    = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		execCmd   []string
 		container string
 	)
@@ -57,8 +57,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
-		// TODO(vishh): Expose '-u' flag once it is supported.
-		User: "",
+		User: *flUser,
 		// TODO(vishh): Expose '-p' flag once it is supported.
 		Privileged: false,
 		Tty:        *flTty,

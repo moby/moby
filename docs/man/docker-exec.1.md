@@ -10,6 +10,7 @@ docker-exec - Run a command in a running container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**-t**|**--tty**[=*false*]]
+[**-u**|**--user**[=*USER*]]
 CONTAINER COMMAND [ARG...]
 
 # DESCRIPTION
@@ -34,6 +35,14 @@ container is unpaused, and then run
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
+
+**-u**, **--user**=""
+   Sets the username or UID used and optionally the groupname or GID for the specified command.
+
+   The followings examples are all valid:
+   --user [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+   Without this argument the command will be run as root in the container.
 
 The **-t** option is incompatible with a redirection of the docker client
 standard input.
