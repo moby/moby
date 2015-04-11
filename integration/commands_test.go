@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/term"
 )
@@ -108,43 +106,4 @@ func assertPipe(input, output string, r io.Reader, w io.Writer, count int) error
 		}
 	}
 	return nil
-}
-
-// Expected behaviour: container gets deleted automatically after exit
-func TestRunAutoRemove(t *testing.T) {
-	t.Skip("Fixme. Skipping test for now, race condition")
-	stdout, stdoutPipe := io.Pipe()
-
-	cli := client.NewDockerCli(nil, stdoutPipe, ioutil.Discard, "", testDaemonProto, testDaemonAddr, nil)
-	defer cleanup(globalEngine, t)
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		if err := cli.CmdRun("--rm", unitTestImageID, "hostname"); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	var temporaryContainerID string
-	setTimeout(t, "Reading command output time out", 2*time.Second, func() {
-		cmdOutput, err := bufio.NewReader(stdout).ReadString('\n')
-		if err != nil {
-			t.Fatal(err)
-		}
-		temporaryContainerID = cmdOutput
-		if err := closeWrap(stdout, stdoutPipe); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	setTimeout(t, "CmdRun timed out", 10*time.Second, func() {
-		<-c
-	})
-
-	time.Sleep(500 * time.Millisecond)
-
-	if len(globalDaemon.List()) > 0 {
-		t.Fatalf("failed to remove container automatically: container %s still exists", temporaryContainerID)
-	}
 }
