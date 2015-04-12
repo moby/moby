@@ -1328,7 +1328,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
-				daemon.eng)
+			)
 
 			if err != nil {
 				rollback()
