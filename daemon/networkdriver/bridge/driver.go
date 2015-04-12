@@ -135,7 +135,7 @@ func InitDriver(config *Config) error {
 			return err
 		}
 
-		logrus.Infof("Bridge interface not found, trying to create it")
+		logrus.Info("Bridge interface not found, trying to create it")
 
 		// If the iface is not found, try to create it
 		if err := configureBridge(config.IP, bridgeIPv6, config.EnableIPv6); err != nil {
@@ -277,7 +277,7 @@ func InitDriver(config *Config) error {
 		}
 		logrus.Debugf("Subnet: %v", subnet)
 		if err := ipAllocator.RegisterSubnet(subnet, subnet); err != nil {
-			logrus.Errorf("Error registering subnet for IPv4 bridge network: %s", err)
+			logrus.Errorf("Error registering subnet for IPv6 bridge network: %s", err)
 			return err
 		}
 		globalIPv6Network = subnet
