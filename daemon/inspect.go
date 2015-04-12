@@ -80,20 +80,11 @@ func (daemon *Daemon) ContainerInspect(job *engine.Job) error {
 	return nil
 }
 
-func (daemon *Daemon) ContainerExecInspect(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("usage: %s ID", job.Name)
-	}
-	id := job.Args[0]
+func (daemon *Daemon) ContainerExecInspect(id string) (*execConfig, error) {
 	eConfig, err := daemon.getExecConfig(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	b, err := json.Marshal(*eConfig)
-	if err != nil {
-		return err
-	}
-	job.Stdout.Write(b)
-	return nil
+	return eConfig, nil
 }

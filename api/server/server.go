@@ -1157,9 +1157,14 @@ func getExecByID(eng *engine.Engine, version version.Version, w http.ResponseWri
 	if vars == nil {
 		return fmt.Errorf("Missing parameter 'id'")
 	}
-	var job = eng.Job("execInspect", vars["id"])
-	streamJSON(job, w, false)
-	return job.Run()
+
+	d := getDaemon(eng)
+	eConfig, err := d.ContainerExecInspect(vars["id"])
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, eConfig)
 }
 
 func getImagesByName(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
