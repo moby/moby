@@ -161,7 +161,7 @@ Create a container
                "NetworkMode": "bridge",
                "Devices": [],
                "Ulimits": [{}],
-               "LogConfig": { "Type": "json-file", Config: {} },
+               "LogConfig": { "Type": "json-file", "Config": {} },
                "SecurityOpt": [""],
                "CgroupParent": ""
             }
@@ -359,7 +359,7 @@ Return low-level information on the container `id`
 				"MaximumRetryCount": 2,
 				"Name": "on-failure"
 			},
-           "LogConfig": { "Type": "json-file", Config: {} },
+           "LogConfig": { "Type": "json-file", "Config": {} },
 			"SecurityOpt": null,
 			"VolumesFrom": null,
 			"Ulimits": [{}]
@@ -698,7 +698,7 @@ Start the container `id`
            "NetworkMode": "bridge",
            "Devices": [],
            "Ulimits": [{}],
-           "LogConfig": { "Type": "json-file", Config: {} },
+           "LogConfig": { "Type": "json-file", "Config": {} },
            "SecurityOpt": [""],
            "CgroupParent": ""
         }
