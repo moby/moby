@@ -583,6 +583,7 @@ func Release(id string) {
 
 	if containerInterface == nil {
 		logrus.Warnf("No network information to release for %s", id)
+		return
 	}
 
 	for _, nat := range containerInterface.PortMappings {
