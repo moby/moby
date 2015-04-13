@@ -120,7 +120,6 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	for name, method := range map[string]engine.Handler{
 		"container_inspect": daemon.ContainerInspect,
 		"info":              daemon.CmdInfo,
-		"restart":           daemon.ContainerRestart,
 		"execCreate":        daemon.ContainerExecCreate,
 		"execStart":         daemon.ContainerExecStart,
 	} {

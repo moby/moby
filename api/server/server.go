@@ -837,12 +837,19 @@ func postContainersRestart(eng *engine.Engine, version version.Version, w http.R
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("restart", vars["name"])
-	job.Setenv("t", r.Form.Get("t"))
-	if err := job.Run(); err != nil {
+
+	s, err := strconv.Atoi(r.Form.Get("t"))
+	if err != nil {
 		return err
 	}
+
+	d := getDaemon(eng)
+	if err := d.ContainerRestart(vars["name"], s); err != nil {
+		return err
+	}
+
 	w.WriteHeader(http.StatusNoContent)
+
 	return nil
 }
 
