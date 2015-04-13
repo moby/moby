@@ -536,6 +536,7 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
 		err := s.pushV2Repository(r, localRepo, job.Stdout, repoInfo, tag, sf)
 		if err == nil {
+			s.eventsService.Log("push", repoInfo.LocalName, "")
 			return nil
 		}
 
@@ -547,6 +548,7 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 	if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
 		return err
 	}
+	s.eventsService.Log("push", repoInfo.LocalName, "")
 	return nil
 
 }
