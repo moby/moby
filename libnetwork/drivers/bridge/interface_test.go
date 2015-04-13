@@ -3,12 +3,12 @@ package bridge
 import (
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestInterfaceDefaultName(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	if inf := newInterface(&Configuration{}); inf.Config.BridgeName != DefaultBridgeName {
 		t.Fatalf("Expected default interface name %q, got %q", DefaultBridgeName, inf.Config.BridgeName)
@@ -16,7 +16,7 @@ func TestInterfaceDefaultName(t *testing.T) {
 }
 
 func TestAddressesEmptyInterface(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	inf := newInterface(&Configuration{})
 	addrv4, addrsv6, err := inf.addresses()

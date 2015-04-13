@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupNewBridge(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	br := &bridgeInterface{
 		Config: &Configuration{
@@ -33,7 +33,7 @@ func TestSetupNewBridge(t *testing.T) {
 }
 
 func TestSetupNewNonDefaultBridge(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	br := &bridgeInterface{
 		Config: &Configuration{
@@ -46,7 +46,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 }
 
 func TestSetupDeviceUp(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	br := &bridgeInterface{
 		Config: &Configuration{
@@ -67,10 +67,10 @@ func TestSetupDeviceUp(t *testing.T) {
 }
 
 func TestGenerateRandomMAC(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
-	mac1 := libnetwork.GenerateRandomMAC()
-	mac2 := libnetwork.GenerateRandomMAC()
+	mac1 := netutils.GenerateRandomMAC()
+	mac2 := netutils.GenerateRandomMAC()
 	if bytes.Compare(mac1, mac2) == 0 {
 		t.Fatalf("Generated twice the same MAC address %v", mac1)
 	}

@@ -1,4 +1,4 @@
-package libnetwork
+package sandbox
 
 import (
 	"fmt"
@@ -6,19 +6,26 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
 
-// The networkNamespace type is the default implementation of the Namespace
-// interface. It simply creates a new network namespace, and moves an interface
-// into it when called on method AddInterface.
+// The networkNamespace type is the linux implementation of the Sandbox
+// interface. It represents a linux network namespace, and moves an interface
+// into it when called on method AddInterface or sets the gateway etc.
 type networkNamespace struct {
-	path       string
-	interfaces []*Interface
+	path  string
+	sinfo *driverapi.SandboxInfo
 }
 
-func createNetworkNamespace(path string) (Namespace, error) {
+// NewSandbox provides a new sandbox instance created in an os specific way
+// provided a key which uniquely identifies the sandbox
+func NewSandbox(key string) (Sandbox, error) {
+	return createNetworkNamespace(key)
+}
+
+func createNetworkNamespace(path string) (Sandbox, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -66,7 +73,7 @@ func loopbackUp() error {
 	return netlink.LinkSetUp(iface)
 }
 
-func (n *networkNamespace) AddInterface(i *Interface) error {
+func (n *networkNamespace) AddInterface(i *driverapi.Interface) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -109,15 +116,33 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 		return err
 	}
 
-	n.interfaces = append(n.interfaces, i)
+	n.sinfo.Interfaces = append(n.sinfo.Interfaces, i)
 	return nil
 }
 
-func (n *networkNamespace) Interfaces() []*Interface {
-	return n.interfaces
+func (n *networkNamespace) SetGateway(gw string) error {
+	err := setGatewayIP(gw)
+	if err == nil {
+		n.sinfo.Gateway = gw
+	}
+
+	return err
 }
 
-func (n *networkNamespace) Path() string {
+func (n *networkNamespace) SetGatewayIPv6(gw string) error {
+	err := setGatewayIP(gw)
+	if err == nil {
+		n.sinfo.GatewayIPv6 = gw
+	}
+
+	return err
+}
+
+func (n *networkNamespace) Interfaces() []*driverapi.Interface {
+	return n.sinfo.Interfaces
+}
+
+func (n *networkNamespace) Key() string {
 	return n.path
 }
 

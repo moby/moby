@@ -8,6 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork"
 	_ "github.com/docker/libnetwork/drivers/bridge"
+	"github.com/docker/libnetwork/pkg/options"
 	"github.com/vishvananda/netlink"
 )
 
@@ -41,7 +42,7 @@ func TestSimplebridge(t *testing.T) {
 	cidrv6.IP = ip
 
 	log.Debug("Adding a simple bridge")
-	options := libnetwork.DriverParams{
+	options := options.Generic{
 		"BridgeName":         bridgeName,
 		"AddressIPv4":        subnet,
 		"FixedCIDR":          cidr,
@@ -52,7 +53,9 @@ func TestSimplebridge(t *testing.T) {
 		"EnableICC":          true,
 		"EnableIPForwarding": true}
 
-	network, err := libnetwork.NewNetwork("simplebridge", "dummy", options)
+	controller := libnetwork.New()
+
+	network, err := controller.NewNetwork("simplebridge", "dummy", options)
 	if err != nil {
 		t.Fatal(err)
 	}

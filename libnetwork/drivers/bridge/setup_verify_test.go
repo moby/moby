@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -23,7 +23,7 @@ func setupVerifyTest(t *testing.T) *bridgeInterface {
 }
 
 func TestSetupVerify(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
@@ -39,7 +39,7 @@ func TestSetupVerify(t *testing.T) {
 }
 
 func TestSetupVerifyBad(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
@@ -56,7 +56,7 @@ func TestSetupVerifyBad(t *testing.T) {
 }
 
 func TestSetupVerifyMissing(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
@@ -68,7 +68,7 @@ func TestSetupVerifyMissing(t *testing.T) {
 }
 
 func TestSetupVerifyIPv6(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
@@ -88,7 +88,7 @@ func TestSetupVerifyIPv6(t *testing.T) {
 }
 
 func TestSetupVerifyIPv6Missing(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)

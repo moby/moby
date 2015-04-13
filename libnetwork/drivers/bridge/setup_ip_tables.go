@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/docker/docker/pkg/iptables"
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -19,7 +19,7 @@ func setupIPTables(i *bridgeInterface) error {
 		return fmt.Errorf("Unexpected request to set IP tables for interface: %s", i.Config.BridgeName)
 	}
 
-	addrv4, _, err := libnetwork.GetIfaceAddr(i.Config.BridgeName)
+	addrv4, _, err := netutils.GetIfaceAddr(i.Config.BridgeName)
 	if err != nil {
 		return fmt.Errorf("Failed to setup IP tables, cannot acquire Interface address: %s", err.Error())
 	}

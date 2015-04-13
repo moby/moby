@@ -5,7 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -28,7 +28,7 @@ func setupDevice(i *bridgeInterface) error {
 	// was not supported before that.
 	kv, err := kernel.GetKernelVersion()
 	if err == nil && (kv.Kernel >= 3 && kv.Major >= 3) {
-		i.Link.Attrs().HardwareAddr = libnetwork.GenerateRandomMAC()
+		i.Link.Attrs().HardwareAddr = netutils.GenerateRandomMAC()
 		log.Debugf("Setting bridge mac address to %s", i.Link.Attrs().HardwareAddr)
 	}
 

@@ -6,15 +6,16 @@ import (
 	"net"
 
 	"github.com/docker/libnetwork"
-	_ "github.com/docker/libnetwork/drivers/bridge"
+	"github.com/docker/libnetwork/pkg/options"
 )
 
 func main() {
 	ip, net, _ := net.ParseCIDR("192.168.100.1/24")
 	net.IP = ip
 
-	options := libnetwork.DriverParams{"AddressIPv4": net}
-	netw, err := libnetwork.NewNetwork("simplebridge", "dummy", options)
+	options := options.Generic{"AddressIPv4": net}
+	controller := libnetwork.New()
+	netw, err := controller.NewNetwork("simplebridge", "dummy", options)
 	if err != nil {
 		log.Fatal(err)
 	}

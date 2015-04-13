@@ -6,12 +6,12 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupIPv6(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	br := setupTestInterface(t)
 	if err := setupBridgeIPv6(br); err != nil {
