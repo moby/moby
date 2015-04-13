@@ -40,6 +40,28 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestKillofStoppedContainer(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	stopCmd := exec.Command(dockerBinary, "stop", cleanedContainerID)
+	if out, _, err = runCommandWithOutput(stopCmd); err != nil {
+		c.Fatalf("failed to stop container: %s, %v", out, err)
+	}
+
+	killCmd := exec.Command(dockerBinary, "kill", "-s", "30", cleanedContainerID)
+	if _, _, err = runCommandWithOutput(killCmd); err == nil {
+		c.Fatalf("kill succeeded on a stopped container")
+	}
+
+	deleteContainer(cleanedContainerID)
+}
+
 func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "-u", "daemon", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)

@@ -710,7 +710,7 @@ func (container *Container) KillSig(sig int) error {
 	}
 
 	if !container.Running {
-		return nil
+		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 
 	// signal to the monitor that it should not restart the container

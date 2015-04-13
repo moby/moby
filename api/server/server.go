@@ -286,7 +286,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 	name := vars["name"]
 
 	// If we have a signal, look at it. Otherwise, do nothing
-	if sigStr := vars["signal"]; sigStr != "" {
+	if sigStr := r.Form.Get("signal"); sigStr != "" {
 		// Check if we passed the signal as a number:
 		// The largest legal signal is 31, so let's parse on 5 bits
 		sig, err = strconv.ParseUint(sigStr, 10, 5)
