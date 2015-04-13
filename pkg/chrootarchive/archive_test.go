@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,6 +45,42 @@ func TestChrootTarUntar(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := Untar(stream, dest, &archive.TarOptions{ExcludePatterns: []string{"lolo"}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// gh#10426: Verify the fix for having a huge excludes list (like on `docker load` with large # of
+// local images)
+func TestChrootUntarWithHugeExcludesList(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarHugeExcludes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	src := filepath.Join(tmpdir, "src")
+	if err := os.MkdirAll(src, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	stream, err := archive.Tar(src, archive.Uncompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(tmpdir, "dest")
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		t.Fatal(err)
+	}
+	options := &archive.TarOptions{}
+	//65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
+	//on most systems when passed via environment or command line arguments
+	excludes := make([]string, 65534, 65534)
+	for i := 0; i < 65534; i++ {
+		excludes[i] = strings.Repeat(string(i), 64)
+	}
+	options.ExcludePatterns = excludes
+	if err := Untar(stream, dest, options); err != nil {
 		t.Fatal(err)
 	}
 }
