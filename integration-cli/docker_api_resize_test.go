@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
@@ -34,9 +35,12 @@ func TestResizeApiHeightWidthNoInt(t *testing.T) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=foo&w=bar"
-	_, err = sockRequest("POST", endpoint, nil)
+	status, _, err := sockRequest("POST", endpoint, nil)
 	if err == nil {
 		t.Fatal("Expected resize Request to fail")
+	}
+	if status != http.StatusInternalServerError {
+		t.Fatalf("Status expected %d, got %d", http.StatusInternalServerError, status)
 	}
 
 	logDone("container resize - height, width no int fail")
