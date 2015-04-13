@@ -932,7 +932,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 
 	if !config.DisableNetwork {
 		if err := bridge.InitDriver(&config.Bridge); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error initializing Bridge: %v", err)
 		}
 	}
 
