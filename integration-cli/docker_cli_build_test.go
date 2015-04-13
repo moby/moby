@@ -5555,7 +5555,7 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(dockerBinary, "build", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpu-shares=100", "-t", name, ".")
+	cmd := exec.Command(dockerBinary, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpu-shares=100", "-t", name, ".")
 	cmd.Dir = ctx.Dir
 
 	out, _, err := runCommandWithOutput(cmd)
