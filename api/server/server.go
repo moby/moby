@@ -280,12 +280,10 @@ func getContainersExport(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("export", vars["name"])
-	job.Stdout.Add(w)
-	if err := job.Run(); err != nil {
-		return err
-	}
-	return nil
+
+	d := getDaemon(eng)
+
+	return d.ContainerExport(vars["name"], w)
 }
 
 func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
