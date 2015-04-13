@@ -161,6 +161,7 @@ echo 'Optional Features:'
 flags=(
 	RESOURCE_COUNTERS
 	CGROUP_PERF
+	CFS_BANDWIDTH
 )
 check_flags "${flags[@]}"
 
