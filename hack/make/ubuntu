@@ -23,7 +23,7 @@ fi
 # ie, 1.5.0 > 1.5.0~rc1 > 1.5.0~git20150128.112847.17e840a > 1.5.0~dev~git20150128.112847.17e840a
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
-PACKAGE_URL="http://www.docker.com/"
+PACKAGE_URL="https://www.docker.com/"
 PACKAGE_MAINTAINER="support@docker.com"
 PACKAGE_DESCRIPTION="Linux container runtime
 Docker complements LXC with a high-level API which operates at the process

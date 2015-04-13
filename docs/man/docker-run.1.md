@@ -416,7 +416,7 @@ you’d like to connect instead, as in:
 
 ## Sharing IPC between containers
 
-Using shm_server.c available here: http://www.cs.cf.ac.uk/Dave/C/node27.html
+Using shm_server.c available here: https://www.cs.cf.ac.uk/Dave/C/node27.html
 
 Testing `--ipc=host` mode:
 

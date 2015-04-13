@@ -3,7 +3,7 @@
 The source for Docker documentation is in this directory under `sources/`. Our
 documentation uses extended Markdown, as implemented by
 [MkDocs](http://mkdocs.org).  The current release of the Docker documentation
-resides on [http://docs.docker.com](http://docs.docker.com).
+resides on [https://docs.docker.com](https://docs.docker.com).
 
 ## Understanding the documentation branches and processes
 
@@ -11,7 +11,7 @@ Docker has two primary branches for documentation:
 
 | Branch   | Description                    | URL (published via commit-hook)                                              |
 |----------|--------------------------------|------------------------------------------------------------------------------|
-| `docs`   | Official release documentation | [http://docs.docker.com](http://docs.docker.com)                             |
+| `docs`   | Official release documentation | [https://docs.docker.com](https://docs.docker.com)                             |
 | `master` | Merged but unreleased development work    | [http://docs.master.dockerproject.com](http://docs.master.dockerproject.com) |
 
 Additions and updates to upcoming releases are made in a feature branch off of

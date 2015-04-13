@@ -932,7 +932,7 @@ func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
 	req.Header.Add("Content-Type", "application/json")
 	// This is a cheat to make the http request do chunked encoding
 	// Otherwise (just setting the Content-Encoding to chunked) net/http will overwrite
-	// http://golang.org/src/pkg/net/http/request.go?s=11980:12172
+	// https://golang.org/src/pkg/net/http/request.go?s=11980:12172
 	req.ContentLength = -1
 	server.ServeRequest(eng, api.APIVERSION, r, req)
 	assertHttpNotError(r, t)

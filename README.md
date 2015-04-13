@@ -13,7 +13,7 @@ databases, and backend services without depending on a particular stack
 or provider.
 
 Docker began as an open-source implementation of the deployment engine which
-powers [dotCloud](http://dotcloud.com), a popular Platform-as-a-Service.
+powers [dotCloud](https://dotcloud.com), a popular Platform-as-a-Service.
 It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
@@ -56,12 +56,12 @@ By contrast, Docker relies on a different sandboxing method known as
 *containerization*. Unlike traditional virtualization, containerization
 takes place at the kernel level. Most modern operating system kernels
 now support the primitives necessary for containerization, including
-Linux with [openvz](http://openvz.org),
+Linux with [openvz](https://openvz.org),
 [vserver](http://linux-vserver.org) and more recently
 [lxc](http://lxc.sourceforge.net), Solaris with
-[zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
+[zones](https://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
 and FreeBSD with
-[Jails](http://www.freebsd.org/doc/handbook/jails.html).
+[Jails](https://www.freebsd.org/doc/handbook/jails.html).
 
 Docker builds on top of these low-level primitives to offer developers a
 portable format and runtime environment that solves all four problems.
@@ -115,7 +115,7 @@ This is usually difficult for several reasons:
 Docker solves the problem of dependency hell by giving the developer a simple
 way to express *all* their application's dependencies in one place, while
 streamlining the process of assembling them. If this makes you think of
-[XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
+[XKCD 927](https://xkcd.com/927/), don't worry. Docker doesn't
 *replace* your favorite packaging systems. It simply orchestrates
 their use in a simple and repeatable way. How does it do that? With
 layers.
@@ -147,10 +147,10 @@ Docker can be installed on your local machine as well as servers - both
 bare metal and virtualized.  It is available as a binary on most modern
 Linux systems, or as a VM on Windows, Mac and other systems.
 
-We also offer an [interactive tutorial](http://www.docker.com/tryit/)
+We also offer an [interactive tutorial](https://www.docker.com/tryit/)
 for quickly learning the basics of using Docker.
 
-For up-to-date install instructions, see the [Docs](http://docs.docker.com).
+For up-to-date install instructions, see the [Docs](https://docs.docker.com).
 
 Usage examples
 ==============
@@ -159,7 +159,7 @@ Docker can be used to run short-lived commands, long-running daemons
 (app servers, databases, etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](http://docs.docker.com/examples/) in the
+examples](https://docs.docker.com/examples/) in the
 documentation.
 
 Under the hood
@@ -172,7 +172,7 @@ Under the hood, Docker is built on the following components:
   and
   [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
   capabilities of the Linux kernel
-* The [Go](http://golang.org) programming language
+* The [Go](https://golang.org) programming language
 * The [Docker Image Specification](https://github.com/docker/docker/blob/master/image/spec/v1.md)
 * The [Libcontainer Specification](https://github.com/docker/libcontainer/blob/master/SPEC.md)
 
@@ -218,7 +218,7 @@ United States and other governments.
 It is your responsibility to ensure that your use and/or transfer does not
 violate applicable laws.
 
-For more information, please see http://www.bis.doc.gov
+For more information, please see https://www.bis.doc.gov
 
 
 Licensing
