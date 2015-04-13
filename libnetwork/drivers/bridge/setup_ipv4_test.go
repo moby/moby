@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -21,7 +21,7 @@ func setupTestInterface(t *testing.T) *bridgeInterface {
 }
 
 func TestSetupBridgeIPv4Fixed(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	ip, netw, err := net.ParseCIDR("192.168.1.1/24")
 	if err != nil {
@@ -53,7 +53,7 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 }
 
 func TestSetupBridgeIPv4Auto(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	br := setupTestInterface(t)
 	if err := setupBridgeIPv4(br); err != nil {

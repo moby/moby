@@ -1,4 +1,4 @@
-package libnetwork
+package netutils
 
 import (
 	"net"

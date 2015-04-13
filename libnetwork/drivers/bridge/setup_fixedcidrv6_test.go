@@ -4,11 +4,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 )
 
 func TestSetupFixedCIDRv6(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
+	defer netutils.SetupTestNetNS(t)()
 
 	br := newInterface(&Configuration{})
 

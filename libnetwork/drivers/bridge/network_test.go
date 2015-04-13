@@ -4,27 +4,30 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestLinkCreate(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
-	d := &driver{}
+	defer netutils.SetupTestNetNS(t)()
+	_, d := New()
+	dr := d.(*driver)
 
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
-	netw, err := d.CreateNetwork("dummy", config)
+	err := d.CreateNetwork("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	interfaces, err := netw.Link("ep")
+	sinfo, err := d.CreateEndpoint("dummy", "ep", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create a link: %v", err)
 	}
 
+	interfaces := sinfo.Interfaces
 	if len(interfaces) != 1 {
 		t.Fatalf("Expected exactly one interface. Instead got %d interface(s)", len(interfaces))
 	}
@@ -43,9 +46,9 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Invalid IPv4 address returned, ip = %s: %v", interfaces[0].Address, err)
 	}
 
-	b := netw.(*bridgeNetwork)
-	if !b.bridge.bridgeIPv4.Contains(ip) {
-		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip.String(), b.bridge.bridgeIPv4.String())
+	n := dr.network
+	if !n.bridge.bridgeIPv4.Contains(ip) {
+		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip.String(), n.bridge.bridgeIPv4.String())
 	}
 
 	ip6, _, err := net.ParseCIDR(interfaces[0].AddressIPv6)
@@ -53,41 +56,41 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Invalid IPv6 address returned, ip = %s: %v", interfaces[0].AddressIPv6, err)
 	}
 
-	if !b.bridge.bridgeIPv6.Contains(ip6) {
+	if !n.bridge.bridgeIPv6.Contains(ip6) {
 		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip6.String(), bridgeIPv6.String())
 	}
 
-	if interfaces[0].Gateway != b.bridge.bridgeIPv4.IP.String() {
-		t.Fatalf("Invalid default gateway. Expected %s. Got %s", b.bridge.bridgeIPv4.IP.String(),
-			interfaces[0].Gateway)
+	if sinfo.Gateway != n.bridge.bridgeIPv4.IP.String() {
+		t.Fatalf("Invalid default gateway. Expected %s. Got %s", n.bridge.bridgeIPv4.IP.String(),
+			sinfo.Gateway)
 	}
 
-	if interfaces[0].GatewayIPv6 != b.bridge.bridgeIPv6.IP.String() {
-		t.Fatalf("Invalid default gateway for IPv6. Expected %s. Got %s", b.bridge.bridgeIPv6.IP.String(),
-			interfaces[0].GatewayIPv6)
+	if sinfo.GatewayIPv6 != n.bridge.bridgeIPv6.IP.String() {
+		t.Fatalf("Invalid default gateway for IPv6. Expected %s. Got %s", n.bridge.bridgeIPv6.IP.String(),
+			sinfo.GatewayIPv6)
 	}
 }
 
 func TestLinkCreateTwo(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
-	d := &driver{}
+	defer netutils.SetupTestNetNS(t)()
+	_, d := New()
 
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
-	netw, err := d.CreateNetwork("dummy", config)
+	err := d.CreateNetwork("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = netw.Link("ep")
+	_, err = d.CreateEndpoint("dummy", "ep", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create a link: %v", err)
 	}
 
-	_, err = netw.Link("ep1")
+	_, err = d.CreateEndpoint("dummy", "ep1", "", "")
 	if err != nil {
-		if err != ErrEndpointExists {
+		if err != driverapi.ErrEndpointExists {
 			t.Fatalf("Failed with a wrong error :%v", err)
 		}
 	} else {
@@ -96,24 +99,25 @@ func TestLinkCreateTwo(t *testing.T) {
 }
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
-	defer libnetwork.SetupTestNetNS(t)()
-	d := &driver{}
+	defer netutils.SetupTestNetNS(t)()
+	_, d := New()
 
 	config := &Configuration{
 		BridgeName: DefaultBridgeName}
-	netw, err := d.CreateNetwork("dummy", config)
+	err := d.CreateNetwork("dummy", config)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	interfaces, err := netw.Link("ep")
+	sinfo, err := d.CreateEndpoint("dummy", "ep", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create a link: %v", err)
 	}
 
+	interfaces := sinfo.Interfaces
 	if interfaces[0].AddressIPv6 != "" ||
-		interfaces[0].GatewayIPv6 != "" {
+		sinfo.GatewayIPv6 != "" {
 		t.Fatalf("Expected IPv6 address and GatewayIPv6 to be empty when IPv6 enabled. Instead got IPv6 = %s and GatewayIPv6 = %s",
-			interfaces[0].AddressIPv6, interfaces[0].GatewayIPv6)
+			interfaces[0].AddressIPv6, sinfo.GatewayIPv6)
 	}
 }

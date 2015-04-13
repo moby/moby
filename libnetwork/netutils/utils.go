@@ -1,7 +1,7 @@
 // Network utility functions.
 // Imported unchanged from Docker
 
-package libnetwork
+package netutils
 
 import (
 	"errors"

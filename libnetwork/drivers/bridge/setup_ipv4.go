@@ -5,7 +5,7 @@ import (
 	"net"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -73,8 +73,8 @@ func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
 
 	// Try to automatically elect appropriate brige IPv4 settings.
 	for _, n := range bridgeNetworks {
-		if err := libnetwork.CheckNameserverOverlaps(nameservers, n); err == nil {
-			if err := libnetwork.CheckRouteOverlaps(n); err == nil {
+		if err := netutils.CheckNameserverOverlaps(nameservers, n); err == nil {
+			if err := netutils.CheckRouteOverlaps(n); err == nil {
 				return n, nil
 			}
 		}

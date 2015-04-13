@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 )
 
 // allocatedMap is thread-unsafe set of allocated IP
@@ -21,7 +21,7 @@ type allocatedMap struct {
 }
 
 func newAllocatedMap(network *net.IPNet) *allocatedMap {
-	firstIP, lastIP := libnetwork.NetworkRange(network)
+	firstIP, lastIP := netutils.NetworkRange(network)
 	begin := big.NewInt(0).Add(ipToBigInt(firstIP), big.NewInt(1))
 	end := big.NewInt(0).Sub(ipToBigInt(lastIP), big.NewInt(1))
 
@@ -71,7 +71,7 @@ func (a *IPAllocator) RegisterSubnet(network *net.IPNet, subnet *net.IPNet) erro
 		return ErrNetworkAlreadyRegistered
 	}
 	n := newAllocatedMap(network)
-	beginIP, endIP := libnetwork.NetworkRange(subnet)
+	beginIP, endIP := netutils.NetworkRange(subnet)
 	begin := big.NewInt(0).Add(ipToBigInt(beginIP), big.NewInt(1))
 	end := big.NewInt(0).Sub(ipToBigInt(endIP), big.NewInt(1))
 
