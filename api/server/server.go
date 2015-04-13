@@ -543,10 +543,10 @@ func getContainersStats(eng *engine.Engine, version version.Version, w http.Resp
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	job := eng.Job("container_stats", name)
-	streamJSON(job, w, true)
-	return job.Run()
+
+	d := getDaemon(eng)
+
+	return d.ContainerStats(vars["name"], utils.NewWriteFlusher(w))
 }
 
 func getContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
