@@ -665,3 +665,60 @@ func TestRunMutableNetworkFiles(t *testing.T) {
 	}
 	logDone("run - mutable network files")
 }
+
+func TestExecWithUser(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "-u", "1", "parent", "id")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=1(daemon) gid=1(daemon)") {
+		t.Fatalf("exec with user by id expected daemon user got %s", out)
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", "-u", "root", "parent", "id")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if !strings.Contains(out, "uid=0(root) gid=0(root)") {
+		t.Fatalf("exec with user by root expected root user got %s", out)
+	}
+
+	logDone("exec - with user")
+}
+
+func TestExecWithPrivileged(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sda b 8 0")
+	out, _, err := runCommandWithOutput(cmd)
+	fmt.Printf("%s", out)
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		t.Fatalf("exec mknod in --cap-drop=ALL container without --privileged should failed")
+	}
+
+	cmd = exec.Command(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	if actual := strings.TrimSpace(out); actual != "ok" {
+		t.Fatalf("exec mknod in --cap-drop=ALL container with --privileged failed: %v, output: %q", err, out)
+	}
+
+	logDone("exec - exec command in a container with privileged")
+}

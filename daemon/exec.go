@@ -138,6 +138,8 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) error {
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
+		User:       config.User,
+		Privileged: config.Privileged,
 	}
 
 	execConfig := &execConfig{

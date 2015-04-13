@@ -1120,7 +1120,9 @@ You'll need two shells for this example.
 
       -d, --detach=false         Detached mode: run command in the background
       -i, --interactive=false    Keep STDIN open even if not attached
+      --privileged=false         Give extended privileges to the command
       -t, --tty=false            Allocate a pseudo-TTY
+      -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
 
 The `docker exec` command runs a new command in a running container.
 

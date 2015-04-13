@@ -21,10 +21,8 @@ type ExecConfig struct {
 
 func ExecConfigFromJob(job *engine.Job) (*ExecConfig, error) {
 	execConfig := &ExecConfig{
-		// TODO(vishh): Expose 'User' once it is supported.
-		//User:         job.Getenv("User"),
-		// TODO(vishh): Expose 'Privileged' once it is supported.
-		//Privileged:   job.GetenvBool("Privileged"),
+		User:         job.Getenv("User"),
+		Privileged:   job.GetenvBool("Privileged"),
 		Tty:          job.GetenvBool("Tty"),
 		AttachStdin:  job.GetenvBool("AttachStdin"),
 		AttachStderr: job.GetenvBool("AttachStderr"),
@@ -42,11 +40,13 @@ func ExecConfigFromJob(job *engine.Job) (*ExecConfig, error) {
 
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	var (
-		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
-		execCmd   []string
-		container string
+		flStdin      = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
+		flTty        = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		flUser       = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
+		flPrivileged = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to the command")
+		execCmd      []string
+		container    string
 	)
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
@@ -57,10 +57,8 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	execCmd = parsedArgs[1:]
 
 	execConfig := &ExecConfig{
-		// TODO(vishh): Expose '-u' flag once it is supported.
-		User: "",
-		// TODO(vishh): Expose '-p' flag once it is supported.
-		Privileged: false,
+		User:       *flUser,
+		Privileged: *flPrivileged,
 		Tty:        *flTty,
 		Cmd:        execCmd,
 		Container:  container,
