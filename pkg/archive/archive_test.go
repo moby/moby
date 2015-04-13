@@ -14,8 +14,149 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
+
+func TestIsArchiveNilHeader(t *testing.T) {
+	out := IsArchive(nil)
+	if out {
+		t.Fatalf("isArchive should return false as nil is not a valid archive header")
+	}
+}
+
+func TestIsArchiveInvalidHeader(t *testing.T) {
+	header := []byte{0x00, 0x01, 0x02}
+	out := IsArchive(header)
+	if out {
+		t.Fatalf("isArchive should return false as %s is not a valid archive header", header)
+	}
+}
+
+func TestIsArchiveBzip2(t *testing.T) {
+	header := []byte{0x42, 0x5A, 0x68}
+	out := IsArchive(header)
+	if !out {
+		t.Fatalf("isArchive should return true as %s is a bz2 header", header)
+	}
+}
+
+func TestIsArchive7zip(t *testing.T) {
+	header := []byte{0x50, 0x4b, 0x03, 0x04}
+	out := IsArchive(header)
+	if out {
+		t.Fatalf("isArchive should return false as %s is a 7z header and it is not supported", header)
+	}
+}
+
+func TestDecompressStreamGzip(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "touch /tmp/archive && gzip -f /tmp/archive")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Fail to create an archive file for test : %s.", output)
+	}
+	archive, err := os.Open("/tmp/archive.gz")
+	_, err = DecompressStream(archive)
+	if err != nil {
+		t.Fatalf("Failed to decompress a gzip file.")
+	}
+}
+
+func TestDecompressStreamBzip2(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "touch /tmp/archive && bzip2 -f /tmp/archive")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Fail to create an archive file for test : %s.", output)
+	}
+	archive, err := os.Open("/tmp/archive.bz2")
+	_, err = DecompressStream(archive)
+	if err != nil {
+		t.Fatalf("Failed to decompress a bzip2 file.")
+	}
+}
+
+func TestDecompressStreamXz(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "touch /tmp/archive && xz -f /tmp/archive")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Fail to create an archive file for test : %s.", output)
+	}
+	archive, err := os.Open("/tmp/archive.xz")
+	_, err = DecompressStream(archive)
+	if err != nil {
+		t.Fatalf("Failed to decompress a xz file.")
+	}
+}
+
+func TestCompressStreamXzUnsuported(t *testing.T) {
+	dest, err := os.Create("/tmp/dest")
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	_, err = CompressStream(dest, Xz)
+	if err == nil {
+		t.Fatalf("Should fail as xz is unsupported for compression format.")
+	}
+}
+
+func TestCompressStreamBzip2Unsupported(t *testing.T) {
+	dest, err := os.Create("/tmp/dest")
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	_, err = CompressStream(dest, Xz)
+	if err == nil {
+		t.Fatalf("Should fail as xz is unsupported for compression format.")
+	}
+}
+
+func TestCompressStreamInvalid(t *testing.T) {
+	dest, err := os.Create("/tmp/dest")
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	_, err = CompressStream(dest, -1)
+	if err == nil {
+		t.Fatalf("Should fail as xz is unsupported for compression format.")
+	}
+}
+
+func TestExtensionInvalid(t *testing.T) {
+	compression := Compression(-1)
+	output := compression.Extension()
+	if output != "" {
+		t.Fatalf("The extension of an invalid compression should be an empty string.")
+	}
+}
+
+func TestExtensionUncompressed(t *testing.T) {
+	compression := Uncompressed
+	output := compression.Extension()
+	if output != "tar" {
+		t.Fatalf("The extension of a uncompressed archive should be 'tar'.")
+	}
+}
+func TestExtensionBzip2(t *testing.T) {
+	compression := Bzip2
+	output := compression.Extension()
+	if output != "tar.bz2" {
+		t.Fatalf("The extension of a bzip2 archive should be 'tar.bz2'")
+	}
+}
+func TestExtensionGzip(t *testing.T) {
+	compression := Gzip
+	output := compression.Extension()
+	if output != "tar.gz" {
+		t.Fatalf("The extension of a bzip2 archive should be 'tar.gz'")
+	}
+}
+func TestExtensionXz(t *testing.T) {
+	compression := Xz
+	output := compression.Extension()
+	if output != "tar.xz" {
+		t.Fatalf("The extension of a bzip2 archive should be 'tar.xz'")
+	}
+}
 
 func TestCmdStreamLargeStderr(t *testing.T) {
 	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
@@ -179,9 +320,54 @@ func TestTarUntar(t *testing.T) {
 	}
 }
 
+func TestTarUntarWithXattr(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(path.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(origin, "3"), []byte("will be ignored"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Lsetxattr(path.Join(origin, "2"), "security.capability", []byte{0x00}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range []Compression{
+		Uncompressed,
+		Gzip,
+	} {
+		changes, err := tarUntar(t, origin, &TarOptions{
+			Compression:     c,
+			ExcludePatterns: []string{"3"},
+		})
+
+		if err != nil {
+			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
+		}
+
+		if len(changes) != 1 || changes[0].Path != "/3" {
+			t.Fatalf("Unexpected differences after tarUntar: %v", changes)
+		}
+		capability, _ := system.Lgetxattr(path.Join(origin, "2"), "security.capability")
+		if capability == nil && capability[0] != 0x00 {
+			t.Fatalf("Untar should have kept the 'security.capability' xattr.")
+		}
+	}
+}
+
 func TestTarWithOptions(t *testing.T) {
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ioutil.TempDir(origin, "folder"); err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(origin)
@@ -196,8 +382,11 @@ func TestTarWithOptions(t *testing.T) {
 		opts       *TarOptions
 		numChanges int
 	}{
-		{&TarOptions{IncludeFiles: []string{"1"}}, 1},
+		{&TarOptions{IncludeFiles: []string{"1"}}, 2},
 		{&TarOptions{ExcludePatterns: []string{"2"}}, 1},
+		{&TarOptions{ExcludePatterns: []string{"1", "folder*"}}, 2},
+		{&TarOptions{IncludeFiles: []string{"1", "1"}}, 2},
+		{&TarOptions{Name: "test", IncludeFiles: []string{"1"}}, 4},
 	}
 	for _, testCase := range cases {
 		changes, err := tarUntar(t, origin, testCase.opts)
@@ -253,6 +442,58 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("%s not found in the archive", "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm")
+	}
+}
+
+func TestTarWithBlockCharFifo(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-tar-hardlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(path.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Mknod(path.Join(origin, "2"), syscall.S_IFBLK, int(system.Mkdev(int64(12), int64(5)))); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Mknod(path.Join(origin, "3"), syscall.S_IFCHR, int(system.Mkdev(int64(12), int64(5)))); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Mknod(path.Join(origin, "4"), syscall.S_IFIFO, int(system.Mkdev(int64(12), int64(5)))); err != nil {
+		t.Fatal(err)
+	}
+
+	dest, err := ioutil.TempDir("", "docker-test-tar-hardlink-dest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dest)
+
+	// we'll do this in two steps to separate failure
+	fh, err := Tar(origin, Uncompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ensure we can read the whole thing with no error, before writing back out
+	buf, err := ioutil.ReadAll(fh)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bRdr := bytes.NewReader(buf)
+	err = Untar(bRdr, dest, &TarOptions{Compression: Uncompressed})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := ChangesDirs(origin, dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) > 0 {
+		t.Fatalf("Tar with special device (block, char, fifo) should keep them (recreate them when untar) : %s", changes)
 	}
 }
 
