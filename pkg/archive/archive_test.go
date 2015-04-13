@@ -493,7 +493,7 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(changes) > 0 {
-		t.Fatalf("Tar with special device (block, char, fifo) should keep them (recreate them when untar) : %s", changes)
+		t.Fatalf("Tar with special device (block, char, fifo) should keep them (recreate them when untar) : %v", changes)
 	}
 }
 
