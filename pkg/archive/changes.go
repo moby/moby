@@ -209,12 +209,22 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// change?
 			oldStat := oldChild.stat
 			newStat := newChild.stat
-			// Note: We can't compare inode or ctime or blocksize here, because these change
-			// when copying a file into a container. However, that is not generally a problem
-			// because any content change will change mtime, and any status change should
-			// be visible when actually comparing the stat fields. The only time this
-			// breaks down is if some code intentionally hides a change by setting
-			// back mtime
+
+			// We can't rely exclusively on inode+device here, but we *do* know that
+			// if they happen to match, the files are identical. We use this as a
+			// fast path to avoid the more expensive comparison below. This benefits
+			// the overlay storage driver in particular, where images are inherited
+			// by hardlinks.
+			//
+			// We can't rely exlusively on them because because they change when
+			// copying a file into a container. This is not generally a problem
+			// though, because any content change will change mtime, and any status
+			// change should be visible when actually comparing the stat fields. The
+			// only time this breaks down is if some code intentionally hides a
+			// change by setting back mtime.
+			if oldStat.Ino() == newStat.Ino() && oldStat.Dev() == newStat.Dev() {
+				continue
+			}
 			if oldStat.Mode() != newStat.Mode() ||
 				oldStat.Uid() != newStat.Uid() ||
 				oldStat.Gid() != newStat.Gid() ||

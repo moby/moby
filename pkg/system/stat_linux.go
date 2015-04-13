@@ -11,6 +11,8 @@ func fromStatT(s *syscall.Stat_t) (*Stat_t, error) {
 		uid:  s.Uid,
 		gid:  s.Gid,
 		rdev: s.Rdev,
+		ino:  s.Ino,
+		dev:  s.Dev,
 		mtim: s.Mtim}, nil
 }
 

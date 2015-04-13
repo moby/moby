@@ -31,6 +31,12 @@ func TestFromStatT(t *testing.T) {
 	if stat.Rdev != s.Rdev() {
 		t.Fatal("got invalid rdev")
 	}
+	if stat.Dev != s.Dev() {
+		t.Fatal("got invalid dev")
+	}
+	if stat.Ino != s.Ino() {
+		t.Fatal("got invalid ino")
+	}
 	if stat.Mtim != s.Mtim() {
 		t.Fatal("got invalid mtim")
 	}

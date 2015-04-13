@@ -12,6 +12,8 @@ type Stat_t struct {
 	gid  uint32
 	rdev uint64
 	size int64
+	ino  uint64
+	dev  uint64
 	mtim syscall.Timespec
 }
 
@@ -33,6 +35,14 @@ func (s Stat_t) Rdev() uint64 {
 
 func (s Stat_t) Size() int64 {
 	return s.size
+}
+
+func (s Stat_t) Ino() uint64 {
+	return s.ino
+}
+
+func (s Stat_t) Dev() uint64 {
+	return s.dev
 }
 
 func (s Stat_t) Mtim() syscall.Timespec {

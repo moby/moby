@@ -13,5 +13,7 @@ func fromStatT(s *syscall.Stat_t) (*Stat_t, error) {
 		uid:  s.Uid,
 		gid:  s.Gid,
 		rdev: uint64(s.Rdev),
+		dev:  uint64(s.Dev),
+		ino:  uint64(s.Ino),
 		mtim: s.Mtimespec}, nil
 }
