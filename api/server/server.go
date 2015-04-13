@@ -406,15 +406,6 @@ func (s *Server) getImagesJSON(eng *engine.Engine, version version.Version, w ht
 	return writeJSON(w, http.StatusOK, legacyImages)
 }
 
-func (s *Server) getImagesViz(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if version.GreaterThan("1.6") {
-		w.WriteHeader(http.StatusNotFound)
-		return fmt.Errorf("This is now implemented in the client.")
-	}
-	eng.ServeHTTP(w, r)
-	return nil
-}
-
 func (s *Server) getInfo(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -1588,7 +1579,6 @@ func createRouter(s *Server, eng *engine.Engine) *mux.Router {
 			"/info":                           s.getInfo,
 			"/version":                        s.getVersion,
 			"/images/json":                    s.getImagesJSON,
-			"/images/viz":                     s.getImagesViz,
 			"/images/search":                  s.getImagesSearch,
 			"/images/get":                     s.getImagesGet,
 			"/images/{name:.*}/get":           s.getImagesGet,
