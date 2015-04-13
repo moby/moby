@@ -1,4 +1,4 @@
-package builder
+package env
 
 import (
 	"bufio"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestShellParser(t *testing.T) {
+func TestEnvProcessor(t *testing.T) {
 	file, err := os.Open("words")
 	if err != nil {
 		t.Fatalf("Can't open 'words': %s", err)

@@ -3493,3 +3493,40 @@ func TestRunPidHostWithChildIsKillable(t *testing.T) {
 	}
 	logDone("run - can kill container with pid-host and some childs of pid 1")
 }
+
+func TestRunSubonEnvCmdLine(t *testing.T) {
+	var out string
+	name := "testbuildenvcmd"
+	defer deleteAllContainers()
+	defer deleteImages(name)
+
+	ctx, err := fakeContext(
+		`FROM busybox
+		 ENV inner=hello
+		 RUN env`,
+		map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctx.Close()
+
+	_, err = buildImage(name, `
+		FROM busybox
+		ENV inner=hi
+		CMD env`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runCmd := exec.Command(dockerBinary, "run", "-e", "foo=$inner", name)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatalf("run failed to complete: %v %v", out, err)
+	}
+
+	exp := "foo=hi"
+	if !strings.Contains(out, exp) {
+		t.Fatalf("run doesn't have the right output - expected: %s\nGot:\n%s", exp, out)
+	}
+
+	logDone("run - $ in env var on cmd line")
+}

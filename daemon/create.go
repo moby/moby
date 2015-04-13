@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/env"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libcontainer/label"
@@ -42,6 +43,27 @@ func (daemon *Daemon) ContainerCreate(job *engine.Job) error {
 	}
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
 		return fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
+	}
+
+	// Do env var substitutions on any --env vars passed into the
+	// docker run/create.  We need to grab the env vars from the
+	// image in order to do this.
+	if config.Image != "" {
+		img, err := daemon.repositories.LookupImage(config.Image)
+		if err != nil {
+			return err
+		}
+
+		imgEnvs := []string{}
+		if img.Config != nil {
+			imgEnvs = img.Config.Env
+		}
+
+		newEnv, err := env.ProcessLines(config.Env, imgEnvs)
+		if err != nil {
+			return err
+		}
+		config.Env = newEnv
 	}
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
@@ -102,6 +124,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 	}
+
 	if container, err = daemon.newContainer(name, config, imgID); err != nil {
 		return nil, nil, err
 	}

@@ -1,4 +1,4 @@
-package builder
+package env
 
 // This will take a single word and an array of env variables and
 // process all quotes (" and ') as well as $xxx and ${xxx} env variable
@@ -25,6 +25,30 @@ func ProcessWord(word string, env []string) (string, error) {
 		pos:  0,
 	}
 	return sw.process()
+}
+
+func ProcessLine(line string, env []string) (string, error) {
+	envParts := strings.SplitN(line, "=", 2)
+	if len(envParts) == 2 {
+		newVal, err := ProcessWord(envParts[1], env)
+		if err != nil {
+			return "", err
+		}
+		line = envParts[0] + "=" + newVal
+	}
+	return line, nil
+}
+
+func ProcessLines(lines []string, env []string) ([]string, error) {
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		var err error
+		result[i], err = ProcessLine(line, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func (sw *shellWord) process() (string, error) {
