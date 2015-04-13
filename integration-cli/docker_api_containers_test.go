@@ -593,5 +593,5 @@ func TestContainerApiPause(t *testing.T) {
 		t.Fatalf("There should be no paused container.")
 	}
 
-	logDone("container REST API - check POST containers/pause nad unpause")
+	logDone("container REST API - check POST containers/pause and unpause")
 }
