@@ -516,10 +516,16 @@ interactively.  You can attach to the same contained process multiple times
 simultaneously, screen sharing style, or quickly view the progress of your
 daemonized process.
 
-You can detach from the container (and leave it running) with `CTRL-p CTRL-q`
-(for a quiet exit) or `CTRL-c` which will send a `SIGKILL` to the container.
-When you are attached to a container, and exit its main process, the process's
-exit code will be returned to the client.
+You can detach from the container and leave it running with `CTRL-p
+CTRL-q` (for a quiet exit) or with `CTRL-c` if `--sig-proxy` is false.
+
+If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT`
+to the container.
+
+>**Note**: A process running as PID 1 inside a container is treated
+>specially by Linux: it ignores any signal with the default action.
+>So, the process will not terminate on `SIGINT` or `SIGTERM` unless it is
+>coded to do so.
 
 It is forbidden to redirect the standard input of a `docker attach` command while
 attaching to a tty-enabled container (i.e.: launched with `-t`).

@@ -111,6 +111,11 @@ as you'll see in later examples.  Specifying `-t` is forbidden when the client
 standard output is redirected or piped, such as in:
 `echo test | docker run -i busybox cat`.
 
+>**Note**: A process running as PID 1 inside a container is treated
+>specially by Linux: it ignores any signal with the default action.
+>So, the process will not terminate on `SIGINT` or `SIGTERM` unless it is
+>coded to do so.
+
 ## Container identification
 
 ### Name (--name)
