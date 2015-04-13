@@ -1,6 +1,12 @@
 package types
 
-import "github.com/docker/docker/pkg/version"
+import (
+	"time"
+
+	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/runconfig"
+)
 
 // ContainerCreateResponse contains the information returned to a client on the
 // creation of a new container.
@@ -161,4 +167,44 @@ type ExecStartCheck struct {
 	Detach bool
 	// Check if there's a tty
 	Tty bool
+}
+
+type ContainerState struct {
+	Running    bool
+	Paused     bool
+	Restarting bool
+	OOMKilled  bool
+	Dead       bool
+	Pid        int
+	ExitCode   int
+	Error      string
+	StartedAt  time.Time
+	FinishedAt time.Time
+}
+
+// GET "/containers/{name:.*}/json"
+type ContainerJSON struct {
+	Id              string
+	Created         time.Time
+	Path            string
+	Args            []string
+	Config          *runconfig.Config
+	State           *ContainerState
+	Image           string
+	NetworkSettings *network.Settings
+	ResolvConfPath  string
+	HostnamePath    string
+	HostsPath       string
+	LogPath         string
+	Name            string
+	RestartCount    int
+	Driver          string
+	ExecDriver      string
+	MountLabel      string
+	ProcessLabel    string
+	Volumes         map[string]string
+	VolumesRW       map[string]bool
+	AppArmorProfile string
+	ExecIDs         []string
+	HostConfig      *runconfig.HostConfig
 }

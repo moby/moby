@@ -239,16 +239,6 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 	return defaults
 }
 
-func DoesEnvExist(name string) bool {
-	for _, entry := range os.Environ() {
-		parts := strings.SplitN(entry, "=", 2)
-		if parts[0] == name {
-			return true
-		}
-	}
-	return false
-}
-
 // ValidateContextDirectory checks if all the contents of the directory
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error

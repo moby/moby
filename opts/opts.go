@@ -8,16 +8,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/utils"
 )
 
 var (
-	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
-	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	alphaRegexp       = regexp.MustCompile(`[a-zA-Z]`)
+	domainRegexp      = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	DefaultHTTPHost   = "127.0.0.1"            // Default HTTP Host used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
+	DefaultUnixSocket = "/var/run/docker.sock" // Docker daemon by default always listens on the default unix socket
 )
 
 func ListVar(values *[]string, names []string, usage string) {
@@ -25,7 +25,7 @@ func ListVar(values *[]string, names []string, usage string) {
 }
 
 func HostListVar(values *[]string, names []string, usage string) {
-	flag.Var(newListOptsRef(values, api.ValidateHost), names, usage)
+	flag.Var(newListOptsRef(values, ValidateHost), names, usage)
 }
 
 func IPListVar(values *[]string, names []string, usage string) {
@@ -174,7 +174,7 @@ func ValidateEnv(val string) (string, error) {
 	if len(arr) > 1 {
 		return val, nil
 	}
-	if !utils.DoesEnvExist(val) {
+	if !doesEnvExist(val) {
 		return val, nil
 	}
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
@@ -233,4 +233,22 @@ func ValidateLabel(val string) (string, error) {
 		return "", fmt.Errorf("bad attribute format: %s", val)
 	}
 	return val, nil
+}
+
+func ValidateHost(val string) (string, error) {
+	host, err := parsers.ParseHost(DefaultHTTPHost, DefaultUnixSocket, val)
+	if err != nil {
+		return val, err
+	}
+	return host, nil
+}
+
+func doesEnvExist(name string) bool {
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if parts[0] == name {
+			return true
+		}
+	}
+	return false
 }
