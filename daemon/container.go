@@ -1286,7 +1286,7 @@ func (container *Container) verifyDaemonSettings() {
 		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
 		container.hostConfig.Memory = 0
 	}
-	if container.hostConfig.Memory > 0 && !container.daemon.sysInfo.SwapLimit {
+	if container.hostConfig.Memory > 0 && container.hostConfig.MemorySwap != -1 && !container.daemon.sysInfo.SwapLimit {
 		logrus.Warnf("Your kernel does not support swap limit capabilities. Limitation discarded.")
 		container.hostConfig.MemorySwap = -1
 	}
