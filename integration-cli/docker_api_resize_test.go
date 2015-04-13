@@ -24,6 +24,24 @@ func TestResizeApiResponse(t *testing.T) {
 	logDone("container resize - when started")
 }
 
+func TestResizeApiHeightWidthNoInt(t *testing.T) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf(out, err)
+	}
+	defer deleteAllContainers()
+	cleanedContainerID := strings.TrimSpace(out)
+
+	endpoint := "/containers/" + cleanedContainerID + "/resize?h=foo&w=bar"
+	_, err = sockRequest("POST", endpoint, nil)
+	if err == nil {
+		t.Fatal("Expected resize Request to fail")
+	}
+
+	logDone("container resize - height, width no int fail")
+}
+
 func TestResizeApiResponseWhenContainerNotStarted(t *testing.T) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)

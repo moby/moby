@@ -1036,11 +1036,11 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return nil
+		return err
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return nil
+		return err
 	}
 
 	d := getDaemon(eng)
@@ -1049,11 +1049,7 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 		return err
 	}
 
-	if err := cont.Resize(height, width); err != nil {
-		return err
-	}
-
-	return nil
+	return cont.Resize(height, width)
 }
 
 func postContainersAttach(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1416,19 +1412,16 @@ func postContainerExecResize(eng *engine.Engine, version version.Version, w http
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return nil
+		return err
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return nil
-	}
-
-	d := getDaemon(eng)
-	if err := d.ContainerExecResize(vars["name"], height, width); err != nil {
 		return err
 	}
 
-	return nil
+	d := getDaemon(eng)
+
+	return d.ContainerExecResize(vars["name"], height, width)
 }
 
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
