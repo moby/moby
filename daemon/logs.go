@@ -10,40 +10,50 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/pkg/timeutils"
 )
 
-func (daemon *Daemon) ContainerLogs(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("Usage: %s CONTAINER\n", job.Name)
-	}
+type ContainerLogsConfig struct {
+	Follow, Timestamps   bool
+	Tail                 string
+	UseStdout, UseStderr bool
+	OutStream            io.Writer
+}
 
+func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) error {
 	var (
-		name   = job.Args[0]
-		stdout = job.GetenvBool("stdout")
-		stderr = job.GetenvBool("stderr")
-		tail   = job.Getenv("tail")
-		follow = job.GetenvBool("follow")
-		times  = job.GetenvBool("timestamps")
 		lines  = -1
 		format string
 	)
-	if !(stdout || stderr) {
+	if !(config.UseStdout || config.UseStderr) {
 		return fmt.Errorf("You must choose at least one stream")
 	}
-	if times {
+	if config.Timestamps {
 		format = timeutils.RFC3339NanoFixed
 	}
-	if tail == "" {
-		tail = "all"
+	if config.Tail == "" {
+		config.Tail = "all"
 	}
+
 	container, err := daemon.Get(name)
 	if err != nil {
 		return err
 	}
+
+	var (
+		outStream = config.OutStream
+		errStream io.Writer
+	)
+	if !container.Config.Tty {
+		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+	} else {
+		errStream = outStream
+	}
+
 	if container.LogDriverType() != "json-file" {
 		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
 	}
@@ -51,30 +61,30 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) error {
 	if err != nil && os.IsNotExist(err) {
 		// Legacy logs
 		logrus.Debugf("Old logs format")
-		if stdout {
+		if config.UseStdout {
 			cLog, err := container.ReadLog("stdout")
 			if err != nil {
 				logrus.Errorf("Error reading logs (stdout): %s", err)
-			} else if _, err := io.Copy(job.Stdout, cLog); err != nil {
+			} else if _, err := io.Copy(outStream, cLog); err != nil {
 				logrus.Errorf("Error streaming logs (stdout): %s", err)
 			}
 		}
-		if stderr {
+		if config.UseStderr {
 			cLog, err := container.ReadLog("stderr")
 			if err != nil {
 				logrus.Errorf("Error reading logs (stderr): %s", err)
-			} else if _, err := io.Copy(job.Stderr, cLog); err != nil {
+			} else if _, err := io.Copy(errStream, cLog); err != nil {
 				logrus.Errorf("Error streaming logs (stderr): %s", err)
 			}
 		}
 	} else if err != nil {
 		logrus.Errorf("Error reading logs (json): %s", err)
 	} else {
-		if tail != "all" {
+		if config.Tail != "all" {
 			var err error
-			lines, err = strconv.Atoi(tail)
+			lines, err = strconv.Atoi(config.Tail)
 			if err != nil {
-				logrus.Errorf("Failed to parse tail %s, error: %v, show all logs", tail, err)
+				logrus.Errorf("Failed to parse tail %s, error: %v, show all logs", config.Tail, err)
 				lines = -1
 			}
 		}
@@ -101,39 +111,39 @@ func (daemon *Daemon) ContainerLogs(job *engine.Job) error {
 					break
 				}
 				logLine := l.Log
-				if times {
+				if config.Timestamps {
 					// format can be "" or time format, so here can't be error
 					logLine, _ = l.Format(format)
 				}
-				if l.Stream == "stdout" && stdout {
-					io.WriteString(job.Stdout, logLine)
+				if l.Stream == "stdout" && config.UseStdout {
+					io.WriteString(outStream, logLine)
 				}
-				if l.Stream == "stderr" && stderr {
-					io.WriteString(job.Stderr, logLine)
+				if l.Stream == "stderr" && config.UseStderr {
+					io.WriteString(errStream, logLine)
 				}
 				l.Reset()
 			}
 		}
 	}
-	if follow && container.IsRunning() {
+	if config.Follow && container.IsRunning() {
 		errors := make(chan error, 2)
 		wg := sync.WaitGroup{}
 
-		if stdout {
+		if config.UseStdout {
 			wg.Add(1)
 			stdoutPipe := container.StdoutLogPipe()
 			defer stdoutPipe.Close()
 			go func() {
-				errors <- jsonlog.WriteLog(stdoutPipe, job.Stdout, format)
+				errors <- jsonlog.WriteLog(stdoutPipe, outStream, format)
 				wg.Done()
 			}()
 		}
-		if stderr {
+		if config.UseStderr {
 			wg.Add(1)
 			stderrPipe := container.StderrLogPipe()
 			defer stderrPipe.Close()
 			go func() {
-				errors <- jsonlog.WriteLog(stderrPipe, job.Stderr, format)
+				errors <- jsonlog.WriteLog(stderrPipe, errStream, format)
 				wg.Done()
 			}()
 		}

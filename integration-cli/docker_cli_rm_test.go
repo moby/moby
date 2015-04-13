@@ -64,7 +64,7 @@ func TestRmRunningContainerCheckError409(t *testing.T) {
 	createRunningContainer(t, "foo")
 
 	endpoint := "/containers/foo"
-	_, err := sockRequest("DELETE", endpoint, nil)
+	_, _, err := sockRequest("DELETE", endpoint, nil)
 
 	if err == nil {
 		t.Fatalf("Expected error, can't rm a running container")
