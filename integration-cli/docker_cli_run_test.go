@@ -3468,3 +3468,28 @@ func TestRunContainerWithRmFlagCannotStartContainer(t *testing.T) {
 
 	logDone("run - container is removed if run with --rm and cannot start")
 }
+
+func TestRunPidHostWithChildIsKillable(t *testing.T) {
+	defer deleteAllContainers()
+	name := "ibuildthecloud"
+	if out, err := exec.Command(dockerBinary, "run", "-d", "--pid=host", "--name", name, "busybox", "sh", "-c", "sleep 30; echo hi").CombinedOutput(); err != nil {
+		t.Fatal(err, out)
+	}
+	time.Sleep(1 * time.Second)
+	errchan := make(chan error)
+	go func() {
+		if out, err := exec.Command(dockerBinary, "kill", name).CombinedOutput(); err != nil {
+			errchan <- fmt.Errorf("%v:\n%s", err, out)
+		}
+		close(errchan)
+	}()
+	select {
+	case err := <-errchan:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Kill container timed out")
+	}
+	logDone("run - can kill container with pid-host and some childs of pid 1")
+}
