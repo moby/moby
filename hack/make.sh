@@ -45,6 +45,7 @@ DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
 	validate-toml
+	validate-vet
 
 	binary
 

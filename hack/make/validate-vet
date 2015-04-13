@@ -1,0 +1,22 @@
+#!/bin/bash
+
+source "$(dirname "$BASH_SOURCE")/.validate"
+
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- '*.go' | grep -v '^vendor/' || true) )
+unset IFS
+
+for f in "${files[@]}"; do
+    # we use "git show" here to validate that what's committed is vetted
+    failedVet=$(git show "$VALIDATE_HEAD:$f" | go vet)
+    if [ $failedVet ]; then
+        fails=yes
+        echo $failedVet
+    fi
+done
+
+if [ $fails ]; then
+    echo 'Please review and resolve the above issues and commit the result.'
+else
+    echo 'All Go source files have been vetted.'
+fi
