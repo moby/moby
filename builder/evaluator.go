@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/engine"
+	envProcessor "github.com/docker/docker/pkg/env"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -309,7 +310,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			var err error
-			str, err = ProcessWord(ast.Value, b.Config.Env)
+			str, err = envProcessor.ProcessWord(ast.Value, b.Config.Env)
 			if err != nil {
 				return err
 			}
