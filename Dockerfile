@@ -105,6 +105,10 @@ RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env 
 # Grab Go's cover tool for dead-simple code coverage testing
 RUN go get golang.org/x/tools/cmd/cover
 
+# Grab Go's vet tool for examining go code to find suspicious constructs
+# and help prevent errors that the compiler might not catch
+RUN go get golang.org/x/tools/cmd/vet
+
 # TODO replace FPM with some very minimal debhelper stuff
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
