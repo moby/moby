@@ -1,10 +1,12 @@
 package zfs
 
 /*
-#include <locale.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <mntent.h>
+
+const char* PROC_MOUNTS = "/proc/mounts";
+const char* OPEN_MODE = "r";
 */
 import "C"
 
@@ -43,10 +45,10 @@ func (*Logger) Log(cmd []string) {
 func Init(base string, opt []string) (graphdriver.Driver, error) {
 	var err error
 	options, err := parseOptions(opt)
-	options.mountPath = base
 	if err != nil {
 		return nil, err
 	}
+	options.mountPath = base
 
 	rootdir := path.Dir(base)
 
@@ -58,14 +60,14 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	}
 
 	if _, err := exec.LookPath("zfs"); err != nil {
-		return nil, fmt.Errorf("zfs command is not available")
+		return nil, fmt.Errorf("zfs command is not available: %v", err)
 	}
 
 	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 600)
-	defer file.Close()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize: %v", err)
+		return nil, fmt.Errorf("cannot open /dev/zfs: %v", err)
 	}
+	defer file.Close()
 
 	if options.fsName == "" {
 		options.fsName, err = lookupZfsDataset(rootdir)
@@ -74,8 +76,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		}
 	}
 
-	logger := Logger{}
-	zfs.SetLogger(&logger)
+	zfs.SetLogger(new(Logger))
 
 	dataset, err := zfs.GetDataset(options.fsName)
 	if err != nil {
@@ -102,7 +103,7 @@ func parseOptions(opt []string) (ZfsOptions, error) {
 		case "zfs.fsname":
 			options.fsName = val
 		default:
-			return options, fmt.Errorf("Unknown option %s\n", key)
+			return options, fmt.Errorf("Unknown option %s", key)
 		}
 	}
 	return options, nil
@@ -111,7 +112,7 @@ func parseOptions(opt []string) (ZfsOptions, error) {
 func checkRootdirFs(rootdir string) error {
 	var buf syscall.Statfs_t
 	if err := syscall.Statfs(rootdir, &buf); err != nil {
-		fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
 	}
 
 	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
@@ -121,26 +122,23 @@ func checkRootdirFs(rootdir string) error {
 	return nil
 }
 
-var CprocMounts = C.CString("/proc/mounts")
-var CopenMod = C.CString("r")
-
 func lookupZfsDataset(rootdir string) (string, error) {
 	var stat syscall.Stat_t
-	var Cmnt C.struct_mntent
-	var Cfp *C.FILE
-	buf := string(make([]byte, 256, 256))
-	Cbuf := C.CString(buf)
-	defer free(Cbuf)
-
 	if err := syscall.Stat(rootdir, &stat); err != nil {
 		return "", fmt.Errorf("Failed to access '%s': %s", rootdir, err)
 	}
 	wantedDev := stat.Dev
 
-	if Cfp = C.setmntent(CprocMounts, CopenMod); Cfp == nil {
-		return "", fmt.Errorf("Failed to open /proc/mounts")
+	Cfp, err := C.setmntent(C.PROC_MOUNTS, C.OPEN_MODE)
+	if err != nil {
+		return "", fmt.Errorf("Failed to open /proc/mounts: %v", err)
 	}
 	defer C.endmntent(Cfp)
+
+	var Cmnt C.struct_mntent
+	buf := string(make([]byte, 256, 256))
+	Cbuf := C.CString(buf)
+	defer C.free(unsafe.Pointer(Cbuf))
 
 	for C.getmntent_r(Cfp, &Cmnt, Cbuf, 256) != nil {
 		dir := C.GoString(Cmnt.mnt_dir)
@@ -154,12 +152,8 @@ func lookupZfsDataset(rootdir string) (string, error) {
 			return C.GoString(Cmnt.mnt_fsname), nil
 		}
 	}
-	// should never happen
-	return "", fmt.Errorf("Failed to find zfs pool in /proc/mounts")
-}
 
-func free(p *C.char) {
-	C.free(unsafe.Pointer(p))
+	return "", fmt.Errorf("Failed to find zfs dataset mounted on '%s' in /proc/mounts", rootdir)
 }
 
 type Driver struct {
@@ -179,21 +173,23 @@ func (d *Driver) Status() [][2]string {
 	parts := strings.Split(d.dataset.Name, "/")
 	pool, err := zfs.GetZpool(parts[0])
 
-	if err != nil {
-		return [][2]string{
-			{"error while getting pool", fmt.Sprintf("%v", err)},
-		}
-	}
-	var quota string
-	if d.dataset.Quota == 0 {
-		quota = strconv.FormatUint(d.dataset.Quota, 10)
+	var poolName, poolHealth string
+	if err == nil {
+		poolName = pool.Name
+		poolHealth = pool.Health
 	} else {
-		quota = "no"
+		poolName = fmt.Sprintf("error while getting pool information %v", err)
+		poolHealth = "not available"
+	}
+
+	quota := "no"
+	if d.dataset.Quota != 0 {
+		quota = strconv.FormatUint(d.dataset.Quota, 10)
 	}
 
 	return [][2]string{
-		{"Zpool", pool.Name},
-		{"Zpool Health", pool.Health},
+		{"Zpool", poolName},
+		{"Zpool Health", poolHealth},
 		{"Parent Dataset", d.dataset.Name},
 		{"Space Used By Parent", strconv.FormatUint(d.dataset.Used, 10)},
 		{"Space Available", strconv.FormatUint(d.dataset.Avail, 10)},
@@ -204,12 +200,12 @@ func (d *Driver) Status() [][2]string {
 
 func cloneFilesystem(id, parent, mountpoint string) error {
 	parentDataset, err := zfs.GetDataset(parent)
-	if parentDataset == nil {
+	if err != nil {
 		return err
 	}
 	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
 	snapshot, err := parentDataset.Snapshot(snapshotName /*recursive */, false)
-	if snapshot == nil {
+	if err != nil {
 		return err
 	}
 
@@ -220,8 +216,7 @@ func cloneFilesystem(id, parent, mountpoint string) error {
 		snapshot.Destroy(zfs.DestroyDeferDeletion)
 		return err
 	}
-	err = snapshot.Destroy(zfs.DestroyDeferDeletion)
-	return err
+	return snapshot.Destroy(zfs.DestroyDeferDeletion)
 }
 
 func (d *Driver) ZfsPath(id string) string {
@@ -229,23 +224,30 @@ func (d *Driver) ZfsPath(id string) string {
 }
 
 func (d *Driver) Create(id string, parent string) error {
-	mountPoint := path.Join(d.options.mountPath, "graph", id)
 	datasetName := d.ZfsPath(id)
 	dataset, err := zfs.GetDataset(datasetName)
 	if err == nil {
 		// cleanup existing dataset from an aborted build
-		dataset.Destroy(zfs.DestroyRecursiveClones)
+		err := dataset.Destroy(zfs.DestroyRecursiveClones)
+		if err != nil {
+			log.Warnf("[zfs] failed to destroy dataset '%s': %v", dataset.Name, err)
+		}
+	} else if zfsError, ok := err.(*zfs.Error); ok {
+		if !strings.HasSuffix(zfsError.Stderr, "dataset does not exist\n") {
+			return err
+		}
+	} else {
+		return err
 	}
 
+	mountPoint := path.Join(d.options.mountPath, "graph", id)
 	if parent == "" {
 		_, err := zfs.CreateFilesystem(datasetName, map[string]string{
 			"mountpoint": mountPoint,
 		})
 		return err
-	} else {
-		return cloneFilesystem(datasetName, d.ZfsPath(parent), mountPoint)
 	}
-	return nil
+	return cloneFilesystem(datasetName, d.ZfsPath(parent), mountPoint)
 }
 
 func (d *Driver) Remove(id string) error {
@@ -259,11 +261,10 @@ func (d *Driver) Remove(id string) error {
 
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if dataset == nil {
+	if err != nil {
 		return "", err
-	} else {
-		return dataset.Mountpoint, nil
 	}
+	return dataset.Mountpoint, nil
 }
 
 func (d *Driver) Put(id string) error {
