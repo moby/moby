@@ -22,3 +22,7 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# Coverage
+*.tmp
+*.coverprofile
