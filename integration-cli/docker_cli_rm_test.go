@@ -73,7 +73,7 @@ func TestRmRunningContainerCheckError409(t *testing.T) {
 		t.Fatalf("Expected error to contain '409 Conflict' but found %s", err)
 	}
 
-	logDone("rm - running container")
+	logDone("rm - running container with Error 409")
 }
 
 func TestRmForceRemoveRunningContainer(t *testing.T) {
