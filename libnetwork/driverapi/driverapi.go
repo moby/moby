@@ -1,6 +1,9 @@
 package driverapi
 
-import "errors"
+import (
+	"errors"
+	"net"
+)
 
 var (
 	// ErrEndpointExists is returned if more than one endpoint is added to the network
@@ -50,10 +53,10 @@ type Interface struct {
 	DstName string
 
 	// IPv4 address for the interface.
-	Address string
+	Address net.IPNet
 
 	// IPv6 address for the interface.
-	AddressIPv6 string
+	AddressIPv6 net.IPNet
 }
 
 // SandboxInfo represents all possible information that
@@ -63,10 +66,10 @@ type SandboxInfo struct {
 	Interfaces []*Interface
 
 	// IPv4 gateway for the sandbox.
-	Gateway string
+	Gateway net.IP
 
 	// IPv6 gateway for the sandbox.
-	GatewayIPv6 string
+	GatewayIPv6 net.IP
 
 	// TODO: Add routes and ip tables etc.
 }

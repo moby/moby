@@ -293,11 +293,11 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config 
 	intf := &driverapi.Interface{}
 	intf.SrcName = name2
 	intf.DstName = "eth0"
-	intf.Address = ipv4Addr.String()
-	sinfo.Gateway = n.bridge.bridgeIPv4.IP.String()
+	intf.Address = ipv4Addr
+	sinfo.Gateway = n.bridge.bridgeIPv4.IP
 	if n.bridge.Config.EnableIPv6 {
-		intf.AddressIPv6 = ipv6Addr.String()
-		sinfo.GatewayIPv6 = n.bridge.bridgeIPv6.IP.String()
+		intf.AddressIPv6 = ipv6Addr
+		sinfo.GatewayIPv6 = n.bridge.bridgeIPv6.IP
 	}
 
 	n.endpoint.addressIPv4 = ip4

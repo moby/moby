@@ -1,6 +1,10 @@
 package sandbox
 
-import "github.com/docker/libnetwork/driverapi"
+import (
+	"net"
+
+	"github.com/docker/libnetwork/driverapi"
+)
 
 // Sandbox represents a network sandbox, identified by a specific key.  It
 // holds a list of Interfaces, routes etc, and more can be added dynamically.
@@ -19,7 +23,9 @@ type Sandbox interface {
 	// interface according to the specified settings.
 	AddInterface(*driverapi.Interface) error
 
-	SetGateway(gw string) error
+	// Set default IPv4 gateway for the sandbox
+	SetGateway(gw net.IP) error
 
-	SetGatewayIPv6(gw string) error
+	// Set default IPv6 gateway for the sandbox
+	SetGatewayIPv6(gw net.IP) error
 }
