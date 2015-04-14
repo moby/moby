@@ -624,3 +624,44 @@ func TestContainerApiPause(t *testing.T) {
 
 	logDone("container REST API - check POST containers/pause and unpause")
 }
+
+func TestContainerApiTop(t *testing.T) {
+	defer deleteAllContainers()
+	out, _, _ := dockerCmd(t, "run", "-d", "-i", "busybox", "/bin/sh", "-c", "cat")
+	id := strings.TrimSpace(out)
+	if err := waitRun(id); err != nil {
+		t.Fatal(err)
+	}
+
+	type topResp struct {
+		Titles    []string
+		Processes [][]string
+	}
+	var top topResp
+	_, b, err := sockRequest("GET", "/containers/"+id+"/top?ps_args=aux", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &top); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(top.Titles) != 11 {
+		t.Fatalf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles)
+	}
+
+	if top.Titles[0] != "USER" || top.Titles[10] != "COMMAND" {
+		t.Fatalf("expected `USER` at `Titles[0]` and `COMMAND` at Titles[10]: %v", top.Titles)
+	}
+	if len(top.Processes) != 2 {
+		t.Fatalf("expeted 2 processes, found %d: %v", len(top.Processes), top.Processes)
+	}
+	if top.Processes[0][10] != "/bin/sh -c cat" {
+		t.Fatalf("expected `/bin/sh -c cat`, found: %s", top.Processes[0][10])
+	}
+	if top.Processes[1][10] != "cat" {
+		t.Fatalf("expected `cat`, found: %s", top.Processes[1][10])
+	}
+
+	logDone("containers REST API -  GET /containers/<id>/top")
+}
