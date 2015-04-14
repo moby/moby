@@ -22,4 +22,4 @@ bundle_test_integration() {
 # spews when it is given packages that aren't used
 bundle_test_integration 2>&1 \
 	| grep --line-buffered -v '^warning: no packages being tested depend on ' \
-	| tee -a $DEST/test.log
+	| tee -a "$DEST/test.log"

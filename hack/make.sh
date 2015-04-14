@@ -252,7 +252,7 @@ bundle() {
 	bundlescript=$1
 	bundle=$(basename $bundlescript)
 	echo "---> Making bundle: $bundle (in bundles/$VERSION/$bundle)"
-	mkdir -p bundles/$VERSION/$bundle
+	mkdir -p "bundles/$VERSION/$bundle"
 	source "$bundlescript" "$(pwd)/bundles/$VERSION/$bundle"
 }
 
@@ -262,13 +262,13 @@ main() {
 	mkdir -p bundles
 	if [ -e "bundles/$VERSION" ]; then
 		echo "bundles/$VERSION already exists. Removing."
-		rm -fr bundles/$VERSION && mkdir bundles/$VERSION || exit 1
+		rm -fr "bundles/$VERSION" && mkdir "bundles/$VERSION" || exit 1
 		echo
 	fi
 
 	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
 		# Windows and symlinks don't get along well
-		ln -sfT $VERSION bundles/latest
+		ln -sfT "$VERSION" bundles/latest
 	fi
 
 	if [ $# -lt 1 ]; then
@@ -277,7 +277,7 @@ main() {
 		bundles=($@)
 	fi
 	for bundle in ${bundles[@]}; do
-		bundle $SCRIPTDIR/make/$bundle
+		bundle "$SCRIPTDIR/make/$bundle"
 		echo
 	done
 }

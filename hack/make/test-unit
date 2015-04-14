@@ -85,4 +85,4 @@ go_run_test_dir() {
 	fi
 }
 
-bundle_test_unit 2>&1 | tee -a $DEST/test.log
+bundle_test_unit 2>&1 | tee -a "$DEST/test.log"

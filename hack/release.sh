@@ -71,23 +71,23 @@ BUCKET=$AWS_S3_BUCKET
 
 setup_s3() {
 	# Try creating the bucket. Ignore errors (it might already exist).
-	s3cmd mb s3://$BUCKET 2>/dev/null || true
+	s3cmd mb "s3://$BUCKET" 2>/dev/null || true
 	# Check access to the bucket.
 	# s3cmd has no useful exit status, so we cannot check that.
 	# Instead, we check if it outputs anything on standard output.
 	# (When there are problems, it uses standard error instead.)
-	s3cmd info s3://$BUCKET | grep -q .
+	s3cmd info "s3://$BUCKET" | grep -q .
 	# Make the bucket accessible through website endpoints.
-	s3cmd ws-create --ws-index index --ws-error error s3://$BUCKET
+	s3cmd ws-create --ws-index index --ws-error error "s3://$BUCKET"
 }
 
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
 write_to_s3() {
 	DEST=$1
 	F=`mktemp`
-	cat > $F
-	s3cmd --acl-public --mime-type='text/plain' put $F $DEST
-	rm -f $F
+	cat > "$F"
+	s3cmd --acl-public --mime-type='text/plain' put "$F" "$DEST"
+	rm -f "$F"
 }
 
 s3_url() {
@@ -246,20 +246,20 @@ release_build() {
 # 1. A full APT repository is published at $BUCKET/ubuntu/
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
 release_ubuntu() {
-	[ -e bundles/$VERSION/ubuntu ] || {
+	[ -e "bundles/$VERSION/ubuntu" ] || {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
 		exit 1
 	}
 
 	# Sign our packages
 	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker \
-		--sign builder bundles/$VERSION/ubuntu/*.deb
+		--sign builder "bundles/$VERSION/ubuntu/"*.deb
 
 	# Setup the APT repo
 	APTDIR=bundles/$VERSION/ubuntu/apt
-	mkdir -p $APTDIR/conf $APTDIR/db
-	s3cmd sync s3://$BUCKET/ubuntu/db/ $APTDIR/db/ || true
-	cat > $APTDIR/conf/distributions <<EOF
+	mkdir -p "$APTDIR/conf" "$APTDIR/db"
+	s3cmd sync "s3://$BUCKET/ubuntu/db/" "$APTDIR/db/" || true
+	cat > "$APTDIR/conf/distributions" <<EOF
 Codename: docker
 Components: main
 Architectures: amd64 i386
@@ -267,19 +267,19 @@ EOF
 
 	# Add the DEB package to the APT repo
 	DEBFILE=bundles/$VERSION/ubuntu/lxc-docker*.deb
-	reprepro -b $APTDIR includedeb docker $DEBFILE
+	reprepro -b "$APTDIR" includedeb docker "$DEBFILE"
 
 	# Sign
 	for F in $(find $APTDIR -name Release); do
-		gpg -u releasedocker --passphrase $GPG_PASSPHRASE \
+		gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
 			--armor --sign --detach-sign \
-			--output $F.gpg $F
+			--output "$F.gpg" "$F"
 	done
 
 	# Upload keys
-	s3cmd sync $HOME/.gnupg/ s3://$BUCKET/ubuntu/.gnupg/
-	gpg --armor --export releasedocker > bundles/$VERSION/ubuntu/gpg
-	s3cmd --acl-public put bundles/$VERSION/ubuntu/gpg s3://$BUCKET/gpg
+	s3cmd sync "$HOME/.gnupg/" "s3://$BUCKET/ubuntu/.gnupg/"
+	gpg --armor --export releasedocker > "bundles/$VERSION/ubuntu/gpg"
+	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
 
 	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
 	if [[ $BUCKET == test* ]]; then
@@ -287,7 +287,7 @@ EOF
 	fi
 
 	# Upload repo
-	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
+	s3cmd --acl-public sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
 # Check that HTTPS transport is available to APT
 if [ ! -e /usr/lib/apt/methods/https ]; then
@@ -312,14 +312,14 @@ EOF
 
 	# Add redirect at /ubuntu/info for URL-backwards-compatibility
 	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/ubuntu/info
+	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/ubuntu/info"
 
 	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
 }
 
 # Upload binaries and tgz files to S3
 release_binaries() {
-	[ -e bundles/$VERSION/cross/linux/amd64/docker-$VERSION ] || {
+	[ -e "bundles/$VERSION/cross/linux/amd64/docker-$VERSION" ] || {
 		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}
@@ -341,29 +341,29 @@ EOF
 
 	# Add redirect at /builds/info for URL-backwards-compatibility
 	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/builds/info
+	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/builds/info"
 
 	if [ -z "$NOLATEST" ]; then
 		echo "Advertising $VERSION on $BUCKET as most recent version"
-		echo $VERSION | write_to_s3 s3://$BUCKET/latest
+		echo "$VERSION" | write_to_s3 "s3://$BUCKET/latest"
 	fi
 }
 
 # Upload the index script
 release_index() {
-	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
+	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 "s3://$BUCKET/index"
 }
 
 release_test() {
 	if [ -e "bundles/$VERSION/test" ]; then
-		s3cmd --acl-public sync bundles/$VERSION/test/ s3://$BUCKET/test/
+		s3cmd --acl-public sync "bundles/$VERSION/test/" "s3://$BUCKET/test/"
 	fi
 }
 
 setup_gpg() {
 	# Make sure that we have our keys
-	mkdir -p $HOME/.gnupg/
-	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ $HOME/.gnupg/ || true
+	mkdir -p "$HOME/.gnupg/"
+	s3cmd sync "s3://$BUCKET/ubuntu/.gnupg/" "$HOME/.gnupg/" || true
 	gpg --list-keys releasedocker >/dev/null || {
 		gpg --gen-key --batch <<EOF
 Key-Type: RSA
