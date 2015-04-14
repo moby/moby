@@ -82,9 +82,9 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 	cmd := reexec.Command("docker-untar", dest)
 	cmd.Stdin = decompressedArchive
 	cmd.ExtraFiles = append(cmd.ExtraFiles, r)
-	var output bytes.Buffer
-	cmd.Stdout = &output
-	cmd.Stderr = &output
+	output := bytes.NewBuffer(nil)
+	cmd.Stdout = output
+	cmd.Stderr = output
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
