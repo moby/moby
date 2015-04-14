@@ -16,12 +16,12 @@ import (
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 // whitelist of commands allowed for a commit/import
@@ -106,7 +106,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		}
 		context = c
 	} else if urlutil.IsURL(remoteURL) {
-		f, err := utils.Download(remoteURL)
+		f, err := httputils.Download(remoteURL)
 		if err != nil {
 			return err
 		}

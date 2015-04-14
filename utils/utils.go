@@ -2,9 +2,7 @@ package utils
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -13,46 +11,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stringid"
 )
-
-type KeyValuePair struct {
-	Key   string
-	Value string
-}
-
-var (
-	validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
-)
-
-// Request a given URL and return an io.Reader
-func Download(url string) (resp *http.Response, err error) {
-	if resp, err = http.Get(url); err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("Got HTTP status code >= 400: %s", resp.Status)
-	}
-	return resp, nil
-}
-
-func Trunc(s string, maxlen int) string {
-	if len(s) <= maxlen {
-		return s
-	}
-	return s[:maxlen]
-}
 
 // Figure out the absolute path of our own binary (if it's still around).
 func SelfPath() string {
@@ -155,74 +123,7 @@ func DockerInitPath(localCopy string) string {
 	return ""
 }
 
-func GetTotalUsedFds() int {
-	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		logrus.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
-	} else {
-		return len(fds)
-	}
-	return -1
-}
-
-func ValidateID(id string) error {
-	if ok := validHex.MatchString(id); !ok {
-		err := fmt.Errorf("image ID '%s' is invalid", id)
-		return err
-	}
-	return nil
-}
-
-// Code c/c from io.Copy() modified to handle escape sequence
-func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
-	buf := make([]byte, 32*1024)
-	for {
-		nr, er := src.Read(buf)
-		if nr > 0 {
-			// ---- Docker addition
-			// char 16 is C-p
-			if nr == 1 && buf[0] == 16 {
-				nr, er = src.Read(buf)
-				// char 17 is C-q
-				if nr == 1 && buf[0] == 17 {
-					if err := src.Close(); err != nil {
-						return 0, err
-					}
-					return 0, nil
-				}
-			}
-			// ---- End of docker
-			nw, ew := dst.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-		if er == io.EOF {
-			break
-		}
-		if er != nil {
-			err = er
-			break
-		}
-	}
-	return written, err
-}
-
-func HashData(src io.Reader) (string, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, src); err != nil {
-		return "", err
-	}
-	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
-}
-
+// FIXME: move to httputils? ioutils?
 type WriteFlusher struct {
 	sync.Mutex
 	w       io.Writer
@@ -252,58 +153,6 @@ func NewWriteFlusher(w io.Writer) *WriteFlusher {
 		flusher = &ioutils.NopFlusher{}
 	}
 	return &WriteFlusher{w: w, flusher: flusher}
-}
-
-func NewHTTPRequestError(msg string, res *http.Response) error {
-	return &jsonmessage.JSONError{
-		Message: msg,
-		Code:    res.StatusCode,
-	}
-}
-
-// An StatusError reports an unsuccessful exit by a command.
-type StatusError struct {
-	Status     string
-	StatusCode int
-}
-
-func (e *StatusError) Error() string {
-	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
-}
-
-func quote(word string, buf *bytes.Buffer) {
-	// Bail out early for "simple" strings
-	if word != "" && !strings.ContainsAny(word, "\\'\"`${[|&;<>()~*?! \t\n") {
-		buf.WriteString(word)
-		return
-	}
-
-	buf.WriteString("'")
-
-	for i := 0; i < len(word); i++ {
-		b := word[i]
-		if b == '\'' {
-			// Replace literal ' with a close ', a \', and a open '
-			buf.WriteString("'\\''")
-		} else {
-			buf.WriteByte(b)
-		}
-	}
-
-	buf.WriteString("'")
-}
-
-// Take a list of strings and escape them so they will be handled right
-// when passed as arguments to an program via a shell
-func ShellQuoteArguments(args []string) string {
-	var buf bytes.Buffer
-	for i, arg := range args {
-		if i != 0 {
-			buf.WriteByte(' ')
-		}
-		quote(arg, &buf)
-	}
-	return buf.String()
 }
 
 var globalTestID string
@@ -341,26 +190,6 @@ func GetCallerName(depth int) string {
 	parts := strings.Split(callerLongName, ".")
 	callerShortName := parts[len(parts)-1]
 	return callerShortName
-}
-
-func CopyFile(src, dst string) (int64, error) {
-	if src == dst {
-		return 0, nil
-	}
-	sf, err := os.Open(src)
-	if err != nil {
-		return 0, err
-	}
-	defer sf.Close()
-	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
-		return 0, err
-	}
-	df, err := os.Create(dst)
-	if err != nil {
-		return 0, err
-	}
-	defer df.Close()
-	return io.Copy(df, sf)
 }
 
 // ReplaceOrAppendValues returns the defaults with the overrides either
@@ -411,27 +240,6 @@ func DoesEnvExist(name string) bool {
 	return false
 }
 
-// ReadSymlinkedDirectory returns the target directory of a symlink.
-// The target of the symbolic link may not be a file.
-func ReadSymlinkedDirectory(path string) (string, error) {
-	var realPath string
-	var err error
-	if realPath, err = filepath.Abs(path); err != nil {
-		return "", fmt.Errorf("unable to get absolute path for %s: %s", path, err)
-	}
-	if realPath, err = filepath.EvalSymlinks(realPath); err != nil {
-		return "", fmt.Errorf("failed to canonicalise path for %s: %s", path, err)
-	}
-	realPathInfo, err := os.Stat(realPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to stat target '%s' of '%s': %s", realPath, path, err)
-	}
-	if !realPathInfo.Mode().IsDir() {
-		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
-	}
-	return realPath, nil
-}
-
 // ValidateContextDirectory checks if all the contents of the directory
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
@@ -476,15 +284,6 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 	})
 }
 
-func StringsContainsNoCase(slice []string, s string) bool {
-	for _, ss := range slice {
-		if strings.ToLower(s) == strings.ToLower(ss) {
-			return true
-		}
-	}
-	return false
-}
-
 // Reads a .dockerignore file and returns the list of file patterns
 // to ignore. Note this will trim whitespace from each line as well
 // as use GO's "clean" func to get the shortest/cleanest path for each.
@@ -514,27 +313,6 @@ func ReadDockerIgnore(path string) ([]string, error) {
 		return nil, fmt.Errorf("Error reading '%s': %v", path, err)
 	}
 	return excludes, nil
-}
-
-// Wrap a concrete io.Writer and hold a count of the number
-// of bytes written to the writer during a "session".
-// This can be convenient when write return is masked
-// (e.g., json.Encoder.Encode())
-type WriteCounter struct {
-	Count  int64
-	Writer io.Writer
-}
-
-func NewWriteCounter(w io.Writer) *WriteCounter {
-	return &WriteCounter{
-		Writer: w,
-	}
-}
-
-func (wc *WriteCounter) Write(p []byte) (count int, err error) {
-	count, err = wc.Writer.Write(p)
-	wc.Count += int64(count)
-	return
 }
 
 // ImageReference combines `repo` and `ref` and returns a string representing

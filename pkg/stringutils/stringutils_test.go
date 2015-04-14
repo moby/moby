@@ -56,3 +56,32 @@ func TestGenerateRandomAsciiStringIsAscii(t *testing.T) {
 		t.Fatalf("%s contained non-ascii characters", str)
 	}
 }
+
+func TestTruncate(t *testing.T) {
+	str := "teststring"
+	newstr := Truncate(str, 4)
+	if newstr != "test" {
+		t.Fatalf("Expected test, got %s", newstr)
+	}
+	newstr = Truncate(str, 20)
+	if newstr != "teststring" {
+		t.Fatalf("Expected teststring, got %s", newstr)
+	}
+}
+
+func TestInSlice(t *testing.T) {
+	slice := []string{"test", "in", "slice"}
+
+	test := InSlice(slice, "test")
+	if !test {
+		t.Fatalf("Expected string test to be in slice")
+	}
+	test = InSlice(slice, "SLICE")
+	if !test {
+		t.Fatalf("Expected string SLICE to be in slice")
+	}
+	test = InSlice(slice, "notinslice")
+	if test {
+		t.Fatalf("Expected string notinslice not to be in slice")
+	}
+}

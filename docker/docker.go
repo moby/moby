@@ -15,7 +15,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
 )
 
 const (
@@ -136,7 +135,7 @@ func main() {
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
-		if sterr, ok := err.(*utils.StatusError); ok {
+		if sterr, ok := err.(*client.StatusError); ok {
 			if sterr.Status != "" {
 				logrus.Println(sterr.Status)
 			}

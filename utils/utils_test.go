@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"bytes"
+	"fmt"
+	"io/ioutil"
 	"os"
-	"strings"
+	"path/filepath"
 	"testing"
 )
 
@@ -22,104 +23,6 @@ func TestReplaceAndAppendEnvVars(t *testing.T) {
 	}
 	if env[1] != "TERM=xterm" {
 		t.Fatalf("expected TERM=xterm got '%s'", env[1])
-	}
-}
-
-// Reading a symlink to a directory must return the directory
-func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
-	var err error
-	if err = os.Mkdir("/tmp/testReadSymlinkToExistingDirectory", 0777); err != nil {
-		t.Errorf("failed to create directory: %s", err)
-	}
-
-	if err = os.Symlink("/tmp/testReadSymlinkToExistingDirectory", "/tmp/dirLinkTest"); err != nil {
-		t.Errorf("failed to create symlink: %s", err)
-	}
-
-	var path string
-	if path, err = ReadSymlinkedDirectory("/tmp/dirLinkTest"); err != nil {
-		t.Fatalf("failed to read symlink to directory: %s", err)
-	}
-
-	if path != "/tmp/testReadSymlinkToExistingDirectory" {
-		t.Fatalf("symlink returned unexpected directory: %s", path)
-	}
-
-	if err = os.Remove("/tmp/testReadSymlinkToExistingDirectory"); err != nil {
-		t.Errorf("failed to remove temporary directory: %s", err)
-	}
-
-	if err = os.Remove("/tmp/dirLinkTest"); err != nil {
-		t.Errorf("failed to remove symlink: %s", err)
-	}
-}
-
-// Reading a non-existing symlink must fail
-func TestReadSymlinkedDirectoryNonExistingSymlink(t *testing.T) {
-	var path string
-	var err error
-	if path, err = ReadSymlinkedDirectory("/tmp/test/foo/Non/ExistingPath"); err == nil {
-		t.Fatalf("error expected for non-existing symlink")
-	}
-
-	if path != "" {
-		t.Fatalf("expected empty path, but '%s' was returned", path)
-	}
-}
-
-// Reading a symlink to a file must fail
-func TestReadSymlinkedDirectoryToFile(t *testing.T) {
-	var err error
-	var file *os.File
-
-	if file, err = os.Create("/tmp/testReadSymlinkToFile"); err != nil {
-		t.Fatalf("failed to create file: %s", err)
-	}
-
-	file.Close()
-
-	if err = os.Symlink("/tmp/testReadSymlinkToFile", "/tmp/fileLinkTest"); err != nil {
-		t.Errorf("failed to create symlink: %s", err)
-	}
-
-	var path string
-	if path, err = ReadSymlinkedDirectory("/tmp/fileLinkTest"); err == nil {
-		t.Fatalf("ReadSymlinkedDirectory on a symlink to a file should've failed")
-	}
-
-	if path != "" {
-		t.Fatalf("path should've been empty: %s", path)
-	}
-
-	if err = os.Remove("/tmp/testReadSymlinkToFile"); err != nil {
-		t.Errorf("failed to remove file: %s", err)
-	}
-
-	if err = os.Remove("/tmp/fileLinkTest"); err != nil {
-		t.Errorf("failed to remove symlink: %s", err)
-	}
-}
-
-func TestWriteCounter(t *testing.T) {
-	dummy1 := "This is a dummy string."
-	dummy2 := "This is another dummy string."
-	totalLength := int64(len(dummy1) + len(dummy2))
-
-	reader1 := strings.NewReader(dummy1)
-	reader2 := strings.NewReader(dummy2)
-
-	var buffer bytes.Buffer
-	wc := NewWriteCounter(&buffer)
-
-	reader1.WriteTo(wc)
-	reader2.WriteTo(wc)
-
-	if wc.Count != totalLength {
-		t.Errorf("Wrong count: %d vs. %d", wc.Count, totalLength)
-	}
-
-	if buffer.String() != dummy1+dummy2 {
-		t.Error("Wrong message written")
 	}
 }
 
@@ -150,5 +53,48 @@ func TestDigestReference(t *testing.T) {
 	input = "latest"
 	if DigestReference(input) {
 		t.Errorf("Unexpected DigestReference=true for input %q", input)
+	}
+}
+
+func TestReadDockerIgnore(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "dockerignore-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	diName := filepath.Join(tmpDir, ".dockerignore")
+
+	di, err := ReadDockerIgnore(diName)
+	if err != nil {
+		t.Fatalf("Expected not to have error, got %s", err)
+	}
+
+	if diLen := len(di); diLen != 0 {
+		t.Fatalf("Expected to have zero dockerignore entry, got %d", diLen)
+	}
+
+	content := fmt.Sprintf("test1\n/test2\n/a/file/here\n\nlastfile")
+	err = ioutil.WriteFile(diName, []byte(content), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	di, err = ReadDockerIgnore(diName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if di[0] != "test1" {
+		t.Fatalf("First element is not test1")
+	}
+	if di[1] != "/test2" {
+		t.Fatalf("Second element is not /test2")
+	}
+	if di[2] != "/a/file/here" {
+		t.Fatalf("Third element is not /a/file/here")
+	}
+	if di[3] != "lastfile" {
+		t.Fatalf("Fourth element is not lastfile")
 	}
 }

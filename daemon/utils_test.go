@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 func TestMergeLxcConfig(t *testing.T) {
 	hostConfig := &runconfig.HostConfig{
-		LxcConf: []utils.KeyValuePair{
+		LxcConf: []runconfig.KeyValuePair{
 			{Key: "lxc.cgroups.cpuset", Value: "1,2"},
 		},
 	}
