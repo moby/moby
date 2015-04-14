@@ -506,8 +506,7 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 }
 
 func getContainersJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var err error
-	if err = parseForm(r); err != nil {
+	if err := parseForm(r); err != nil {
 		return err
 	}
 
@@ -520,10 +519,11 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
-		config.Limit, err = strconv.Atoi(tmpLimit)
+		limit, err := strconv.Atoi(tmpLimit)
 		if err != nil {
 			return err
 		}
+		config.Limit = limit
 	}
 
 	containers, err := getDaemon(eng).Containers(config)
