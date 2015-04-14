@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
@@ -134,7 +135,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	if _, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
@@ -142,7 +143,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
-	if _, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -167,7 +168,7 @@ func TestContainerApiStartDupVolumeBinds(t *testing.T) {
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	if _, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
@@ -202,14 +203,14 @@ func TestContainerApiStartVolumesFrom(t *testing.T) {
 		"Volumes": map[string]struct{}{volPath: {}},
 	}
 
-	if _, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
 	}
-	if _, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -246,7 +247,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 		"Volumes": map[string]struct{}{volPath: {}},
 	}
 
-	if _, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
@@ -255,7 +256,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 		"VolumesFrom": []string{volName},
 		"Binds":       []string{bindPath + ":/tmp"},
 	}
-	if _, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -538,8 +539,7 @@ func TestPostContainerBindNormalVolume(t *testing.T) {
 	}
 
 	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
-	_, _, err = sockRequest("POST", "/containers/two/start", bindSpec)
-	if err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/two/start", bindSpec); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -566,7 +566,7 @@ func TestContainerApiPause(t *testing.T) {
 	}
 	ContainerID := strings.TrimSpace(out)
 
-	if _, _, err = sockRequest("POST", "/containers/"+ContainerID+"/pause", nil); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/pause", nil); err != nil && status != http.StatusNoContent {
 		t.Fatalf("POST a container pause: sockRequest failed: %v", err)
 	}
 
@@ -580,7 +580,7 @@ func TestContainerApiPause(t *testing.T) {
 		t.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
-	if _, _, err = sockRequest("POST", "/containers/"+ContainerID+"/unpause", nil); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/unpause", nil); err != nil && status != http.StatusNoContent {
 		t.Fatalf("POST a container pause: sockRequest failed: %v", err)
 	}
 
