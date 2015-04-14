@@ -478,12 +478,12 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
-func dockerCmd(t *testing.T, args ...string) (string, int, error) {
+func dockerCmd(t *testing.T, args ...string) (string, int) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	if err != nil {
 		t.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
 	}
-	return out, status, err
+	return out, status
 }
 
 // execute a docker command with a timeout
@@ -784,9 +784,9 @@ func getContainerState(t *testing.T, id string) (int, bool, error) {
 		exitStatus int
 		running    bool
 	)
-	out, exitCode, err := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
-	if err != nil || exitCode != 0 {
-		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, err)
+	out, exitCode := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
+	if exitCode != 0 {
+		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, out)
 	}
 
 	out = strings.Trim(out, "\n")

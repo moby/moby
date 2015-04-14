@@ -500,12 +500,12 @@ func TestLinksPingLinkedContainersOnRename(t *testing.T) {
 	defer deleteAllContainers()
 
 	var out string
-	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "top")
+	out, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
 	if idA == "" {
 		t.Fatal(out, "id should not be nil")
 	}
-	out, _, _ = dockerCmd(t, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "top")
+	out, _ = dockerCmd(t, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "top")
 	idB := strings.TrimSpace(out)
 	if idB == "" {
 		t.Fatal(out, "id should not be nil")

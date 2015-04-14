@@ -12,7 +12,7 @@ func TestPause(t *testing.T) {
 	defer unpauseAllContainers()
 
 	name := "testeventpause"
-	out, _, _ := dockerCmd(t, "images", "-q")
+	out, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	dockerCmd(t, "run", "-d", "--name", name, image, "top")
 
@@ -55,7 +55,7 @@ func TestPauseMultipleContainers(t *testing.T) {
 		"testpausewithmorecontainers1",
 		"testpausewithmorecontainers2",
 	}
-	out, _, _ := dockerCmd(t, "images", "-q")
+	out, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	for _, name := range containers {
 		dockerCmd(t, "run", "-d", "--name", name, image, "top")

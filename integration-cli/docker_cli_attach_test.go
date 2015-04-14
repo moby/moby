@@ -138,7 +138,7 @@ func TestAttachTtyWithoutStdin(t *testing.T) {
 
 func TestAttachDisconnect(t *testing.T) {
 	defer deleteAllContainers()
-	out, _, _ := dockerCmd(t, "run", "-di", "busybox", "/bin/cat")
+	out, _ := dockerCmd(t, "run", "-di", "busybox", "/bin/cat")
 	id := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "attach", id)

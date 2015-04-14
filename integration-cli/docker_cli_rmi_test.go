@@ -29,7 +29,7 @@ func TestRmiWithContainerFails(t *testing.T) {
 	}
 
 	// make sure it didn't delete the busybox name
-	images, _, _ := dockerCmd(t, "images")
+	images, _ := dockerCmd(t, "images")
 	if !strings.Contains(images, "busybox") {
 		t.Fatalf("The name 'busybox' should not have been removed from images: %q", images)
 	}
@@ -40,19 +40,19 @@ func TestRmiWithContainerFails(t *testing.T) {
 }
 
 func TestRmiTag(t *testing.T) {
-	imagesBefore, _, _ := dockerCmd(t, "images", "-a")
+	imagesBefore, _ := dockerCmd(t, "images", "-a")
 	dockerCmd(t, "tag", "busybox", "utest:tag1")
 	dockerCmd(t, "tag", "busybox", "utest/docker:tag2")
 	dockerCmd(t, "tag", "busybox", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		imagesAfter, _ := dockerCmd(t, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+3 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 	}
 	dockerCmd(t, "rmi", "utest/docker:tag2")
 	{
-		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		imagesAfter, _ := dockerCmd(t, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+2 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
@@ -60,7 +60,7 @@ func TestRmiTag(t *testing.T) {
 	}
 	dockerCmd(t, "rmi", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		imagesAfter, _ := dockerCmd(t, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+1 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
@@ -68,7 +68,7 @@ func TestRmiTag(t *testing.T) {
 	}
 	dockerCmd(t, "rmi", "utest:tag1")
 	{
-		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		imagesAfter, _ := dockerCmd(t, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+0 {
 			t.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
@@ -90,22 +90,22 @@ func TestRmiImgIDForce(t *testing.T) {
 		t.Fatalf("failed to commit a new busybox-test:%s, %v", out, err)
 	}
 
-	imagesBefore, _, _ := dockerCmd(t, "images", "-a")
+	imagesBefore, _ := dockerCmd(t, "images", "-a")
 	dockerCmd(t, "tag", "busybox-test", "utest:tag1")
 	dockerCmd(t, "tag", "busybox-test", "utest:tag2")
 	dockerCmd(t, "tag", "busybox-test", "utest/docker:tag3")
 	dockerCmd(t, "tag", "busybox-test", "utest:5000/docker:tag4")
 	{
-		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		imagesAfter, _ := dockerCmd(t, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+4 {
 			t.Fatalf("tag busybox to create 4 more images with same imageID; docker images shows: %q\n", imagesAfter)
 		}
 	}
-	out, _, _ = dockerCmd(t, "inspect", "-f", "{{.Id}}", "busybox-test")
+	out, _ = dockerCmd(t, "inspect", "-f", "{{.Id}}", "busybox-test")
 	imgID := strings.TrimSpace(out)
 	dockerCmd(t, "rmi", "-f", imgID)
 	{
-		imagesAfter, _, _ := dockerCmd(t, "images", "-a")
+		imagesAfter, _ := dockerCmd(t, "images", "-a")
 		if strings.Contains(imagesAfter, imgID[:12]) {
 			t.Fatalf("rmi -f %s failed, image still exists: %q\n\n", imgID, imagesAfter)
 		}

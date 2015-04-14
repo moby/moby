@@ -3294,7 +3294,7 @@ func TestBuildNoContext(t *testing.T) {
 		t.Fatalf("build failed to complete: %v %v", out, err)
 	}
 
-	if out, _, err := dockerCmd(t, "run", "--rm", "nocontext"); out != "ok\n" || err != nil {
+	if out, _ := dockerCmd(t, "run", "--rm", "nocontext"); out != "ok\n" {
 		t.Fatalf("run produced invalid output: %q, expected %q", out, "ok")
 	}
 
@@ -5562,10 +5562,7 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err, out)
 	}
-	out, _, err = dockerCmd(t, "ps", "-lq")
-	if err != nil {
-		t.Fatal(err, out)
-	}
+	out, _ = dockerCmd(t, "ps", "-lq")
 
 	cID := strings.TrimSpace(out)
 
@@ -5593,10 +5590,8 @@ func TestBuildResourceConstraintsAreUsed(t *testing.T) {
 	}
 
 	// Make sure constraints aren't saved to image
-	_, _, err = dockerCmd(t, "run", "--name=test", name)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, _ = dockerCmd(t, "run", "--name=test", name)
+
 	cfg, err = inspectFieldJSON("test", "HostConfig")
 	if err != nil {
 		t.Fatal(err)

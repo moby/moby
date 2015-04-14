@@ -627,7 +627,7 @@ func TestContainerApiPause(t *testing.T) {
 
 func TestContainerApiTop(t *testing.T) {
 	defer deleteAllContainers()
-	out, _, _ := dockerCmd(t, "run", "-d", "-i", "busybox", "/bin/sh", "-c", "cat")
+	out, _ := dockerCmd(t, "run", "-d", "-i", "busybox", "/bin/sh", "-c", "cat")
 	id := strings.TrimSpace(out)
 	if err := waitRun(id); err != nil {
 		t.Fatal(err)
@@ -667,7 +667,7 @@ func TestContainerApiTop(t *testing.T) {
 }
 
 func TestContainerApiCommit(t *testing.T) {
-	out, _, _ := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /test")
+	out, _ := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /test")
 	id := strings.TrimSpace(out)
 
 	name := "testcommit"
@@ -714,7 +714,7 @@ func TestContainerApiCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, _, _ := dockerCmd(t, "start", "-a", container.Id)
+	out, _ := dockerCmd(t, "start", "-a", container.Id)
 	if strings.TrimSpace(out) != "/test" {
 		t.Fatalf("expected output `/test`, got %q", out)
 	}
