@@ -23,67 +23,6 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-func TestSaveImageAndThenLoad(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	// save image
-	r := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-	tarball := r.Body
-
-	// delete the image
-	r = httptest.NewRecorder()
-	req, err = http.NewRequest("DELETE", "/images/"+unitTestImageID, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-
-	// make sure there is no image
-	r = httptest.NewRecorder()
-	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusNotFound {
-		t.Fatalf("%d NotFound expected, received %d\n", http.StatusNotFound, r.Code)
-	}
-
-	// load the image
-	r = httptest.NewRecorder()
-	req, err = http.NewRequest("POST", "/images/load", tarball)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-
-	// finally make sure the image is there
-	r = httptest.NewRecorder()
-	req, err = http.NewRequest("GET", "/images/"+unitTestImageID+"/get", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusOK {
-		t.Fatalf("%d OK expected, received %d\n", http.StatusOK, r.Code)
-	}
-}
-
 func TestGetContainersTop(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
