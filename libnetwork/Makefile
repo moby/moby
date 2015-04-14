@@ -1,6 +1,9 @@
-.PHONY: all all-local build build-local check check-code check-format run-tests check-local install-deps
+.PHONY: all all-local build build-local check check-code check-format run-tests check-local install-deps coveralls circle-ci
 
-docker = docker run --rm --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork golang:1.4
+dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork golang:1.4
+docker = docker run --rm ${dockerargs}
+ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN"
+cidocker = docker run ${ciargs} ${dockerargs}
 
 all: 
 	${docker} make all-local
@@ -21,10 +24,19 @@ check-code:
 	go vet ./...
 
 check-format:
-	test -z "$$(shell goimports -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	test -z "$$(goimports -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
 
 run-tests:
-	$(shell which godep) go test -test.v ./...
+	echo "mode: count" > coverage.coverprofile
+	for dir in $$(find . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -type d); do \
+	    if ls $$dir/*.go &> /dev/null; then \
+            	$(shell which godep) go test -test.v -covermode=count -coverprofile=$$dir/profile.tmp $$dir ; \
+	        if [ -f $$dir/profile.tmp ]; then \
+		        cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
+				rm $$dir/profile.tmp ; \
+            fi ; \
+        fi ; \
+	done
 
 check-local: 	check-format check-code run-tests 
 
@@ -34,3 +46,15 @@ install-deps:
 	go get github.com/golang/lint/golint
 	go get golang.org/x/tools/cmd/vet
 	go get golang.org/x/tools/cmd/goimports
+	go get golang.org/x/tools/cmd/cover
+	go get github.com/mattn/goveralls
+
+coveralls:
+	@goveralls -service circleci -coverprofile=coverage.coverprofile -repotoken $$COVERALLS_TOKEN
+
+# CircleCI's Docker fails when cleaning up using the --rm flag
+# The following target is a workaround for this
+
+circle-ci:
+	@${cidocker} make install-deps check-local coveralls
+

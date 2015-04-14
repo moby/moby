@@ -1,27 +1,12 @@
 machine:
-    environment:
-        BASE_DIR: src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-        CHECKOUT: /home/ubuntu/$CIRCLE_PROJECT_REPONAME
-    pre:
-        # sudo -E doesn't preserve $PATH, so go isn't found anymore.
-        - sudo ln -s $(which go) /usr/local/bin
-
-checkout:
-    post:
-        # We need docker/libnetwork itself in the GOPATH for imports to work.
-        - ln -s $CHECKOUT $(echo $GOPATH | cut -d":" -f1)/$BASE_DIR
+    services:
+        - docker
 
 dependencies:
     override:
-        - go get github.com/tools/godep
-    post:
-        - go get github.com/golang/lint/golint
-        - go get golang.org/x/tools/cmd/goimports
+        - echo "Nothing to install"
 
 test:
     override:
-        - test -z "$(goimports -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
-        - go vet ./...
-        - test -z "$(golint ./... | tee /dev/stderr)"
-        - sudo -E $(which godep) go test -test.v ./...
+        - make circle-ci
 
