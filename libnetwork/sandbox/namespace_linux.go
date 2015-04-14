@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"syscall"
@@ -120,7 +121,7 @@ func (n *networkNamespace) AddInterface(i *driverapi.Interface) error {
 	return nil
 }
 
-func (n *networkNamespace) SetGateway(gw string) error {
+func (n *networkNamespace) SetGateway(gw net.IP) error {
 	err := setGatewayIP(gw)
 	if err == nil {
 		n.sinfo.Gateway = gw
@@ -129,7 +130,7 @@ func (n *networkNamespace) SetGateway(gw string) error {
 	return err
 }
 
-func (n *networkNamespace) SetGatewayIPv6(gw string) error {
+func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
 	err := setGatewayIP(gw)
 	if err == nil {
 		n.sinfo.GatewayIPv6 = gw

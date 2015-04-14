@@ -17,8 +17,6 @@ func configureInterface(iface netlink.Link, settings *driverapi.Interface) error
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, settings.DstName)},
 		{setInterfaceIP, fmt.Sprintf("error setting interface %q IP to %q", ifaceName, settings.Address)},
 		{setInterfaceIPv6, fmt.Sprintf("error setting interface %q IPv6 to %q", ifaceName, settings.AddressIPv6)},
-		/*		{setInterfaceGateway, fmt.Sprintf("error setting interface %q gateway to %q", ifaceName, settings.Gateway)},
-				{setInterfaceGatewayIPv6, fmt.Sprintf("error setting interface %q IPv6 gateway to %q", ifaceName, settings.GatewayIPv6)}, */
 	}
 
 	for _, config := range ifaceConfigurators {
@@ -29,36 +27,21 @@ func configureInterface(iface netlink.Link, settings *driverapi.Interface) error
 	return nil
 }
 
-func setGatewayIP(gw string) error {
-	ip := net.ParseIP(gw)
-	if ip == nil {
-		return fmt.Errorf("bad address format %q", gw)
-	}
-
+func setGatewayIP(gw net.IP) error {
 	return netlink.RouteAdd(&netlink.Route{
 		Scope: netlink.SCOPE_UNIVERSE,
-		Gw:    ip,
+		Gw:    gw,
 	})
 }
 
 func setInterfaceIP(iface netlink.Link, settings *driverapi.Interface) error {
-	ipAddr, err := netlink.ParseAddr(settings.Address)
-	if err == nil {
-		err = netlink.AddrAdd(iface, ipAddr)
-	}
-	return err
+	ipAddr := &netlink.Addr{IPNet: &settings.Address, Label: ""}
+	return netlink.AddrAdd(iface, ipAddr)
 }
 
 func setInterfaceIPv6(iface netlink.Link, settings *driverapi.Interface) error {
-	if settings.AddressIPv6 == "" {
-		return nil
-	}
-
-	ipAddr, err := netlink.ParseAddr(settings.AddressIPv6)
-	if err == nil {
-		err = netlink.AddrAdd(iface, ipAddr)
-	}
-	return err
+	ipAddr := &netlink.Addr{IPNet: &settings.Address, Label: ""}
+	return netlink.AddrAdd(iface, ipAddr)
 }
 
 func setInterfaceName(iface netlink.Link, settings *driverapi.Interface) error {
