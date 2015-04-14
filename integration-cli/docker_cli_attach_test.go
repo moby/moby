@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"io"
 	"os/exec"
 	"strings"
@@ -133,4 +134,52 @@ func TestAttachTtyWithoutStdin(t *testing.T) {
 	}
 
 	logDone("attach - forbid piped stdin to tty enabled container")
+}
+
+func TestAttachDisconnect(t *testing.T) {
+	defer deleteAllContainers()
+	out, _, _ := dockerCmd(t, "run", "-di", "busybox", "/bin/cat")
+	id := strings.TrimSpace(out)
+
+	cmd := exec.Command(dockerBinary, "attach", id)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdin.Close()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Process.Kill()
+
+	if _, err := stdin.Write([]byte("hello\n")); err != nil {
+		t.Fatal(err)
+	}
+	out, err = bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(out) != "hello" {
+		t.Fatalf("exepected 'hello', got %q", out)
+	}
+
+	if err := stdin.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Expect container to still be running after stdin is closed
+	running, err := inspectField(id, "State.Running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if running != "true" {
+		t.Fatal("exepected container to still be running")
+	}
+
+	logDone("attach - disconnect")
 }
