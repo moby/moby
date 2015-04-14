@@ -378,8 +378,18 @@ func (db *Database) Purge(id string) (int, error) {
 		tx.Rollback()
 		return -1, err
 	}
-
 	changes, err := rows.RowsAffected()
+	if err != nil {
+		return -1, err
+	}
+
+	// Clear who's using this id as parent
+	refs, err := tx.Exec("DELETE FROM edge WHERE parent_id = ?;", id)
+	if err != nil {
+		tx.Rollback()
+		return -1, err
+	}
+	refsCount, err := refs.RowsAffected()
 	if err != nil {
 		return -1, err
 	}
@@ -394,7 +404,7 @@ func (db *Database) Purge(id string) (int, error) {
 		return -1, err
 	}
 
-	return int(changes), nil
+	return int(changes + refsCount), nil
 }
 
 // Rename an edge for a given path
