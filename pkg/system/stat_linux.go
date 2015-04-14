@@ -14,6 +14,12 @@ func fromStatT(s *syscall.Stat_t) (*Stat_t, error) {
 		mtim: s.Mtim}, nil
 }
 
+// FromStatT exists only on linux, and loads a system.Stat_t from a
+// syscal.Stat_t.
+func FromStatT(s *syscall.Stat_t) (*Stat_t, error) {
+	return fromStatT(s)
+}
+
 // Stat takes a path to a file and returns
 // a system.Stat_t type pertaining to that file.
 //
