@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -274,6 +275,80 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 	}
 
 	deleteContainer(cleanedContainerID)
+}
+
+func (s *DockerSuite) TestLogsSince(c *check.C) {
+	name := "testlogssince"
+	runCmd := exec.Command(dockerBinary, "run", "--name="+name, "busybox", "/bin/sh", "-c", `date +%s; for i in $(seq 1 5); do sleep 1; echo log$i; done`)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+
+	outLines := strings.Split(out, "\n")
+	startUnix, _ := strconv.ParseInt(outLines[0], 10, 64)
+	since := startUnix + 3
+	logsCmd := exec.Command(dockerBinary, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
+
+	out, _, err = runCommandWithOutput(logsCmd)
+	if err != nil {
+		c.Fatalf("failed to log container: %s, %v", out, err)
+	}
+
+	// Skip 2 seconds
+	unexpected := []string{"log1", "log2"}
+	for _, v := range unexpected {
+		if strings.Contains(out, v) {
+			c.Fatalf("unexpected log message returned=%v, since=%v\nout=%v", v, since, out)
+		}
+	}
+
+	// Test with default value specified and parameter omitted
+	expected := []string{"log1", "log2", "log3", "log4", "log5"}
+	for _, cmd := range []*exec.Cmd{
+		exec.Command(dockerBinary, "logs", "-t", name),
+		exec.Command(dockerBinary, "logs", "-t", "--since=0", name),
+	} {
+		out, _, err = runCommandWithOutput(cmd)
+		if err != nil {
+			c.Fatalf("failed to log container: %s, %v", out, err)
+		}
+		for _, v := range expected {
+			if !strings.Contains(out, v) {
+				c.Fatalf("'%v' does not contain=%v\nout=%s", cmd.Args, v, out)
+			}
+		}
+	}
+}
+
+func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do date +%s; sleep 1; done`)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+	cleanedContainerID := strings.TrimSpace(out)
+
+	now := daemonTime(c).Unix()
+	since := now + 2
+	logCmd := exec.Command(dockerBinary, "logs", "-f", fmt.Sprintf("--since=%v", since), cleanedContainerID)
+	out, _, err = runCommandWithOutput(logCmd)
+	if err != nil {
+		c.Fatalf("failed to log container: %s, %v", out, err)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) == 0 {
+		c.Fatal("got no log lines")
+	}
+	for _, v := range lines {
+		ts, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			c.Fatalf("cannot parse timestamp output from log: '%v'\nout=%s", v, out)
+		}
+		if ts < since {
+			c.Fatalf("earlier log found. since=%v logdate=%v", since, ts)
+		}
+	}
 }
 
 // Regression test for #8832

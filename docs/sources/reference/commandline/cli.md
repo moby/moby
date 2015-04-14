@@ -1616,6 +1616,7 @@ For example:
     Fetch the logs of a container
 
       -f, --follow=false        Follow log output
+      --since=""                Show logs since timestamp
       -t, --timestamps=false    Show timestamps
       --tail="all"              Number of lines to show from the end of the logs
 
@@ -1634,6 +1635,10 @@ The `docker logs --timestamp` commands will add an RFC3339Nano
 timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
+
+The `--since` option shows logs of a container generated only after
+the given date, specified as RFC 3339 or UNIX timestamp. The `--since` option
+can be combined with the `--follow` and `--tail` options.
 
 ## pause
 

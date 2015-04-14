@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/jsonlog"
@@ -19,6 +20,7 @@ import (
 type ContainerLogsConfig struct {
 	Follow, Timestamps   bool
 	Tail                 string
+	Since                time.Time
 	UseStdout, UseStderr bool
 	OutStream            io.Writer
 }
@@ -88,6 +90,7 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 				lines = -1
 			}
 		}
+
 		if lines != 0 {
 			if lines > 0 {
 				f := cLog.(*os.File)
@@ -101,9 +104,11 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 				}
 				cLog = tmp
 			}
+
 			dec := json.NewDecoder(cLog)
 			l := &jsonlog.JSONLog{}
 			for {
+				l.Reset()
 				if err := dec.Decode(l); err == io.EOF {
 					break
 				} else if err != nil {
@@ -111,6 +116,9 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 					break
 				}
 				logLine := l.Log
+				if !config.Since.IsZero() && l.Created.Before(config.Since) {
+					continue
+				}
 				if config.Timestamps {
 					// format can be "" or time format, so here can't be error
 					logLine, _ = l.Format(format)
@@ -121,7 +129,6 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 				if l.Stream == "stderr" && config.UseStderr {
 					io.WriteString(errStream, logLine)
 				}
-				l.Reset()
 			}
 		}
 	}
@@ -139,7 +146,7 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 			stdoutPipe := container.StdoutLogPipe()
 			defer stdoutPipe.Close()
 			go func() {
-				errors <- jsonlog.WriteLog(stdoutPipe, outStream, format)
+				errors <- jsonlog.WriteLog(stdoutPipe, outStream, format, config.Since)
 				wg.Done()
 			}()
 		}
@@ -148,7 +155,7 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 			stderrPipe := container.StderrLogPipe()
 			defer stderrPipe.Close()
 			go func() {
-				errors <- jsonlog.WriteLog(stderrPipe, errStream, format)
+				errors <- jsonlog.WriteLog(stderrPipe, errStream, format, config.Since)
 				wg.Done()
 			}()
 		}

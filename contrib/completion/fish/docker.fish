@@ -233,6 +233,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -a logs -d 'Fetch the log
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -s f -l follow -d 'Follow log output'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -s t -l timestamps -d 'Show timestamps'
+complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -l since -d 'Show logs since timestamp'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -l tail -d 'Output the specified number of lines at the end of logs (defaults to all logs)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -a '(__fish_print_docker_containers running)' -d "Container"
 

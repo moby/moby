@@ -594,9 +594,19 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
+	var since time.Time
+	if r.Form.Get("since") != "" {
+		s, err := strconv.ParseInt(r.Form.Get("since"), 10, 64)
+		if err != nil {
+			return err
+		}
+		since = time.Unix(s, 0)
+	}
+
 	logsConfig := &daemon.ContainerLogsConfig{
 		Follow:     boolValue(r, "follow"),
 		Timestamps: boolValue(r, "timestamps"),
+		Since:      since,
 		Tail:       r.Form.Get("tail"),
 		UseStdout:  stdout,
 		UseStderr:  stderr,
