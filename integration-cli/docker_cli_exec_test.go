@@ -705,7 +705,6 @@ func TestExecWithPrivileged(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sda b 8 0")
 	out, _, err := runCommandWithOutput(cmd)
-	fmt.Printf("%s", out)
 	if err == nil || !strings.Contains(out, "Operation not permitted") {
 		t.Fatalf("exec mknod in --cap-drop=ALL container without --privileged should failed")
 	}
