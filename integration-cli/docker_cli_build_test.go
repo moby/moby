@@ -3695,6 +3695,49 @@ func TestBuildDockerignore(t *testing.T) {
 	logDone("build - test .dockerignore")
 }
 
+func TestBuildDockerignoreExclude(t *testing.T) {
+	name := "testbuilddockerignoreexclude"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+        ADD . /bla
+               RUN [[ -f /bla/src/x.go ]]
+               RUN [[ -f /bla/Makefile ]]
+               RUN [[ ! -e /bla/src/_vendor ]]
+               RUN [[ ! -e /bla/.gitignore ]]
+               RUN [[ ! -e /bla/README.md ]]
+               RUN [[ ! -e /bla/.git ]]
+               RUN [[ -f /bla/LICENSE.md ]]
+               RUN [[ -f /bla/docs/config.json]]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":         "all:",
+		".git/HEAD":        "ref: foo",
+		"src/x.go":         "package main",
+		"src/_vendor/v.go": "package main",
+		".gitignore":       "",
+		"README.md":        "readme",
+		"LICENSE.md":       "must be included.",
+		"docs/useless.md":  "history",
+		"docs/config.json": "{ config: 1 }",
+		".dockerignore": `.git
+pkg
+gitignore
+src/_vendor
+*.md
+!LICENSE.md
+docs
+!docs/config.json`,
+	})
+	defer ctx.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	logDone("build - test .dockerignore")
+}
+
 func TestBuildDockerignoreCleanPaths(t *testing.T) {
 	name := "testbuilddockerignorecleanpaths"
 	defer deleteImages(name)

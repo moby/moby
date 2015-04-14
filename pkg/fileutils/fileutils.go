@@ -7,21 +7,50 @@ import (
 )
 
 // Matches returns true if relFilePath matches any of the patterns
+// and isn't excluded by any of the subsequent patterns.
 func Matches(relFilePath string, patterns []string) (bool, error) {
-	for _, exclude := range patterns {
-		matched, err := filepath.Match(exclude, relFilePath)
-		if err != nil {
-			logrus.Errorf("Error matching: %s (pattern: %s)", relFilePath, exclude)
-			return false, err
+
+	matched := false
+
+	for _, pattern := range patterns {
+
+		var negative bool
+		if pattern == "" {
+			continue
 		}
-		if matched {
-			if filepath.Clean(relFilePath) == "." {
-				logrus.Errorf("Can't exclude whole path, excluding pattern: %s", exclude)
+
+		if pattern[0] == '!' {
+			if len(pattern) == 1 {
 				continue
 			}
-			logrus.Debugf("Skipping excluded path: %s", relFilePath)
-			return true, nil
+			negative = true
+			pattern = pattern[1:]
+		}
+
+		match, err := filepath.Match(pattern, relFilePath)
+		if err != nil {
+			logrus.Errorf("Error matching: %s (pattern: %s)", relFilePath, pattern)
+			return false, err
+		}
+
+		if match {
+
+			if negative {
+				matched = false
+				continue
+			}
+
+			if filepath.Clean(relFilePath) == "." {
+				logrus.Errorf("Can't exclude whole path, excluding pattern: %s", pattern)
+				continue
+			}
+			matched = true
 		}
 	}
-	return false, nil
+
+	if matched {
+		logrus.Debugf("Skipping excluded path: %s", relFilePath)
+	}
+
+	return matched, nil
 }

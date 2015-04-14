@@ -648,6 +648,8 @@ is interpreted as a newline-separated list of exclusion patterns.
 Exclusion patterns match files or directories relative to `PATH` that
 will be excluded from the context. Globbing is done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+Exceptions to exclusion rules are supported - simply prefix a rule with
+`!` in the same way you would in a gitignore file (for example).
 
 Please note that `.dockerignore` files in other subdirectories are
 considered as normal files. Filepaths in `.dockerignore` are absolute with
@@ -658,17 +660,20 @@ is not recursive.
     */temp*
     */*/temp*
     temp?
+    *.md
+    !LICENSE.md
 
 The first line above `*/temp*`, would ignore all files with names starting with
 `temp` from any subdirectory below the root directory. For example, a file named
 `/somedir/temporary.txt` would be ignored. The second line `*/*/temp*`, will
 ignore files starting with name `temp` from any subdirectory that is two levels
 below the root directory. For example, the file `/somedir/subdir/temporary.txt`
-would get ignored in this case. The last line in the above example `temp?`
+would get ignored in this case. The third line in the above example `temp?`
 will ignore the files that match the pattern from the root directory.
 For example, the files `tempa`, `tempb` are ignored from the root directory.
 Currently there is no support for regular expressions. Formats
-like `[^temp*]` are ignored.
+like `[^temp*]` are ignored. The last two lines means to ignore every markdown 
+but `LICENSE.md`.
 
 By default the `docker build` command will look for a `Dockerfile` at the
 root of the build context. The `-f`, `--file`, option lets you specify
