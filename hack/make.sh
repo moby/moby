@@ -24,6 +24,7 @@ set -e
 set -o pipefail
 
 export DOCKER_PKG='github.com/docker/docker'
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
@@ -110,7 +111,7 @@ fi
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
-source "$(dirname "$BASH_SOURCE")/make/.go-autogen"
+source "$SCRIPTDIR/make/.go-autogen"
 LDFLAGS='-w'
 
 LDFLAGS_STATIC='-linkmode external'
@@ -270,7 +271,6 @@ main() {
 		ln -sfT $VERSION bundles/latest
 	fi
 
-	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})
 	else
