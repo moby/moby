@@ -21,6 +21,10 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
 
+	if cmd.Arg(0) == "" {
+		return fmt.Errorf("Container name cannot be empty")
+	}
+
 	rdr, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
 	if err != nil {
 		return err
