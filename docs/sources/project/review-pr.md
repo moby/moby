@@ -49,15 +49,23 @@ need to update your pull request with additional changes.
 
 To update your existing pull request:
 
-1. Change one or more files in your local `docker-fork` repository.
+1. Checkout the PR branch in your local `docker-fork` repository.  
 
-2. Commit the change with the `git commit --amend` command.
+    This is the branch associated with your request.
+
+2. Change one or more files and then stage your changes.
+
+    The command syntax is:
+
+    	git add <path_or_filename>
+
+3. Commit the change.
 
     	$ git commit --amend 
 
     Git opens an editor containing your last commit message.
 
-3. Adjust your last comment to reflect this new change.
+4. Adjust your last comment to reflect this new change.
 
         Added a new sentence per Anaud's suggestion	
 
@@ -72,15 +80,17 @@ To update your existing pull request:
         #		modified:   docs/sources/installation/mac.md
         #		modified:   docs/sources/installation/rhel.md
 
-4. Push to your origin.
+5. Force push the change to your origin.
 
-        $ git push origin
+    The command syntax is:
 
-5. Open your browser to your pull request on GitHub.
+        git push -f origin <branch_name>
+
+6. Open your browser to your pull request on GitHub.
 
     You should see your pull request now contains your newly pushed code.
 
-6. Add a comment to your pull request.
+7. Add a comment to your pull request.
 
     GitHub only notifies PR participants when you comment. For example, you can
     mention that you updated your PR. Your comment alerts the maintainers that
