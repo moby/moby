@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 
@@ -106,6 +107,13 @@ func InitDriver(job *engine.Job) engine.Status {
 		fixedCIDR      = job.Getenv("FixedCIDR")
 		fixedCIDRv6    = job.Getenv("FixedCIDRv6")
 	)
+
+	// try to modprobe bridge first
+	// see gh#12177
+	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat").Output(); err != nil {
+		log.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+	}
+
 	initPortMapper()
 
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
