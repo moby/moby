@@ -82,7 +82,7 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 	}
 	// Optionally register the image at REPO/TAG
 	if repo != "" {
-		if err := s.Set(repo, tag, img.ID, true); err != nil {
+		if err := s.Tag(repo, tag, img.ID, true); err != nil {
 			return err
 		}
 	}

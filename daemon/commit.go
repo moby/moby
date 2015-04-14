@@ -101,7 +101,7 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 
 	// Register the image if needed
 	if repository != "" {
-		if err := daemon.repositories.Set(repository, tag, img.ID, true); err != nil {
+		if err := daemon.repositories.Tag(repository, tag, img.ID, true); err != nil {
 			return img, err
 		}
 	}

@@ -12,7 +12,6 @@ import (
 func (s *TagStore) Install(eng *engine.Engine) error {
 	for name, handler := range map[string]engine.Handler{
 		"image_set":      s.CmdSet,
-		"tag":            s.CmdTag,
 		"image_get":      s.CmdGet,
 		"image_inspect":  s.CmdLookup,
 		"image_tarlayer": s.CmdTarLayer,

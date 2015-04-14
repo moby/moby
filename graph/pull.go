@@ -249,7 +249,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 		if askedTag != "" && tag != askedTag {
 			continue
 		}
-		if err := s.Set(repoInfo.LocalName, tag, id, true); err != nil {
+		if err := s.Tag(repoInfo.LocalName, tag, id, true); err != nil {
 			return err
 		}
 	}
@@ -617,7 +617,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 		}
 	} else {
 		// only set the repository/tag -> image ID mapping when pulling by tag (i.e. not by digest)
-		if err = s.Set(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
+		if err = s.Tag(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
 			return false, err
 		}
 	}
