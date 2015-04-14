@@ -5,7 +5,7 @@ DEST=$1
 
 INIT=$DEST/../dynbinary/dockerinit-$VERSION
 [ -x "$INIT" ] || {
-	source "$(dirname "$BASH_SOURCE")/.dockerinit"
+	source "${MAKEDIR}/.dockerinit"
 	INIT="$DEST/dockerinit"
 }
 export TEST_DOCKERINIT_PATH="$INIT"

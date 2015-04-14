@@ -6,7 +6,7 @@ BINARY_NAME="docker-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
-source "$(dirname "$BASH_SOURCE")/.go-autogen"
+source "${MAKEDIR}/.go-autogen"
 
 go build -compiler=gccgo \
 	-o "$DEST/$BINARY_FULLNAME" \
