@@ -191,9 +191,10 @@ You should pull and rebase frequently as you work.
 
 	Make sure you include your signature.
 
-8. Push any changes to your fork on GitHub.
+8. Push any changes to your fork on GitHub, using the `-f` option to
+force the previous change to be overwritten.
 
-		$ git push origin 11038-fix-rhel-link
+		$ git push -f origin 11038-fix-rhel-link
 
 
 ## Where to go next
