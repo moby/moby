@@ -1,6 +1,7 @@
 package netutils
 
 import (
+	"bytes"
 	"net"
 	"testing"
 
@@ -172,5 +173,39 @@ func TestNetworkRange(t *testing.T) {
 	}
 	if !last.Equal(net.ParseIP("10.1.2.63")) {
 		t.Error(last.String())
+	}
+}
+
+// Test veth name generation "veth"+rand (e.g.veth0f60e2c)
+func TestGenerateRandomName(t *testing.T) {
+	name1, err := GenerateRandomName("veth", 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// veth plus generated append equals a len of 11
+	if len(name1) != 11 {
+		t.Fatalf("Expected 11 characters, instead received %d characters", len(name1))
+	}
+	name2, err := GenerateRandomName("veth", 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Fail if the random generated names equal one another
+	if name1 == name2 {
+		t.Fatalf("Expected differing values but received %s and %s", name1, name2)
+	}
+}
+
+// Test mac generation.
+func TestUtilGenerateRandomMAC(t *testing.T) {
+	mac1 := GenerateRandomMAC()
+	mac2 := GenerateRandomMAC()
+	// ensure bytes are unique
+	if bytes.Equal(mac1, mac2) {
+		t.Fatalf("mac1 %s should not equal mac2 %s", mac1, mac2)
+	}
+	// existing tests check string functionality so keeping the pattern
+	if mac1.String() == mac2.String() {
+		t.Fatalf("mac1 %s should not equal mac2 %s", mac1, mac2)
 	}
 }

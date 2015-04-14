@@ -1,12 +1,13 @@
 // Network utility functions.
-// Imported unchanged from Docker
 
 package netutils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
+	"io"
 	"net"
 
 	"github.com/vishvananda/netlink"
@@ -115,13 +116,32 @@ func GetIfaceAddr(name string) (net.Addr, []net.Addr, error) {
 	return addrs4[0], addrs6, nil
 }
 
-// GenerateRandomMAC returns a random MAC address
+// GenerateRandomMAC returns a new 6-byte(48-bit) hardware address (MAC)
 func GenerateRandomMAC() net.HardwareAddr {
 	hw := make(net.HardwareAddr, 6)
-	for i := 0; i < 6; i++ {
-		hw[i] = byte(rand.Intn(255))
+	// The first byte of the MAC address has to comply with these rules:
+	// 1. Unicast: Set the least-significant bit to 0.
+	// 2. Address is locally administered: Set the second-least-significant bit (U/L) to 1.
+	// 3. As "small" as possible: The veth address has to be "smaller" than the bridge address.
+	hw[0] = 0x02
+	// The first 24 bits of the MAC represent the Organizationally Unique Identifier (OUI).
+	// Since this address is locally administered, we can do whatever we want as long as
+	// it doesn't conflict with other addresses.
+	hw[1] = 0x42
+	// Randomly generate the remaining 4 bytes (2^32)
+	_, err := rand.Read(hw[2:])
+	if err != nil {
+		return nil
 	}
-	hw[0] &^= 0x1 // clear multicast bit
-	hw[0] |= 0x2  // set local assignment bit (IEEE802)
 	return hw
+}
+
+// GenerateRandomName returns a new name joined with a prefix.  This size
+// specified is used to truncate the randomly generated value
+func GenerateRandomName(prefix string, size int) (string, error) {
+	id := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(id)[:size], nil
 }

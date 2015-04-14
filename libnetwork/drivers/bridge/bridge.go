@@ -7,17 +7,19 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/libcontainer/utils"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/vishvananda/netlink"
 )
 
 const (
-	networkType = "simplebridge"
-	vethPrefix  = "veth"
+	networkType   = "simplebridge"
+	vethPrefix    = "veth"
+	vethLen       = 7
+	containerVeth = "eth0"
 )
 
 var (
@@ -292,7 +294,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config 
 
 	intf := &driverapi.Interface{}
 	intf.SrcName = name2
-	intf.DstName = "eth0"
+	intf.DstName = containerVeth
 	intf.Address = ipv4Addr
 	sinfo.Gateway = n.bridge.bridgeIPv4.IP
 	if n.bridge.Config.EnableIPv6 {
@@ -364,9 +366,12 @@ func (d *driver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 	return nil
 }
 
+// Generates a name to be used for a virtual ethernet
+// interface. The name is constructed by 'veth' appended
+// by a randomly generated hex value. (example: veth0f60e2c)
 func generateIfaceName() (string, error) {
-	for i := 0; i < 10; i++ {
-		name, err := utils.GenerateRandomName("veth", 7)
+	for i := 0; i < 3; i++ {
+		name, err := netutils.GenerateRandomName(vethPrefix, vethLen)
 		if err != nil {
 			continue
 		}
