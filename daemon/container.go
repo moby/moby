@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libcontainer/label"
@@ -1018,14 +1017,6 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 func (container *Container) Exposes(p nat.Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
 	return exists
-}
-
-func (container *Container) GetPtyMaster() (libcontainer.Console, error) {
-	ttyConsole, ok := container.command.ProcessConfig.Terminal.(execdriver.TtyTerminal)
-	if !ok {
-		return nil, ErrNoTTY
-	}
-	return ttyConsole.Master(), nil
 }
 
 func (container *Container) HostConfig() *runconfig.HostConfig {

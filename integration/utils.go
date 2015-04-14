@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/term"
 )
 
 func closeWrap(args ...io.Closer) error {
@@ -25,26 +24,6 @@ func closeWrap(args ...io.Closer) error {
 		return ret
 	}
 	return nil
-}
-
-func setRaw(t *testing.T, c *daemon.Container) *term.State {
-	pty, err := c.GetPtyMaster()
-	if err != nil {
-		t.Fatal(err)
-	}
-	state, err := term.MakeRaw(pty.Fd())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return state
-}
-
-func unsetRaw(t *testing.T, c *daemon.Container, state *term.State) {
-	pty, err := c.GetPtyMaster()
-	if err != nil {
-		t.Fatal(err)
-	}
-	term.RestoreTerminal(pty.Fd(), state)
 }
 
 func waitContainerStart(t *testing.T, timeout time.Duration) *daemon.Container {
