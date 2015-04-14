@@ -60,7 +60,7 @@ if [ "$1" != '--release-regardless-of-test-failure' ]; then
 	)
 fi
 
-VERSION=$(cat VERSION)
+VERSION=$(< VERSION)
 BUCKET=$AWS_S3_BUCKET
 
 # These are the 2 keys we've used to sign the deb's

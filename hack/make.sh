@@ -63,7 +63,7 @@ DEFAULT_BUNDLES=(
 	ubuntu
 )
 
-VERSION=$(cat ./VERSION)
+VERSION=$(< ./VERSION)
 if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
