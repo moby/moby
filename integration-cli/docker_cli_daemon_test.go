@@ -881,13 +881,12 @@ func TestDaemonwithwrongkey(t *testing.T) {
 	}
 
 	d1 := NewDaemon(t)
+	defer os.Remove("/etc/docker/key.json")
 
 	if err := d1.Start(); err == nil {
 		d1.Stop()
-		os.Remove("/etc/docker/key.json")
 		t.Fatalf("It should not be succssful to start daemon with wrong key: %v", err)
 	}
-	os.Remove("/etc/docker/key.json")
 
 	content, _ := ioutil.ReadFile(d1.logFile.Name())
 
@@ -905,7 +904,7 @@ func TestDaemonRestartKillWait(t *testing.T) {
 	}
 	defer d.Stop()
 
-	out, err := d.Cmd("run", "-d", "busybox", "/bin/cat")
+	out, err := d.Cmd("run", "-id", "busybox", "/bin/cat")
 	if err != nil {
 		t.Fatalf("Could not run /bin/cat: err=%v\n%s", err, out)
 	}
