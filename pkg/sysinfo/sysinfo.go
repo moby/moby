@@ -58,5 +58,11 @@ func New(quiet bool) *SysInfo {
 	} else {
 		sysInfo.AppArmor = true
 	}
+
+	// Check if Devices cgroup is mounted, it is hard requirement for container security.
+	if _, err := cgroups.FindCgroupMountpoint("devices"); err != nil {
+		logrus.Fatalf("Error mounting devices cgroup: %v", err)
+	}
+
 	return sysInfo
 }
