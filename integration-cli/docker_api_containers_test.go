@@ -369,9 +369,14 @@ func TestBuildApiDockerfilePath(t *testing.T) {
 		t.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	_, out, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
+	_, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
 	if err == nil {
+		out, _ := readBody(body)
 		t.Fatalf("Build was supposed to fail: %s", out)
+	}
+	out, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	if !strings.Contains(string(out), "must be within the build context") {
@@ -393,9 +398,13 @@ RUN find /tmp/`,
 	}
 	defer server.Close()
 
-	_, buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Make sure Dockerfile exists.
@@ -419,9 +428,14 @@ RUN echo from dockerfile`,
 	}
 	defer git.Close()
 
-	_, buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
+		buf, _ := readBody(body)
 		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out := string(buf)
@@ -445,9 +459,14 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	_, buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
+		buf, _ := readBody(body)
 		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out := string(buf)
@@ -472,9 +491,13 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	_, buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out := string(buf)
@@ -503,9 +526,14 @@ func TestBuildApiDockerfileSymlink(t *testing.T) {
 		t.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	_, out, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+	_, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
 	if err == nil {
+		out, _ := readBody(body)
 		t.Fatalf("Build was supposed to fail: %s", out)
+	}
+	out, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// The reason the error is "Cannot locate specified Dockerfile" is because
