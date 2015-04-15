@@ -439,6 +439,27 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	return nil
 }
 
+// NOCACHE
+//
+// Turns off caching from this point on in the Dockerfile
+//
+func nocache(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("NOCACHE does not accept any arguments: %d %q", len(args), args)
+	}
+
+	if b.UtilizeCache {
+		fmt.Fprintf(b.OutStream, " ---> Turning caching off\n")
+		log.Debugf("[BUILDER] Turning caching off")
+		b.UtilizeCache = false
+	} else {
+		fmt.Fprintf(b.OutStream, " ---> Caching is already off, no effect\n")
+		log.Debugf("[BUILDER] Caching is already off, no effect")
+	}
+
+	return nil
+}
+
 // INSERT is no longer accepted, but we still parse it.
 func insert(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
