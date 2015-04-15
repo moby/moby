@@ -17,49 +17,10 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
-
-func TestPostCommit(t *testing.T) {
-	eng := NewTestEngine(t)
-	b := &builder.BuilderJob{Engine: eng}
-	b.Install()
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	// Create a container and remove a file
-	containerID := createTestContainer(eng,
-		&runconfig.Config{
-			Image: unitTestImageID,
-			Cmd:   runconfig.NewCommand("touch", "/test"),
-		},
-		t,
-	)
-
-	containerRun(eng, containerID, t)
-
-	req, err := http.NewRequest("POST", "/commit?repo=testrepo&testtag=tag&container="+containerID, bytes.NewReader([]byte{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	assertHttpNotError(r, t)
-	if r.Code != http.StatusCreated {
-		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
-	}
-
-	var env engine.Env
-	if err := env.Decode(r.Body); err != nil {
-		t.Fatal(err)
-	}
-	if err := eng.Job("image_inspect", env.Get("Id")).Run(); err != nil {
-		t.Fatalf("The image has not been committed")
-	}
-}
 
 func TestPostContainersCreate(t *testing.T) {
 	eng := NewTestEngine(t)

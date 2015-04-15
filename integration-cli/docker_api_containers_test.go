@@ -665,3 +665,32 @@ func TestContainerApiTop(t *testing.T) {
 
 	logDone("containers REST API -  GET /containers/<id>/top")
 }
+
+func TestContainerApiCommit(t *testing.T) {
+	out, _, _ := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /test")
+	id := strings.TrimSpace(out)
+
+	name := "testcommit"
+	_, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+id, nil)
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		t.Fatal(err)
+	}
+
+	type resp struct {
+		Id string
+	}
+	var img resp
+	if err := json.Unmarshal(b, &img); err != nil {
+		t.Fatal(err)
+	}
+	defer deleteImages(img.Id)
+
+	out, err = inspectField(img.Id, "Config.Cmd")
+	if out != "[/bin/sh -c touch /test]" {
+		t.Fatalf("got wrong Cmd from commit: %q", out)
+	}
+	// sanity check, make sure the image is what we think it is
+	dockerCmd(t, "run", img.Id, "ls", "/test")
+
+	logDone("containers REST API - POST /commit")
+}
