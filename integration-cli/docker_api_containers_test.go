@@ -761,3 +761,59 @@ func TestContainerApiVerifyHeader(t *testing.T) {
 
 	logDone("containers REST API - verify create header")
 }
+
+// Issue 7941 - test to make sure a "null" in JSON is just ignored.
+// W/o this fix a null in JSON would be parsed into a string var as "null"
+func TestContainerApiPostCreateNull(t *testing.T) {
+	config := `{
+		"Hostname":"",
+		"Domainname":"",
+		"Memory":0,
+		"MemorySwap":0,
+		"CpuShares":0,
+		"Cpuset":null,
+		"AttachStdin":true,
+		"AttachStdout":true,
+		"AttachStderr":true,
+		"PortSpecs":null,
+		"ExposedPorts":{},
+		"Tty":true,
+		"OpenStdin":true,
+		"StdinOnce":true,
+		"Env":[],
+		"Cmd":"ls",
+		"Image":"busybox",
+		"Volumes":{},
+		"WorkingDir":"",
+		"Entrypoint":null,
+		"NetworkDisabled":false,
+		"OnBuild":null}`
+
+	_, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		b, _ := readBody(body)
+		t.Fatal(err, string(b))
+	}
+
+	b, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type createResp struct {
+		Id string
+	}
+	var container createResp
+	if err := json.Unmarshal(b, &container); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := inspectField(container.Id, "HostConfig.CpusetCpus")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if out != "" {
+		t.Fatalf("expected empty string, got %q", out)
+	}
+
+	logDone("containers REST API - Create Null")
+}
