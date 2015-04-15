@@ -14,7 +14,7 @@ type Syslog struct {
 }
 
 func New(tag string) (logger.Logger, error) {
-	log, err := syslog.New(syslog.LOG_USER, fmt.Sprintf("%s: <%s> ", path.Base(os.Args[0]), tag))
+	log, err := syslog.New(syslog.LOG_DAEMON, fmt.Sprintf("%s/%s", path.Base(os.Args[0]), tag))
 	if err != nil {
 		return nil, err
 	}
