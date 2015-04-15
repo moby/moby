@@ -1379,6 +1379,7 @@ func (container *Container) startLogging() error {
 		if err != nil {
 			return err
 		}
+		container.LogPath = pth
 
 		dl, err := jsonfilelog.New(pth)
 		if err != nil {
