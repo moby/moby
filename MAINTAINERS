@@ -408,7 +408,7 @@ made through a pull request.
 			people = [
 				"fredlf",
 				"james",
-				"mary",
+				"moxiegirl",
 				"spf13",
 				"sven"
 			]
@@ -585,7 +585,7 @@ made through a pull request.
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
 
-	[people.mary]
+	[people.moxiegirl]
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
