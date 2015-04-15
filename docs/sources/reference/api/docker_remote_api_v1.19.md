@@ -362,7 +362,10 @@ Return low-level information on the container `id`
 				"MaximumRetryCount": 2,
 				"Name": "on-failure"
 			},
-           "LogConfig": { "Type": "json-file", "Config": {} },
+			"LogConfig": {
+				"Config": null,
+				"Type": "json-file"
+			},
 			"SecurityOpt": null,
 			"VolumesFrom": null,
 			"Ulimits": [{}]
