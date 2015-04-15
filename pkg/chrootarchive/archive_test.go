@@ -3,6 +3,7 @@ package chrootarchive
 import (
 	"bytes"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"os"
@@ -113,6 +114,16 @@ func prepareSourceDirectory(numberOfFiles int, targetPath string, makeSymLinks b
 	return totalSize, nil
 }
 
+func getHash(filename string) (uint32, error) {
+	stream, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return 0, err
+	}
+	hash := crc32.NewIEEE()
+	hash.Write(stream)
+	return hash.Sum32(), nil
+}
+
 func compareDirectories(src string, dest string) error {
 	changes, err := archive.ChangesDirs(dest, src)
 	if err != nil {
@@ -120,6 +131,21 @@ func compareDirectories(src string, dest string) error {
 	}
 	if len(changes) > 0 {
 		return fmt.Errorf("Unexpected differences after untar: %v", changes)
+	}
+	return nil
+}
+
+func compareFiles(src string, dest string) error {
+	srcHash, err := getHash(src)
+	if err != nil {
+		return err
+	}
+	destHash, err := getHash(dest)
+	if err != nil {
+		return err
+	}
+	if srcHash != destHash {
+		return fmt.Errorf("%s is different from %s", src, dest)
 	}
 	return nil
 }
@@ -176,12 +202,18 @@ func TestChrootCopyWithTar(t *testing.T) {
 	if err := CopyWithTar(srcfile, destfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compareFiles(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
 
 	// Copy symbolic link
 	srcLinkfile := filepath.Join(src, "file-1-link")
 	dest = filepath.Join(tmpdir, "destSymlink")
 	destLinkfile := filepath.Join(dest, "file-1-link")
 	if err := CopyWithTar(srcLinkfile, destLinkfile); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareFiles(srcLinkfile, destLinkfile); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -213,12 +245,18 @@ func TestChrootCopyFileWithTar(t *testing.T) {
 	if err := CopyFileWithTar(srcfile, destfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compareFiles(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
 
 	// Copy symbolic link
 	srcLinkfile := filepath.Join(src, "file-1-link")
 	dest = filepath.Join(tmpdir, "destSymlink")
 	destLinkfile := filepath.Join(dest, "file-1-link")
 	if err := CopyFileWithTar(srcLinkfile, destLinkfile); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareFiles(srcLinkfile, destLinkfile); err != nil {
 		t.Fatal(err)
 	}
 }
