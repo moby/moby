@@ -12,6 +12,7 @@ const (
 	Expose      = "expose"
 	From        = "from"
 	Healthcheck = "healthcheck"
+	Include     = "include"
 	Label       = "label"
 	Maintainer  = "maintainer"
 	Onbuild     = "onbuild"
@@ -34,6 +35,7 @@ var Commands = map[string]struct{}{
 	Expose:      {},
 	From:        {},
 	Healthcheck: {},
+	Include:     {},
 	Label:       {},
 	Maintainer:  {},
 	Onbuild:     {},

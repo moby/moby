@@ -9,6 +9,7 @@ package dockerfile
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -26,6 +27,48 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 )
+
+// INCLUDE
+//
+// Allows for one Dockerfile to #include another
+//
+func include(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("INCLUDE requires exactly one argument")
+	}
+
+	filename := args[0]
+
+	if !filepath.IsAbs(filename) {
+		filename = filepath.Join("/", b.runConfig.WorkingDir, filename)
+	}
+
+	filename = filepath.Clean(filename)
+	if b.includes == nil {
+		b.includes = map[string]struct{}{}
+	}
+
+	if _, ok := b.includes[filename]; ok {
+		return fmt.Errorf("Can not recursively INCLUDE a file: %s", filename)
+	}
+	b.includes[filename] = struct{}{}
+
+	nodes, err := b.parseDockerfile(filename)
+	if err != nil {
+		return err
+	}
+
+	// Show the filename post-env-var substitution
+	fmt.Fprintf(b.Stdout, "########### %s\n", args[0])
+	if err = b.processNode(nodes); err != nil {
+		return err
+	}
+	fmt.Fprintf(b.Stdout, "###########\n")
+
+	delete(b.includes, filename)
+
+	return nil
+}
 
 // ENV foo bar
 //

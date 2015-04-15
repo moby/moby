@@ -361,6 +361,7 @@ the `Dockerfile`:
 * `WORKDIR`
 * `VOLUME`
 * `STOPSIGNAL`
+* `INCLUDE`
 
 as well as:
 
@@ -1747,6 +1748,15 @@ The `SHELL` instruction can also be used on Linux should an alternate shell be
 required such as `zsh`, `csh`, `tcsh` and others.
 
 The `SHELL` feature was added in Docker 1.12.
+
+## INCLUDE
+
+    INCLUDE path/to/file
+
+The `INCLUDE` instruction tells the `Dockerfile` parser to read in the
+specified file and process its contents before continuing with the current
+file. All commands in the referenced file will be processed as if they
+were included as part of the current file.
 
 ## Dockerfile examples
 

@@ -651,8 +651,8 @@ func (b *Builder) readDockerfile() error {
 		}
 	}
 
-	err := b.parseDockerfile()
-
+	var err error
+	b.dockerfile, err = b.parseDockerfile(b.options.Dockerfile)
 	if err != nil {
 		return err
 	}
@@ -671,31 +671,31 @@ func (b *Builder) readDockerfile() error {
 	return nil
 }
 
-func (b *Builder) parseDockerfile() error {
-	f, err := b.context.Open(b.options.Dockerfile)
+func (b *Builder) parseDockerfile(fileName string) (*parser.Node, error) {
+	f, err := b.context.Open(fileName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
+			return nil, fmt.Errorf("Cannot locate specified Dockerfile: %s", fileName)
 		}
-		return err
+		return nil, err
 	}
 	defer f.Close()
 	if f, ok := f.(*os.File); ok {
 		// ignoring error because Open already succeeded
 		fi, err := f.Stat()
 		if err != nil {
-			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
+			return nil, fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
 		}
 		if fi.Size() == 0 {
-			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
+			return nil, fmt.Errorf("The Dockerfile (%s) cannot be empty", fileName)
 		}
 	}
-	b.dockerfile, err = parser.Parse(f, &b.directive)
+	nodes, err := parser.Parse(f, &b.directive)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nodes, nil
 }
 
 func (b *Builder) getBuildArg(arg string) (string, bool) {

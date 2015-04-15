@@ -81,6 +81,7 @@ type Builder struct {
 	allowedBuildArgs map[string]*string  // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 	allBuildArgs     map[string]struct{} // list of all build-time args found during parsing of the Dockerfile
 	directive        parser.Directive
+	includes         map[string]struct{} // list of include files
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
@@ -267,36 +268,9 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	var shortImgID string
-	total := len(b.dockerfile.Children)
-	for _, n := range b.dockerfile.Children {
-		if err := b.checkDispatch(n, false); err != nil {
-			return "", perrors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
-		}
-	}
-
-	for i, n := range b.dockerfile.Children {
-		select {
-		case <-b.clientCtx.Done():
-			logrus.Debug("Builder: build cancelled!")
-			fmt.Fprint(b.Stdout, "Build cancelled")
-			return "", errors.New("Build cancelled")
-		default:
-			// Not cancelled yet, keep going...
-		}
-
-		if err := b.dispatch(i, total, n); err != nil {
-			if b.options.ForceRemove {
-				b.clearTmp()
-			}
-			return "", err
-		}
-
-		shortImgID = stringid.TruncateID(b.image)
-		fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
-		if b.options.Remove {
-			b.clearTmp()
-		}
+	err = b.processNode(b.dockerfile)
+	if err != nil {
+		return "", err
 	}
 
 	b.warnOnUnusedBuildArgs()
@@ -316,7 +290,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		}
 	}
 
-	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
+	fmt.Fprintf(b.Stdout, "Successfully built %s\n", stringid.TruncateID(b.image))
 
 	imageID := image.ID(b.image)
 	for _, rt := range repoAndTags {
@@ -342,6 +316,44 @@ func (b *Builder) warnOnUnusedBuildArgs() {
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
+	fmt.Fprintf(b.Stdout, "Successfully built %s\n", stringid.TruncateID(b.image))
+}
+
+func (b *Builder) processNode(node *parser.Node) error {
+	total := len(node.Children)
+
+	for _, n := range b.dockerfile.Children {
+		if err := b.checkDispatch(n, false); err != nil {
+			return perrors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
+		}
+	}
+
+	for i, n := range node.Children {
+		select {
+		case <-b.clientCtx.Done():
+			logrus.Debug("Builder: build cancelled!")
+			fmt.Fprint(b.Stdout, "Build cancelled")
+			return errors.New("Build cancelled")
+		default:
+			// Not cancelled yet, keep going...
+		}
+
+		if err := b.dispatch(i, total, n); err != nil {
+			if b.options.ForceRemove {
+				b.clearTmp()
+			}
+			return err
+		}
+
+		if n.Value != "include" {
+			fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(b.image))
+		}
+
+		if b.options.Remove {
+			b.clearTmp()
+		}
+	}
+	return nil
 }
 
 // Cancel cancels an ongoing Dockerfile build.

@@ -82,6 +82,7 @@ func init() {
 		command.Expose:      parseStringsWhitespaceDelimited,
 		command.From:        parseString,
 		command.Healthcheck: parseHealthConfig,
+		command.Include:     parseString,
 		command.Label:       parseLabel,
 		command.Maintainer:  parseString,
 		command.Onbuild:     parseSubCommand,

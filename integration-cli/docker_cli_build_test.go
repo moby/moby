@@ -6054,3 +6054,90 @@ CMD echo foo
 	out, _ := dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", "build2")
 	c.Assert(strings.TrimSpace(out), checker.Equals, `["/bin/sh","-c","echo foo"]`)
 }
+
+func (s *DockerSuite) TestBuildInclude(c *check.C) {
+	name := "testinclude"
+	defer deleteImages(name)
+
+	ctx := fakeContext(c, `
+        FROM busybox
+		RUN echo hi
+		INCLUDE file1
+		RUN env
+		RUN sh -c "echo $FOO"
+		RUN sh -c "echo "$FOO" "
+		RUN sh -c "[ "$FOO" = 'bar' ]"
+		INCLUDE file2.${FOO}
+		RUN sh -c "[ "$BAR" = 'bye' ]"
+		INCLUDE dir/file
+		RUN sh -c "[ "$ZZZ" = 'yyy' ]"
+		RUN echo bye!
+		INCLUDE badFileName`,
+		map[string]string{
+			"file1":     "ENV FOO=bar",
+			"file2.bar": "ENV BAR=bye",
+			"dir/file":  "ENV ZZZ=yyy",
+		})
+	defer ctx.Close()
+
+	result := buildImage(name, withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	rc, e1 := regexp.MatchString("Cannot locate specified Dockerfile: .badFileName", result.Combined())
+	if !rc || e1 != nil {
+		c.Fatalf("Wrong output: %s\nMS:%q", result.Combined(), e1)
+	}
+}
+
+func (s *DockerSuite) TestBuildIncludeChain(c *check.C) {
+	name := "testincludechain"
+	defer deleteImages(name)
+
+	ctx := fakeContext(c, `
+        FROM busybox
+               RUN echo hello 0
+               INCLUDE file1
+`,
+		map[string]string{
+			"file1": "RUN echo hello 1\nINCLUDE file2",
+			"file2": "RUN echo hello 2",
+		})
+	defer ctx.Close()
+
+	result := buildImage(name, withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Success)
+	if !strings.Contains(result.Combined(), "hello 0") {
+		c.Fatalf("Wrong output: %s", result.Combined())
+	}
+	if !strings.Contains(result.Combined(), "hello 1") {
+		c.Fatalf("Wrong output: %s", result.Combined())
+	}
+	if !strings.Contains(result.Combined(), "hello 2") {
+		c.Fatalf("Wrong output: %s", result.Combined())
+	}
+
+}
+
+func (s *DockerSuite) TestBuildIncludeRecursion(c *check.C) {
+	name := "testincluderecursion"
+	defer deleteImages(name)
+
+	self := `FROM busybox
+INCLUDE self
+RUN echo bye!`
+	ctx := fakeContext(c, self,
+		map[string]string{
+			"self": "INCLUDE self",
+		})
+	defer ctx.Close()
+
+	result := buildImage(name, withExternalBuildContext(ctx))
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+
+	if !strings.Contains(result.Combined(), "Can not recursively INCLUDE a file:") {
+		c.Fatalf("Wrong output: %s", result.Combined())
+	}
+}

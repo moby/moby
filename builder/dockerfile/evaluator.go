@@ -31,6 +31,7 @@ import (
 
 // Environment variable interpolation will happen on these statements only.
 var replaceEnvAllowed = map[string]bool{
+	command.Include:    true,
 	command.Env:        true,
 	command.Label:      true,
 	command.Add:        true,
@@ -69,6 +70,7 @@ func init() {
 		command.Expose:      expose,
 		command.From:        from,
 		command.Healthcheck: healthcheck,
+		command.Include:     include,
 		command.Label:       label,
 		command.Maintainer:  maintainer,
 		command.Onbuild:     onbuild,
