@@ -25,9 +25,11 @@ pages:
 
 # Introduction:
 - ['index.md', 'About', 'Docker']
-- ['release-notes.md', 'About', 'Release Notes']
 - ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
+- ['faq.md', 'About', 'FAQ']
+- ['reference/glossary.md', 'About', 'Glossary']
+- ['release-notes.md', 'About', 'Release Notes']
 
 # Installation:
 - ['installation/index.md', '**HIDDEN**']
@@ -51,7 +53,7 @@ pages:
 - ['installation/rhel.md', 'Installation', 'Red Hat Enterprise Linux']
 - ['installation/oracle.md', 'Installation', 'Oracle Linux']
 - ['installation/SUSE.md', 'Installation', 'SUSE']
-- ['compose/install.md', 'Installation', 'Docker Compose']
+
 
 # User Guide:
 - ['userguide/index.md', 'User Guide', 'The Docker User Guide' ]
@@ -65,9 +67,7 @@ pages:
 - ['userguide/dockerrepos.md', 'User Guide', 'Working with Docker Hub' ]
 - ['userguide/level1.md', '**HIDDEN**' ]
 - ['userguide/level2.md', '**HIDDEN**' ]
-- ['compose/index.md', 'User Guide', 'Docker Compose' ]
-- ['machine/index.md', 'User Guide', 'Docker Machine' ]
-- ['swarm/index.md', 'User Guide', 'Docker Swarm' ]
+
 
 # Docker Hub docs:
 - ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
@@ -91,9 +91,6 @@ pages:
 - ['examples/running_ssh_service.md', 'Examples', 'Dockerizing an SSH service']
 - ['examples/couchdb_data_volumes.md', 'Examples', 'Dockerizing a CouchDB service']
 - ['examples/apt-cacher-ng.md', 'Examples', 'Dockerizing an Apt-Cacher-ng service']
-- ['compose/django.md', 'Examples', 'Getting started with Compose and Django']
-- ['compose/rails.md', 'Examples', 'Getting started with Compose and Rails']
-- ['compose/wordpress.md', 'Examples', 'Getting started with Compose and Wordpress']
 
 # Articles
 - ['articles/index.md', '**HIDDEN**']
@@ -116,32 +113,45 @@ pages:
 - ['articles/b2d_volume_resize.md', 'Articles', 'Increasing a Boot2Docker volume']
 - ['articles/systemd.md', 'Articles', 'Controlling and configuring Docker using Systemd']
 
+
+# Orchestrate
+- ['machine/index.md', 'Orchestrate', 'Docker Machine User Guide' ]
+- ['compose/index.md', 'Orchestrate', 'Docker Compose User Guide' ]
+- ['compose/install.md', 'Orchestrate', 'Docker Compose']
+- ['compose/cli.md', 'Orchestrate', 'Compose command line']
+- ['compose/yml.md', 'Orchestrate', 'Compose yml']
+- ['compose/env.md', 'Orchestrate', 'Compose ENV variables']
+- ['compose/django.md', 'Orchestrate', 'Getting started with Compose and Django']
+- ['compose/rails.md', 'Orchestrate', 'Getting started with Compose and Rails']
+- ['compose/wordpress.md', 'Orchestrate', 'Getting started with Compose and Wordpress']
+- ['compose/completion.md', 'Orchestrate', 'Compose commandline completion']
+- ['swarm/index.md', 'Orchestrate', 'Docker Swarm User Guide' ]
+- ['swarm/discovery.md', 'Orchestrate', 'Swarm discovery']
+- ['swarm/scheduler/strategy.md', 'Orchestrate', 'Swarm strategies']
+- ['swarm/scheduler/filter.md', 'Orchestrate', 'Swarm filters']
+- ['swarm/API.md', 'Orchestrate', 'Swarm API']
+  
+  
 # Reference
 - ['reference/index.md', '**HIDDEN**']
 - ['reference/commandline/index.md', '**HIDDEN**']
 - ['reference/commandline/cli.md', 'Reference', 'Docker command line']
 - ['reference/builder.md', 'Reference', 'Dockerfile']
-- ['faq.md', 'Reference', 'FAQ']
-- ['reference/glossary.md', 'Reference', 'Glossary']
 - ['reference/run.md', 'Reference', 'Run Reference']
-- ['compose/cli.md', 'Reference', 'Compose command line']
-- ['compose/yml.md', 'Reference', 'Compose yml']
-- ['compose/env.md', 'Reference', 'Compose ENV variables']
-- ['compose/completion.md', 'Reference', 'Compose commandline completion']
-- ['swarm/discovery.md', 'Reference', 'Swarm discovery']
-- ['swarm/scheduler/strategy.md', 'Reference', 'Swarm strategies']
-- ['swarm/scheduler/filter.md', 'Reference', 'Swarm filters']
-- ['swarm/API.md', 'Reference', 'Swarm API']
-- ['reference/api/index.md', '**HIDDEN**']
-- ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
-- ['reference/api/registry_api.md', 'Reference', 'Docker Registry API']
-- ['reference/api/registry_api_client_libraries.md', 'Reference', 'Docker Registry API Client Libraries']
-- ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry Spec']
-#- ['reference/image-spec-v1.md', 'Reference', 'Docker Image Specification v1.0.0']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
 - ['reference/api/docker_remote_api_v1.19.md', 'Reference', 'Docker Remote API v1.19']
 - ['reference/api/docker_remote_api_v1.18.md', 'Reference', 'Docker Remote API v1.18']
 - ['reference/api/docker_remote_api_v1.17.md', 'Reference', 'Docker Remote API v1.17']
+- ['reference/api/index.md', '**HIDDEN**']
+- ['registry/overview.md', 'Reference', 'Docker Registry 2.0']
+- ['registry/deploying.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Deploy a registry' ]
+- ['registry/configuration.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Configure a registry' ]
+- ['registry/storagedrivers.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Storage driver model' ]
+- ['registry/notifications.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Work with notifications' ]
+- ['registry/spec/api.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Registry Service API v2' ]
+- ['registry/spec/json.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; JSON format' ]
+- ['registry/spec/auth/token.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Authenticate via central service' ]
+#- ['reference/image-spec-v1.md', 'Reference', 'Docker Image Specification v1.0.0']
 - ['reference/api/docker_remote_api_v1.16.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.15.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.14.md', '**HIDDEN**']
@@ -159,9 +169,12 @@ pages:
 - ['reference/api/docker_remote_api_v1.2.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.1.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
-- ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
+- ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
 - ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub Accounts API']
-
+- ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry 1.0 Spec']
+- ['reference/api/registry_api.md', 'Reference', 'Docker Registry API v1']
+- ['reference/api/registry_api_client_libraries.md', 'Reference', 'Docker Registry 1.0 API Client Libraries']
+- ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
 - ['jsearch.md', '**HIDDEN**']
 
 # - ['static_files/README.md', 'static_files', 'README']
