@@ -15,7 +15,8 @@ func main() {
 
 	options := options.Generic{"AddressIPv4": net}
 	controller := libnetwork.New()
-	netw, err := controller.NewNetwork("simplebridge", "dummy", options)
+	driver, _ := controller.NewNetworkDriver("simplebridge", options)
+	netw, err := controller.NewNetwork(driver, "dummy", "")
 	if err != nil {
 		log.Fatal(err)
 	}

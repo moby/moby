@@ -13,12 +13,10 @@ import (
 func TestSetupNewBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	br := &bridgeInterface{
-		Config: &Configuration{
-			BridgeName: DefaultBridgeName,
-		},
-	}
-	if err := setupDevice(br); err != nil {
+	config := &Configuration{BridgeName: DefaultBridgeName}
+	br := &bridgeInterface{}
+
+	if err := setupDevice(config, br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
 	if br.Link == nil {
@@ -35,12 +33,10 @@ func TestSetupNewBridge(t *testing.T) {
 func TestSetupNewNonDefaultBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	br := &bridgeInterface{
-		Config: &Configuration{
-			BridgeName: "test0",
-		},
-	}
-	if err := setupDevice(br); err == nil || !strings.Contains(err.Error(), "non default name") {
+	config := &Configuration{BridgeName: "test0"}
+	br := &bridgeInterface{}
+
+	if err := setupDevice(config, br); err == nil || !strings.Contains(err.Error(), "non default name") {
 		t.Fatalf("Expected bridge creation failure with \"non default name\", got: %v", err)
 	}
 }
@@ -48,15 +44,13 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 func TestSetupDeviceUp(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	br := &bridgeInterface{
-		Config: &Configuration{
-			BridgeName: DefaultBridgeName,
-		},
-	}
-	if err := setupDevice(br); err != nil {
+	config := &Configuration{BridgeName: DefaultBridgeName}
+	br := &bridgeInterface{}
+
+	if err := setupDevice(config, br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
-	if err := setupDeviceUp(br); err != nil {
+	if err := setupDeviceUp(config, br); err != nil {
 		t.Fatalf("Failed to up bridge device: %v", err)
 	}
 

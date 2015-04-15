@@ -13,26 +13,26 @@ const (
 	DockerChain = "DOCKER"
 )
 
-func setupIPTables(i *bridgeInterface) error {
+func setupIPTables(config *Configuration, i *bridgeInterface) error {
 	// Sanity check.
-	if i.Config.EnableIPTables == false {
-		return fmt.Errorf("Unexpected request to set IP tables for interface: %s", i.Config.BridgeName)
+	if config.EnableIPTables == false {
+		return fmt.Errorf("Unexpected request to set IP tables for interface: %s", config.BridgeName)
 	}
 
-	addrv4, _, err := netutils.GetIfaceAddr(i.Config.BridgeName)
+	addrv4, _, err := netutils.GetIfaceAddr(config.BridgeName)
 	if err != nil {
 		return fmt.Errorf("Failed to setup IP tables, cannot acquire Interface address: %s", err.Error())
 	}
-	if err = setupIPTablesInternal(i.Config.BridgeName, addrv4, i.Config.EnableICC, i.Config.EnableIPMasquerade, true); err != nil {
+	if err = setupIPTablesInternal(config.BridgeName, addrv4, config.EnableICC, config.EnableIPMasquerade, true); err != nil {
 		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 	}
 
-	_, err = iptables.NewChain(DockerChain, i.Config.BridgeName, iptables.Nat)
+	_, err = iptables.NewChain(DockerChain, config.BridgeName, iptables.Nat)
 	if err != nil {
 		return fmt.Errorf("Failed to create NAT chain: %s", err.Error())
 	}
 
-	chain, err := iptables.NewChain(DockerChain, i.Config.BridgeName, iptables.Filter)
+	chain, err := iptables.NewChain(DockerChain, config.BridgeName, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
 	}

@@ -1,7 +1,6 @@
 package libnetwork_test
 
 import (
-	"flag"
 	"net"
 	"testing"
 
@@ -12,14 +11,9 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-var bridgeName = "docker0"
-var enableBridgeTest = flag.Bool("enable-bridge-test", false, "")
+var bridgeName = "dockertest0"
 
 func TestSimplebridge(t *testing.T) {
-	if *enableBridgeTest == false {
-		t.Skip()
-	}
-
 	bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}
 	netlink.LinkDel(bridge)
 
@@ -43,20 +37,35 @@ func TestSimplebridge(t *testing.T) {
 
 	log.Debug("Adding a simple bridge")
 	options := options.Generic{
-		"BridgeName":         bridgeName,
-		"AddressIPv4":        subnet,
-		"FixedCIDR":          cidr,
-		"FixedCIDRv6":        cidrv6,
-		"EnableIPv6":         true,
-		"EnableIPTables":     true,
-		"EnableIPMasquerade": true,
-		"EnableICC":          true,
-		"EnableIPForwarding": true}
+		"BridgeName":            bridgeName,
+		"AddressIPv4":           subnet,
+		"FixedCIDR":             cidr,
+		"FixedCIDRv6":           cidrv6,
+		"EnableIPv6":            true,
+		"EnableIPTables":        true,
+		"EnableIPMasquerade":    true,
+		"EnableICC":             true,
+		"EnableIPForwarding":    true,
+		"AllowNonDefaultBridge": true}
 
 	controller := libnetwork.New()
 
-	network, err := controller.NewNetwork("simplebridge", "dummy", options)
+	driver, err := controller.NewNetworkDriver("simplebridge", options)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	network, err := controller.NewNetwork(driver, "testnetwork", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, _, err := network.CreateEndpoint("testep", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep.Delete(); err != nil {
 		t.Fatal(err)
 	}
 

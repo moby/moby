@@ -22,9 +22,9 @@ func init() {
 	}
 }
 
-func setupBridgeIPv6(i *bridgeInterface) error {
+func setupBridgeIPv6(config *Configuration, i *bridgeInterface) error {
 	// Enable IPv6 on the bridge
-	procFile := "/proc/sys/net/ipv6/conf/" + i.Config.BridgeName + "/disable_ipv6"
+	procFile := "/proc/sys/net/ipv6/conf/" + config.BridgeName + "/disable_ipv6"
 	if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
 		return fmt.Errorf("Unable to enable IPv6 addresses on bridge: %v", err)
 	}

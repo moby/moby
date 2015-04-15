@@ -8,7 +8,8 @@ import (
 type driverTable map[string]driverapi.Driver
 
 func enumerateDrivers() driverTable {
-	var drivers driverTable
+	drivers := make(driverTable)
+
 	for _, fn := range [](func() (string, driverapi.Driver)){bridge.New} {
 		name, driver := fn()
 		drivers[name] = driver

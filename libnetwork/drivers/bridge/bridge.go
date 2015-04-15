@@ -36,15 +36,16 @@ func initPortMapper() {
 
 // Configuration info for the "simplebridge" driver.
 type Configuration struct {
-	BridgeName         string
-	AddressIPv4        *net.IPNet
-	FixedCIDR          *net.IPNet
-	FixedCIDRv6        *net.IPNet
-	EnableIPv6         bool
-	EnableIPTables     bool
-	EnableIPMasquerade bool
-	EnableICC          bool
-	EnableIPForwarding bool
+	BridgeName            string
+	AddressIPv4           *net.IPNet
+	FixedCIDR             *net.IPNet
+	FixedCIDRv6           *net.IPNet
+	EnableIPv6            bool
+	EnableIPTables        bool
+	EnableIPMasquerade    bool
+	EnableICC             bool
+	EnableIPForwarding    bool
+	AllowNonDefaultBridge bool
 }
 
 type bridgeEndpoint struct {
@@ -62,6 +63,7 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
+	config  *Configuration
 	network *bridgeNetwork
 	sync.Mutex
 }
@@ -76,15 +78,45 @@ func New() (string, driverapi.Driver) {
 	return networkType, &driver{}
 }
 
+func (d *driver) Config(option interface{}) error {
+	var config *Configuration
+
+	d.Lock()
+	defer d.Unlock()
+
+	if d.config != nil {
+		return fmt.Errorf("configuration already exists, simplebridge configuration can be applied only once")
+	}
+
+	switch opt := option.(type) {
+	case options.Generic:
+		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
+		if err != nil {
+			return fmt.Errorf("failed to generate driver config: %v", err)
+		}
+		config = opaqueConfig.(*Configuration)
+	case *Configuration:
+		config = opt
+	}
+
+	d.config = config
+	return nil
+}
+
 // Create a new network using simplebridge plugin
 func (d *driver) CreateNetwork(id driverapi.UUID, option interface{}) error {
 
 	var (
-		config *Configuration
-		err    error
+		err error
 	)
 
 	d.Lock()
+	if d.config == nil {
+		d.Unlock()
+		return fmt.Errorf("trying to create a network on a driver without valid config")
+	}
+	config := d.config
+
 	if d.network != nil {
 		d.Unlock()
 		return fmt.Errorf("network already exists, simplebridge can only have one network")
@@ -100,19 +132,8 @@ func (d *driver) CreateNetwork(id driverapi.UUID, option interface{}) error {
 		}
 	}()
 
-	switch opt := option.(type) {
-	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
-		if err != nil {
-			return fmt.Errorf("failed to generate driver config: %v", err)
-		}
-		config = opaqueConfig.(*Configuration)
-	case *Configuration:
-		config = opt
-	}
-
 	bridgeIface := newInterface(config)
-	bridgeSetup := newBridgeSetup(bridgeIface)
+	bridgeSetup := newBridgeSetup(config, bridgeIface)
 
 	// If the bridge interface doesn't exist, we need to start the setup steps
 	// by creating a new device and assigning it an IPv4 address.
@@ -199,7 +220,7 @@ func (d *driver) DeleteNetwork(nid driverapi.UUID) error {
 	return err
 }
 
-func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config interface{}) (*driverapi.SandboxInfo, error) {
+func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOption interface{}) (*driverapi.SandboxInfo, error) {
 	var (
 		ipv6Addr net.IPNet
 		err      error
@@ -207,6 +228,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config 
 
 	d.Lock()
 	n := d.network
+	config := d.config
 	d.Unlock()
 	if n == nil {
 		return nil, driverapi.ErrNoNetwork
@@ -271,7 +293,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config 
 	}()
 
 	if err = netlink.LinkSetMaster(host,
-		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: n.bridge.Config.BridgeName}}); err != nil {
+		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: config.BridgeName}}); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +303,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config 
 	}
 	ipv4Addr := net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
-	if n.bridge.Config.EnableIPv6 {
+	if config.EnableIPv6 {
 		ip6, err := ipAllocator.RequestIP(n.bridge.bridgeIPv6, nil)
 		if err != nil {
 			return nil, err
@@ -297,7 +319,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, config 
 	intf.DstName = containerVeth
 	intf.Address = ipv4Addr
 	sinfo.Gateway = n.bridge.bridgeIPv4.IP
-	if n.bridge.Config.EnableIPv6 {
+	if config.EnableIPv6 {
 		intf.AddressIPv6 = ipv6Addr
 		sinfo.GatewayIPv6 = n.bridge.bridgeIPv6.IP
 	}
@@ -314,6 +336,7 @@ func (d *driver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 
 	d.Lock()
 	n := d.network
+	config := d.config
 	d.Unlock()
 	if n == nil {
 		return driverapi.ErrNoNetwork
@@ -356,8 +379,8 @@ func (d *driver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 		return err
 	}
 
-	if n.bridge.Config.EnableIPv6 {
-		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, n.endpoint.addressIPv6)
+	if config.EnableIPv6 {
+		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.addressIPv6)
 		if err != nil {
 			return err
 		}

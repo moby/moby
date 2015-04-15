@@ -10,8 +10,9 @@ import (
 func TestInterfaceDefaultName(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	if inf := newInterface(&Configuration{}); inf.Config.BridgeName != DefaultBridgeName {
-		t.Fatalf("Expected default interface name %q, got %q", DefaultBridgeName, inf.Config.BridgeName)
+	config := &Configuration{}
+	if _ = newInterface(config); config.BridgeName != DefaultBridgeName {
+		t.Fatalf("Expected default interface name %q, got %q", DefaultBridgeName, config.BridgeName)
 	}
 }
 

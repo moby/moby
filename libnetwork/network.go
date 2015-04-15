@@ -5,9 +5,17 @@ create network namespaces and allocate interfaces for containers to use.
 // Create a new controller instance
 controller := libnetwork.New()
 
-options := options.Generic{}
+// This option is only needed for in-tree drivers. Plugins(in future) will get
+// their options through plugin infrastructure.
+option := options.Generic{}
+driver, err := controller.NewNetworkDriver("simplebridge", option)
+if err != nil {
+        return
+}
+
+netOptions := options.Generic{}
 // Create a network for containers to join.
-network, err := controller.NewNetwork("simplebridge", "network1", options)
+network, err := controller.NewNetwork(driver, "network1", netOptions)
 if err != nil {
 	return
 }
@@ -53,13 +61,14 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
+	NewNetworkDriver(networkType string, options interface{}) (*NetworkDriver, error)
 	// Create a new network. The options parameter carry driver specific options.
 	// Labels support will be added in the near future.
-	NewNetwork(networkType, name string, options interface{}) (Network, error)
+	NewNetwork(d *NetworkDriver, name string, options interface{}) (Network, error)
 }
 
 // A Network represents a logical connectivity zone that containers may
-// ulteriorly join using the Link method. A Network is managed by a specific
+// ulteriorly join using the CreateEndpoint method. A Network is managed by a specific
 // driver.
 type Network interface {
 	// A user chosen name for this network.
@@ -86,6 +95,11 @@ type Endpoint interface {
 	Delete() error
 }
 
+// NetworkDriver provides a reference to driver and way to push driver specific config
+type NetworkDriver struct {
+	internalDriver driverapi.Driver
+}
+
 type endpoint struct {
 	name        string
 	id          driverapi.UUID
@@ -98,11 +112,13 @@ type network struct {
 	name        string
 	networkType string
 	id          driverapi.UUID
-	endpoints   map[driverapi.UUID]*endpoint
+	driver      *NetworkDriver
+	endpoints   endpointTable
 	sync.Mutex
 }
 
 type networkTable map[driverapi.UUID]*network
+type endpointTable map[driverapi.UUID]*endpoint
 
 type controller struct {
 	networks networkTable
@@ -115,16 +131,32 @@ func New() NetworkController {
 	return &controller{networkTable{}, enumerateDrivers(), sync.Mutex{}}
 }
 
-// NewNetwork creates a new network of the specified networkType. The options
-// are driver specific and modeled in a generic way.
-func (c *controller) NewNetwork(networkType, name string, options interface{}) (Network, error) {
-	network := &network{name: name, networkType: networkType}
-	network.id = driverapi.UUID(common.GenerateRandomID())
-	network.ctrlr = c
-
+func (c *controller) NewNetworkDriver(networkType string, options interface{}) (*NetworkDriver, error) {
 	d, ok := c.drivers[networkType]
 	if !ok {
 		return nil, fmt.Errorf("unknown driver %q", networkType)
+	}
+
+	if err := d.Config(options); err != nil {
+		return nil, err
+	}
+
+	return &NetworkDriver{internalDriver: d}, nil
+}
+
+// NewNetwork creates a new network of the specified networkType. The options
+// are driver specific and modeled in a generic way.
+func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interface{}) (Network, error) {
+	network := &network{
+		name:   name,
+		id:     driverapi.UUID(common.GenerateRandomID()),
+		ctrlr:  c,
+		driver: nd}
+	network.endpoints = make(endpointTable)
+
+	d := network.driver.internalDriver
+	if d == nil {
+		return nil, fmt.Errorf("invalid driver bound to network")
 	}
 
 	if err := d.CreateNetwork(network.id, options); err != nil {
@@ -153,13 +185,8 @@ func (n *network) Type() string {
 func (n *network) Delete() error {
 	var err error
 
-	d, ok := n.ctrlr.drivers[n.networkType]
-	if !ok {
-		return fmt.Errorf("unknown driver %q", n.networkType)
-	}
-
 	n.ctrlr.Lock()
-	_, ok = n.ctrlr.networks[n.id]
+	_, ok := n.ctrlr.networks[n.id]
 	if !ok {
 		n.ctrlr.Unlock()
 		return fmt.Errorf("unknown network %s id %s", n.name, n.id)
@@ -183,6 +210,7 @@ func (n *network) Delete() error {
 		}
 	}()
 
+	d := n.driver.internalDriver
 	err = d.DeleteNetwork(n.id)
 	return err
 }
@@ -192,11 +220,7 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 	ep.id = driverapi.UUID(common.GenerateRandomID())
 	ep.network = n
 
-	d, ok := n.ctrlr.drivers[n.networkType]
-	if !ok {
-		return nil, nil, fmt.Errorf("unknown driver %q", n.networkType)
-	}
-
+	d := n.driver.internalDriver
 	sinfo, err := d.CreateEndpoint(n.id, ep.id, sboxKey, options)
 	if err != nil {
 		return nil, nil, err
@@ -212,14 +236,9 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 func (ep *endpoint) Delete() error {
 	var err error
 
-	d, ok := ep.network.ctrlr.drivers[ep.network.networkType]
-	if !ok {
-		return fmt.Errorf("unknown driver %q", ep.network.networkType)
-	}
-
 	n := ep.network
 	n.Lock()
-	_, ok = n.endpoints[ep.id]
+	_, ok := n.endpoints[ep.id]
 	if !ok {
 		n.Unlock()
 		return fmt.Errorf("unknown endpoint %s id %s", ep.name, ep.id)
@@ -235,6 +254,7 @@ func (ep *endpoint) Delete() error {
 		}
 	}()
 
+	d := n.driver.internalDriver
 	err = d.DeleteEndpoint(n.id, ep.id)
 	return err
 }

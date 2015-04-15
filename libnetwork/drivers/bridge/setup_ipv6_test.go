@@ -13,12 +13,12 @@ import (
 func TestSetupIPv6(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	br := setupTestInterface(t)
-	if err := setupBridgeIPv6(br); err != nil {
+	config, br := setupTestInterface(t)
+	if err := setupBridgeIPv6(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv6: %v", err)
 	}
 
-	procSetting, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", br.Config.BridgeName))
+	procSetting, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", config.BridgeName))
 	if err != nil {
 		t.Fatalf("Failed to read disable_ipv6 kernel setting: %v", err)
 	}

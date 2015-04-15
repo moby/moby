@@ -8,16 +8,15 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func setupTestInterface(t *testing.T) *bridgeInterface {
-	br := &bridgeInterface{
-		Config: &Configuration{
-			BridgeName: DefaultBridgeName,
-		},
-	}
-	if err := setupDevice(br); err != nil {
+func setupTestInterface(t *testing.T) (*Configuration, *bridgeInterface) {
+	config := &Configuration{
+		BridgeName: DefaultBridgeName}
+	br := &bridgeInterface{}
+
+	if err := setupDevice(config, br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
 	}
-	return br
+	return config, br
 }
 
 func TestSetupBridgeIPv4Fixed(t *testing.T) {
@@ -28,9 +27,9 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 		t.Fatalf("Failed to parse bridge IPv4: %v", err)
 	}
 
-	br := setupTestInterface(t)
-	br.Config.AddressIPv4 = &net.IPNet{IP: ip, Mask: netw.Mask}
-	if err := setupBridgeIPv4(br); err != nil {
+	config, br := setupTestInterface(t)
+	config.AddressIPv4 = &net.IPNet{IP: ip, Mask: netw.Mask}
+	if err := setupBridgeIPv4(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv4: %v", err)
 	}
 
@@ -41,22 +40,22 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 
 	var found bool
 	for _, addr := range addrsv4 {
-		if br.Config.AddressIPv4.String() == addr.IPNet.String() {
+		if config.AddressIPv4.String() == addr.IPNet.String() {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("Bridge device does not have requested IPv4 address %v", br.Config.AddressIPv4)
+		t.Fatalf("Bridge device does not have requested IPv4 address %v", config.AddressIPv4)
 	}
 }
 
 func TestSetupBridgeIPv4Auto(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	br := setupTestInterface(t)
-	if err := setupBridgeIPv4(br); err != nil {
+	config, br := setupTestInterface(t)
+	if err := setupBridgeIPv4(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv4: %v", err)
 	}
 
