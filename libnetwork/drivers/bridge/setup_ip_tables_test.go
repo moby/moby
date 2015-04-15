@@ -15,7 +15,7 @@ const (
 func TestProgramIPTable(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netutils.SetupTestNetNS(t)()
-	createTestBridge(getBasicTestConfig(), t)
+	createTestBridge(getBasicTestConfig(), &bridgeInterface{}, t)
 
 	// Store various iptables chain rules we care for.
 	rules := []struct {
@@ -39,37 +39,37 @@ func TestProgramIPTable(t *testing.T) {
 func TestSetupIPTables(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netutils.SetupTestNetNS(t)()
-	br := getBasicTestConfig()
-	createTestBridge(br, t)
+	config := getBasicTestConfig()
+	br := &bridgeInterface{}
+
+	createTestBridge(config, br, t)
 
 	// Modify iptables params in base configuration and apply them.
-	br.Config.EnableIPTables = true
-	assertBridgeConfig(br, t)
+	config.EnableIPTables = true
+	assertBridgeConfig(config, br, t)
 
-	br.Config.EnableIPMasquerade = true
-	assertBridgeConfig(br, t)
+	config.EnableIPMasquerade = true
+	assertBridgeConfig(config, br, t)
 
-	br.Config.EnableICC = true
-	assertBridgeConfig(br, t)
+	config.EnableICC = true
+	assertBridgeConfig(config, br, t)
 
-	br.Config.EnableIPMasquerade = false
-	assertBridgeConfig(br, t)
+	config.EnableIPMasquerade = false
+	assertBridgeConfig(config, br, t)
 }
 
-func getBasicTestConfig() *bridgeInterface {
-	return &bridgeInterface{
-		Config: &Configuration{
-			BridgeName:  DefaultBridgeName,
-			AddressIPv4: &net.IPNet{IP: net.ParseIP(iptablesTestBridgeIP), Mask: net.CIDRMask(16, 32)},
-		},
-	}
+func getBasicTestConfig() *Configuration {
+	config := &Configuration{
+		BridgeName:  DefaultBridgeName,
+		AddressIPv4: &net.IPNet{IP: net.ParseIP(iptablesTestBridgeIP), Mask: net.CIDRMask(16, 32)}}
+	return config
 }
 
-func createTestBridge(br *bridgeInterface, t *testing.T) {
-	if err := setupDevice(br); err != nil {
+func createTestBridge(config *Configuration, br *bridgeInterface, t *testing.T) {
+	if err := setupDevice(config, br); err != nil {
 		t.Fatalf("Failed to create the testing Bridge: %s", err.Error())
 	}
-	if err := setupBridgeIPv4(br); err != nil {
+	if err := setupBridgeIPv4(config, br); err != nil {
 		t.Fatalf("Failed to bring up the testing Bridge: %s", err.Error())
 	}
 }
@@ -94,9 +94,9 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 }
 
 // Assert function which pushes chains based on bridge config parameters.
-func assertBridgeConfig(br *bridgeInterface, t *testing.T) {
+func assertBridgeConfig(config *Configuration, br *bridgeInterface, t *testing.T) {
 	// Attempt programming of ip tables.
-	err := setupIPTables(br)
+	err := setupIPTables(config, br)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

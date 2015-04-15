@@ -22,10 +22,18 @@ There are many networking solutions available to suit a broad range of use-cases
 ```go
  // Create a new controller instance
  controller := libnetwork.New()
- 
- options := options.Generic{}
+
+ // This option is only needed for in-tree drivers. Plugins(in future) will get 
+ // their options through plugin infrastructure.
+ option := options.Generic{}
+ driver, err := controller.NewNetworkDriver("simplebridge", option)
+ if err != nil {
+    return
+ }
+
+ netOptions := options.Generic{}
  // Create a network for containers to join.
- network, err := controller.NewNetwork("simplebridge", "network1", options)
+ network, err := controller.NewNetwork(driver, "network1", netOptions)
  if err != nil {
     return
  }

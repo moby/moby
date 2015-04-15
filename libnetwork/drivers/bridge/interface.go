@@ -14,7 +14,6 @@ const (
 
 // Interface models the bridge network device.
 type bridgeInterface struct {
-	Config     *Configuration
 	Link       netlink.Link
 	bridgeIPv4 *net.IPNet
 	bridgeIPv6 *net.IPNet
@@ -25,17 +24,15 @@ type bridgeInterface struct {
 // or the default bridge name when unspecified), but doesn't attempt to create
 // on when missing
 func newInterface(config *Configuration) *bridgeInterface {
-	i := &bridgeInterface{
-		Config: config,
-	}
+	i := &bridgeInterface{}
 
 	// Initialize the bridge name to the default if unspecified.
-	if i.Config.BridgeName == "" {
-		i.Config.BridgeName = DefaultBridgeName
+	if config.BridgeName == "" {
+		config.BridgeName = DefaultBridgeName
 	}
 
 	// Attempt to find an existing bridge named with the specified name.
-	i.Link, _ = netlink.LinkByName(i.Config.BridgeName)
+	i.Link, _ = netlink.LinkByName(config.BridgeName)
 	return i
 }
 

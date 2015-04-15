@@ -6,7 +6,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func setupVerifyConfiguredAddresses(i *bridgeInterface) error {
+func setupVerifyConfiguredAddresses(config *Configuration, i *bridgeInterface) error {
 	// Fetch a single IPv4 and a slice of IPv6 addresses from the bridge.
 	addrv4, addrsv6, err := i.addresses()
 	if err != nil {
@@ -19,13 +19,13 @@ func setupVerifyConfiguredAddresses(i *bridgeInterface) error {
 	}
 
 	// Verify that the bridge IPv4 address matches the requested configuration.
-	if i.Config.AddressIPv4 != nil && !addrv4.IP.Equal(i.Config.AddressIPv4.IP) {
-		return fmt.Errorf("Bridge IPv4 (%s) does not match requested configuration %s", addrv4.IP, i.Config.AddressIPv4.IP)
+	if config.AddressIPv4 != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
+		return fmt.Errorf("Bridge IPv4 (%s) does not match requested configuration %s", addrv4.IP, config.AddressIPv4.IP)
 	}
 
 	// Verify that one of the bridge IPv6 addresses matches the requested
 	// configuration.
-	if i.Config.EnableIPv6 && !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
+	if config.EnableIPv6 && !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
 		return fmt.Errorf("Bridge IPv6 addresses do not match the expected bridge configuration %s", bridgeIPv6)
 	}
 

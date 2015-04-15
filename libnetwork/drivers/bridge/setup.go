@@ -1,19 +1,20 @@
 package bridge
 
-type setupStep func(*bridgeInterface) error
+type setupStep func(*Configuration, *bridgeInterface) error
 
 type bridgeSetup struct {
+	config *Configuration
 	bridge *bridgeInterface
 	steps  []setupStep
 }
 
-func newBridgeSetup(i *bridgeInterface) *bridgeSetup {
-	return &bridgeSetup{bridge: i}
+func newBridgeSetup(c *Configuration, i *bridgeInterface) *bridgeSetup {
+	return &bridgeSetup{config: c, bridge: i}
 }
 
 func (b *bridgeSetup) apply() error {
 	for _, fn := range b.steps {
-		if err := fn(b.bridge); err != nil {
+		if err := fn(b.config, b.bridge); err != nil {
 			return err
 		}
 	}

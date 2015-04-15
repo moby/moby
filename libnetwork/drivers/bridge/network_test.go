@@ -16,7 +16,11 @@ func TestLinkCreate(t *testing.T) {
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
-	err := d.CreateNetwork("dummy", config)
+	if err := d.Config(config); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	err := d.CreateNetwork("dummy", "")
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -69,7 +73,11 @@ func TestLinkCreateTwo(t *testing.T) {
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
-	err := d.CreateNetwork("dummy", config)
+	if err := d.Config(config); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	err := d.CreateNetwork("dummy", "")
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -95,7 +103,11 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 
 	config := &Configuration{
 		BridgeName: DefaultBridgeName}
-	err := d.CreateNetwork("dummy", config)
+	if err := d.Config(config); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	err := d.CreateNetwork("dummy", "")
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

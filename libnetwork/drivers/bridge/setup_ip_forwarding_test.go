@@ -18,15 +18,13 @@ func TestSetupIPForwarding(t *testing.T) {
 	}
 
 	// Create test interface with ip forwarding setting enabled
-	br := &bridgeInterface{
-		Config: &Configuration{
-			BridgeName:         DefaultBridgeName,
-			EnableIPForwarding: true,
-		},
-	}
+	config := &Configuration{
+		BridgeName:         DefaultBridgeName,
+		EnableIPForwarding: true}
+	br := &bridgeInterface{}
 
 	// Set IP Forwarding
-	if err := setupIPForwarding(br); err != nil {
+	if err := setupIPForwarding(config, br); err != nil {
 		t.Fatalf("Failed to setup IP forwarding: %v", err)
 	}
 
@@ -43,15 +41,13 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 	defer reconcileIPForwardingSetting(t, procSetting)
 
 	// Create test interface without ip forwarding setting enabled
-	br := &bridgeInterface{
-		Config: &Configuration{
-			BridgeName:         DefaultBridgeName,
-			EnableIPForwarding: false,
-		},
-	}
+	config := &Configuration{
+		BridgeName:         DefaultBridgeName,
+		EnableIPForwarding: false}
+	br := &bridgeInterface{}
 
 	// Attempt Set IP Forwarding
-	if err := setupIPForwarding(br); err == nil {
+	if err := setupIPForwarding(config, br); err == nil {
 		t.Fatal("Setup IP forwarding was expected to fail")
 	} else if !strings.Contains(err.Error(), "Unexpected request") {
 		t.Fatalf("Setup IP forwarding failed with unexpected error: %v", err)
