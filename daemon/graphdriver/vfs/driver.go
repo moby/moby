@@ -2,8 +2,10 @@ package vfs
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -56,10 +58,29 @@ func (d *Driver) Create(id, parent string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
+	if strings.Contains(id, "-init") {
+		idInitFile := d.initFile(id)
+		if err := ioutil.WriteFile(idInitFile, []byte(parentDir), 0600); err != nil {
+			return err
+		}
+		return nil
+	}
+	if strings.Contains(parent, "-init") {
+		idInitFile := d.initFile(parent)
+		data, err := ioutil.ReadFile(idInitFile)
+		if err != nil {
+			return err
+		}
+		parentDir = string(data)
+	}
 	if err := chrootarchive.CopyWithTar(parentDir, dir); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (d *Driver) initFile(id string) string {
+	return path.Join(d.home, "dir", path.Base(id), "parentdir")
 }
 
 func (d *Driver) dir(id string) string {
@@ -75,6 +96,14 @@ func (d *Driver) Remove(id string) error {
 
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dir := d.dir(id)
+	if strings.Contains(id, "-init") {
+		idInitFile := d.initFile(id)
+		data, err := ioutil.ReadFile(idInitFile)
+		if err != nil {
+			return "", err
+		}
+		dir = string(data)
+	}
 	if st, err := os.Stat(dir); err != nil {
 		return "", err
 	} else if !st.IsDir() {
