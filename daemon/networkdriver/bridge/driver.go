@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -113,6 +114,13 @@ func InitDriver(config *Config) error {
 		addrsv6    []net.Addr
 		bridgeIPv6 = "fe80::1/64"
 	)
+
+	// try to modprobe bridge first
+	// see gh#12177
+	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat").Output(); err != nil {
+		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+	}
+
 	initPortMapper()
 
 	if config.DefaultIp != nil {
