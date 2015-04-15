@@ -22,7 +22,7 @@ Before you create a pull request, check your work.
 2. Checkout your feature branch.
 
         $ git checkout 11038-fix-rhel-link
-        Already on '11038-fix-rhel-link'
+        Switched to branch '11038-fix-rhel-link'
 
 3. Run the full test suite on your branch.
 
@@ -41,7 +41,11 @@ Before you create a pull request, check your work.
 
 Always rebase and squash your commits before making a pull request. 
 
-1. Fetch any of the last minute changes from `docker/docker`.
+1. Checkout your feature branch in your local `docker-fork` repository.
+
+    This is the branch associated with your request.
+
+2. Fetch any last minute changes from `docker/docker`.
 
         $ git fetch upstream master
         From github.com:docker/docker
@@ -56,28 +60,28 @@ Always rebase and squash your commits before making a pull request.
         pick 1a79f55 Tweak some of the other text for grammar
         pick 53e4983 Fix a link
         pick 3ce07bb Add a new line about RHEL
-        
-    If you run into trouble, `git --rebase abort` removes any changes and gets
-    you back to where you started. 
 
-4. Squash the `pick` keyword with `squash` on all but the first commit.
+5. Replace the `pick` keyword with `squash` on all but the first commit.
 
         pick 1a79f55 Tweak some of the other text for grammar
         squash 53e4983 Fix a link
         squash 3ce07bb Add a new line about RHEL
 
-    After closing the file, `git` opens your editor again to edit the commit
-    message. 
+    After you save the changes and quit from the editor, git starts
+    the rebase, reporting the progress along the way. Sometimes
+    your changes can conflict with the work of others. If git
+    encounters a conflict, it stops the rebase, and prints guidance
+    for how to correct the conflict.
 
-5. Edit and save your commit message.
+6. Edit and save your commit message.
 
 		`git commit -s`
 
 		Make sure your message includes <a href="./set-up-git" target="_blank>your signature</a>.
 
-8. Push any changes to your fork on GitHub.
+7. Force push any changes to your fork on GitHub.
 
-        $ git push origin 11038-fix-rhel-link
+        $ git push -f origin 11038-fix-rhel-link
         
 ## Create a PR on GitHub
 
@@ -108,7 +112,7 @@ You create and manage PRs on GitHub:
 4. Scroll down and verify the PR contains the commits and changes you expect.
 
     For example, is the file count correct? Are the changes in the files what
-    you expect.
+    you expect?
 
     ![Commits](/project/images/commits_expected.png)
 
