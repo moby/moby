@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -132,9 +133,13 @@ func setupBaseImage() {
 	// If the unit test is not found, try to download it.
 	if err := job.Run(); err != nil || img.Get("Id") != unitTestImageID {
 		// Retrieve the Image
-		job = eng.Job("pull", unitTestImageName)
-		job.Stdout.Add(ioutils.NopWriteCloser(os.Stdout))
-		if err := job.Run(); err != nil {
+		imagePullConfig := &graph.ImagePullConfig{
+			Parallel:   true,
+			OutStream:  ioutils.NopWriteCloser(os.Stdout),
+			AuthConfig: &registry.AuthConfig{},
+		}
+		d := getDaemon(eng)
+		if err := d.Repositories().Pull(unitTestImageName, "", imagePullConfig, eng); err != nil {
 			logrus.Fatalf("Unable to pull the test image: %s", err)
 		}
 	}
