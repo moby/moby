@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -58,12 +59,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
-		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
-		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
-		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
@@ -94,6 +91,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 
 	cmd.Require(flag.Min, 1)
+
+	resources, err := ParseResources(cmd, args)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
 
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, nil, cmd, err
@@ -142,28 +144,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		attachStderr = true
 		if *flStdin {
 			attachStdin = true
-		}
-	}
-
-	var flMemory int64
-	if *flMemoryString != "" {
-		parsedMemory, err := units.RAMInBytes(*flMemoryString)
-		if err != nil {
-			return nil, nil, cmd, err
-		}
-		flMemory = parsedMemory
-	}
-
-	var MemorySwap int64
-	if *flMemorySwap != "" {
-		if *flMemorySwap == "-1" {
-			MemorySwap = -1
-		} else {
-			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
-			if err != nil {
-				return nil, nil, cmd, err
-			}
-			MemorySwap = parsedMemorySwap
 		}
 	}
 
@@ -288,10 +268,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
-		Memory:          flMemory,      // FIXME: for backward compatibility
-		MemorySwap:      MemorySwap,    // FIXME: for backward compatibility
-		CpuShares:       *flCpuShares,  // FIXME: for backward compatibility
-		Cpuset:          *flCpusetCpus, // FIXME: for backward compatibility
+		Memory:          resources.Memory,     // FIXME: for backward compatibility
+		MemorySwap:      resources.MemorySwap, // FIXME: for backward compatibility
+		CpuShares:       resources.CpuShares,  // FIXME: for backward compatibility
+		Cpuset:          resources.CpusetCpus, // FIXME: for backward compatibility
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
@@ -309,10 +289,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		LxcConf:         lxcConf,
-		Memory:          flMemory,
-		MemorySwap:      MemorySwap,
-		CpuShares:       *flCpuShares,
-		CpusetCpus:      *flCpusetCpus,
+		Memory:          resources.Memory,
+		MemorySwap:      resources.MemorySwap,
+		CpuShares:       resources.CpuShares,
+		CpusetCpus:      resources.CpusetCpus,
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
@@ -340,6 +320,52 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		config.StdinOnce = true
 	}
 	return config, hostConfig, cmd, nil
+}
+
+func ParseResources(cmd *flag.FlagSet, args []string) (*execdriver.Resources, error) {
+	var (
+		flCpuShares    = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCpusetCpus   = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flMemoryString = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
+		flMemorySwap   = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+	)
+
+	cmd.Require(flag.Min, 1)
+
+	if err := cmd.ParseFlags(args, false); err != nil {
+		return nil, err
+	}
+
+	var flMemory int64
+	if *flMemoryString != "" {
+		parsedMemory, err := units.RAMInBytes(*flMemoryString)
+		if err != nil {
+			return nil, err
+		}
+		flMemory = parsedMemory
+	}
+
+	var MemorySwap int64
+	if *flMemorySwap != "" {
+		if *flMemorySwap == "-1" {
+			MemorySwap = -1
+		} else {
+			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
+			if err != nil {
+				return nil, err
+			}
+			MemorySwap = parsedMemorySwap
+		}
+	}
+
+	resources := &execdriver.Resources{
+		Memory:     flMemory,
+		MemorySwap: MemorySwap,
+		CpuShares:  *flCpuShares,
+		CpusetCpus: *flCpusetCpus,
+	}
+
+	return resources, nil
 }
 
 // reads a file of line terminated key=value pairs and override that with override parameter

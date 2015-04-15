@@ -28,9 +28,9 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -52,18 +52,19 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers")
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
-	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
-	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
-	flCPUShares := cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 
 	cmd.Require(flag.Exact, 1)
+
+	resources, err := runconfig.ParseResources(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	cmd.ParseFlags(args, true)
 
 	var (
 		context  archive.Archive
 		isRemote bool
-		err      error
 	)
 
 	_, err = exec.LookPath("git")
@@ -215,27 +216,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		})
 	}
 
-	var memory int64
-	if *flMemoryString != "" {
-		parsedMemory, err := units.RAMInBytes(*flMemoryString)
-		if err != nil {
-			return err
-		}
-		memory = parsedMemory
-	}
-
-	var memorySwap int64
-	if *flMemorySwap != "" {
-		if *flMemorySwap == "-1" {
-			memorySwap = -1
-		} else {
-			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
-			if err != nil {
-				return err
-			}
-			memorySwap = parsedMemorySwap
-		}
-	}
 	// Send the build context
 	v := &url.Values{}
 
@@ -277,10 +257,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		v.Set("pull", "1")
 	}
 
-	v.Set("cpusetcpus", *flCPUSetCpus)
-	v.Set("cpushares", strconv.FormatInt(*flCPUShares, 10))
-	v.Set("memory", strconv.FormatInt(memory, 10))
-	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
+	v.Set("cpusetcpus", resources.CpusetCpus)
+	v.Set("cpushares", strconv.FormatInt(resources.CpuShares, 10))
+	v.Set("memory", strconv.FormatInt(resources.Memory, 10))
+	v.Set("memswap", strconv.FormatInt(resources.MemorySwap, 10))
 
 	v.Set("dockerfile", *dockerfileName)
 
