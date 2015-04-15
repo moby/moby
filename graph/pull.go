@@ -21,37 +21,30 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (s *TagStore) CmdPull(job *engine.Job) error {
-	if n := len(job.Args); n != 1 && n != 2 {
-		return fmt.Errorf("Usage: %s IMAGE [TAG|DIGEST]", job.Name)
-	}
+type ImagePullConfig struct {
+	Parallel    bool
+	MetaHeaders map[string][]string
+	AuthConfig  *registry.AuthConfig
+	Json        bool
+	OutStream   io.Writer
+}
 
+func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig, eng *engine.Engine) error {
 	var (
-		localName   = job.Args[0]
-		tag         string
-		sf          = streamformatter.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders map[string][]string
+		sf = streamformatter.NewStreamFormatter(imagePullConfig.Json)
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := s.registryService.ResolveRepository(localName)
+	repoInfo, err := s.registryService.ResolveRepository(image)
 	if err != nil {
 		return err
 	}
-
-	if len(job.Args) > 1 {
-		tag = job.Args[1]
-	}
-
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", &metaHeaders)
 
 	c, err := s.poolAdd("pull", utils.ImageReference(repoInfo.LocalName, tag))
 	if err != nil {
 		if c != nil {
 			// Another pull of the same repository is already taking place; just wait for it to finish
-			job.Stdout.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", repoInfo.LocalName))
+			imagePullConfig.OutStream.Write(sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", repoInfo.LocalName))
 			<-c
 			return nil
 		}
@@ -65,7 +58,7 @@ func (s *TagStore) CmdPull(job *engine.Job) error {
 		return err
 	}
 
-	r, err := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, true)
+	r, err := registry.NewSession(imagePullConfig.AuthConfig, registry.HTTPRequestFactory(imagePullConfig.MetaHeaders), endpoint, true)
 	if err != nil {
 		return err
 	}
@@ -77,14 +70,14 @@ func (s *TagStore) CmdPull(job *engine.Job) error {
 
 	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		if repoInfo.Official {
-			j := job.Eng.Job("trust_update_base")
+			j := eng.Job("trust_update_base")
 			if err = j.Run(); err != nil {
 				logrus.Errorf("error updating trust base graph: %s", err)
 			}
 		}
 
 		logrus.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
-		if err := s.pullV2Repository(job.Eng, r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err == nil {
+		if err := s.pullV2Repository(eng, r, imagePullConfig.OutStream, repoInfo, tag, sf, imagePullConfig.Parallel); err == nil {
 			s.eventsService.Log("pull", logName, "")
 			return nil
 		} else if err != registry.ErrDoesNotExist && err != ErrV2RegistryUnavailable {
@@ -95,7 +88,7 @@ func (s *TagStore) CmdPull(job *engine.Job) error {
 	}
 
 	logrus.Debugf("pulling v1 repository with local name %q", repoInfo.LocalName)
-	if err = s.pullRepository(r, job.Stdout, repoInfo, tag, sf, job.GetenvBool("parallel")); err != nil {
+	if err = s.pullRepository(r, imagePullConfig.OutStream, repoInfo, tag, sf, imagePullConfig.Parallel); err != nil {
 		return err
 	}
 

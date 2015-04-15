@@ -639,7 +639,6 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		image = r.Form.Get("fromImage")
 		repo  = r.Form.Get("repo")
 		tag   = r.Form.Get("tag")
-		job   *engine.Job
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &registry.AuthConfig{}
@@ -651,6 +650,9 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 			authConfig = &registry.AuthConfig{}
 		}
 	}
+
+	d := getDaemon(eng)
+
 	if image != "" { //pull
 		if tag == "" {
 			image, tag = parsers.ParseRepositoryTag(image)
@@ -661,31 +663,45 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 				metaHeaders[k] = v
 			}
 		}
-		job = eng.Job("pull", image, tag)
-		job.SetenvBool("parallel", version.GreaterThan("1.3"))
-		job.SetenvJson("metaHeaders", metaHeaders)
-		job.SetenvJson("authConfig", authConfig)
+
+		imagePullConfig := &graph.ImagePullConfig{
+			Parallel:    version.GreaterThan("1.3"),
+			MetaHeaders: metaHeaders,
+			AuthConfig:  authConfig,
+			OutStream:   utils.NewWriteFlusher(w),
+		}
+		if version.GreaterThan("1.0") {
+			imagePullConfig.Json = true
+			w.Header().Set("Content-Type", "application/json")
+		} else {
+			imagePullConfig.Json = false
+		}
+
+		if err := d.Repositories().Pull(image, tag, imagePullConfig, eng); err != nil {
+			return err
+		}
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
 		}
-		job = eng.Job("import", r.Form.Get("fromSrc"), repo, tag)
-		job.Stdin.Add(r.Body)
-		job.SetenvList("changes", r.Form["changes"])
-	}
 
-	if version.GreaterThan("1.0") {
-		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
-	} else {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
-	}
-	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
+		src := r.Form.Get("fromSrc")
+		imageImportConfig := &graph.ImageImportConfig{
+			Changes:   r.Form["changes"],
+			InConfig:  r.Body,
+			OutStream: utils.NewWriteFlusher(w),
+		}
+		if version.GreaterThan("1.0") {
+			imageImportConfig.Json = true
+			w.Header().Set("Content-Type", "application/json")
+		} else {
+			imageImportConfig.Json = false
+		}
+
+		if err := d.Repositories().Import(src, repo, tag, imageImportConfig, eng); err != nil {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(version.GreaterThan("1.0"))
-		w.Write(sf.FormatError(err))
+
 	}
 
 	return nil
