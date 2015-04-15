@@ -1414,7 +1414,11 @@ func (container *Container) startLogging() error {
 		}
 		l = dl
 	case "syslog":
-		dl, err := syslog.New(container.ID[:12])
+		tag := container.ID[:12]
+		if len(container.Name) > 1 {
+			tag = container.Name[1:]
+		}
+		dl, err := syslog.New(tag)
 		if err != nil {
 			return err
 		}
