@@ -116,6 +116,7 @@ type HostConfig struct {
 	MemorySwap      int64  // Total memory usage (memory + swap); set `-1` to disable swap
 	CpuShares       int64  // CPU shares (relative weight vs. other containers)
 	CpusetCpus      string // CpusetCpus 0-2, 0,1
+	CpusetMems      string // CpusetMems 0-2, 0,1
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string

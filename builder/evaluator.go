@@ -124,6 +124,7 @@ type Builder struct {
 
 	// Set resource restrictions for build containers
 	cpuSetCpus string
+	cpuSetMems string
 	cpuShares  int64
 	memory     int64
 	memorySwap int64

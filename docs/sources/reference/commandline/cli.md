@@ -597,6 +597,7 @@ is returned by the `docker attach` command to its caller too:
       --memory-swap=""         Total memory (memory + swap), `-1` to disable swap
       -c, --cpu-shares         CPU Shares (relative weight)
       --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
+      --cpuset-mems=""         MEMs in which to allow execution, e.g. `0-3`, `0,1`
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`.  The build process can
@@ -892,6 +893,7 @@ Creates a new container.
       --cgroup-parent=""         Optional parent cgroup for the container
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -1844,6 +1846,7 @@ To remove an image using its digest:
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers

@@ -110,6 +110,9 @@ lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 {{if .Resources.CpusetCpus}}
 lxc.cgroup.cpuset.cpus = {{.Resources.CpusetCpus}}
 {{end}}
+{{if .Resources.CpusetMems}}
+lxc.cgroup.cpuset.mems = {{.Resources.CpusetMems}}
+{{end}}
 {{end}}
 
 {{if .LxcConfig}}

@@ -63,6 +63,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		memorySwap     = job.GetenvInt64("memswap")
 		cpuShares      = job.GetenvInt64("cpushares")
 		cpuSetCpus     = job.Getenv("cpusetcpus")
+		cpuSetMems     = job.Getenv("cpusetmems")
 		authConfig     = &registry.AuthConfig{}
 		configFile     = &registry.ConfigFile{}
 		tag            string
@@ -153,6 +154,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		dockerfileName:  dockerfileName,
 		cpuShares:       cpuShares,
 		cpuSetCpus:      cpuSetCpus,
+		cpuSetMems:      cpuSetMems,
 		memory:          memory,
 		memorySwap:      memorySwap,
 		cancelled:       job.WaitCancelled(),

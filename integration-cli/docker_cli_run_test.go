@@ -1367,7 +1367,7 @@ func TestRunWithCpuset(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "run", "--cpuset", "0", "busybox", "true")
 	if code, err := runCommand(cmd); err != nil || code != 0 {
-		t.Fatalf("container should run successfuly with cpuset of 0: %s", err)
+		t.Fatalf("container should run successfully with cpuset of 0: %s", err)
 	}
 
 	logDone("run - cpuset 0")
@@ -1378,10 +1378,21 @@ func TestRunWithCpusetCpus(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "run", "--cpuset-cpus", "0", "busybox", "true")
 	if code, err := runCommand(cmd); err != nil || code != 0 {
-		t.Fatalf("container should run successfuly with cpuset-cpus of 0: %s", err)
+		t.Fatalf("container should run successfully with cpuset-cpus of 0: %s", err)
 	}
 
 	logDone("run - cpuset-cpus 0")
+}
+
+func TestRunWithCpusetMems(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--cpuset-mems", "0", "busybox", "true")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("container should run successfully with cpuset-mems of 0: %s", err)
+	}
+
+	logDone("run - cpuset-mems 0")
 }
 
 func TestRunDeviceNumbers(t *testing.T) {
