@@ -53,7 +53,7 @@ func NewSession(authConfig *AuthConfig, factory *requestdecorator.RequestFactory
 		if err != nil {
 			return nil, err
 		}
-		if info.Standalone {
+		if info.Standalone && authConfig != nil && factory != nil {
 			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", r.indexEndpoint.String())
 			dec := requestdecorator.NewAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
