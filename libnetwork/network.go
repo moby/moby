@@ -1,52 +1,40 @@
 /*
-Package libnetwork provides basic fonctionalities and extension points to
+Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
-// Create a new controller instance
-controller := libnetwork.New()
+    // Create a new controller instance
+    controller := libnetwork.New()
 
-// This option is only needed for in-tree drivers. Plugins(in future) will get
-// their options through plugin infrastructure.
-option := options.Generic{}
-driver, err := controller.NewNetworkDriver("simplebridge", option)
-if err != nil {
+    // This option is only needed for in-tree drivers. Plugins(in future) will get
+    // their options through plugin infrastructure.
+    option := options.Generic{}
+    driver, err := controller.NewNetworkDriver("simplebridge", option)
+    if err != nil {
         return
-}
+    }
 
-netOptions := options.Generic{}
-// Create a network for containers to join.
-network, err := controller.NewNetwork(driver, "network1", netOptions)
-if err != nil {
-	return
-}
+    netOptions := options.Generic{}
+    // Create a network for containers to join.
+    network, err := controller.NewNetwork(driver, "network1", netOptions)
+    if err != nil {
+    	return
+    }
 
-// For a new container: create a sandbox instance (providing a unique key).
-// For linux it is a filesystem path
-networkPath := "/var/lib/docker/.../4d23e"
-networkNamespace, err := sandbox.NewSandbox(networkPath)
-if err != nil {
-	return
-}
+    // For a new container: create a sandbox instance (providing a unique key).
+    // For linux it is a filesystem path
+    networkPath := "/var/lib/docker/.../4d23e"
+    networkNamespace, err := sandbox.NewSandbox(networkPath)
+    if err != nil {
+	    return
+    }
 
-// For each new container: allocate IP and interfaces. The returned network
-// settings will be used for container infos (inspect and such), as well as
-// iptables rules for port publishing.
-_, sinfo, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
-if err != nil {
-	return
-}
-
-// Add interfaces to the namespace.
-for _, iface := range sinfo.Interfaces {
-	if err := networkNamespace.AddInterface(iface); err != nil {
-		return
-	}
-}
-
-// Set the gateway IP
-if err := networkNamespace.SetGateway(sinfo.Gateway); err != nil {
-	return
-}
+    // For each new container: allocate IP and interfaces. The returned network
+    // settings will be used for container infos (inspect and such), as well as
+    // iptables rules for port publishing.
+    _, sinfo, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
+    if err != nil {
+	    return
+    }
 */
 package libnetwork
 
@@ -68,8 +56,7 @@ type NetworkController interface {
 }
 
 // A Network represents a logical connectivity zone that containers may
-// ulteriorly join using the CreateEndpoint method. A Network is managed by a specific
-// driver.
+// join using the Link method. A Network is managed by a specific driver.
 type Network interface {
 	// A user chosen name for this network.
 	Name() string
