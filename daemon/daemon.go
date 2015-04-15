@@ -1226,6 +1226,10 @@ func checkKernel() error {
 func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]string, error) {
 	var warnings []string
 
+	if hostConfig == nil {
+		return warnings, nil
+	}
+
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}

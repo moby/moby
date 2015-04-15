@@ -20,6 +20,10 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		return fmt.Errorf("Container already started")
 	}
 
+	if _, err = daemon.verifyHostConfig(hostConfig); err != nil {
+		return err
+	}
+
 	// This is kept for backward compatibility - hostconfig should be passed when
 	// creating a container, not during start.
 	if hostConfig != nil {

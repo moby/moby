@@ -817,3 +817,54 @@ func TestContainerApiPostCreateNull(t *testing.T) {
 
 	logDone("containers REST API - Create Null")
 }
+
+func TestCreateWithTooLowMemoryLimit(t *testing.T) {
+	defer deleteAllContainers()
+	config := `{
+		"Image":     "busybox",
+		"Cmd":       "ls",
+		"OpenStdin": true,
+		"CpuShares": 100,
+		"Memory":    524287
+	}`
+
+	_, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	b, err2 := readBody(body)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+
+	if err == nil || !strings.Contains(string(b), "Minimum memory limit allowed is 4MB") {
+		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
+	}
+
+	logDone("container REST API - create can't set too low memory limit")
+}
+
+func TestStartWithTooLowMemoryLimit(t *testing.T) {
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "busybox"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	containerID := strings.TrimSpace(out)
+
+	config := `{
+                "CpuShares": 100,
+                "Memory":    524287
+        }`
+
+	_, body, err := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	b, err2 := readBody(body)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+
+	if err == nil || !strings.Contains(string(b), "Minimum memory limit allowed is 4MB") {
+		t.Errorf("Memory limit is smaller than the allowed limit. Container creation should've failed!")
+	}
+
+	logDone("container REST API - start can't set too low memory limit")
+}
