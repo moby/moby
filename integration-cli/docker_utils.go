@@ -329,10 +329,9 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, io
 		return -1, nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
-	if ct == "" {
-		ct = "application/json"
+	if ct != "" {
+		req.Header.Set("Content-Type", ct)
 	}
-	req.Header.Set("Content-Type", ct)
 
 	resp, err := client.Do(req)
 	if err != nil {

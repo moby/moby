@@ -721,3 +721,43 @@ func TestContainerApiCreate(t *testing.T) {
 
 	logDone("containers REST API - POST /containers/create")
 }
+
+func TestContainerApiVerifyHeader(t *testing.T) {
+	defer deleteAllContainers()
+	config := map[string]interface{}{
+		"Image": "busybox",
+	}
+
+	create := func(ct string) (int, io.ReadCloser, error) {
+		jsonData := bytes.NewBuffer(nil)
+		if err := json.NewEncoder(jsonData).Encode(config); err != nil {
+			t.Fatal(err)
+		}
+		return sockRequestRaw("POST", "/containers/create", jsonData, ct)
+	}
+
+	// Try with no content-type
+	_, body, err := create("")
+	if err == nil {
+		b, _ := readBody(body)
+		t.Fatalf("expected error when content-type is not set: %q", string(b))
+	}
+	body.Close()
+	// Try with wrong content-type
+	_, body, err = create("application/xml")
+	if err == nil {
+		b, _ := readBody(body)
+		t.Fatalf("expected error when content-type is not set: %q", string(b))
+	}
+	body.Close()
+
+	// now application/json
+	_, body, err = create("application/json")
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		b, _ := readBody(body)
+		t.Fatalf("%v - %q", err, string(b))
+	}
+	body.Close()
+
+	logDone("containers REST API - verify create header")
+}

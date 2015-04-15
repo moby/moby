@@ -22,44 +22,6 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-func TestPostJsonVerify(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	configJSON, err := json.Marshal(&runconfig.Config{
-		Image: unitTestImageID,
-		Cmd:   runconfig.NewCommand("touch", "/test"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := http.NewRequest("POST", "/containers/create", bytes.NewReader(configJSON))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := httptest.NewRecorder()
-
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-
-	// Don't add Content-Type header
-	// req.Header.Set("Content-Type", "application/json")
-
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
-		t.Fatal("Create should have failed due to no Content-Type header - got:", r)
-	}
-
-	// Now add header but with wrong type and retest
-	req.Header.Set("Content-Type", "application/xml")
-
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	if r.Code != http.StatusInternalServerError || !strings.Contains(((*r.Body).String()), "application/json") {
-		t.Fatal("Create should have failed due to wrong Content-Type header - got:", r)
-	}
-}
-
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func TestPostCreateNull(t *testing.T) {
