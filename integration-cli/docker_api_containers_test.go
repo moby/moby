@@ -694,3 +694,30 @@ func TestContainerApiCommit(t *testing.T) {
 
 	logDone("containers REST API - POST /commit")
 }
+
+func TestContainerApiCreate(t *testing.T) {
+	defer deleteAllContainers()
+	config := map[string]interface{}{
+		"Image": "busybox",
+		"Cmd":   []string{"/bin/sh", "-c", "touch /test && ls /test"},
+	}
+
+	_, b, err := sockRequest("POST", "/containers/create", config)
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		t.Fatal(err)
+	}
+	type createResp struct {
+		Id string
+	}
+	var container createResp
+	if err := json.Unmarshal(b, &container); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, _ := dockerCmd(t, "start", "-a", container.Id)
+	if strings.TrimSpace(out) != "/test" {
+		t.Fatalf("expected output `/test`, got %q", out)
+	}
+
+	logDone("containers REST API - POST /containers/create")
+}

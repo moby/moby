@@ -22,46 +22,6 @@ import (
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-func TestPostContainersCreate(t *testing.T) {
-	eng := NewTestEngine(t)
-	defer mkDaemonFromEngine(eng, t).Nuke()
-
-	configJSON, err := json.Marshal(&runconfig.Config{
-		Image: unitTestImageID,
-		Cmd:   runconfig.NewCommand("touch", "/test"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := http.NewRequest("POST", "/containers/create", bytes.NewReader(configJSON))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	r := httptest.NewRecorder()
-	server.ServeRequest(eng, api.APIVERSION, r, req)
-	assertHttpNotError(r, t)
-	if r.Code != http.StatusCreated {
-		t.Fatalf("%d Created expected, received %d\n", http.StatusCreated, r.Code)
-	}
-
-	var apiRun engine.Env
-	if err := apiRun.Decode(r.Body); err != nil {
-		t.Fatal(err)
-	}
-	containerID := apiRun.Get("Id")
-
-	containerAssertExists(eng, containerID, t)
-	containerRun(eng, containerID, t)
-
-	if !containerFileExists(eng, containerID, "test", t) {
-		t.Fatal("Test file was not created")
-	}
-}
-
 func TestPostJsonVerify(t *testing.T) {
 	eng := NewTestEngine(t)
 	defer mkDaemonFromEngine(eng, t).Nuke()
