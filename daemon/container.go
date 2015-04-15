@@ -686,7 +686,10 @@ func (container *Container) cleanup() {
 	}
 
 	if err := container.Unmount(); err != nil {
-		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+		logrus.WithFields(logrus.Fields{
+			"container": container.ID,
+			"error":     err,
+		}).Error("Failed to unmount filesystem")
 	}
 
 	for _, eConfig := range container.execCommands.s {
@@ -695,7 +698,10 @@ func (container *Container) cleanup() {
 }
 
 func (container *Container) KillSig(sig int) error {
-	logrus.Debugf("Sending %d to %s", sig, container.ID)
+	logrus.WithFields(logrus.Fields{
+		"container": container.ID,
+		"signal":    sig,
+	}).Debug("Killing container")
 	container.Lock()
 	defer container.Unlock()
 
@@ -726,7 +732,11 @@ func (container *Container) KillSig(sig int) error {
 func (container *Container) killPossiblyDeadProcess(sig int) error {
 	err := container.KillSig(sig)
 	if err == syscall.ESRCH {
-		logrus.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.GetPid(), sig)
+		logrus.WithFields(logrus.Fields{
+			"pid":       container.GetPid(),
+			"container": container.ID,
+			"signal":    signal,
+		}).Debug("Failed to kill process")
 		return nil
 	}
 	return err
@@ -766,12 +776,22 @@ func (container *Container) Kill() error {
 	if _, err := container.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
 		if pid := container.GetPid(); pid != 0 {
-			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(container.ID))
+			logrus.WithFields(logrus.Fields{
+				"container": container.ID,
+				"pid":       pid,
+				"timeout":   10,
+			}).Info("Container failed to exit within timeout - trying direct SIGKILL")
+
 			if err := syscall.Kill(pid, 9); err != nil {
 				if err != syscall.ESRCH {
 					return err
 				}
-				logrus.Debugf("Cannot kill process (pid=%d) with signal 9: no such process.", pid)
+
+				logrus.WithFields(logrus.Fields{
+					"container": container.ID,
+					"pid":       pid,
+					"error":     err,
+				}).Debug("Cannot kill process with SIGKILL")
 			}
 		}
 	}
@@ -787,7 +807,10 @@ func (container *Container) Stop(seconds int) error {
 
 	// 1. Send a SIGTERM
 	if err := container.killPossiblyDeadProcess(15); err != nil {
-		logrus.Infof("Failed to send SIGTERM to the process, force killing")
+		logrus.WithFields(logrus.Fields{
+			"container": container.ID,
+			"pid":       container.GetPid(),
+		}).Info("Failed to send SIGTERM to process, force killing")
 		if err := container.killPossiblyDeadProcess(9); err != nil {
 			return err
 		}
@@ -795,7 +818,12 @@ func (container *Container) Stop(seconds int) error {
 
 	// 2. Wait for the process to exit on its own
 	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
-		logrus.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
+		logrus.WithFields(logrus.Fields{
+			"container": container.ID,
+			"pid":       container.GetPID(),
+			"timeout":   seconds,
+		}).Info("Container failed to exit within timeout of SIGTERM - using the force")
+
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
 			container.WaitStop(-1 * time.Second)
@@ -931,7 +959,10 @@ func (container *Container) GetSize() (int64, int64) {
 	)
 
 	if err := container.Mount(); err != nil {
-		logrus.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
+		logrus.WithFields(logrus.Fields{
+			"container": container.ID,
+			"error":     err,
+		}).Error("Failed to compute size of container rootfs")
 		return sizeRw, sizeRootfs
 	}
 	defer container.Unmount()
