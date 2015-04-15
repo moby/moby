@@ -892,6 +892,7 @@ Creates a new container.
       --cgroup-parent=""         Optional parent cgroup for the container
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -1844,6 +1845,7 @@ To remove an image using its digest:
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers

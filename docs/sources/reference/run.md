@@ -474,6 +474,7 @@ container:
     -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
     -c, --cpu-shares=0: CPU shares (relative weight)
     --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
+    --cpuset-mems="": Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 
 ### Memory constraints
 
@@ -598,6 +599,21 @@ This means processes in container can be executed on cpu 1 and cpu 3.
     $ docker run -ti --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
 
 This means processes in container can be executed on cpu 0, cpu 1 and cpu 2.
+
+We can set mems in which to allow execution for containers. Only effective
+on NUMA systems.
+
+Examples:
+
+    $ docker run -ti --cpuset-mems="1,3" ubuntu:14.04 /bin/bash
+
+This example restricts the processes in the container to only use memory from
+memory nodes 1 and 3.
+
+    $ docker run -ti --cpuset-mems="0-2" ubuntu:14.04 /bin/bash
+
+This example restricts the processes in the container to only use memory from
+memory nodes 0, 1 and 2.
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 

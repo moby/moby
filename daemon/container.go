@@ -355,6 +355,7 @@ func populateCommand(c *Container, env []string) error {
 		MemorySwap: c.hostConfig.MemorySwap,
 		CpuShares:  c.hostConfig.CpuShares,
 		CpusetCpus: c.hostConfig.CpusetCpus,
+		CpusetMems: c.hostConfig.CpusetMems,
 		Rlimits:    rlimits,
 	}
 
