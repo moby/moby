@@ -12,6 +12,6 @@ type StatusError struct {
 	StatusCode int
 }
 
-func (e *StatusError) Error() string {
+func (e StatusError) Error() string {
 	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
 }

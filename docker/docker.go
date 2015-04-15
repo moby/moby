@@ -135,7 +135,7 @@ func main() {
 	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
-		if sterr, ok := err.(*client.StatusError); ok {
+		if sterr, ok := err.(client.StatusError); ok {
 			if sterr.Status != "" {
 				logrus.Println(sterr.Status)
 			}

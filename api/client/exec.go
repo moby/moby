@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	execConfig, err := runconfig.ParseExec(cmd, args)
 	// just in case the ParseExec does not exit
 	if execConfig.Container == "" || err != nil {
-		return &StatusError{StatusCode: 1}
+		return StatusError{StatusCode: 1}
 	}
 
 	stream, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
@@ -121,7 +121,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 
 	if status != 0 {
-		return &StatusError{StatusCode: status}
+		return StatusError{StatusCode: status}
 	}
 
 	return nil
