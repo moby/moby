@@ -125,7 +125,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			if !*attach && !*openStdin {
 				// attach and openStdin is false means it could be starting multiple containers
 				// when a container start failed, show the error message and start next
-				fmt.Fprintf(cli.err, "%s\n", err)
+				fmt.Fprintf(cli.err, "Star container `%s` with error:%s\n", name, err.Error())
 				encounteredError = fmt.Errorf("Error: failed to start one or more containers")
 			} else {
 				encounteredError = err
