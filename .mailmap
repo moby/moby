@@ -1,4 +1,4 @@
-# Generate AUTHORS: project/generate-authors.sh
+# Generate AUTHORS: hack/generate-authors.sh
 
 # Tip for finding duplicates (besides scanning the output of AUTHORS for name
 # duplicates that aren't also email duplicates): scan the output of:

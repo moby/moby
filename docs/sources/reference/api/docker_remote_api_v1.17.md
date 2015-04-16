@@ -177,7 +177,8 @@ Json Parameters:
       for the container.
 -   **User** - A string value containg the user to use inside the container.
 -   **Memory** - Memory limit in bytes.
--   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
+-   **MemorySwap**- Total memory limit (memory + swap); set `-1` to disable swap,
+      always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs othercontainers).
     **CpuSet** - String value containg the cgroups Cpuset to use.
@@ -522,8 +523,6 @@ Status Codes:
 `GET /containers/(id)/stats`
 
 This endpoint returns a live stream of a container's resource usage statistics.
-
-> **Note**: this functionality currently only works when using the *libcontainer* exec-driver.
 
 **Example request**:
 
@@ -1969,7 +1968,7 @@ This might change in the future.
 
 ## 3.3 CORS Requests
 
-To enable cross origin requests to the remote api add the flag
-"--api-enable-cors" when running docker in daemon mode.
+To set cross origin requests to the remote api, please add flag "--api-enable-cors"
+when running docker in daemon mode.
 
-    $ docker -d -H="192.168.1.9:2375" --api-enable-cors
+    $ docker -d -H="192.168.1.9:2375" --api-enable-cors 

@@ -71,7 +71,7 @@ func TestHistoryExistentImage(t *testing.T) {
 	if err != nil || exitCode != 0 {
 		t.Fatal("failed to get image history")
 	}
-	logDone("history - history on existent image must not fail")
+	logDone("history - history on existent image must pass")
 }
 
 func TestHistoryNonExistentImage(t *testing.T) {
@@ -80,5 +80,5 @@ func TestHistoryNonExistentImage(t *testing.T) {
 	if err == nil || exitCode == 0 {
 		t.Fatal("history on a non-existent image didn't result in a non-zero exit status")
 	}
-	logDone("history - history on non-existent image must fail")
+	logDone("history - history on non-existent image must pass")
 }

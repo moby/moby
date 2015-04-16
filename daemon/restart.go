@@ -15,13 +15,13 @@ func (daemon *Daemon) ContainerRestart(job *engine.Job) engine.Status {
 	if job.EnvExists("t") {
 		t = job.GetenvInt("t")
 	}
-	if container := daemon.Get(name); container != nil {
-		if err := container.Restart(int(t)); err != nil {
-			return job.Errorf("Cannot restart container %s: %s\n", name, err)
-		}
-		container.LogEvent("restart")
-	} else {
-		return job.Errorf("No such container: %s\n", name)
+	container, err := daemon.Get(name)
+	if err != nil {
+		return job.Error(err)
 	}
+	if err := container.Restart(int(t)); err != nil {
+		return job.Errorf("Cannot restart container %s: %s\n", name, err)
+	}
+	container.LogEvent("restart")
 	return engine.StatusOK
 }

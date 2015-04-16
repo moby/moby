@@ -54,7 +54,7 @@ func NewSession(authConfig *AuthConfig, factory *utils.HTTPRequestFactory, endpo
 			return nil, err
 		}
 		if info.Standalone {
-			log.Debugf("Endpoint %s is eligible for private registry registry. Enabling decorator.", r.indexEndpoint.String())
+			log.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", r.indexEndpoint.String())
 			dec := utils.NewHTTPAuthDecorator(authConfig.Username, authConfig.Password)
 			factory.AddDecorator(dec)
 		}
@@ -280,8 +280,14 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
-	if res.StatusCode != 200 {
+	if res.StatusCode == 404 {
 		return nil, utils.NewHTTPRequestError(fmt.Sprintf("HTTP code: %d", res.StatusCode), res)
+	} else if res.StatusCode != 200 {
+		errBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Debugf("Error reading response body: %s", err)
+		}
+		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, remote, errBody), res)
 	}
 
 	var tokens []string
@@ -349,7 +355,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string, t
 		} else if jsonBody["error"] == "Image already exists" {
 			return ErrAlreadyExists
 		}
-		return fmt.Errorf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody)
+		return fmt.Errorf("HTTP code %d while uploading metadata: %q", res.StatusCode, errBody)
 	}
 	return nil
 }
@@ -385,7 +391,7 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 		} else if jsonBody["error"] == "Image already exists" {
 			return ErrAlreadyExists
 		}
-		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata: %s", res.StatusCode, errBody), res)
+		return utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata: %q", res.StatusCode, errBody), res)
 	}
 	return nil
 }
@@ -427,7 +433,7 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 		if err != nil {
 			return "", "", utils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d while uploading metadata and error when trying to parse response body: %s", res.StatusCode, err), res)
 		}
-		return "", "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %s", res.StatusCode, errBody), res)
+		return "", "", utils.NewHTTPRequestError(fmt.Sprintf("Received HTTP code %d while uploading layer: %q", res.StatusCode, errBody), res)
 	}
 
 	checksumPayload = "sha256:" + hex.EncodeToString(h.Sum(nil))
@@ -505,14 +511,18 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode == 401 {
+		return nil, errLoginRequired
+	}
+
 	var tokens, endpoints []string
 	if !validate {
 		if res.StatusCode != 200 && res.StatusCode != 201 {
 			errBody, err := ioutil.ReadAll(res.Body)
 			if err != nil {
-				return nil, err
+				log.Debugf("Error reading response body: %s", err)
 			}
-			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %s", res.StatusCode, remote, errBody), res)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote, errBody), res)
 		}
 		if res.Header.Get("X-Docker-Token") != "" {
 			tokens = res.Header["X-Docker-Token"]
@@ -534,9 +544,9 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 		if res.StatusCode != 204 {
 			errBody, err := ioutil.ReadAll(res.Body)
 			if err != nil {
-				return nil, err
+				log.Debugf("Error reading response body: %s", err)
 			}
-			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %s", res.StatusCode, remote, errBody), res)
+			return nil, utils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, remote, errBody), res)
 		}
 	}
 

@@ -118,6 +118,9 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	case graphdriver.FsMagicAufs:
 		log.Error("'overlay' is not supported over aufs.")
 		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicZfs:
+		log.Error("'overlay' is not supported over zfs.")
+		return nil, graphdriver.ErrIncompatibleFS
 	}
 
 	// Create the driver home dir
@@ -298,7 +301,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		return "", err
+		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	mount.path = mergedDir
 	mount.mounted = true

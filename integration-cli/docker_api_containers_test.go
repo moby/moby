@@ -4,18 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/stats"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestContainerApiGetAll(t *testing.T) {
+	defer deleteAllContainers()
+
 	startCount, err := getContainerCount()
 	if err != nil {
 		t.Fatalf("Cannot query container count: %v", err)
@@ -48,12 +48,12 @@ func TestContainerApiGetAll(t *testing.T) {
 		t.Fatalf("Container Name mismatch. Expected: %q, received: %q\n", "/"+name, actual)
 	}
 
-	deleteAllContainers()
-
 	logDone("container REST API - check GET json/all=1")
 }
 
 func TestContainerApiGetExport(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "exportcontainer"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -84,12 +84,13 @@ func TestContainerApiGetExport(t *testing.T) {
 	if !found {
 		t.Fatalf("The created test file has not been found in the exported image")
 	}
-	deleteAllContainers()
 
 	logDone("container REST API - check GET containers/export")
 }
 
 func TestContainerApiGetChanges(t *testing.T) {
+	defer deleteAllContainers()
+
 	name := "changescontainer"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -121,8 +122,6 @@ func TestContainerApiGetChanges(t *testing.T) {
 		t.Fatalf("/etc/passwd has been removed but is not present in the diff")
 	}
 
-	deleteAllContainers()
-
 	logDone("container REST API - check GET containers/changes")
 }
 
@@ -138,11 +137,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	bindPath := randomUnixTmpDirPath("test")
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
@@ -162,6 +157,35 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	logDone("container REST API - check volume binds on start")
 }
 
+// Test for GH#10618
+func TestContainerApiStartDupVolumeBinds(t *testing.T) {
+	defer deleteAllContainers()
+	name := "testdups"
+	config := map[string]interface{}{
+		"Image":   "busybox",
+		"Volumes": map[string]struct{}{"/tmp": {}},
+	}
+
+	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+		t.Fatal(err)
+	}
+
+	bindPath1 := randomUnixTmpDirPath("test1")
+	bindPath2 := randomUnixTmpDirPath("test2")
+
+	config = map[string]interface{}{
+		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
+	}
+	if body, err := sockRequest("POST", "/containers/"+name+"/start", config); err == nil {
+		t.Fatal("expected container start to fail when duplicate volume binds to same container path")
+	} else {
+		if !strings.Contains(string(body), "Duplicate volume") {
+			t.Fatalf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err)
+		}
+	}
+
+	logDone("container REST API - check for duplicate volume binds error on start")
+}
 func TestContainerApiStartVolumesFrom(t *testing.T) {
 	defer deleteAllContainers()
 	volName := "voltst"
@@ -225,11 +249,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bindPath, err := ioutil.TempDir(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	bindPath := randomUnixTmpDirPath("test")
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
 		"Binds":       []string{bindPath + ":/tmp"},
@@ -287,17 +307,43 @@ func TestGetContainerStats(t *testing.T) {
 		t.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
 		if sr.err != nil {
-			t.Fatal(err)
+			t.Fatal(sr.err)
 		}
 
 		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
-		var s *stats.Stats
+		var s *types.Stats
 		// decode only one object from the stream
 		if err := dec.Decode(&s); err != nil {
 			t.Fatal(err)
 		}
 	}
 	logDone("container REST API - check GET containers/stats")
+}
+
+func TestGetStoppedContainerStats(t *testing.T) {
+	defer deleteAllContainers()
+	var (
+		name   = "statscontainer"
+		runCmd = exec.Command(dockerBinary, "create", "--name", name, "busybox", "top")
+	)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+
+	go func() {
+		// We'll never get return for GET stats from sockRequest as of now,
+		// just send request and see if panic or error would happen on daemon side.
+		_, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// allow some time to send request and let daemon deal with it
+	time.Sleep(1 * time.Second)
+
+	logDone("container REST API - check GET stopped containers/stats")
 }
 
 func TestBuildApiDockerfilePath(t *testing.T) {
@@ -333,6 +379,110 @@ func TestBuildApiDockerfilePath(t *testing.T) {
 	logDone("container REST API - check build w/bad Dockerfile path")
 }
 
+func TestBuildApiDockerFileRemote(t *testing.T) {
+	server, err := fakeStorage(map[string]string{
+		"testD": `FROM busybox
+COPY * /tmp/
+RUN find / -name ba*
+RUN find /tmp/`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s", err)
+	}
+
+	// Make sure Dockerfile exists.
+	// Make sure 'baz' doesn't exist ANYWHERE despite being mentioned in the URL
+	out := string(buf)
+	if !strings.Contains(out, "/tmp/Dockerfile") ||
+		strings.Contains(out, "baz") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build with -f from remote")
+}
+
+func TestBuildApiLowerDockerfile(t *testing.T) {
+	git, err := fakeGIT("repo", map[string]string{
+		"dockerfile": `FROM busybox
+RUN echo from dockerfile`,
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "from dockerfile") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build with lower dockerfile")
+}
+
+func TestBuildApiBuildGitWithF(t *testing.T) {
+	git, err := fakeGIT("repo", map[string]string{
+		"baz": `FROM busybox
+RUN echo from baz`,
+		"Dockerfile": `FROM busybox
+RUN echo from Dockerfile`,
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	// Make sure it tries to 'dockerfile' query param value
+	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "from baz") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build from git w/F")
+}
+
+func TestBuildApiDoubleDockerfile(t *testing.T) {
+	testRequires(t, UnixCli) // dockerfile overwrites Dockerfile on Windows
+	git, err := fakeGIT("repo", map[string]string{
+		"Dockerfile": `FROM busybox
+RUN echo from Dockerfile`,
+		"dockerfile": `FROM busybox
+RUN echo from dockerfile`,
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer git.Close()
+
+	// Make sure it tries to 'dockerfile' query param value
+	buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	if err != nil {
+		t.Fatalf("Build failed: %s", err)
+	}
+
+	out := string(buf)
+	if !strings.Contains(out, "from Dockerfile") {
+		t.Fatalf("Incorrect output: %s", out)
+	}
+
+	logDone("container REST API - check build with two dockerfiles")
+}
+
 func TestBuildApiDockerfileSymlink(t *testing.T) {
 	// Test to make sure we stop people from trying to leave the
 	// build context when specifying a symlink as the path to the dockerfile
@@ -365,4 +515,41 @@ func TestBuildApiDockerfileSymlink(t *testing.T) {
 	}
 
 	logDone("container REST API - check build w/bad Dockerfile symlink path")
+}
+
+// #9981 - Allow a docker created volume (ie, one in /var/lib/docker/volumes) to be used to overwrite (via passing in Binds on api start) an existing volume
+func TestPostContainerBindNormalVolume(t *testing.T) {
+	defer deleteAllContainers()
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "-v", "/foo", "--name=one", "busybox"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	fooDir, err := inspectFieldMap("one", "Volumes", "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "create", "-v", "/foo", "--name=two", "busybox"))
+	if err != nil {
+		t.Fatal(err, out)
+	}
+
+	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
+	_, err = sockRequest("POST", "/containers/two/start", bindSpec)
+	if err != nil && !strings.Contains(err.Error(), "204 No Content") {
+		t.Fatal(err)
+	}
+
+	fooDir2, err := inspectFieldMap("two", "Volumes", "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fooDir2 != fooDir {
+		t.Fatal("expected volume path to be %s, got: %s", fooDir, fooDir2)
+	}
+
+	logDone("container REST API - can use path from normal volume as bind-mount to overwrite another volume")
 }

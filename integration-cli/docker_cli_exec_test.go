@@ -1,3 +1,5 @@
+// +build !test_no_exec
+
 package main
 
 import (
@@ -5,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -14,6 +17,8 @@ import (
 )
 
 func TestExec(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
 	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
 		t.Fatal(out, err)
@@ -30,8 +35,6 @@ func TestExec(t *testing.T) {
 	if expected := "test"; out != expected {
 		t.Errorf("container exec should've printed %q but printed %q", expected, out)
 	}
-
-	deleteAllContainers()
 
 	logDone("exec - basic test")
 }
@@ -57,7 +60,7 @@ func TestExecInteractiveStdinClose(t *testing.T) {
 
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatal(err, out)
+			t.Fatal(err, string(out))
 		}
 
 		if string(out) == "" {
@@ -77,6 +80,8 @@ func TestExecInteractiveStdinClose(t *testing.T) {
 }
 
 func TestExecInteractive(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && sleep 100")
 	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
 		t.Fatal(out, err)
@@ -124,12 +129,12 @@ func TestExecInteractive(t *testing.T) {
 		t.Fatal("docker exec failed to exit on stdin close")
 	}
 
-	deleteAllContainers()
-
 	logDone("exec - Interactive test")
 }
 
 func TestExecAfterContainerRestart(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -154,12 +159,13 @@ func TestExecAfterContainerRestart(t *testing.T) {
 		t.Errorf("container should've printed hello, instead printed %q", outStr)
 	}
 
-	deleteAllContainers()
-
 	logDone("exec - exec running container after container restart")
 }
 
 func TestExecAfterDaemonRestart(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
+
 	d := NewDaemon(t)
 	if err := d.StartWithBusybox(); err != nil {
 		t.Fatalf("Could not start daemon with busybox: %v", err)
@@ -191,7 +197,7 @@ func TestExecAfterDaemonRestart(t *testing.T) {
 	logDone("exec - exec running container after daemon restart")
 }
 
-// Regresssion test for #9155, #9044
+// Regression test for #9155, #9044
 func TestExecEnv(t *testing.T) {
 	defer deleteAllContainers()
 
@@ -219,6 +225,8 @@ func TestExecEnv(t *testing.T) {
 }
 
 func TestExecExitStatus(t *testing.T) {
+	defer deleteAllContainers()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "top", "busybox", "top")
 	if out, _, _, err := runCommandWithStdoutStderr(runCmd); err != nil {
 		t.Fatal(out, err)
@@ -236,7 +244,6 @@ func TestExecExitStatus(t *testing.T) {
 }
 
 func TestExecPausedContainer(t *testing.T) {
-
 	defer deleteAllContainers()
 	defer unpauseAllContainers()
 
@@ -421,7 +428,7 @@ func TestExecCgroup(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
-			cmd = exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
+			cmd := exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
 			out, _, err := runCommandWithOutput(cmd)
 			if err != nil {
 				t.Fatal(out, err)
@@ -452,4 +459,209 @@ func TestExecCgroup(t *testing.T) {
 	}
 
 	logDone("exec - exec has the container cgroups")
+}
+
+func TestInspectExecID(t *testing.T) {
+	defer deleteAllContainers()
+
+	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "busybox", "top"))
+	if exitCode != 0 || err != nil {
+		t.Fatalf("failed to run container: %s, %v", out, err)
+	}
+	id := strings.TrimSuffix(out, "\n")
+
+	out, err = inspectField(id, "ExecIDs")
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+	if out != "<no value>" {
+		t.Fatalf("ExecIDs should be empty, got: %s", out)
+	}
+
+	exitCode, err = runCommand(exec.Command(dockerBinary, "exec", "-d", id, "ls", "/"))
+	if exitCode != 0 || err != nil {
+		t.Fatalf("failed to exec in container: %s, %v", out, err)
+	}
+
+	out, err = inspectField(id, "ExecIDs")
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+
+	out = strings.TrimSuffix(out, "\n")
+	if out == "[]" || out == "<no value>" {
+		t.Fatalf("ExecIDs should not be empty, got: %s", out)
+	}
+
+	logDone("inspect - inspect a container with ExecIDs")
+}
+
+func TestLinksPingLinkedContainersOnRename(t *testing.T) {
+	defer deleteAllContainers()
+
+	var out string
+	out, _, _ = dockerCmd(t, "run", "-d", "--name", "container1", "busybox", "sleep", "10")
+	idA := stripTrailingCharacters(out)
+	if idA == "" {
+		t.Fatal(out, "id should not be nil")
+	}
+	out, _, _ = dockerCmd(t, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "sleep", "10")
+	idB := stripTrailingCharacters(out)
+	if idB == "" {
+		t.Fatal(out, "id should not be nil")
+	}
+
+	execCmd := exec.Command(dockerBinary, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
+	out, _, err := runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	dockerCmd(t, "rename", "container1", "container_new")
+
+	execCmd = exec.Command(dockerBinary, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
+	out, _, err = runCommandWithOutput(execCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	logDone("links - ping linked container upon rename")
+}
+
+func TestRunExecDir(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	execDir := filepath.Join(execDriverPath, id)
+	stateFile := filepath.Join(execDir, "state.json")
+
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stopCmd := exec.Command(dockerBinary, "stop", id)
+	out, _, err = runCommandWithOutput(stopCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		_, err := os.Stat(execDir)
+		if err == nil {
+			t.Fatal(err)
+		}
+		if err == nil {
+			t.Fatalf("Exec directory %q exists for removed container!", execDir)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+	}
+	startCmd := exec.Command(dockerBinary, "start", id)
+	out, _, err = runCommandWithOutput(startCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		fi, err := os.Stat(execDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf("%q must be a directory", execDir)
+		}
+		fi, err = os.Stat(stateFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rmCmd := exec.Command(dockerBinary, "rm", "-f", id)
+	out, _, err = runCommandWithOutput(rmCmd)
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	{
+		_, err := os.Stat(execDir)
+		if err == nil {
+			t.Fatal(err)
+		}
+		if err == nil {
+			t.Fatalf("Exec directory %q is exists for removed container!", execDir)
+		}
+		if !os.IsNotExist(err) {
+			t.Fatalf("Error should be about non-existing, got %s", err)
+		}
+	}
+
+	logDone("run - check execdriver dir behavior")
+}
+
+func TestRunMutableNetworkFiles(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+	defer deleteAllContainers()
+
+	for _, fn := range []string{"resolv.conf", "hosts"} {
+		deleteAllContainers()
+
+		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if strings.TrimSpace(string(content)) != "success" {
+			t.Fatal("Content was not what was modified in the container", string(content))
+		}
+
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "c2", "busybox", "top"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		contID := strings.TrimSpace(out)
+
+		netFilePath := containerStorageFile(contID, fn)
+
+		f, err := os.OpenFile(netFilePath, os.O_WRONLY|os.O_SYNC|os.O_APPEND, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := f.Seek(0, 0); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		if err := f.Truncate(0); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+
+		if _, err := f.Write([]byte("success2\n")); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+
+		res, err := exec.Command(dockerBinary, "exec", contID, "cat", "/etc/"+fn).CombinedOutput()
+		if err != nil {
+			t.Fatalf("Output: %s, error: %s", res, err)
+		}
+		if string(res) != "success2\n" {
+			t.Fatalf("Expected content of %s: %q, got: %q", fn, "success2\n", res)
+		}
+	}
+	logDone("run - mutable network files")
 }

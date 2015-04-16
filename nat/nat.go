@@ -140,7 +140,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			return nil, nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
 		}
 
-		if !validateProto(proto) {
+		if !validateProto(strings.ToLower(proto)) {
 			return nil, nil, fmt.Errorf("Invalid proto: %s", proto)
 		}
 
@@ -149,7 +149,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			if len(hostPort) > 0 {
 				hostPort = strconv.FormatUint(startHostPort+i, 10)
 			}
-			port := NewPort(proto, containerPort)
+			port := NewPort(strings.ToLower(proto), containerPort)
 			if _, exists := exposedPorts[port]; !exists {
 				exposedPorts[port] = struct{}{}
 			}

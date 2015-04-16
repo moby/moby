@@ -73,7 +73,7 @@ RUN cd /usr/src/lxc \
 	&& ldconfig
 
 # Install Go
-ENV GO_VERSION 1.4.1
+ENV GO_VERSION 1.4.2
 RUN curl -sSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/local -xz \
 	&& mkdir -p /go/bin
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
@@ -84,10 +84,8 @@ RUN cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 ENV DOCKER_CROSSPLATFORMS \
 	linux/386 linux/arm \
 	darwin/amd64 darwin/386 \
-	freebsd/amd64 freebsd/386 freebsd/arm
-
-# TODO when https://jenkins.dockerproject.com/job/Windows/ is green, add windows back to the list above
-#	windows/amd64 windows/386
+	freebsd/amd64 freebsd/386 freebsd/arm \
+	windows/amd64 windows/386
 
 # (set an explicit GOARM of 5 for maximum compatibility)
 ENV GOARM 5
@@ -109,14 +107,8 @@ RUN go get golang.org/x/tools/cmd/cover
 # TODO replace FPM with some very minimal debhelper stuff
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
-# Get the "busybox" image source so we can build locally instead of pulling
-RUN git clone -b buildroot-2014.02 https://github.com/jpetazzo/docker-busybox.git /docker-busybox
-
-# Get the "cirros" image source so we can import it instead of fetching it during tests
-RUN curl -sSL -o /cirros.tar.gz https://github.com/ewindisch/docker-cirros/raw/1cded459668e8b9dbf4ef976c94c05add9bbd8e9/cirros-0.3.0-x86_64-lxc.tar.gz
-
 # Install registry
-ENV REGISTRY_COMMIT c448e0416925a9876d5576e412703c9b8b865e19
+ENV REGISTRY_COMMIT d957768537c5af40e4f4cd96871f7b2bde9e2923
 RUN set -x \
 	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
 	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
@@ -124,7 +116,7 @@ RUN set -x \
 		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT aa19d7b6609c6676e8258f6b900dea2eda1dbe95
+ENV DOCKER_PY_COMMIT 91985b239764fe54714fa0a93d52aa362357d251
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT
@@ -147,6 +139,16 @@ VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
 ENV DOCKER_BUILDTAGS apparmor selinux btrfs_noversion
 
+# Let us use a .bashrc file
+RUN ln -sfv $PWD/.bashrc ~/.bashrc
+
+# Get useful and necessary Hub images so we can "docker load" locally instead of pulling
+COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
+RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
+	busybox:latest@4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125 \
+	hello-world:frozen@e45a5af57b00862e5ef5782a9925979a02ba2b12dff832fd0991335f4a11e5c5
+# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+
 # Install man page generator
 COPY vendor /go/src/github.com/docker/docker/vendor
 # (copy vendor/ because go-md2man needs golang.org/x/net)
@@ -156,8 +158,11 @@ RUN set -x \
 	&& go install -v github.com/cpuguy83/go-md2man
 
 # install toml validator
-RUN git clone -b v0.1.0 https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
-    && go install -v github.com/BurntSushi/toml/cmd/tomlv
+ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
+RUN set -x \
+	&& git clone https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
+	&& (cd /go/src/github.com/BurntSushi/toml && git checkout -q $TOMLV_COMMIT) \
+	&& go install -v github.com/BurntSushi/toml/cmd/tomlv
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

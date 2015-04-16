@@ -21,6 +21,7 @@ const (
 	Insert Action = "-I"
 	Nat    Table  = "nat"
 	Filter Table  = "filter"
+	Mangle Table  = "mangle"
 )
 
 var (
@@ -82,7 +83,7 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 		preroute := []string{
 			"-m", "addrtype",
 			"--dst-type", "LOCAL"}
-		if !Exists(preroute...) {
+		if !Exists(Nat, "PREROUTING", preroute...) {
 			if err := c.Prerouting(Append, preroute...); err != nil {
 				return nil, fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 			}
@@ -91,17 +92,17 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 			"-m", "addrtype",
 			"--dst-type", "LOCAL",
 			"!", "--dst", "127.0.0.0/8"}
-		if !Exists(output...) {
+		if !Exists(Nat, "OUTPUT", output...) {
 			if err := c.Output(Append, output...); err != nil {
 				return nil, fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 			}
 		}
 	case Filter:
-		link := []string{"FORWARD",
+		link := []string{
 			"-o", c.Bridge,
 			"-j", c.Name}
-		if !Exists(link...) {
-			insert := append([]string{string(Insert)}, link...)
+		if !Exists(Filter, "FORWARD", link...) {
+			insert := append([]string{string(Insert), "FORWARD"}, link...)
 			if output, err := Raw(insert...); err != nil {
 				return nil, err
 			} else if len(output) != 0 {
@@ -242,19 +243,25 @@ func (c *Chain) Remove() error {
 }
 
 // Check if a rule exists
-func Exists(args ...string) bool {
+func Exists(table Table, chain string, rule ...string) bool {
+	if string(table) == "" {
+		table = Filter
+	}
+
 	// iptables -C, --check option was added in v.1.4.11
 	// http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
 
 	// try -C
 	// if exit status is 0 then return true, the rule exists
-	if _, err := Raw(append([]string{"-C"}, args...)...); err == nil {
+	if _, err := Raw(append([]string{
+		"-t", string(table), "-C", chain}, rule...)...); err == nil {
 		return true
 	}
 
-	// parse iptables-save for the rule
-	rule := strings.Replace(strings.Join(args, " "), "-t nat ", "", -1)
-	existingRules, _ := exec.Command("iptables-save").Output()
+	// parse "iptables -S" for the rule (this checks rules in a specific chain
+	// in a specific table)
+	rule_string := strings.Join(rule, " ")
+	existingRules, _ := exec.Command("iptables", "-t", string(table), "-S", chain).Output()
 
 	// regex to replace ips in rule
 	// because MASQUERADE rule will not be exactly what was passed
@@ -262,7 +269,7 @@ func Exists(args ...string) bool {
 
 	return strings.Contains(
 		re.ReplaceAllString(string(existingRules), "?"),
-		re.ReplaceAllString(rule, "?"),
+		re.ReplaceAllString(rule_string, "?"),
 	)
 }
 

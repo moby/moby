@@ -23,4 +23,5 @@ techniques for installing Docker all the time.
  - [Amazon EC2](amazon/)
  - [Rackspace Cloud](rackspace/)
  - [Google Cloud Platform](google/)
+ - [Joyent Compute Service](joyent/)
  - [Binaries](binaries/)

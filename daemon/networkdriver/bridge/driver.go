@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 
@@ -31,7 +32,7 @@ const (
 type networkInterface struct {
 	IP           net.IP
 	IPv6         net.IP
-	PortMappings []net.Addr // there are mappings to the host interfaces
+	PortMappings []net.Addr // There are mappings to the host interfaces
 }
 
 type ifaces struct {
@@ -77,10 +78,18 @@ var (
 	bridgeIPv4Network *net.IPNet
 	bridgeIPv6Addr    net.IP
 	globalIPv6Network *net.IPNet
+	portMapper        *portmapper.PortMapper
+	once              sync.Once
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
 )
+
+func initPortMapper() {
+	once.Do(func() {
+		portMapper = portmapper.New()
+	})
+}
 
 func InitDriver(job *engine.Job) engine.Status {
 	var (
@@ -99,6 +108,14 @@ func InitDriver(job *engine.Job) engine.Status {
 		fixedCIDRv6    = job.Getenv("FixedCIDRv6")
 	)
 
+	// try to modprobe bridge first
+	// see gh#12177
+	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat").Output(); err != nil {
+		log.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+	}
+
+	initPortMapper()
+
 	if defaultIP := job.Getenv("DefaultBindingIP"); defaultIP != "" {
 		defaultBindingIP = net.ParseIP(defaultIP)
 	}
@@ -113,7 +130,7 @@ func InitDriver(job *engine.Job) engine.Status {
 	addrv4, addrsv6, err := networkdriver.GetIfaceAddr(bridgeIface)
 
 	if err != nil {
-		// No Bridge existent. Create one
+		// No Bridge existent, create one
 		// If we're not using the default bridge, fail without trying to create it
 		if !usingDefaultBridge {
 			return job.Error(err)
@@ -137,8 +154,8 @@ func InitDriver(job *engine.Job) engine.Status {
 			}
 		}
 	} else {
-		// Bridge exists already. Getting info...
-		// validate that the bridge ip matches the ip specified by BridgeIP
+		// Bridge exists already, getting info...
+		// Validate that the bridge ip matches the ip specified by BridgeIP
 		if bridgeIP != "" {
 			networkv4 = addrv4.(*net.IPNet)
 			bip, _, err := net.ParseCIDR(bridgeIP)
@@ -146,11 +163,11 @@ func InitDriver(job *engine.Job) engine.Status {
 				return job.Error(err)
 			}
 			if !networkv4.IP.Equal(bip) {
-				return job.Errorf("bridge ip (%s) does not match existing bridge configuration %s", networkv4.IP, bip)
+				return job.Errorf("Bridge ip (%s) does not match existing bridge configuration %s", networkv4.IP, bip)
 			}
 		}
 
-		// a bridge might exist but not have any IPv6 addr associated with it yet
+		// A bridge might exist but not have any IPv6 addr associated with it yet
 		// (for example, an existing Docker installation that has only been used
 		// with IPv4 and docker0 already is set up) In that case, we can perform
 		// the bridge init for IPv6 here, else we will error out below if --ipv6=true
@@ -158,7 +175,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			if err := setupIPv6Bridge(bridgeIPv6); err != nil {
 				return job.Error(err)
 			}
-			// recheck addresses now that IPv6 is setup on the bridge
+			// Recheck addresses now that IPv6 is setup on the bridge
 			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)
 			if err != nil {
 				return job.Error(err)
@@ -182,7 +199,7 @@ func InitDriver(job *engine.Job) engine.Status {
 			}
 		}
 		if !found {
-			return job.Errorf("bridge IPv6 does not match existing bridge configuration %s", bip6)
+			return job.Errorf("Bridge IPv6 does not match existing bridge configuration %s", bip6)
 		}
 	}
 
@@ -234,7 +251,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		if err != nil {
 			return job.Error(err)
 		}
-		portmapper.SetIptablesChain(chain)
+		portMapper.SetIptablesChain(chain)
 	}
 
 	bridgeIPv4Network = networkv4
@@ -284,10 +301,11 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Enable NAT
 
 	if ipmasq {
-		natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
+		natArgs := []string{"-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
-		if !iptables.Exists(natArgs...) {
-			if output, err := iptables.Raw(append([]string{"-I"}, natArgs...)...); err != nil {
+		if !iptables.Exists(iptables.Nat, "POSTROUTING", natArgs...) {
+			if output, err := iptables.Raw(append([]string{
+				"-t", string(iptables.Nat), "-I", "POSTROUTING"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
 				return &iptables.ChainError{Chain: "POSTROUTING", Output: output}
@@ -296,28 +314,28 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	}
 
 	var (
-		args       = []string{"FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j"}
+		args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
 		acceptArgs = append(args, "ACCEPT")
 		dropArgs   = append(args, "DROP")
 	)
 
 	if !icc {
-		iptables.Raw(append([]string{"-D"}, acceptArgs...)...)
+		iptables.Raw(append([]string{"-D", "FORWARD"}, acceptArgs...)...)
 
-		if !iptables.Exists(dropArgs...) {
+		if !iptables.Exists(iptables.Filter, "FORWARD", dropArgs...) {
 			log.Debugf("Disable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I"}, dropArgs...)...); err != nil {
+			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
 			}
 		}
 	} else {
-		iptables.Raw(append([]string{"-D"}, dropArgs...)...)
+		iptables.Raw(append([]string{"-D", "FORWARD"}, dropArgs...)...)
 
-		if !iptables.Exists(acceptArgs...) {
+		if !iptables.Exists(iptables.Filter, "FORWARD", acceptArgs...) {
 			log.Debugf("Enable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I"}, acceptArgs...)...); err != nil {
+			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
@@ -326,9 +344,9 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	}
 
 	// Accept all non-intercontainer outgoing packets
-	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
-	if !iptables.Exists(outgoingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I"}, outgoingArgs...)...); err != nil {
+	outgoingArgs := []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
+	if !iptables.Exists(iptables.Filter, "FORWARD", outgoingArgs...) {
+		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
 			return &iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
@@ -336,16 +354,21 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	}
 
 	// Accept incoming packets for existing connections
-	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+	existingArgs := []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
 
-	if !iptables.Exists(existingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I"}, existingArgs...)...); err != nil {
+	if !iptables.Exists(iptables.Filter, "FORWARD", existingArgs...) {
+		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
 			return &iptables.ChainError{Chain: "FORWARD incoming", Output: output}
 		}
 	}
 	return nil
+}
+
+func RequestPort(ip net.IP, proto string, port int) (int, error) {
+	initPortMapper()
+	return portMapper.Allocator.RequestPort(ip, proto, port)
 }
 
 // configureBridge attempts to create and configure a network bridge interface named `bridgeIface` on the host
@@ -356,7 +379,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error {
 	nameservers := []string{}
 	resolvConf, _ := resolvconf.Get()
-	// we don't check for an error here, because we don't really care
+	// We don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
@@ -394,7 +417,7 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 	log.Debugf("Creating bridge %s with network %s", bridgeIface, ifaceAddr)
 
 	if err := createBridgeIface(bridgeIface); err != nil {
-		// the bridge may already exist, therefore we can ignore an "exists" error
+		// The bridge may already exist, therefore we can ignore an "exists" error
 		if !os.IsExist(err) {
 			return err
 		}
@@ -452,7 +475,7 @@ func setupIPv6Bridge(bridgeIPv6 string) error {
 
 func createBridgeIface(name string) error {
 	kv, err := kernel.GetKernelVersion()
-	// only set the bridge's mac address if the kernel version is > 3.3
+	// Only set the bridge's mac address if the kernel version is > 3.3
 	// before that it was not supported
 	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
 	log.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
@@ -508,11 +531,7 @@ func Allocate(job *engine.Job) engine.Status {
 		globalIPv6    net.IP
 	)
 
-	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
-	} else {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, nil)
-	}
+	ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
 	if err != nil {
 		return job.Error(err)
 	}
@@ -523,10 +542,11 @@ func Allocate(job *engine.Job) engine.Status {
 	}
 
 	if globalIPv6Network != nil {
-		// if globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
+		// If globalIPv6Network Size is at least a /80 subnet generate IPv6 address from MAC address
 		netmask_ones, _ := globalIPv6Network.Mask.Size()
 		if requestedIPv6 == nil && netmask_ones <= 80 {
-			requestedIPv6 = globalIPv6Network.IP
+			requestedIPv6 = make(net.IP, len(globalIPv6Network.IP))
+			copy(requestedIPv6, globalIPv6Network.IP)
 			for i, h := range mac {
 				requestedIPv6[i+10] = h
 			}
@@ -534,7 +554,7 @@ func Allocate(job *engine.Job) engine.Status {
 
 		globalIPv6, err = ipallocator.RequestIP(globalIPv6Network, requestedIPv6)
 		if err != nil {
-			log.Errorf("Allocator: RequestIP v6: %s", err.Error())
+			log.Errorf("Allocator: RequestIP v6: %v", err)
 			return job.Error(err)
 		}
 		log.Infof("Allocated IPv6 %s", globalIPv6)
@@ -550,7 +570,7 @@ func Allocate(job *engine.Job) engine.Status {
 	size, _ := bridgeIPv4Network.Mask.Size()
 	out.SetInt("IPPrefixLen", size)
 
-	// if linklocal IPv6
+	// If linklocal IPv6
 	localIPv6Net, err := linkLocalIPv6FromMac(mac.String())
 	if err != nil {
 		return job.Error(err)
@@ -576,7 +596,7 @@ func Allocate(job *engine.Job) engine.Status {
 	return engine.StatusOK
 }
 
-// release an interface for a select ip
+// Release an interface for a select ip
 func Release(job *engine.Job) engine.Status {
 	var (
 		id                 = job.Args[0]
@@ -588,7 +608,7 @@ func Release(job *engine.Job) engine.Status {
 	}
 
 	for _, nat := range containerInterface.PortMappings {
-		if err := portmapper.Unmap(nat); err != nil {
+		if err := portMapper.Unmap(nat); err != nil {
 			log.Infof("Unable to unmap port %s: %s", nat, err)
 		}
 	}
@@ -645,7 +665,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	var host net.Addr
 	for i := 0; i < MaxAllocatedPortAttempts; i++ {
-		if host, err = portmapper.Map(container, ip, hostPort); err == nil {
+		if host, err = portMapper.Map(container, ip, hostPort); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly
@@ -702,11 +722,11 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 	ip1 := net.ParseIP(parentIP)
 	if ip1 == nil {
-		return job.Errorf("parent IP '%s' is invalid", parentIP)
+		return job.Errorf("Parent IP '%s' is invalid", parentIP)
 	}
 	ip2 := net.ParseIP(childIP)
 	if ip2 == nil {
-		return job.Errorf("child IP '%s' is invalid", childIP)
+		return job.Errorf("Child IP '%s' is invalid", childIP)
 	}
 
 	chain := iptables.Chain{Name: "DOCKER", Bridge: bridgeIface}

@@ -2,7 +2,7 @@ page_title: Registry Documentation
 page_description: Documentation for docker Registry and Registry API
 page_keywords: docker, registry, api, hub
 
-# The Docker Hub and the Registry spec
+# The Docker Hub and the Registry 1.0 spec
 
 ## The three roles
 
@@ -28,9 +28,9 @@ The Docker Hub is authoritative for that information.
 There is only one instance of the Docker Hub, run and
 managed by Docker Inc.
 
-### Registry
+### Docker Registry 1.0
 
-The registry has the following characteristics:
+The 1.0 registry has the following characteristics:
 
  - It stores the images and the graph for a set of repositories
  - It does not have user accounts data

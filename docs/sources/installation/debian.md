@@ -31,7 +31,7 @@ To verify that everything has worked as expected:
 
 Which should download the `ubuntu` image, and then start `bash` in a container.
 
-> **Note**: 
+> **Note**:
 > If you want to enable memory and swap accounting see
 > [this](/installation/ubuntulinux/#memory-and-swap-accounting).
 
@@ -48,18 +48,20 @@ which is officially supported by Docker.
 ### Installation
 
 1. Install Kernel from wheezy-backports
- 
+
     Add the following line to your `/etc/apt/sources.list`
 
     `deb http://http.debian.net/debian wheezy-backports main`
 
     then install the `linux-image-amd64` package (note the use of
     `-t wheezy-backports`)
- 
+
         $ sudo apt-get update
         $ sudo apt-get install -t wheezy-backports linux-image-amd64
 
-2. Install Docker using the get.docker.com script:
+2. Restart your system. This is necessary for Debian to use your new kernel.
+
+3. Install Docker using the get.docker.com script:
  
     `curl -sSL https://get.docker.com/ | sh`
 
@@ -78,7 +80,7 @@ run the `docker` client as a user in the `docker` group then you don't
 need to add `sudo` to all the client commands. From Docker 0.9.0 you can
 use the `-G` flag to specify an alternative group.
 
-> **Warning**: 
+> **Warning**:
 > The `docker` group (or the group specified with the `-G` flag) is
 > `root`-equivalent; see [*Docker Daemon Attack Surface*](
 > /articles/security/#docker-daemon-attack-surface) details.

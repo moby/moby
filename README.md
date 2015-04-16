@@ -18,7 +18,7 @@ It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
 
-![Docker L](docs/theme/mkdocs/images/docker-logo-compressed.png "Docker")
+![Docker L](docs/sources/static_files/docker-logo-compressed.png "Docker")
 
 ## Security Disclosure
 
@@ -173,6 +173,8 @@ Under the hood, Docker is built on the following components:
   [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
   capabilities of the Linux kernel;
 * The [Go](http://golang.org) programming language.
+* The [Docker Image Specification] (https://github.com/docker/docker/blob/master/image/spec/v1.md)
+* The [Libcontainer Specification] (https://github.com/docker/libcontainer/blob/master/SPEC.md)
 
 Contributing to Docker
 ======================
@@ -181,11 +183,13 @@ Contributing to Docker
 [![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
-started](CONTRIBUTING.md). If you'd like to contribute to the
-documentation, please take a look at this [README.md](https://github.com/docker/docker/blob/master/docs/README.md).
+started contributing code or documentation.](https://docs.docker.com/project/who-written-for/).
 
 These instructions are probably not perfect, please let us know if anything
 feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
+
+Getting the development builds
+==============================
 
 Want to run Docker from a master build? You can download 
 master builds at [master.dockerproject.com](https://master.dockerproject.com). 
@@ -231,12 +235,12 @@ Docker platform to broaden its application and utility.
 If you know of another project underway that should be listed here, please help
 us keep this list up-to-date by submitting a PR.
 
-* [Docker Registry](https://github.com/docker/docker-registry): Registry 
-server for Docker (hosting/delivering of repositories and images) 
+* [Docker Registry](https://github.com/docker/distribution): Registry 
+server for Docker (hosting/delivery of repositories and images)
 * [Docker Machine](https://github.com/docker/machine): Machine management 
 for a container-centric world 
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
 system 
-* [Docker Compose, aka Fig](https://github.com/docker/fig): 
-Multi-container application management
+* [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
+Define and run multi-container apps
 

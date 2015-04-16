@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
@@ -92,10 +93,13 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 	flags := flag.NewFlagSet(name, errorHandling)
 	flags.Usage = func() {
 		options := ""
-		if flags.FlagCountUndeprecated() > 0 {
-			options = "[OPTIONS] "
+		if signature != "" {
+			signature = " " + signature
 		}
-		fmt.Fprintf(cli.out, "\nUsage: docker %s %s%s\n\n%s\n\n", name, options, signature, description)
+		if flags.FlagCountUndeprecated() > 0 {
+			options = " [OPTIONS]"
+		}
+		fmt.Fprintf(cli.out, "\nUsage: docker %s%s%s\n\n%s\n\n", name, options, signature, description)
 		flags.SetOutput(cli.out)
 		flags.PrintDefaults()
 		os.Exit(0)
@@ -104,7 +108,7 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 }
 
 func (cli *DockerCli) LoadConfigFile() (err error) {
-	cli.configFile, err = registry.LoadConfig(os.Getenv("HOME"))
+	cli.configFile, err = registry.LoadConfig(homedir.Get())
 	if err != nil {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", err)
 	}
@@ -133,19 +137,12 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 	if tlsConfig != nil {
 		scheme = "https"
 	}
-
 	if in != nil {
-		if file, ok := in.(*os.File); ok {
-			inFd = file.Fd()
-			isTerminalIn = term.IsTerminal(inFd)
-		}
+		inFd, isTerminalIn = term.GetFdInfo(in)
 	}
 
 	if out != nil {
-		if file, ok := out.(*os.File); ok {
-			outFd = file.Fd()
-			isTerminalOut = term.IsTerminal(outFd)
-		}
+		outFd, isTerminalOut = term.GetFdInfo(out)
 	}
 
 	if err == nil {
@@ -154,7 +151,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 
 	// The transport is created here for reuse during the client session
 	tr := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: tlsConfig,
 	}
 
@@ -167,6 +163,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 			return net.DialTimeout(proto, addr, timeout)
 		}
 	} else {
+		tr.Proxy = http.ProxyFromEnvironment
 		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
 	}
 

@@ -107,11 +107,11 @@ images.
 
 ### Environment Replacement
 
-**Note:** prior to 1.3, `Dockerfile` environment variables were handled
-similarly, in that they would be replaced as described below. However, there
-was no formal definition on as to which instructions handled environment
-replacement at the time. After 1.3 this behavior will be preserved and
-canonical.
+> **Note**: prior to 1.3, `Dockerfile` environment variables were handled
+> similarly, in that they would be replaced as described below. However, there
+> was no formal definition on as to which instructions handled environment
+> replacement at the time. After 1.3 this behavior will be preserved and
+> canonical.
 
 Environment variables (declared with [the `ENV` statement](#env)) can also be used in
 certain instructions as variables to be interpreted by the `Dockerfile`. Escapes
@@ -145,6 +145,17 @@ The instructions that handle environment variables in the `Dockerfile` are:
 
 `ONBUILD` instructions are **NOT** supported for environment replacement, even
 the instructions above.
+
+Environment variable subtitution will use the same value for each variable
+throughout the entire command.  In other words, in this example:
+
+    ENV abc=hello
+    ENV abc=bye def=$abc
+    ENV ghi=$abc
+
+will result in `def` having a value of `hello`, not `bye`.  However, 
+`ghi` will have a value of `bye` because it is not part of the same command
+that set `abc` to `bye`.
 
 ## The `.dockerignore` file
 
@@ -192,6 +203,10 @@ Or
 
     FROM <image>:<tag>
 
+Or
+
+    FROM <image>@<digest>
+
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
@@ -204,8 +219,9 @@ to start by **pulling an image** from the [*Public Repositories*](
 multiple images. Simply make a note of the last image ID output by the commit
 before each new `FROM` command.
 
-If no `tag` is given to the `FROM` instruction, `latest` is assumed. If the
-used tag does not exist, an error will be returned.
+The `tag` or `digest` values are optional. If you omit either of them, the builder
+assumes a `latest` by default. The builder returns an error if it cannot match
+the `tag` value.
 
 ## MAINTAINER
 
@@ -264,8 +280,14 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 
 - [Issue 783](https://github.com/docker/docker/issues/783) is about file
   permissions problems that can occur when using the AUFS file system. You
-  might notice it during an attempt to `rm` a file, for example. The issue
-  describes a workaround.
+  might notice it during an attempt to `rm` a file, for example.
+
+  For systems that have recent aufs version (i.e., `dirperm1` mount option can
+  be set), docker will attempt to fix the issue automatically by mounting
+  the layers with `dirperm1` option. More details on `dirperm1` option can be
+  found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
+
+  If your system doesnt have support for `dirperm1`, the issue describes a workaround.
 
 ## CMD
 
@@ -328,6 +350,36 @@ default specified in `CMD`.
 > the result; `CMD` does not execute anything at build time, but specifies
 > the intended command for the image.
 
+## LABEL
+
+    LABEL <key>=<value> <key>=<value> <key>=<value> ...
+
+The `LABEL` instruction adds metadata to an image. A `LABEL` is a
+key-value pair. To include spaces within a `LABEL` value, use quotes and
+blackslashes as you would in command-line parsing.
+
+    LABEL "com.example.vendor"="ACME Incorporated"
+
+An image can have more than one label. To specify multiple labels, separate each
+key-value pair by an EOL.
+
+    LABEL com.example.label-without-value
+    LABEL com.example.label-with-value="foo"
+    LABEL version="1.0"
+    LABEL description="This text illustrates \
+    that label-values can span multiple lines."
+
+Docker recommends combining labels in a single `LABEL` instruction where
+possible. Each `LABEL` instruction produces a new layer which can result in an
+inefficient image if you use many labels. This example results in four image
+layers. 
+    
+Labels are additive including `LABEL`s in `FROM` images. As the system
+encounters and then applies a new label, new `key`s override any previous labels
+with identical keys.    
+
+To view an image's labels, use the `docker inspect` command.
+
 ## EXPOSE
 
     EXPOSE <port> [<port>...]
@@ -337,11 +389,12 @@ specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see the [Docker User
 Guide](/userguide/dockerlinks)) and to determine which ports to expose to the
 host when [using the -P flag](/reference/run/#expose-incoming-ports).
-**Note:**
-`EXPOSE` doesn't define which ports can be exposed to the host or make ports
-accessible from the host by default. To expose ports to the host, at runtime, 
-[use the `-p` flag](/userguide/dockerlinks) or
-[the -P flag](/reference/run/#expose-incoming-ports).
+
+> **Note**:
+> `EXPOSE` doesn't define which ports can be exposed to the host or make ports
+> accessible from the host by default. To expose ports to the host, at runtime,
+> [use the `-p` flag](/userguide/dockerlinks) or
+> [the -P flag](/reference/run/#expose-incoming-ports).
 
 ## ENV
 
@@ -626,8 +679,7 @@ ENTRYPOINT ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
 
 If you need to write a starter script for a single executable, you can ensure that
 the final executable receives the Unix signals by using `exec` and `gosu`
-(see [the Dockerfile best practices](/articles/dockerfile_best-practices/#entrypoint)
-for more details):
+commands:
 
 ```bash
 #!/bin/bash
@@ -777,13 +829,27 @@ If you then run `docker stop test`, the container will not exit cleanly - the
 
     VOLUME ["/data"]
 
-The `VOLUME` instruction will create a mount point with the specified name
-and mark it as holding externally mounted volumes from native host or other
+The `VOLUME` instruction creates a mount point with the specified name
+and marks it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`.  For more information/examples and mounting instructions via the
-Docker client, refer to [*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
+Docker client, refer to 
+[*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
 documentation.
+
+The `docker run` command initializes the newly created volume with any data 
+that exists at the specified location within the base image. For example, 
+consider the following Dockerfile snippet:
+
+    FROM ubuntu
+    RUN mkdir /myvol
+    RUN echo "hello world" > /myvol/greating
+    VOLUME /myvol
+
+This Dockerfile results in an image that causes `docker run`, to
+create a new mount point at `/myvol` and copy the  `greating` file 
+into the newly created volume.
 
 > **Note**:
 > The list is parsed as a JSON array, which means that
@@ -893,6 +959,7 @@ For example you might add something like this:
     FROM      ubuntu
     MAINTAINER Victor Vieux <victor@docker.com>
 
+    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
     RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 
     # Firefox over VNC

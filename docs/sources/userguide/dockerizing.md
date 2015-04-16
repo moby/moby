@@ -101,7 +101,7 @@ Again we can do this with the `docker run` command:
     $ sudo docker run -d ubuntu:14.04 /bin/sh -c "while true; do echo hello world; sleep 1; done"
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
-Wait what? Where's our "Hello world" Let's look at what we've run here.
+Wait, what? Where's our "hello world" output? Let's look at what we've run here.
 It should look pretty familiar. We ran `docker run` but this time we
 specified a flag: `-d`. The `-d` flag tells Docker to run the container
 and put it in the background, to daemonize it.
@@ -187,7 +187,7 @@ Excellent. Our container has been stopped.
 
 # Next steps
 
-Now we've seen how simple it is to get started with Docker let's learn how to
+Now we've seen how simple it is to get started with Docker. Let's learn how to
 do some more advanced tasks.
 
 Go to [Working With Containers](/userguide/usingdocker).

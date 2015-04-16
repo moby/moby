@@ -33,11 +33,11 @@ func Router() *mux.Router {
 		Path("/v2/").
 		Name(RouteNameBase)
 
-	// GET      /v2/<name>/manifest/<tag>	Image Manifest	Fetch the image manifest identified by name and tag.
-	// PUT      /v2/<name>/manifest/<tag>	Image Manifest	Upload the image manifest identified by name and tag.
-	// DELETE   /v2/<name>/manifest/<tag>	Image Manifest	Delete the image identified by name and tag.
+	// GET      /v2/<name>/manifest/<reference>	Image Manifest	Fetch the image manifest identified by name and reference where reference can be a tag or digest.
+	// PUT      /v2/<name>/manifest/<reference>	Image Manifest	Upload the image manifest identified by name and reference where reference can be a tag or digest.
+	// DELETE   /v2/<name>/manifest/<reference>	Image Manifest	Delete the image identified by name and reference where reference can be a tag or digest.
 	router.
-		Path("/v2/{name:" + RepositoryNameRegexp.String() + "}/manifests/{tag:" + TagNameRegexp.String() + "}").
+		Path("/v2/{name:" + RepositoryNameRegexp.String() + "}/manifests/{reference:" + TagNameRegexp.String() + "|" + DigestRegexp.String() + "}").
 		Name(RouteNameManifest)
 
 	// GET	/v2/<name>/tags/list	Tags	Fetch the tags under the repository identified by name.

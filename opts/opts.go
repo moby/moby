@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/utils"
 )
 
@@ -41,6 +42,10 @@ func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 
 func LabelListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateLabel), names, usage)
+}
+
+func UlimitMapVar(values map[string]*ulimit.Ulimit, names []string, usage string) {
+	flag.Var(NewUlimitOpt(values), names, usage)
 }
 
 // ListOpts type
@@ -183,6 +188,15 @@ func ValidateIPAddress(val string) (string, error) {
 	return "", fmt.Errorf("%s is not an ip address", val)
 }
 
+func ValidateMACAddress(val string) (string, error) {
+	_, err := net.ParseMAC(strings.TrimSpace(val))
+	if err != nil {
+		return "", err
+	} else {
+		return val, nil
+	}
+}
+
 // Validates domain for resolvconf search configuration.
 // A zero length domain is represented by .
 func ValidateDnsSearch(val string) (string, error) {
@@ -197,19 +211,20 @@ func validateDomain(val string) (string, error) {
 		return "", fmt.Errorf("%s is not a valid domain", val)
 	}
 	ns := domainRegexp.FindSubmatch([]byte(val))
-	if len(ns) > 0 {
+	if len(ns) > 0 && len(ns[1]) < 255 {
 		return string(ns[1]), nil
 	}
 	return "", fmt.Errorf("%s is not a valid domain", val)
 }
 
 func ValidateExtraHost(val string) (string, error) {
-	arr := strings.Split(val, ":")
+	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
+	arr := strings.SplitN(val, ":", 2)
 	if len(arr) != 2 || len(arr[0]) == 0 {
-		return "", fmt.Errorf("bad format for add-host: %s", val)
+		return "", fmt.Errorf("bad format for add-host: %q", val)
 	}
 	if _, err := ValidateIPAddress(arr[1]); err != nil {
-		return "", fmt.Errorf("bad format for add-host: %s", val)
+		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
 	}
 	return val, nil
 }

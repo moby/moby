@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/common"
 )
 
 // Test the behavior of TruncIndex, an index for querying IDs from a non-conflicting prefix.
@@ -59,6 +59,11 @@ func TestTruncIndex(t *testing.T) {
 	assertIndexGet(t, index, id[:4], "", true)
 	assertIndexGet(t, index, id[:1], "", true)
 
+	// An ambiguous id prefix should return an error
+	if _, err := index.Get(id[:4]); err == nil || err == nil {
+		t.Fatal("An ambiguous id prefix should return an error")
+	}
+
 	// 7 characters should NOT conflict
 	assertIndexGet(t, index, id[:7], id, false)
 	assertIndexGet(t, index, id2[:7], id2, false)
@@ -106,7 +111,7 @@ func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult strin
 func BenchmarkTruncIndexAdd100(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 100; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -122,7 +127,7 @@ func BenchmarkTruncIndexAdd100(b *testing.B) {
 func BenchmarkTruncIndexAdd250(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 250; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -138,7 +143,7 @@ func BenchmarkTruncIndexAdd250(b *testing.B) {
 func BenchmarkTruncIndexAdd500(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 500; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -155,7 +160,7 @@ func BenchmarkTruncIndexGet100(b *testing.B) {
 	var testSet []string
 	var testKeys []string
 	for i := 0; i < 100; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	index := NewTruncIndex([]string{})
 	for _, id := range testSet {
@@ -179,7 +184,7 @@ func BenchmarkTruncIndexGet250(b *testing.B) {
 	var testSet []string
 	var testKeys []string
 	for i := 0; i < 250; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	index := NewTruncIndex([]string{})
 	for _, id := range testSet {
@@ -203,7 +208,7 @@ func BenchmarkTruncIndexGet500(b *testing.B) {
 	var testSet []string
 	var testKeys []string
 	for i := 0; i < 500; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	index := NewTruncIndex([]string{})
 	for _, id := range testSet {
@@ -226,7 +231,7 @@ func BenchmarkTruncIndexGet500(b *testing.B) {
 func BenchmarkTruncIndexDelete100(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 100; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -249,7 +254,7 @@ func BenchmarkTruncIndexDelete100(b *testing.B) {
 func BenchmarkTruncIndexDelete250(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 250; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -272,7 +277,7 @@ func BenchmarkTruncIndexDelete250(b *testing.B) {
 func BenchmarkTruncIndexDelete500(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 500; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -295,7 +300,7 @@ func BenchmarkTruncIndexDelete500(b *testing.B) {
 func BenchmarkTruncIndexNew100(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 100; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -306,7 +311,7 @@ func BenchmarkTruncIndexNew100(b *testing.B) {
 func BenchmarkTruncIndexNew250(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 250; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -317,7 +322,7 @@ func BenchmarkTruncIndexNew250(b *testing.B) {
 func BenchmarkTruncIndexNew500(b *testing.B) {
 	var testSet []string
 	for i := 0; i < 500; i++ {
-		testSet = append(testSet, utils.GenerateRandomID())
+		testSet = append(testSet, common.GenerateRandomID())
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -329,7 +334,7 @@ func BenchmarkTruncIndexAddGet100(b *testing.B) {
 	var testSet []string
 	var testKeys []string
 	for i := 0; i < 500; i++ {
-		id := utils.GenerateRandomID()
+		id := common.GenerateRandomID()
 		testSet = append(testSet, id)
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
@@ -354,7 +359,7 @@ func BenchmarkTruncIndexAddGet250(b *testing.B) {
 	var testSet []string
 	var testKeys []string
 	for i := 0; i < 500; i++ {
-		id := utils.GenerateRandomID()
+		id := common.GenerateRandomID()
 		testSet = append(testSet, id)
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
@@ -379,7 +384,7 @@ func BenchmarkTruncIndexAddGet500(b *testing.B) {
 	var testSet []string
 	var testKeys []string
 	for i := 0; i < 500; i++ {
-		id := utils.GenerateRandomID()
+		id := common.GenerateRandomID()
 		testSet = append(testSet, id)
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])

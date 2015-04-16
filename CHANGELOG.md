@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.6.0 (2015-04-07)
+
+#### Builder
++ Building images from an image ID
++ build containers with resource constraints, ie `docker build --cpu-shares=100 --memory=1024m...`
++ `commit --change` to apply specified Dockerfile instructions while committing the image
++ `import --change` to apply specified Dockerfile instructions while importing the image
++ basic build cancellation
+
+#### Client
++ Windows Support
+
+#### Runtime
++ Container and image Labels
++ `--cgroup-parent` for specifying a parent cgroup to place container cgroup within
++ Logging drivers, `json-file`, `syslog`, or `none`
++ Pulling images by ID
++ `--ulimit` to set the ulimit on a container
++ `--default-ulimit` option on the daemon which applies to all created containers (and overwritten by `--ulimit` on run)
+
 ## 1.5.0 (2015-02-10)
 
 #### Builder

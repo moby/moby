@@ -15,6 +15,9 @@ For a complete list of patches, fixes, and other improvements, see the
 
 *New Features*
 
+* [1.6] The Docker daemon will no longer ignore unknown commands
+  while processing a `Dockerfile`. Instead it will generate an error and halt
+  processing.
 * The Docker daemon has now supports for IPv6 networking between containers
   and on the `docker0` bridge. For more information see the
   [IPv6 networking reference](/articles/networking/#ipv6).
@@ -22,7 +25,7 @@ For a complete list of patches, fixes, and other improvements, see the
   container to writing to volumes [PR# 10093](https://github.com/docker/docker/pull/10093).
 * A new `docker stats CONTAINERID` command has been added to allow users to view a
   continuously updating stream of container resource usage statistics. See the
-  [`stats` command line reference](/reference/commandline/cli/#stats) and the 
+  [`stats` command line reference](/reference/commandline/cli/#stats) and the
   [container `stats` API reference](/reference/api/docker_remote_api_v1.17/#get-container-stats-based-on-resource-usage).
   **Note**: this feature is only enabled for the `libcontainer` exec-driver at this point.
 * Users can now specify the file to use as the `Dockerfile` by running
@@ -54,7 +57,14 @@ impact on users. This list will be updated as issues are resolved.
 * **Unexpected File Permissions in Containers**
 An idiosyncrasy in AUFS prevents permissions from propagating predictably
 between upper and lower layers. This can cause issues with accessing private
-keys, database instances, etc. For complete information and workarounds see
+keys, database instances, etc.
+
+For systems that have recent aufs version (i.e., `dirperm1` mount option can
+be set), docker will attempt to fix the issue automatically by mounting
+the layers with `dirperm1` option. More details on `dirperm1` option can be
+found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
+
+For complete information and workarounds see
 [Github Issue 783](https://github.com/docker/docker/issues/783).
 
 * **Docker Hub incompatible with Safari 8**

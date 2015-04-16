@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!btrfs_noversion
 
 package btrfs
 
@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestBuildVersion(t *testing.T) {
-	if len(BtrfsBuildVersion()) == 0 {
-		t.Errorf("expected output from btrfs build version, but got empty string")
+func TestLibVersion(t *testing.T) {
+	if BtrfsLibVersion() <= 0 {
+		t.Errorf("expected output from btrfs lib version > 0")
 	}
 }

@@ -100,8 +100,9 @@ type DeviceSet struct {
 }
 
 type DiskUsage struct {
-	Used  uint64
-	Total uint64
+	Used      uint64
+	Total     uint64
+	Available uint64
 }
 
 type Status struct {
@@ -323,6 +324,11 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		return nil
 	}
 
+	if strings.HasPrefix(finfo.Name(), ".") {
+		log.Debugf("Skipping file %s", path)
+		return nil
+	}
+
 	if finfo.Name() == deviceSetMetaFile {
 		log.Debugf("Skipping file %s", path)
 		return nil
@@ -341,7 +347,7 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 	}
 
 	if dinfo.DeviceId > MaxDeviceId {
-		log.Errorf("Warning: Ignoring Invalid DeviceId=%d", dinfo.DeviceId)
+		log.Errorf("Ignoring Invalid DeviceId=%d", dinfo.DeviceId)
 		return nil
 	}
 
@@ -386,7 +392,7 @@ func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
 	devices.devicesLock.Unlock()
 
 	if err := devices.removeMetadata(info); err != nil {
-		log.Debugf("Error removing meta data: %s", err)
+		log.Debugf("Error removing metadata: %s", err)
 		return err
 	}
 
@@ -463,7 +469,7 @@ func (devices *DeviceSet) createFilesystem(info *DevInfo) error {
 }
 
 func (devices *DeviceSet) migrateOldMetaData() error {
-	// Migrate old metadatafile
+	// Migrate old metadata file
 	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -548,7 +554,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*DevInfo, error) {
 				// happen. Now we have a mechianism to find
 				// a free device Id. So something is not right.
 				// Give a warning and continue.
-				log.Errorf("Warning: Device Id %d exists in pool but it is supposed to be unused", deviceId)
+				log.Errorf("Device Id %d exists in pool but it is supposed to be unused", deviceId)
 				deviceId, err = devices.getNextFreeDeviceId()
 				if err != nil {
 					return nil, err
@@ -600,7 +606,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *DevInf
 				// happen. Now we have a mechianism to find
 				// a free device Id. So something is not right.
 				// Give a warning and continue.
-				log.Errorf("Warning: Device Id %d exists in pool but it is supposed to be unused", deviceId)
+				log.Errorf("Device Id %d exists in pool but it is supposed to be unused", deviceId)
 				deviceId, err = devices.getNextFreeDeviceId()
 				if err != nil {
 					return err
@@ -846,18 +852,18 @@ func (devices *DeviceSet) rollbackTransaction() error {
 	// closed. In that case this call will fail. Just leave a message
 	// in case of failure.
 	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), devices.DeviceId); err != nil {
-		log.Errorf("Warning: Unable to delete device: %s", err)
+		log.Errorf("Unable to delete device: %s", err)
 	}
 
 	dinfo := &DevInfo{Hash: devices.DeviceIdHash}
 	if err := devices.removeMetadata(dinfo); err != nil {
-		log.Errorf("Warning: Unable to remove meta data: %s", err)
+		log.Errorf("Unable to remove metadata: %s", err)
 	} else {
 		devices.markDeviceIdFree(devices.DeviceId)
 	}
 
 	if err := devices.removeTransactionMetaData(); err != nil {
-		log.Errorf("Warning: Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
+		log.Errorf("Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
 	}
 
 	return nil
@@ -877,7 +883,7 @@ func (devices *DeviceSet) processPendingTransaction() error {
 	// If open transaction Id is less than pool transaction Id, something
 	// is wrong. Bail out.
 	if devices.OpenTransactionId < devices.TransactionId {
-		log.Errorf("Warning: Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionId, devices.TransactionId)
+		log.Errorf("Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionId, devices.TransactionId)
 		return nil
 	}
 
@@ -919,7 +925,7 @@ func (devices *DeviceSet) openTransaction(hash string, DeviceId int) error {
 	devices.DeviceIdHash = hash
 	devices.DeviceId = DeviceId
 	if err := devices.saveTransactionMetaData(); err != nil {
-		return fmt.Errorf("Error saving transaction meta data: %s", err)
+		return fmt.Errorf("Error saving transaction metadata: %s", err)
 	}
 	return nil
 }
@@ -927,7 +933,7 @@ func (devices *DeviceSet) openTransaction(hash string, DeviceId int) error {
 func (devices *DeviceSet) refreshTransaction(DeviceId int) error {
 	devices.DeviceId = DeviceId
 	if err := devices.saveTransactionMetaData(); err != nil {
-		return fmt.Errorf("Error saving transaction meta data: %s", err)
+		return fmt.Errorf("Error saving transaction metadata: %s", err)
 	}
 	return nil
 }
@@ -957,7 +963,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		log.Warnf("WARNING: Udev sync is not supported. This will lead to unexpected behavior, data loss and errors")
+		log.Warnf("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors")
 	}
 	log.Debugf("devicemapper: udev sync support: %v", devicemapper.UdevSyncSupported())
 
@@ -1087,7 +1093,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 	}
 
-	// Right now this loads only NextDeviceId. If there is more metatadata
+	// Right now this loads only NextDeviceId. If there is more metadata
 	// down the line, we might have to move it earlier.
 	if err = devices.loadDeviceSetMetaData(); err != nil {
 		return err
@@ -1105,7 +1111,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 }
 
 func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
-	log.Debugf("[deviceset] AddDevice() hash=%s basehash=%s", hash, baseHash)
+	log.Debugf("[deviceset] AddDevice(hash=%s basehash=%s)", hash, baseHash)
 	defer log.Debugf("[deviceset] AddDevice(hash=%s basehash=%s) END", hash, baseHash)
 
 	baseInfo, err := devices.lookupDevice(baseHash)
@@ -1215,7 +1221,7 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	// Wait for the unmount to be effective,
 	// by watching the value of Info.OpenCount for the device
 	if err := devices.waitClose(info); err != nil {
-		log.Errorf("Warning: error waiting for device %s to close: %s", info.Hash, err)
+		log.Errorf("Error waiting for device %s to close: %s", info.Hash, err)
 	}
 
 	devinfo, err := devicemapper.GetInfo(info.Name())
@@ -1319,9 +1325,9 @@ func (devices *DeviceSet) waitClose(info *DevInfo) error {
 }
 
 func (devices *DeviceSet) Shutdown() error {
-	log.Debugf("[deviceset %s] shutdown()", devices.devicePrefix)
+	log.Debugf("[deviceset %s] Shutdown()", devices.devicePrefix)
 	log.Debugf("[devmapper] Shutting down DeviceSet: %s", devices.root)
-	defer log.Debugf("[deviceset %s] shutdown END", devices.devicePrefix)
+	defer log.Debugf("[deviceset %s] Shutdown() END", devices.devicePrefix)
 
 	var devs []*DevInfo
 
@@ -1388,7 +1394,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if info.mountCount > 0 {
 		if path != info.mountPath {
-			return fmt.Errorf("Trying to mount devmapper device in multple places (%s, %s)", info.mountPath, path)
+			return fmt.Errorf("Trying to mount devmapper device in multiple places (%s, %s)", info.mountPath, path)
 		}
 
 		info.mountCount++
@@ -1562,7 +1568,7 @@ func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionId, dataU
 	return
 }
 
-// MetadataDevicePath returns the path to the metadata storage for this deviceset,
+// DataDevicePath returns the path to the data storage for this deviceset,
 // regardless of loopback or block device
 func (devices *DeviceSet) DataDevicePath() string {
 	return devices.dataDevice
@@ -1572,6 +1578,28 @@ func (devices *DeviceSet) DataDevicePath() string {
 // regardless of loopback or block device
 func (devices *DeviceSet) MetadataDevicePath() string {
 	return devices.metadataDevice
+}
+
+func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, error) {
+	buf := new(syscall.Statfs_t)
+	err := syscall.Statfs(loopFile, buf)
+	if err != nil {
+		log.Warnf("Couldn't stat loopfile filesystem %v: %v", loopFile, err)
+		return 0, err
+	}
+	return buf.Bfree * uint64(buf.Bsize), nil
+}
+
+func (devices *DeviceSet) isRealFile(loopFile string) (bool, error) {
+	if loopFile != "" {
+		fi, err := os.Stat(loopFile)
+		if err != nil {
+			log.Warnf("Couldn't stat loopfile %v: %v", loopFile, err)
+			return false, err
+		}
+		return fi.Mode().IsRegular(), nil
+	}
+	return false, nil
 }
 
 // Status returns the current status of this deviceset
@@ -1595,12 +1623,28 @@ func (devices *DeviceSet) Status() *Status {
 
 		status.Data.Used = dataUsed * blockSizeInSectors * 512
 		status.Data.Total = dataTotal * blockSizeInSectors * 512
+		status.Data.Available = status.Data.Total - status.Data.Used
 
 		// metadata blocks are always 4k
 		status.Metadata.Used = metadataUsed * 4096
 		status.Metadata.Total = metadataTotal * 4096
+		status.Metadata.Available = status.Metadata.Total - status.Metadata.Used
 
 		status.SectorSize = blockSizeInSectors * 512
+
+		if check, _ := devices.isRealFile(devices.dataLoopFile); check {
+			actualSpace, err := devices.getUnderlyingAvailableSpace(devices.dataLoopFile)
+			if err == nil && actualSpace < status.Data.Available {
+				status.Data.Available = actualSpace
+			}
+		}
+
+		if check, _ := devices.isRealFile(devices.metadataLoopFile); check {
+			actualSpace, err := devices.getUnderlyingAvailableSpace(devices.metadataLoopFile)
+			if err == nil && actualSpace < status.Metadata.Available {
+				status.Metadata.Available = actualSpace
+			}
+		}
 	}
 
 	return status

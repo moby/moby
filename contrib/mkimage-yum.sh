@@ -57,6 +57,12 @@ mknod -m 666 "$target"/dev/tty0 c 4 0
 mknod -m 666 "$target"/dev/urandom c 1 9
 mknod -m 666 "$target"/dev/zero c 1 5
 
+# amazon linux yum will fail without vars set
+if [ -d /etc/yum/vars ]; then
+	mkdir -p -m 755 "$target"/etc/yum
+	cp -a /etc/yum/vars "$target"/etc/yum/
+fi
+
 yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
     --setopt=group_package_types=mandatory -y groupinstall Core
 yum -c "$yum_config" --installroot="$target" -y clean all
@@ -83,9 +89,13 @@ rm -rf "$target"/etc/ld.so.cache
 rm -rf "$target"/var/cache/ldconfig/*
 
 version=
-if [ -r "$target"/etc/redhat-release ]; then
-    version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$target"/etc/redhat-release)"
-fi
+for file in "$target"/etc/{redhat,system}-release
+do
+    if [ -r "$file" ]; then
+        version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$file")"
+        break
+    fi
+done
 
 if [ -z "$version" ]; then
     echo >&2 "warning: cannot autodetect OS version, using '$name' as tag"

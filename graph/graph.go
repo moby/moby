@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,10 +15,13 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -116,7 +121,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 // Create creates a new image and registers it in the graph.
 func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
 	img := &image.Image{
-		ID:            utils.GenerateRandomID(),
+		ID:            common.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
 		DockerVersion: dockerversion.VERSION,
@@ -209,14 +214,22 @@ func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, outpu
 	if err != nil {
 		return nil, err
 	}
-	progress := utils.ProgressReader(a, 0, output, sf, false, utils.TruncateID(id), "Buffering to disk")
-	defer progress.Close()
-	return archive.NewTempArchive(progress, tmp)
+	progressReader := progressreader.New(progressreader.Config{
+		In:        a,
+		Out:       output,
+		Formatter: sf,
+		Size:      0,
+		NewLines:  false,
+		ID:        common.TruncateID(id),
+		Action:    "Buffering to disk",
+	})
+	defer progressReader.Close()
+	return archive.NewTempArchive(progressReader, tmp)
 }
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	dir := path.Join(graph.Root, "_tmp", utils.GenerateRandomID())
+	dir := path.Join(graph.Root, "_tmp", common.GenerateRandomID())
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
@@ -231,18 +244,27 @@ func (graph *Graph) newTempFile() (*os.File, error) {
 	return ioutil.TempFile(tmp, "")
 }
 
-func bufferToFile(f *os.File, src io.Reader) (int64, error) {
-	n, err := io.Copy(f, src)
+func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
+	var (
+		h = sha256.New()
+		w = gzip.NewWriter(io.MultiWriter(f, h))
+	)
+	_, err := io.Copy(w, src)
+	w.Close()
 	if err != nil {
-		return n, err
+		return 0, "", err
 	}
 	if err = f.Sync(); err != nil {
-		return n, err
+		return 0, "", err
+	}
+	n, err := f.Seek(0, os.SEEK_CUR)
+	if err != nil {
+		return 0, "", err
 	}
 	if _, err := f.Seek(0, 0); err != nil {
-		return n, err
+		return 0, "", err
 	}
-	return n, nil
+	return n, digest.NewDigest("sha256", h), nil
 }
 
 // setupInitLayer populates a directory with mountpoints suitable

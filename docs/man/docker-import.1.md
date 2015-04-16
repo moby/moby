@@ -6,8 +6,14 @@ docker-import - Create an empty filesystem image and import the contents of the 
 
 # SYNOPSIS
 **docker import**
+[**-c**|**--change**[= []**]]
 [**--help**]
 URL|- [REPOSITORY[:TAG]]
+
+# OPTIONS
+**-c**, **--change**=[]
+   Apply specified Dockerfile instructions while importing the image
+   Supported Dockerfile instructions: `ADD`|`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`FROM`|`MAINTAINER`|`RUN`|`USER`|`LABEL`|`VOLUME`|`WORKDIR`|`COPY`
 
 # DESCRIPTION
 Create a new filesystem image from the contents of a tarball (`.tar`,
@@ -38,6 +44,14 @@ Import to docker via pipe and stdin:
 ## Import from a local directory
 
     # tar -c . | docker import - exampleimagedir
+
+## Apply specified Dockerfile instructions while importing the image
+This example sets the docker image ENV variable DEBUG to true by default.
+
+    # tar -c . | docker import -c="ENV DEBUG true" - exampleimagedir
+
+# See also
+**docker-export(1)** to export the contents of a filesystem as a tar archive to STDOUT.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

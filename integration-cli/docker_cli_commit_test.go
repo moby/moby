@@ -72,7 +72,47 @@ func TestCommitWithoutPause(t *testing.T) {
 	logDone("commit - echo foo and commit the image with --pause=false")
 }
 
+//test commit a paused container should not unpause it after commit
+func TestCommitPausedContainer(t *testing.T) {
+	defer deleteAllContainers()
+	defer unpauseAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "busybox")
+	out, _, _, err := runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+	cmd = exec.Command(dockerBinary, "pause", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatalf("failed to pause container: %v, output: %q", err, out)
+	}
+
+	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID)
+	out, _, err = runCommandWithOutput(commitCmd)
+	if err != nil {
+		t.Fatalf("failed to commit container to image: %s, %v", out, err)
+	}
+	cleanedImageID := stripTrailingCharacters(out)
+	defer deleteImages(cleanedImageID)
+
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Paused}}", cleanedContainerID)
+	out, _, _, err = runCommandWithStdoutStderr(cmd)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %v, output: %q", err, out)
+	}
+
+	if !strings.Contains(out, "true") {
+		t.Fatalf("commit should not unpause a paused container")
+	}
+
+	logDone("commit - commit a paused container will not unpause it")
+}
+
 func TestCommitNewFile(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -84,6 +124,7 @@ func TestCommitNewFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	imageID = strings.Trim(imageID, "\r\n")
+	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", imageID, "cat", "/foo")
 
@@ -95,13 +136,12 @@ func TestCommitNewFile(t *testing.T) {
 		t.Fatalf("expected output koye received %q", actual)
 	}
 
-	deleteAllContainers()
-	deleteImages(imageID)
-
 	logDone("commit - commit file and read")
 }
 
 func TestCommitHardlink(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
 	firstOuput, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -127,6 +167,7 @@ func TestCommitHardlink(t *testing.T) {
 		t.Fatal(imageID, err)
 	}
 	imageID = strings.Trim(imageID, "\r\n")
+	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
 	secondOuput, _, err := runCommandWithOutput(cmd)
@@ -146,9 +187,6 @@ func TestCommitHardlink(t *testing.T) {
 	if !found {
 		t.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
 	}
-
-	deleteAllContainers()
-	deleteImages(imageID)
 
 	logDone("commit - commit hardlinks")
 }
@@ -178,6 +216,8 @@ func TestCommitTTY(t *testing.T) {
 }
 
 func TestCommitWithHostBindMount(t *testing.T) {
+	defer deleteAllContainers()
+
 	cmd := exec.Command(dockerBinary, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
@@ -190,6 +230,7 @@ func TestCommitWithHostBindMount(t *testing.T) {
 	}
 
 	imageID = strings.Trim(imageID, "\r\n")
+	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", "bindtest", "true")
 
@@ -197,8 +238,44 @@ func TestCommitWithHostBindMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deleteAllContainers()
-	deleteImages(imageID)
-
 	logDone("commit - commit bind mounted file")
+}
+
+func TestCommitChange(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit",
+		"--change", "EXPOSE 8080",
+		"--change", "ENV DEBUG true",
+		"--change", "ENV test 1",
+		"--change", "ENV PATH /foo",
+		"test", "test-commit")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatal(imageId, err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+	defer deleteImages(imageId)
+
+	expected := map[string]string{
+		"Config.ExposedPorts": "map[8080/tcp:map[]]",
+		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
+	}
+
+	for conf, value := range expected {
+		res, err := inspectField(imageId, conf)
+		if err != nil {
+			t.Errorf("failed to get value %s, error: %s", conf, err)
+		}
+		if res != value {
+			t.Errorf("%s('%s'), expected %s", conf, res, value)
+		}
+	}
+
+	logDone("commit - commit --change")
 }

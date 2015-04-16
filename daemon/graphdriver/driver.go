@@ -25,6 +25,8 @@ const (
 	FsMagicReiserFs    = FsMagic(0x52654973)
 	FsMagicSmbFs       = FsMagic(0x0000517B)
 	FsMagicJffs2Fs     = FsMagic(0x000072b6)
+	FsMagicZfs         = FsMagic(0x2fc12fc1)
+	FsMagicXfs         = FsMagic(0x58465342)
 	FsMagicUnsupported = FsMagic(0x00000000)
 )
 
@@ -37,9 +39,8 @@ var (
 		"aufs",
 		"btrfs",
 		"devicemapper",
-		"vfs",
-		// experimental, has to be enabled manually for now
 		"overlay",
+		"vfs",
 	}
 
 	ErrNotSupported   = errors.New("driver not supported")
@@ -58,6 +59,8 @@ var (
 		FsMagicReiserFs:    "reiserfs",
 		FsMagicSmbFs:       "smb",
 		FsMagicJffs2Fs:     "jffs2",
+		FsMagicZfs:         "zfs",
+		FsMagicXfs:         "xfs",
 		FsMagicUnsupported: "unsupported",
 	}
 )
@@ -180,6 +183,6 @@ func checkPriorDriver(name, root string) {
 		}
 	}
 	if len(priorDrivers) > 0 {
-		log.Warnf("graphdriver %s selected. Warning: your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
+		log.Warnf("Graphdriver %s selected. Your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
 	}
 }

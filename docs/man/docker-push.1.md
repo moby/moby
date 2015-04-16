@@ -2,18 +2,18 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-push - Push an image or a repository to the registry
+docker-push - Push an image or a repository to a registry
 
 # SYNOPSIS
 **docker push**
 [**--help**]
-NAME[:TAG]
+NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
 # DESCRIPTION
-Push an image or a repository to a registry. The default registry is the Docker 
-Hub located at [hub.docker.com](https://hub.docker.com/). However the 
-image can be pushed to another, perhaps private, registry as demonstrated in 
-the example below.
+
+This command pushes an image or a repository to a registry. If you do not
+specify a `REGISTRY_HOST`, the command uses Docker's public registry located at
+`registry-1.docker.io` by default. 
 
 # OPTIONS
 **--help**
@@ -28,12 +28,10 @@ and then committing it to a new image name:
 
     # docker commit c16378f943fe rhel-httpd
 
-Now push the image to the registry using the image ID. In this example
-the registry is on host named registry-host and listening on port 5000.
-Default Docker commands will push to the default `hub.docker.com`
-registry. Instead, push to the local registry, which is on a host called
-registry-host*. To do this, tag the image with the host name or IP
-address, and the port of the registry:
+Now, push the image to the registry using the image ID. In this example the
+registry is on host named `registry-host` and listening on port `5000`. To do
+this, tag the image with the host name or IP address, and the port of the
+registry:
 
     # docker tag rhel-httpd registry-host:5000/myadmin/rhel-httpd
     # docker push registry-host:5000/myadmin/rhel-httpd
@@ -49,3 +47,5 @@ listed.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+April 2015, updated by Mary Anthony for v2 <mary@docker.com>
+

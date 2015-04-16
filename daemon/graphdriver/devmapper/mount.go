@@ -55,13 +55,14 @@ func ProbeFsType(device string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer file.Close()
 
 	buffer := make([]byte, maxLen)
 	l, err := file.Read(buffer)
 	if err != nil {
 		return "", err
 	}
-	file.Close()
+
 	if uint64(l) != maxLen {
 		return "", fmt.Errorf("unable to detect filesystem type of %s, short read", device)
 	}

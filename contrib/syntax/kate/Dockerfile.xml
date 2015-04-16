@@ -22,6 +22,7 @@
       <item> CMD </item>
       <item> WORKDIR </item>
       <item> USER </item>
+      <item> LABEL </item>
     </list>
 
     <contexts>

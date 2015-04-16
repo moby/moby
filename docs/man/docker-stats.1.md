@@ -7,13 +7,11 @@ docker-stats - Display a live stream of one or more containers' resource usage s
 # SYNOPSIS
 **docker stats**
 [**--help**]
-[CONTAINERS]
+CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 
 Display a live stream of one or more containers' resource usage statistics
-
-Note: this functionality currently only works when using the *libcontainer* exec-driver.
 
 # OPTIONS
 **--help**
