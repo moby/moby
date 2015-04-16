@@ -193,7 +193,7 @@ func (conn *Conn) Close() error {
 
 // Eavesdrop causes conn to send all incoming messages to the given channel
 // without further processing. Method replies, errors and signals will not be
-// sent to the appropiate channels and method calls will not be handled. If nil
+// sent to the appropriate channels and method calls will not be handled. If nil
 // is passed, the normal behaviour is restored.
 //
 // The caller has to make sure that ch is sufficiently buffered;
@@ -573,7 +573,7 @@ func getTransport(address string) (transport, error) {
 }
 
 // dereferenceAll returns a slice that, assuming that vs is a slice of pointers
-// of arbitrary types, containes the values that are obtained from dereferencing
+// of arbitrary types, contains the values that are obtained from dereferencing
 // all elements in vs.
 func dereferenceAll(vs []interface{}) []interface{} {
 	for i := range vs {
