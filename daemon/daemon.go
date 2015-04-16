@@ -273,19 +273,8 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		if err := container.ToDisk(); err != nil {
 			logrus.Debugf("saving stopped state to disk %s", err)
 		}
-
-		info := daemon.execDriver.Info(container.ID)
-		if !info.IsRunning() {
-			logrus.Debugf("Container %s was supposed to be running but is not.", container.ID)
-
-			logrus.Debug("Marking as stopped")
-
-			container.SetStopped(&execdriver.ExitStatus{ExitCode: -127})
-			if err := container.ToDisk(); err != nil {
-				return err
-			}
-		}
 	}
+
 	return nil
 }
 
