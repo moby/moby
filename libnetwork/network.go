@@ -39,7 +39,6 @@ create network namespaces and allocate interfaces for containers to use.
 package libnetwork
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/docker/docker/pkg/common"
@@ -84,6 +83,7 @@ type Endpoint interface {
 
 // NetworkDriver provides a reference to driver and way to push driver specific config
 type NetworkDriver struct {
+	networkType    string
 	internalDriver driverapi.Driver
 }
 
@@ -121,19 +121,32 @@ func New() NetworkController {
 func (c *controller) NewNetworkDriver(networkType string, options interface{}) (*NetworkDriver, error) {
 	d, ok := c.drivers[networkType]
 	if !ok {
-		return nil, fmt.Errorf("unknown driver %q", networkType)
+		return nil, NetworkTypeError(networkType)
 	}
 
 	if err := d.Config(options); err != nil {
 		return nil, err
 	}
 
-	return &NetworkDriver{internalDriver: d}, nil
+	return &NetworkDriver{networkType: networkType, internalDriver: d}, nil
 }
 
-// NewNetwork creates a new network of the specified networkType. The options
+// NewNetwork creates a new network of the specified NetworkDriver. The options
 // are driver specific and modeled in a generic way.
 func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interface{}) (Network, error) {
+	if nd == nil {
+		return nil, ErrNilNetworkDriver
+	}
+
+	c.Lock()
+	for _, n := range c.networks {
+		if n.name == name {
+			c.Unlock()
+			return nil, NetworkNameError(name)
+		}
+	}
+	c.Unlock()
+
 	network := &network{
 		name:   name,
 		id:     driverapi.UUID(common.GenerateRandomID()),
@@ -143,7 +156,7 @@ func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interfac
 
 	d := network.driver.internalDriver
 	if d == nil {
-		return nil, fmt.Errorf("invalid driver bound to network")
+		return nil, ErrInvalidNetworkDriver
 	}
 
 	if err := d.CreateNetwork(network.id, options); err != nil {
@@ -166,7 +179,11 @@ func (n *network) ID() string {
 }
 
 func (n *network) Type() string {
-	return n.networkType
+	if n.driver == nil {
+		return ""
+	}
+
+	return n.driver.networkType
 }
 
 func (n *network) Delete() error {
@@ -176,7 +193,7 @@ func (n *network) Delete() error {
 	_, ok := n.ctrlr.networks[n.id]
 	if !ok {
 		n.ctrlr.Unlock()
-		return fmt.Errorf("unknown network %s id %s", n.name, n.id)
+		return &UnknownNetworkError{name: n.name, id: string(n.id)}
 	}
 
 	n.Lock()
@@ -184,7 +201,7 @@ func (n *network) Delete() error {
 	n.Unlock()
 	if numEps != 0 {
 		n.ctrlr.Unlock()
-		return fmt.Errorf("network %s has active endpoints", n.id)
+		return &ActiveEndpointsError{name: n.name, id: string(n.id)}
 	}
 
 	delete(n.ctrlr.networks, n.id)
@@ -228,7 +245,7 @@ func (ep *endpoint) Delete() error {
 	_, ok := n.endpoints[ep.id]
 	if !ok {
 		n.Unlock()
-		return fmt.Errorf("unknown endpoint %s id %s", ep.name, ep.id)
+		return &UnknownEndpointError{name: ep.name, id: string(ep.id)}
 	}
 
 	delete(n.endpoints, ep.id)
