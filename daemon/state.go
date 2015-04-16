@@ -183,7 +183,7 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.waitChan = make(chan struct{})
 }
 
-// SetRestarting is when docker hanldes the auto restart of containers when they are
+// SetRestarting is when docker handles the auto restart of containers when they are
 // in the middle of a stop and being restarted again
 func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
