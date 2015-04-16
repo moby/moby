@@ -39,7 +39,7 @@ Which should download the `ubuntu` image, and then start `bash` in a container.
 
 Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details
 on why 3.8 is required, see discussion on
-[bug #407](https://github.com/docker/docker/issues/407%20kernel%20versions)).
+[bug #407](https://github.com/docker/docker/issues/407)).
 
 Fortunately, wheezy-backports currently has [Kernel 3.16
 ](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
