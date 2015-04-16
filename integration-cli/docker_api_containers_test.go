@@ -369,9 +369,14 @@ func TestBuildApiDockerfilePath(t *testing.T) {
 		t.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	_, out, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
+	_, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
 	if err == nil {
+		out, _ := readBody(body)
 		t.Fatalf("Build was supposed to fail: %s", out)
+	}
+	out, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	if !strings.Contains(string(out), "must be within the build context") {
@@ -393,9 +398,13 @@ RUN find /tmp/`,
 	}
 	defer server.Close()
 
-	_, buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Make sure Dockerfile exists.
@@ -419,9 +428,14 @@ RUN echo from dockerfile`,
 	}
 	defer git.Close()
 
-	_, buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
+		buf, _ := readBody(body)
 		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out := string(buf)
@@ -445,9 +459,14 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	_, buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
+		buf, _ := readBody(body)
 		t.Fatalf("Build failed: %s\n%q", err, buf)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out := string(buf)
@@ -472,9 +491,13 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	_, buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	_, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
+	}
+	buf, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	out := string(buf)
@@ -503,9 +526,14 @@ func TestBuildApiDockerfileSymlink(t *testing.T) {
 		t.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	_, out, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+	_, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
 	if err == nil {
+		out, _ := readBody(body)
 		t.Fatalf("Build was supposed to fail: %s", out)
+	}
+	out, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// The reason the error is "Cannot locate specified Dockerfile" is because
@@ -595,4 +623,197 @@ func TestContainerApiPause(t *testing.T) {
 	}
 
 	logDone("container REST API - check POST containers/pause and unpause")
+}
+
+func TestContainerApiTop(t *testing.T) {
+	defer deleteAllContainers()
+	out, _, _ := dockerCmd(t, "run", "-d", "-i", "busybox", "/bin/sh", "-c", "cat")
+	id := strings.TrimSpace(out)
+	if err := waitRun(id); err != nil {
+		t.Fatal(err)
+	}
+
+	type topResp struct {
+		Titles    []string
+		Processes [][]string
+	}
+	var top topResp
+	_, b, err := sockRequest("GET", "/containers/"+id+"/top?ps_args=aux", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &top); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(top.Titles) != 11 {
+		t.Fatalf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles)
+	}
+
+	if top.Titles[0] != "USER" || top.Titles[10] != "COMMAND" {
+		t.Fatalf("expected `USER` at `Titles[0]` and `COMMAND` at Titles[10]: %v", top.Titles)
+	}
+	if len(top.Processes) != 2 {
+		t.Fatalf("expeted 2 processes, found %d: %v", len(top.Processes), top.Processes)
+	}
+	if top.Processes[0][10] != "/bin/sh -c cat" {
+		t.Fatalf("expected `/bin/sh -c cat`, found: %s", top.Processes[0][10])
+	}
+	if top.Processes[1][10] != "cat" {
+		t.Fatalf("expected `cat`, found: %s", top.Processes[1][10])
+	}
+
+	logDone("containers REST API -  GET /containers/<id>/top")
+}
+
+func TestContainerApiCommit(t *testing.T) {
+	out, _, _ := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /test")
+	id := strings.TrimSpace(out)
+
+	name := "testcommit"
+	_, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+id, nil)
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		t.Fatal(err)
+	}
+
+	type resp struct {
+		Id string
+	}
+	var img resp
+	if err := json.Unmarshal(b, &img); err != nil {
+		t.Fatal(err)
+	}
+	defer deleteImages(img.Id)
+
+	out, err = inspectField(img.Id, "Config.Cmd")
+	if out != "[/bin/sh -c touch /test]" {
+		t.Fatalf("got wrong Cmd from commit: %q", out)
+	}
+	// sanity check, make sure the image is what we think it is
+	dockerCmd(t, "run", img.Id, "ls", "/test")
+
+	logDone("containers REST API - POST /commit")
+}
+
+func TestContainerApiCreate(t *testing.T) {
+	defer deleteAllContainers()
+	config := map[string]interface{}{
+		"Image": "busybox",
+		"Cmd":   []string{"/bin/sh", "-c", "touch /test && ls /test"},
+	}
+
+	_, b, err := sockRequest("POST", "/containers/create", config)
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		t.Fatal(err)
+	}
+	type createResp struct {
+		Id string
+	}
+	var container createResp
+	if err := json.Unmarshal(b, &container); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, _ := dockerCmd(t, "start", "-a", container.Id)
+	if strings.TrimSpace(out) != "/test" {
+		t.Fatalf("expected output `/test`, got %q", out)
+	}
+
+	logDone("containers REST API - POST /containers/create")
+}
+
+func TestContainerApiVerifyHeader(t *testing.T) {
+	defer deleteAllContainers()
+	config := map[string]interface{}{
+		"Image": "busybox",
+	}
+
+	create := func(ct string) (int, io.ReadCloser, error) {
+		jsonData := bytes.NewBuffer(nil)
+		if err := json.NewEncoder(jsonData).Encode(config); err != nil {
+			t.Fatal(err)
+		}
+		return sockRequestRaw("POST", "/containers/create", jsonData, ct)
+	}
+
+	// Try with no content-type
+	_, body, err := create("")
+	if err == nil {
+		b, _ := readBody(body)
+		t.Fatalf("expected error when content-type is not set: %q", string(b))
+	}
+	body.Close()
+	// Try with wrong content-type
+	_, body, err = create("application/xml")
+	if err == nil {
+		b, _ := readBody(body)
+		t.Fatalf("expected error when content-type is not set: %q", string(b))
+	}
+	body.Close()
+
+	// now application/json
+	_, body, err = create("application/json")
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		b, _ := readBody(body)
+		t.Fatalf("%v - %q", err, string(b))
+	}
+	body.Close()
+
+	logDone("containers REST API - verify create header")
+}
+
+// Issue 7941 - test to make sure a "null" in JSON is just ignored.
+// W/o this fix a null in JSON would be parsed into a string var as "null"
+func TestContainerApiPostCreateNull(t *testing.T) {
+	config := `{
+		"Hostname":"",
+		"Domainname":"",
+		"Memory":0,
+		"MemorySwap":0,
+		"CpuShares":0,
+		"Cpuset":null,
+		"AttachStdin":true,
+		"AttachStdout":true,
+		"AttachStderr":true,
+		"PortSpecs":null,
+		"ExposedPorts":{},
+		"Tty":true,
+		"OpenStdin":true,
+		"StdinOnce":true,
+		"Env":[],
+		"Cmd":"ls",
+		"Image":"busybox",
+		"Volumes":{},
+		"WorkingDir":"",
+		"Entrypoint":null,
+		"NetworkDisabled":false,
+		"OnBuild":null}`
+
+	_, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		b, _ := readBody(body)
+		t.Fatal(err, string(b))
+	}
+
+	b, err := readBody(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type createResp struct {
+		Id string
+	}
+	var container createResp
+	if err := json.Unmarshal(b, &container); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := inspectField(container.Id, "HostConfig.CpusetCpus")
+	if err != nil {
+		t.Fatal(err, out)
+	}
+	if out != "" {
+		t.Fatalf("expected empty string, got %q", out)
+	}
+
+	logDone("containers REST API - Create Null")
 }

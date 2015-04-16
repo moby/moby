@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -66,4 +67,34 @@ func TestApiImagesFilter(t *testing.T) {
 	}
 
 	logDone("images - filter param is applied")
+}
+
+func TestApiImagesSaveAndLoad(t *testing.T) {
+	out, err := buildImage("saveandload", "FROM hello-world\nENV FOO bar", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSpace(out)
+	defer deleteImages("saveandload")
+
+	_, body, err := sockRequestRaw("GET", "/images/"+id+"/get", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer body.Close()
+
+	dockerCmd(t, "rmi", id)
+
+	_, loadBody, err := sockRequestRaw("POST", "/images/load", body, "application/x-tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer loadBody.Close()
+
+	out, _, _ = dockerCmd(t, "inspect", "--format='{{ .Id }}'", id)
+	if strings.TrimSpace(out) != id {
+		t.Fatal("load did not work properly")
+	}
+
+	logDone("images API - save and load")
 }

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
 )
 
@@ -304,41 +305,53 @@ func sockRequest(method, endpoint string, data interface{}) (int, []byte, error)
 		return -1, nil, err
 	}
 
-	return sockRequestRaw(method, endpoint, jsonData, "application/json")
+	status, body, err := sockRequestRaw(method, endpoint, jsonData, "application/json")
+	if err != nil {
+		b, _ := ioutil.ReadAll(body)
+		return status, b, err
+	}
+	var b []byte
+	b, err = readBody(body)
+	return status, b, err
 }
 
-func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, []byte, error) {
+func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, io.ReadCloser, error) {
 	c, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
 		return -1, nil, fmt.Errorf("could not dial docker daemon: %v", err)
 	}
 
 	client := httputil.NewClientConn(c, nil)
-	defer client.Close()
 
 	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {
+		client.Close()
 		return -1, nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
-	if ct == "" {
-		ct = "application/json"
+	if ct != "" {
+		req.Header.Set("Content-Type", ct)
 	}
-	req.Header.Set("Content-Type", ct)
 
 	resp, err := client.Do(req)
 	if err != nil {
+		client.Close()
 		return -1, nil, fmt.Errorf("could not perform request: %v", err)
 	}
-	defer resp.Body.Close()
+	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
+		defer client.Close()
+		return resp.Body.Close()
+	})
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
 		return resp.StatusCode, body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
+	return resp.StatusCode, body, err
+}
 
-	return resp.StatusCode, b, err
+func readBody(b io.ReadCloser) ([]byte, error) {
+	defer b.Close()
+	return ioutil.ReadAll(b)
 }
 
 func deleteContainer(container string) error {
