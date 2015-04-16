@@ -1,15 +1,5 @@
 package zfs
 
-/*
-#include <stdlib.h>
-#include <dirent.h>
-#include <mntent.h>
-
-const char* PROC_MOUNTS = "/proc/mounts";
-const char* OPEN_MODE = "r";
-*/
-import "C"
-
 import (
 	"fmt"
 	"os"
@@ -19,10 +9,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unsafe"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
 )
@@ -129,27 +119,18 @@ func lookupZfsDataset(rootdir string) (string, error) {
 	}
 	wantedDev := stat.Dev
 
-	Cfp, err := C.setmntent(C.PROC_MOUNTS, C.OPEN_MODE)
+	mounts, err := mount.GetMounts()
 	if err != nil {
-		return "", fmt.Errorf("Failed to open /proc/mounts: %v", err)
+		return "", err
 	}
-	defer C.endmntent(Cfp)
-
-	var Cmnt C.struct_mntent
-	buf := string(make([]byte, 256, 256))
-	Cbuf := C.CString(buf)
-	defer C.free(unsafe.Pointer(Cbuf))
-
-	for C.getmntent_r(Cfp, &Cmnt, Cbuf, 256) != nil {
-		dir := C.GoString(Cmnt.mnt_dir)
-		if err := syscall.Stat(dir, &stat); err != nil {
-			log.Debugf("[zfs] failed to stat '%s' while scanning for zfs mount: %v", dir, err)
+	for _, m := range mounts {
+		if err := syscall.Stat(m.Mountpoint, &stat); err != nil {
+			log.Debugf("[zfs] failed to stat '%s' while scanning for zfs mount: %v", m.Mountpoint, err)
 			continue // may fail on fuse file systems
 		}
 
-		fs := C.GoString(Cmnt.mnt_type)
-		if stat.Dev == wantedDev && fs == "zfs" {
-			return C.GoString(Cmnt.mnt_fsname), nil
+		if stat.Dev == wantedDev && m.Fstype == "zfs" {
+			return m.Source, nil
 		}
 	}
 
