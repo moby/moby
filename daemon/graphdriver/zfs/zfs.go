@@ -179,20 +179,15 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-func cloneFilesystem(id, parent, mountpoint string) error {
-	parentDataset, err := zfs.GetDataset(parent)
-	if err != nil {
-		return err
-	}
+func cloneFilesystem(name, parentName string) error {
 	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
+	parentDataset := zfs.Dataset{Name: parentName}
 	snapshot, err := parentDataset.Snapshot(snapshotName /*recursive */, false)
 	if err != nil {
 		return err
 	}
 
-	_, err = snapshot.Clone(id, map[string]string{
-		"mountpoint": mountpoint,
-	})
+	_, err = snapshot.Clone(name, map[string]string{"mountpoint": "legacy"})
 	if err != nil {
 		snapshot.Destroy(zfs.DestroyDeferDeletion)
 		return err
@@ -204,52 +199,73 @@ func (d *Driver) ZfsPath(id string) string {
 	return d.options.fsName + "/" + id
 }
 
+func (d *Driver) MountPath(id string) string {
+	return path.Join(d.options.mountPath, "graph", id)
+}
+
 func (d *Driver) Create(id string, parent string) error {
-	datasetName := d.ZfsPath(id)
-	dataset, err := zfs.GetDataset(datasetName)
+	err := d.create(id, parent)
 	if err == nil {
-		// cleanup existing dataset from an aborted build
-		err := dataset.Destroy(zfs.DestroyRecursiveClones)
-		if err != nil {
-			log.Warnf("[zfs] failed to destroy dataset '%s': %v", dataset.Name, err)
-		}
-	} else if zfsError, ok := err.(*zfs.Error); ok {
-		if !strings.HasSuffix(zfsError.Stderr, "dataset does not exist\n") {
+		return nil
+	}
+	if zfsError, ok := err.(*zfs.Error); ok {
+		if !strings.HasSuffix(zfsError.Stderr, "dataset already exists\n") {
 			return err
 		}
+		// aborted build -> cleanup
 	} else {
 		return err
 	}
 
-	mountPoint := path.Join(d.options.mountPath, "graph", id)
-	if parent == "" {
-		_, err := zfs.CreateFilesystem(datasetName, map[string]string{
-			"mountpoint": mountPoint,
-		})
+	dataset := zfs.Dataset{Name: d.ZfsPath(id)}
+	if err := dataset.Destroy(zfs.DestroyRecursiveClones); err != nil {
 		return err
 	}
-	return cloneFilesystem(datasetName, d.ZfsPath(parent), mountPoint)
+
+	// retry
+	return d.create(id, parent)
+}
+
+func (d *Driver) create(id, parent string) error {
+	name := d.ZfsPath(id)
+	if parent == "" {
+		mountoptions := map[string]string{"mountpoint": "legacy"}
+		_, err := zfs.CreateFilesystem(name, mountoptions)
+		return err
+	}
+	return cloneFilesystem(name, d.ZfsPath(parent))
 }
 
 func (d *Driver) Remove(id string) error {
-	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if dataset == nil {
-		return err
-	}
-
+	dataset := zfs.Dataset{Name: d.ZfsPath(id)}
 	return dataset.Destroy(zfs.DestroyRecursive)
 }
 
 func (d *Driver) Get(id, mountLabel string) (string, error) {
-	dataset, err := zfs.GetDataset(d.ZfsPath(id))
-	if err != nil {
+	mountpoint := d.MountPath(id)
+	filesystem := d.ZfsPath(id)
+	log.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, mountLabel)
+
+	// Create the target directories if they don't exist
+	if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
 		return "", err
 	}
-	return dataset.Mountpoint, nil
+
+	err := mount.Mount(filesystem, mountpoint, "zfs", mountLabel)
+	if err != nil {
+		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
+	}
+
+	return mountpoint, nil
 }
 
 func (d *Driver) Put(id string) error {
-	// FS is already mounted
+	mountpoint := d.MountPath(id)
+	log.Debugf(`[zfs] unmount("%s")`, mountpoint)
+
+	if err := mount.Unmount(mountpoint); err != nil {
+		return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
+	}
 	return nil
 }
 
