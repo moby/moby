@@ -29,6 +29,7 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 	case "fd":
 		ls, err := systemd.ListenFD(addr)
 		if err != nil {
+			logrus.Errorf("Listen fd error: %v", err)
 			return nil, err
 		}
 		chErrors := make(chan error, len(ls))
@@ -56,13 +57,16 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 			logrus.Infof("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 		if l, err = NewTcpSocket(addr, tlsConfigFromJob(job)); err != nil {
+			logrus.Errorf("Create tcp connection error: %v", err)
 			return nil, err
 		}
 		if err := allocateDaemonPort(addr); err != nil {
+			logrus.Errorf("Allocate daemon port error: %v", err)
 			return nil, err
 		}
 	case "unix":
 		if l, err = NewUnixSocket(addr, job.Getenv("SocketGroup")); err != nil {
+			logrus.Errorf("Create unix socket error: %v", err)
 			return nil, err
 		}
 	default:
