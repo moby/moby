@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"runtime"
 	"time"
 
 	"encoding/base64"
@@ -21,6 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
@@ -28,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -40,6 +43,19 @@ import (
 var (
 	activationLock = make(chan struct{})
 )
+
+type ServerConfig struct {
+	Logging     bool
+	EnableCors  bool
+	CorsHeaders string
+	Version     string
+	SocketGroup string
+	Tls         bool
+	TlsVerify   bool
+	TlsCa       string
+	TlsCert     string
+	TlsKey      string
+}
 
 type HttpServer struct {
 	srv *http.Server
@@ -187,8 +203,20 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 
 func getVersion(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.Header().Set("Content-Type", "application/json")
-	eng.ServeHTTP(w, r)
-	return nil
+
+	v := &types.Version{
+		Version:    dockerversion.VERSION,
+		ApiVersion: api.APIVERSION,
+		GitCommit:  dockerversion.GITCOMMIT,
+		GoVersion:  runtime.Version(),
+		Os:         runtime.GOOS,
+		Arch:       runtime.GOARCH,
+	}
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
+		v.KernelVersion = kernelVersion.String()
+	}
+
+	return writeJSON(w, http.StatusOK, v)
 }
 
 func postContainersKill(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1588,28 +1616,22 @@ type Server interface {
 
 // ServeApi loops through all of the protocols sent in to docker and spawns
 // off a go routine to setup a serving http.Server for each.
-func ServeApi(job *engine.Job) error {
-	if len(job.Args) == 0 {
-		return fmt.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
-	}
-	var (
-		protoAddrs = job.Args
-		chErrors   = make(chan error, len(protoAddrs))
-	)
+func ServeApi(protoAddrs []string, conf *ServerConfig, eng *engine.Engine) error {
+	var chErrors = make(chan error, len(protoAddrs))
 
 	for _, protoAddr := range protoAddrs {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
-			return fmt.Errorf("usage: %s PROTO://ADDR [PROTO://ADDR ...]", job.Name)
+			return fmt.Errorf("bad format, expected PROTO://ADDR")
 		}
 		go func() {
 			logrus.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-			srv, err := NewServer(protoAddrParts[0], protoAddrParts[1], job)
+			srv, err := NewServer(protoAddrParts[0], protoAddrParts[1], conf, eng)
 			if err != nil {
 				chErrors <- err
 				return
 			}
-			job.Eng.OnShutdown(func() {
+			eng.OnShutdown(func() {
 				if err := srv.Close(); err != nil {
 					logrus.Error(err)
 				}

@@ -39,13 +39,11 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 	}
 }
 
-// Called through eng.Job("acceptconnections")
-func AcceptConnections(job *engine.Job) error {
+func AcceptConnections() {
 	// close the lock so the listeners start accepting connections
 	select {
 	case <-activationLock:
 	default:
 		close(activationLock)
 	}
-	return nil
 }

@@ -3363,7 +3363,7 @@ func TestRunRestartMaxRetries(t *testing.T) {
 		t.Fatal(string(out), err)
 	}
 	id := strings.TrimSpace(string(out))
-	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {
+	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 10); err != nil {
 		t.Fatal(err)
 	}
 	count, err := inspectField(id, "RestartCount")

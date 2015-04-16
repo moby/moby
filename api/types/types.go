@@ -1,5 +1,7 @@
 package types
 
+import "github.com/docker/docker/pkg/version"
+
 // ContainerCreateResponse contains the information returned to a client on the
 // creation of a new container.
 type ContainerCreateResponse struct {
@@ -109,4 +111,14 @@ type CopyConfig struct {
 type ContainerProcessList struct {
 	Processes [][]string
 	Titles    []string
+}
+
+type Version struct {
+	Version       string
+	ApiVersion    version.Version
+	GitCommit     string
+	GoVersion     string
+	Os            string
+	Arch          string
+	KernelVersion string `json:",omitempty"`
 }

@@ -34,35 +34,6 @@ func TesthttpError(t *testing.T) {
 	}
 }
 
-func TestGetVersion(t *testing.T) {
-	eng := engine.New()
-	var called bool
-	eng.Register("version", func(job *engine.Job) error {
-		called = true
-		v := &engine.Env{}
-		v.SetJson("Version", "42.1")
-		v.Set("ApiVersion", "1.1.1.1.1")
-		v.Set("GoVersion", "2.42")
-		v.Set("Os", "Linux")
-		v.Set("Arch", "x86_64")
-		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequest("GET", "/version", nil, eng, t)
-	if !called {
-		t.Fatalf("handler was not called")
-	}
-	v := readEnv(r.Body, t)
-	if v.Get("Version") != "42.1" {
-		t.Fatalf("%#v\n", v)
-	}
-	if r.HeaderMap.Get("Content-Type") != "application/json" {
-		t.Fatalf("%#v\n", r)
-	}
-}
-
 func TestGetInfo(t *testing.T) {
 	eng := engine.New()
 	var called bool
