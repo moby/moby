@@ -178,6 +178,7 @@ func postAuth(eng *engine.Engine, version version.Version, w http.ResponseWriter
 	d := getDaemon(eng)
 	status, err := d.RegistryService.Auth(config)
 	if err != nil {
+		logrus.Debugf("Registry service auth Error: %v", err)
 		return err
 	}
 	return writeJSON(w, http.StatusOK, &types.AuthResponse{
@@ -220,6 +221,7 @@ func postContainersKill(eng *engine.Engine, version version.Version, w http.Resp
 	}
 
 	if err = getDaemon(eng).ContainerKill(name, sig); err != nil {
+		logrus.Errorf("Can not kill conatiner %s: %v", name, err)
 		return err
 	}
 
@@ -243,6 +245,7 @@ func postContainersPause(eng *engine.Engine, version version.Version, w http.Res
 	}
 
 	if err := cont.Pause(); err != nil {
+		logrus.Errorf("Can not pause conatiner %s: %v", name, err)
 		return fmt.Errorf("Cannot pause container %s: %s", name, err)
 	}
 	cont.LogEvent("pause")
@@ -268,6 +271,7 @@ func postContainersUnpause(eng *engine.Engine, version version.Version, w http.R
 	}
 
 	if err := cont.Unpause(); err != nil {
+		logrus.Errorf("Can not unpause conatiner %s: %v", name, err)
 		return fmt.Errorf("Cannot unpause container %s: %s", name, err)
 	}
 	cont.LogEvent("unpause")
@@ -301,6 +305,7 @@ func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseW
 
 	images, err := getDaemon(eng).Repositories().Images(&imagesConfig)
 	if err != nil {
+		logrus.Debugf("Can not get images from repositories: %v", err)
 		return err
 	}
 
@@ -345,12 +350,14 @@ func getInfo(eng *engine.Engine, version version.Version, w http.ResponseWriter,
 
 func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
+		logrus.Debugf("Parse http request error: %v", err)
 		return err
 	}
 	var since int64 = -1
 	if r.Form.Get("since") != "" {
 		s, err := strconv.ParseInt(r.Form.Get("since"), 10, 64)
 		if err != nil {
+			logrus.Error("Get events error, don't have field: since.")
 			return err
 		}
 		since = s
@@ -360,6 +367,7 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	if r.Form.Get("until") != "" {
 		u, err := strconv.ParseInt(r.Form.Get("until"), 10, 64)
 		if err != nil {
+			logrus.Error("Get events error, don't have field: until.")
 			return err
 		}
 		until = u
@@ -373,6 +381,7 @@ func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWrite
 
 	ef, err := filters.FromParam(r.Form.Get("filters"))
 	if err != nil {
+		logrus.Error("Get events error, don't have filters.")
 		return err
 	}
 
@@ -455,6 +464,7 @@ func getImagesHistory(eng *engine.Engine, version version.Version, w http.Respon
 	name := vars["name"]
 	history, err := getDaemon(eng).Repositories().History(name)
 	if err != nil {
+		logrus.Errorf("Get image %s history error: %v", name, err)
 		return err
 	}
 
@@ -470,11 +480,13 @@ func getContainersChanges(eng *engine.Engine, version version.Version, w http.Re
 	d := getDaemon(eng)
 	cont, err := d.Get(name)
 	if err != nil {
+		logrus.Errorf("Can not find container %s: %v", name, err)
 		return err
 	}
 
 	changes, err := cont.Changes()
 	if err != nil {
+		logrus.Errorf("Container %s change error: %v", name, err)
 		return err
 	}
 
@@ -496,6 +508,7 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 
 	procList, err := getDaemon(eng).ContainerTop(vars["name"], r.Form.Get("ps_args"))
 	if err != nil {
+		logrus.Errorf("Get containers top error: %v", err)
 		return err
 	}
 
@@ -525,6 +538,7 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 
 	containers, err := getDaemon(eng).Containers(config)
 	if err != nil {
+		logrus.Errorf("Get conatiners JSON error: %v", err)
 		return err
 	}
 
@@ -586,6 +600,7 @@ func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseW
 	job := eng.Job("tag", vars["name"], r.Form.Get("repo"), r.Form.Get("tag"))
 	job.Setenv("force", r.Form.Get("force"))
 	if err := job.Run(); err != nil {
+		logrus.Errorf("post images tag error: %v", err)
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -598,6 +613,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	}
 
 	if err := checkForJson(r); err != nil {
+		logrus.Errorf("Check for json error. %v", err)
 		return err
 	}
 
@@ -622,6 +638,7 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 
 	imgID, err := d.ContainerCommit(cont, containerCommitConfig)
 	if err != nil {
+		logrus.Errorf("Container commit error: %v", err)
 		return err
 	}
 
@@ -682,6 +699,7 @@ func postImagesCreate(eng *engine.Engine, version version.Version, w http.Respon
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
 	if err := job.Run(); err != nil {
+		logrus.Errorf("Create image error: %v", err)
 		if !job.Stdout.Used() {
 			return err
 		}
@@ -718,6 +736,7 @@ func getImagesSearch(eng *engine.Engine, version version.Version, w http.Respons
 	d := getDaemon(eng)
 	query, err := d.RegistryService.Search(r.Form.Get("term"), config, headers)
 	if err != nil {
+		logrus.Errorf("Search image error: %v", err)
 		return err
 	}
 	return json.NewEncoder(w).Encode(query.Results)
@@ -766,6 +785,7 @@ func postImagesPush(eng *engine.Engine, version version.Version, w http.Response
 	}
 
 	if err := job.Run(); err != nil {
+		logrus.Errorf("Push images error: %v", err)
 		if !job.Stdout.Used() {
 			return err
 		}
@@ -821,6 +841,7 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 
 	containerId, warnings, err := getDaemon(eng).ContainerCreate(name, config, hostConfig)
 	if err != nil {
+		logrus.Errorf("Create container error %s: %v", name, err)
 		return err
 	}
 
@@ -840,6 +861,7 @@ func postContainersRestart(eng *engine.Engine, version version.Version, w http.R
 	job := eng.Job("restart", vars["name"])
 	job.Setenv("t", r.Form.Get("t"))
 	if err := job.Run(); err != nil {
+		logrus.Errorf("Restart conatiner %s error: %v", vars["name"], err)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -858,6 +880,7 @@ func postContainerRename(eng *engine.Engine, version version.Version, w http.Res
 	name := vars["name"]
 	newName := r.Form.Get("name")
 	if err := d.ContainerRename(name, newName); err != nil {
+		logrus.Errorf("Rename container %s to %s error: %v", name, newName, err)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -881,6 +904,7 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	}
 
 	if err := d.ContainerRm(name, config); err != nil {
+		logrus.Errorf("Delete container %s error: %v", name, err)
 		// Force a 404 for the empty string
 		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
 			return fmt.Errorf("no such id: \"\"")
@@ -908,6 +932,7 @@ func deleteImages(eng *engine.Engine, version version.Version, w http.ResponseWr
 
 	list, err := d.ImageDelete(name, force, noprune)
 	if err != nil {
+		logrus.Errorf("Delete image %s error: %v", name, err)
 		return err
 	}
 
@@ -940,6 +965,7 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	}
 
 	if err := getDaemon(eng).ContainerStart(vars["name"], hostConfig); err != nil {
+		logrus.Errorf("Start container error: %v", err)
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
@@ -965,6 +991,7 @@ func postContainersStop(eng *engine.Engine, version version.Version, w http.Resp
 	}
 
 	if err := d.ContainerStop(vars["name"], seconds); err != nil {
+		logrus.Errorf("Stop container error: %v", err)
 		if err.Error() == "Container already stopped" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
@@ -1015,6 +1042,7 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 	d := getDaemon(eng)
 	cont, err := d.Get(vars["name"])
 	if err != nil {
+		logrus.Errorf("Can not get the container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -1033,6 +1061,7 @@ func postContainersAttach(eng *engine.Engine, version version.Version, w http.Re
 
 	cont, err := d.Get(vars["name"])
 	if err != nil {
+		logrus.Errorf("Can not get the container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -1089,6 +1118,7 @@ func wsContainersAttach(eng *engine.Engine, version version.Version, w http.Resp
 
 	cont, err := d.Get(vars["name"])
 	if err != nil {
+		logrus.Errorf("Can not get the container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -1225,6 +1255,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	}
 
 	if err := job.Run(); err != nil {
+		logrus.Errorf("Build container error %v", err)
 		if !job.Stdout.Used() {
 			return err
 		}
@@ -1269,7 +1300,7 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 
 	data, err := cont.Copy(res)
 	if err != nil {
-		logrus.Errorf("%v", err)
+		logrus.Errorf("Copy container error: %v", err)
 		if os.IsNotExist(err) {
 			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, vars["name"])
 		}
@@ -1364,6 +1395,7 @@ func postContainerExecStart(eng *engine.Engine, version version.Version, w http.
 	// Now run the user process in container.
 	job.SetCloseIO(false)
 	if err := job.Run(); err != nil {
+		logrus.Errorf("Error starting exec command in container %s: %s\n", name, err)
 		fmt.Fprintf(errOut, "Error starting exec command in container %s: %s\n", name, err)
 		return err
 	}
