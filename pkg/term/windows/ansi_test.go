@@ -1,4 +1,6 @@
-package winconsole
+// +build windows
+
+package windows
 
 import (
 	"bytes"
@@ -384,5 +386,123 @@ func TestSplitChunkUnicode(t *testing.T) {
 		data := StringToBytes(l)
 		helpsTestOutputSplitChunks(t, data)
 		helpsTestOutputSplitThreeChunks(t, data)
+	}
+}
+
+var allForeground = []int16{
+	ANSI_FOREGROUND_BLACK,
+	ANSI_FOREGROUND_RED,
+	ANSI_FOREGROUND_GREEN,
+	ANSI_FOREGROUND_YELLOW,
+	ANSI_FOREGROUND_BLUE,
+	ANSI_FOREGROUND_MAGENTA,
+	ANSI_FOREGROUND_CYAN,
+	ANSI_FOREGROUND_WHITE,
+	ANSI_FOREGROUND_DEFAULT,
+}
+var allBackground = []int16{
+	ANSI_BACKGROUND_BLACK,
+	ANSI_BACKGROUND_RED,
+	ANSI_BACKGROUND_GREEN,
+	ANSI_BACKGROUND_YELLOW,
+	ANSI_BACKGROUND_BLUE,
+	ANSI_BACKGROUND_MAGENTA,
+	ANSI_BACKGROUND_CYAN,
+	ANSI_BACKGROUND_WHITE,
+	ANSI_BACKGROUND_DEFAULT,
+}
+
+func maskForeground(flag WORD) WORD {
+	return flag & FOREGROUND_MASK_UNSET
+}
+
+func onlyForeground(flag WORD) WORD {
+	return flag & FOREGROUND_MASK_SET
+}
+
+func maskBackground(flag WORD) WORD {
+	return flag & BACKGROUND_MASK_UNSET
+}
+
+func onlyBackground(flag WORD) WORD {
+	return flag & BACKGROUND_MASK_SET
+}
+
+func helpsTestGetWindowsTextAttributeForAnsiValue(t *testing.T, oldValue WORD /*, expected WORD*/, ansi int16, onlyMask WORD, restMask WORD) WORD {
+	actual, err := getWindowsTextAttributeForAnsiValue(oldValue, FOREGROUND_MASK_SET, ansi)
+	assertTrue(t, nil == err, "Should be no error")
+	// assert that other bits are not affected
+	if 0 != oldValue {
+		assertTrue(t, (actual&restMask) == (oldValue&restMask), "The operation should not have affected other bits actual=%X oldValue=%X ansi=%d", actual, oldValue, ansi)
+	}
+	return actual
+}
+
+func TestBackgroundForAnsiValue(t *testing.T) {
+	// Check that nothing else changes
+	// background changes
+	for _, state1 := range allBackground {
+		for _, state2 := range allBackground {
+			flag := WORD(0)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+		}
+	}
+	// cummulative bcakground changes
+	for _, state1 := range allBackground {
+		flag := WORD(0)
+		for _, state2 := range allBackground {
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+		}
+	}
+	// change background after foreground
+	for _, state1 := range allForeground {
+		for _, state2 := range allBackground {
+			flag := WORD(0)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+		}
+	}
+	// change background after change cumulative
+	for _, state1 := range allForeground {
+		flag := WORD(0)
+		for _, state2 := range allBackground {
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+		}
+	}
+}
+
+func TestForegroundForAnsiValue(t *testing.T) {
+	// Check that nothing else changes
+	for _, state1 := range allForeground {
+		for _, state2 := range allForeground {
+			flag := WORD(0)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+		}
+	}
+
+	for _, state1 := range allForeground {
+		flag := WORD(0)
+		for _, state2 := range allForeground {
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+		}
+	}
+	for _, state1 := range allBackground {
+		for _, state2 := range allForeground {
+			flag := WORD(0)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+		}
+	}
+	for _, state1 := range allBackground {
+		flag := WORD(0)
+		for _, state2 := range allForeground {
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state1, BACKGROUND_MASK_SET, BACKGROUND_MASK_UNSET)
+			flag = helpsTestGetWindowsTextAttributeForAnsiValue(t, flag, state2, FOREGROUND_MASK_SET, FOREGROUND_MASK_UNSET)
+		}
 	}
 }
