@@ -172,3 +172,7 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Exists(id string) bool {
 	return d.DeviceSet.HasDevice(id)
 }
+
+func (d *Driver) SetQuota(id string, limitInBytes uint64) error {
+	return graphdriver.ErrNotImplemented
+}

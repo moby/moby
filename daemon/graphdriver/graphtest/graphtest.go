@@ -3,12 +3,16 @@ package graphtest
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"reflect"
 	"syscall"
 	"testing"
+	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/units"
 )
 
 var (
@@ -267,5 +271,48 @@ func DriverTestCreateSnap(t *testing.T, drivername string) {
 
 	if err := driver.Remove("Base"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func writeRandomFile(path string, size uint64) error {
+	buf := make([]int64, size/8)
+
+	r := rand.NewSource(0)
+	for i := range buf {
+		buf[i] = r.Int63()
+	}
+
+	// Cast to []byte
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	header.Len *= 8
+	header.Cap *= 8
+	data := *(*[]byte)(unsafe.Pointer(&header))
+
+	return ioutil.WriteFile(path, data, 0700)
+}
+
+func DriverTestSetQuota(t *testing.T, drivername string) {
+	driver := GetDriver(t, drivername)
+	defer PutDriver(t)
+
+	if err := driver.Create("limited", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	quota := uint64(100 * units.KiB)
+
+	if err := driver.SetQuota("limited", quota); err != nil {
+		t.Fatal(err)
+	}
+
+	mountPath, err := driver.Get("limited", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// prevent filesystem from compressing this file using randomness to exceed quota
+	err = writeRandomFile(path.Join(mountPath, "file"), quota*3)
+	if pathError, ok := err.(*os.PathError); ok && pathError.Err != syscall.EDQUOT {
+		t.Fatalf("expect write() to fail with %v, got %v", syscall.EDQUOT, err)
 	}
 }

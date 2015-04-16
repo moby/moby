@@ -391,3 +391,7 @@ func (d *Driver) Exists(id string) bool {
 	_, err := os.Stat(d.dir(id))
 	return err == nil
 }
+
+func (d *Driver) SetQuota(id string, limitInBytes uint64) error {
+	return graphdriver.ErrNotImplemented
+}

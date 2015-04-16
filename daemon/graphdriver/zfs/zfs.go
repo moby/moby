@@ -287,3 +287,11 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Exists(id string) bool {
 	return d.filesystemsCache[d.ZfsPath(id)] == true
 }
+
+func (d *Driver) SetQuota(id string, limitInBytes uint64) error {
+	dataset, err := zfs.GetDataset(d.ZfsPath(id))
+	if err != nil {
+		return err
+	}
+	return dataset.SetProperty("quota", fmt.Sprint(limitInBytes))
+}

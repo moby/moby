@@ -103,7 +103,11 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 	}
+
 	if err := container.Mount(); err != nil {
+		return nil, nil, err
+	}
+	if err := container.ApplyFilesystemQuota(); err != nil {
 		return nil, nil, err
 	}
 	defer container.Unmount()

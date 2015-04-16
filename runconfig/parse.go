@@ -49,29 +49,30 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flSecurityOpt = opts.NewListOpts(nil)
 		flLabelsFile  = opts.NewListOpts(nil)
 
-		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
-		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
-		flPidMode         = cmd.String([]string{"-pid"}, "", "PID namespace to use")
-		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
-		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
-		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
-		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
-		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
-		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
-		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
-		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
-		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
-		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
-		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
-		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
-		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
-		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
-		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
-		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+		flNetwork             = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
+		flPrivileged          = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
+		flPidMode             = cmd.String([]string{"-pid"}, "", "PID namespace to use")
+		flPublishAll          = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
+		flStdin               = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
+		flTty                 = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flContainerIDFile     = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
+		flEntrypoint          = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
+		flHostname            = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
+		flMemoryString        = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
+		flMemorySwap          = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+		flUser                = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
+		flWorkingDir          = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
+		flCpuShares           = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCpusetCpus          = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetMems          = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
+		filesystemQuotaString = cmd.String([]string{"-filesystem-quota"}, "", "Filesystem space limit")
+		flNetMode             = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
+		flMacAddress          = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
+		flIpcMode             = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
+		flRestartPolicy       = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
+		flReadonlyRootfs      = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
+		flLoggingDriver       = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
+		flCgroupParent        = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -165,6 +166,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 				return nil, nil, cmd, err
 			}
 			MemorySwap = parsedMemorySwap
+		}
+	}
+
+	var filesystemQuota int64 = -1
+	if *filesystemQuotaString != "" {
+		var err error
+		filesystemQuota, err = units.FromHumanSize(*filesystemQuotaString)
+		if err != nil {
+			return nil, nil, cmd, err
 		}
 	}
 
@@ -312,6 +322,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CpuShares:       *flCpuShares,
 		CpusetCpus:      *flCpusetCpus,
 		CpusetMems:      *flCpusetMems,
+		FilesystemQuota: filesystemQuota,
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
