@@ -6,9 +6,9 @@ MAINTAINER Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
 # This section ensures we pull the correct version of each
 # sub project
-ENV COMPOSE_BRANCH release
-ENV SWARM_BRANCH v0.1.0
-ENV MACHINE_BRANCH v0.1.0
+ENV COMPOSE_BRANCH 1.2.0
+ENV SWARM_BRANCH v0.2.0
+ENV MACHINE_BRANCH master
 ENV DISTRIB_BRANCH master
 
 
