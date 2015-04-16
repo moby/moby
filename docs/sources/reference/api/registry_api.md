@@ -2,11 +2,11 @@ page_title: Registry API
 page_description: API Documentation for Docker Registry
 page_keywords: API, Docker, index, registry, REST, documentation
 
-# Docker Registry API
+# Docker Registry API v1
 
 ## Introduction
 
- - This is the REST API for the Docker Registry
+ - This is the REST API for the Docker Registry 1.0
  - It stores the images and the graph for a set of repositories
  - It does not have user accounts data
  - It has no notion of user accounts or authorization

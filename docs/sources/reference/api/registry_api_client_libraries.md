@@ -2,7 +2,7 @@ page_title: Registry API Client Libraries
 page_description: Various client libraries available to use with the Docker registry API
 page_keywords: API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust, Scala
 
-# Docker Registry API Client Libraries
+# Docker Registry 1.0 API Client Libraries
 
 These libraries have not been tested by the Docker maintainers for
 compatibility. Please file issues with the library owners. If you find
