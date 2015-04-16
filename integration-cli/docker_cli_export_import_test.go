@@ -9,21 +9,24 @@ import (
 
 // export an image and try to import it into a new one
 func TestExportContainerAndImportImage(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	containerID := "testexportcontainerandimportimage"
+
+	defer deleteImages("repo/testexp:v1")
+	defer deleteContainer(containerID)
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", containerID, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal("failed to create a container", out, err)
 	}
 
-	cleanedContainerID := strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
+	inspectCmd := exec.Command(dockerBinary, "inspect", containerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
 	if err != nil {
-		t.Fatalf("output should've been a container id: %s %s ", cleanedContainerID, err)
+		t.Fatalf("output should've been a container id: %s %s ", containerID, err)
 	}
 
-	exportCmd := exec.Command(dockerBinary, "export", cleanedContainerID)
+	exportCmd := exec.Command(dockerBinary, "export", containerID)
 	if out, _, err = runCommandWithOutput(exportCmd); err != nil {
 		t.Fatalf("failed to export container: %s, %v", out, err)
 	}
@@ -42,29 +45,31 @@ func TestExportContainerAndImportImage(t *testing.T) {
 		t.Fatalf("output should've been an image id: %s, %v", out, err)
 	}
 
-	deleteContainer(cleanedContainerID)
-	deleteImages("repo/testexp:v1")
-
 	logDone("export - export/import a container/image")
 }
 
 // Used to test output flag in the export command
 func TestExportContainerWithOutputAndImportImage(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	containerID := "testexportcontainerwithoutputandimportimage"
+
+	defer deleteImages("repo/testexp:v1")
+	defer deleteContainer(containerID)
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", containerID, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		t.Fatal("failed to create a container", out, err)
 	}
 
-	cleanedContainerID := strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
+	inspectCmd := exec.Command(dockerBinary, "inspect", containerID)
 	out, _, err = runCommandWithOutput(inspectCmd)
 	if err != nil {
-		t.Fatalf("output should've been a container id: %s %s ", cleanedContainerID, err)
+		t.Fatalf("output should've been a container id: %s %s ", containerID, err)
 	}
 
-	exportCmd := exec.Command(dockerBinary, "export", "--output=testexp.tar", cleanedContainerID)
+	defer os.Remove("testexp.tar")
+
+	exportCmd := exec.Command(dockerBinary, "export", "--output=testexp.tar", containerID)
 	if out, _, err = runCommandWithOutput(exportCmd); err != nil {
 		t.Fatalf("failed to export container: %s, %v", out, err)
 	}
@@ -87,11 +92,6 @@ func TestExportContainerWithOutputAndImportImage(t *testing.T) {
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
 		t.Fatalf("output should've been an image id: %s, %v", out, err)
 	}
-
-	deleteContainer(cleanedContainerID)
-	deleteImages("repo/testexp:v1")
-
-	os.Remove("/tmp/testexp.tar")
 
 	logDone("export - export/import a container/image with output flag")
 }
