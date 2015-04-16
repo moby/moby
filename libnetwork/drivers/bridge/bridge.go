@@ -156,7 +156,7 @@ func (d *driver) CreateNetwork(id driverapi.UUID, option interface{}) error {
 
 		// We ensure that the bridge has the expectedIPv4 and IPv6 addresses in
 		// the case of a previously existing device.
-		{bridgeAlreadyExists, setupVerifyConfiguredAddresses},
+		{bridgeAlreadyExists, setupVerifyAndReconcile},
 
 		// Setup the bridge to allocate containers IPv4 addresses in the
 		// specified subnet.
