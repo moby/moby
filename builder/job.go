@@ -2,7 +2,6 @@ package builder
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,7 +17,6 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
@@ -36,11 +34,6 @@ var validCommitCommands = map[string]bool{
 	"volume":     true,
 	"expose":     true,
 	"onbuild":    true,
-}
-
-type BuilderJob struct {
-	Engine *engine.Engine
-	Daemon *daemon.Daemon
 }
 
 type Config struct {
@@ -61,9 +54,8 @@ type Config struct {
 	AuthConfig     *registry.AuthConfig
 	ConfigFile     *registry.ConfigFile
 
-	Stdout *engine.Output
-	Stderr *engine.Output
-	Stdin  *engine.Input
+	Stdout  io.Writer
+	Context io.ReadCloser
 	// When closed, the job has been cancelled.
 	// Note: not all jobs implement cancellation.
 	// See Job.Cancel() and Job.WaitCancelled()
@@ -83,24 +75,15 @@ func (b *Config) WaitCancelled() <-chan struct{} {
 	return b.cancelled
 }
 
-func NewBuildConfig(logging bool, err io.Writer) *Config {
-	c := &Config{
-		Stdout:    engine.NewOutput(),
-		Stderr:    engine.NewOutput(),
-		Stdin:     engine.NewInput(),
-		cancelled: make(chan struct{}),
+func NewBuildConfig() *Config {
+	return &Config{
+		AuthConfig: &registry.AuthConfig{},
+		ConfigFile: &registry.ConfigFile{},
+		cancelled:  make(chan struct{}),
 	}
-	if logging {
-		c.Stderr.Add(ioutils.NopWriteCloser(err))
-	}
-	return c
 }
 
-func (b *BuilderJob) Install() {
-	b.Engine.Register("build_config", b.CmdBuildConfig)
-}
-
-func (b *BuilderJob) CmdBuild(buildConfig *Config) error {
+func Build(d *daemon.Daemon, e *engine.Engine, buildConfig *Config) error {
 	var (
 		repoName string
 		tag      string
@@ -109,7 +92,7 @@ func (b *BuilderJob) CmdBuild(buildConfig *Config) error {
 
 	repoName, tag = parsers.ParseRepositoryTag(buildConfig.RepoName)
 	if repoName != "" {
-		if err := registry.ValidateRepositoryName(buildConfig.RepoName); err != nil {
+		if err := registry.ValidateRepositoryName(repoName); err != nil {
 			return err
 		}
 		if len(tag) > 0 {
@@ -120,7 +103,7 @@ func (b *BuilderJob) CmdBuild(buildConfig *Config) error {
 	}
 
 	if buildConfig.RemoteURL == "" {
-		context = ioutil.NopCloser(buildConfig.Stdin)
+		context = ioutil.NopCloser(buildConfig.Context)
 	} else if urlutil.IsGitURL(buildConfig.RemoteURL) {
 		if !urlutil.IsGitTransport(buildConfig.RemoteURL) {
 			buildConfig.RemoteURL = "https://" + buildConfig.RemoteURL
@@ -166,8 +149,8 @@ func (b *BuilderJob) CmdBuild(buildConfig *Config) error {
 	sf := streamformatter.NewStreamFormatter(buildConfig.JSONFormat)
 
 	builder := &Builder{
-		Daemon: b.Daemon,
-		Engine: b.Engine,
+		Daemon: d,
+		Engine: e,
 		OutStream: &streamformatter.StdoutFormater{
 			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
@@ -200,41 +183,28 @@ func (b *BuilderJob) CmdBuild(buildConfig *Config) error {
 	}
 
 	if repoName != "" {
-		b.Daemon.Repositories().Tag(repoName, tag, id, true)
+		return d.Repositories().Tag(repoName, tag, id, true)
 	}
 	return nil
 }
 
-func (b *BuilderJob) CmdBuildConfig(job *engine.Job) error {
-	if len(job.Args) != 0 {
-		return fmt.Errorf("Usage: %s\n", job.Name)
-	}
-
-	var (
-		changes   = job.GetenvList("changes")
-		newConfig runconfig.Config
-	)
-
-	if err := job.GetenvJson("config", &newConfig); err != nil {
-		return err
-	}
-
+func BuildFromConfig(d *daemon.Daemon, e *engine.Engine, c *runconfig.Config, changes []string) (*runconfig.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// ensure that the commands are valid
 	for _, n := range ast.Children {
 		if !validCommitCommands[n.Value] {
-			return fmt.Errorf("%s is not a valid change command", n.Value)
+			return nil, fmt.Errorf("%s is not a valid change command", n.Value)
 		}
 	}
 
 	builder := &Builder{
-		Daemon:        b.Daemon,
-		Engine:        b.Engine,
-		Config:        &newConfig,
+		Daemon:        d,
+		Engine:        e,
+		Config:        c,
 		OutStream:     ioutil.Discard,
 		ErrStream:     ioutil.Discard,
 		disableCommit: true,
@@ -242,12 +212,32 @@ func (b *BuilderJob) CmdBuildConfig(job *engine.Job) error {
 
 	for i, n := range ast.Children {
 		if err := builder.dispatch(i, n); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	if err := json.NewEncoder(job.Stdout).Encode(builder.Config); err != nil {
-		return err
+	return builder.Config, nil
+}
+
+func Commit(d *daemon.Daemon, eng *engine.Engine, name string, c *daemon.ContainerCommitConfig) (string, error) {
+	container, err := d.Get(name)
+	if err != nil {
+		return "", err
 	}
-	return nil
+
+	newConfig, err := BuildFromConfig(d, eng, c.Config, c.Changes)
+	if err != nil {
+		return "", err
+	}
+
+	if err := runconfig.Merge(newConfig, container.Config); err != nil {
+		return "", err
+	}
+
+	img, err := d.Commit(container, c.Repo, c.Tag, c.Comment, c.Author, c.Pause, newConfig)
+	if err != nil {
+		return "", err
+	}
+
+	return img.ID, nil
 }
