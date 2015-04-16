@@ -19,6 +19,9 @@ Show the history of when and how an image was created.
 **--help**
   Print usage statement
 
+**-H**. **--human**=*true*|*false*
+    Print sizes and dates in human readable format. The default is *true*.
+
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.
 
