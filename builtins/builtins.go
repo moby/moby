@@ -23,10 +23,7 @@ func Register(eng *engine.Engine) error {
 
 // remote: a RESTful api for cross-docker communication
 func remote(eng *engine.Engine) error {
-	if err := eng.Register("serveapi", apiserver.ServeApi); err != nil {
-		return err
-	}
-	return eng.Register("acceptconnections", apiserver.AcceptConnections)
+	return eng.Register("serveapi", apiserver.ServeApi)
 }
 
 // builtins jobs independent of any subsystem

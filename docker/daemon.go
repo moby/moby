@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builtins"
@@ -127,7 +128,7 @@ func mainDaemon() {
 
 		// after the daemon is done setting up we can tell the api to start
 		// accepting connections
-		if err := eng.Job("acceptconnections").Run(); err != nil {
+		if err := apiserver.AcceptConnections(); err != nil {
 			daemonInitWait <- err
 			return
 		}

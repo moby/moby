@@ -78,7 +78,7 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 }
 
 // Called through eng.Job("acceptconnections")
-func AcceptConnections(job *engine.Job) error {
+func AcceptConnections() error {
 	// Tell the init daemon we are accepting requests
 	go systemd.SdNotify("READY=1")
 	// close the lock so the listeners start accepting connections
