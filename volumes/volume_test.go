@@ -1,7 +1,7 @@
 package volumes
 
 import (
-	"strings"
+	"os"
 	"testing"
 
 	"github.com/docker/docker/pkg/stringutils"
@@ -33,8 +33,8 @@ func TestInitializeCannotMkdirOnNonExistentPath(t *testing.T) {
 		t.Fatal("Expected not to initialize volume with a non existent path")
 	}
 
-	if !strings.Contains(err.Error(), "mkdir : no such file or directory") {
-		t.Fatalf("Expected to get mkdir no such file or directory, got %s", err)
+	if !os.IsNotExist(err) {
+		t.Fatalf("Expected to get ErrNotExist error, got %s", err)
 	}
 }
 
@@ -49,7 +49,7 @@ func TestInitializeCannotStatPathFileNameTooLong(t *testing.T) {
 		t.Fatal("Expected not to initialize volume with a non existent path")
 	}
 
-	if !strings.Contains(err.Error(), "file name too long") {
-		t.Fatalf("Expected to get ENAMETOOLONG error, got %s", err)
+	if os.IsNotExist(err) {
+		t.Fatal("Expected to not get ErrNotExist")
 	}
 }

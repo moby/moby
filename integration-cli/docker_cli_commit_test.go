@@ -279,3 +279,53 @@ func TestCommitChange(t *testing.T) {
 
 	logDone("commit - commit --change")
 }
+
+// TODO: commit --run is deprecated, remove this once --run is removed
+func TestCommitMergeConfigRun(t *testing.T) {
+	defer deleteAllContainers()
+	name := "commit-test"
+	out, _, _ := dockerCmd(t, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
+	id := strings.TrimSpace(out)
+
+	dockerCmd(t, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
+	defer deleteImages("commit-test")
+
+	out, _, _ = dockerCmd(t, "run", "--name", name, "commit-test")
+	if strings.TrimSpace(out) != "testing" {
+		t.Fatal("run config in commited container was not merged")
+	}
+
+	type cfg struct {
+		Env []string
+		Cmd []string
+	}
+	config1 := cfg{}
+	if err := inspectFieldAndMarshall(id, "Config", &config1); err != nil {
+		t.Fatal(err)
+	}
+	config2 := cfg{}
+	if err := inspectFieldAndMarshall(name, "Config", &config2); err != nil {
+		t.Fatal(err)
+	}
+
+	// Env has at least PATH loaded as well here, so let's just grab the FOO one
+	var env1, env2 string
+	for _, e := range config1.Env {
+		if strings.HasPrefix(e, "FOO") {
+			env1 = e
+			break
+		}
+	}
+	for _, e := range config2.Env {
+		if strings.HasPrefix(e, "FOO") {
+			env2 = e
+			break
+		}
+	}
+
+	if len(config1.Env) != len(config2.Env) || env1 != env2 && env2 != "" {
+		t.Fatalf("expected envs to match: %v - %v", config1.Env, config2.Env)
+	}
+
+	logDone("commit - configs are merged with --run")
+}

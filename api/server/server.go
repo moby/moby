@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -280,12 +281,10 @@ func getContainersExport(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	job := eng.Job("export", vars["name"])
-	job.Stdout.Add(w)
-	if err := job.Run(); err != nil {
-		return err
-	}
-	return nil
+
+	d := getDaemon(eng)
+
+	return d.ContainerExport(vars["name"], w)
 }
 
 func getImagesJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -468,10 +467,6 @@ func getContainersChanges(eng *engine.Engine, version version.Version, w http.Re
 	}
 
 	name := vars["name"]
-	if name == "" {
-		return fmt.Errorf("Container name cannot be empty")
-	}
-
 	d := getDaemon(eng)
 	cont, err := d.Get(name)
 	if err != nil {
@@ -508,8 +503,7 @@ func getContainersTop(eng *engine.Engine, version version.Version, w http.Respon
 }
 
 func getContainersJSON(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var err error
-	if err = parseForm(r); err != nil {
+	if err := parseForm(r); err != nil {
 		return err
 	}
 
@@ -522,10 +516,11 @@ func getContainersJSON(eng *engine.Engine, version version.Version, w http.Respo
 	}
 
 	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
-		config.Limit, err = strconv.Atoi(tmpLimit)
+		limit, err := strconv.Atoi(tmpLimit)
 		if err != nil {
 			return err
 		}
+		config.Limit = limit
 	}
 
 	containers, err := getDaemon(eng).Containers(config)
@@ -543,10 +538,10 @@ func getContainersStats(eng *engine.Engine, version version.Version, w http.Resp
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	name := vars["name"]
-	job := eng.Job("container_stats", name)
-	streamJSON(job, w, true)
-	return job.Run()
+
+	d := getDaemon(eng)
+
+	return d.ContainerStats(vars["name"], utils.NewWriteFlusher(w))
 }
 
 func getContainersLogs(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -557,43 +552,26 @@ func getContainersLogs(eng *engine.Engine, version version.Version, w http.Respo
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var (
-		inspectJob = eng.Job("container_inspect", vars["name"])
-		logsJob    = eng.Job("logs", vars["name"])
-		c, err     = inspectJob.Stdout.AddEnv()
-	)
-	if err != nil {
-		return err
-	}
-	logsJob.Setenv("follow", r.Form.Get("follow"))
-	logsJob.Setenv("tail", r.Form.Get("tail"))
-	logsJob.Setenv("stdout", r.Form.Get("stdout"))
-	logsJob.Setenv("stderr", r.Form.Get("stderr"))
-	logsJob.Setenv("timestamps", r.Form.Get("timestamps"))
 	// Validate args here, because we can't return not StatusOK after job.Run() call
-	stdout, stderr := logsJob.GetenvBool("stdout"), logsJob.GetenvBool("stderr")
+	stdout, stderr := toBool(r.Form.Get("stdout")), toBool(r.Form.Get("stderr"))
 	if !(stdout || stderr) {
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
-	if err = inspectJob.Run(); err != nil {
-		return err
+
+	logsConfig := &daemon.ContainerLogsConfig{
+		Follow:     toBool(r.Form.Get("follow")),
+		Timestamps: toBool(r.Form.Get("timestamps")),
+		Tail:       r.Form.Get("tail"),
+		UseStdout:  stdout,
+		UseStderr:  stderr,
+		OutStream:  utils.NewWriteFlusher(w),
 	}
 
-	var outStream, errStream io.Writer
-	outStream = utils.NewWriteFlusher(w)
-
-	if c.GetSubEnv("Config") != nil && !c.GetSubEnv("Config").GetBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
+	d := getDaemon(eng)
+	if err := d.ContainerLogs(vars["name"], logsConfig); err != nil {
+		fmt.Fprintf(w, "Error running logs job: %s\n", err)
 	}
 
-	logsJob.Stdout.Add(outStream)
-	logsJob.Stderr.Set(errStream)
-	if err := logsJob.Run(); err != nil {
-		fmt.Fprintf(outStream, "Error running logs job: %s\n", err)
-	}
 	return nil
 }
 
@@ -618,39 +596,37 @@ func postCommit(eng *engine.Engine, version version.Version, w http.ResponseWrit
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	var (
-		config       engine.Env
-		job          = eng.Job("commit", r.Form.Get("container"))
-		stdoutBuffer = bytes.NewBuffer(nil)
-	)
 
 	if err := checkForJson(r); err != nil {
 		return err
 	}
 
-	if err := config.Decode(r.Body); err != nil {
-		logrus.Errorf("%s", err)
-	}
+	cont := r.Form.Get("container")
 
+	pause := toBool(r.Form.Get("pause"))
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
-		job.Setenv("pause", "1")
-	} else {
-		job.Setenv("pause", r.FormValue("pause"))
+		pause = true
 	}
 
-	job.Setenv("repo", r.Form.Get("repo"))
-	job.Setenv("tag", r.Form.Get("tag"))
-	job.Setenv("author", r.Form.Get("author"))
-	job.Setenv("comment", r.Form.Get("comment"))
-	job.SetenvList("changes", r.Form["changes"])
-	job.SetenvSubEnv("config", &config)
+	containerCommitConfig := &daemon.ContainerCommitConfig{
+		Pause:   pause,
+		Repo:    r.Form.Get("repo"),
+		Tag:     r.Form.Get("tag"),
+		Author:  r.Form.Get("author"),
+		Comment: r.Form.Get("comment"),
+		Changes: r.Form["changes"],
+		Config:  r.Body,
+	}
 
-	job.Stdout.Add(stdoutBuffer)
-	if err := job.Run(); err != nil {
+	d := getDaemon(eng)
+
+	imgID, err := d.ContainerCommit(cont, containerCommitConfig)
+	if err != nil {
 		return err
 	}
+
 	return writeJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
-		ID: engine.Tail(stdoutBuffer, 1),
+		ID: imgID,
 	})
 }
 
@@ -834,30 +810,23 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 		return err
 	}
 	var (
-		job          = eng.Job("create", r.Form.Get("name"))
-		outWarnings  []string
-		stdoutBuffer = bytes.NewBuffer(nil)
-		warnings     = bytes.NewBuffer(nil)
+		warnings []string
+		name     = r.Form.Get("name")
 	)
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	if err != nil {
 		return err
 	}
-	// Read container ID from the first line of stdout
-	job.Stdout.Add(stdoutBuffer)
-	// Read warnings from stderr
-	job.Stderr.Add(warnings)
-	if err := job.Run(); err != nil {
+
+	containerId, warnings, err := getDaemon(eng).ContainerCreate(name, config, hostConfig)
+	if err != nil {
 		return err
 	}
-	// Parse warnings from stderr
-	scanner := bufio.NewScanner(warnings)
-	for scanner.Scan() {
-		outWarnings = append(outWarnings, scanner.Text())
-	}
+
 	return writeJSON(w, http.StatusCreated, &types.ContainerCreateResponse{
-		ID:       engine.Tail(stdoutBuffer, 1),
-		Warnings: outWarnings,
+		ID:       containerId,
+		Warnings: warnings,
 	})
 }
 
@@ -904,10 +873,6 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	}
 
 	name := vars["name"]
-	if name == "" {
-		return fmt.Errorf("Container name cannot be empty")
-	}
-
 	d := getDaemon(eng)
 	config := &daemon.ContainerRmConfig{
 		ForceRemove:  toBool(r.Form.Get("force")),
@@ -916,6 +881,10 @@ func deleteContainers(eng *engine.Engine, version version.Version, w http.Respon
 	}
 
 	if err := d.ContainerRm(name, config); err != nil {
+		// Force a 404 for the empty string
+		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
+			return fmt.Errorf("no such id: \"\"")
+		}
 		return err
 	}
 
@@ -949,28 +918,28 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		name = vars["name"]
-		job  = eng.Job("start", name)
-	)
 
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
-	// http://golang.org/src/pkg/net/http/request.go#L139
+	// https://golang.org/src/pkg/net/http/request.go#L139
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
+	var hostConfig *runconfig.HostConfig
 	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
 		if err := checkForJson(r); err != nil {
 			return err
 		}
 
-		if err := job.DecodeEnv(r.Body); err != nil {
+		c, err := runconfig.DecodeHostConfig(r.Body)
+		if err != nil {
 			return err
 		}
+
+		hostConfig = c
 	}
 
-	if err := job.Run(); err != nil {
+	if err := getDaemon(eng).ContainerStart(vars["name"], hostConfig); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
@@ -1036,11 +1005,11 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return nil
+		return err
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return nil
+		return err
 	}
 
 	d := getDaemon(eng)
@@ -1049,11 +1018,7 @@ func postContainersResize(eng *engine.Engine, version version.Version, w http.Re
 		return err
 	}
 
-	if err := cont.Resize(height, width); err != nil {
-		return err
-	}
-
-	return nil
+	return cont.Resize(height, width)
 }
 
 func postContainersAttach(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1242,6 +1207,7 @@ func postBuild(eng *engine.Engine, version version.Version, w http.ResponseWrite
 	job.Setenv("memswap", r.FormValue("memswap"))
 	job.Setenv("memory", r.FormValue("memory"))
 	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
+	job.Setenv("cpusetmems", r.FormValue("cpusetmems"))
 	job.Setenv("cpushares", r.FormValue("cpushares"))
 
 	// Job cancellation. Note: not all job types support this.
@@ -1416,19 +1382,16 @@ func postContainerExecResize(eng *engine.Engine, version version.Version, w http
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return nil
+		return err
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return nil
-	}
-
-	d := getDaemon(eng)
-	if err := d.ContainerExecResize(vars["name"], height, width); err != nil {
 		return err
 	}
 
-	return nil
+	d := getDaemon(eng)
+
+	return d.ContainerExecResize(vars["name"], height, width)
 }
 
 func optionsHandler(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

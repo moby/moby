@@ -262,7 +262,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
 
-	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
 
@@ -301,13 +301,15 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 // Argument handling is the same as RUN.
 //
 func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
-	b.Config.Cmd = handleJsonArgs(args, attributes)
+	cmdSlice := handleJsonArgs(args, attributes)
 
 	if !attributes["json"] {
-		b.Config.Cmd = append([]string{"/bin/sh", "-c"}, b.Config.Cmd...)
+		cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
 	}
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %q", b.Config.Cmd)); err != nil {
+	b.Config.Cmd = runconfig.NewCommand(cmdSlice...)
+
+	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
 	}
 
@@ -332,13 +334,13 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 	switch {
 	case attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		b.Config.Entrypoint = parsed
+		b.Config.Entrypoint = runconfig.NewEntrypoint(parsed...)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
 		b.Config.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
-		b.Config.Entrypoint = []string{"/bin/sh", "-c", parsed[0]}
+		b.Config.Entrypoint = runconfig.NewEntrypoint("/bin/sh", "-c", parsed[0])
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then

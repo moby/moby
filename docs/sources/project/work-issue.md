@@ -193,7 +193,10 @@ You should pull and rebase frequently as you work.
 
 8. Push any changes to your fork on GitHub.
 
-		$ git push origin 11038-fix-rhel-link
+	The rebase rewrote history, so you'll need to use the `-f` or `--force` flag
+	to push your change.
+
+		$ git push -f origin 11038-fix-rhel-link
 
 
 ## Where to go next

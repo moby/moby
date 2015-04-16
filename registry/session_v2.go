@@ -12,7 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/httputils"
 )
 
 const DockerDigestHeader = "Docker-Content-Digest"
@@ -95,7 +95,7 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 		} else if res.StatusCode == 404 {
 			return nil, "", ErrDoesNotExist
 		}
-		return nil, "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
+		return nil, "", httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
 	}
 
 	manifestBytes, err := ioutil.ReadAll(res.Body)
@@ -141,7 +141,7 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Di
 		return false, nil
 	}
 
-	return false, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying head request for %s - %s", res.StatusCode, imageName, dgst), res)
+	return false, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying head request for %s - %s", res.StatusCode, imageName, dgst), res)
 }
 
 func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Digest, blobWrtr io.Writer, auth *RequestAuthorization) error {
@@ -168,7 +168,7 @@ func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Dig
 		if res.StatusCode == 401 {
 			return errLoginRequired
 		}
-		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob", res.StatusCode, imageName), res)
+		return httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob", res.StatusCode, imageName), res)
 	}
 
 	_, err = io.Copy(blobWrtr, res.Body)
@@ -198,7 +198,7 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName string, dgst dige
 		if res.StatusCode == 401 {
 			return nil, 0, errLoginRequired
 		}
-		return nil, 0, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob - %s", res.StatusCode, imageName, dgst), res)
+		return nil, 0, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to pull %s blob - %s", res.StatusCode, imageName, dgst), res)
 	}
 	lenStr := res.Header.Get("Content-Length")
 	l, err := strconv.ParseInt(lenStr, 10, 64)
@@ -245,7 +245,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Dig
 			return err
 		}
 		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
-		return utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob - %s", res.StatusCode, imageName, dgst), res)
+		return httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s blob - %s", res.StatusCode, imageName, dgst), res)
 	}
 
 	return nil
@@ -286,7 +286,7 @@ func (r *Session) initiateBlobUpload(ep *Endpoint, imageName string, auth *Reque
 		}
 
 		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
-		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: unexpected %d response status trying to initiate upload of %s", res.StatusCode, imageName), res)
+		return "", httputils.NewHTTPRequestError(fmt.Sprintf("Server error: unexpected %d response status trying to initiate upload of %s", res.StatusCode, imageName), res)
 	}
 
 	if location = res.Header.Get("Location"); location == "" {
@@ -328,7 +328,7 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, si
 			return "", err
 		}
 		logrus.Debugf("Unexpected response from server: %q %#v", errBody, res.Header)
-		return "", utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
+		return "", httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to push %s:%s manifest", res.StatusCode, imageName, tagName), res)
 	}
 
 	hdrDigest, err := digest.ParseDigest(res.Header.Get(DockerDigestHeader))
@@ -384,7 +384,7 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 		} else if res.StatusCode == 404 {
 			return nil, ErrDoesNotExist
 		}
-		return nil, utils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s", res.StatusCode, imageName), res)
+		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s", res.StatusCode, imageName), res)
 	}
 
 	decoder := json.NewDecoder(res.Body)

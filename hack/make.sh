@@ -6,7 +6,7 @@ set -e
 #
 # Requirements:
 # - The current directory should be a checkout of the docker source code
-#   (http://github.com/docker/docker). Whatever version is checked out
+#   (https://github.com/docker/docker). Whatever version is checked out
 #   will be built.
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
@@ -45,6 +45,7 @@ DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
 	validate-toml
+	validate-vet
 
 	binary
 
@@ -85,7 +86,7 @@ if [ "$AUTO_GOPATH" ]; then
 fi
 
 if [ ! "$GOPATH" ]; then
-	echo >&2 'error: missing GOPATH; please see http://golang.org/doc/code.html#GOPATH'
+	echo >&2 'error: missing GOPATH; please see https://golang.org/doc/code.html#GOPATH'
 	echo >&2 '  alternatively, set AUTO_GOPATH=1'
 	exit 1
 fi
@@ -263,6 +264,12 @@ main() {
 		rm -fr bundles/$VERSION && mkdir bundles/$VERSION || exit 1
 		echo
 	fi
+
+	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
+		# Windows and symlinks don't get along well
+		ln -sfT $VERSION bundles/latest
+	fi
+
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})

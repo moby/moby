@@ -13,6 +13,7 @@ docker-create - Create a new container
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
+[**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -73,6 +74,13 @@ IMAGE [COMMAND] [ARG...]
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
+
+**--cpuset-mems**=""
+   Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+
+   If you have four memory nodes on your system (0-3), use `--cpuset-mems=0,1`
+then processes in your Docker container will only use memory from the first
+two memory nodes.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)

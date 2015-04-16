@@ -57,7 +57,7 @@ var (
 		func() bool {
 			if daemonExecDriver == "" {
 				// get daemon info
-				body, err := sockRequest("GET", "/info", nil)
+				_, body, err := sockRequest("GET", "/info", nil)
 				if err != nil {
 					log.Fatalf("sockRequest failed for /info: %v", err)
 				}

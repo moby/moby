@@ -37,7 +37,7 @@ project from a great one.
 		text = """
 Docker follows the timeless, highly efficient and totally unfair system
 known as [Benevolent dictator for
-life](http://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life), with
+life](https://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life), with
 yours truly, Solomon Hykes, in the role of BDFL. This means that all
 decisions are made, by default, by Solomon. Since making every decision
 myself would be highly un-scalable, in practice decisions are spread
@@ -408,7 +408,7 @@ made through a pull request.
 			people = [
 				"fredlf",
 				"james",
-				"mary",
+				"moxiegirl",
 				"spf13",
 				"sven"
 			]
@@ -585,7 +585,7 @@ made through a pull request.
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
 
-	[people.mary]
+	[people.moxiegirl]
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"

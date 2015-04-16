@@ -52,7 +52,7 @@ func (w *StdWriter) Write(buf []byte) (n int, err error) {
 // and written to the underlying `w` stream.
 // This allows multiple write streams (e.g. stdout and stderr) to be muxed into a single connection.
 // `t` indicates the id of the stream to encapsulate.
-// It can be utils.Stdin, utils.Stdout, utils.Stderr.
+// It can be stdcopy.Stdin, stdcopy.Stdout, stdcopy.Stderr.
 func NewStdWriter(w io.Writer, t StdType) *StdWriter {
 	if len(t) != StdWriterPrefixLen {
 		return nil

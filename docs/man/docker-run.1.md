@@ -13,6 +13,7 @@ docker-run - Run a command in a new container
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
+[**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -133,6 +134,13 @@ division of CPU shares:
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
+
+**--cpuset-mems**=""
+   Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+
+   If you have four memory nodes on your system (0-3), use `--cpuset-mems=0,1`
+then processes in your Docker container will only use memory from the first
+two memory nodes.
 
 **-d**, **--detach**=*true*|*false*
    Detached mode: run the container in the background and print the new container ID. The default is *false*.
@@ -416,7 +424,7 @@ you’d like to connect instead, as in:
 
 ## Sharing IPC between containers
 
-Using shm_server.c available here: http://www.cs.cf.ac.uk/Dave/C/node27.html
+Using shm_server.c available here: https://www.cs.cf.ac.uk/Dave/C/node27.html
 
 Testing `--ipc=host` mode:
 

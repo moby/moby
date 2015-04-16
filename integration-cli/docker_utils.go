@@ -298,19 +298,19 @@ func sockConn(timeout time.Duration) (net.Conn, error) {
 	}
 }
 
-func sockRequest(method, endpoint string, data interface{}) ([]byte, error) {
+func sockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
 	jsonData := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
-		return nil, err
+		return -1, nil, err
 	}
 
 	return sockRequestRaw(method, endpoint, jsonData, "application/json")
 }
 
-func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte, error) {
+func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, []byte, error) {
 	c, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
-		return nil, fmt.Errorf("could not dial docker daemon: %v", err)
+		return -1, nil, fmt.Errorf("could not dial docker daemon: %v", err)
 	}
 
 	client := httputil.NewClientConn(c, nil)
@@ -318,7 +318,7 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte,
 
 	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {
-		return nil, fmt.Errorf("could not create new request: %v", err)
+		return -1, nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
 	if ct == "" {
@@ -328,15 +328,17 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) ([]byte,
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("could not perform request: %v", err)
+		return -1, nil, fmt.Errorf("could not perform request: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
+		return resp.StatusCode, body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
+
+	return resp.StatusCode, b, err
 }
 
 func deleteContainer(container string) error {
@@ -1041,7 +1043,7 @@ func daemonTime(t *testing.T) time.Time {
 		return time.Now()
 	}
 
-	body, err := sockRequest("GET", "/info", nil)
+	_, body, err := sockRequest("GET", "/info", nil)
 	if err != nil {
 		t.Fatalf("daemonTime: failed to get /info: %v", err)
 	}

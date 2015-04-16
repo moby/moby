@@ -147,6 +147,7 @@ Create a container
                "MemorySwap": 0,
                "CpuShares": 512,
                "CpusetCpus": "0,1",
+               "CpusetMems": "0,1",
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
@@ -161,7 +162,7 @@ Create a container
                "NetworkMode": "bridge",
                "Devices": [],
                "Ulimits": [{}],
-               "LogConfig": { "Type": "json-file", Config: {} },
+               "LogConfig": { "Type": "json-file", "Config": {} },
                "SecurityOpt": [""],
                "CgroupParent": ""
             }
@@ -191,6 +192,7 @@ Json Parameters:
       (ie. the relative weight vs other containers).
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
 -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
+-   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -340,6 +342,7 @@ Return low-level information on the container `id`
 			"CapDrop": null,
 			"ContainerIDFile": "",
 			"CpusetCpus": "",
+			"CpusetMems": "",
 			"CpuShares": 0,
 			"Devices": [],
 			"Dns": null,
@@ -359,7 +362,10 @@ Return low-level information on the container `id`
 				"MaximumRetryCount": 2,
 				"Name": "on-failure"
 			},
-           "LogConfig": { "Type": "json-file", Config: {} },
+			"LogConfig": {
+				"Config": null,
+				"Type": "json-file"
+			},
 			"SecurityOpt": null,
 			"VolumesFrom": null,
 			"Ulimits": [{}]
@@ -698,7 +704,7 @@ Start the container `id`
            "NetworkMode": "bridge",
            "Devices": [],
            "Ulimits": [{}],
-           "LogConfig": { "Type": "json-file", Config: {} },
+           "LogConfig": { "Type": "json-file", "Config": {} },
            "SecurityOpt": [""],
            "CgroupParent": ""
         }

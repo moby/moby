@@ -21,7 +21,7 @@ func TestCliProxyDisableProxyUnixSock(t *testing.T) {
 }
 
 // Can't use localhost here since go has a special case to not use proxy if connecting to localhost
-// See http://golang.org/pkg/net/http/#ProxyFromEnvironment
+// See https://golang.org/pkg/net/http/#ProxyFromEnvironment
 func TestCliProxyProxyTCPSock(t *testing.T) {
 	testRequires(t, SameHostDaemon)
 	// get the IP to use to connect since we can't use localhost

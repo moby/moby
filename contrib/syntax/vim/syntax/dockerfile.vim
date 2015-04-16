@@ -1,5 +1,5 @@
 " dockerfile.vim - Syntax highlighting for Dockerfiles
-" Maintainer:   Honza Pokorny <http://honza.ca>
+" Maintainer:   Honza Pokorny <https://honza.ca>
 " Version:      0.5
 
 

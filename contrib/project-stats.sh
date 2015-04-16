@@ -3,7 +3,7 @@
 ## Run this script from the root of the docker repository
 ## to query project stats useful to the maintainers.
 ## You will need to install `pulls` and `issues` from
-## http://github.com/crosbymichael/pulls
+## https://github.com/crosbymichael/pulls
 
 set -e
 

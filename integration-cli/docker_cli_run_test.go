@@ -1367,7 +1367,7 @@ func TestRunWithCpuset(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "run", "--cpuset", "0", "busybox", "true")
 	if code, err := runCommand(cmd); err != nil || code != 0 {
-		t.Fatalf("container should run successfuly with cpuset of 0: %s", err)
+		t.Fatalf("container should run successfully with cpuset of 0: %s", err)
 	}
 
 	logDone("run - cpuset 0")
@@ -1378,10 +1378,21 @@ func TestRunWithCpusetCpus(t *testing.T) {
 
 	cmd := exec.Command(dockerBinary, "run", "--cpuset-cpus", "0", "busybox", "true")
 	if code, err := runCommand(cmd); err != nil || code != 0 {
-		t.Fatalf("container should run successfuly with cpuset-cpus of 0: %s", err)
+		t.Fatalf("container should run successfully with cpuset-cpus of 0: %s", err)
 	}
 
 	logDone("run - cpuset-cpus 0")
+}
+
+func TestRunWithCpusetMems(t *testing.T) {
+	defer deleteAllContainers()
+
+	cmd := exec.Command(dockerBinary, "run", "--cpuset-mems", "0", "busybox", "true")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		t.Fatalf("container should run successfully with cpuset-mems of 0: %s", err)
+	}
+
+	logDone("run - cpuset-mems 0")
 }
 
 func TestRunDeviceNumbers(t *testing.T) {
@@ -3467,4 +3478,41 @@ func TestRunContainerWithRmFlagCannotStartContainer(t *testing.T) {
 	}
 
 	logDone("run - container is removed if run with --rm and cannot start")
+}
+
+func TestRunPidHostWithChildIsKillable(t *testing.T) {
+	defer deleteAllContainers()
+	name := "ibuildthecloud"
+	if out, err := exec.Command(dockerBinary, "run", "-d", "--pid=host", "--name", name, "busybox", "sh", "-c", "sleep 30; echo hi").CombinedOutput(); err != nil {
+		t.Fatal(err, out)
+	}
+	time.Sleep(1 * time.Second)
+	errchan := make(chan error)
+	go func() {
+		if out, err := exec.Command(dockerBinary, "kill", name).CombinedOutput(); err != nil {
+			errchan <- fmt.Errorf("%v:\n%s", err, out)
+		}
+		close(errchan)
+	}()
+	select {
+	case err := <-errchan:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Kill container timed out")
+	}
+	logDone("run - can kill container with pid-host and some childs of pid 1")
+}
+
+func TestRunWithTooSmallMemoryLimit(t *testing.T) {
+	defer deleteAllContainers()
+	// this memory limit is 1 byte less than the min, which is 4MB
+	// https://github.com/docker/docker/blob/v1.5.0/daemon/create.go#L22
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-m", "4194303", "busybox"))
+	if err == nil || !strings.Contains(out, "Minimum memory limit allowed is 4MB") {
+		t.Fatalf("expected run to fail when using too low a memory limit: %q", out)
+	}
+
+	logDone("run - can't set too low memory limit")
 }

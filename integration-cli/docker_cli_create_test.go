@@ -305,3 +305,11 @@ func TestCreateLabelFromImage(t *testing.T) {
 
 	logDone("create - labels from image")
 }
+
+func TestCreateHostnameWithNumber(t *testing.T) {
+	out, _, _ := dockerCmd(t, "run", "-h", "web.0", "busybox", "hostname")
+	if strings.TrimSpace(out) != "web.0" {
+		t.Fatalf("hostname not set, expected `web.0`, got: %s", out)
+	}
+	logDone("create - use hostname with number")
+}

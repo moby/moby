@@ -132,12 +132,15 @@ func (d *Daemon) ContainerExecCreate(job *engine.Job) error {
 		return err
 	}
 
-	entrypoint, args := d.getEntrypointAndArgs(nil, config.Cmd)
+	cmd := runconfig.NewCommand(config.Cmd...)
+	entrypoint, args := d.getEntrypointAndArgs(runconfig.NewEntrypoint(), cmd)
 
 	processConfig := execdriver.ProcessConfig{
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
+		User:       config.User,
+		Privileged: config.Privileged,
 	}
 
 	execConfig := &execConfig{

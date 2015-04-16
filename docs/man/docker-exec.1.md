@@ -9,7 +9,9 @@ docker-exec - Run a command in a running container
 [**-d**|**--detach**[=*false*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
+[**--privileged**[=*false*]]
 [**-t**|**--tty**[=*false*]]
+[**-u**|**--user**[=*USER*]]
 CONTAINER COMMAND [ARG...]
 
 # DESCRIPTION
@@ -32,8 +34,23 @@ container is unpaused, and then run
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
 
+**--privileged**=*true*|*false*
+   Give extended privileges to the process to run in a running container. The default is *false*.
+
+   By default, the process run by docker exec in a running container
+have the same capabilities of the container. By setting --privileged will give
+all the capabilities to the process.
+
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
+
+**-u**, **--user**=""
+   Sets the username or UID used and optionally the groupname or GID for the specified command.
+
+   The followings examples are all valid:
+   --user [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+   Without this argument the command will be run as root in the container.
 
 The **-t** option is incompatible with a redirection of the docker client
 standard input.

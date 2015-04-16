@@ -180,8 +180,8 @@ func TestRequestFactory(t *testing.T) {
 
 	requestFactory := NewRequestFactory(ad, uad)
 
-	if dlen := len(requestFactory.GetDecorators()); dlen != 2 {
-		t.Fatalf("Expected to have two decorators, got %d", dlen)
+	if l := len(requestFactory.GetDecorators()); l != 2 {
+		t.Fatalf("Expected to have two decorators, got %d", l)
 	}
 
 	req, err := requestFactory.NewRequest("GET", "/test", strings.NewReader("test"))
@@ -209,8 +209,8 @@ func TestRequestFactoryNewRequestWithDecorators(t *testing.T) {
 
 	requestFactory := NewRequestFactory(ad)
 
-	if dlen := len(requestFactory.GetDecorators()); dlen != 1 {
-		t.Fatalf("Expected to have one decorators, got %d", dlen)
+	if l := len(requestFactory.GetDecorators()); l != 1 {
+		t.Fatalf("Expected to have one decorators, got %d", l)
 	}
 
 	ad2 := NewAuthDecorator("test2", "password2")
@@ -235,15 +235,15 @@ func TestRequestFactoryNewRequestWithDecorators(t *testing.T) {
 func TestRequestFactoryAddDecorator(t *testing.T) {
 	requestFactory := NewRequestFactory()
 
-	if dlen := len(requestFactory.GetDecorators()); dlen != 0 {
-		t.Fatalf("Expected to have zero decorators, got %d", dlen)
+	if l := len(requestFactory.GetDecorators()); l != 0 {
+		t.Fatalf("Expected to have zero decorators, got %d", l)
 	}
 
 	ad := NewAuthDecorator("test", "password")
 	requestFactory.AddDecorator(ad)
 
-	if dlen := len(requestFactory.GetDecorators()); dlen != 1 {
-		t.Fatalf("Expected to have one decorators, got %d", dlen)
+	if l := len(requestFactory.GetDecorators()); l != 1 {
+		t.Fatalf("Expected to have one decorators, got %d", l)
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
-	"github.com/docker/docker/utils"
 )
 
 var (
@@ -65,6 +64,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
@@ -186,21 +186,22 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	var (
 		parsedArgs = cmd.Args()
-		runCmd     []string
-		entrypoint []string
+		runCmd     *Command
+		entrypoint *Entrypoint
 		image      = cmd.Arg(0)
 	)
 	if len(parsedArgs) > 1 {
-		runCmd = parsedArgs[1:]
+		runCmd = NewCommand(parsedArgs[1:]...)
 	}
 	if *flEntrypoint != "" {
-		entrypoint = []string{*flEntrypoint}
+		entrypoint = NewEntrypoint(*flEntrypoint)
 	}
 
-	lxcConf, err := parseKeyValueOpts(flLxcOpts)
+	lc, err := parseKeyValueOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
+	lxcConf := NewLxcConfig(lc)
 
 	var (
 		domainname string
@@ -289,10 +290,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
-		Memory:          flMemory,      // FIXME: for backward compatibility
-		MemorySwap:      MemorySwap,    // FIXME: for backward compatibility
-		CpuShares:       *flCpuShares,  // FIXME: for backward compatibility
-		Cpuset:          *flCpusetCpus, // FIXME: for backward compatibility
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
@@ -314,6 +311,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MemorySwap:      MemorySwap,
 		CpuShares:       *flCpuShares,
 		CpusetCpus:      *flCpusetCpus,
+		CpusetMems:      *flCpusetMems,
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
 		Links:           flLinks.GetAll(),
@@ -430,14 +428,14 @@ func parseDriverOpts(opts opts.ListOpts) (map[string][]string, error) {
 	return out, nil
 }
 
-func parseKeyValueOpts(opts opts.ListOpts) ([]utils.KeyValuePair, error) {
-	out := make([]utils.KeyValuePair, opts.Len())
+func parseKeyValueOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
+	out := make([]KeyValuePair, opts.Len())
 	for i, o := range opts.GetAll() {
 		k, v, err := parsers.ParseKeyValueOpt(o)
 		if err != nil {
 			return nil, err
 		}
-		out[i] = utils.KeyValuePair{Key: k, Value: v}
+		out[i] = KeyValuePair{Key: k, Value: v}
 	}
 	return out, nil
 }

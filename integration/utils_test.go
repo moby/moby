@@ -44,16 +44,11 @@ func mkDaemon(f Fataler) *daemon.Daemon {
 }
 
 func createNamedTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler, name string) (shortId string) {
-	job := eng.Job("create", name)
-	if err := job.ImportEnv(config); err != nil {
+	containerId, _, err := getDaemon(eng).ContainerCreate(name, config, &runconfig.HostConfig{})
+	if err != nil {
 		f.Fatal(err)
 	}
-	var outputBuffer = bytes.NewBuffer(nil)
-	job.Stdout.Add(outputBuffer)
-	if err := job.Run(); err != nil {
-		f.Fatal(err)
-	}
-	return engine.Tail(outputBuffer, 1)
+	return containerId
 }
 
 func createTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler) (shortId string) {
@@ -61,8 +56,7 @@ func createTestContainer(eng *engine.Engine, config *runconfig.Config, f Fataler
 }
 
 func startContainer(eng *engine.Engine, id string, t Fataler) {
-	job := eng.Job("start", id)
-	if err := job.Run(); err != nil {
+	if err := getDaemon(eng).ContainerStart(id, &runconfig.HostConfig{}); err != nil {
 		t.Fatal(err)
 	}
 }

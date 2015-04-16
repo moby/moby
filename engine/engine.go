@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // Installer is a standard interface for objects which can "install" themselves
@@ -78,7 +78,7 @@ func (eng *Engine) RegisterCatchall(catchall Handler) {
 func New() *Engine {
 	eng := &Engine{
 		handlers: make(map[string]Handler),
-		id:       stringutils.GenerateRandomString(),
+		id:       stringid.GenerateRandomID(),
 		Stdout:   os.Stdout,
 		Stderr:   os.Stderr,
 		Stdin:    os.Stdin,

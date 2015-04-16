@@ -42,7 +42,8 @@ func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) ([]string, error)
 
 	// merge in the lxc conf options into the generic config map
 	if lxcConf := hostConfig.LxcConf; lxcConf != nil {
-		for _, pair := range lxcConf {
+		lxSlice := lxcConf.Slice()
+		for _, pair := range lxSlice {
 			// because lxc conf gets the driver name lxc.XXXX we need to trim it off
 			// and let the lxc driver add it back later if needed
 			if !strings.Contains(pair.Key, ".") {

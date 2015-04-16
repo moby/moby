@@ -18,10 +18,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/stringutils"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/configs"
@@ -187,7 +187,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		// without exec in go we have to do this horrible shell hack...
 		shellString :=
 			"mount --make-rslave /; exec " +
-				utils.ShellQuoteArguments(params)
+				stringutils.ShellQuoteArguments(params)
 
 		params = []string{
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,

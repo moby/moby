@@ -3,11 +3,13 @@ package chrootarchive
 import (
 	"bytes"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +50,42 @@ func TestChrootTarUntar(t *testing.T) {
 	}
 }
 
+// gh#10426: Verify the fix for having a huge excludes list (like on `docker load` with large # of
+// local images)
+func TestChrootUntarWithHugeExcludesList(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarHugeExcludes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	src := filepath.Join(tmpdir, "src")
+	if err := os.MkdirAll(src, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	stream, err := archive.Tar(src, archive.Uncompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(tmpdir, "dest")
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		t.Fatal(err)
+	}
+	options := &archive.TarOptions{}
+	//65534 entries of 64-byte strings ~= 4MB of environment space which should overflow
+	//on most systems when passed via environment or command line arguments
+	excludes := make([]string, 65534, 65534)
+	for i := 0; i < 65534; i++ {
+		excludes[i] = strings.Repeat(string(i), 64)
+	}
+	options.ExcludePatterns = excludes
+	if err := Untar(stream, dest, options); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestChrootUntarEmptyArchive(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootUntarEmptyArchive")
 	if err != nil {
@@ -59,15 +97,15 @@ func TestChrootUntarEmptyArchive(t *testing.T) {
 	}
 }
 
-func prepareSourceDirectory(numberOfFiles int, targetPath string, makeLinks bool) (int, error) {
+func prepareSourceDirectory(numberOfFiles int, targetPath string, makeSymLinks bool) (int, error) {
 	fileData := []byte("fooo")
 	for n := 0; n < numberOfFiles; n++ {
 		fileName := fmt.Sprintf("file-%d", n)
 		if err := ioutil.WriteFile(path.Join(targetPath, fileName), fileData, 0700); err != nil {
 			return 0, err
 		}
-		if makeLinks {
-			if err := os.Link(path.Join(targetPath, fileName), path.Join(targetPath, fileName+"-link")); err != nil {
+		if makeSymLinks {
+			if err := os.Symlink(path.Join(targetPath, fileName), path.Join(targetPath, fileName+"-link")); err != nil {
 				return 0, err
 			}
 		}
@@ -76,8 +114,44 @@ func prepareSourceDirectory(numberOfFiles int, targetPath string, makeLinks bool
 	return totalSize, nil
 }
 
-func TestChrootTarUntarWithSoftLink(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntarWithSoftLink")
+func getHash(filename string) (uint32, error) {
+	stream, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return 0, err
+	}
+	hash := crc32.NewIEEE()
+	hash.Write(stream)
+	return hash.Sum32(), nil
+}
+
+func compareDirectories(src string, dest string) error {
+	changes, err := archive.ChangesDirs(dest, src)
+	if err != nil {
+		return err
+	}
+	if len(changes) > 0 {
+		return fmt.Errorf("Unexpected differences after untar: %v", changes)
+	}
+	return nil
+}
+
+func compareFiles(src string, dest string) error {
+	srcHash, err := getHash(src)
+	if err != nil {
+		return err
+	}
+	destHash, err := getHash(dest)
+	if err != nil {
+		return err
+	}
+	if srcHash != destHash {
+		return fmt.Errorf("%s is different from %s", src, dest)
+	}
+	return nil
+}
+
+func TestChrootTarUntarWithSymlink(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-TestChrootTarUntarWithSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +165,9 @@ func TestChrootTarUntarWithSoftLink(t *testing.T) {
 	}
 	dest := filepath.Join(tmpdir, "dest")
 	if err := TarUntar(src, dest); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareDirectories(src, dest); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -108,19 +185,35 @@ func TestChrootCopyWithTar(t *testing.T) {
 	if _, err := prepareSourceDirectory(10, src, true); err != nil {
 		t.Fatal(err)
 	}
-	dest := filepath.Join(tmpdir, "dest")
+
 	// Copy directory
+	dest := filepath.Join(tmpdir, "dest")
 	if err := CopyWithTar(src, dest); err != nil {
 		t.Fatal(err)
 	}
-	// Copy file
-	srcfile := filepath.Join(src, "file-1")
-	if err := CopyWithTar(srcfile, dest); err != nil {
+	if err := compareDirectories(src, dest); err != nil {
 		t.Fatal(err)
 	}
+
+	// Copy file
+	srcfile := filepath.Join(src, "file-1")
+	dest = filepath.Join(tmpdir, "destFile")
+	destfile := filepath.Join(dest, "file-1")
+	if err := CopyWithTar(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareFiles(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
+
 	// Copy symbolic link
-	linkfile := filepath.Join(src, "file-1-link")
-	if err := CopyWithTar(linkfile, dest); err != nil {
+	srcLinkfile := filepath.Join(src, "file-1-link")
+	dest = filepath.Join(tmpdir, "destSymlink")
+	destLinkfile := filepath.Join(dest, "file-1-link")
+	if err := CopyWithTar(srcLinkfile, destLinkfile); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareFiles(srcLinkfile, destLinkfile); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -138,19 +231,32 @@ func TestChrootCopyFileWithTar(t *testing.T) {
 	if _, err := prepareSourceDirectory(10, src, true); err != nil {
 		t.Fatal(err)
 	}
-	dest := filepath.Join(tmpdir, "dest")
+
 	// Copy directory
+	dest := filepath.Join(tmpdir, "dest")
 	if err := CopyFileWithTar(src, dest); err == nil {
 		t.Fatal("Expected error on copying directory")
 	}
+
 	// Copy file
 	srcfile := filepath.Join(src, "file-1")
-	if err := CopyFileWithTar(srcfile, dest); err != nil {
+	dest = filepath.Join(tmpdir, "destFile")
+	destfile := filepath.Join(dest, "file-1")
+	if err := CopyFileWithTar(srcfile, destfile); err != nil {
 		t.Fatal(err)
 	}
+	if err := compareFiles(srcfile, destfile); err != nil {
+		t.Fatal(err)
+	}
+
 	// Copy symbolic link
-	linkfile := filepath.Join(src, "file-1-link")
-	if err := CopyFileWithTar(linkfile, dest); err != nil {
+	srcLinkfile := filepath.Join(src, "file-1-link")
+	dest = filepath.Join(tmpdir, "destSymlink")
+	destLinkfile := filepath.Join(dest, "file-1-link")
+	if err := CopyFileWithTar(srcLinkfile, destLinkfile); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareFiles(srcLinkfile, destLinkfile); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -186,6 +292,9 @@ func TestChrootUntarPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := UntarPath(tarfile, dest); err != nil {
+		t.Fatal(err)
+	}
+	if err := compareDirectories(src, dest); err != nil {
 		t.Fatal(err)
 	}
 }

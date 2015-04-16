@@ -620,3 +620,35 @@ func TestCpToStdout(t *testing.T) {
 	}
 	logDone("cp - to stdout")
 }
+
+func TestCpNameHasColon(t *testing.T) {
+	testRequires(t, SameHostDaemon)
+
+	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
+	if err != nil || exitCode != 0 {
+		t.Fatal("failed to create a container", out, err)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+	defer deleteContainer(cleanedContainerID)
+
+	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
+	if err != nil || strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out, err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/te:s:t", tmpdir)
+	if err != nil {
+		t.Fatalf("couldn't docker cp to %s: %s", tmpdir, err)
+	}
+	content, err := ioutil.ReadFile(tmpdir + "/te:s:t")
+	if string(content) != "lololol\n" {
+		t.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")
+	}
+	logDone("cp - copy filename has ':'")
+}

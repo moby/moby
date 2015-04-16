@@ -107,7 +107,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 		return nil, err
 	}
 
-	if err := mountpk.MakeSlave(root); err != nil {
+	if err := mountpk.MakePrivate(root); err != nil {
 		return nil, err
 	}
 

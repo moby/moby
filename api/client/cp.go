@@ -21,7 +21,8 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	info := strings.Split(cmd.Arg(0), ":")
+	// deal with path name with `:`
+	info := strings.SplitN(cmd.Arg(0), ":", 2)
 
 	if len(info) != 2 {
 		return fmt.Errorf("Error: Path not specified")

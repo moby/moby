@@ -14,20 +14,22 @@ import (
 type FsMagic uint32
 
 const (
-	FsMagicBtrfs       = FsMagic(0x9123683E)
 	FsMagicAufs        = FsMagic(0x61756673)
-	FsMagicExtfs       = FsMagic(0x0000EF53)
+	FsMagicBtrfs       = FsMagic(0x9123683E)
 	FsMagicCramfs      = FsMagic(0x28cd3d45)
-	FsMagicRamFs       = FsMagic(0x858458f6)
-	FsMagicTmpFs       = FsMagic(0x01021994)
-	FsMagicSquashFs    = FsMagic(0x73717368)
+	FsMagicExtfs       = FsMagic(0x0000EF53)
+	FsMagicF2fs        = FsMagic(0xF2F52010)
+	FsMagicJffs2Fs     = FsMagic(0x000072b6)
+	FsMagicJfs         = FsMagic(0x3153464a)
 	FsMagicNfsFs       = FsMagic(0x00006969)
+	FsMagicRamFs       = FsMagic(0x858458f6)
 	FsMagicReiserFs    = FsMagic(0x52654973)
 	FsMagicSmbFs       = FsMagic(0x0000517B)
-	FsMagicJffs2Fs     = FsMagic(0x000072b6)
-	FsMagicZfs         = FsMagic(0x2fc12fc1)
-	FsMagicXfs         = FsMagic(0x58465342)
+	FsMagicSquashFs    = FsMagic(0x73717368)
+	FsMagicTmpFs       = FsMagic(0x01021994)
 	FsMagicUnsupported = FsMagic(0x00000000)
+	FsMagicXfs         = FsMagic(0x58465342)
+	FsMagicZfs         = FsMagic(0x2fc12fc1)
 )
 
 var (
@@ -50,18 +52,20 @@ var (
 	FsNames = map[FsMagic]string{
 		FsMagicAufs:        "aufs",
 		FsMagicBtrfs:       "btrfs",
-		FsMagicExtfs:       "extfs",
 		FsMagicCramfs:      "cramfs",
-		FsMagicRamFs:       "ramfs",
-		FsMagicTmpFs:       "tmpfs",
-		FsMagicSquashFs:    "squashfs",
+		FsMagicExtfs:       "extfs",
+		FsMagicF2fs:        "f2fs",
+		FsMagicJffs2Fs:     "jffs2",
+		FsMagicJfs:         "jfs",
 		FsMagicNfsFs:       "nfs",
+		FsMagicRamFs:       "ramfs",
 		FsMagicReiserFs:    "reiserfs",
 		FsMagicSmbFs:       "smb",
-		FsMagicJffs2Fs:     "jffs2",
-		FsMagicZfs:         "zfs",
-		FsMagicXfs:         "xfs",
+		FsMagicSquashFs:    "squashfs",
+		FsMagicTmpFs:       "tmpfs",
 		FsMagicUnsupported: "unsupported",
+		FsMagicXfs:         "xfs",
+		FsMagicZfs:         "zfs",
 	}
 )
 
@@ -142,7 +146,37 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 func New(root string, options []string) (driver Driver, err error) {
 	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
 		if name != "" {
+			logrus.Infof("[graphdriver] trying provided driver %q", name) // so the logs show specified driver
 			return GetDriver(name, root, options)
+		}
+	}
+
+	// Guess for prior driver
+	priorDrivers := scanPriorDrivers(root)
+	for _, name := range priority {
+		if name == "vfs" {
+			// don't use vfs even if there is state present.
+			continue
+		}
+		for _, prior := range priorDrivers {
+			// of the state found from prior drivers, check in order of our priority
+			// which we would prefer
+			if prior == name {
+				driver, err = GetDriver(name, root, options)
+				if err != nil {
+					// unlike below, we will return error here, because there is prior
+					// state, and now it is no longer supported/prereq/compatible, so
+					// something changed and needs attention. Otherwise the daemon's
+					// images would just "disappear".
+					logrus.Errorf("[graphdriver] prior storage driver %q failed: %s", name, err)
+					return nil, err
+				}
+				if err := checkPriorDriver(name, root); err != nil {
+					return nil, err
+				}
+				logrus.Infof("[graphdriver] using prior storage driver %q", name)
+				return driver, nil
+			}
 		}
 	}
 
@@ -155,34 +189,47 @@ func New(root string, options []string) (driver Driver, err error) {
 			}
 			return nil, err
 		}
-		checkPriorDriver(name, root)
 		return driver, nil
 	}
 
 	// Check all registered drivers if no priority driver is found
-	for name, initFunc := range drivers {
+	for _, initFunc := range drivers {
 		if driver, err = initFunc(root, options); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
 			}
 			return nil, err
 		}
-		checkPriorDriver(name, root)
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
 }
 
-func checkPriorDriver(name, root string) {
+// scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
+func scanPriorDrivers(root string) []string {
 	priorDrivers := []string{}
-	for prior := range drivers {
+	for driver := range drivers {
+		p := path.Join(root, driver)
+		if _, err := os.Stat(p); err == nil {
+			priorDrivers = append(priorDrivers, driver)
+		}
+	}
+	return priorDrivers
+}
+
+func checkPriorDriver(name, root string) error {
+	priorDrivers := []string{}
+	for _, prior := range scanPriorDrivers(root) {
 		if prior != name && prior != "vfs" {
 			if _, err := os.Stat(path.Join(root, prior)); err == nil {
 				priorDrivers = append(priorDrivers, prior)
 			}
 		}
 	}
+
 	if len(priorDrivers) > 0 {
-		logrus.Warnf("Graphdriver %s selected. Your graphdriver directory %s already contains data managed by other graphdrivers: %s", name, root, strings.Join(priorDrivers, ","))
+
+		return errors.New(fmt.Sprintf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ",")))
 	}
+	return nil
 }

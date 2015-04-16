@@ -6,12 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 // Set the max depth to the aufs default that most
@@ -51,7 +51,7 @@ func LoadImage(root string) (*Image, error) {
 	if err := dec.Decode(img); err != nil {
 		return nil, err
 	}
-	if err := utils.ValidateID(img.ID); err != nil {
+	if err := ValidateID(img.ID); err != nil {
 		return nil, err
 	}
 
@@ -262,4 +262,14 @@ func NewImgJSON(src []byte) (*Image, error) {
 		return nil, err
 	}
 	return ret, nil
+}
+
+// Check wheather id is a valid image ID or not
+func ValidateID(id string) error {
+	validHex := regexp.MustCompile(`^([a-f0-9]{64})$`)
+	if ok := validHex.MatchString(id); !ok {
+		err := fmt.Errorf("image ID '%s' is invalid", id)
+		return err
+	}
+	return nil
 }

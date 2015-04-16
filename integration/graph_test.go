@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/utils"
 )
 
 func TestMount(t *testing.T) {
@@ -103,7 +102,7 @@ func TestGraphCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := utils.ValidateID(img.ID); err != nil {
+	if err := image.ValidateID(img.ID); err != nil {
 		t.Fatal(err)
 	}
 	if img.Comment != "Testing" {

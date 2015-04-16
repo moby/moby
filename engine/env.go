@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 type Env []string
@@ -210,7 +210,7 @@ func (env *Env) SetAuto(k string, v interface{}) {
 
 	// FIXME: we fix-convert float values to int, because
 	// encoding/json decodes integers to float64, but cannot encode them back.
-	// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
+	// (See https://golang.org/src/pkg/encoding/json/decode.go#L46)
 	if fval, ok := v.(float64); ok {
 		env.SetInt64(k, int64(fval))
 	} else if sval, ok := v.(string); ok {
@@ -245,7 +245,7 @@ func (env *Env) Encode(dst io.Writer) error {
 		if err := json.Unmarshal([]byte(v), &val); err == nil {
 			// FIXME: we fix-convert float values to int, because
 			// encoding/json decodes integers to float64, but cannot encode them back.
-			// (See http://golang.org/src/pkg/encoding/json/decode.go#L46)
+			// (See https://golang.org/src/pkg/encoding/json/decode.go#L46)
 			m[k] = changeFloats(val)
 		} else {
 			m[k] = v
@@ -258,7 +258,7 @@ func (env *Env) Encode(dst io.Writer) error {
 }
 
 func (env *Env) WriteTo(dst io.Writer) (int64, error) {
-	wc := utils.NewWriteCounter(dst)
+	wc := ioutils.NewWriteCounter(dst)
 	err := env.Encode(wc)
 	return wc.Count, err
 }

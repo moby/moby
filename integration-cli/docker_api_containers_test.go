@@ -3,14 +3,16 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestContainerApiGetAll(t *testing.T) {
@@ -28,7 +30,7 @@ func TestContainerApiGetAll(t *testing.T) {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 
-	body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	_, body, err := sockRequest("GET", "/containers/json?all=1", nil)
 	if err != nil {
 		t.Fatalf("GET all containers sockRequest failed: %v", err)
 	}
@@ -61,7 +63,7 @@ func TestContainerApiGetExport(t *testing.T) {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 
-	body, err := sockRequest("GET", "/containers/"+name+"/export", nil)
+	_, body, err := sockRequest("GET", "/containers/"+name+"/export", nil)
 	if err != nil {
 		t.Fatalf("GET containers/export sockRequest failed: %v", err)
 	}
@@ -98,7 +100,7 @@ func TestContainerApiGetChanges(t *testing.T) {
 		t.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 
-	body, err := sockRequest("GET", "/containers/"+name+"/changes", nil)
+	_, body, err := sockRequest("GET", "/containers/"+name+"/changes", nil)
 	if err != nil {
 		t.Fatalf("GET containers/changes sockRequest failed: %v", err)
 	}
@@ -133,7 +135,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
@@ -141,7 +143,7 @@ func TestContainerApiStartVolumeBinds(t *testing.T) {
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
-	if _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -166,7 +168,7 @@ func TestContainerApiStartDupVolumeBinds(t *testing.T) {
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
@@ -176,7 +178,7 @@ func TestContainerApiStartDupVolumeBinds(t *testing.T) {
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
 	}
-	if body, err := sockRequest("POST", "/containers/"+name+"/start", config); err == nil {
+	if _, body, err := sockRequest("POST", "/containers/"+name+"/start", config); err == nil {
 		t.Fatal("expected container start to fail when duplicate volume binds to same container path")
 	} else {
 		if !strings.Contains(string(body), "Duplicate volume") {
@@ -201,14 +203,14 @@ func TestContainerApiStartVolumesFrom(t *testing.T) {
 		"Volumes": map[string]struct{}{volPath: {}},
 	}
 
-	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
 	}
-	if _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -245,7 +247,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 		"Volumes": map[string]struct{}{volPath: {}},
 	}
 
-	if _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && !strings.Contains(err.Error(), "201 Created") {
+	if status, _, err := sockRequest("POST", "/containers/create?name="+name, config); err != nil && status != http.StatusCreated {
 		t.Fatal(err)
 	}
 
@@ -254,7 +256,7 @@ func TestVolumesFromHasPriority(t *testing.T) {
 		"VolumesFrom": []string{volName},
 		"Binds":       []string{bindPath + ":/tmp"},
 	}
-	if _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+name+"/start", config); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -290,7 +292,7 @@ func TestGetContainerStats(t *testing.T) {
 	}
 	bc := make(chan b, 1)
 	go func() {
-		body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		_, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
 		bc <- b{body, err}
 	}()
 
@@ -334,7 +336,7 @@ func TestGetStoppedContainerStats(t *testing.T) {
 	go func() {
 		// We'll never get return for GET stats from sockRequest as of now,
 		// just send request and see if panic or error would happen on daemon side.
-		_, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		_, _, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -367,7 +369,7 @@ func TestBuildApiDockerfilePath(t *testing.T) {
 		t.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	out, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
+	_, out, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
 	if err == nil {
 		t.Fatalf("Build was supposed to fail: %s", out)
 	}
@@ -391,7 +393,7 @@ RUN find /tmp/`,
 	}
 	defer server.Close()
 
-	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	_, buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
 	}
@@ -417,7 +419,7 @@ RUN echo from dockerfile`,
 	}
 	defer git.Close()
 
-	buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	_, buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s\n%q", err, buf)
 	}
@@ -443,7 +445,7 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	_, buf, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s\n%q", err, buf)
 	}
@@ -470,7 +472,7 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	_, buf, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
 	if err != nil {
 		t.Fatalf("Build failed: %s", err)
 	}
@@ -501,7 +503,7 @@ func TestBuildApiDockerfileSymlink(t *testing.T) {
 		t.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	out, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+	_, out, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
 	if err == nil {
 		t.Fatalf("Build was supposed to fail: %s", out)
 	}
@@ -537,8 +539,7 @@ func TestPostContainerBindNormalVolume(t *testing.T) {
 	}
 
 	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
-	_, err = sockRequest("POST", "/containers/two/start", bindSpec)
-	if err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/two/start", bindSpec); err != nil && status != http.StatusNoContent {
 		t.Fatal(err)
 	}
 
@@ -565,7 +566,7 @@ func TestContainerApiPause(t *testing.T) {
 	}
 	ContainerID := strings.TrimSpace(out)
 
-	if _, err = sockRequest("POST", "/containers/"+ContainerID+"/pause", nil); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/pause", nil); err != nil && status != http.StatusNoContent {
 		t.Fatalf("POST a container pause: sockRequest failed: %v", err)
 	}
 
@@ -579,7 +580,7 @@ func TestContainerApiPause(t *testing.T) {
 		t.Fatalf("there should be one paused container and not %d", len(pausedContainers))
 	}
 
-	if _, err = sockRequest("POST", "/containers/"+ContainerID+"/unpause", nil); err != nil && !strings.Contains(err.Error(), "204 No Content") {
+	if status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/unpause", nil); err != nil && status != http.StatusNoContent {
 		t.Fatalf("POST a container pause: sockRequest failed: %v", err)
 	}
 
@@ -593,5 +594,5 @@ func TestContainerApiPause(t *testing.T) {
 		t.Fatalf("There should be no paused container.")
 	}
 
-	logDone("container REST API - check POST containers/pause nad unpause")
+	logDone("container REST API - check POST containers/pause and unpause")
 }

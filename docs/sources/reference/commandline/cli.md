@@ -516,10 +516,16 @@ interactively.  You can attach to the same contained process multiple times
 simultaneously, screen sharing style, or quickly view the progress of your
 daemonized process.
 
-You can detach from the container (and leave it running) with `CTRL-p CTRL-q`
-(for a quiet exit) or `CTRL-c` which will send a `SIGKILL` to the container.
-When you are attached to a container, and exit its main process, the process's
-exit code will be returned to the client.
+You can detach from the container and leave it running with `CTRL-p
+CTRL-q` (for a quiet exit) or with `CTRL-c` if `--sig-proxy` is false.
+
+If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT`
+to the container.
+
+>**Note**: A process running as PID 1 inside a container is treated
+>specially by Linux: it ignores any signal with the default action.
+>So, the process will not terminate on `SIGINT` or `SIGTERM` unless it is
+>coded to do so.
 
 It is forbidden to redirect the standard input of a `docker attach` command while
 attaching to a tty-enabled container (i.e.: launched with `-t`).
@@ -591,6 +597,7 @@ is returned by the `docker attach` command to its caller too:
       --memory-swap=""         Total memory (memory + swap), `-1` to disable swap
       -c, --cpu-shares         CPU Shares (relative weight)
       --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
+      --cpuset-mems=""         MEMs in which to allow execution, e.g. `0-3`, `0,1`
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`.  The build process can
@@ -886,6 +893,7 @@ Creates a new container.
       --cgroup-parent=""         Optional parent cgroup for the container
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -1114,7 +1122,9 @@ You'll need two shells for this example.
 
       -d, --detach=false         Detached mode: run command in the background
       -i, --interactive=false    Keep STDIN open even if not attached
+      --privileged=false         Give extended privileges to the command
       -t, --tty=false            Allocate a pseudo-TTY
+      -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
 
 The `docker exec` command runs a new command in a running container.
 
@@ -1836,6 +1846,7 @@ To remove an image using its digest:
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
@@ -2335,8 +2346,8 @@ Running `docker stats` on multiple containers
 
     $ docker stats redis1 redis2
     CONTAINER           CPU %               MEM USAGE/LIMIT     MEM %               NET I/O
-    redis1              0.07%               796 KiB/64 MiB      1.21%               788 B/648 B
-    redis2              0.07%               2.746 MiB/64 MiB    4.29%               1.266 KiB/648 B
+    redis1              0.07%               796 KB/64 MB        1.21%               788 B/648 B
+    redis2              0.07%               2.746 MB/64 MB      4.29%               1.266 KB/648 B
 
 
 The `docker stats` command will only return a live stream of data for running

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -113,6 +114,13 @@ func InitDriver(config *Config) error {
 		addrsv6    []net.Addr
 		bridgeIPv6 = "fe80::1/64"
 	)
+
+	// try to modprobe bridge first
+	// see gh#12177
+	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat").Output(); err != nil {
+		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+	}
+
 	initPortMapper()
 
 	if config.DefaultIp != nil {
@@ -135,8 +143,11 @@ func InitDriver(config *Config) error {
 			return err
 		}
 
+		logrus.Info("Bridge interface not found, trying to create it")
+
 		// If the iface is not found, try to create it
 		if err := configureBridge(config.IP, bridgeIPv6, config.EnableIPv6); err != nil {
+			logrus.Errorf("Could not configure Bridge: %s", err)
 			return err
 		}
 
@@ -214,6 +225,7 @@ func InitDriver(config *Config) error {
 	// Configure iptables for link support
 	if config.EnableIptables {
 		if err := setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq); err != nil {
+			logrus.Errorf("Error configuing iptables: %s", err)
 			return err
 		}
 
@@ -261,6 +273,7 @@ func InitDriver(config *Config) error {
 		}
 		logrus.Debugf("Subnet: %v", subnet)
 		if err := ipAllocator.RegisterSubnet(bridgeIPv4Network, subnet); err != nil {
+			logrus.Errorf("Error registering subnet for IPv4 bridge network: %s", err)
 			return err
 		}
 	}
@@ -272,6 +285,7 @@ func InitDriver(config *Config) error {
 		}
 		logrus.Debugf("Subnet: %v", subnet)
 		if err := ipAllocator.RegisterSubnet(subnet, subnet); err != nil {
+			logrus.Errorf("Error registering subnet for IPv6 bridge network: %s", err)
 			return err
 		}
 		globalIPv6Network = subnet
@@ -583,6 +597,7 @@ func Release(id string) {
 
 	if containerInterface == nil {
 		logrus.Warnf("No network information to release for %s", id)
+		return
 	}
 
 	for _, nat := range containerInterface.PortMappings {
