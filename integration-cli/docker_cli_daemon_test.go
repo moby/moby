@@ -564,6 +564,41 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	deleteInterface(c, defaultNetworkBridge)
 }
 
+func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *check.C) {
+	if err := s.d.Start(); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	defer s.d.Restart()
+	if err := s.d.Stop(); err != nil {
+		c.Fatalf("Could not stop daemon: %v", err)
+	}
+
+	// now we will change the docker0's IP and then try starting the daemon
+	bridgeIP := "192.169.100.1/24"
+	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
+
+	ipCmd := exec.Command("ifconfig", "docker0", bridgeIP)
+	stdout, stderr, _, err := runCommandWithStdoutStderr(ipCmd)
+	if err != nil {
+		c.Fatalf("failed to change docker0's IP association: %v, stdout: %q, stderr: %q", err, stdout, stderr)
+	}
+
+	if err := s.d.Start("--bip", bridgeIP); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+
+	//check if the iptables contains new bridgeIP MASQUERADE rule
+	ipTablesSearchString := bridgeIPNet.String()
+	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	if err != nil {
+		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
+	}
+	if !strings.Contains(out, ipTablesSearchString) {
+		c.Fatalf("iptables output should have contained new MASQUERADE rule with IP %q, but was %q", ipTablesSearchString, out)
+	}
+}
+
 func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	d := s.d
 
