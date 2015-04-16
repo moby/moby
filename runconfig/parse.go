@@ -186,21 +186,22 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	var (
 		parsedArgs = cmd.Args()
-		runCmd     []string
-		entrypoint []string
+		runCmd     *Command
+		entrypoint *Entrypoint
 		image      = cmd.Arg(0)
 	)
 	if len(parsedArgs) > 1 {
-		runCmd = parsedArgs[1:]
+		runCmd = NewCommand(parsedArgs[1:]...)
 	}
 	if *flEntrypoint != "" {
-		entrypoint = []string{*flEntrypoint}
+		entrypoint = NewEntrypoint(*flEntrypoint)
 	}
 
-	lxcConf, err := parseKeyValueOpts(flLxcOpts)
+	lc, err := parseKeyValueOpts(flLxcOpts)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
+	lxcConf := NewLxcConfig(lc)
 
 	var (
 		domainname string
@@ -289,10 +290,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Tty:             *flTty,
 		NetworkDisabled: !*flNetwork,
 		OpenStdin:       *flStdin,
-		Memory:          flMemory,      // FIXME: for backward compatibility
-		MemorySwap:      MemorySwap,    // FIXME: for backward compatibility
-		CpuShares:       *flCpuShares,  // FIXME: for backward compatibility
-		Cpuset:          *flCpusetCpus, // FIXME: for backward compatibility
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,

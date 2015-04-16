@@ -255,7 +255,7 @@ func TestDaemonCreate(t *testing.T) {
 
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"ls", "-al"},
+		Cmd:   runconfig.NewCommand("ls", "-al"),
 	},
 		&runconfig.HostConfig{},
 		"",
@@ -296,15 +296,16 @@ func TestDaemonCreate(t *testing.T) {
 	}
 
 	// Test that conflict error displays correct details
+	cmd := runconfig.NewCommand("ls", "-al")
 	testContainer, _, _ := daemon.Create(
 		&runconfig.Config{
 			Image: GetTestImage(daemon).ID,
-			Cmd:   []string{"ls", "-al"},
+			Cmd:   cmd,
 		},
 		&runconfig.HostConfig{},
 		"conflictname",
 	)
-	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: []string{"ls", "-al"}}, &runconfig.HostConfig{}, testContainer.Name); err == nil || !strings.Contains(err.Error(), stringid.TruncateID(testContainer.ID)) {
+	if _, _, err := daemon.Create(&runconfig.Config{Image: GetTestImage(daemon).ID, Cmd: cmd}, &runconfig.HostConfig{}, testContainer.Name); err == nil || !strings.Contains(err.Error(), stringid.TruncateID(testContainer.ID)) {
 		t.Fatalf("Name conflict error doesn't include the correct short id. Message was: %v", err)
 	}
 
@@ -316,7 +317,7 @@ func TestDaemonCreate(t *testing.T) {
 	if _, _, err := daemon.Create(
 		&runconfig.Config{
 			Image: GetTestImage(daemon).ID,
-			Cmd:   []string{},
+			Cmd:   runconfig.NewCommand(),
 		},
 		&runconfig.HostConfig{},
 		"",
@@ -326,7 +327,7 @@ func TestDaemonCreate(t *testing.T) {
 
 	config := &runconfig.Config{
 		Image:     GetTestImage(daemon).ID,
-		Cmd:       []string{"/bin/ls"},
+		Cmd:       runconfig.NewCommand("/bin/ls"),
 		PortSpecs: []string{"80"},
 	}
 	container, _, err = daemon.Create(config, &runconfig.HostConfig{}, "")
@@ -339,7 +340,7 @@ func TestDaemonCreate(t *testing.T) {
 	// test expose 80:8000
 	container, warnings, err := daemon.Create(&runconfig.Config{
 		Image:     GetTestImage(daemon).ID,
-		Cmd:       []string{"ls", "-al"},
+		Cmd:       runconfig.NewCommand("ls", "-al"),
 		PortSpecs: []string{"80:8000"},
 	},
 		&runconfig.HostConfig{},
@@ -359,7 +360,7 @@ func TestDestroy(t *testing.T) {
 
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"ls", "-al"},
+		Cmd:   runconfig.NewCommand("ls", "-al"),
 	},
 		&runconfig.HostConfig{},
 		"")
@@ -422,14 +423,13 @@ func TestGet(t *testing.T) {
 
 func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daemon.Container, string) {
 	var (
-		err          error
-		id           string
-		outputBuffer = bytes.NewBuffer(nil)
-		strPort      string
-		eng          = NewTestEngine(t)
-		daemon       = mkDaemonFromEngine(eng, t)
-		port         = 5554
-		p            nat.Port
+		err     error
+		id      string
+		strPort string
+		eng     = NewTestEngine(t)
+		daemon  = mkDaemonFromEngine(eng, t)
+		port    = 5554
+		p       nat.Port
 	)
 	defer func() {
 		if err != nil {
@@ -452,16 +452,14 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 		p = nat.Port(fmt.Sprintf("%s/%s", strPort, proto))
 		ep[p] = struct{}{}
 
-		jobCreate := eng.Job("create")
-		jobCreate.Setenv("Image", unitTestImageID)
-		jobCreate.SetenvList("Cmd", []string{"sh", "-c", cmd})
-		jobCreate.SetenvList("PortSpecs", []string{fmt.Sprintf("%s/%s", strPort, proto)})
-		jobCreate.SetenvJson("ExposedPorts", ep)
-		jobCreate.Stdout.Add(outputBuffer)
-		if err := jobCreate.Run(); err != nil {
-			t.Fatal(err)
+		c := &runconfig.Config{
+			Image:        unitTestImageID,
+			Cmd:          runconfig.NewCommand("sh", "-c", cmd),
+			PortSpecs:    []string{fmt.Sprintf("%s/%s", strPort, proto)},
+			ExposedPorts: ep,
 		}
-		id = engine.Tail(outputBuffer, 1)
+
+		id, _, err = daemon.ContainerCreate(unitTestImageID, c, &runconfig.HostConfig{})
 		// FIXME: this relies on the undocumented behavior of daemon.Create
 		// which will return a nil error AND container if the exposed ports
 		// are invalid. That behavior should be fixed!
@@ -472,15 +470,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*daemon.Daemon, *daem
 
 	}
 
-	jobStart := eng.Job("start", id)
-	portBindings := make(map[nat.Port][]nat.PortBinding)
-	portBindings[p] = []nat.PortBinding{
-		{},
-	}
-	if err := jobStart.SetenvJson("PortsBindings", portBindings); err != nil {
-		t.Fatal(err)
-	}
-	if err := jobStart.Run(); err != nil {
+	if err := daemon.ContainerStart(id, &runconfig.HostConfig{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -731,20 +721,15 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var outputBuffer = bytes.NewBuffer(nil)
-		job := eng.Job("create", test.Name)
-		if err := job.ImportEnv(config); err != nil {
-			t.Fatal(err)
-		}
-		job.Stdout.Add(outputBuffer)
-		if err := job.Run(); err != nil {
+		containerId, _, err := daemon.ContainerCreate(test.Name, config, &runconfig.HostConfig{})
+		if err != nil {
 			if !test.Valid {
 				continue
 			}
 			t.Fatal(err)
 		}
 
-		container, err := daemon.Get(engine.Tail(outputBuffer, 1))
+		container, err := daemon.Get(containerId)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -759,7 +744,6 @@ func TestContainerNameValidation(t *testing.T) {
 			t.Fatalf("Container /%s has ID %s instead of %s", test.Name, c.ID, container.ID)
 		}
 	}
-
 }
 
 func TestLinkChildContainer(t *testing.T) {
@@ -876,7 +860,7 @@ func TestDestroyWithInitLayer(t *testing.T) {
 
 	container, _, err := daemon.Create(&runconfig.Config{
 		Image: GetTestImage(daemon).ID,
-		Cmd:   []string{"ls", "-al"},
+		Cmd:   runconfig.NewCommand("ls", "-al"),
 	},
 		&runconfig.HostConfig{},
 		"")

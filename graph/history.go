@@ -31,7 +31,7 @@ func (s *TagStore) History(name string) ([]*types.ImageHistory, error) {
 		history = append(history, &types.ImageHistory{
 			ID:        img.ID,
 			Created:   img.Created.Unix(),
-			CreatedBy: strings.Join(img.ContainerConfig.Cmd, " "),
+			CreatedBy: strings.Join(img.ContainerConfig.Cmd.Slice(), " "),
 			Tags:      lookupMap[img.ID],
 			Size:      img.Size,
 			Comment:   img.Comment,

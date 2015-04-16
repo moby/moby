@@ -91,7 +91,7 @@ func TestGetContainersTop(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/sh", "-c", "cat"},
+			Cmd:       runconfig.NewCommand("/bin/sh", "-c", "cat"),
 			OpenStdin: true,
 		},
 		t,
@@ -168,7 +168,7 @@ func TestPostCommit(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image: unitTestImageID,
-			Cmd:   []string{"touch", "/test"},
+			Cmd:   runconfig.NewCommand("touch", "/test"),
 		},
 		t,
 	)
@@ -201,9 +201,8 @@ func TestPostContainersCreate(t *testing.T) {
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	configJSON, err := json.Marshal(&runconfig.Config{
-		Image:  unitTestImageID,
-		Memory: 33554432,
-		Cmd:    []string{"touch", "/test"},
+		Image: unitTestImageID,
+		Cmd:   runconfig.NewCommand("touch", "/test"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -242,9 +241,8 @@ func TestPostJsonVerify(t *testing.T) {
 	defer mkDaemonFromEngine(eng, t).Nuke()
 
 	configJSON, err := json.Marshal(&runconfig.Config{
-		Image:  unitTestImageID,
-		Memory: 33554432,
-		Cmd:    []string{"touch", "/test"},
+		Image: unitTestImageID,
+		Cmd:   runconfig.NewCommand("touch", "/test"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -330,8 +328,8 @@ func TestPostCreateNull(t *testing.T) {
 	containerAssertExists(eng, containerID, t)
 
 	c, _ := daemon.Get(containerID)
-	if c.Config.Cpuset != "" {
-		t.Fatalf("Cpuset should have been empty - instead its:" + c.Config.Cpuset)
+	if c.HostConfig().CpusetCpus != "" {
+		t.Fatalf("Cpuset should have been empty - instead its:" + c.HostConfig().CpusetCpus)
 	}
 }
 
@@ -342,7 +340,7 @@ func TestPostContainersKill(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       runconfig.NewCommand("/bin/cat"),
 			OpenStdin: true,
 		},
 		t,
@@ -379,7 +377,7 @@ func TestPostContainersRestart(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/top"},
+			Cmd:       runconfig.NewCommand("/bin/top"),
 			OpenStdin: true,
 		},
 		t,
@@ -423,7 +421,7 @@ func TestPostContainersStart(t *testing.T) {
 		eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       runconfig.NewCommand("/bin/cat"),
 			OpenStdin: true,
 		},
 		t,
@@ -473,7 +471,7 @@ func TestPostContainersStop(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/top"},
+			Cmd:       runconfig.NewCommand("/bin/top"),
 			OpenStdin: true,
 		},
 		t,
@@ -525,7 +523,7 @@ func TestPostContainersWait(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/sleep", "1"},
+			Cmd:       runconfig.NewCommand("/bin/sleep", "1"),
 			OpenStdin: true,
 		},
 		t,
@@ -561,7 +559,7 @@ func TestPostContainersAttach(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/cat"},
+			Cmd:       runconfig.NewCommand("/bin/cat"),
 			OpenStdin: true,
 		},
 		t,
@@ -637,7 +635,7 @@ func TestPostContainersAttachStderr(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image:     unitTestImageID,
-			Cmd:       []string{"/bin/sh", "-c", "/bin/cat >&2"},
+			Cmd:       runconfig.NewCommand("/bin/sh", "-c", "/bin/cat >&2"),
 			OpenStdin: true,
 		},
 		t,
@@ -818,7 +816,7 @@ func TestPostContainersCopy(t *testing.T) {
 	containerID := createTestContainer(eng,
 		&runconfig.Config{
 			Image: unitTestImageID,
-			Cmd:   []string{"touch", "/test.txt"},
+			Cmd:   runconfig.NewCommand("touch", "/test.txt"),
 		},
 		t,
 	)

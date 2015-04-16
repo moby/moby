@@ -10,25 +10,25 @@ func Compare(a, b *Config) bool {
 	if a.AttachStdout != b.AttachStdout ||
 		a.AttachStderr != b.AttachStderr ||
 		a.User != b.User ||
-		a.Memory != b.Memory ||
-		a.MemorySwap != b.MemorySwap ||
-		a.CpuShares != b.CpuShares ||
 		a.OpenStdin != b.OpenStdin ||
 		a.Tty != b.Tty {
 		return false
 	}
-	if len(a.Cmd) != len(b.Cmd) ||
+
+	if a.Cmd.Len() != b.Cmd.Len() ||
 		len(a.Env) != len(b.Env) ||
 		len(a.Labels) != len(b.Labels) ||
 		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
-		len(a.Entrypoint) != len(b.Entrypoint) ||
+		a.Entrypoint.Len() != b.Entrypoint.Len() ||
 		len(a.Volumes) != len(b.Volumes) {
 		return false
 	}
 
-	for i := 0; i < len(a.Cmd); i++ {
-		if a.Cmd[i] != b.Cmd[i] {
+	aCmd := a.Cmd.Slice()
+	bCmd := b.Cmd.Slice()
+	for i := 0; i < len(aCmd); i++ {
+		if aCmd[i] != bCmd[i] {
 			return false
 		}
 	}
@@ -52,8 +52,11 @@ func Compare(a, b *Config) bool {
 			return false
 		}
 	}
-	for i := 0; i < len(a.Entrypoint); i++ {
-		if a.Entrypoint[i] != b.Entrypoint[i] {
+
+	aEntrypoint := a.Entrypoint.Slice()
+	bEntrypoint := b.Entrypoint.Slice()
+	for i := 0; i < len(aEntrypoint); i++ {
+		if aEntrypoint[i] != bEntrypoint[i] {
 			return false
 		}
 	}

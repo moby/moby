@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -809,30 +810,23 @@ func postContainersCreate(eng *engine.Engine, version version.Version, w http.Re
 		return err
 	}
 	var (
-		job          = eng.Job("create", r.Form.Get("name"))
-		outWarnings  []string
-		stdoutBuffer = bytes.NewBuffer(nil)
-		warnings     = bytes.NewBuffer(nil)
+		warnings []string
+		name     = r.Form.Get("name")
 	)
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	if err != nil {
 		return err
 	}
-	// Read container ID from the first line of stdout
-	job.Stdout.Add(stdoutBuffer)
-	// Read warnings from stderr
-	job.Stderr.Add(warnings)
-	if err := job.Run(); err != nil {
+
+	containerId, warnings, err := getDaemon(eng).ContainerCreate(name, config, hostConfig)
+	if err != nil {
 		return err
 	}
-	// Parse warnings from stderr
-	scanner := bufio.NewScanner(warnings)
-	for scanner.Scan() {
-		outWarnings = append(outWarnings, scanner.Text())
-	}
+
 	return writeJSON(w, http.StatusCreated, &types.ContainerCreateResponse{
-		ID:       engine.Tail(stdoutBuffer, 1),
-		Warnings: outWarnings,
+		ID:       containerId,
+		Warnings: warnings,
 	})
 }
 
@@ -924,10 +918,6 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var (
-		name = vars["name"]
-		job  = eng.Job("start", name)
-	)
 
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
@@ -935,17 +925,21 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
+	var hostConfig *runconfig.HostConfig
 	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
 		if err := checkForJson(r); err != nil {
 			return err
 		}
 
-		if err := job.DecodeEnv(r.Body); err != nil {
+		c, err := runconfig.DecodeHostConfig(r.Body)
+		if err != nil {
 			return err
 		}
+
+		hostConfig = c
 	}
 
-	if err := job.Run(); err != nil {
+	if err := getDaemon(eng).ContainerStart(vars["name"], hostConfig); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil

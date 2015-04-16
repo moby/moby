@@ -61,7 +61,7 @@ func (b *Builder) readContext(context io.Reader) error {
 	return nil
 }
 
-func (b *Builder) commit(id string, autoCmd []string, comment string) error {
+func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -71,8 +71,8 @@ func (b *Builder) commit(id string, autoCmd []string, comment string) error {
 	b.Config.Image = b.image
 	if id == "" {
 		cmd := b.Config.Cmd
-		b.Config.Cmd = []string{"/bin/sh", "-c", "#(nop) " + comment}
-		defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+		defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
 		if err != nil {
@@ -182,8 +182,8 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	}
 
 	cmd := b.Config.Cmd
-	b.Config.Cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest)}
-	defer func(cmd []string) { b.Config.Cmd = cmd }(cmd)
+	b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -560,12 +560,13 @@ func (b *Builder) create() (*daemon.Container, error) {
 	b.TmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.OutStream, " ---> Running in %s\n", stringid.TruncateID(c.ID))
 
-	if len(config.Cmd) > 0 {
+	if config.Cmd.Len() > 0 {
 		// override the entry point that may have been picked up from the base image
-		c.Path = config.Cmd[0]
-		c.Args = config.Cmd[1:]
+		s := config.Cmd.Slice()
+		c.Path = s[0]
+		c.Args = s[1:]
 	} else {
-		config.Cmd = []string{}
+		config.Cmd = runconfig.NewCommand()
 	}
 
 	return c, nil
