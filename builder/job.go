@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/parser"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
@@ -41,41 +43,73 @@ type BuilderJob struct {
 	Daemon *daemon.Daemon
 }
 
+type Config struct {
+	DockerfileName string
+	RemoteURL      string
+	RepoName       string
+	SuppressOutput bool
+	NoCache        bool
+	Remove         bool
+	ForceRemove    bool
+	Pull           bool
+	JSONFormat     bool
+	Memory         int64
+	MemorySwap     int64
+	CpuShares      int64
+	CpuSetCpus     string
+	CpuSetMems     string
+	AuthConfig     *registry.AuthConfig
+	ConfigFile     *registry.ConfigFile
+
+	Stdout *engine.Output
+	Stderr *engine.Output
+	Stdin  *engine.Input
+	// When closed, the job has been cancelled.
+	// Note: not all jobs implement cancellation.
+	// See Job.Cancel() and Job.WaitCancelled()
+	cancelled  chan struct{}
+	cancelOnce sync.Once
+}
+
+// When called, causes the Job.WaitCancelled channel to unblock.
+func (b *Config) Cancel() {
+	b.cancelOnce.Do(func() {
+		close(b.cancelled)
+	})
+}
+
+// Returns a channel which is closed ("never blocks") when the job is cancelled.
+func (b *Config) WaitCancelled() <-chan struct{} {
+	return b.cancelled
+}
+
+func NewBuildConfig(logging bool, err io.Writer) *Config {
+	c := &Config{
+		Stdout:    engine.NewOutput(),
+		Stderr:    engine.NewOutput(),
+		Stdin:     engine.NewInput(),
+		cancelled: make(chan struct{}),
+	}
+	if logging {
+		c.Stderr.Add(ioutils.NopWriteCloser(err))
+	}
+	return c
+}
+
 func (b *BuilderJob) Install() {
-	b.Engine.Register("build", b.CmdBuild)
 	b.Engine.Register("build_config", b.CmdBuildConfig)
 }
 
-func (b *BuilderJob) CmdBuild(job *engine.Job) error {
-	if len(job.Args) != 0 {
-		return fmt.Errorf("Usage: %s\n", job.Name)
-	}
+func (b *BuilderJob) CmdBuild(buildConfig *Config) error {
 	var (
-		dockerfileName = job.Getenv("dockerfile")
-		remoteURL      = job.Getenv("remote")
-		repoName       = job.Getenv("t")
-		suppressOutput = job.GetenvBool("q")
-		noCache        = job.GetenvBool("nocache")
-		rm             = job.GetenvBool("rm")
-		forceRm        = job.GetenvBool("forcerm")
-		pull           = job.GetenvBool("pull")
-		memory         = job.GetenvInt64("memory")
-		memorySwap     = job.GetenvInt64("memswap")
-		cpuShares      = job.GetenvInt64("cpushares")
-		cpuSetCpus     = job.Getenv("cpusetcpus")
-		cpuSetMems     = job.Getenv("cpusetmems")
-		authConfig     = &registry.AuthConfig{}
-		configFile     = &registry.ConfigFile{}
-		tag            string
-		context        io.ReadCloser
+		repoName string
+		tag      string
+		context  io.ReadCloser
 	)
 
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("configFile", configFile)
-
-	repoName, tag = parsers.ParseRepositoryTag(repoName)
+	repoName, tag = parsers.ParseRepositoryTag(buildConfig.RepoName)
 	if repoName != "" {
-		if err := registry.ValidateRepositoryName(repoName); err != nil {
+		if err := registry.ValidateRepositoryName(buildConfig.RepoName); err != nil {
 			return err
 		}
 		if len(tag) > 0 {
@@ -85,11 +119,11 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		}
 	}
 
-	if remoteURL == "" {
-		context = ioutil.NopCloser(job.Stdin)
-	} else if urlutil.IsGitURL(remoteURL) {
-		if !urlutil.IsGitTransport(remoteURL) {
-			remoteURL = "https://" + remoteURL
+	if buildConfig.RemoteURL == "" {
+		context = ioutil.NopCloser(buildConfig.Stdin)
+	} else if urlutil.IsGitURL(buildConfig.RemoteURL) {
+		if !urlutil.IsGitTransport(buildConfig.RemoteURL) {
+			buildConfig.RemoteURL = "https://" + buildConfig.RemoteURL
 		}
 		root, err := ioutil.TempDir("", "docker-build-git")
 		if err != nil {
@@ -97,7 +131,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 		}
 		defer os.RemoveAll(root)
 
-		if output, err := exec.Command("git", "clone", "--recursive", remoteURL, root).CombinedOutput(); err != nil {
+		if output, err := exec.Command("git", "clone", "--recursive", buildConfig.RemoteURL, root).CombinedOutput(); err != nil {
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
@@ -106,8 +140,8 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 			return err
 		}
 		context = c
-	} else if urlutil.IsURL(remoteURL) {
-		f, err := httputils.Download(remoteURL)
+	} else if urlutil.IsURL(buildConfig.RemoteURL) {
+		f, err := httputils.Download(buildConfig.RemoteURL)
 		if err != nil {
 			return err
 		}
@@ -119,9 +153,9 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 
 		// When we're downloading just a Dockerfile put it in
 		// the default name - don't allow the client to move/specify it
-		dockerfileName = api.DefaultDockerfileName
+		buildConfig.DockerfileName = api.DefaultDockerfileName
 
-		c, err := archive.Generate(dockerfileName, string(dockerFile))
+		c, err := archive.Generate(buildConfig.DockerfileName, string(dockerFile))
 		if err != nil {
 			return err
 		}
@@ -129,35 +163,35 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 	}
 	defer context.Close()
 
-	sf := streamformatter.NewStreamFormatter(job.GetenvBool("json"))
+	sf := streamformatter.NewStreamFormatter(buildConfig.JSONFormat)
 
 	builder := &Builder{
 		Daemon: b.Daemon,
 		Engine: b.Engine,
 		OutStream: &streamformatter.StdoutFormater{
-			Writer:          job.Stdout,
+			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
 		},
 		ErrStream: &streamformatter.StderrFormater{
-			Writer:          job.Stdout,
+			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
 		},
-		Verbose:         !suppressOutput,
-		UtilizeCache:    !noCache,
-		Remove:          rm,
-		ForceRemove:     forceRm,
-		Pull:            pull,
-		OutOld:          job.Stdout,
+		Verbose:         !buildConfig.SuppressOutput,
+		UtilizeCache:    !buildConfig.NoCache,
+		Remove:          buildConfig.Remove,
+		ForceRemove:     buildConfig.ForceRemove,
+		Pull:            buildConfig.Pull,
+		OutOld:          buildConfig.Stdout,
 		StreamFormatter: sf,
-		AuthConfig:      authConfig,
-		ConfigFile:      configFile,
-		dockerfileName:  dockerfileName,
-		cpuShares:       cpuShares,
-		cpuSetCpus:      cpuSetCpus,
-		cpuSetMems:      cpuSetMems,
-		memory:          memory,
-		memorySwap:      memorySwap,
-		cancelled:       job.WaitCancelled(),
+		AuthConfig:      buildConfig.AuthConfig,
+		ConfigFile:      buildConfig.ConfigFile,
+		dockerfileName:  buildConfig.DockerfileName,
+		cpuShares:       buildConfig.CpuShares,
+		cpuSetCpus:      buildConfig.CpuSetCpus,
+		cpuSetMems:      buildConfig.CpuSetMems,
+		memory:          buildConfig.Memory,
+		memorySwap:      buildConfig.MemorySwap,
+		cancelled:       buildConfig.WaitCancelled(),
 	}
 
 	id, err := builder.Run(context)

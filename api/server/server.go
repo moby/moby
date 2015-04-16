@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
@@ -236,12 +237,12 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
-func streamJSON(job *engine.Job, w http.ResponseWriter, flush bool) {
+func streamJSON(out *engine.Output, w http.ResponseWriter, flush bool) {
 	w.Header().Set("Content-Type", "application/json")
 	if flush {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
+		out.Add(utils.NewWriteFlusher(w))
 	} else {
-		job.Stdout.Add(w)
+		out.Add(w)
 	}
 }
 
@@ -857,7 +858,7 @@ func (s *Server) postImagesPush(eng *engine.Engine, version version.Version, w h
 	job.Setenv("tag", r.Form.Get("tag"))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
+		streamJSON(job.Stdout, w, true)
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
@@ -1207,7 +1208,7 @@ func (s *Server) getContainersByName(eng *engine.Engine, version version.Version
 	if version.LessThan("1.12") {
 		job.SetenvBool("raw", true)
 	}
-	streamJSON(job, w, false)
+	streamJSON(job.Stdout, w, false)
 	return job.Run()
 }
 
@@ -1232,7 +1233,7 @@ func (s *Server) getImagesByName(eng *engine.Engine, version version.Version, w 
 	if version.LessThan("1.12") {
 		job.SetenvBool("raw", true)
 	}
-	streamJSON(job, w, false)
+	streamJSON(job.Stdout, w, false)
 	return job.Run()
 }
 
@@ -1245,8 +1246,10 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
-		job               = eng.Job("build")
+		job               = builder.NewBuildConfig(eng.Logging, eng.Stderr)
 	)
+
+	b := &builder.BuilderJob{eng, getDaemon(eng)}
 
 	// This block can be removed when API versions prior to 1.9 are deprecated.
 	// Both headers will be parsed and sent along to the daemon, but if a non-empty
@@ -1271,36 +1274,38 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 	}
 
 	if version.GreaterThanOrEqualTo("1.8") {
-		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
+		job.JSONFormat = true
+		streamJSON(job.Stdout, w, true)
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
 
 	if toBool(r.FormValue("forcerm")) && version.GreaterThanOrEqualTo("1.12") {
-		job.Setenv("rm", "1")
+		job.Remove = true
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
-		job.Setenv("rm", "1")
+		job.Remove = true
 	} else {
-		job.Setenv("rm", r.FormValue("rm"))
+		job.Remove = toBool(r.FormValue("rm"))
 	}
 	if toBool(r.FormValue("pull")) && version.GreaterThanOrEqualTo("1.16") {
-		job.Setenv("pull", "1")
+		job.Pull = true
 	}
 	job.Stdin.Add(r.Body)
-	job.Setenv("remote", r.FormValue("remote"))
-	job.Setenv("dockerfile", r.FormValue("dockerfile"))
-	job.Setenv("t", r.FormValue("t"))
-	job.Setenv("q", r.FormValue("q"))
-	job.Setenv("nocache", r.FormValue("nocache"))
-	job.Setenv("forcerm", r.FormValue("forcerm"))
-	job.SetenvJson("authConfig", authConfig)
-	job.SetenvJson("configFile", configFile)
-	job.Setenv("memswap", r.FormValue("memswap"))
-	job.Setenv("memory", r.FormValue("memory"))
-	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
-	job.Setenv("cpusetmems", r.FormValue("cpusetmems"))
-	job.Setenv("cpushares", r.FormValue("cpushares"))
+
+	// FIXME(calavera): !!!!! Remote might not be used. Solve the mistery before merging
+	//job.Setenv("remote", r.FormValue("remote"))
+	job.DockerfileName = r.FormValue("dockerfile")
+	job.RepoName = r.FormValue("t")
+	job.SuppressOutput = toBool(r.FormValue("q"))
+	job.NoCache = toBool(r.FormValue("nocache"))
+	job.ForceRemove = toBool(r.FormValue("forcerm"))
+	job.AuthConfig = authConfig
+	job.ConfigFile = configFile
+	job.MemorySwap = toInt64(r.FormValue("memswap"))
+	job.Memory = toInt64(r.FormValue("memory"))
+	job.CpuShares = toInt64(r.FormValue("cpushares"))
+	job.CpuSetCpus = r.FormValue("cpusetcpus")
+	job.CpuSetMems = r.FormValue("cpusetmems")
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
@@ -1310,13 +1315,13 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 			select {
 			case <-finished:
 			case <-closeNotifier.CloseNotify():
-				logrus.Infof("Client disconnected, cancelling job: %s", job.Name)
+				logrus.Infof("Client disconnected, cancelling job: build")
 				job.Cancel()
 			}
 		}()
 	}
 
-	if err := job.Run(); err != nil {
+	if err := b.CmdBuild(job); err != nil {
 		if !job.Stdout.Used() {
 			return err
 		}
@@ -1675,4 +1680,13 @@ func allocateDaemonPort(addr string) error {
 func toBool(s string) bool {
 	s = strings.ToLower(strings.TrimSpace(s))
 	return !(s == "" || s == "0" || s == "no" || s == "false" || s == "none")
+}
+
+// FIXME(calavera): This is a copy of the Env.GetInt64
+func toInt64(s string) int64 {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return val
 }
