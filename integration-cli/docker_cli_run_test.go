@@ -394,21 +394,6 @@ func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	}
 }
 
-// Regression test for #4741
-func (s *DockerSuite) TestRunWithVolumesAsFiles(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/etc/hosts:/target-file", "busybox", "true")
-	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil && exitCode != 0 {
-		c.Fatal("1", out, stderr, err)
-	}
-
-	runCmd = exec.Command(dockerBinary, "run", "--volumes-from", "test-data", "busybox", "cat", "/target-file")
-	out, stderr, exitCode, err = runCommandWithStdoutStderr(runCmd)
-	if err != nil && exitCode != 0 {
-		c.Fatal("2", out, stderr, err)
-	}
-}
-
 // Regression test for #4979
 func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
@@ -535,7 +520,7 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 	if out, _, err := runCommandWithOutput(cmd); err == nil {
 		c.Fatal("Expected error about duplicate volume definitions")
 	} else {
-		if !strings.Contains(out, "Duplicate volume") {
+		if !strings.Contains(out, "Duplicate bind mount") {
 			c.Fatalf("Expected 'duplicate volume' error, got %v", err)
 		}
 	}
@@ -2247,7 +2232,13 @@ func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
 		c.Fatal(err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "-v", fmt.Sprintf("%s:/tmp", tmpDir), "-v", fmt.Sprintf("%s:/tmp/foo", fooDir), "-v", fmt.Sprintf("%s:/tmp/tmp2", tmpDir2), "-v", fmt.Sprintf("%s:/tmp/tmp2/foo", fooDir), "busybox:latest", "sh", "-c", "ls /tmp/touch-me && ls /tmp/foo/touch-me && ls /tmp/tmp2/touch-me && ls /tmp/tmp2/foo/touch-me")
+	cmd := exec.Command(dockerBinary, "run",
+		"-v", fmt.Sprintf("%s:/tmp", tmpDir),
+		"-v", fmt.Sprintf("%s:/tmp/foo", fooDir),
+		"-v", fmt.Sprintf("%s:/tmp/tmp2", tmpDir2),
+		"-v", fmt.Sprintf("%s:/tmp/tmp2/foo", fooDir),
+		"busybox:latest", "sh", "-c",
+		"ls /tmp/touch-me && ls /tmp/foo/touch-me && ls /tmp/tmp2/touch-me && ls /tmp/tmp2/foo/touch-me")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatal(out, err)
@@ -2341,41 +2332,6 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunVolumesNotRecreatedOnStart(c *check.C) {
-	testRequires(c, SameHostDaemon)
-
-	// Clear out any remnants from other tests
-	info, err := ioutil.ReadDir(volumesConfigPath)
-	if err != nil {
-		c.Fatal(err)
-	}
-	if len(info) > 0 {
-		for _, f := range info {
-			if err := os.RemoveAll(volumesConfigPath + "/" + f.Name()); err != nil {
-				c.Fatal(err)
-			}
-		}
-	}
-
-	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "--name", "lone_starr", "busybox")
-	if _, err := runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
-
-	cmd = exec.Command(dockerBinary, "start", "lone_starr")
-	if _, err := runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
-
-	info, err = ioutil.ReadDir(volumesConfigPath)
-	if err != nil {
-		c.Fatal(err)
-	}
-	if len(info) != 1 {
-		c.Fatalf("Expected only 1 volume have %v", len(info))
-	}
-}
-
 func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 	// just run with unknown image
 	cmd := exec.Command(dockerBinary, "run", "asdfsg")
@@ -2414,7 +2370,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if !strings.Contains(out, volumesStoragePath) {
+	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /foo\n%q", out)
 	}
 
@@ -2429,7 +2385,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if !strings.Contains(out, volumesStoragePath) {
+	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /bar\n%q", out)
 	}
 }

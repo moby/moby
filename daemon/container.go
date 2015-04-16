@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
@@ -41,6 +43,7 @@ import (
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/volume"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -59,56 +62,56 @@ type StreamConfig struct {
 	stdinPipe io.WriteCloser
 }
 
+type BindMount struct {
+	Source      string
+	Destination string
+	RW          bool
+}
+
+type VolumeConfig struct {
+	Driver      string
+	Destination string
+	RW          bool
+}
+
 type Container struct {
+	StreamConfig
 	*State `json:"State"` // Needed for remote api version <= 1.11
 	root   string         // Path to the "home" of the container, including metadata.
 	basefs string         // Path to the graphdriver mountpoint
 
-	ID string
-
-	Created time.Time
-
-	Path string
-	Args []string
-
-	Config  *runconfig.Config
-	ImageID string `json:"Image"`
-
-	NetworkSettings *network.Settings
-
-	ResolvConfPath string
-	HostnamePath   string
-	HostsPath      string
-	LogPath        string
-	Name           string
-	Driver         string
-	ExecDriver     string
-
-	command *execdriver.Command
-	StreamConfig
-
-	daemon                   *Daemon
+	ID                       string
+	Created                  time.Time
+	Path                     string
+	Args                     []string
+	Config                   *runconfig.Config
+	ImageID                  string `json:"Image"`
+	NetworkSettings          *network.Settings
+	ResolvConfPath           string
+	HostnamePath             string
+	HostsPath                string
+	LogPath                  string
+	Name                     string
+	Driver                   string
+	ExecDriver               string
 	MountLabel, ProcessLabel string
 	AppArmorProfile          string
 	RestartCount             int
 	UpdateDns                bool
+	VolumeConfig             map[string]*VolumeConfig
+	BindMounts               []*BindMount
 
-	// Maps container paths to volume paths.  The key in this is the path to which
-	// the volume is being mounted inside the container.  Value is the path of the
-	// volume on disk
-	Volumes map[string]string
-	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
-	// Easier than migrating older container configs :)
-	VolumesRW  map[string]bool
-	hostConfig *runconfig.HostConfig
-
+	command      *execdriver.Command
+	daemon       *Daemon
+	hostConfig   *runconfig.HostConfig
 	activeLinks  map[string]*links.Link
 	monitor      *containerMonitor
 	execCommands *execStore
 	// logDriver for closing
-	logDriver          logger.Logger
-	logCopier          *logger.Copier
-	AppliedVolumesFrom map[string]struct{}
+	logDriver logger.Logger
+	logCopier *logger.Copier
+	// live volume objects
+	volumes []volume.Volume
 }
 
 func (container *Container) FromDisk() error {
@@ -463,9 +466,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	container.verifyDaemonSettings()
-	if err := container.prepareVolumes(); err != nil {
-		return err
-	}
 	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
@@ -477,10 +477,11 @@ func (container *Container) Start() (err error) {
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
-	if err := container.setupMounts(); err != nil {
+	mounts, err := container.setupMounts()
+	if err != nil {
 		return err
 	}
-
+	container.command.Mounts = mounts
 	return container.waitForStart()
 }
 
@@ -985,27 +986,38 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			container.Unmount()
+	var paths []string
+	unmount := func() {
+		for _, p := range paths {
+			syscall.Unmount(p, 0)
 		}
-	}()
-
-	if err = container.mountVolumes(); err != nil {
-		container.unmountVolumes()
-		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			container.unmountVolumes()
+			// unmount any volumes
+			unmount()
+			// unmount the container's rootfs
+			container.Unmount()
 		}
 	}()
-
+	mounts, err := container.setupMounts()
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range mounts {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, dest)
+		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
+			return nil, err
+		}
+	}
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
 	}
-
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		return nil, err
@@ -1019,7 +1031,6 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		filter = []string{path.Base(basePath)}
 		basePath = path.Dir(basePath)
 	}
-
 	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
@@ -1027,10 +1038,9 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			container.unmountVolumes()
+			unmount()
 			container.Unmount()
 			return err
 		}),
@@ -1627,4 +1637,84 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 	}
 
 	return err
+}
+
+func (container *Container) setupMounts() ([]execdriver.Mount, error) {
+	var mounts []execdriver.Mount
+	for _, v := range container.volumes {
+		config, ok := container.VolumeConfig[v.Name()]
+		if !ok {
+			return nil, fmt.Errorf("volume configuration not found for %s", v.Name())
+		}
+		path, err := v.Mount()
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, execdriver.Mount{
+			Source:      path,
+			Destination: config.Destination,
+			Writable:    config.RW,
+		})
+	}
+	for _, b := range container.BindMounts {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      b.Source,
+			Destination: b.Destination,
+			Writable:    b.RW,
+		})
+	}
+	mounts = sortMounts(mounts)
+	return append(mounts, container.networkMounts()...), nil
+}
+
+func (container *Container) networkMounts() []execdriver.Mount {
+	var mounts []execdriver.Mount
+	if container.ResolvConfPath != "" {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.ResolvConfPath,
+			Destination: "/etc/resolv.conf",
+			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Private:     true,
+		})
+	}
+	if container.HostnamePath != "" {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.HostnamePath,
+			Destination: "/etc/hostname",
+			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Private:     true,
+		})
+	}
+	if container.HostsPath != "" {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.HostsPath,
+			Destination: "/etc/hosts",
+			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Private:     true,
+		})
+	}
+	return mounts
+}
+
+func sortMounts(m []execdriver.Mount) []execdriver.Mount {
+	sort.Sort(mounts(m))
+	return m
+}
+
+type mounts []execdriver.Mount
+
+func (m mounts) Len() int {
+	return len(m)
+}
+
+func (m mounts) Less(i, j int) bool {
+	return m.parts(i) < m.parts(j)
+}
+
+func (m mounts) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+
+func (m mounts) parts(i int) int {
+	return len(strings.Split(filepath.Clean(m[i].Destination), string(os.PathSeparator)))
 }

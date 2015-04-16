@@ -17,8 +17,7 @@ var (
 	privateRegistryURL = "127.0.0.1:5000"
 
 	dockerBasePath       = "/var/lib/docker"
-	volumesConfigPath    = dockerBasePath + "/volumes"
-	volumesStoragePath   = dockerBasePath + "/vfs/dir"
+	volumesConfigPath    = dockerBasePath + "/volume"
 	containerStoragePath = dockerBasePath + "/containers"
 
 	runtimePath    = "/var/run/docker"

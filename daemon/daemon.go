@@ -44,7 +44,8 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/volumes"
+	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/local"
 
 	"github.com/go-fsnotify/fsnotify"
 )
@@ -99,7 +100,6 @@ type Daemon struct {
 	repositories     *graph.TagStore
 	idIndex          *truncindex.TruncIndex
 	sysInfo          *sysinfo.SysInfo
-	volumes          *volumes.Repository
 	config           *Config
 	containerGraph   *graphdb.Database
 	driver           graphdriver.Driver
@@ -108,6 +108,7 @@ type Daemon struct {
 	defaultLogConfig runconfig.LogConfig
 	RegistryService  *registry.Service
 	EventsService    *events.Events
+	volumeDriver     volume.Driver
 }
 
 // Get looks for a container using the provided information, which could be
@@ -205,7 +206,13 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	// we'll waste time if we update it for every container
 	daemon.idIndex.Add(container.ID)
 
-	container.registerVolumes()
+	for name := range container.VolumeConfig {
+		v, err := daemon.volumeDriver.Create(name)
+		if err != nil {
+			return err
+		}
+		container.volumes = append(container.volumes, v)
+	}
 
 	if container.IsRunning() {
 		logrus.Debugf("killing old running container %s", container.ID)
@@ -572,7 +579,6 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	container := &Container{
-		// FIXME: we should generate the ID here instead of receiving it as an argument
 		ID:              id,
 		Created:         time.Now().UTC(),
 		Path:            entrypoint,
@@ -586,6 +592,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 		ExecDriver:      daemon.execDriver.Name(),
 		State:           NewState(),
 		execCommands:    newExecStore(),
+		VolumeConfig:    make(map[string]*VolumeConfig),
 	}
 	container.root = daemon.containerRoot(container.ID)
 	return container, err
@@ -826,12 +833,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	volumes, err := volumes.NewRepository(filepath.Join(config.Root, "volumes"), volumesDriver)
+	volumesDriver, err := local.New(path.Join(config.Root, "volume"))
 	if err != nil {
 		return nil, err
 	}
@@ -913,7 +915,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.repositories = repositories
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.sysInfo = sysInfo
-	d.volumes = volumes
 	d.config = config
 	d.sysInitPath = sysInitPath
 	d.execDriver = ed
@@ -921,6 +922,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.defaultLogConfig = config.LogConfig
 	d.RegistryService = registryService
 	d.EventsService = eventsService
+	d.volumeDriver = volumesDriver
 
 	if err := d.restore(); err != nil {
 		return nil, err
@@ -1189,9 +1191,118 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
 		return err
 	}
-
+	var (
+		volumes []*vv
+		binds   = make(map[string]struct{})
+	)
+	for _, v := range hostConfig.VolumesFrom {
+		containerID, mode, err := parseVolumesFrom(v)
+		if err != nil {
+			return err
+		}
+		c, err := daemon.Get(containerID)
+		if err != nil {
+			return err
+		}
+		vf, err := container.addVolumesFrom(c, mode)
+		if err != nil {
+			return err
+		}
+		volumes = append(volumes, vf...)
+	}
+	hasVolumeFrom := func(dest string) bool {
+		for _, vf := range volumes {
+			if vf.vc.Destination == dest {
+				return true
+			}
+		}
+		return false
+	}
+	var (
+		uniqueVolumes       []volume.Volume
+		uniqueVolumeConfigs = make(map[string]*VolumeConfig)
+	)
+	for _, v := range container.volumes {
+		config := container.VolumeConfig[v.Name()]
+		if !hasVolumeFrom(config.Destination) {
+			uniqueVolumes = append(uniqueVolumes, v)
+			uniqueVolumeConfigs[v.Name()] = config
+		}
+	}
+	container.volumes = uniqueVolumes
+	container.VolumeConfig = uniqueVolumeConfigs
+	for _, vf := range volumes {
+		if _, exists := container.VolumeConfig[vf.v.Name()]; exists {
+			continue
+		}
+		container.volumes = append(container.volumes, vf.v)
+		container.VolumeConfig[vf.v.Name()] = vf.vc
+	}
+	uniqueVolumes = []volume.Volume{}
+	uniqueVolumeConfigs = make(map[string]*VolumeConfig)
+	// create bind mounts for container.
+	for _, b := range hostConfig.Binds {
+		// #10618
+		bind, err := parseBindMount(b)
+		if err != nil {
+			return err
+		}
+		if _, exists := binds[bind.Destination]; exists {
+			return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
+		}
+		binds[bind.Destination] = struct{}{}
+		if _, err := os.Stat(bind.Source); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.MkdirAll(bind.Source, 0755); err != nil {
+				return err
+			}
+		}
+		container.BindMounts = append(container.BindMounts, bind)
+	}
+	for _, v := range container.volumes {
+		config := container.VolumeConfig[v.Name()]
+		if !container.containsBind(config.Destination) {
+			uniqueVolumes = append(uniqueVolumes, v)
+			uniqueVolumeConfigs[v.Name()] = config
+		}
+	}
+	container.volumes = uniqueVolumes
+	container.VolumeConfig = uniqueVolumeConfigs
 	container.hostConfig = hostConfig
 	container.toDisk()
-
 	return nil
+}
+
+type vv struct {
+	v  volume.Volume
+	vc *VolumeConfig
+}
+
+func (container *Container) containsBind(dest string) bool {
+	for _, b := range container.BindMounts {
+		if b.Destination == dest {
+			return true
+		}
+	}
+	return false
+}
+
+func (container *Container) addVolumesFrom(c *Container, mode string) ([]*vv, error) {
+	var volumes []*vv
+	for name, config := range c.VolumeConfig {
+		lv, err := container.daemon.volumeDriver.Create(name)
+		if err != nil {
+			return nil, err
+		}
+		// make a copy of the config
+		cp := *config
+		cp.RW = mode != "ro"
+		volumes = append(volumes, &vv{
+			v:  lv,
+			vc: &cp,
+		})
+	}
+	return volumes, nil
 }
