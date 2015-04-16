@@ -308,7 +308,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 				"-t", string(iptables.Nat), "-I", "POSTROUTING"}, natArgs...)...); err != nil {
 				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
 			} else if len(output) != 0 {
-				return &iptables.ChainError{Chain: "POSTROUTING", Output: output}
+				return iptables.ChainError{Chain: "POSTROUTING", Output: output}
 			}
 		}
 	}
@@ -349,7 +349,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, outgoingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
 		} else if len(output) != 0 {
-			return &iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
+			return iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
 		}
 	}
 
@@ -360,7 +360,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, existingArgs...)...); err != nil {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
-			return &iptables.ChainError{Chain: "FORWARD incoming", Output: output}
+			return iptables.ChainError{Chain: "FORWARD incoming", Output: output}
 		}
 	}
 	return nil
