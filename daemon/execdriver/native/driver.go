@@ -268,29 +268,25 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 
 func (d *driver) Terminate(c *execdriver.Command) error {
 	defer d.cleanContainer(c.ID)
-	// lets check the start time for the process
-	active := d.activeContainers[c.ID]
-	if active == nil {
-		return fmt.Errorf("active container for %s does not exist", c.ID)
+	container, err := d.factory.Load(c.ID)
+	if err != nil {
+		return err
 	}
-	state, err := active.State()
+	defer container.Destroy()
+	state, err := container.State()
 	if err != nil {
 		return err
 	}
 	pid := state.InitProcessPid
-
 	currentStartTime, err := system.GetProcessStartTime(pid)
 	if err != nil {
 		return err
 	}
-
 	if state.InitProcessStartTime == currentStartTime {
 		err = syscall.Kill(pid, 9)
 		syscall.Wait4(pid, nil, 0, nil)
 	}
-
 	return err
-
 }
 
 func (d *driver) Info(id string) execdriver.Info {
