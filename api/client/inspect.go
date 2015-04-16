@@ -26,7 +26,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		var err error
 		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
 			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-			return &StatusError{StatusCode: 64,
+			return StatusError{StatusCode: 64,
 				Status: "Template parsing error: " + err.Error()}
 		}
 	}
@@ -85,7 +85,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	if status != 0 {
-		return &StatusError{StatusCode: status}
+		return StatusError{StatusCode: status}
 	}
 	return nil
 }

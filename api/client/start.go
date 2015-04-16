@@ -155,7 +155,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 		if status != 0 {
-			return &StatusError{StatusCode: status}
+			return StatusError{StatusCode: status}
 		}
 	}
 	return nil

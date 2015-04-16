@@ -304,7 +304,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		if jerr.Code == 0 {
 			jerr.Code = 1
 		}
-		return &StatusError{Status: jerr.Message, StatusCode: jerr.Code}
+		return StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
 	return err
 }
