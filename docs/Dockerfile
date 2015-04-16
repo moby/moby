@@ -9,7 +9,7 @@ MAINTAINER Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 ENV COMPOSE_BRANCH 1.2.0
 ENV SWARM_BRANCH v0.2.0
 ENV MACHINE_BRANCH master
-ENV DISTRIB_BRANCH master
+ENV DISTRIB_BRANCH v2.0.0
 
 
 
