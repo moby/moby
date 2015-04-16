@@ -34,7 +34,7 @@ func TestSetupVerify(t *testing.T) {
 		t.Fatalf("Failed to assign IPv4 %s to interface: %v", config.AddressIPv4, err)
 	}
 
-	if err := setupVerifyConfiguredAddresses(config, inf); err != nil {
+	if err := setupVerifyAndReconcile(config, inf); err != nil {
 		t.Fatalf("Address verification failed: %v", err)
 	}
 }
@@ -52,7 +52,7 @@ func TestSetupVerifyBad(t *testing.T) {
 		t.Fatalf("Failed to assign IPv4 %s to interface: %v", ipnet, err)
 	}
 
-	if err := setupVerifyConfiguredAddresses(config, inf); err == nil {
+	if err := setupVerifyAndReconcile(config, inf); err == nil {
 		t.Fatal("Address verification was expected to fail")
 	}
 }
@@ -65,7 +65,7 @@ func TestSetupVerifyMissing(t *testing.T) {
 	config := &Configuration{}
 	config.AddressIPv4 = &net.IPNet{IP: addrv4, Mask: addrv4.DefaultMask()}
 
-	if err := setupVerifyConfiguredAddresses(config, inf); err == nil {
+	if err := setupVerifyAndReconcile(config, inf); err == nil {
 		t.Fatal("Address verification was expected to fail")
 	}
 }
@@ -86,7 +86,7 @@ func TestSetupVerifyIPv6(t *testing.T) {
 		t.Fatalf("Failed to assign IPv4 %s to interface: %v", config.AddressIPv4, err)
 	}
 
-	if err := setupVerifyConfiguredAddresses(config, inf); err != nil {
+	if err := setupVerifyAndReconcile(config, inf); err != nil {
 		t.Fatalf("Address verification failed: %v", err)
 	}
 }
@@ -104,7 +104,7 @@ func TestSetupVerifyIPv6Missing(t *testing.T) {
 		t.Fatalf("Failed to assign IPv4 %s to interface: %v", config.AddressIPv4, err)
 	}
 
-	if err := setupVerifyConfiguredAddresses(config, inf); err == nil {
+	if err := setupVerifyAndReconcile(config, inf); err == nil {
 		t.Fatal("Address verification was expected to fail")
 	}
 }
