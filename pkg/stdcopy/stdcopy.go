@@ -54,10 +54,6 @@ func (w *StdWriter) Write(buf []byte) (n int, err error) {
 // `t` indicates the id of the stream to encapsulate.
 // It can be stdcopy.Stdin, stdcopy.Stdout, stdcopy.Stderr.
 func NewStdWriter(w io.Writer, t StdType) *StdWriter {
-	if len(t) != StdWriterPrefixLen {
-		return nil
-	}
-
 	return &StdWriter{
 		Writer:  w,
 		prefix:  t,
