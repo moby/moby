@@ -121,7 +121,11 @@ install Docker using the following:
 >
 >       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
 
-4. Verify `docker` is installed correctly.
+4. Before you can run and test docker, you must start the docker daemon.
+
+    $ sudo service docker start
+
+5. Verify `docker` is installed correctly.
 
 		$ sudo docker run hello-world
 
