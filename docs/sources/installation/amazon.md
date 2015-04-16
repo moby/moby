@@ -28,8 +28,12 @@ Repository.
    your Amazon Linux instance should be running!
 3. SSH to your instance to install Docker :
    `ssh -i <path to your private key> ec2-user@<your public IP address>`
-4. Once connected to the instance, type
-    `sudo yum install -y docker ; sudo service docker start`
+4. Add the ec2-user to the docker group :
+   `sudo usermod -a -G docker ec2-user`
+5. Restart the machine and log back in
+   `sudo shutdown -r now`
+6. Once connected to the instance, type
+   `sudo yum install -y docker ; sudo service docker start`
  to install and start Docker
 
 **If this is your first AWS instance, you may need to set up your Security Group to allow SSH.** By default all incoming ports to your new instance will be blocked by the AWS Security Group, so you might just get timeouts when you try to connect.
