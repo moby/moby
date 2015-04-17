@@ -77,6 +77,9 @@ type Network interface {
 
 // Endpoint represents a logical connection between a network and a sandbox.
 type Endpoint interface {
+	// A system generated id for this network.
+	ID() string
+
 	// Delete endpoint.
 	Delete() error
 }
@@ -235,6 +238,10 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 	n.endpoints[ep.id] = ep
 	n.Unlock()
 	return ep, sinfo, nil
+}
+
+func (ep *endpoint) ID() string {
+	return string(ep.id)
 }
 
 func (ep *endpoint) Delete() error {
