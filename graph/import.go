@@ -3,7 +3,7 @@ package graph
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -16,26 +16,25 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (s *TagStore) CmdImport(job *engine.Job) error {
-	if n := len(job.Args); n != 2 && n != 3 {
-		return fmt.Errorf("Usage: %s SRC REPO [TAG]", job.Name)
-	}
+type ImageImportConfig struct {
+	Changes   []string
+	InConfig  io.ReadCloser
+	Json      bool
+	OutStream io.Writer
+	//OutStream WriteFlusher
+}
+
+func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig, eng *engine.Engine) error {
 	var (
-		src          = job.Args[0]
-		repo         = job.Args[1]
-		tag          string
-		sf           = streamformatter.NewStreamFormatter(job.GetenvBool("json"))
+		sf           = streamformatter.NewStreamFormatter(imageImportConfig.Json)
 		archive      archive.ArchiveReader
 		resp         *http.Response
 		stdoutBuffer = bytes.NewBuffer(nil)
 		newConfig    runconfig.Config
 	)
-	if len(job.Args) > 2 {
-		tag = job.Args[2]
-	}
 
 	if src == "-" {
-		archive = job.Stdin
+		archive = imageImportConfig.InConfig
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
@@ -46,14 +45,14 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 			u.Host = src
 			u.Path = ""
 		}
-		job.Stdout.Write(sf.FormatStatus("", "Downloading from %s", u))
+		imageImportConfig.OutStream.Write(sf.FormatStatus("", "Downloading from %s", u))
 		resp, err = httputils.Download(u.String())
 		if err != nil {
 			return err
 		}
 		progressReader := progressreader.New(progressreader.Config{
 			In:        resp.Body,
-			Out:       job.Stdout,
+			Out:       imageImportConfig.OutStream,
 			Formatter: sf,
 			Size:      int(resp.ContentLength),
 			NewLines:  true,
@@ -64,11 +63,11 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 		archive = progressReader
 	}
 
-	buildConfigJob := job.Eng.Job("build_config")
+	buildConfigJob := eng.Job("build_config")
 	buildConfigJob.Stdout.Add(stdoutBuffer)
-	buildConfigJob.Setenv("changes", job.Getenv("changes"))
+	buildConfigJob.SetenvList("changes", imageImportConfig.Changes)
 	// FIXME this should be remove when we remove deprecated config param
-	buildConfigJob.Setenv("config", job.Getenv("config"))
+	//buildConfigJob.Setenv("config", job.Getenv("config"))
 
 	if err := buildConfigJob.Run(); err != nil {
 		return err
@@ -87,7 +86,7 @@ func (s *TagStore) CmdImport(job *engine.Job) error {
 			return err
 		}
 	}
-	job.Stdout.Write(sf.FormatStatus("", img.ID))
+	imageImportConfig.OutStream.Write(sf.FormatStatus("", img.ID))
 	logID := img.ID
 	if tag != "" {
 		logID = utils.ImageReference(logID, tag)
