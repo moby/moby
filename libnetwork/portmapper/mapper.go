@@ -8,7 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/iptables"
-	"github.com/docker/libnetwork/portallocator"
+	"github.com/docker/libnetwork/pkg/portallocator"
 )
 
 type mapping struct {

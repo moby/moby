@@ -26,6 +26,9 @@ var (
 	// ErrUnknownProtocol is returned when an unknown protocol was specified
 	ErrUnknownProtocol = errors.New("unknown protocol")
 	defaultIP          = net.ParseIP("0.0.0.0")
+	once               sync.Once
+	instance           *PortAllocator
+	createInstance     = func() { instance = newInstance() }
 )
 
 // ErrPortAlreadyAllocated is the returned error information when a requested port is already being used
@@ -79,6 +82,16 @@ type (
 
 // New returns a new instance of PortAllocator
 func New() *PortAllocator {
+	// Port Allocator is a singleton
+	// Note: Long term solution will be each PortAllocator will have access to
+	// the OS so that it can have up to date view of the OS port allocation.
+	// When this happens singleton behavior will be removed. Clients do not
+	// need to worry about this, they will not see a change in behavior.
+	once.Do(createInstance)
+	return instance
+}
+
+func newInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
 		logrus.Warn(err)

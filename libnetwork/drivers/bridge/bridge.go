@@ -23,16 +23,9 @@ const (
 )
 
 var (
-	once        sync.Once
 	ipAllocator *ipallocator.IPAllocator
 	portMapper  *portmapper.PortMapper
 )
-
-func initPortMapper() {
-	once.Do(func() {
-		portMapper = portmapper.New()
-	})
-}
 
 // Configuration info for the "simplebridge" driver.
 type Configuration struct {
@@ -70,7 +63,7 @@ type driver struct {
 
 func init() {
 	ipAllocator = ipallocator.New()
-	initPortMapper()
+	portMapper = portmapper.New()
 }
 
 // New provides a new instance of bridge driver instance
