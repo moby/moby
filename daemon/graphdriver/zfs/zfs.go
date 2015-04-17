@@ -68,14 +68,28 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 
 	zfs.SetLogger(new(Logger))
 
-	dataset, err := zfs.GetDataset(options.fsName)
+	filesystems, err := zfs.Filesystems(options.fsName)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot open %s", options.fsName)
+		return nil, fmt.Errorf("Cannot find root filesystem %s: %v", options.fsName, err)
+	}
+
+	filesystemsCache := make(map[string]bool, len(filesystems))
+	var rootDataset *zfs.Dataset
+	for _, fs := range filesystems {
+		if fs.Name == options.fsName {
+			rootDataset = fs
+		}
+		filesystemsCache[fs.Name] = true
+	}
+
+	if rootDataset == nil {
+		return nil, fmt.Errorf("BUG: zfs get all -t filesystems -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
 	d := &Driver{
-		dataset: dataset,
-		options: options,
+		dataset:          rootDataset,
+		options:          options,
+		filesystemsCache: filesystemsCache,
 	}
 	return graphdriver.NaiveDiffDriver(d), nil
 }
@@ -138,8 +152,9 @@ func lookupZfsDataset(rootdir string) (string, error) {
 }
 
 type Driver struct {
-	dataset *zfs.Dataset
-	options ZfsOptions
+	dataset          *zfs.Dataset
+	options          ZfsOptions
+	filesystemsCache map[string]bool
 }
 
 func (d *Driver) String() string {
@@ -270,6 +285,5 @@ func (d *Driver) Put(id string) error {
 }
 
 func (d *Driver) Exists(id string) bool {
-	_, err := zfs.GetDataset(d.ZfsPath(id))
-	return err == nil
+	return d.filesystemsCache[d.ZfsPath(id)] == true
 }
