@@ -498,9 +498,9 @@ func TestDaemonExitOnFailure(t *testing.T) {
 			t.Fatalf("Expected daemon not to start, got %v", err)
 		}
 		// look in the log and make sure we got the message that daemon is shutting down
-		runCmd := exec.Command("grep", "Shutting down daemon due to", d.LogfileName())
+		runCmd := exec.Command("grep", "Error starting daemon", d.LogfileName())
 		if out, _, err := runCommandWithOutput(runCmd); err != nil {
-			t.Fatalf("Expected 'shutting down daemon due to error' message; but doesn't exist in log: %q, err: %v", out, err)
+			t.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
 		}
 	} else {
 		//if we didn't get an error and the daemon is running, this is a failure
