@@ -42,8 +42,7 @@
     { "Condition": { "KeyPrefixEquals": "installation/openSUSE/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "installation/SUSE/" } },
     { "Condition": { "KeyPrefixEquals": "contributing/contributing/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/who-written-for/" } },
     { "Condition": { "KeyPrefixEquals": "contributing/devenvironment/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/set-up-prereqs/" } },
-    { "Condition": { "KeyPrefixEquals": "contributing/docs_style-guide/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/doc-style/" } },
-    { "Condition": { "KeyPrefixEquals": "registry/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "registry/overview/" } }
+    { "Condition": { "KeyPrefixEquals": "contributing/docs_style-guide/" }, "Redirect": { "HostName": "$BUCKET", "ReplaceKeyPrefixWith": "project/doc-style/" } }
   ]
 }
 
