@@ -501,9 +501,7 @@ func TestRunCreateVolumesInSymlinkDir(t *testing.T) {
 	}
 	defer deleteImages(name)
 
-	if out, _, err := dockerCmd(t, "run", "-v", "/test/test", name); err != nil {
-		t.Fatal(err, out)
-	}
+	dockerCmd(t, "run", "-v", "/test/test", name)
 
 	logDone("run - create volume in symlink directory")
 }
@@ -1058,9 +1056,9 @@ func TestRunLoopbackWhenNetworkDisabled(t *testing.T) {
 func TestRunNetHostNotAllowedWithLinks(t *testing.T) {
 	defer deleteAllContainers()
 
-	_, _, err := dockerCmd(t, "run", "--name", "linked", "busybox", "true")
+	_, _ = dockerCmd(t, "run", "--name", "linked", "busybox", "true")
 	cmd := exec.Command(dockerBinary, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
-	_, _, err = runCommandWithOutput(cmd)
+	_, _, err := runCommandWithOutput(cmd)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
@@ -1493,10 +1491,7 @@ func TestRunModeHostname(t *testing.T) {
 func TestRunRootWorkdir(t *testing.T) {
 	defer deleteAllContainers()
 
-	s, _, err := dockerCmd(t, "run", "--workdir", "/", "busybox", "pwd")
-	if err != nil {
-		t.Fatal(s, err)
-	}
+	s, _ := dockerCmd(t, "run", "--workdir", "/", "busybox", "pwd")
 	if s != "/\n" {
 		t.Fatalf("pwd returned %q (expected /\\n)", s)
 	}
@@ -1507,10 +1502,7 @@ func TestRunRootWorkdir(t *testing.T) {
 func TestRunAllowBindMountingRoot(t *testing.T) {
 	defer deleteAllContainers()
 
-	s, _, err := dockerCmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
-	if err != nil {
-		t.Fatal(s, err)
-	}
+	_, _ = dockerCmd(t, "run", "-v", "/:/host", "busybox", "ls", "/host")
 
 	logDone("run - bind mount / as volume")
 }

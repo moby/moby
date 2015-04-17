@@ -142,7 +142,7 @@ func TestAttachAfterDetach(t *testing.T) {
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
 func TestAttachDetach(t *testing.T) {
-	out, _, _ := dockerCmd(t, "run", "-itd", "busybox", "cat")
+	out, _ := dockerCmd(t, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
 	if err := waitRun(id); err != nil {
 		t.Fatal(err)
@@ -217,7 +217,7 @@ func TestAttachDetach(t *testing.T) {
 
 // TestAttachDetachTruncatedID checks that attach in tty mode can be detached
 func TestAttachDetachTruncatedID(t *testing.T) {
-	out, _, _ := dockerCmd(t, "run", "-itd", "busybox", "cat")
+	out, _ := dockerCmd(t, "run", "-itd", "busybox", "cat")
 	id := stringid.TruncateID(strings.TrimSpace(out))
 	if err := waitRun(id); err != nil {
 		t.Fatal(err)

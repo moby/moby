@@ -25,17 +25,17 @@ const (
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func TestCpGarbagePath(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
@@ -61,10 +61,7 @@ func TestCpGarbagePath(t *testing.T) {
 
 	path := path.Join("../../../../../../../../../../../../", cpFullPath)
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
-	if err != nil {
-		t.Fatalf("couldn't copy from garbage path: %s:%s %s", cleanedContainerID, path, err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -87,17 +84,17 @@ func TestCpGarbagePath(t *testing.T) {
 
 // Check that relative paths are relative to the container's rootfs
 func TestCpRelativePath(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
@@ -131,10 +128,7 @@ func TestCpRelativePath(t *testing.T) {
 		t.Fatalf("path %s was assumed to be an absolute path", cpFullPath)
 	}
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+relPath, tmpdir)
-	if err != nil {
-		t.Fatalf("couldn't copy from relative path: %s:%s %s", cleanedContainerID, relPath, err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":"+relPath, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -157,17 +151,17 @@ func TestCpRelativePath(t *testing.T) {
 
 // Check that absolute paths are relative to the container's rootfs
 func TestCpAbsolutePath(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
@@ -194,10 +188,7 @@ func TestCpAbsolutePath(t *testing.T) {
 
 	path := cpFullPath
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
-	if err != nil {
-		t.Fatalf("couldn't copy from absolute path: %s:%s %s", cleanedContainerID, path, err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -221,17 +212,17 @@ func TestCpAbsolutePath(t *testing.T) {
 // Test for #5619
 // Check that absolute symlinks are still relative to the container's rootfs
 func TestCpAbsoluteSymlink(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
@@ -258,10 +249,7 @@ func TestCpAbsoluteSymlink(t *testing.T) {
 
 	path := path.Join("/", "container_path")
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
-	if err != nil {
-		t.Fatalf("couldn't copy from absolute path: %s:%s %s", cleanedContainerID, path, err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -285,17 +273,17 @@ func TestCpAbsoluteSymlink(t *testing.T) {
 // Test for #5619
 // Check that symlinks which are part of the resource path are still relative to the container's rootfs
 func TestCpSymlinkComponent(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	if err := os.MkdirAll(cpTestPath, os.ModeDir); err != nil {
@@ -322,10 +310,7 @@ func TestCpSymlinkComponent(t *testing.T) {
 
 	path := path.Join("/", "container_path", cpTestName)
 
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
-	if err != nil {
-		t.Fatalf("couldn't copy from symlink path component: %s:%s %s", cleanedContainerID, path, err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":"+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -350,17 +335,17 @@ func TestCpSymlinkComponent(t *testing.T) {
 func TestCpUnprivilegedUser(t *testing.T) {
 	testRequires(t, UnixCli) // uses chmod/su: not available on windows
 
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	tmpdir, err := ioutil.TempDir("", "docker-integration")
@@ -393,24 +378,21 @@ func TestCpSpecialFiles(t *testing.T) {
 	}
 	defer os.RemoveAll(outDir)
 
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo")
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo")
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	// Copy actual /etc/resolv.conf
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/etc/resolv.conf", outDir)
-	if err != nil {
-		t.Fatalf("couldn't copy from container: %s:%s %v", cleanedContainerID, "/etc/resolv.conf", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/etc/resolv.conf", outDir)
 
 	expected, err := ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/resolv.conf")
 	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
@@ -420,10 +402,7 @@ func TestCpSpecialFiles(t *testing.T) {
 	}
 
 	// Copy actual /etc/hosts
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/etc/hosts", outDir)
-	if err != nil {
-		t.Fatalf("couldn't copy from container: %s:%s %v", cleanedContainerID, "/etc/hosts", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/etc/hosts", outDir)
 
 	expected, err = ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/hosts")
 	actual, err = ioutil.ReadFile(outDir + "/hosts")
@@ -433,10 +412,7 @@ func TestCpSpecialFiles(t *testing.T) {
 	}
 
 	// Copy actual /etc/resolv.conf
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/etc/hostname", outDir)
-	if err != nil {
-		t.Fatalf("couldn't copy from container: %s:%s %v", cleanedContainerID, "/etc/hostname", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/etc/hostname", outDir)
 
 	expected, err = ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/hostname")
 	actual, err = ioutil.ReadFile(outDir + "/hostname")
@@ -466,24 +442,22 @@ func TestCpVolumePath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, exitCode, err := dockerCmd(t, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar")
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar")
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer dockerCmd(t, "rm", "-fv", cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	// Copy actual volume path
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/foo", outDir)
-	if err != nil {
-		t.Fatalf("couldn't copy from volume path: %s:%s %v", cleanedContainerID, "/foo", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/foo", outDir)
+
 	stat, err := os.Stat(outDir + "/foo")
 	if err != nil {
 		t.Fatal(err)
@@ -500,10 +474,8 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	// Copy file nested in volume
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/foo/bar", outDir)
-	if err != nil {
-		t.Fatalf("couldn't copy from volume path: %s:%s %v", cleanedContainerID, "/foo", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/foo/bar", outDir)
+
 	stat, err = os.Stat(outDir + "/bar")
 	if err != nil {
 		t.Fatal(err)
@@ -513,10 +485,7 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	// Copy Bind-mounted dir
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/baz", outDir)
-	if err != nil {
-		t.Fatalf("couldn't copy from bind-mounted volume path: %s:%s %v", cleanedContainerID, "/baz", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/baz", outDir)
 	stat, err = os.Stat(outDir + "/baz")
 	if err != nil {
 		t.Fatal(err)
@@ -526,7 +495,7 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	// Copy file nested in bind-mounted dir
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/baz/test", outDir)
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/baz/test", outDir)
 	fb, err := ioutil.ReadFile(outDir + "/baz/test")
 	if err != nil {
 		t.Fatal(err)
@@ -540,7 +509,7 @@ func TestCpVolumePath(t *testing.T) {
 	}
 
 	// Copy bind-mounted file
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/test", outDir)
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/test", outDir)
 	fb, err = ioutil.ReadFile(outDir + "/test")
 	if err != nil {
 		t.Fatal(err)
@@ -557,17 +526,17 @@ func TestCpVolumePath(t *testing.T) {
 }
 
 func TestCpToDot(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	tmpdir, err := ioutil.TempDir("", "docker-integration")
@@ -583,10 +552,7 @@ func TestCpToDot(t *testing.T) {
 	if err := os.Chdir(tmpdir); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/test", ".")
-	if err != nil {
-		t.Fatalf("couldn't docker cp to \".\" path: %s", err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/test", ".")
 	content, err := ioutil.ReadFile("./test")
 	if string(content) != "lololol\n" {
 		t.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")
@@ -595,22 +561,23 @@ func TestCpToDot(t *testing.T) {
 }
 
 func TestCpToStdout(t *testing.T) {
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
-	if err != nil || exitCode != 0 {
-		t.Fatalf("failed to create a container:%s\n%s", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	if exitCode != 0 {
+		t.Fatalf("failed to create a container:%s\n", out)
 	}
 
 	cID := strings.TrimSpace(out)
 	defer deleteContainer(cID)
 
-	out, _, err = dockerCmd(t, "wait", cID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatalf("failed to set up container:%s\n%s", out, err)
+	out, _ = dockerCmd(t, "wait", cID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatalf("failed to set up container:%s\n", out)
 	}
 
-	out, _, err = runCommandPipelineWithOutput(
+	out, _, err := runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "cp", cID+":/test", "-"),
 		exec.Command("tar", "-vtf", "-"))
+
 	if err != nil {
 		t.Fatalf("Failed to run commands: %s", err)
 	}
@@ -624,17 +591,17 @@ func TestCpToStdout(t *testing.T) {
 func TestCpNameHasColon(t *testing.T) {
 	testRequires(t, SameHostDaemon)
 
-	out, exitCode, err := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
-	if err != nil || exitCode != 0 {
-		t.Fatal("failed to create a container", out, err)
+	out, exitCode := dockerCmd(t, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
+	if exitCode != 0 {
+		t.Fatal("failed to create a container", out)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
 
-	out, _, err = dockerCmd(t, "wait", cleanedContainerID)
-	if err != nil || strings.TrimSpace(out) != "0" {
-		t.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(t, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		t.Fatal("failed to set up container", out)
 	}
 
 	tmpdir, err := ioutil.TempDir("", "docker-integration")
@@ -642,10 +609,7 @@ func TestCpNameHasColon(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	_, _, err = dockerCmd(t, "cp", cleanedContainerID+":/te:s:t", tmpdir)
-	if err != nil {
-		t.Fatalf("couldn't docker cp to %s: %s", tmpdir, err)
-	}
+	_, _ = dockerCmd(t, "cp", cleanedContainerID+":/te:s:t", tmpdir)
 	content, err := ioutil.ReadFile(tmpdir + "/te:s:t")
 	if string(content) != "lololol\n" {
 		t.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")

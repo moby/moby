@@ -38,7 +38,7 @@ func TestEventsUntag(t *testing.T) {
 func TestEventsContainerFailStartDie(t *testing.T) {
 	defer deleteAllContainers()
 
-	out, _, _ := dockerCmd(t, "images", "-q")
+	out, _ := dockerCmd(t, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	eventsCmd := exec.Command(dockerBinary, "run", "--name", "testeventdie", image, "blerg")
 	_, _, err := runCommandWithOutput(eventsCmd)

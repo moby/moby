@@ -284,13 +284,13 @@ func TestCommitChange(t *testing.T) {
 func TestCommitMergeConfigRun(t *testing.T) {
 	defer deleteAllContainers()
 	name := "commit-test"
-	out, _, _ := dockerCmd(t, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
+	out, _ := dockerCmd(t, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
 	id := strings.TrimSpace(out)
 
 	dockerCmd(t, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
 	defer deleteImages("commit-test")
 
-	out, _, _ = dockerCmd(t, "run", "--name", name, "commit-test")
+	out, _ = dockerCmd(t, "run", "--name", name, "commit-test")
 	if strings.TrimSpace(out) != "testing" {
 		t.Fatal("run config in commited container was not merged")
 	}

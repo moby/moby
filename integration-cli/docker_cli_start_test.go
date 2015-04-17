@@ -157,7 +157,7 @@ func TestStartVolumesFromFailsCleanly(t *testing.T) {
 	dockerCmd(t, "start", "consumer")
 
 	// Check that we have the volumes we want
-	out, _, _ := dockerCmd(t, "inspect", "--format='{{ len .Volumes }}'", "consumer")
+	out, _ := dockerCmd(t, "inspect", "--format='{{ len .Volumes }}'", "consumer")
 	nVolumes := strings.Trim(out, " \r\n'")
 	if nVolumes != "2" {
 		t.Fatalf("Missing volumes: expected 2, got %s", nVolumes)

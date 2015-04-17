@@ -91,7 +91,7 @@ func TestApiImagesSaveAndLoad(t *testing.T) {
 	}
 	defer loadBody.Close()
 
-	out, _, _ = dockerCmd(t, "inspect", "--format='{{ .Id }}'", id)
+	out, _ = dockerCmd(t, "inspect", "--format='{{ .Id }}'", id)
 	if strings.TrimSpace(out) != id {
 		t.Fatal("load did not work properly")
 	}
