@@ -33,13 +33,15 @@ func main() {
 
 	// For each new container: allocate IP and interfaces. The returned network
 	// settings will be used for container infos (inspect and such), as well as
-	// iptables rules for port publishing.
-	_, sinfo, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
+	// iptables rules for port publishing. This info is contained or accessible
+	// from the returned endpoint.
+	ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
 	if err != nil {
 		return
 	}
 
 	// Add interfaces to the namespace.
+	sinfo := ep.SandboxInfo()
 	for _, iface := range sinfo.Interfaces {
 		if err := networkNamespace.AddInterface(iface); err != nil {
 			return

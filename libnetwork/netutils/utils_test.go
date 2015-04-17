@@ -209,3 +209,55 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 		t.Fatalf("mac1 %s should not equal mac2 %s", mac1, mac2)
 	}
 }
+
+func TestCompareIPNet(t *testing.T) {
+	if CompareIPNet(nil, nil) == false {
+		t.Fatalf("Failed to detect two nil net.IPNets are equal")
+	}
+
+	_, net1, _ := net.ParseCIDR("192.168.30.22/24")
+	if CompareIPNet(net1, net1) == false {
+		t.Fatalf("Failed to detect same net.IPNet pointers equality")
+	}
+
+	_, net2, _ := net.ParseCIDR("192.168.30.22/24")
+	if CompareIPNet(net1, net2) == false {
+		t.Fatalf("Failed to detect same net.IPNet object equality")
+	}
+
+	_, net3, _ := net.ParseCIDR("192.168.30.33/24")
+	if CompareIPNet(net1, net3) == false {
+		t.Fatalf("Failed to detect semantically equivalent net.IPNets")
+	}
+
+	_, net3, _ = net.ParseCIDR("192.168.31.33/24")
+	if CompareIPNet(net2, net3) == true {
+		t.Fatalf("Failed to detect different net.IPNets")
+	}
+}
+
+func TestIPCopyFunctions(t *testing.T) {
+	ip := net.ParseIP("172.28.30.134")
+	cp := GetIPCopy(ip)
+
+	if !ip.Equal(cp) {
+		t.Fatalf("Failed to return a copy of net.IP")
+	}
+
+	if &ip == &cp {
+		t.Fatalf("Failed to return a true copy of net.IP")
+	}
+}
+
+func TestNetIPCopyFunctions(t *testing.T) {
+	_, net, _ := net.ParseCIDR("192.168.30.23/24")
+	cp := GetIPNetCopy(net)
+
+	if CompareIPNet(net, cp) == false {
+		t.Fatalf("Failed to return a copy of net.IPNet")
+	}
+
+	if net == cp {
+		t.Fatalf("Failed to return a true copy of net.IPNet")
+	}
+}
