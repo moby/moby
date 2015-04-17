@@ -3,7 +3,6 @@ package bridge
 import (
 	"bytes"
 	"io/ioutil"
-	"strings"
 	"testing"
 )
 
@@ -47,9 +46,12 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 	br := &bridgeInterface{}
 
 	// Attempt Set IP Forwarding
-	if err := setupIPForwarding(config, br); err == nil {
+	err := setupIPForwarding(config, br)
+	if err == nil {
 		t.Fatal("Setup IP forwarding was expected to fail")
-	} else if !strings.Contains(err.Error(), "Unexpected request") {
+	}
+
+	if _, ok := err.(*ipForwardCfgError); !ok {
 		t.Fatalf("Setup IP forwarding failed with unexpected error: %v", err)
 	}
 }

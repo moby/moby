@@ -50,7 +50,13 @@ func TestSetupBadFixedCIDRv4(t *testing.T) {
 		t.Fatalf("Assign IPv4 to bridge failed: %v", err)
 	}
 
-	if err := setupFixedCIDRv4(config, br); err == nil {
+	err := setupFixedCIDRv4(config, br)
+	if err == nil {
 		t.Fatal("Setup bridge FixedCIDRv4 should have failed")
 	}
+
+	if _, ok := err.(*FixedCIDRv4Error); !ok {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+	}
+
 }

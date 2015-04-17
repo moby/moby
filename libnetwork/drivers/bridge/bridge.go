@@ -1,8 +1,6 @@
 package bridge
 
 import (
-	"errors"
-	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -78,14 +76,14 @@ func (d *driver) Config(option interface{}) error {
 	defer d.Unlock()
 
 	if d.config != nil {
-		return fmt.Errorf("configuration already exists, simplebridge configuration can be applied only once")
+		return ErrConfigExists
 	}
 
 	switch opt := option.(type) {
 	case options.Generic:
 		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
 		if err != nil {
-			return fmt.Errorf("failed to generate driver config: %v", err)
+			return err
 		}
 		config = opaqueConfig.(*Configuration)
 	case *Configuration:
@@ -106,13 +104,13 @@ func (d *driver) CreateNetwork(id driverapi.UUID, option interface{}) error {
 	d.Lock()
 	if d.config == nil {
 		d.Unlock()
-		return fmt.Errorf("trying to create a network on a driver without valid config")
+		return ErrInvalidConfig
 	}
 	config := d.config
 
 	if d.network != nil {
 		d.Unlock()
-		return fmt.Errorf("network already exists, simplebridge can only have one network")
+		return ErrNetworkExists
 	}
 	d.network = &bridgeNetwork{id: id}
 	d.Unlock()
@@ -205,7 +203,7 @@ func (d *driver) DeleteNetwork(nid driverapi.UUID) error {
 	}
 
 	if n.endpoint != nil {
-		err = fmt.Errorf("Network %s has active endpoint %s", n.id, n.endpoint.id)
+		err = &ActiveEndpointsError{nid: string(n.id), eid: string(n.endpoint.id)}
 		return err
 	}
 
@@ -230,7 +228,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOptio
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return nil, fmt.Errorf("invalid network id %s", nid)
+		return nil, InvalidNetworkIDError(nid)
 	}
 
 	if n.endpoint != nil {
@@ -338,7 +336,7 @@ func (d *driver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return fmt.Errorf("invalid network id %s", nid)
+		return InvalidNetworkIDError(nid)
 	}
 
 	if n.endpoint == nil {
@@ -349,7 +347,7 @@ func (d *driver) DeleteEndpoint(nid, eid driverapi.UUID) error {
 	ep := n.endpoint
 	if ep.id != eid {
 		n.Unlock()
-		return fmt.Errorf("invalid endpoint id %s", eid)
+		return InvalidEndpointIDError(eid)
 	}
 
 	n.endpoint = nil
@@ -398,5 +396,5 @@ func generateIfaceName() (string, error) {
 			return "", err
 		}
 	}
-	return "", errors.New("Failed to find name for new interface")
+	return "", ErrIfaceName
 }

@@ -3,7 +3,6 @@ package bridge
 import (
 	"bytes"
 	"net"
-	"strings"
 	"testing"
 
 	"github.com/docker/libnetwork/netutils"
@@ -36,8 +35,13 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 	config := &Configuration{BridgeName: "test0"}
 	br := &bridgeInterface{}
 
-	if err := setupDevice(config, br); err == nil || !strings.Contains(err.Error(), "non default name") {
-		t.Fatalf("Expected bridge creation failure with \"non default name\", got: %v", err)
+	err := setupDevice(config, br)
+	if err == nil {
+		t.Fatal("Expected bridge creation failure with \"non default name\", succeeded")
+	}
+
+	if _, ok := err.(NonDefaultBridgeExistError); !ok {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
 

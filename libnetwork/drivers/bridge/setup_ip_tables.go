@@ -16,7 +16,7 @@ const (
 func setupIPTables(config *Configuration, i *bridgeInterface) error {
 	// Sanity check.
 	if config.EnableIPTables == false {
-		return fmt.Errorf("Unexpected request to set IP tables for interface: %s", config.BridgeName)
+		return ipTableCfgError(config.BridgeName)
 	}
 
 	addrv4, _, err := netutils.GetIfaceAddr(config.BridgeName)
