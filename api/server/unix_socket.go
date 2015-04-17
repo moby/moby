@@ -12,13 +12,13 @@ import (
 	"github.com/docker/libcontainer/user"
 )
 
-func NewUnixSocket(path, group string) (net.Listener, error) {
+func NewUnixSocket(path, group string, activate <-chan struct{}) (net.Listener, error) {
 	if err := syscall.Unlink(path); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	mask := syscall.Umask(0777)
 	defer syscall.Umask(mask)
-	l, err := listenbuffer.NewListenBuffer("unix", path, activationLock)
+	l, err := listenbuffer.NewListenBuffer("unix", path, activate)
 	if err != nil {
 		return nil, err
 	}

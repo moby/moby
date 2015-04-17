@@ -105,12 +105,14 @@ func mainDaemon() {
 		TlsKey:      *flKey,
 	}
 
+	api := apiserver.New(serverConfig, eng)
+
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
 	go func() {
-		if err := apiserver.ServeApi(flHosts, serverConfig, eng); err != nil {
+		if err := api.ServeApi(flHosts); err != nil {
 			logrus.Errorf("ServeAPI error: %v", err)
 			serveAPIWait <- err
 			return
@@ -143,8 +145,8 @@ func mainDaemon() {
 	b.Install()
 
 	// after the daemon is done setting up we can tell the api to start
-	// accepting connections
-	apiserver.AcceptConnections()
+	// accepting connections with specified daemon
+	api.AcceptConnections(d)
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API job to complete

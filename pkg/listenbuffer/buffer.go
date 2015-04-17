@@ -32,7 +32,7 @@ import "net"
 // NewListenBuffer returns a net.Listener listening on addr with the protocol
 // passed. The channel passed is used to activate the listenbuffer when the
 // caller is ready to accept connections.
-func NewListenBuffer(proto, addr string, activate chan struct{}) (net.Listener, error) {
+func NewListenBuffer(proto, addr string, activate <-chan struct{}) (net.Listener, error) {
 	wrapped, err := net.Listen(proto, addr)
 	if err != nil {
 		return nil, err
@@ -46,9 +46,9 @@ func NewListenBuffer(proto, addr string, activate chan struct{}) (net.Listener, 
 
 // defaultListener is the buffered wrapper around the net.Listener
 type defaultListener struct {
-	wrapped  net.Listener  // The net.Listener wrapped by listenbuffer
-	ready    bool          // Whether the listenbuffer has been activated
-	activate chan struct{} // Channel to control activation of the listenbuffer
+	wrapped  net.Listener    // The net.Listener wrapped by listenbuffer
+	ready    bool            // Whether the listenbuffer has been activated
+	activate <-chan struct{} // Channel to control activation of the listenbuffer
 }
 
 // Close closes the wrapped socket.

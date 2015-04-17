@@ -31,8 +31,8 @@ func tlsConfigFromServerConfig(conf *ServerConfig) *tlsConfig {
 	}
 }
 
-func NewTcpSocket(addr string, config *tlsConfig) (net.Listener, error) {
-	l, err := listenbuffer.NewListenBuffer("tcp", addr, activationLock)
+func NewTcpSocket(addr string, config *tlsConfig, activate <-chan struct{}) (net.Listener, error) {
+	l, err := listenbuffer.NewListenBuffer("tcp", addr, activate)
 	if err != nil {
 		return nil, err
 	}

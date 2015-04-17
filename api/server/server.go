@@ -40,10 +40,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-var (
-	activationLock = make(chan struct{})
-)
-
 type ServerConfig struct {
 	Logging     bool
 	EnableCors  bool
@@ -55,6 +51,80 @@ type ServerConfig struct {
 	TlsCa       string
 	TlsCert     string
 	TlsKey      string
+}
+
+type Server struct {
+	daemon *daemon.Daemon
+	cfg    *ServerConfig
+	router *mux.Router
+	start  chan struct{}
+
+	// TODO: delete engine
+	eng *engine.Engine
+}
+
+func New(cfg *ServerConfig, eng *engine.Engine) *Server {
+	r := createRouter(
+		eng,
+		cfg.Logging,
+		cfg.EnableCors,
+		cfg.CorsHeaders,
+		cfg.Version,
+	)
+	return &Server{
+		cfg:    cfg,
+		router: r,
+		start:  make(chan struct{}),
+		eng:    eng,
+	}
+}
+
+func (s *Server) SetDaemon(d *daemon.Daemon) {
+	s.daemon = d
+}
+
+type serverCloser interface {
+	Serve() error
+	Close() error
+}
+
+// ServeApi loops through all of the protocols sent in to docker and spawns
+// off a go routine to setup a serving http.Server for each.
+func (s *Server) ServeApi(protoAddrs []string) error {
+	var chErrors = make(chan error, len(protoAddrs))
+
+	for _, protoAddr := range protoAddrs {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if len(protoAddrParts) != 2 {
+			return fmt.Errorf("bad format, expected PROTO://ADDR")
+		}
+		go func(proto, addr string) {
+			logrus.Infof("Listening for HTTP on %s (%s)", proto, addr)
+			srv, err := s.newServer(proto, addr)
+			if err != nil {
+				chErrors <- err
+				return
+			}
+			s.eng.OnShutdown(func() {
+				if err := srv.Close(); err != nil {
+					logrus.Error(err)
+				}
+			})
+			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+				err = nil
+			}
+			chErrors <- err
+		}(protoAddrParts[0], protoAddrParts[1])
+	}
+
+	for i := 0; i < len(protoAddrs); i++ {
+		err := <-chErrors
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type HttpServer struct {
@@ -1629,50 +1699,6 @@ func allocateDaemonPort(addr string) error {
 			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
 		}
 	}
-	return nil
-}
-
-type Server interface {
-	Serve() error
-	Close() error
-}
-
-// ServeApi loops through all of the protocols sent in to docker and spawns
-// off a go routine to setup a serving http.Server for each.
-func ServeApi(protoAddrs []string, conf *ServerConfig, eng *engine.Engine) error {
-	var chErrors = make(chan error, len(protoAddrs))
-
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if len(protoAddrParts) != 2 {
-			return fmt.Errorf("bad format, expected PROTO://ADDR")
-		}
-		go func() {
-			logrus.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-			srv, err := NewServer(protoAddrParts[0], protoAddrParts[1], conf, eng)
-			if err != nil {
-				chErrors <- err
-				return
-			}
-			eng.OnShutdown(func() {
-				if err := srv.Close(); err != nil {
-					logrus.Error(err)
-				}
-			})
-			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
-				err = nil
-			}
-			chErrors <- err
-		}()
-	}
-
-	for i := 0; i < len(protoAddrs); i++ {
-		err := <-chErrors
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
