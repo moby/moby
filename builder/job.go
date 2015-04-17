@@ -114,7 +114,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		}
 		defer os.RemoveAll(root)
 
-		if output, err := exec.Command("git", "clone", "--recursive", buildConfig.RemoteURL, root).CombinedOutput(); err != nil {
+		if output, err := exec.Command("git", "clone", "--depth", "1", "--recursive", buildConfig.RemoteURL, root).CombinedOutput(); err != nil {
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
