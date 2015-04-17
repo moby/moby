@@ -1,9 +1,14 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/registry/api/v2"
 )
 
 // RepositoryNotFoundError is returned when making an operation against a
@@ -76,4 +81,36 @@ type UnexpectedHTTPStatusError struct {
 
 func (e *UnexpectedHTTPStatusError) Error() string {
 	return fmt.Sprintf("Received unexpected HTTP status: %s", e.Status)
+}
+
+// UnexpectedHTTPResponseError is returned when an expected HTTP status code
+// is returned, but the content was unexpected and failed to be parsed.
+type UnexpectedHTTPResponseError struct {
+	ParseErr error
+	Response []byte
+}
+
+func (e *UnexpectedHTTPResponseError) Error() string {
+	shortenedResponse := string(e.Response)
+	if len(shortenedResponse) > 15 {
+		shortenedResponse = shortenedResponse[:12] + "..."
+	}
+	return fmt.Sprintf("Error parsing HTTP response: %s: %q", e.ParseErr.Error(), shortenedResponse)
+}
+
+func parseHTTPErrorResponse(response *http.Response) error {
+	var errors v2.Errors
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	err = decoder.Decode(&errors)
+	if err != nil {
+		return &UnexpectedHTTPResponseError{
+			ParseErr: err,
+			Response: body,
+		}
+	}
+	return &errors
 }
