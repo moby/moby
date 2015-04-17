@@ -4,10 +4,10 @@
 
 #### Builder
 + Building images from an image ID
-+ build containers with resource constraints, ie `docker build --cpu-shares=100 --memory=1024m...`
++ Build containers with resource constraints, ie `docker build --cpu-shares=100 --memory=1024m...`
 + `commit --change` to apply specified Dockerfile instructions while committing the image
 + `import --change` to apply specified Dockerfile instructions while importing the image
-+ basic build cancellation
++ Builds no longer continue in the background when canceled with CTRL-C
 
 #### Client
 + Windows Support
