@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bufio"
-	"bytes"
 	"runtime"
 	"time"
 
@@ -1393,35 +1391,27 @@ func (s *Server) postContainerExecCreate(eng *engine.Engine, version version.Ver
 	if err := parseForm(r); err != nil {
 		return nil
 	}
-	var (
-		name         = vars["name"]
-		job          = eng.Job("execCreate", name)
-		stdoutBuffer = bytes.NewBuffer(nil)
-		outWarnings  []string
-		warnings     = bytes.NewBuffer(nil)
-	)
+	name := vars["name"]
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	execConfig := &runconfig.ExecConfig{}
+	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
 		return err
 	}
+	execConfig.Container = name
 
-	job.Stdout.Add(stdoutBuffer)
-	// Read warnings from stderr
-	job.Stderr.Add(warnings)
+	if len(execConfig.Cmd) == 0 {
+		return fmt.Errorf("No exec command specified")
+	}
+
 	// Register an instance of Exec in container.
-	if err := job.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error setting up exec command in container %s: %s\n", name, err)
+	id, err := s.daemon.ContainerExecCreate(execConfig)
+	if err != nil {
+		logrus.Errorf("Error setting up exec command in container %s: %s", name, err)
 		return err
-	}
-	// Parse warnings from stderr
-	scanner := bufio.NewScanner(warnings)
-	for scanner.Scan() {
-		outWarnings = append(outWarnings, scanner.Text())
 	}
 
 	return writeJSON(w, http.StatusCreated, &types.ContainerExecCreateResponse{
-		ID:       engine.Tail(stdoutBuffer, 1),
-		Warnings: outWarnings,
+		ID: id,
 	})
 }
 
@@ -1431,15 +1421,18 @@ func (s *Server) postContainerExecStart(eng *engine.Engine, version version.Vers
 		return nil
 	}
 	var (
-		name             = vars["name"]
-		job              = eng.Job("execStart", name)
-		errOut io.Writer = os.Stderr
+		execName = vars["name"]
+		stdin    io.ReadCloser
+		stdout   io.Writer
+		stderr   io.Writer
 	)
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	execStartCheck := &types.ExecStartCheck{}
+	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
 		return err
 	}
-	if !job.GetenvBool("Detach") {
+
+	if !execStartCheck.Detach {
 		// Setting up the streaming http interface.
 		inStream, outStream, err := hijackServer(w)
 		if err != nil {
@@ -1455,21 +1448,20 @@ func (s *Server) postContainerExecStart(eng *engine.Engine, version version.Vers
 			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
 
-		if !job.GetenvBool("Tty") && version.GreaterThanOrEqualTo("1.6") {
+		if !execStartCheck.Tty && version.GreaterThanOrEqualTo("1.6") {
 			errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 			outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 		} else {
 			errStream = outStream
 		}
-		job.Stdin.Add(inStream)
-		job.Stdout.Add(outStream)
-		job.Stderr.Set(errStream)
-		errOut = outStream
+		stdin = inStream
+		stdout = outStream
+		stderr = errStream
 	}
 	// Now run the user process in container.
-	job.SetCloseIO(false)
-	if err := job.Run(); err != nil {
-		fmt.Fprintf(errOut, "Error starting exec command in container %s: %s\n", name, err)
+
+	if err := s.daemon.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
+		logrus.Errorf("Error starting exec command in container %s: %s", execName, err)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
