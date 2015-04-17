@@ -55,6 +55,8 @@ func TestPullImageWithAliases(t *testing.T) {
 
 // pulling library/hello-world should show verified message
 func TestPullVerified(t *testing.T) {
+	t.Skip("Skipping hub dependent test")
+
 	// Image must be pulled from central repository to get verified message
 	// unless keychain is manually updated to contain the daemon's sign key.
 
