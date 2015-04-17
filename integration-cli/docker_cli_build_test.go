@@ -5254,6 +5254,7 @@ func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
 
 func TestBuildContainerWithCgroupParent(t *testing.T) {
 	testRequires(t, NativeExecDriver)
+	testRequires(t, SameHostDaemon)
 	defer deleteImages()
 
 	cgroupParent := "test"
