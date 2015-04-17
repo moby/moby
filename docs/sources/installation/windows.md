@@ -30,7 +30,7 @@ is developed, you can launch only Linux containers from your Windows machine.
 
 1. Download the latest release of the
    [Docker for Windows Installer](https://github.com/boot2docker/windows-installer/releases/latest).
-2. Run the installer, which will install Docker Client or Windows, VirtualBox,
+2. Run the installer, which will install Docker Client for Windows, VirtualBox,
    Git for Windows (MSYS-git), the boot2docker Linux ISO, and the Boot2Docker
    management tool.
    ![](/installation/images/windows-installer.png)
