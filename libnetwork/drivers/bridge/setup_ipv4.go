@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"fmt"
 	"net"
 
 	log "github.com/Sirupsen/logrus"
@@ -49,7 +48,7 @@ func setupBridgeIPv4(config *Configuration, i *bridgeInterface) error {
 
 	log.Debugf("Creating bridge interface %q with network %s", config.BridgeName, bridgeIPv4)
 	if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: bridgeIPv4}); err != nil {
-		return fmt.Errorf("Failed to add IPv4 address %s to bridge: %v", bridgeIPv4, err)
+		return &IPv4AddrAddError{ip: bridgeIPv4, err: err}
 	}
 
 	i.bridgeIPv4 = bridgeIPv4
@@ -80,5 +79,5 @@ func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("'t find an address range for interface %q", config.BridgeName)
+	return nil, IPv4AddrRangeError(config.BridgeName)
 }

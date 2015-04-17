@@ -13,7 +13,7 @@ const (
 func setupIPForwarding(config *Configuration, i *bridgeInterface) error {
 	// Sanity Check
 	if config.EnableIPForwarding == false {
-		return fmt.Errorf("Unexpected request to enable IP Forwarding for: %v", *i)
+		return (*ipForwardCfgError)(i)
 	}
 
 	// Enable IPv4 forwarding

@@ -1,8 +1,6 @@
 package bridge
 
 import (
-	"fmt"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libnetwork/netutils"
@@ -14,7 +12,7 @@ func setupDevice(config *Configuration, i *bridgeInterface) error {
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
 	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
-		return fmt.Errorf("bridge device with non default name %q must be created manually", config.BridgeName)
+		return NonDefaultBridgeExistError(config.BridgeName)
 	}
 
 	// Set the bridgeInterface netlink.Bridge.
