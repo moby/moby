@@ -1,5 +1,5 @@
 site_name: Docker Documentation
-#site_url: https://docs.docker.com/
+#site_url: http://docs.docker.com/
 site_url: /
 site_description: Documentation for fast and lightweight Docker container based virtualization framework.
 site_favicon: img/favicon.png
@@ -66,6 +66,8 @@ pages:
 - ['userguide/level1.md', '**HIDDEN**' ]
 - ['userguide/level2.md', '**HIDDEN**' ]
 - ['compose/index.md', 'User Guide', 'Docker Compose' ]
+- ['compose/production.md', 'User Guide', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Use Compose in production' ]
+- ['compose/extends.md', 'User Guide', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Extend Compose services' ]
 - ['machine/index.md', 'User Guide', 'Docker Machine' ]
 - ['swarm/index.md', 'User Guide', 'Docker Swarm' ]
 
@@ -122,7 +124,6 @@ pages:
 - ['reference/commandline/cli.md', 'Reference', 'Docker command line']
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['faq.md', 'Reference', 'FAQ']
-- ['reference/glossary.md', 'Reference', 'Glossary']
 - ['reference/run.md', 'Reference', 'Run Reference']
 - ['compose/cli.md', 'Reference', 'Compose command line']
 - ['compose/yml.md', 'Reference', 'Compose yml']
@@ -148,10 +149,9 @@ pages:
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
 #- ['reference/image-spec-v1.md', 'Reference', 'Docker Image Specification v1.0.0']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
-- ['reference/api/docker_remote_api_v1.19.md', 'Reference', 'Docker Remote API v1.19']
 - ['reference/api/docker_remote_api_v1.18.md', 'Reference', 'Docker Remote API v1.18']
 - ['reference/api/docker_remote_api_v1.17.md', 'Reference', 'Docker Remote API v1.17']
-- ['reference/api/docker_remote_api_v1.16.md', '**HIDDEN**']
+- ['reference/api/docker_remote_api_v1.16.md', 'Reference', 'Docker Remote API v1.16']
 - ['reference/api/docker_remote_api_v1.15.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.14.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.13.md', '**HIDDEN**']
@@ -187,17 +187,16 @@ pages:
 # Project:
 - ['project/index.md', '**HIDDEN**']
 - ['project/who-written-for.md', 'Contributor Guide', 'README first']
-- ['project/software-required.md', 'Contributor Guide', 'Get required software']
-- ['project/set-up-git.md', 'Contributor Guide', 'Configure Git for contributing']
-- ['project/set-up-dev-env.md', 'Contributor Guide', 'Work with a development container']
+- ['project/software-required.md', 'Contributor Guide', 'Get required software'] 
+- ['project/set-up-git.md', 'Contributor Guide', 'Configure Git for contributing'] 
+- ['project/set-up-dev-env.md', 'Contributor Guide', 'Work with a development container'] 
 - ['project/test-and-docs.md', 'Contributor Guide', 'Run tests and test documentation']
 - ['project/make-a-contribution.md', 'Contributor Guide', 'Understand contribution workflow']
-- ['project/find-an-issue.md', 'Contributor Guide', 'Find an issue']
-- ['project/work-issue.md', 'Contributor Guide', 'Work on an issue']
-- ['project/create-pr.md', 'Contributor Guide', 'Create a pull request']
-- ['project/review-pr.md', 'Contributor Guide', 'Participate in the PR review']
+- ['project/find-an-issue.md', 'Contributor Guide', 'Find an issue'] 
+- ['project/work-issue.md', 'Contributor Guide', 'Work on an issue'] 
+- ['project/create-pr.md', 'Contributor Guide', 'Create a pull request'] 
+- ['project/review-pr.md', 'Contributor Guide', 'Participate in the PR review'] 
 - ['project/advanced-contributing.md', 'Contributor Guide', 'Advanced contributing']
 - ['project/get-help.md', 'Contributor Guide', 'Where to get help']
 - ['project/coding-style.md', 'Contributor Guide', 'Coding style guide']
 - ['project/doc-style.md', 'Contributor Guide', 'Documentation style guide']
-

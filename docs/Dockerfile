@@ -6,11 +6,10 @@ MAINTAINER Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 
 # This section ensures we pull the correct version of each
 # sub project
-ENV COMPOSE_BRANCH 1.2.0
+ENV COMPOSE_BRANCH release
 ENV SWARM_BRANCH v0.2.0
 ENV MACHINE_BRANCH master
-ENV DISTRIB_BRANCH v2.0.0
-
+ENV DISTRIB_BRANCH release/2.0
 
 
 # TODO: need the full repo source to get the git version info
@@ -33,8 +32,10 @@ COPY ./s3_website.json s3_website.json
 COPY ./release.sh release.sh
 
 
+#######################
 # Docker Distribution
-# 
+########################
+
 #ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/mkdocs.yml /docs/mkdocs-distribution.yml
 
 ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/images/notifications.png /docs/sources/registry/images/notifications.png
@@ -64,45 +65,72 @@ RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/registry/spec/jso
 ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/auth/token.md /docs/sources/registry/spec/auth/token.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/registry/spec/auth/token.md
 
+#######################
 # Docker Swarm
+#######################
+
 #ADD https://raw.githubusercontent.com/docker/swarm/${SWARM_BRANCH}/docs/mkdocs.yml /docs/mkdocs-swarm.yml
 ADD https://raw.githubusercontent.com/docker/swarm/${SWARM_BRANCH}/docs/index.md /docs/sources/swarm/index.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/swarm/index.md
+
 ADD https://raw.githubusercontent.com/docker/swarm/${SWARM_BRANCH}/discovery/README.md /docs/sources/swarm/discovery.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/swarm/discovery.md
+
 ADD https://raw.githubusercontent.com/docker/swarm/${SWARM_BRANCH}/api/README.md /docs/sources/swarm/API.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/swarm/API.md
+
 ADD https://raw.githubusercontent.com/docker/swarm/${SWARM_BRANCH}/scheduler/filter/README.md /docs/sources/swarm/scheduler/filter.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/swarm/scheduler/filter.md
+
 ADD https://raw.githubusercontent.com/docker/swarm/${SWARM_BRANCH}/scheduler/strategy/README.md /docs/sources/swarm/scheduler/strategy.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/swarm/scheduler/strategy.md
 
+#######################
 # Docker Machine
+#######################
 #ADD https://raw.githubusercontent.com/docker/machine/${MACHINE_BRANCH}/docs/mkdocs.yml /docs/mkdocs-machine.yml
+
 ADD https://raw.githubusercontent.com/docker/machine/${MACHINE_BRANCH}/docs/index.md /docs/sources/machine/index.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/machine/index.md
 
+#######################
 # Docker Compose
+#######################
+
 #ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/mkdocs.yml /docs/mkdocs-compose.yml
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/index.md /docs/sources/compose/index.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/index.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/install.md /docs/sources/compose/install.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/install.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/cli.md /docs/sources/compose/cli.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/cli.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/yml.md /docs/sources/compose/yml.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/yml.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/env.md /docs/sources/compose/env.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/env.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/completion.md /docs/sources/compose/completion.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/completion.md
 
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/django.md /docs/sources/compose/django.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/django.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/rails.md /docs/sources/compose/rails.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/rails.md
+
 ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/wordpress.md /docs/sources/compose/wordpress.md
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/wordpress.md
+
+ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/extends.md /docs/sources/compose/extends.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/extends.md
+
+ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/production.md /docs/sources/compose/production.md
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/production.md
 
 # Then build everything together, ready for mkdocs
 RUN /docs/build.sh
