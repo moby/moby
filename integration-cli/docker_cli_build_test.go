@@ -559,6 +559,73 @@ func TestBuildOnBuildForbiddenFromInSourceImage(t *testing.T) {
 
 }
 
+func TestBuildOnBuildForbiddenMarkInSourceImage(t *testing.T) {
+	name := "testbuildonbuildforbiddenmarkinsourceimage"
+	defer deleteImages("onbuild")
+	defer deleteImages(name)
+	defer deleteAllContainers()
+
+	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(createCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+
+	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"MARK\"]}", cleanedContainerID, "onbuild")
+
+	if _, err := runCommand(commitCmd); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name,
+		`FROM onbuild`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "mark isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about MARK and ONBUILD in source image", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden mark in source image")
+
+}
+
+func TestBuildOnBuildForbiddenSquashInSourceImage(t *testing.T) {
+	name := "testbuildonbuildforbiddensquashinsourceimage"
+	defer deleteImages("onbuild")
+	defer deleteImages(name)
+	defer deleteAllContainers()
+
+	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(createCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	cleanedContainerID := stripTrailingCharacters(out)
+
+	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"SQUASH\"]}", cleanedContainerID, "onbuild")
+
+	if _, err := runCommand(commitCmd); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = buildImage(name,
+		`FROM onbuild`,
+		true)
+	if err != nil {
+		if !strings.Contains(err.Error(), "squash isn't allowed as an ONBUILD trigger") {
+			t.Fatalf("Wrong error %v, must be about SQUASH and ONBUILD in source image", err)
+		}
+	} else {
+		t.Fatal("Error must not be nil")
+	}
+	logDone("build - onbuild forbidden squash in source image")
+
+}
 func TestBuildOnBuildForbiddenChainedInSourceImage(t *testing.T) {
 	name := "testbuildonbuildforbiddenchainedinsourceimage"
 	defer deleteImages("onbuild")
@@ -5416,6 +5483,8 @@ func TestBuildMissingArgs(t *testing.T) {
 		"RUN":        {},
 		"ENTRYPOINT": {},
 		"INSERT":     {},
+		"SQUASH":     {},
+		"MARK":       {},
 	}
 
 	defer deleteAllContainers()

@@ -72,6 +72,8 @@ func init() {
 		command.Expose:     expose,
 		command.Volume:     volume,
 		command.User:       user,
+		command.Mark:       mark,
+		command.Squash:     squash,
 		command.Insert:     insert,
 	}
 }
@@ -128,6 +130,10 @@ type Builder struct {
 	cpuShares  int64
 	memory     int64
 	memorySwap int64
+
+	// for MARK / SQUASH
+	mark       int
+	markActive bool
 
 	cancelled <-chan struct{} // When closed, job was cancelled.
 }

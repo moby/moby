@@ -1,0 +1,14 @@
+FROM scratch
+
+MARK
+ADD a
+RUN b
+SQUASH x
+
+MARK
+ADD e
+SQUASH ["a", "b"]
+
+MARK  
+ADD f
+SQUASH

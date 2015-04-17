@@ -23,6 +23,8 @@
       <item> WORKDIR </item>
       <item> USER </item>
       <item> LABEL </item>
+      <item> MARK </item>
+      <item> SQUASH </item>
     </list>
 
     <contexts>

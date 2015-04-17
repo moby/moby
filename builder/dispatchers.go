@@ -198,7 +198,7 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 	switch triggerInstruction {
 	case "ONBUILD":
 		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-	case "MAINTAINER", "FROM":
+	case "MAINTAINER", "FROM", "MARK", "SQUASH":
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
@@ -438,6 +438,71 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
 		return err
 	}
+	return nil
+}
+
+// MARK
+//
+// Store a reference to this position in the Dockerfile for later use with
+// SQUASH. Squashing to will compress all the layers between the MARK and
+// SQUASH lines into a single new layer. MARK/SQUASH "blocks" cannot be nested.
+//
+func mark(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("MARK requires exactly zero arguments")
+	}
+	if b.markActive {
+		return fmt.Errorf("MARK may not be called when there is an active MARK")
+	}
+	b.setMark()
+	return nil
+}
+
+// SQUASH some description
+//
+// SQUASH rewrites one or more layers into a single layer with a custom
+// description (technically the mostly-unused container CMD, as viewed by
+// docker history). SQUASH must be called after MARK, and calling it will cause
+// all the layers between the MARK and SQUASH lines to be squashed into a
+// single new layer, removing those previous layers from the hierarchy.
+// The argument can be a single string, or a JSON array of strings.
+//
+// If SQUASH isn't provided with any arguments, it will use a default
+// description in the fashion of all the other commands.
+//
+// SQUASH this is my new description
+//     #=> ["this is my new description"]
+// SQUASH ["this", "was", "squashed"]
+//     #=> ["this", "was", "squashed)]
+// SQUASH
+//     #=> ["/bin/sh", "-c", "#(nop) SQUASH"]
+//
+func squash(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if !b.markActive {
+		return fmt.Errorf("SQUASH cannot be called with no active MARK")
+	}
+	squashDistance := b.mark
+	b.clearMark()
+
+	if squashDistance < 1 {
+		return fmt.Errorf("SQUASH must operate on at least 1 layer")
+	}
+
+	if b.disableCommit {
+		return nil
+	}
+
+	cmd := args
+	if len(cmd) == 0 || (len(cmd) == 1 && len(cmd[0]) == 0) {
+		cmd = []string{"/bin/sh", "-c", fmt.Sprintf("#(nop) SQUASH")}
+	}
+
+	img, err := b.squashRebase(squashDistance, cmd)
+	if err != nil {
+		return err
+	}
+
+	b.image = img.ID
 	return nil
 }
 

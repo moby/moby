@@ -293,3 +293,12 @@ func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 
 	return parseStringsWhitespaceDelimited(rest)
 }
+
+// parseArityZero fails if the argument is non-empty. This is useful for
+// commands that take exactly zero arguments, i.e.: MARK.
+func parseArityZero(rest string) (*Node, map[string]bool, error) {
+	if len(rest) > 0 {
+		return nil, nil, fmt.Errorf("unexpected arguments: %s", rest)
+	}
+	return nil, nil, nil
+}
