@@ -48,9 +48,7 @@ const (
 )
 
 var (
-	// FIXME: globalDaemon is deprecated by globalEngine. All tests should be converted.
 	globalDaemon           *daemon.Daemon
-	globalEngine           *engine.Engine
 	globalHttpsEngine      *engine.Engine
 	globalRogueHttpsEngine *engine.Engine
 	startFds               int
@@ -153,7 +151,6 @@ func spawnGlobalDaemon() {
 	}
 	t := std_log.New(os.Stderr, "", 0)
 	eng := NewTestEngine(t)
-	globalEngine = eng
 	globalDaemon = mkDaemonFromEngine(eng, t)
 
 	serverConfig := &apiserver.ServerConfig{Logging: true}
