@@ -11,14 +11,15 @@ Docker is supported on the following versions of Debian:
 
 ## Debian Jessie 8.0 (64-bit)
 
-Debian 8 comes with a 3.14.0 Linux kernel, and a `docker.io` package which
-installs all its prerequisites from Debian's repository.
+Debian 8 comes with a 3.16.0 Linux kernel, the `docker.io` package can be found in the `jessie-backports` repository. Reasoning behind this can be found <a href="https://lists.debian.org/debian-release/2015/03/msg00685.html" target="_blank">here</a>. Instructions how to enable the backports repository can be found <a href="http://backports.debian.org/Instructions/" target="_blank">here</a>.
 
 > **Note**:
 > Debian contains a much older KDE3/GNOME2 package called ``docker``, so the
 > package and the executable are called ``docker.io``.
 
 ### Installation
+
+Make sure you enabled the `jessie-backports` repository, as stated above.
 
 To install the latest Debian package (may not be the latest Docker release):
 
