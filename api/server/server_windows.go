@@ -1,4 +1,5 @@
 // +build windows
+
 package server
 
 import (
@@ -25,7 +26,7 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 	switch proto {
 	case "tcp":
 		if !job.GetenvBool("TlsVerify") {
-			logrus.Infof("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+			logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
 		if l, err = NewTcpSocket(addr, tlsConfigFromJob(job)); err != nil {
 			return nil, err
