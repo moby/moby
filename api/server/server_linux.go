@@ -13,16 +13,16 @@ import (
 )
 
 // NewServer sets up the required Server and does protocol specific checking.
-func NewServer(proto, addr string, job *engine.Job) (Server, error) {
+func NewServer(proto, addr string, conf *ServerConfig, eng *engine.Engine) (Server, error) {
 	var (
 		err error
 		l   net.Listener
 		r   = createRouter(
-			job.Eng,
-			job.GetenvBool("Logging"),
-			job.GetenvBool("EnableCors"),
-			job.Getenv("CorsHeaders"),
-			job.Getenv("Version"),
+			eng,
+			conf.Logging,
+			conf.EnableCors,
+			conf.CorsHeaders,
+			conf.Version,
 		)
 	)
 	switch proto {
@@ -52,17 +52,17 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 		}
 		return nil, nil
 	case "tcp":
-		if !job.GetenvBool("TlsVerify") {
+		if !conf.TlsVerify {
 			logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
-		if l, err = NewTcpSocket(addr, tlsConfigFromJob(job)); err != nil {
+		if l, err = NewTcpSocket(addr, tlsConfigFromServerConfig(conf)); err != nil {
 			return nil, err
 		}
 		if err := allocateDaemonPort(addr); err != nil {
 			return nil, err
 		}
 	case "unix":
-		if l, err = NewUnixSocket(addr, job.Getenv("SocketGroup")); err != nil {
+		if l, err = NewUnixSocket(addr, conf.SocketGroup); err != nil {
 			return nil, err
 		}
 	default:
@@ -77,8 +77,7 @@ func NewServer(proto, addr string, job *engine.Job) (Server, error) {
 	}, nil
 }
 
-// Called through eng.Job("acceptconnections")
-func AcceptConnections(job *engine.Job) error {
+func AcceptConnections() {
 	// Tell the init daemon we are accepting requests
 	go systemd.SdNotify("READY=1")
 	// close the lock so the listeners start accepting connections
@@ -87,5 +86,4 @@ func AcceptConnections(job *engine.Job) error {
 	default:
 		close(activationLock)
 	}
-	return nil
 }

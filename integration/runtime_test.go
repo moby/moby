@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/engine"
@@ -157,9 +158,9 @@ func spawnGlobalDaemon() {
 			Scheme: testDaemonProto,
 			Host:   testDaemonAddr,
 		}
-		job := eng.Job("serveapi", listenURL.String())
-		job.SetenvBool("Logging", true)
-		if err := job.Run(); err != nil {
+
+		serverConfig := &apiserver.ServerConfig{Logging: true}
+		if err := apiserver.ServeApi([]string{listenURL.String()}, serverConfig, eng); err != nil {
 			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
@@ -168,9 +169,7 @@ func spawnGlobalDaemon() {
 	// FIXME: use inmem transports instead of tcp
 	time.Sleep(time.Second)
 
-	if err := eng.Job("acceptconnections").Run(); err != nil {
-		logrus.Fatalf("Unable to accept connections for test api: %s", err)
-	}
+	apiserver.AcceptConnections()
 }
 
 func spawnLegitHttpsDaemon() {
@@ -207,14 +206,15 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 			Scheme: testDaemonHttpsProto,
 			Host:   addr,
 		}
-		job := eng.Job("serveapi", listenURL.String())
-		job.SetenvBool("Logging", true)
-		job.SetenvBool("Tls", true)
-		job.SetenvBool("TlsVerify", true)
-		job.Setenv("TlsCa", cacert)
-		job.Setenv("TlsCert", cert)
-		job.Setenv("TlsKey", key)
-		if err := job.Run(); err != nil {
+		serverConfig := &apiserver.ServerConfig{
+			Logging:   true,
+			Tls:       true,
+			TlsVerify: true,
+			TlsCa:     cacert,
+			TlsCert:   cert,
+			TlsKey:    key,
+		}
+		if err := apiserver.ServeApi([]string{listenURL.String()}, serverConfig, eng); err != nil {
 			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
@@ -222,9 +222,8 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 	// Give some time to ListenAndServer to actually start
 	time.Sleep(time.Second)
 
-	if err := eng.Job("acceptconnections").Run(); err != nil {
-		logrus.Fatalf("Unable to accept connections for test api: %s", err)
-	}
+	apiserver.AcceptConnections()
+
 	return eng
 }
 

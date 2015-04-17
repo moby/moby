@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builtins"
 	"github.com/docker/docker/daemon"
 	_ "github.com/docker/docker/daemon/execdriver/lxc"
 	_ "github.com/docker/docker/daemon/execdriver/native"
@@ -93,11 +93,6 @@ func mainDaemon() {
 	}
 	daemonCfg.TrustKeyPath = *flTrustKey
 
-	// Load builtins
-	if err := builtins.Register(eng); err != nil {
-		logrus.Fatal(err)
-	}
-
 	registryService := registry.NewService(registryCfg)
 	// load the daemon in the background so we can immediately start
 	// the http api so that connections don't fail while the daemon
@@ -127,33 +122,30 @@ func mainDaemon() {
 
 		// after the daemon is done setting up we can tell the api to start
 		// accepting connections
-		if err := eng.Job("acceptconnections").Run(); err != nil {
-			daemonInitWait <- err
-			return
-		}
+		apiserver.AcceptConnections()
+
 		daemonInitWait <- nil
 	}()
 
-	// Serve api
-	job := eng.Job("serveapi", flHosts...)
-	job.SetenvBool("Logging", true)
-	job.SetenvBool("EnableCors", daemonCfg.EnableCors)
-	job.Setenv("CorsHeaders", daemonCfg.CorsHeaders)
-	job.Setenv("Version", dockerversion.VERSION)
-	job.Setenv("SocketGroup", daemonCfg.SocketGroup)
+	serverConfig := &apiserver.ServerConfig{
+		Logging:     true,
+		EnableCors:  daemonCfg.EnableCors,
+		CorsHeaders: daemonCfg.CorsHeaders,
+		Version:     dockerversion.VERSION,
+		SocketGroup: daemonCfg.SocketGroup,
+		Tls:         *flTls,
+		TlsVerify:   *flTlsVerify,
+		TlsCa:       *flCa,
+		TlsCert:     *flCert,
+		TlsKey:      *flKey,
+	}
 
-	job.SetenvBool("Tls", *flTls)
-	job.SetenvBool("TlsVerify", *flTlsVerify)
-	job.Setenv("TlsCa", *flCa)
-	job.Setenv("TlsCert", *flCert)
-	job.Setenv("TlsKey", *flKey)
-
-	// The serve API job never exits unless an error occurs
+	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
 	go func() {
-		if err := job.Run(); err != nil {
+		if err := apiserver.ServeApi(flHosts, serverConfig, eng); err != nil {
 			logrus.Errorf("ServeAPI error: %v", err)
 			serveAPIWait <- err
 			return
