@@ -66,6 +66,8 @@ pages:
 - ['userguide/level1.md', '**HIDDEN**' ]
 - ['userguide/level2.md', '**HIDDEN**' ]
 - ['compose/index.md', 'User Guide', 'Docker Compose' ]
+- ['compose/production.md', 'User Guide', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Use Compose in production' ]
+- ['compose/extends.md', 'User Guide', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Extend Compose services' ]
 - ['machine/index.md', 'User Guide', 'Docker Machine' ]
 - ['swarm/index.md', 'User Guide', 'Docker Swarm' ]
 
@@ -198,4 +200,3 @@ pages:
 - ['project/get-help.md', 'Contributor Guide', 'Where to get help']
 - ['project/coding-style.md', 'Contributor Guide', 'Coding style guide']
 - ['project/doc-style.md', 'Contributor Guide', 'Documentation style guide']
-
