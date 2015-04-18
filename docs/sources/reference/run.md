@@ -465,6 +465,13 @@ Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
 
+## Specifying custom cgroups
+
+Using the `--cgroup-parent` flag, you can pass a specific cgroup to run a
+container in. This allows you to create and manage cgroups on their own. You can
+define custom resources for those cgroups and put containers under a common
+parent group.
+
 ## Runtime constraints on resources
 
 The operator can also adjust the performance parameters of the

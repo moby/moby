@@ -848,8 +848,10 @@ you refer to it on the command line.
 > children) for security reasons, and to ensure repeatable builds on remote
 > Docker hosts. This is also the reason why `ADD ../file` will not work.
 
-`docker build` has a `--cgroup-parent` option that causes the containers used
-in the build to be run with this option.
+When `docker build` is run with the `--cgroup-parent` option the containers used
+in the build will be run with the [corresponding `docker run`
+flag](/reference/run/#specifying-custom-cgroups). 
+
 
 ## commit
 
