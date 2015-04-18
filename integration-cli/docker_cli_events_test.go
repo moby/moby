@@ -204,6 +204,31 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	since := daemonTime(c).Unix()
 
+	id := make(chan string)
+	eventImport := make(chan struct{})
+	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(since, 10))
+	stdout, err := eventsCmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	err = eventsCmd.Start()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer eventsCmd.Process.Kill()
+
+	go func() {
+		containerID := <-id
+
+		matchImport := regexp.MustCompile(containerID + `: import$`)
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			if matchImport.MatchString(scanner.Text()) {
+				close(eventImport)
+			}
+		}
+	}()
+
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -218,19 +243,15 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	if err != nil {
 		c.Errorf("import failed with errors: %v, output: %q", err, out)
 	}
+	newContainerID := strings.TrimSpace(out)
+	id <- newContainerID
 
-	eventsCmd := exec.Command(dockerBinary, "events",
-		fmt.Sprintf("--since=%d", since),
-		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, _ = runCommandWithOutput(eventsCmd)
-
-	events := strings.Split(strings.TrimSpace(out), "\n")
-	event := strings.TrimSpace(events[len(events)-1])
-
-	if !strings.HasSuffix(event, ": import") {
-		c.Fatalf("Missing import event - got:%q", event)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatal("failed to observe image import in timely fashion")
+	case <-eventImport:
+		// ignore, done
 	}
-
 }
 
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
