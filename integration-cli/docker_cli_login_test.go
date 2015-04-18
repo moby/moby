@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"os/exec"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestLoginWithoutTTY(t *testing.T) {
+func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 	cmd := exec.Command(dockerBinary, "login")
 
 	// Send to stdin so the process does not get the TTY
@@ -14,8 +15,7 @@ func TestLoginWithoutTTY(t *testing.T) {
 
 	// run the command and block until it's done
 	if err := cmd.Run(); err == nil {
-		t.Fatal("Expected non nil err when loginning in & TTY not available")
+		c.Fatal("Expected non nil err when loginning in & TTY not available")
 	}
 
-	logDone("login - login without TTY")
 }

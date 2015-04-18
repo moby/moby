@@ -8,48 +8,46 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"testing"
 	"unicode"
 
+	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
 
 // #5979
-func TestEventsRedirectStdout(t *testing.T) {
-	since := daemonTime(t).Unix()
-	dockerCmd(t, "run", "busybox", "true")
-	defer deleteAllContainers()
+func (s *DockerSuite) TestEventsRedirectStdout(c *check.C) {
+	since := daemonTime(c).Unix()
+	dockerCmd(c, "run", "busybox", "true")
 
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
-		t.Fatalf("could not create temp file: %v", err)
+		c.Fatalf("could not create temp file: %v", err)
 	}
 	defer os.Remove(file.Name())
 
-	command := fmt.Sprintf("%s events --since=%d --until=%d > %s", dockerBinary, since, daemonTime(t).Unix(), file.Name())
+	command := fmt.Sprintf("%s events --since=%d --until=%d > %s", dockerBinary, since, daemonTime(c).Unix(), file.Name())
 	_, tty, err := pty.Open()
 	if err != nil {
-		t.Fatalf("Could not open pty: %v", err)
+		c.Fatalf("Could not open pty: %v", err)
 	}
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("run err for command %q: %v", command, err)
+		c.Fatalf("run err for command %q: %v", command, err)
 	}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		for _, c := range scanner.Text() {
-			if unicode.IsControl(c) {
-				t.Fatalf("found control character %v", []byte(string(c)))
+		for _, ch := range scanner.Text() {
+			if unicode.IsControl(ch) {
+				c.Fatalf("found control character %v", []byte(string(ch)))
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		t.Fatalf("Scan err for command %q: %v", command, err)
+		c.Fatalf("Scan err for command %q: %v", command, err)
 	}
 
-	logDone("events - redirect stdout")
 }

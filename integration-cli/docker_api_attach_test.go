@@ -4,23 +4,23 @@ import (
 	"bytes"
 	"os/exec"
 	"strings"
-	"testing"
 	"time"
+
+	"github.com/go-check/check"
 
 	"code.google.com/p/go.net/websocket"
 )
 
-func TestGetContainersAttachWebsocket(t *testing.T) {
+func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "-dit", "busybox", "cat")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatalf(out, err)
+		c.Fatalf(out, err)
 	}
-	defer deleteAllContainers()
 
 	rwc, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -29,12 +29,12 @@ func TestGetContainersAttachWebsocket(t *testing.T) {
 		"http://localhost",
 	)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	ws, err := websocket.NewClient(config, rwc)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer ws.Close()
 
@@ -43,7 +43,7 @@ func TestGetContainersAttachWebsocket(t *testing.T) {
 	outChan := make(chan string)
 	go func() {
 		if _, err := ws.Read(actual); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		outChan <- "done"
 	}()
@@ -51,7 +51,7 @@ func TestGetContainersAttachWebsocket(t *testing.T) {
 	inChan := make(chan string)
 	go func() {
 		if _, err := ws.Write(expected); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		inChan <- "done"
 	}()
@@ -60,8 +60,6 @@ func TestGetContainersAttachWebsocket(t *testing.T) {
 	<-outChan
 
 	if !bytes.Equal(expected, actual) {
-		t.Fatal("Expected output on websocket to match input")
+		c.Fatal("Expected output on websocket to match input")
 	}
-
-	logDone("container attach websocket - can echo input via cat")
 }

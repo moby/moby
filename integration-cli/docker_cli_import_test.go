@@ -3,14 +3,15 @@ package main
 import (
 	"os/exec"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestImportDisplay(t *testing.T) {
+func (s *DockerSuite) TestImportDisplay(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatal("failed to create a container", out, err)
+		c.Fatal("failed to create a container", out, err)
 	}
 	cleanedContainerID := strings.TrimSpace(out)
 	defer deleteContainer(cleanedContainerID)
@@ -20,11 +21,11 @@ func TestImportDisplay(t *testing.T) {
 		exec.Command(dockerBinary, "import", "-"),
 	)
 	if err != nil {
-		t.Errorf("import failed with errors: %v, output: %q", err, out)
+		c.Errorf("import failed with errors: %v, output: %q", err, out)
 	}
 
 	if n := strings.Count(out, "\n"); n != 1 {
-		t.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
+		c.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
 	}
 	image := strings.TrimSpace(out)
 	defer deleteImages(image)
@@ -32,12 +33,11 @@ func TestImportDisplay(t *testing.T) {
 	runCmd = exec.Command(dockerBinary, "run", "--rm", image, "true")
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatal("failed to create a container", out, err)
+		c.Fatal("failed to create a container", out, err)
 	}
 
 	if out != "" {
-		t.Fatalf("command output should've been nothing, was %q", out)
+		c.Fatalf("command output should've been nothing, was %q", out)
 	}
 
-	logDone("import - display is fine, imported image runs")
 }

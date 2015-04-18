@@ -33,6 +33,4 @@ func TestInfoApi(t *testing.T) {
 			t.Errorf("couldn't find string %v in output", linePrefix)
 		}
 	}
-
-	logDone("container REST API - check GET /info")
 }

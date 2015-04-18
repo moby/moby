@@ -5,13 +5,13 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"testing"
 	"unicode"
 
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/go-check/check"
 )
 
-func TestHelpTextVerify(t *testing.T) {
+func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 	// Make sure main help text fits within 80 chars and that
 	// on non-windows system we use ~ when possible (to shorten things).
 	// Test for HOME set to its default value and set to "/" on linux
@@ -51,26 +51,26 @@ func TestHelpTextVerify(t *testing.T) {
 		helpCmd.Env = newEnvs
 		out, ec, err := runCommandWithOutput(helpCmd)
 		if err != nil || ec != 0 {
-			t.Fatalf("docker help should have worked\nout:%s\nec:%d", out, ec)
+			c.Fatalf("docker help should have worked\nout:%s\nec:%d", out, ec)
 		}
 		lines := strings.Split(out, "\n")
 		for _, line := range lines {
 			if len(line) > 80 {
-				t.Fatalf("Line is too long(%d chars):\n%s", len(line), line)
+				c.Fatalf("Line is too long(%d chars):\n%s", len(line), line)
 			}
 
 			// All lines should not end with a space
 			if strings.HasSuffix(line, " ") {
-				t.Fatalf("Line should not end with a space: %s", line)
+				c.Fatalf("Line should not end with a space: %s", line)
 			}
 
 			if scanForHome && strings.Contains(line, `=`+home) {
-				t.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
+				c.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
 			}
 			if runtime.GOOS != "windows" {
 				i := strings.Index(line, homedir.GetShortcutString())
 				if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
-					t.Fatalf("Main help should not have used home shortcut:\n%s", line)
+					c.Fatalf("Main help should not have used home shortcut:\n%s", line)
 				}
 			}
 		}
@@ -82,11 +82,11 @@ func TestHelpTextVerify(t *testing.T) {
 		helpCmd.Env = newEnvs
 		out, ec, err = runCommandWithOutput(helpCmd)
 		if err != nil || ec != 0 {
-			t.Fatalf("docker help should have worked\nout:%s\nec:%d", out, ec)
+			c.Fatalf("docker help should have worked\nout:%s\nec:%d", out, ec)
 		}
 		i := strings.Index(out, "Commands:")
 		if i < 0 {
-			t.Fatalf("Missing 'Commands:' in:\n%s", out)
+			c.Fatalf("Missing 'Commands:' in:\n%s", out)
 		}
 
 		// Grab all chars starting at "Commands:"
@@ -106,39 +106,39 @@ func TestHelpTextVerify(t *testing.T) {
 			helpCmd.Env = newEnvs
 			out, ec, err := runCommandWithOutput(helpCmd)
 			if err != nil || ec != 0 {
-				t.Fatalf("Error on %q help: %s\nexit code:%d", cmd, out, ec)
+				c.Fatalf("Error on %q help: %s\nexit code:%d", cmd, out, ec)
 			}
 			lines := strings.Split(out, "\n")
 			for _, line := range lines {
 				if len(line) > 80 {
-					t.Fatalf("Help for %q is too long(%d chars):\n%s", cmd,
+					c.Fatalf("Help for %q is too long(%d chars):\n%s", cmd,
 						len(line), line)
 				}
 
 				if scanForHome && strings.Contains(line, `"`+home) {
-					t.Fatalf("Help for %q should use ~ instead of %q on:\n%s",
+					c.Fatalf("Help for %q should use ~ instead of %q on:\n%s",
 						cmd, home, line)
 				}
 				i := strings.Index(line, "~")
 				if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
-					t.Fatalf("Help for %q should not have used ~:\n%s", cmd, line)
+					c.Fatalf("Help for %q should not have used ~:\n%s", cmd, line)
 				}
 
 				// If a line starts with 4 spaces then assume someone
 				// added a multi-line description for an option and we need
 				// to flag it
 				if strings.HasPrefix(line, "    ") {
-					t.Fatalf("Help for %q should not have a multi-line option: %s", cmd, line)
+					c.Fatalf("Help for %q should not have a multi-line option: %s", cmd, line)
 				}
 
 				// Options should NOT end with a period
 				if strings.HasPrefix(line, "  -") && strings.HasSuffix(line, ".") {
-					t.Fatalf("Help for %q should not end with a period: %s", cmd, line)
+					c.Fatalf("Help for %q should not end with a period: %s", cmd, line)
 				}
 
 				// Options should NOT end with a space
 				if strings.HasSuffix(line, " ") {
-					t.Fatalf("Help for %q should not end with a space: %s", cmd, line)
+					c.Fatalf("Help for %q should not end with a space: %s", cmd, line)
 				}
 
 			}
@@ -146,10 +146,9 @@ func TestHelpTextVerify(t *testing.T) {
 
 		expected := 39
 		if len(cmds) != expected {
-			t.Fatalf("Wrong # of cmds(%d), it should be: %d\nThe list:\n%q",
+			c.Fatalf("Wrong # of cmds(%d), it should be: %d\nThe list:\n%q",
 				len(cmds), expected, cmds)
 		}
 	}
 
-	logDone("help - verify text")
 }
