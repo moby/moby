@@ -1223,3 +1223,30 @@ func checkKernel() error {
 	}
 	return nil
 }
+
+func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]string, error) {
+	var warnings []string
+
+	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
+		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
+	}
+	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
+		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
+	}
+	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
+		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		hostConfig.Memory = 0
+	}
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
+		warnings = append(warnings, "Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		hostConfig.MemorySwap = -1
+	}
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
+		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
+	}
+	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
+		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
+	}
+
+	return warnings, nil
+}

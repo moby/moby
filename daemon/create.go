@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -12,27 +11,9 @@ import (
 )
 
 func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig) (string, []string, error) {
-	var warnings []string
-
-	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
-		return "", warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
-	}
-	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
-		return "", warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
-	}
-	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
-		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		hostConfig.Memory = 0
-	}
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
-		warnings = append(warnings, "Your kernel does not support swap limit capabilities. Limitation discarded.\n")
-		hostConfig.MemorySwap = -1
-	}
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
-		return "", warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
-	}
-	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
-		return "", warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
+	warnings, err := daemon.verifyHostConfig(hostConfig)
+	if err != nil {
+		return "", warnings, err
 	}
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
@@ -45,9 +26,6 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 			return "", warnings, fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}
 		return "", warnings, err
-	}
-	if !container.Config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
-		warnings = append(warnings, "IPv4 forwarding is disabled.\n")
 	}
 
 	container.LogEvent("create")
@@ -79,6 +57,9 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
+	}
+	if !config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
+		warnings = append(warnings, "IPv4 forwarding is disabled.\n")
 	}
 	if hostConfig == nil {
 		hostConfig = &runconfig.HostConfig{}
