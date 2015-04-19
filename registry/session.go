@@ -222,10 +222,10 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		defer res.Body.Close()
 
-		if res.StatusCode != 200 && res.StatusCode != 404 {
-			continue
-		} else if res.StatusCode == 404 {
+		if res.StatusCode == 404 {
 			return nil, fmt.Errorf("Repository not found")
+		} else if res.StatusCode != 200 {
+			continue
 		}
 
 		result := make(map[string]string)
@@ -524,20 +524,18 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 			}
 			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote, errBody), res)
 		}
-		if res.Header.Get("X-Docker-Token") != "" {
-			tokens = res.Header["X-Docker-Token"]
-			logrus.Debugf("Auth token: %v", tokens)
-		} else {
+		if res.Header.Get("X-Docker-Token") == "" {
 			return nil, fmt.Errorf("Index response didn't contain an access token")
 		}
+		tokens = res.Header["X-Docker-Token"]
+		logrus.Debugf("Auth token: %v", tokens)
 
-		if res.Header.Get("X-Docker-Endpoints") != "" {
-			endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
-			if err != nil {
-				return nil, err
-			}
-		} else {
+		if res.Header.Get("X-Docker-Endpoints") == "" {
 			return nil, fmt.Errorf("Index response didn't contain any endpoints")
+		}
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
+		if err != nil {
+			return nil, err
 		}
 	}
 	if validate {
