@@ -224,7 +224,8 @@ func (r *Session) GetRemoteTags(registries []string, repository string, token []
 
 		if res.StatusCode == 404 {
 			return nil, fmt.Errorf("Repository not found")
-		} else if res.StatusCode != 200 {
+		}
+		if res.StatusCode != 200 {
 			continue
 		}
 
