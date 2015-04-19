@@ -78,16 +78,91 @@ exhibit unexpected behaviour.
 > vendor for the system, and might break regulations and security
 > policies in heavily regulated environments.
 
-## Get the docker binary:
+## Get the docker binary
 
-    $ wget https://get.docker.com/builds/Linux/x86_64/docker-latest -O docker
+You can download either the latest release binary or a specific version.
+After downloading a binary file, you must set the file's execute bit to run it.
+
+To set the file's execute bit on Linux and OS X:
+
     $ chmod +x docker
 
-> **Note**:
-> If you have trouble downloading the binary, you can also get the smaller
-> compressed release file:
-> [https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz](
-> https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz)
+To get the list of stable release version numbers from Github, view the
+`docker/docker` [releases page](https://github.com/docker/docker/releases). 
+
+> **Note**
+>
+> 1) You can get the MD5 and SHA256 hashes by appending .md5 and .sha256 to the URLs respectively
+>
+> 2) You can get the compressed binaries by appending .tgz to the URLs
+
+### Get the Linux binary
+
+To download the latest version for Linux, use the
+following URLs:
+
+    https://get.docker.com/builds/Linux/i386/docker-latest
+    
+    https://get.docker.com/builds/Linux/x86_64/docker-latest
+
+To download a specific version for Linux, use the
+following URL patterns:
+
+    https://get.docker.com/builds/Linux/i386/docker-<version>
+    
+    https://get.docker.com/builds/Linux/x86_64/docker-<version>
+
+For example:
+
+    https://get.docker.com/builds/Linux/i386/docker-1.6.0
+
+    https://get.docker.com/builds/Linux/x86_64/docker-1.6.0
+
+
+### Get the Mac OS X binary
+
+The Mac OS X binary is only a client. You cannot use it to run the `docker`
+daemon. To download the latest version for Mac OS X, use the following URLs:
+
+    https://get.docker.com/builds/Darwin/i386/docker-latest
+    
+    https://get.docker.com/builds/Darwin/x86_64/docker-latest
+
+To download a specific version for Mac OS X, use the
+following URL patterns:
+
+    https://get.docker.com/builds/Darwin/i386/docker-<version>
+    
+    https://get.docker.com/builds/Darwin/x86_64/docker-<version>
+
+For example:
+
+    https://get.docker.com/builds/Darwin/i386/docker-1.6.0
+
+    https://get.docker.com/builds/Darwin/x86_64/docker-1.6.0
+
+###  Get the Windows binary
+ 
+You can only download the Windows client binary for version `1.6.0` onwards.
+Moreover, the binary is only a client, you cannot use it to run the `docker` daemon.
+To download the latest version for Windows, use the following URLs:
+
+    https://get.docker.com/builds/Windows/i386/docker-latest.exe
+    
+    https://get.docker.com/builds/Windows/x86_64/docker-latest.exe
+
+To download a specific version for Windows, use the following URL pattern:
+
+    https://get.docker.com/builds/Windows/i386/docker-<version>.exe
+    
+    https://get.docker.com/builds/Windows/x86_64/docker-<version>.exe
+
+For example:
+
+    https://get.docker.com/builds/Windows/i386/docker-1.6.0.exe
+
+    https://get.docker.com/builds/Windows/x86_64/docker-1.6.0.exe
+
 
 ## Run the docker daemon
 
