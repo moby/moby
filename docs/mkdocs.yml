@@ -134,7 +134,7 @@ pages:
 - ['swarm/scheduler/filter.md', 'Reference', 'Swarm filters']
 - ['swarm/API.md', 'Reference', 'Swarm API']
 - ['reference/api/index.md', '**HIDDEN**']
-- ['registry/overview.md', 'Reference', 'Docker Registry 2.0']
+- ['registry/index.md', 'Reference', 'Docker Registry 2.0']
 - ['registry/deploying.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Deploy a registry' ]
 - ['registry/configuration.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Configure a registry' ]
 - ['registry/storagedrivers.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Storage driver model' ]
