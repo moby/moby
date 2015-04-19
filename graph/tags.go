@@ -224,7 +224,7 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	return deleted, store.save()
 }
 
-func (store *TagStore) Set(repoName, tag, imageName string, force bool) error {
+func (store *TagStore) Tag(repoName, tag, imageName string, force bool) error {
 	return store.SetLoad(repoName, tag, imageName, force, nil)
 }
 

@@ -446,7 +446,8 @@ func TestDeleteImages(t *testing.T) {
 
 	initialImages := getImages(eng, t, true, "")
 
-	if err := eng.Job("tag", unitTestImageName, "test", "test").Run(); err != nil {
+	d := getDaemon(eng)
+	if err := d.Repositories().Tag("test", "test", unitTestImageName, true); err != nil {
 		t.Fatal(err)
 	}
 

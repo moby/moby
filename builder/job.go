@@ -166,7 +166,7 @@ func (b *BuilderJob) CmdBuild(job *engine.Job) error {
 	}
 
 	if repoName != "" {
-		b.Daemon.Repositories().Set(repoName, tag, id, true)
+		b.Daemon.Repositories().Tag(repoName, tag, id, true)
 	}
 	return nil
 }

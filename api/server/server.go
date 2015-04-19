@@ -611,9 +611,11 @@ func postImagesTag(eng *engine.Engine, version version.Version, w http.ResponseW
 		return fmt.Errorf("Missing parameter")
 	}
 
-	job := eng.Job("tag", vars["name"], r.Form.Get("repo"), r.Form.Get("tag"))
-	job.Setenv("force", r.Form.Get("force"))
-	if err := job.Run(); err != nil {
+	d := getDaemon(eng)
+	repo := r.Form.Get("repo")
+	tag := r.Form.Get("tag")
+	force := toBool(r.Form.Get("force"))
+	if err := d.Repositories().Tag(repo, tag, vars["name"], force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
