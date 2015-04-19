@@ -39,7 +39,7 @@ ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs
     https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/images/registry.png \
   /docs/sources/registry/images/
 
-ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/overview.md \
+ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/index.md \
     https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/deploying.md \
     https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/configuration.md \
     https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storagedrivers.md \

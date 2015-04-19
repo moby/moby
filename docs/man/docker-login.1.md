@@ -13,7 +13,7 @@ docker-login - Register or log in to a Docker registry.
 [SERVER]
 
 # DESCRIPTION
-Register or log in to a Docker Registry Service located on the specified
+Register or log in to a Docker Registry located on the specified
 `SERVER`.  You can specify a URL or a `hostname` for the `SERVER` value. If you
 do not specify a `SERVER`, the command uses Docker's public registry located at
 `https://registry-1.docker.io/` by default.  To get a username/password for Docker's public registry, create an account on Docker Hub.
