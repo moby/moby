@@ -11,11 +11,6 @@
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/common",
-			"Comment": "v1.4.1-1379-g8e107a9",
-			"Rev": "8e107a93210c54f22ec1354d969c771b1abfbe05"
-		},
-		{
 			"ImportPath": "github.com/docker/docker/pkg/iptables",
 			"Comment": "v1.4.1-2492-ge690ad9",
 			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
@@ -36,9 +31,9 @@
 			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
 		},
 		{
-			"ImportPath": "github.com/docker/libcontainer/utils",
-			"Comment": "v1.4.0-324-g88989e6",
-			"Rev": "88989e66d3a1ab960deb37f3dd7f824d85e1b9bc"
+			"ImportPath": "github.com/docker/docker/pkg/stringid",
+			"Comment": "v1.4.1-2492-ge690ad9",
+			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",

@@ -6,12 +6,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/libcontainer/utils"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netns"
 )
 
 func newKey(t *testing.T) (string, error) {
-	name, err := utils.GenerateRandomName("netns", 12)
+	name, err := netutils.GenerateRandomName("netns", 12)
 	if err != nil {
 		return "", err
 	}

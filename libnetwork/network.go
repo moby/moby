@@ -41,7 +41,7 @@ package libnetwork
 import (
 	"sync"
 
-	"github.com/docker/docker/pkg/common"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
 )
 
@@ -152,7 +152,7 @@ func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interfac
 
 	network := &network{
 		name:   name,
-		id:     driverapi.UUID(common.GenerateRandomID()),
+		id:     driverapi.UUID(stringid.GenerateRandomID()),
 		ctrlr:  c,
 		driver: nd}
 	network.endpoints = make(endpointTable)
@@ -224,7 +224,7 @@ func (n *network) Delete() error {
 
 func (n *network) CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, *driverapi.SandboxInfo, error) {
 	ep := &endpoint{name: name}
-	ep.id = driverapi.UUID(common.GenerateRandomID())
+	ep.id = driverapi.UUID(stringid.GenerateRandomID())
 	ep.network = n
 
 	d := n.driver.internalDriver
