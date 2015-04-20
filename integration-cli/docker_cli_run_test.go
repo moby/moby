@@ -3077,3 +3077,21 @@ func TestRunWriteToProcAsound(t *testing.T) {
 	}
 	logDone("run - ro write to /proc/asound")
 }
+
+func TestRunWriteToProcTimer(t *testing.T) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "echo 1 >> /proc/timer_stats"))
+	if err == nil || code == 0 {
+		t.Fatal("standard container should not be able to write to /proc/timer_stats")
+	}
+	logDone("run - ro write to /proc/timer_stats")
+}
+
+func TestRunWriteToProcLatency(t *testing.T) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "echo 1 >> /proc/latency_stats"))
+	if err == nil || code == 0 {
+		t.Fatal("standard container should not be able to write to /proc/latency_stats")
+	}
+	logDone("run - ro write to /proc/latency_stats")
+}
