@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/version"
 )
@@ -133,53 +131,8 @@ func readEnv(src io.Reader, t *testing.T) *engine.Env {
 	return v
 }
 
-func toJson(data interface{}, t *testing.T) io.Reader {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(data); err != nil {
-		t.Fatal(err)
-	}
-	return &buf
-}
-
 func assertContentType(recorder *httptest.ResponseRecorder, contentType string, t *testing.T) {
 	if recorder.HeaderMap.Get("Content-Type") != contentType {
 		t.Fatalf("%#v\n", recorder)
 	}
-}
-
-// XXX: Duplicated from integration/utils_test.go, but maybe that's OK as that
-// should die as soon as we converted all integration tests?
-// assertHttpNotError expect the given response to not have an error.
-// Otherwise the it causes the test to fail.
-func assertHttpNotError(r *httptest.ResponseRecorder, t *testing.T) {
-	// Non-error http status are [200, 400)
-	if r.Code < http.StatusOK || r.Code >= http.StatusBadRequest {
-		t.Fatal(fmt.Errorf("Unexpected http error: %v", r.Code))
-	}
-}
-
-func createEnvFromGetImagesJSONStruct(data getImagesJSONStruct) types.Image {
-	return types.Image{
-		RepoTags:    data.RepoTags,
-		ID:          data.Id,
-		Created:     int(data.Created),
-		Size:        int(data.Size),
-		VirtualSize: int(data.VirtualSize),
-	}
-}
-
-type getImagesJSONStruct struct {
-	RepoTags    []string
-	Id          string
-	Created     int64
-	Size        int64
-	VirtualSize int64
-}
-
-var sampleImage getImagesJSONStruct = getImagesJSONStruct{
-	RepoTags:    []string{"test-name:test-tag"},
-	Id:          "ID",
-	Created:     999,
-	Size:        777,
-	VirtualSize: 666,
 }
