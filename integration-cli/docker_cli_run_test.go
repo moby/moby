@@ -576,7 +576,7 @@ func TestVolumesFromGetsProperMode(t *testing.T) {
 	if _, err := runCommand(cmd); err != nil {
 		t.Fatal(err)
 	}
-	// Expect this "rw" mode to be be ignored since the inheritted volume is "ro"
+	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
 	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
 	if _, err := runCommand(cmd); err == nil {
 		t.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
