@@ -2,7 +2,6 @@ package volumes
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -81,17 +80,19 @@ func (v *Volume) ToDisk() error {
 }
 
 func (v *Volume) toDisk() error {
-	data, err := json.Marshal(v)
+	jsonPath, err := v.jsonPath()
 	if err != nil {
 		return err
 	}
-
-	pth, err := v.jsonPath()
+	f, err := os.OpenFile(jsonPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-
-	return ioutil.WriteFile(pth, data, 0666)
+	if err := json.NewEncoder(f).Encode(v); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func (v *Volume) FromDisk() error {
