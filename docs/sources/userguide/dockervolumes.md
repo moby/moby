@@ -25,8 +25,8 @@ System*](/terms/layer/#union-file-system). Data volumes provide several
 useful features for persistent or shared data:
 
 - Volumes are initialized when a container is created. If the container's
-  base image contains data at the specified mount point, that data is 
-  copied into the new volume.
+  base image contains data at the specified mount point, that existing data is 
+  copied into the new volume upon volume initialization.
 - Data volumes can be shared and reused among containers.
 - Changes to a data volume are made directly.
 - Changes to a data volume will not be included when you update an image.
