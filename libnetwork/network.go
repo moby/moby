@@ -43,6 +43,8 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/sandbox"
+	"github.com/docker/libnetwork/types"
 )
 
 // NetworkController provides the interface for controller instance which manages
@@ -91,7 +93,7 @@ type Endpoint interface {
 	Network() string
 
 	// SandboxInfo returns the sandbox information for this endpoint.
-	SandboxInfo() *driverapi.SandboxInfo
+	SandboxInfo() *sandbox.Info
 
 	// Delete and detaches this endpoint from the network.
 	Delete() error
@@ -105,23 +107,23 @@ type NetworkDriver struct {
 
 type endpoint struct {
 	name        string
-	id          driverapi.UUID
+	id          types.UUID
 	network     *network
-	sandboxInfo *driverapi.SandboxInfo
+	sandboxInfo *sandbox.Info
 }
 
 type network struct {
 	ctrlr       *controller
 	name        string
 	networkType string
-	id          driverapi.UUID
+	id          types.UUID
 	driver      *NetworkDriver
 	endpoints   endpointTable
 	sync.Mutex
 }
 
-type networkTable map[driverapi.UUID]*network
-type endpointTable map[driverapi.UUID]*endpoint
+type networkTable map[types.UUID]*network
+type endpointTable map[types.UUID]*endpoint
 
 type controller struct {
 	networks networkTable
@@ -165,7 +167,7 @@ func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interfac
 
 	network := &network{
 		name:   name,
-		id:     driverapi.UUID(stringid.GenerateRandomID()),
+		id:     types.UUID(stringid.GenerateRandomID()),
 		ctrlr:  c,
 		driver: nd}
 	network.endpoints = make(endpointTable)
@@ -237,7 +239,7 @@ func (n *network) Delete() error {
 
 func (n *network) CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error) {
 	ep := &endpoint{name: name}
-	ep.id = driverapi.UUID(stringid.GenerateRandomID())
+	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 
 	d := n.driver.internalDriver
@@ -280,7 +282,7 @@ func (ep *endpoint) Network() string {
 	return ep.network.name
 }
 
-func (ep *endpoint) SandboxInfo() *driverapi.SandboxInfo {
+func (ep *endpoint) SandboxInfo() *sandbox.Info {
 	if ep.sandboxInfo == nil {
 		return nil
 	}
