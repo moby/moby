@@ -122,7 +122,7 @@ func getDynamicPortRange() (start int, end int, err error) {
 }
 
 // RequestPort requests new port from global ports pool for specified ip and proto.
-// If port is 0 it returns first free port. Otherwise it cheks port availability
+// If port is 0 it returns first free port. Otherwise it checks port availability
 // in pool and return that port or error if port is already busy.
 func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, error) {
 	p.mutex.Lock()

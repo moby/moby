@@ -25,7 +25,7 @@ var (
 	ErrUnknownBackendAddressType = errors.New("unknown container address type not supported")
 	// ErrPortMappedForIP refers to a port already mapped to an ip address
 	ErrPortMappedForIP = errors.New("port is already mapped to ip")
-	// ErrPortNotMapped refers to an unampped port
+	// ErrPortNotMapped refers to an unmapped port
 	ErrPortNotMapped = errors.New("port is not mapped")
 )
 
@@ -45,7 +45,7 @@ func New() *PortMapper {
 	return NewWithPortAllocator(portallocator.New())
 }
 
-// NewWithPortAllocator returns a new instance of PortMapper wich will use the specified PortAllocator
+// NewWithPortAllocator returns a new instance of PortMapper which will use the specified PortAllocator
 func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
 	return &PortMapper{
 		currentMappings: make(map[string]*mapping),

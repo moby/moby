@@ -70,7 +70,7 @@ func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
 		nameservers = append(nameservers, getNameserversAsCIDR(resolvConf)...)
 	}
 
-	// Try to automatically elect appropriate brige IPv4 settings.
+	// Try to automatically elect appropriate bridge IPv4 settings.
 	for _, n := range bridgeNetworks {
 		if err := netutils.CheckNameserverOverlaps(nameservers, n); err == nil {
 			if err := netutils.CheckRouteOverlaps(n); err == nil {
