@@ -35,12 +35,12 @@ func setGatewayIP(gw net.IP) error {
 }
 
 func setInterfaceIP(iface netlink.Link, settings *driverapi.Interface) error {
-	ipAddr := &netlink.Addr{IPNet: &settings.Address, Label: ""}
+	ipAddr := &netlink.Addr{IPNet: settings.Address, Label: ""}
 	return netlink.AddrAdd(iface, ipAddr)
 }
 
 func setInterfaceIPv6(iface netlink.Link, settings *driverapi.Interface) error {
-	ipAddr := &netlink.Addr{IPNet: &settings.Address, Label: ""}
+	ipAddr := &netlink.Addr{IPNet: settings.Address, Label: ""}
 	return netlink.AddrAdd(iface, ipAddr)
 }
 

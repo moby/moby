@@ -213,7 +213,8 @@ func (d *driver) DeleteNetwork(nid driverapi.UUID) error {
 
 func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOption interface{}) (*driverapi.SandboxInfo, error) {
 	var (
-		ipv6Addr net.IPNet
+		ipv6Addr *net.IPNet
+		ip6      net.IP
 		err      error
 	)
 
@@ -292,14 +293,14 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOptio
 	if err != nil {
 		return nil, err
 	}
-	ipv4Addr := net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
+	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
 	if config.EnableIPv6 {
 		ip6, err := ipAllocator.RequestIP(n.bridge.bridgeIPv6, nil)
 		if err != nil {
 			return nil, err
 		}
-		ipv6Addr = net.IPNet{IP: ip6, Mask: n.bridge.bridgeIPv6.Mask}
+		ipv6Addr = &net.IPNet{IP: ip6, Mask: n.bridge.bridgeIPv6.Mask}
 	}
 
 	var interfaces []*driverapi.Interface
@@ -316,7 +317,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOptio
 	}
 
 	n.endpoint.addressIPv4 = ip4
-	n.endpoint.addressIPv6 = ipv6Addr.IP
+	n.endpoint.addressIPv6 = ip6
 	interfaces = append(interfaces, intf)
 	sinfo.Interfaces = interfaces
 	return sinfo, nil

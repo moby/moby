@@ -3,6 +3,7 @@
 package netutils
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -144,4 +145,32 @@ func GenerateRandomName(prefix string, size int) (string, error) {
 		return "", err
 	}
 	return prefix + hex.EncodeToString(id)[:size], nil
+}
+
+// GetIPCopy returns a copy of the passed IP address
+func GetIPCopy(from net.IP) net.IP {
+	to := make(net.IP, len(from))
+	copy(to, from)
+	return to
+}
+
+// GetIPNetCopy returns a copy of the passed IP Network
+func GetIPNetCopy(from *net.IPNet) *net.IPNet {
+	if from == nil {
+		return nil
+	}
+	bm := make(net.IPMask, len(from.Mask))
+	copy(bm, from.Mask)
+	return &net.IPNet{IP: GetIPCopy(from.IP), Mask: bm}
+}
+
+// CompareIPNet returns equal if the two IP Networks are equal
+func CompareIPNet(a, b *net.IPNet) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }

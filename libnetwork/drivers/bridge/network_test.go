@@ -118,7 +118,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	}
 
 	interfaces := sinfo.Interfaces
-	if len(interfaces[0].AddressIPv6.IP) != 0 {
+	if interfaces[0].AddressIPv6 != nil {
 		t.Fatalf("Expectd IPv6 address to be nil when IPv6 is not enabled. Got IPv6 = %s", interfaces[0].AddressIPv6.String())
 	}
 

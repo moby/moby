@@ -48,8 +48,9 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
+	// NOTE: This method will go away when moving to plugin infrastructure
 	NewNetworkDriver(networkType string, options interface{}) (*NetworkDriver, error)
-	// Create a new network. The options parameter carry driver specific options.
+	// Create a new network. The options parameter carries network specific options.
 	// Labels support will be added in the near future.
 	NewNetwork(d *NetworkDriver, name string, options interface{}) (Network, error)
 }
@@ -69,7 +70,7 @@ type Network interface {
 	// Create a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carry driver specific options.
 	// Labels support will be added in the near future.
-	CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, *driverapi.SandboxInfo, error)
+	CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error)
 
 	// Delete the network.
 	Delete() error
@@ -77,10 +78,19 @@ type Network interface {
 
 // Endpoint represents a logical connection between a network and a sandbox.
 type Endpoint interface {
-	// A system generated id for this network.
+	// A system generated id for this endpoint.
 	ID() string
 
-	// Delete endpoint.
+	// Name returns the name of this endpoint.
+	Name() string
+
+	// Network returns the name of the network to which this endpoint is attached.
+	Network() string
+
+	// SandboxInfo returns the sandbox information for this endpoint.
+	SandboxInfo() *driverapi.SandboxInfo
+
+	// Delete and detaches this endpoint from the network.
 	Delete() error
 }
 
@@ -222,7 +232,7 @@ func (n *network) Delete() error {
 	return err
 }
 
-func (n *network) CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, *driverapi.SandboxInfo, error) {
+func (n *network) CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error) {
 	ep := &endpoint{name: name}
 	ep.id = driverapi.UUID(stringid.GenerateRandomID())
 	ep.network = n
@@ -230,18 +240,33 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 	d := n.driver.internalDriver
 	sinfo, err := d.CreateEndpoint(n.id, ep.id, sboxKey, options)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ep.sandboxInfo = sinfo
 	n.Lock()
 	n.endpoints[ep.id] = ep
 	n.Unlock()
-	return ep, sinfo, nil
+	return ep, nil
 }
 
 func (ep *endpoint) ID() string {
 	return string(ep.id)
+}
+
+func (ep *endpoint) Name() string {
+	return ep.name
+}
+
+func (ep *endpoint) Network() string {
+	return ep.network.name
+}
+
+func (ep *endpoint) SandboxInfo() *driverapi.SandboxInfo {
+	if ep.sandboxInfo == nil {
+		return nil
+	}
+	return ep.sandboxInfo.GetCopy()
 }
 
 func (ep *endpoint) Delete() error {
