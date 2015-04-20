@@ -81,23 +81,6 @@ ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 RUN cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 
-# Compile Go for cross compilation
-ENV DOCKER_CROSSPLATFORMS \
-	linux/386 linux/arm \
-	darwin/amd64 darwin/386 \
-	freebsd/amd64 freebsd/386 freebsd/arm \
-	windows/amd64 windows/386
-
-# (set an explicit GOARM of 5 for maximum compatibility)
-ENV GOARM 5
-RUN cd /usr/local/go/src \
-	&& set -x \
-	&& for platform in $DOCKER_CROSSPLATFORMS; do \
-		GOOS=${platform%/*} \
-		GOARCH=${platform##*/} \
-			./make.bash --no-clean 2>&1; \
-	done
-
 # We still support compiling with older Go, so need to grab older "gofmt"
 ENV GOFMT_VERSION 1.3.3
 RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
