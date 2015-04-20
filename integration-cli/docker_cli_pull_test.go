@@ -61,28 +61,36 @@ func TestPullVerified(t *testing.T) {
 	// unless keychain is manually updated to contain the daemon's sign key.
 
 	verifiedName := "hello-world"
+	expected := "The image you are pulling has been verified"
+	untargeted := "v1"
+
 	defer deleteImages(verifiedName)
 
 	// pull it
-	expected := "The image you are pulling has been verified"
 	pullCmd := exec.Command(dockerBinary, "pull", verifiedName)
-	if out, exitCode, err := runCommandWithOutput(pullCmd); err != nil || !strings.Contains(out, expected) {
-		if err != nil || exitCode != 0 {
-			t.Skipf("pulling the '%s' image from the registry has failed: %s", verifiedName, err)
-		}
-		t.Fatalf("pulling a verified image failed. expected: %s\ngot: %s, %v", expected, out, err)
+	out, exitCode, err := runCommandWithOutput(pullCmd)
+	if err != nil || exitCode != 0 {
+		t.Skipf("pulling the '%s' image from the registry has failed: %s", verifiedName, err)
 	}
 
-	// pull it again
-	pullCmd = exec.Command(dockerBinary, "pull", verifiedName)
-	if out, exitCode, err := runCommandWithOutput(pullCmd); err != nil || strings.Contains(out, expected) {
-		if err != nil || exitCode != 0 {
-			t.Skipf("pulling the '%s' image from the registry has failed: %s", verifiedName, err)
+	if strings.Contains(out, untargeted) {
+		logDone("pulling from v1 registry, no need verified")
+	} else {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("pulling a verified image failed. expected: %s\ngot: %s, %v", expected, out, err)
 		}
-		t.Fatalf("pulling a verified image failed. unexpected verify message\ngot: %s, %v", out, err)
+
+		// pull it again
+		pullCmd = exec.Command(dockerBinary, "pull", verifiedName)
+		if out, exitCode, err = runCommandWithOutput(pullCmd); err != nil || strings.Contains(out, expected) {
+			if err != nil || exitCode != 0 {
+				t.Skipf("pulling the '%s' image from the registry has failed: %s", verifiedName, err)
+			}
+			t.Fatalf("pulling a verified image failed. unexpected verify message\ngot: %s, %v", out, err)
+		}
+		logDone("pull - pull verified")
 	}
 
-	logDone("pull - pull verified")
 }
 
 // pulling an image from the central registry should work
