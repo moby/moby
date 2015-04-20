@@ -998,10 +998,6 @@ func postContainersStart(eng *engine.Engine, version version.Version, w http.Res
 	}
 
 	if err := getDaemon(eng).ContainerStart(vars["name"], hostConfig); err != nil {
-		if err.Error() == "Container already started" {
-			w.WriteHeader(http.StatusNotModified)
-			return nil
-		}
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
