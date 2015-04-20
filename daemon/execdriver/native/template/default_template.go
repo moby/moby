@@ -84,7 +84,11 @@ func New() *configs.Config {
 			"/proc/kcore",
 		},
 		ReadonlyPaths: []string{
-			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
+			"/proc/asound",
+			"/proc/bus",
+			"/proc/irq",
+			"/proc/sys",
+			"/proc/sysrq-trigger",
 		},
 	}
 

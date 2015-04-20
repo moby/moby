@@ -3056,3 +3056,24 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 		c.Fatal("Kill container timed out")
 	}
 }
+
+func TestRunWithTooSmallMemoryLimit(t *testing.T) {
+	defer deleteAllContainers()
+	// this memory limit is 1 byte less than the min, which is 4MB
+	// https://github.com/docker/docker/blob/v1.5.0/daemon/create.go#L22
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-m", "4194303", "busybox"))
+	if err == nil || !strings.Contains(out, "Minimum memory limit allowed is 4MB") {
+		t.Fatalf("expected run to fail when using too low a memory limit: %q", out)
+	}
+
+	logDone("run - can't set too low memory limit")
+}
+
+func TestRunWriteToProcAsound(t *testing.T) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "echo 111 >> /proc/asound/version"))
+	if err == nil || code == 0 {
+		t.Fatal("standard container should not be able to write to /proc/asound")
+	}
+	logDone("run - ro write to /proc/asound")
+}
