@@ -1522,7 +1522,6 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, corsHeaders stri
 			"/images/{name:.*}/get":           getImagesGet,
 			"/images/{name:.*}/history":       getImagesHistory,
 			"/images/{name:.*}/json":          getImagesByName,
-			"/containers/ps":                  getContainersJSON,
 			"/containers/json":                getContainersJSON,
 			"/containers/{name:.*}/export":    getContainersExport,
 			"/containers/{name:.*}/changes":   getContainersChanges,
