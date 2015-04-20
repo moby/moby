@@ -72,6 +72,14 @@ func TestSimplebridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	epList := network.Endpoints()
+	if len(epList) != 1 {
+		t.Fatal(err)
+	}
+	if ep != epList[0] {
+		t.Fatal(err)
+	}
+
 	if err := ep.Delete(); err != nil {
 		t.Fatal(err)
 	}

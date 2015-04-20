@@ -31,7 +31,7 @@ create network namespaces and allocate interfaces for containers to use.
     // For each new container: allocate IP and interfaces. The returned network
     // settings will be used for container infos (inspect and such), as well as
     // iptables rules for port publishing.
-    _, sinfo, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
+    ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
     if err != nil {
 	    return
     }
@@ -71,6 +71,9 @@ type Network interface {
 	// specified unique name. The options parameter carry driver specific options.
 	// Labels support will be added in the near future.
 	CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error)
+
+	// Endpoints returns the list of Endpoint in this network.
+	Endpoints() []Endpoint
 
 	// Delete the network.
 	Delete() error
@@ -248,6 +251,21 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 	n.endpoints[ep.id] = ep
 	n.Unlock()
 	return ep, nil
+}
+
+func (n *network) Endpoints() []Endpoint {
+	n.Lock()
+	defer n.Unlock()
+
+	list := make([]Endpoint, len(n.endpoints))
+
+	idx := 0
+	for _, e := range n.endpoints {
+		list[idx] = e
+		idx++
+	}
+
+	return list
 }
 
 func (ep *endpoint) ID() string {
