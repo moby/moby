@@ -52,9 +52,16 @@ import (
 type NetworkController interface {
 	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
 	ConfigureNetworkDriver(networkType string, options interface{}) error
+
 	// Create a new network. The options parameter carries network specific options.
 	// Labels support will be added in the near future.
 	NewNetwork(networkType, name string, options interface{}) (Network, error)
+
+	// Networks returns the list of Network(s) managed by this controller.
+	Networks() []Network
+
+	// WalkNetworks uses the provided function to walk the Network(s) managed by this controller.
+	WalkNetworks(walker NetworkWalker)
 }
 
 // A Network represents a logical connectivity zone that containers may
@@ -74,12 +81,19 @@ type Network interface {
 	// Labels support will be added in the near future.
 	CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error)
 
-	// Endpoints returns the list of Endpoint in this network.
+	// Endpoints returns the list of Endpoint(s) in this network.
 	Endpoints() []Endpoint
+
+	// WalkEndpoints uses the provided function to walk the Endpoints
+	WalkEndpoints(walker EndpointWalker)
 
 	// Delete the network.
 	Delete() error
 }
+
+// NetworkWalker is a client provided function which will be used to walk the Networks.
+// When the function returns true, the walk will stop.
+type NetworkWalker func(nw Network) bool
 
 // Endpoint represents a logical connection between a network and a sandbox.
 type Endpoint interface {
@@ -99,12 +113,9 @@ type Endpoint interface {
 	Delete() error
 }
 
-type endpoint struct {
-	name        string
-	id          types.UUID
-	network     *network
-	sandboxInfo *sandbox.Info
-}
+// EndpointWalker is a client provided function which will be used to walk the Endpoints.
+// When the function returns true, the walk will stop.
+type EndpointWalker func(ep Endpoint) bool
 
 type network struct {
 	ctrlr       *controller
@@ -114,6 +125,13 @@ type network struct {
 	driver      driverapi.Driver
 	endpoints   endpointTable
 	sync.Mutex
+}
+
+type endpoint struct {
+	name        string
+	id          types.UUID
+	network     *network
+	sandboxInfo *sandbox.Info
 }
 
 type networkTable map[types.UUID]*network
@@ -177,6 +195,26 @@ func (c *controller) NewNetwork(networkType, name string, options interface{}) (
 	c.Unlock()
 
 	return network, nil
+}
+
+func (c *controller) Networks() []Network {
+	c.Lock()
+	defer c.Unlock()
+
+	list := make([]Network, 0, len(c.networks))
+	for _, n := range c.networks {
+		list = append(list, n)
+	}
+
+	return list
+}
+
+func (c *controller) WalkNetworks(walker NetworkWalker) {
+	for _, n := range c.Networks() {
+		if walker(n) {
+			return
+		}
+	}
 }
 
 func (n *network) Name() string {
@@ -248,16 +286,20 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 func (n *network) Endpoints() []Endpoint {
 	n.Lock()
 	defer n.Unlock()
-
-	list := make([]Endpoint, len(n.endpoints))
-
-	idx := 0
+	list := make([]Endpoint, 0, len(n.endpoints))
 	for _, e := range n.endpoints {
-		list[idx] = e
-		idx++
+		list = append(list, e)
 	}
 
 	return list
+}
+
+func (n *network) WalkEndpoints(walker EndpointWalker) {
+	for _, e := range n.Endpoints() {
+		if walker(e) {
+			return
+		}
+	}
 }
 
 func (ep *endpoint) ID() string {
