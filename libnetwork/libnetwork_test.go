@@ -7,6 +7,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork"
 	_ "github.com/docker/libnetwork/drivers/bridge"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
 )
 
@@ -29,6 +30,7 @@ func createTestNetwork(networkType, networkName string, option options.Generic) 
 }
 
 func TestSimplebridge(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +82,7 @@ func TestSimplebridge(t *testing.T) {
 }
 
 func TestUnknownDriver(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{})
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -119,6 +122,7 @@ func TestNoInitDriver(t *testing.T) {
 }
 
 func TestDuplicateNetwork(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	controller := libnetwork.New()
 
 	option := options.Generic{}
@@ -182,6 +186,7 @@ func TestNetworkID(t *testing.T) {
 }
 
 func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	option := options.Generic{
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
@@ -216,6 +221,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 }
 
 func TestUnknownNetwork(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	option := options.Generic{
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
@@ -241,6 +247,7 @@ func TestUnknownNetwork(t *testing.T) {
 }
 
 func TestUnknownEndpoint(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
 	if err != nil {
 		t.Fatal(err)
