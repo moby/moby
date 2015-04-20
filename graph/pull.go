@@ -29,6 +29,25 @@ type ImagePullConfig struct {
 	OutStream   io.Writer
 }
 
+func validateRepoNotScratch(remoteName string) error {
+	var (
+		namespace string
+		name      string
+	)
+	nameParts := strings.SplitN(remoteName, "/", 2)
+	if len(nameParts) < 2 {
+		namespace = "library"
+		name = nameParts[0]
+	} else {
+		namespace = nameParts[0]
+		name = nameParts[1]
+	}
+	if namespace == "library" && name == "scratch" {
+		return fmt.Errorf("'scratch' is a reserved name, cannot be downloaded.")
+	}
+	return nil
+}
+
 func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig, eng *engine.Engine) error {
 	var (
 		sf = streamformatter.NewStreamFormatter(imagePullConfig.Json)
@@ -37,6 +56,10 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := s.registryService.ResolveRepository(image)
 	if err != nil {
+		return err
+	}
+
+	if err := validateRepoNotScratch(repoInfo.RemoteName); err != nil {
 		return err
 	}
 
