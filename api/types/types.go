@@ -122,3 +122,36 @@ type Version struct {
 	Arch          string
 	KernelVersion string `json:",omitempty"`
 }
+
+// GET "/info"
+type Info struct {
+	ID                 string
+	Containers         int
+	Images             int
+	Driver             string
+	DriverStatus       [][2]string
+	MemoryLimit        bool
+	SwapLimit          bool
+	IPv4Forwarding     bool
+	Debug              bool
+	NFd                int
+	NGoroutines        int
+	SystemTime         string
+	ExecutionDriver    string
+	LoggingDriver      string
+	NEventsListener    int
+	KernelVersion      string
+	OperatingSystem    string
+	IndexServerAddress string
+	RegistryConfig     interface{}
+	InitSha1           string
+	InitPath           string
+	NCPU               int
+	MemTotal           int64
+	DockerRootDir      string
+	HttpProxy          string
+	HttpsProxy         string
+	NoProxy            string
+	Name               string
+	Labels             []string
+}

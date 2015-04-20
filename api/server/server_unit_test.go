@@ -34,33 +34,6 @@ func TesthttpError(t *testing.T) {
 	}
 }
 
-func TestGetInfo(t *testing.T) {
-	eng := engine.New()
-	var called bool
-	eng.Register("info", func(job *engine.Job) error {
-		called = true
-		v := &engine.Env{}
-		v.SetInt("Containers", 1)
-		v.SetInt("Images", 42000)
-		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequest("GET", "/info", nil, eng, t)
-	if !called {
-		t.Fatalf("handler was not called")
-	}
-	v := readEnv(r.Body, t)
-	if v.GetInt("Images") != 42000 {
-		t.Fatalf("%#v\n", v)
-	}
-	if v.GetInt("Containers") != 1 {
-		t.Fatalf("%#v\n", v)
-	}
-	assertContentType(r, "application/json", t)
-}
-
 func TestGetContainersByName(t *testing.T) {
 	eng := engine.New()
 	name := "container_name"

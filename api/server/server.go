@@ -367,8 +367,13 @@ func getImagesViz(eng *engine.Engine, version version.Version, w http.ResponseWr
 
 func getInfo(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.Header().Set("Content-Type", "application/json")
-	eng.ServeHTTP(w, r)
-	return nil
+
+	info, err := getDaemon(eng).SystemInfo()
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, info)
 }
 
 func getEvents(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
