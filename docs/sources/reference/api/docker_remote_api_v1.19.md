@@ -261,7 +261,7 @@ Json Parameters:
         systems, such as SELinux.
     -   **LogConfig** - Log configuration for the container, specified as
           `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-          Available types: `json-file`, `syslog`, `none`.
+          Available types: `json-file`, `syslog`, `journald`, `none`.
           `json-file` logging driver.
     -   **CgroupParent** - Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
@@ -762,7 +762,7 @@ Json Parameters:
     systems, such as SELinux.
 -   **LogConfig** - Log configuration for the container, specified as
       `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-      Available types: `json-file`, `syslog`, `none`.
+      Available types: `json-file`, `syslog`, `journald`, `none`.
       `json-file` logging driver.
 -   **CgroupParent** - Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 

@@ -21,6 +21,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/journald"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/logger/syslog"
 	"github.com/docker/docker/daemon/network"
@@ -1416,6 +1417,12 @@ func (container *Container) startLogging() error {
 		l = dl
 	case "syslog":
 		dl, err := syslog.New(container.ID[:12])
+		if err != nil {
+			return err
+		}
+		l = dl
+	case "journald":
+		dl, err := journald.New(container.ID[:12])
 		if err != nil {
 			return err
 		}
