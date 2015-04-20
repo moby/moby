@@ -108,7 +108,6 @@ type Daemon struct {
 	containerGraph   *graphdb.Database
 	driver           graphdriver.Driver
 	execDriver       execdriver.Driver
-	trustStore       *trust.TrustStore
 	statsCollector   *statsCollector
 	defaultLogConfig runconfig.LogConfig
 	RegistryService  *registry.Service
@@ -127,9 +126,6 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		}
 	}
 	if err := daemon.Repositories().Install(eng); err != nil {
-		return err
-	}
-	if err := daemon.trustStore.Install(eng); err != nil {
 		return err
 	}
 	// FIXME: this hack is necessary for legacy integration tests to access
@@ -903,20 +899,27 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 		return nil, err
 	}
 
-	eventsService := events.New()
-	logrus.Debug("Creating repository list")
-	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), g, trustKey, registryService, eventsService)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
-	}
-
 	trustDir := path.Join(config.Root, "trust")
 	if err := os.MkdirAll(trustDir, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	t, err := trust.NewTrustStore(trustDir)
+	trustService, err := trust.NewTrustStore(trustDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create trust store: %s", err)
+	}
+
+	eventsService := events.New()
+	logrus.Debug("Creating repository list")
+	tagCfg := &graph.TagStoreConfig{
+		Graph:    g,
+		Key:      trustKey,
+		Registry: registryService,
+		Events:   eventsService,
+		Trust:    trustService,
+	}
+	repositories, err := graph.NewTagStore(path.Join(config.Root, "repositories-"+driver.String()), tagCfg)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
 
 	if !config.DisableNetwork {
@@ -980,7 +983,6 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 		sysInitPath:      sysInitPath,
 		execDriver:       ed,
 		eng:              eng,
-		trustStore:       t,
 		statsCollector:   newStatsCollector(1 * time.Second),
 		defaultLogConfig: config.LogConfig,
 		RegistryService:  registryService,

@@ -70,10 +70,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 
 	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
 		if repoInfo.Official {
-			j := eng.Job("trust_update_base")
-			if err = j.Run(); err != nil {
-				logrus.Errorf("error updating trust base graph: %s", err)
-			}
+			s.trustService.UpdateBase()
 		}
 
 		logrus.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)

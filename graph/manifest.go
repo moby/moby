@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
@@ -69,32 +69,28 @@ func (s *TagStore) loadManifest(eng *engine.Engine, manifestBytes []byte, dgst, 
 
 	var verified bool
 	for _, key := range keys {
-		job := eng.Job("trust_key_check")
-		b, err := key.MarshalJSON()
-		if err != nil {
-			return nil, false, fmt.Errorf("error marshalling public key: %s", err)
-		}
 		namespace := manifest.Name
 		if namespace[0] != '/' {
 			namespace = "/" + namespace
 		}
-		stdoutBuffer := bytes.NewBuffer(nil)
-
-		job.Args = append(job.Args, namespace)
-		job.Setenv("PublicKey", string(b))
-		// Check key has read/write permission (0x03)
-		job.SetenvInt("Permission", 0x03)
-		job.Stdout.Add(stdoutBuffer)
-		if err = job.Run(); err != nil {
-			return nil, false, fmt.Errorf("error running key check: %s", err)
+		b, err := key.MarshalJSON()
+		if err != nil {
+			return nil, false, fmt.Errorf("error marshalling public key: %s", err)
 		}
-		result := engine.Tail(stdoutBuffer, 1)
-		logrus.Debugf("Key check result: %q", result)
-		if result == "verified" {
-			verified = true
+		// Check key has read/write permission (0x03)
+		v, err := s.trustService.CheckKey(namespace, b, 0x03)
+		if err != nil {
+			vErr, ok := err.(trust.NotVerifiedError)
+			if !ok {
+				return nil, false, fmt.Errorf("error running key check: %s", err)
+			}
+			logrus.Debugf("Key check result: %v", vErr)
+		}
+		verified = v
+		if verified {
+			logrus.Debug("Key check result: verified")
 		}
 	}
-
 	return &manifest, verified, nil
 }
 
