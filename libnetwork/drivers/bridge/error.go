@@ -19,7 +19,7 @@ var (
 	// ErrIfaceName error is returned when a new name could not be generated.
 	ErrIfaceName = errors.New("Failed to find name for new interface")
 
-	// ErrNoIPAddr error is returned when bridge has no IPv4 addrss configured.
+	// ErrNoIPAddr error is returned when bridge has no IPv4 address configured.
 	ErrNoIPAddr = errors.New("Bridge has no IPv4 address configured")
 )
 
