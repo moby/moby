@@ -261,7 +261,7 @@ func (configFile *ConfigFile) Save() error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0600); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
 		return err
 	}
 

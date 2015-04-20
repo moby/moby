@@ -31,6 +31,28 @@ func TestMissingFile(t *testing.T) {
 	}
 }
 
+func TestSaveFileToDirs(t *testing.T) {
+	tmpHome, _ := ioutil.TempDir("", "config-test")
+
+	tmpHome += "/.docker"
+
+	config, err := LoadConfig(tmpHome)
+	if err != nil {
+		t.Fatalf("Failed loading on missing file: %q", err)
+	}
+
+	// Now save it and make sure it shows up in new form
+	err = config.Save()
+	if err != nil {
+		t.Fatalf("Failed to save: %q", err)
+	}
+
+	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, CONFIGFILE))
+	if !strings.Contains(string(buf), `"auths":`) {
+		t.Fatalf("Should have save in new form: %s", string(buf))
+	}
+}
+
 func TestEmptyFile(t *testing.T) {
 	tmpHome, _ := ioutil.TempDir("", "config-test")
 	fn := filepath.Join(tmpHome, CONFIGFILE)
