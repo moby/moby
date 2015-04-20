@@ -70,6 +70,7 @@ func TestApiImagesFilter(t *testing.T) {
 }
 
 func TestApiImagesSaveAndLoad(t *testing.T) {
+	testRequires(t, Network)
 	out, err := buildImage("saveandload", "FROM hello-world\nENV FOO bar", false)
 	if err != nil {
 		t.Fatal(err)
