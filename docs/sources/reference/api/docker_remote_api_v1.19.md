@@ -463,7 +463,7 @@ Status Codes:
 Get stdout and stderr logs from the container ``id``
 
 > **Note**:
-> This endpoint works only for containers with `json-file` logging driver.
+> This endpoint works only for containers with `json-file` logging driver, or in follow mode only for all other drivers
 
 **Example request**:
 
