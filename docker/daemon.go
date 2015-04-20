@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
@@ -93,40 +92,6 @@ func mainDaemon() {
 	}
 	daemonCfg.TrustKeyPath = *flTrustKey
 
-	registryService := registry.NewService(registryCfg)
-	// load the daemon in the background so we can immediately start
-	// the http api so that connections don't fail while the daemon
-	// is booting
-	daemonInitWait := make(chan error)
-	go func() {
-		d, err := daemon.NewDaemon(daemonCfg, eng, registryService)
-		if err != nil {
-			daemonInitWait <- err
-			return
-		}
-
-		logrus.WithFields(logrus.Fields{
-			"version":     dockerversion.VERSION,
-			"commit":      dockerversion.GITCOMMIT,
-			"execdriver":  d.ExecutionDriver().Name(),
-			"graphdriver": d.GraphDriver().String(),
-		}).Info("Docker daemon")
-
-		if err := d.Install(eng); err != nil {
-			daemonInitWait <- err
-			return
-		}
-
-		b := &builder.BuilderJob{eng, d}
-		b.Install()
-
-		// after the daemon is done setting up we can tell the api to start
-		// accepting connections
-		apiserver.AcceptConnections()
-
-		daemonInitWait <- nil
-	}()
-
 	serverConfig := &apiserver.ServerConfig{
 		Logging:     true,
 		EnableCors:  daemonCfg.EnableCors,
@@ -140,12 +105,14 @@ func mainDaemon() {
 		TlsKey:      *flKey,
 	}
 
+	api := apiserver.New(serverConfig, eng)
+
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
 	go func() {
-		if err := apiserver.ServeApi(flHosts, serverConfig, eng); err != nil {
+		if err := api.ServeApi(flHosts); err != nil {
 			logrus.Errorf("ServeAPI error: %v", err)
 			serveAPIWait <- err
 			return
@@ -153,30 +120,37 @@ func mainDaemon() {
 		serveAPIWait <- nil
 	}()
 
-	// Wait for the daemon startup goroutine to finish
-	// This makes sure we can actually cleanly shutdown the daemon
-	logrus.Debug("waiting for daemon to initialize")
-	errDaemon := <-daemonInitWait
-	if errDaemon != nil {
+	registryService := registry.NewService(registryCfg)
+	d, err := daemon.NewDaemon(daemonCfg, eng, registryService)
+	if err != nil {
 		eng.Shutdown()
-		outStr := fmt.Sprintf("Shutting down daemon due to errors: %v", errDaemon)
-		if strings.Contains(errDaemon.Error(), "engine is shutdown") {
-			// if the error is "engine is shutdown", we've already reported (or
-			// will report below in API server errors) the error
-			outStr = "Shutting down daemon due to reported errors"
-		}
-		// we must "fatal" exit here as the API server may be happy to
-		// continue listening forever if the error had no impact to API
-		logrus.Fatal(outStr)
-	} else {
-		logrus.Info("Daemon has completed initialization")
+		logrus.Fatalf("Error starting daemon: %v", err)
 	}
+
+	if err := d.Install(eng); err != nil {
+		eng.Shutdown()
+		logrus.Fatalf("Error starting daemon: %v", err)
+	}
+
+	logrus.Info("Daemon has completed initialization")
+
+	logrus.WithFields(logrus.Fields{
+		"version":     dockerversion.VERSION,
+		"commit":      dockerversion.GITCOMMIT,
+		"execdriver":  d.ExecutionDriver().Name(),
+		"graphdriver": d.GraphDriver().String(),
+	}).Info("Docker daemon")
+
+	b := &builder.BuilderJob{eng, d}
+	b.Install()
+
+	// after the daemon is done setting up we can tell the api to start
+	// accepting connections with specified daemon
+	api.AcceptConnections(d)
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API job to complete
 	errAPI := <-serveAPIWait
-	// If we have an error here it is unique to API (as daemonErr would have
-	// exited the daemon process above)
 	eng.Shutdown()
 	if errAPI != nil {
 		logrus.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)

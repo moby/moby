@@ -48,9 +48,7 @@ const (
 )
 
 var (
-	// FIXME: globalDaemon is deprecated by globalEngine. All tests should be converted.
 	globalDaemon           *daemon.Daemon
-	globalEngine           *engine.Engine
 	globalHttpsEngine      *engine.Engine
 	globalRogueHttpsEngine *engine.Engine
 	startFds               int
@@ -153,9 +151,10 @@ func spawnGlobalDaemon() {
 	}
 	t := std_log.New(os.Stderr, "", 0)
 	eng := NewTestEngine(t)
-	globalEngine = eng
 	globalDaemon = mkDaemonFromEngine(eng, t)
 
+	serverConfig := &apiserver.ServerConfig{Logging: true}
+	api := apiserver.New(serverConfig, eng)
 	// Spawn a Daemon
 	go func() {
 		logrus.Debugf("Spawning global daemon for integration tests")
@@ -164,8 +163,7 @@ func spawnGlobalDaemon() {
 			Host:   testDaemonAddr,
 		}
 
-		serverConfig := &apiserver.ServerConfig{Logging: true}
-		if err := apiserver.ServeApi([]string{listenURL.String()}, serverConfig, eng); err != nil {
+		if err := api.ServeApi([]string{listenURL.String()}); err != nil {
 			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
@@ -174,7 +172,7 @@ func spawnGlobalDaemon() {
 	// FIXME: use inmem transports instead of tcp
 	time.Sleep(time.Second)
 
-	apiserver.AcceptConnections()
+	api.AcceptConnections(getDaemon(eng))
 }
 
 func spawnLegitHttpsDaemon() {
@@ -204,6 +202,15 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 
 	eng := newTestEngine(t, true, root)
 
+	serverConfig := &apiserver.ServerConfig{
+		Logging:   true,
+		Tls:       true,
+		TlsVerify: true,
+		TlsCa:     cacert,
+		TlsCert:   cert,
+		TlsKey:    key,
+	}
+	api := apiserver.New(serverConfig, eng)
 	// Spawn a Daemon
 	go func() {
 		logrus.Debugf("Spawning https daemon for integration tests")
@@ -211,15 +218,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 			Scheme: testDaemonHttpsProto,
 			Host:   addr,
 		}
-		serverConfig := &apiserver.ServerConfig{
-			Logging:   true,
-			Tls:       true,
-			TlsVerify: true,
-			TlsCa:     cacert,
-			TlsCert:   cert,
-			TlsKey:    key,
-		}
-		if err := apiserver.ServeApi([]string{listenURL.String()}, serverConfig, eng); err != nil {
+		if err := api.ServeApi([]string{listenURL.String()}); err != nil {
 			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
 		}
 	}()
@@ -227,7 +226,7 @@ func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
 	// Give some time to ListenAndServer to actually start
 	time.Sleep(time.Second)
 
-	apiserver.AcceptConnections()
+	api.AcceptConnections(getDaemon(eng))
 
 	return eng
 }
