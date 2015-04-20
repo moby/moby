@@ -130,6 +130,10 @@ func parseMultipartForm(r *http.Request) error {
 }
 
 func httpError(w http.ResponseWriter, err error) {
+	if err == nil || w == nil {
+		logrus.WithFields(logrus.Fields{"error": err, "writer": w}).Error("unexpected HTTP error handling")
+		return
+	}
 	statusCode := http.StatusInternalServerError
 	// FIXME: this is brittle and should not be necessary.
 	// If we need to differentiate between different possible error types, we should
@@ -149,10 +153,8 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusForbidden
 	}
 
-	if err != nil {
-		logrus.Errorf("HTTP Error: statusCode=%d %v", statusCode, err)
-		http.Error(w, err.Error(), statusCode)
-	}
+	logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": err}).Error("HTTP Error")
+	http.Error(w, err.Error(), statusCode)
 }
 
 // writeJSONEnv writes the engine.Env values to the http response stream as a
