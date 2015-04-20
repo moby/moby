@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os/exec"
 	"strings"
 
@@ -26,10 +27,9 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 		if testVersion != "latest" {
 			endpoint = "/" + testVersion + endpoint
 		}
-		_, body, err := sockRequest("GET", endpoint, nil)
-		if err != nil {
-			c.Fatalf("sockRequest failed for %s version: %v", testVersion, err)
-		}
+		status, body, err := sockRequest("GET", endpoint, nil)
+		c.Assert(status, check.Equals, http.StatusOK)
+		c.Assert(err, check.IsNil)
 
 		var inspectJSON map[string]interface{}
 		if err = json.Unmarshal(body, &inspectJSON); err != nil {

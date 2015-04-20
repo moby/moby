@@ -18,10 +18,6 @@ func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	status, _, err := sockRequest("POST", endpoint, nil)
-	if err == nil {
-		c.Fatal("Expected exec resize Request to fail")
-	}
-	if status != http.StatusInternalServerError {
-		c.Fatalf("Status expected %d, got %d", http.StatusInternalServerError, status)
-	}
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(err, check.IsNil)
 }
