@@ -1285,9 +1285,6 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 		}
 	}
 
-	stdout := engine.NewOutput()
-	stdout.Set(utils.NewWriteFlusher(w))
-
 	if version.GreaterThanOrEqualTo("1.8") {
 		w.Header().Set("Content-Type", "application/json")
 		buildConfig.JSONFormat = true
@@ -1304,7 +1301,8 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 		buildConfig.Pull = true
 	}
 
-	buildConfig.Stdout = stdout
+	output := utils.NewWriteFlusher(w)
+	buildConfig.Stdout = output
 	buildConfig.Context = r.Body
 
 	buildConfig.RemoteURL = r.FormValue("remote")
@@ -1336,7 +1334,9 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 	}
 
 	if err := builder.Build(s.daemon, eng, buildConfig); err != nil {
-		if !stdout.Used() {
+		// Do not write the error in the http output if it's still empty.
+		// This prevents from writing a 200(OK) when there is an interal error.
+		if !output.Flushed() {
 			return err
 		}
 		sf := streamformatter.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
