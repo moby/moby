@@ -68,8 +68,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	if info.IndexServerAddress != "" {
-		cli.LoadConfigFile()
-		u := cli.configFile.Configs[info.IndexServerAddress].Username
+		u := cli.configFile.AuthConfigs[info.IndexServerAddress].Username
 		if len(u) > 0 {
 			fmt.Fprintf(cli.out, "Username: %v\n", u)
 			fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)

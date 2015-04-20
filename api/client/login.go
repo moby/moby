@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
@@ -56,8 +54,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return string(line)
 	}
 
-	cli.LoadConfigFile()
-	authconfig, ok := cli.configFile.Configs[serverAddress]
+	authconfig, ok := cli.configFile.AuthConfigs[serverAddress]
 	if !ok {
 		authconfig = registry.AuthConfig{}
 	}
@@ -113,12 +110,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.Password = password
 	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
-	cli.configFile.Configs[serverAddress] = authconfig
+	cli.configFile.AuthConfigs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.Configs[serverAddress], nil)
+	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
 	if statusCode == 401 {
-		delete(cli.configFile.Configs, serverAddress)
-		registry.SaveConfig(cli.configFile)
+		delete(cli.configFile.AuthConfigs, serverAddress)
+		if err2 := cli.configFile.Save(); err2 != nil {
+			fmt.Fprintf(cli.out, "WARNING: could not save config file: %v\n", err2)
+		}
 		return err
 	}
 	if err != nil {
@@ -127,12 +126,15 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	var response types.AuthResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
-		cli.configFile, _ = registry.LoadConfig(homedir.Get())
+		// Upon error, remove entry
+		delete(cli.configFile.AuthConfigs, serverAddress)
 		return err
 	}
 
-	registry.SaveConfig(cli.configFile)
-	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s.\n", path.Join(homedir.Get(), registry.CONFIGFILE))
+	if err := cli.configFile.Save(); err != nil {
+		return fmt.Errorf("Error saving config file: %v", err)
+	}
+	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s\n", cli.configFile.Filename())
 
 	if response.Status != "" {
 		fmt.Fprintf(cli.out, "%s\n", response.Status)

@@ -8,24 +8,27 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/requestdecorator"
 )
 
 const (
 	// Where we store the config file
-	CONFIGFILE = ".dockercfg"
+	CONFIGFILE     = "config.json"
+	OLD_CONFIGFILE = ".dockercfg"
 )
 
 var (
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
 )
 
+// Registry Auth Info
 type AuthConfig struct {
 	Username      string `json:"username,omitempty"`
 	Password      string `json:"password,omitempty"`
@@ -34,9 +37,11 @@ type AuthConfig struct {
 	ServerAddress string `json:"serveraddress,omitempty"`
 }
 
+// ~/.docker/config.json file info
 type ConfigFile struct {
-	Configs  map[string]AuthConfig `json:"configs,omitempty"`
-	rootPath string
+	AuthConfigs map[string]AuthConfig `json:"auths"`
+	HttpHeaders map[string]string     `json:"HttpHeaders,omitempty"`
+	filename    string                // Note: not serialized - for internal use only
 }
 
 type RequestAuthorization struct {
@@ -147,18 +152,58 @@ func decodeAuth(authStr string) (string, string, error) {
 
 // load up the auth config information and return values
 // FIXME: use the internal golang config parser
-func LoadConfig(rootPath string) (*ConfigFile, error) {
-	configFile := ConfigFile{Configs: make(map[string]AuthConfig), rootPath: rootPath}
-	confFile := path.Join(rootPath, CONFIGFILE)
+func LoadConfig(configDir string) (*ConfigFile, error) {
+	if configDir == "" {
+		configDir = filepath.Join(homedir.Get(), ".docker")
+	}
+
+	configFile := ConfigFile{
+		AuthConfigs: make(map[string]AuthConfig),
+		filename:    filepath.Join(configDir, CONFIGFILE),
+	}
+
+	// Try happy path first - latest config file
+	if _, err := os.Stat(configFile.filename); err == nil {
+		file, err := os.Open(configFile.filename)
+		if err != nil {
+			return &configFile, err
+		}
+		defer file.Close()
+
+		if err := json.NewDecoder(file).Decode(&configFile); err != nil {
+			return &configFile, err
+		}
+
+		for addr, ac := range configFile.AuthConfigs {
+			ac.Username, ac.Password, err = decodeAuth(ac.Auth)
+			if err != nil {
+				return &configFile, err
+			}
+			ac.Auth = ""
+			ac.ServerAddress = addr
+			configFile.AuthConfigs[addr] = ac
+		}
+
+		return &configFile, nil
+	} else if !os.IsNotExist(err) {
+		// if file is there but we can't stat it for any reason other
+		// than it doesn't exist then stop
+		return &configFile, err
+	}
+
+	// Can't find latest config file so check for the old one
+	confFile := filepath.Join(homedir.Get(), OLD_CONFIGFILE)
+
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
+
 	b, err := ioutil.ReadFile(confFile)
 	if err != nil {
 		return &configFile, err
 	}
 
-	if err := json.Unmarshal(b, &configFile.Configs); err != nil {
+	if err := json.Unmarshal(b, &configFile.AuthConfigs); err != nil {
 		arr := strings.Split(string(b), "\n")
 		if len(arr) < 2 {
 			return &configFile, fmt.Errorf("The Auth config file is empty")
@@ -179,48 +224,52 @@ func LoadConfig(rootPath string) (*ConfigFile, error) {
 		authConfig.Email = origEmail[1]
 		authConfig.ServerAddress = IndexServerAddress()
 		// *TODO: Switch to using IndexServerName() instead?
-		configFile.Configs[IndexServerAddress()] = authConfig
+		configFile.AuthConfigs[IndexServerAddress()] = authConfig
 	} else {
-		for k, authConfig := range configFile.Configs {
+		for k, authConfig := range configFile.AuthConfigs {
 			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 			if err != nil {
 				return &configFile, err
 			}
 			authConfig.Auth = ""
 			authConfig.ServerAddress = k
-			configFile.Configs[k] = authConfig
+			configFile.AuthConfigs[k] = authConfig
 		}
 	}
 	return &configFile, nil
 }
 
-// save the auth config
-func SaveConfig(configFile *ConfigFile) error {
-	confFile := path.Join(configFile.rootPath, CONFIGFILE)
-	if len(configFile.Configs) == 0 {
-		os.Remove(confFile)
-		return nil
-	}
-
-	configs := make(map[string]AuthConfig, len(configFile.Configs))
-	for k, authConfig := range configFile.Configs {
+func (configFile *ConfigFile) Save() error {
+	// Encode sensitive data into a new/temp struct
+	tmpAuthConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
+	for k, authConfig := range configFile.AuthConfigs {
 		authCopy := authConfig
 
 		authCopy.Auth = encodeAuth(&authCopy)
 		authCopy.Username = ""
 		authCopy.Password = ""
 		authCopy.ServerAddress = ""
-		configs[k] = authCopy
+		tmpAuthConfigs[k] = authCopy
 	}
 
-	b, err := json.MarshalIndent(configs, "", "\t")
+	saveAuthConfigs := configFile.AuthConfigs
+	configFile.AuthConfigs = tmpAuthConfigs
+	defer func() { configFile.AuthConfigs = saveAuthConfigs }()
+
+	data, err := json.MarshalIndent(configFile, "", "\t")
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(confFile, b, 0600)
+
+	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0600); err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(configFile.filename, data, 0600)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -431,7 +480,7 @@ func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
 	configKey := index.GetAuthConfigKey()
 	// First try the happy case
-	if c, found := config.Configs[configKey]; found || index.Official {
+	if c, found := config.AuthConfigs[configKey]; found || index.Official {
 		return c
 	}
 
@@ -450,7 +499,7 @@ func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, config := range config.Configs {
+	for registry, config := range config.AuthConfigs {
 		if configKey == convertToHostname(registry) {
 			return config
 		}
@@ -458,4 +507,8 @@ func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
 
 	// When all else fails, return an empty auth config
 	return AuthConfig{}
+}
+
+func (config *ConfigFile) Filename() string {
+	return config.filename
 }
