@@ -88,7 +88,7 @@ contributions through pseudonyms.
 As you change code in your fork, you'll want to keep it in sync with the changes
 others make in the `docker/docker` repository. To make syncing easier, you'll
 also add a _remote_ called `upstream` that points to `docker/docker`. A remote
-is just another a project version hosted on the internet or network.
+is just another project version hosted on the internet or network.
 
 To configure your username, email, and add a remote:
 
@@ -171,7 +171,7 @@ the branch to your fork on GitHub:
 
     You can use any text editor you are comfortable with.
 
-6. Close and save the file.
+6. Save and close the file.
 
 7. Check the status of your branch. 
 

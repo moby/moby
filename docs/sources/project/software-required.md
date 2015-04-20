@@ -82,7 +82,7 @@ your user to the `docker` group as follows:
 
     $ sudo usermod -aG docker ubuntu
 
-You must log out and back in for this modification to take effect.
+You must log out and log back in for this modification to take effect.
 
 
 ## Where to go next

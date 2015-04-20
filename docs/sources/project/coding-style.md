@@ -6,8 +6,8 @@ page_keywords: change, commit, squash, request, pull request, test, unit test, i
 
 This checklist summarizes the material you experienced working through [make a
 code contribution](/project/make-a-contribution) and [advanced
-contributing](/project/advanced-contributing). The checklist applies to code
-that is program code or code that is documentation code.
+contributing](/project/advanced-contributing). The checklist applies to both 
+program code and documentation code.
 
 ## Change and commit code
 
