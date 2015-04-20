@@ -299,7 +299,7 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 		sigchan := make(chan os.Signal, 1)
 		gosignal.Notify(sigchan, signal.SIGWINCH)
 		go func() {
-			for _ = range sigchan {
+			for range sigchan {
 				cli.resizeTty(id, isExec)
 			}
 		}()
