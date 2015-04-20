@@ -88,8 +88,10 @@ func New() *configs.Config {
 			"/proc/bus",
 			"/proc/fs",
 			"/proc/irq",
+			"/proc/latency_stats",
 			"/proc/sys",
 			"/proc/sysrq-trigger",
+			"/proc/timer_stats",
 		},
 	}
 
