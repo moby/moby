@@ -56,6 +56,12 @@ server when it starts up, and cannot be changed once it is running:
  *  `--bip=CIDR` — see
     [Customizing docker0](#docker0)
 
+ *  `--default-gateway=IP_ADDRESS` — see
+    [How Docker networks a container](#container-networking)
+
+ *  `--default-gateway-v6=IP_ADDRESS` — see
+    [IPv6](#ipv6)
+
  *  `--fixed-cidr` — see
     [Customizing docker0](#docker0)
 
@@ -499,7 +505,9 @@ want to configure `eth0` via Router Advertisements you should set:
 ![](/article-img/ipv6_basic_host_config.svg)
 
 Every new container will get an IPv6 address from the defined subnet. Further
-a default route will be added via the gateway `fe80::1` on `eth0`:
+a default route will be added on `eth0` in the container via the address
+specified by the daemon option `--default-gateway-v6` if present, otherwise
+via `fe80::1`:
 
     docker run -it ubuntu bash -c "ip -6 addr show dev eth0; ip -6 route show"
 
@@ -865,12 +873,13 @@ The steps with which Docker configures a container are:
     parameter or generate a random one.
 
 5.  Give the container's `eth0` a new IP address from within the
-    bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge. The MAC
-    address is generated from the IP address unless otherwise specified.
-    This prevents ARP cache invalidation problems, when a new container
-    comes up with an IP used in the past by another container with another
-    MAC.
+    bridge's range of network addresses. The default route is set to the
+    IP address passed to the Docker daemon using the `--default-gateway`
+    option if specified, otherwise to the IP address that the Docker host
+    owns on the bridge. The MAC address is generated from the IP address
+    unless otherwise specified. This prevents ARP cache invalidation
+    problems, when a new container comes up with an IP used in the past by
+    another container with another MAC.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with

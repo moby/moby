@@ -41,6 +41,12 @@ To see the man page for a command run **man docker <command>**.
 **-d**, **--daemon**=*true*|*false*
   Enable daemon mode. Default is false.
 
+**--default-gateway**=""
+  IPv4 address of the container default gateway; this address must be part of the bridge subnet (which is defined by \-b or \--bip)
+
+**--default-gateway-v6**=""
+  IPv6 address of the container default gateway
+
 **--dns**=""
   Force Docker to use specific DNS servers
 

@@ -145,6 +145,8 @@ expect an integer, and they can only be specified once.
       --bip=""                               Specify network bridge IP
       -D, --debug=false                      Enable debug mode
       -d, --daemon=false                     Enable daemon mode
+      --default-gateway=""                   Container default gateway IPv4 address
+      --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
       --dns-search=[]                        DNS search domains to use
       -e, --exec-driver="native"             Exec driver to use
