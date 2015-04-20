@@ -132,6 +132,7 @@ type Info struct {
 	DriverStatus       [][2]string
 	MemoryLimit        bool
 	SwapLimit          bool
+	CpuCfsQuota        bool
 	IPv4Forwarding     bool
 	Debug              bool
 	NFd                int

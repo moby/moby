@@ -106,6 +106,36 @@ func TestRunEchoStdoutWithCPUAndMemoryLimit(t *testing.T) {
 }
 
 // "test" should be printed
+func TestRunEchoStdoutWitCPUQuota(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		t.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	out = strings.TrimSpace(out)
+	if strings.Contains(out, "Your kernel does not support CPU cfs quota") {
+		t.Skip("Your kernel does not support CPU cfs quota, skip this test")
+	}
+	if out != "test" {
+		t.Errorf("container should've printed 'test'")
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.CpuQuota}}", "test")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+	out = strings.TrimSpace(out)
+	if out != "8000" {
+		t.Errorf("setting the CPU CFS quota failed")
+	}
+
+	logDone("run - echo with CPU quota")
+}
+
+// "test" should be printed
 func TestRunEchoNamedContainer(t *testing.T) {
 	defer deleteAllContainers()
 
