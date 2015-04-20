@@ -86,6 +86,7 @@ func New() *configs.Config {
 		ReadonlyPaths: []string{
 			"/proc/asound",
 			"/proc/bus",
+			"/proc/fs",
 			"/proc/irq",
 			"/proc/sys",
 			"/proc/sysrq-trigger",
