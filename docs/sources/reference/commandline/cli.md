@@ -839,7 +839,8 @@ If this behavior is undesired, set the 'p' option to false.
 
 The `--change` option will apply `Dockerfile` instructions to the image
 that is created.
-Supported `Dockerfile` instructions: `ADD`|`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`FROM`|`MAINTAINER`|`RUN`|`USER`|`LABEL`|`VOLUME`|`WORKDIR`|`COPY`
+Supported `Dockerfile` instructions:
+`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 #### Commit a container
 
@@ -1347,8 +1348,8 @@ the `-` parameter to take the data from `STDIN`.
 
 The `--change` option will apply `Dockerfile` instructions to the image
 that is created.
-Supported `Dockerfile` instructions: `CMD`, `ENTRYPOINT`, `ENV`, `EXPOSE`,
-`ONBUILD`, `USER`, `VOLUME`, `WORKDIR`
+Supported `Dockerfile` instructions:
+`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 #### Examples
 
