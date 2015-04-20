@@ -3,7 +3,7 @@ set -e
 
 # subshell so that we can export PATH without breaking other things
 (
-	source "${MAKEDIR}/.integration-daemon-start"
+	bundle .integration-daemon-start
 
 	dockerPy='/docker-py'
 	[ -d "$dockerPy" ] || {
@@ -14,5 +14,5 @@ set -e
 	# exporting PYTHONPATH to import "docker" from our local docker-py
 	test_env PYTHONPATH="$dockerPy" python "$dockerPy/tests/integration_test.py"
 
-	source "${MAKEDIR}/.integration-daemon-stop"
+	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"

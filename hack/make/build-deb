@@ -4,8 +4,7 @@ set -e
 # subshell so that we can export PATH and TZ without breaking other things
 (
 	export TZ=UTC # make sure our "date" variables are UTC-based
-
-	source "${MAKEDIR}/.integration-daemon-start"
+	bundle .integration-daemon-start
 
 	# TODO consider using frozen images for the dockercore/builder-deb tags
 
@@ -63,5 +62,5 @@ set -e
 		docker rmi "$tempImage"
 	done
 
-	source "${MAKEDIR}/.integration-daemon-stop"
+	bundle .test-integration-stop
 ) 2>&1 | tee -a "$DEST/test.log"
