@@ -1233,18 +1233,18 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}
 	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
-		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.\n")
+		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 		hostConfig.Memory = 0
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
-		warnings = append(warnings, "Your kernel does not support swap limit capabilities. Limitation discarded.\n")
+		warnings = append(warnings, "Your kernel does not support swap limit capabilities, memory limited without swap.")
 		hostConfig.MemorySwap = -1
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
-		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.\n")
+		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
 	}
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
-		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.\n")
+		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
 
 	return warnings, nil
