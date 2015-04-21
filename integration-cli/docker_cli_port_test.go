@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"os/exec"
 	"sort"
 	"strings"
@@ -144,4 +145,86 @@ func assertPortList(t *testing.T, out string, expected []string) bool {
 	}
 
 	return true
+}
+
+func TestPortHostBinding(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-p", "9876:80", "busybox",
+		"nc", "-l", "-p", "80")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	firstID := strings.TrimSpace(out)
+
+	runCmd = exec.Command(dockerBinary, "port", firstID, "80")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	if !assertPortList(t, out, []string{"0.0.0.0:9876"}) {
+		t.Error("Port list is not correct")
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--net=host", "busybox",
+		"nc", "localhost", "9876")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "rm", "-f", firstID)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--net=host", "busybox",
+		"nc", "localhost", "9876")
+	if out, _, err = runCommandWithOutput(runCmd); err == nil {
+		t.Error("Port is still bound after the Container is removed")
+	}
+	logDone("port - test host binding done")
+}
+
+func TestPortExposeHostBinding(t *testing.T) {
+	defer deleteAllContainers()
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-P", "--expose", "80", "busybox",
+		"nc", "-l", "-p", "80")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+	firstID := strings.TrimSpace(out)
+
+	runCmd = exec.Command(dockerBinary, "port", firstID, "80")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	_, exposedPort, err := net.SplitHostPort(out)
+
+	if err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--net=host", "busybox",
+		"nc", "localhost", strings.TrimSpace(exposedPort))
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "rm", "-f", firstID)
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		t.Fatal(out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--net=host", "busybox",
+		"nc", "localhost", strings.TrimSpace(exposedPort))
+	if out, _, err = runCommandWithOutput(runCmd); err == nil {
+		t.Error("Port is still bound after the Container is removed")
+	}
+	logDone("port - test port expose done")
 }
