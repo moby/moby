@@ -4,6 +4,7 @@ package graph
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,9 +16,15 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 )
 
+type ImageLoadConfig struct {
+	InTar     io.ReadCloser
+	OutStream io.Writer
+	Engine    *engine.Engine
+}
+
 // Loads a set of images into the repository. This is the complementary of ImageExport.
 // The input stream is an uncompressed tar ball containing images and metadata.
-func (s *TagStore) CmdLoad(job *engine.Job) error {
+func (s *TagStore) Load(imageLoadConfig *ImageLoadConfig) error {
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
 		return err
@@ -41,7 +48,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) error {
 		excludes[i] = k
 		i++
 	}
-	if err := chrootarchive.Untar(job.Stdin, repoDir, &archive.TarOptions{ExcludePatterns: excludes}); err != nil {
+	if err := chrootarchive.Untar(imageLoadConfig.InTar, repoDir, &archive.TarOptions{ExcludePatterns: excludes}); err != nil {
 		return err
 	}
 
@@ -52,7 +59,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) error {
 
 	for _, d := range dirs {
 		if d.IsDir() {
-			if err := s.recursiveLoad(job.Eng, d.Name(), tmpImageDir); err != nil {
+			if err := s.recursiveLoad(imageLoadConfig.Engine, d.Name(), tmpImageDir); err != nil {
 				return err
 			}
 		}
@@ -67,7 +74,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) error {
 
 		for imageName, tagMap := range repositories {
 			for tag, address := range tagMap {
-				if err := s.SetLoad(imageName, tag, address, true, job.Stdout); err != nil {
+				if err := s.SetLoad(imageName, tag, address, true, imageLoadConfig.OutStream); err != nil {
 					return err
 				}
 			}
