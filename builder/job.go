@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -114,7 +115,9 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		}
 		defer os.RemoveAll(root)
 
-		if output, err := exec.Command("git", "clone", "--depth", "1", "--recursive", buildConfig.RemoteURL, root).CombinedOutput(); err != nil {
+		clone := cloneArgs(buildConfig.RemoteURL, root)
+
+		if output, err := exec.Command("git", clone...).CombinedOutput(); err != nil {
 			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
 		}
 
@@ -238,4 +241,22 @@ func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (str
 	}
 
 	return img.ID, nil
+}
+
+func cloneArgs(remoteURL, root string) []string {
+	args := []string{"clone", "--recursive"}
+	shallow := true
+
+	if strings.HasPrefix(remoteURL, "http") {
+		res, err := http.Head(fmt.Sprintf("%s/info/refs?service=git-upload-pack", remoteURL))
+		if err != nil || res.Header.Get("Content-Type") != "application/x-git-upload-pack-advertisement" {
+			shallow = false
+		}
+	}
+
+	if shallow {
+		args = append(args, "--depth", "1")
+	}
+
+	return append(args, remoteURL, root)
 }
