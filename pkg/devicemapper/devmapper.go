@@ -55,6 +55,7 @@ var (
 	ErrTaskGetDeps            = errors.New("dm_task_get_deps failed")
 	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
 	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
+	ErrTaskDeferredRemove     = errors.New("dm_task_deferred_remove failed")
 	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
 	ErrNilCookie              = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
@@ -366,6 +367,25 @@ func RemoveDevice(name string) error {
 			return ErrBusy
 		}
 		return fmt.Errorf("Error running RemoveDevice %s", err)
+	}
+
+	return nil
+}
+
+func RemoveDeviceDeferred(name string) error {
+	logrus.Debugf("[devmapper] RemoveDeviceDeferred START(%s)", name)
+	defer logrus.Debugf("[devmapper] RemoveDeviceDeferred END(%s)", name)
+	task, err := TaskCreateNamed(DeviceRemove, name)
+	if task == nil {
+		return err
+	}
+
+	if err := DmTaskDeferredRemove(task.unmanaged); err != 1 {
+		return ErrTaskDeferredRemove
+	}
+
+	if err = task.Run(); err != nil {
+		return fmt.Errorf("Error running RemoveDeviceDeferred %s", err)
 	}
 
 	return nil

@@ -112,6 +112,7 @@ var (
 	DmUdevGetSyncSupport   = dmUdevGetSyncSupportFct
 	DmCookieSupported      = dmCookieSupportedFct
 	LogWithErrnoInit       = logWithErrnoInitFct
+	DmTaskDeferredRemove   = dmTaskDeferredRemoveFct
 )
 
 func free(p *C.char) {
