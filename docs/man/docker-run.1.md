@@ -47,6 +47,8 @@ docker-run - Run a command in a new container
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
 [**--sig-proxy**[=*true*]]
+[**--port-persistence**[=*static*]]
+[**--port-range**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -349,6 +351,16 @@ its root filesystem mounted as read only prohibiting any writes.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
+
+**--port-persistence**=*static*|*soft*|*hard*
+   Apply persistence policy to dynamically allocated host ports
+                               'static': Dynamic ports will always be re-allocated on restart
+                               'soft': Try to preserve the dynamic host ports on restart, re-allocate from original range if port is in use
+                               'hard': Try to preserve the dynamic host ports on restart, error if port is in use
+
+**--port-range**=[]
+   Assign the next available host port(s) from this range and bind to dynamically published ports from the container (for use with -p or -P).
+                               format: startPort-endPort
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

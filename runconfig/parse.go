@@ -72,6 +72,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
 		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
 		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+		flPortRange       = cmd.String([]string{"-port-range"}, "", "Port range to use for dynamic allocation")
+		flPortPersistence = cmd.String([]string{"-port-persistence"}, "static", "Persistence policy for dynamically allocated ports (static|soft|hard)")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -234,6 +236,25 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		}
 	}
 
+	// validate port-persitence value
+	portPersistence, err := ValidatePortPersistence(*flPortPersistence)
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
+	// capture container-level port range in each dynamic PortBinding
+	portRange := ""
+	if *flPortRange != "" {
+		start, end, err := parsers.ParsePortRange(*flPortRange)
+		if err != nil {
+			return nil, nil, cmd, fmt.Errorf("Invalid range format for --port-range: %s, error: %s", *flPortRange, err)
+		}
+		portRange = fmt.Sprintf("%d-%d", start, end)
+	}
+	if portRange != "" {
+		portBindings = nat.AddRangeToPortBindings(portBindings, portRange)
+	}
+
 	// parse device mappings
 	deviceMappings := []DeviceMapping{}
 	for _, device := range flDevices.GetAll() {
@@ -311,6 +332,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		OomKillDisable:  *flOomKillDisable,
 		Privileged:      *flPrivileged,
 		PortBindings:    portBindings,
+		PortPersistence: portPersistence,
 		Links:           flLinks.GetAll(),
 		PublishAllPorts: *flPublishAll,
 		Dns:             flDns.GetAll(),
@@ -479,4 +501,15 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+func ValidatePortPersistence(policy string) (string, error) {
+	switch policy {
+	case "static", "":
+		return "static", nil
+	case "soft", "hard":
+		return policy, nil
+	default:
+		return "", fmt.Errorf("Invalid Port Persistence Policy: %s Must be 'static', 'soft' or 'hard'.", policy)
+	}
 }

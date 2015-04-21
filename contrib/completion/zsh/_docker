@@ -407,6 +407,8 @@ __docker_subcommand () {
                 '--rm[Remove intermediate containers when it exits]' \
                 '*--security-opt=-[Security options]:security option: ' \
                 '--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]' \
+                '--port-persistence=-[Persistence Policy for ports allocated from range]:policy:(static soft hard)' \
+                '--port-range=-[Range of ports from which to dynamically allocate]:_ports' \
                 {-t,--tty}'[Allocate a pseudo-tty]' \
                 {-u,--user=-}'[Username or UID]:user:_users' \
                 '*-v[Bind mount a volume]:volume: '\

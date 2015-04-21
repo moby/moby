@@ -171,6 +171,7 @@ type HostConfig struct {
 	OomKillDisable  bool // Whether to disable OOM Killer or not
 	Privileged      bool
 	PortBindings    nat.PortMap
+	PortPersistence string // static | soft | hard
 	Links           []string
 	PublishAllPorts bool
 	Dns             []string

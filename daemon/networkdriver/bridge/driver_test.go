@@ -47,12 +47,41 @@ func TestAllocatePortDetection(t *testing.T) {
 	binding := nat.PortBinding{HostIp: "127.0.0.1", HostPort: freePort}
 
 	// Allocate same port twice, expect failure on second call
-	if _, err := AllocatePort("container_id", port, binding); err != nil {
+	if _, err := AllocatePort("container_id", port, binding, 0, 0); err != nil {
 		t.Fatal("Failed to find a free port to allocate")
 	}
-	if _, err := AllocatePort("container_id", port, binding); err == nil {
+	if _, err := AllocatePort("container_id", port, binding, 0, 0); err == nil {
 		t.Fatal("Duplicate port allocation granted by AllocatePort")
 	}
+}
+
+func TestAllocatePortInRangeOfOne(t *testing.T) {
+	startPort, err := strconv.Atoi(findFreePort(t))
+	if err != nil {
+		t.Fatal("Failed to identify free port")
+	}
+
+	if err := InitDriver(new(Config)); err != nil {
+		t.Fatal("Failed to initialize network driver")
+	}
+
+	// Allocate interface
+	if _, err := Allocate("container_id", "", "", ""); err != nil {
+		t.Fatal("Failed to allocate network interface")
+	}
+
+	port := nat.Port("80/tcp")
+	bindings := make(nat.PortMap)
+	binding := append(bindings[port], nat.PortBinding{})
+
+	// Allocate same port twice from range of 1, expect failure on second call
+	if _, err := AllocatePort("container_id", port, binding[0], startPort, startPort); err != nil {
+		t.Fatalf("Failed to find a free port to allocate. Err: %s", err)
+	}
+	if _, err := AllocatePort("container_id", port, binding[0], startPort, startPort); err == nil {
+		t.Fatal("Duplicate port allocation granted by AllocatePort")
+	}
+
 }
 
 func TestHostnameFormatChecking(t *testing.T) {
@@ -70,7 +99,7 @@ func TestHostnameFormatChecking(t *testing.T) {
 	port := nat.Port(freePort + "/tcp")
 	binding := nat.PortBinding{HostIp: "localhost", HostPort: freePort}
 
-	if _, err := AllocatePort("container_id", port, binding); err == nil {
+	if _, err := AllocatePort("container_id", port, binding, 0, 0); err == nil {
 		t.Fatal("Failed to check invalid HostIP")
 	}
 }

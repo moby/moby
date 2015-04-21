@@ -51,7 +51,7 @@ func (pm *PortMapper) SetIptablesChain(c *iptables.Chain) {
 	pm.chain = c
 }
 
-func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
+func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, start int, end int, useProxy bool) (host net.Addr, err error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -64,7 +64,7 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, usePr
 	switch container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
-		if allocatedHostPort, err = pm.Allocator.RequestPort(hostIP, proto, hostPort); err != nil {
+		if allocatedHostPort, err = pm.Allocator.RequestPort(hostIP, proto, hostPort, start, end); err != nil {
 			return nil, err
 		}
 
@@ -79,7 +79,7 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, usePr
 		}
 	case *net.UDPAddr:
 		proto = "udp"
-		if allocatedHostPort, err = pm.Allocator.RequestPort(hostIP, proto, hostPort); err != nil {
+		if allocatedHostPort, err = pm.Allocator.RequestPort(hostIP, proto, hostPort, start, end); err != nil {
 			return nil, err
 		}
 

@@ -423,7 +423,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 func RequestPort(ip net.IP, proto string, port int) (int, error) {
 	initPortMapper()
-	return portMapper.Allocator.RequestPort(ip, proto, port)
+	return portMapper.Allocator.RequestPort(ip, proto, port, 0, 0)
 }
 
 // configureBridge attempts to create and configure a network bridge interface named `bridgeIface` on the host
@@ -705,7 +705,7 @@ func Release(id string) {
 }
 
 // Allocate an external port and map it to the interface
-func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBinding, error) {
+func AllocatePort(id string, port nat.Port, binding nat.PortBinding, start int, end int) (nat.PortBinding, error) {
 	var (
 		ip            = defaultBindingIP
 		proto         = port.Proto()
@@ -747,7 +747,7 @@ func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBi
 		return nat.PortBinding{}, err
 	}
 	for i := 0; i < MaxAllocatedPortAttempts; i++ {
-		if host, err = portMapper.Map(container, ip, hostPort, !hairpinMode); err == nil {
+		if host, err = portMapper.Map(container, ip, hostPort, start, end, !hairpinMode); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly
@@ -765,11 +765,18 @@ func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBi
 
 	network.PortMappings = append(network.PortMappings, host)
 
+	var portRange string
+	if start == 0 && end == 0 {
+		portRange = fmt.Sprintf("%d-%d", portMapper.Allocator.Begin, portMapper.Allocator.End)
+	} else {
+		portRange = fmt.Sprintf("%d-%d", start, end)
+	}
+
 	switch netAddr := host.(type) {
 	case *net.TCPAddr:
-		return nat.PortBinding{HostIp: netAddr.IP.String(), HostPort: strconv.Itoa(netAddr.Port)}, nil
+		return nat.PortBinding{HostIp: netAddr.IP.String(), HostPort: strconv.Itoa(netAddr.Port), PortRange: portRange}, nil
 	case *net.UDPAddr:
-		return nat.PortBinding{HostIp: netAddr.IP.String(), HostPort: strconv.Itoa(netAddr.Port)}, nil
+		return nat.PortBinding{HostIp: netAddr.IP.String(), HostPort: strconv.Itoa(netAddr.Port), PortRange: portRange}, nil
 	default:
 		return nat.PortBinding{}, fmt.Errorf("unsupported address type %T", netAddr)
 	}

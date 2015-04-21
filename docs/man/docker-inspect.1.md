@@ -100,7 +100,8 @@ To get information on a container use its ID or instance name:
                 "80/tcp": [
                     {
                         "HostIp": "0.0.0.0",
-                        "HostPort": "80"
+                        "HostPort": "80",
+                        "PortRange": ""
                     }
                 ]
             },

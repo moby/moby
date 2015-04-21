@@ -130,6 +130,9 @@ Finally, several networking options can only be provided when calling
  *  `-P` or `--publish-all=true|false` — see
     [Binding container ports](#binding-ports)
 
+ *  `--port-range=RANGE` — see
+    [Binding container ports](#binding-ports)
+
 To supply networking options to the Docker server at startup, use the
 `DOCKER_OPTS` variable in the Docker upstart configuration file. For Ubuntu, edit the
 variable in `/etc/default/docker` or `/etc/sysconfig/docker` for CentOS.
@@ -421,7 +424,22 @@ typically ranging from 32768 to 61000.
 Mapping can be specified explicitly using `-p SPEC` or `--publish=SPEC` option.
 It allows you to particularize which port on docker server - which can be any
 port at all, not just one within the *ephemeral port range* — you want mapped
-to which port in the container.
+to which port in the container. When a container restarts, any ports initially
+allocated from the *ephemeral port range* will be mapped to a new available
+port, whereas an explicitly specified port will not be changed for the life
+of the container.
+
+You can optionally supply `--port-range=RANGE` which overrides the *ephemeral
+port range* for dynamic allocations on this container. Used in combination
+with `--port-persistence=soft|hard`, the dynamic ports can persist across
+container restarts. `soft` persistence will try to preserve the previously
+allocated port, but re-allocate from the original range if the port is in use.
+`hard` persistence will preserve the port as if the container was started with
+`-p X:Y`; if the allocated port is busy on restart, the container will fail to
+start.
+
+Note that any persistence policy will apply to ALL dynamically allocated ports
+for this container, whether from a custom range or the ephemeral range.
 
 Either way, you should be able to peek at what Docker has accomplished
 in your network stack by examining your NAT tables.

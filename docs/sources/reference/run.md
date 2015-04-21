@@ -893,7 +893,9 @@ or override the Dockerfile's exposed defaults:
     -p=[]      : Publish a container᾿s port or a range of ports to the host 
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                    Both hostPort and containerPort can be specified as a range of ports. 
+                   When containerPort is a range, hostPort must also be a range.
                    When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
+                   Specifying a range for hostPort with a single containerPort, the hostPort will be dynamically allocated an available port in the range.
                    (use 'docker port' to see the actual mapping)
     --link=""  : Add link to another container (<name or id>:alias)
 

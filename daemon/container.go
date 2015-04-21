@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
@@ -638,8 +639,9 @@ func (container *Container) AllocateNetwork() error {
 			bindings[p] = []nat.PortBinding{}
 			for _, bb := range b {
 				bindings[p] = append(bindings[p], nat.PortBinding{
-					HostIp:   bb.HostIp,
-					HostPort: bb.HostPort,
+					HostIp:    bb.HostIp,
+					HostPort:  bb.HostPort,
+					PortRange: bb.PortRange,
 				})
 			}
 		}
@@ -653,10 +655,22 @@ func (container *Container) AllocateNetwork() error {
 			return err
 		}
 	}
-	container.WriteHostConfig()
 
+	// Capture the bindings for NetworkSettings before we change them for persistense
 	networkSettings.Ports = bindings
 	container.NetworkSettings = networkSettings
+
+	// Use port persistence policy to save appropriate values in HostConfig
+	// Save the allocated port to the HostConfig to enable "soft" binding (try same port, re-allocate from range if busy)
+	// Also clear the range to enforce a "hard" bind to the port (no re-allocation)
+	switch container.hostConfig.PortPersistence {
+	case "hard":
+		bindings = nat.AddRangeToPortBindings(bindings, "")
+		fallthrough
+	case "soft":
+		container.hostConfig.PortBindings = bindings
+	}
+	container.WriteHostConfig()
 
 	return nil
 }
@@ -1480,13 +1494,22 @@ func (container *Container) waitForStart() error {
 }
 
 func (container *Container) allocatePort(port nat.Port, bindings nat.PortMap) error {
+	var err error
+	var start, end uint64 = 0, 0
+
 	binding := bindings[port]
 	if container.hostConfig.PublishAllPorts && len(binding) == 0 {
 		binding = append(binding, nat.PortBinding{})
 	}
 
 	for i := 0; i < len(binding); i++ {
-		b, err := bridge.AllocatePort(container.ID, port, binding[i])
+		if binding[i].PortRange != "" {
+			start, end, err = parsers.ParsePortRange(binding[i].PortRange)
+			if err != nil {
+				return err
+			}
+		}
+		b, err := bridge.AllocatePort(container.ID, port, binding[i], int(start), int(end))
 		if err != nil {
 			return err
 		}

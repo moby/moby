@@ -18,8 +18,9 @@ const (
 )
 
 type PortBinding struct {
-	HostIp   string
-	HostPort string
+	HostIp    string
+	HostPort  string
+	PortRange string
 }
 
 type PortMap map[Port][]PortBinding
@@ -140,17 +141,29 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		}
 
 		if hostPort != "" && (endPort-startPort) != (endHostPort-startHostPort) {
-			return nil, nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+			// Allow host port range iff containerPort is not a range.
+			// In this case, use the host port range as the dynamic
+			// host port range to allocate into.
+			if endPort != startPort {
+				return nil, nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+			}
 		}
 
 		if !validateProto(strings.ToLower(proto)) {
 			return nil, nil, fmt.Errorf("Invalid proto: %s", proto)
 		}
 
+		var hostRange string
 		for i := uint64(0); i <= (endPort - startPort); i++ {
 			containerPort = strconv.FormatUint(startPort+i, 10)
 			if len(hostPort) > 0 {
 				hostPort = strconv.FormatUint(startHostPort+i, 10)
+			}
+			// Set PortRange if there is a single container port
+			// and a dynamic host port range.
+			if startPort == endPort && startHostPort != endHostPort {
+				hostPort = ""
+				hostRange = fmt.Sprintf("%s-%s", strconv.FormatUint(startHostPort, 10), strconv.FormatUint(endHostPort, 10))
 			}
 			port := NewPort(strings.ToLower(proto), containerPort)
 			if _, exists := exposedPorts[port]; !exists {
@@ -158,8 +171,9 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			}
 
 			binding := PortBinding{
-				HostIp:   rawIp,
-				HostPort: hostPort,
+				HostIp:    rawIp,
+				HostPort:  hostPort,
+				PortRange: hostRange,
 			}
 			bslice, exists := bindings[port]
 			if !exists {
@@ -169,4 +183,19 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		}
 	}
 	return exposedPorts, bindings, nil
+}
+
+// capture the per-container port range in any dynamic bindings without explicit ranges
+// or clear ranges for explicit port persistence
+func AddRangeToPortBindings(bindings map[Port][]PortBinding, portRange string) map[Port][]PortBinding {
+	for port, binding := range bindings {
+		for b, bb := range binding {
+			if portRange == "" {
+				bindings[port][b].PortRange = ""
+			} else if bb.HostPort == "" && bb.PortRange == "" {
+				bindings[port][b].PortRange = portRange
+			}
+		}
+	}
+	return bindings
 }
