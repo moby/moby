@@ -70,9 +70,11 @@ var (
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 	ErrBusy                   = errors.New("Device is Busy")
 	ErrDeviceIdExists         = errors.New("Device Id Exists")
+	ErrEnxio                  = errors.New("No such device or address")
 
 	dmSawBusy  bool
 	dmSawExist bool
+	dmSawEnxio bool // No Such Device or Address
 )
 
 type (
@@ -388,6 +390,36 @@ func RemoveDeviceDeferred(name string) error {
 		return fmt.Errorf("Error running RemoveDeviceDeferred %s", err)
 	}
 
+	return nil
+}
+
+// Useful helper for cleanup
+func CancelDeferredRemove(deviceName string) error {
+	task, err := TaskCreateNamed(DeviceTargetMsg, deviceName)
+	if task == nil {
+		return err
+	}
+
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector %s", err)
+	}
+
+	if err := task.SetMessage(fmt.Sprintf("@cancel_deferred_remove")); err != nil {
+		return fmt.Errorf("Can't set message %s", err)
+	}
+
+	dmSawBusy = false
+	dmSawEnxio = false
+	if err := task.Run(); err != nil {
+		// A device might be being deleted already
+		if dmSawBusy {
+			return ErrBusy
+		} else if dmSawEnxio {
+			return ErrEnxio
+		}
+		return fmt.Errorf("Error running CancelDeferredRemove %s", err)
+
+	}
 	return nil
 }
 

@@ -22,6 +22,10 @@ func DevmapperLogCallback(level C.int, file *C.char, line C.int, dm_errno_or_cla
 		if strings.Contains(msg, "File exists") {
 			dmSawExist = true
 		}
+
+		if strings.Contains(msg, "No such device or address") {
+			dmSawEnxio = true
+		}
 	}
 
 	if dmLogger != nil {
