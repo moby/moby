@@ -7,7 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 const v2binary = "registry-v2"
@@ -17,7 +18,7 @@ type testRegistryV2 struct {
 	dir string
 }
 
-func newTestRegistryV2(t *testing.T) (*testRegistryV2, error) {
+func newTestRegistryV2(c *check.C) (*testRegistryV2, error) {
 	template := `version: 0.1
 loglevel: debug
 storage:
@@ -43,7 +44,7 @@ http:
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tmp)
 		if os.IsNotExist(err) {
-			t.Skip()
+			c.Skip(err.Error())
 		}
 		return nil, err
 	}
