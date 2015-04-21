@@ -60,7 +60,11 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := NewTagStore(path.Join(root, "tags"), graph, nil, nil, events.New())
+	tagCfg := &TagStoreConfig{
+		Graph:  graph,
+		Events: events.New(),
+	}
+	store, err := NewTagStore(path.Join(root, "tags"), tagCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
