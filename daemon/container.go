@@ -178,11 +178,13 @@ func (container *Container) readHostConfig() error {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(pth)
+	f, err := os.Open(pth)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, container.hostConfig)
+	defer f.Close()
+
+	return json.NewDecoder(f).Decode(&container.hostConfig)
 }
 
 func (container *Container) WriteHostConfig() error {
