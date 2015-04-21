@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-check/check"
@@ -121,4 +123,41 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 		c.Fatalf("Expected comments %q, but found %q", comment, actualValue)
 	}
 
+}
+
+func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
+	out, _, _ := runCommandWithOutput(exec.Command(dockerBinary, "history", "--human=false", "busybox"))
+	lines := strings.Split(out, "\n")
+	sizeColumnRegex, _ := regexp.Compile("SIZE +")
+	indices := sizeColumnRegex.FindStringIndex(lines[0])
+	startIndex := indices[0]
+	endIndex := indices[1]
+	for i := 1; i < len(lines)-1; i++ {
+		if endIndex > len(lines[i]) {
+			endIndex = len(lines[i])
+		}
+		sizeString := lines[i][startIndex:endIndex]
+		if _, err := strconv.Atoi(strings.TrimSpace(sizeString)); err != nil {
+			c.Fatalf("The size '%s' was not an Integer", sizeString)
+		}
+	}
+}
+
+func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
+	out, _, _ := runCommandWithOutput(exec.Command(dockerBinary, "history", "--human=true", "busybox"))
+	lines := strings.Split(out, "\n")
+	sizeColumnRegex, _ := regexp.Compile("SIZE +")
+	humanSizeRegex, _ := regexp.Compile("^\\d+.*B$") // Matches human sizes like 10 MB, 3.2 KB, etc
+	indices := sizeColumnRegex.FindStringIndex(lines[0])
+	startIndex := indices[0]
+	endIndex := indices[1]
+	for i := 1; i < len(lines)-1; i++ {
+		if endIndex > len(lines[i]) {
+			endIndex = len(lines[i])
+		}
+		sizeString := lines[i][startIndex:endIndex]
+		if matchSuccess := humanSizeRegex.MatchString(strings.TrimSpace(sizeString)); !matchSuccess {
+			c.Fatalf("The size '%s' was not in human format", sizeString)
+		}
+	}
 }
