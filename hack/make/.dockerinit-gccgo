@@ -12,6 +12,7 @@ go build --compiler=gccgo \
 		-g
 		-Wl,--no-export-dynamic
 		$EXTLDFLAGS_STATIC_DOCKER
+		-lnetgo
 	" \
 	./dockerinit
 
