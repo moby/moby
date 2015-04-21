@@ -438,6 +438,12 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 	logrus.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
 
+	// Make sure deferred removal on device is canceled, if one was
+	// scheduled.
+	if err := devices.cancelDeferredRemoval(info); err != nil {
+		return fmt.Errorf("Deivce Deferred Removal Cancellation Failed: %s", err)
+	}
+
 	if devinfo, _ := devicemapper.GetInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
 	}
@@ -1328,6 +1334,45 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 		devices.Lock()
 	}
 
+	return err
+}
+
+func (devices *DeviceSet) cancelDeferredRemoval(info *DevInfo) error {
+	if !devices.deferredRemove {
+		return nil
+	}
+
+	logrus.Debugf("[devmapper] cancelDeferredRemoval START(%s)", info.Name())
+	defer logrus.Debugf("[devmapper] cancelDeferredRemoval END(%s)", info.Name)
+
+	devinfo, err := devicemapper.GetInfoWithDeferred(info.Name())
+
+	if devinfo != nil && devinfo.DeferredRemove == 0 {
+		return nil
+	}
+
+	// Cancel deferred remove
+	for i := 0; i < 100; i++ {
+		err = devicemapper.CancelDeferredRemove(info.Name())
+		if err == nil {
+			break
+		}
+
+		if err == devicemapper.ErrEnxio {
+			// Device is probably already gone. Return success.
+			return nil
+		}
+
+		if err != devicemapper.ErrBusy {
+			return err
+		}
+
+		// If we see EBUSY it may be a transient error,
+		// sleep a bit a retry a few times.
+		devices.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		devices.Lock()
+	}
 	return err
 }
 
