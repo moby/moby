@@ -223,14 +223,6 @@ func httpError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), statusCode)
 }
 
-// writeJSONEnv writes the engine.Env values to the http response stream as a
-// json encoded body.
-func writeJSONEnv(w http.ResponseWriter, code int, v engine.Env) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	return v.Encode(w)
-}
-
 // writeJSON writes the value v to the http response stream as json with standard
 // json encoding.
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
