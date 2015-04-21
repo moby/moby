@@ -779,7 +779,10 @@ func (container *Container) Kill() error {
 			}
 		}
 	}
-
+	if container.IsRunning() {
+		log.Debugf("Containeri %s is still in running status, stop it by the strong hand", stringid.TruncateID(container.ID))
+		container.SetStopped(&execdriver.ExitStatus{ExitCode: -127})
+	}
 	container.WaitStop(-1 * time.Second)
 	return nil
 }
