@@ -26,3 +26,6 @@ _testmain.go
 # Coverage
 *.tmp
 *.coverprofile
+
+# IDE files
+.project

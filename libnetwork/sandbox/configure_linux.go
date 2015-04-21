@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/libnetwork/driverapi"
 	"github.com/vishvananda/netlink"
 )
 
-func configureInterface(iface netlink.Link, settings *driverapi.Interface) error {
+func configureInterface(iface netlink.Link, settings *Interface) error {
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
-		Fn         func(netlink.Link, *driverapi.Interface) error
+		Fn         func(netlink.Link, *Interface) error
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, settings.DstName)},
@@ -34,16 +33,16 @@ func setGatewayIP(gw net.IP) error {
 	})
 }
 
-func setInterfaceIP(iface netlink.Link, settings *driverapi.Interface) error {
+func setInterfaceIP(iface netlink.Link, settings *Interface) error {
 	ipAddr := &netlink.Addr{IPNet: settings.Address, Label: ""}
 	return netlink.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceIPv6(iface netlink.Link, settings *driverapi.Interface) error {
+func setInterfaceIPv6(iface netlink.Link, settings *Interface) error {
 	ipAddr := &netlink.Addr{IPNet: settings.Address, Label: ""}
 	return netlink.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceName(iface netlink.Link, settings *driverapi.Interface) error {
+func setInterfaceName(iface netlink.Link, settings *Interface) error {
 	return netlink.LinkSetName(iface, settings.DstName)
 }

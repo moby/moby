@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/docker/libnetwork/driverapi"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -17,7 +16,7 @@ import (
 // into it when called on method AddInterface or sets the gateway etc.
 type networkNamespace struct {
 	path  string
-	sinfo *driverapi.SandboxInfo
+	sinfo *Info
 }
 
 // NewSandbox provides a new sandbox instance created in an os specific way
@@ -74,7 +73,7 @@ func loopbackUp() error {
 	return netlink.LinkSetUp(iface)
 }
 
-func (n *networkNamespace) AddInterface(i *driverapi.Interface) error {
+func (n *networkNamespace) AddInterface(i *Interface) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -139,7 +138,7 @@ func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
 	return err
 }
 
-func (n *networkNamespace) Interfaces() []*driverapi.Interface {
+func (n *networkNamespace) Interfaces() []*Interface {
 	return n.sinfo.Interfaces
 }
 

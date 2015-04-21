@@ -10,6 +10,8 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/portmapper"
+	"github.com/docker/libnetwork/sandbox"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -40,13 +42,13 @@ type Configuration struct {
 }
 
 type bridgeEndpoint struct {
-	id          driverapi.UUID
+	id          types.UUID
 	addressIPv4 net.IP
 	addressIPv6 net.IP
 }
 
 type bridgeNetwork struct {
-	id driverapi.UUID
+	id types.UUID
 	// bridge interface points to the linux bridge and it's configuration
 	bridge   *bridgeInterface
 	endpoint *bridgeEndpoint
@@ -95,7 +97,7 @@ func (d *driver) Config(option interface{}) error {
 }
 
 // Create a new network using simplebridge plugin
-func (d *driver) CreateNetwork(id driverapi.UUID, option interface{}) error {
+func (d *driver) CreateNetwork(id types.UUID, option interface{}) error {
 
 	var (
 		err error
@@ -178,7 +180,7 @@ func (d *driver) CreateNetwork(id driverapi.UUID, option interface{}) error {
 	return nil
 }
 
-func (d *driver) DeleteNetwork(nid driverapi.UUID) error {
+func (d *driver) DeleteNetwork(nid types.UUID) error {
 	var err error
 	d.Lock()
 	n := d.network
@@ -211,7 +213,7 @@ func (d *driver) DeleteNetwork(nid driverapi.UUID) error {
 	return err
 }
 
-func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOption interface{}) (*driverapi.SandboxInfo, error) {
+func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOption interface{}) (*sandbox.Info, error) {
 	var (
 		ipv6Addr *net.IPNet
 		ip6      net.IP
@@ -303,10 +305,10 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOptio
 		ipv6Addr = &net.IPNet{IP: ip6, Mask: n.bridge.bridgeIPv6.Mask}
 	}
 
-	var interfaces []*driverapi.Interface
-	sinfo := &driverapi.SandboxInfo{}
+	var interfaces []*sandbox.Interface
+	sinfo := &sandbox.Info{}
 
-	intf := &driverapi.Interface{}
+	intf := &sandbox.Interface{}
 	intf.SrcName = name2
 	intf.DstName = containerVeth
 	intf.Address = ipv4Addr
@@ -323,7 +325,7 @@ func (d *driver) CreateEndpoint(nid, eid driverapi.UUID, sboxKey string, epOptio
 	return sinfo, nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid driverapi.UUID) error {
+func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	var err error
 
 	d.Lock()
