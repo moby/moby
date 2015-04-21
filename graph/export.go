@@ -144,12 +144,11 @@ func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
 		}
 
 		// find parent
-		job = eng.Job("image_get", n)
-		info, _ := job.Stdout.AddEnv()
-		if err := job.Run(); err != nil {
+		img, err := s.LookupImage(n)
+		if err != nil {
 			return err
 		}
-		n = info.Get("Parent")
+		n = img.Parent
 	}
 	return nil
 }

@@ -12,7 +12,6 @@ import (
 func (s *TagStore) Install(eng *engine.Engine) error {
 	for name, handler := range map[string]engine.Handler{
 		"image_set":     s.CmdSet,
-		"image_get":     s.CmdGet,
 		"image_inspect": s.CmdLookup,
 		"image_export":  s.CmdImageExport,
 		"viz":           s.CmdViz,
@@ -70,46 +69,6 @@ func (s *TagStore) CmdSet(job *engine.Job) error {
 	if err := s.graph.Register(img, layer); err != nil {
 		return err
 	}
-	return nil
-}
-
-// CmdGet returns information about an image.
-// If the image doesn't exist, an empty object is returned, to allow
-// checking for an image's existence.
-func (s *TagStore) CmdGet(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("usage: %s NAME", job.Name)
-	}
-	name := job.Args[0]
-	res := &engine.Env{}
-	img, err := s.LookupImage(name)
-	// Note: if the image doesn't exist, LookupImage returns
-	// nil, nil.
-	if err != nil {
-		return err
-	}
-	if img != nil {
-		// We don't directly expose all fields of the Image objects,
-		// to maintain a clean public API which we can maintain over
-		// time even if the underlying structure changes.
-		// We should have done this with the Image object to begin with...
-		// but we didn't, so now we're doing it here.
-		//
-		// Fields that we're probably better off not including:
-		//	- Config/ContainerConfig. Those structs have the same sprawl problem,
-		//		so we shouldn't include them wholesale either.
-		//	- Comment: initially created to fulfill the "every image is a git commit"
-		//		metaphor, in practice people either ignore it or use it as a
-		//		generic description field which it isn't. On deprecation shortlist.
-		res.SetAuto("Created", img.Created)
-		res.SetJson("Author", img.Author)
-		res.Set("Os", img.OS)
-		res.Set("Architecture", img.Architecture)
-		res.Set("DockerVersion", img.DockerVersion)
-		res.SetJson("Id", img.ID)
-		res.SetJson("Parent", img.Parent)
-	}
-	res.WriteTo(job.Stdout)
 	return nil
 }
 
