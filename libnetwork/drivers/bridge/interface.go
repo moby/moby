@@ -19,10 +19,10 @@ type bridgeInterface struct {
 	bridgeIPv6 *net.IPNet
 }
 
-// NewInterface creates a new bridge interface structure. It attempts to find
+// newInterface creates a new bridge interface structure. It attempts to find
 // an already existing device identified by the Configuration BridgeName field,
 // or the default bridge name when unspecified), but doesn't attempt to create
-// on when missing
+// one when missing
 func newInterface(config *Configuration) *bridgeInterface {
 	i := &bridgeInterface{}
 
@@ -36,12 +36,12 @@ func newInterface(config *Configuration) *bridgeInterface {
 	return i
 }
 
-// Exists indicates if the existing bridge interface exists on the system.
+// exists indicates if the existing bridge interface exists on the system.
 func (i *bridgeInterface) exists() bool {
 	return i.Link != nil
 }
 
-// Addresses returns a single IPv4 address and all IPv6 addresses for the
+// addresses returns a single IPv4 address and all IPv6 addresses for the
 // bridge interface.
 func (i *bridgeInterface) addresses() (netlink.Addr, []netlink.Addr, error) {
 	v4addr, err := netlink.AddrList(i.Link, netlink.FAMILY_V4)
