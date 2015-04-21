@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
@@ -36,6 +37,10 @@ func main() {
 
 	flag.Parse()
 	// FIXME: validate daemon flags here
+
+	if flag.HasDaemonFlag && !(*flDaemon) {
+		log.Fatalf("Daemon flags can only be passed to -d/--daemon and not to any other docker subcommands")
+	}
 
 	if *flVersion {
 		showVersion()

@@ -99,6 +99,15 @@ func (s *DockerSuite) TestDaemonStartIptablesFalse(c *check.C) {
 
 }
 
+//Issue 9677.
+func (s *DockerSuite) TestDaemonStartWithDaemonFlags(c *check.C) {
+	d := NewDaemon(c)
+	if err := d.Start("--selinux-enabled", "-p=./d.pid", "-g=./graph"); err != nil {
+		c.Fatalf("we should have been able to start the daemon with passing daemon flags: %v", err)
+	}
+	d.Stop()
+}
+
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
 // no longer has an IP associated, we should gracefully handle that case and associate
 // an IP with it rather than fail daemon start
