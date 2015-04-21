@@ -886,17 +886,28 @@ func (s *Server) getImagesGet(eng *engine.Engine, version version.Version, w htt
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	if version.GreaterThan("1.0") {
+
+	useJSON := version.GreaterThan("1.0")
+	if useJSON {
 		w.Header().Set("Content-Type", "application/x-tar")
 	}
-	var job *engine.Job
-	if name, ok := vars["name"]; ok {
-		job = eng.Job("image_export", name)
-	} else {
-		job = eng.Job("image_export", r.Form["names"]...)
+
+	imageExportConfig := &graph.ImageExportConfig{
+		Engine:    eng,
+		Outstream: utils.NewWriteFlusher(w),
 	}
-	job.Stdout.Add(w)
-	return job.Run()
+	if name, ok := vars["name"]; ok {
+		imageExportConfig.Names = []string{name}
+	} else {
+		imageExportConfig.Names = r.Form["names"]
+	}
+
+	if err := s.daemon.Repositories().ImageExport(imageExportConfig); err != nil {
+		sf := streamformatter.NewStreamFormatter(useJSON)
+		return fmt.Errorf(string(sf.FormatError(err)))
+	}
+	return nil
+
 }
 
 func (s *Server) postImagesLoad(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
