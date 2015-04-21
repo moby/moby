@@ -12,7 +12,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -29,7 +28,7 @@ type ImagePullConfig struct {
 	OutStream   io.Writer
 }
 
-func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig, eng *engine.Engine) error {
+func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
 	var (
 		sf = streamformatter.NewStreamFormatter(imagePullConfig.Json)
 	)
@@ -74,7 +73,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		}
 
 		logrus.Debugf("pulling v2 repository with local name %q", repoInfo.LocalName)
-		if err := s.pullV2Repository(eng, r, imagePullConfig.OutStream, repoInfo, tag, sf, imagePullConfig.Parallel); err == nil {
+		if err := s.pullV2Repository(r, imagePullConfig.OutStream, repoInfo, tag, sf, imagePullConfig.Parallel); err == nil {
 			s.eventsService.Log("pull", logName, "")
 			return nil
 		} else if err != registry.ErrDoesNotExist && err != ErrV2RegistryUnavailable {
@@ -369,7 +368,7 @@ type downloadInfo struct {
 	err        chan error
 }
 
-func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter, parallel bool) error {
+func (s *TagStore) pullV2Repository(r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter, parallel bool) error {
 	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
 	if err != nil {
 		if repoInfo.Index.Official {
@@ -393,14 +392,14 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 			return registry.ErrDoesNotExist
 		}
 		for _, t := range tags {
-			if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, t, sf, parallel, auth); err != nil {
+			if downloaded, err := s.pullV2Tag(r, out, endpoint, repoInfo, t, sf, parallel, auth); err != nil {
 				return err
 			} else if downloaded {
 				layersDownloaded = true
 			}
 		}
 	} else {
-		if downloaded, err := s.pullV2Tag(eng, r, out, endpoint, repoInfo, tag, sf, parallel, auth); err != nil {
+		if downloaded, err := s.pullV2Tag(r, out, endpoint, repoInfo, tag, sf, parallel, auth); err != nil {
 			return err
 		} else if downloaded {
 			layersDownloaded = true
@@ -415,7 +414,7 @@ func (s *TagStore) pullV2Repository(eng *engine.Engine, r *registry.Session, out
 	return nil
 }
 
-func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
+func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter, parallel bool, auth *registry.RequestAuthorization) (bool, error) {
 	logrus.Debugf("Pulling tag from V2 registry: %q", tag)
 
 	manifestBytes, manifestDigest, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
@@ -425,7 +424,7 @@ func (s *TagStore) pullV2Tag(eng *engine.Engine, r *registry.Session, out io.Wri
 
 	// loadManifest ensures that the manifest payload has the expected digest
 	// if the tag is a digest reference.
-	manifest, verified, err := s.loadManifest(eng, manifestBytes, manifestDigest, tag)
+	manifest, verified, err := s.loadManifest(manifestBytes, manifestDigest, tag)
 	if err != nil {
 		return false, fmt.Errorf("error verifying manifest: %s", err)
 	}

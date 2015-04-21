@@ -708,7 +708,7 @@ func (s *Server) postCommit(eng *engine.Engine, version version.Version, w http.
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(s.daemon, eng, cont, containerCommitConfig)
+	imgID, err := builder.Commit(s.daemon, cont, containerCommitConfig)
 	if err != nil {
 		return err
 	}
@@ -764,7 +764,7 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 			imagePullConfig.Json = false
 		}
 
-		if err := s.daemon.Repositories().Pull(image, tag, imagePullConfig, eng); err != nil {
+		if err := s.daemon.Repositories().Pull(image, tag, imagePullConfig); err != nil {
 			return err
 		}
 	} else { //import
@@ -785,7 +785,7 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 			imageImportConfig.Json = false
 		}
 
-		newConfig, err := builder.BuildFromConfig(s.daemon, eng, &runconfig.Config{}, imageImportConfig.Changes)
+		newConfig, err := builder.BuildFromConfig(s.daemon, &runconfig.Config{}, imageImportConfig.Changes)
 		if err != nil {
 			return err
 		}
@@ -1327,7 +1327,7 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 		}()
 	}
 
-	if err := builder.Build(s.daemon, eng, buildConfig); err != nil {
+	if err := builder.Build(s.daemon, buildConfig); err != nil {
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an interal error.
 		if !output.Flushed() {
