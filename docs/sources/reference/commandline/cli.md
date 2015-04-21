@@ -1222,6 +1222,7 @@ This will create a new Bash session in the container `ubuntu_bash`.
 
     Show the history of an image
 
+      -H, --human=true     Print sizes and dates in human readable format
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
