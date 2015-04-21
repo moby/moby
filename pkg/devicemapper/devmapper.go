@@ -87,16 +87,17 @@ type (
 		Device []uint64
 	}
 	Info struct {
-		Exists        int
-		Suspended     int
-		LiveTable     int
-		InactiveTable int
-		OpenCount     int32
-		EventNr       uint32
-		Major         uint32
-		Minor         uint32
-		ReadOnly      int
-		TargetCount   int32
+		Exists         int
+		Suspended      int
+		LiveTable      int
+		InactiveTable  int
+		OpenCount      int32
+		EventNr        uint32
+		Major          uint32
+		Minor          uint32
+		ReadOnly       int
+		TargetCount    int32
+		DeferredRemove int
 	}
 	TaskType    int
 	AddNodeType int
@@ -217,6 +218,14 @@ func (t *Task) GetDeps() (*Deps, error) {
 func (t *Task) GetInfo() (*Info, error) {
 	info := &Info{}
 	if res := DmTaskGetInfo(t.unmanaged, info); res != 1 {
+		return nil, ErrTaskGetInfo
+	}
+	return info, nil
+}
+
+func (t *Task) GetInfoWithDeferred() (*Info, error) {
+	info := &Info{}
+	if res := DmTaskGetInfoWithDeferred(t.unmanaged, info); res != 1 {
 		return nil, ErrTaskGetInfo
 	}
 	return info, nil
@@ -529,6 +538,17 @@ func GetInfo(name string) (*Info, error) {
 		return nil, err
 	}
 	return task.GetInfo()
+}
+
+func GetInfoWithDeferred(name string) (*Info, error) {
+	task, err := TaskCreateNamed(DeviceInfo, name)
+	if task == nil {
+		return nil, err
+	}
+	if err := task.Run(); err != nil {
+		return nil, err
+	}
+	return task.GetInfoWithDeferred()
 }
 
 func GetDriverVersion() (string, error) {
