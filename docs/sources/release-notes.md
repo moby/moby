@@ -1,8 +1,8 @@
-page_title: Docker 1.x Series Release Notes
-page_description: Release Notes for Docker 1.x.
+page_title: Docker 1.x series release notes
+page_description: Release notes for Docker 1.x.
 page_keywords: docker, documentation, about, technology, understanding, release
 
-# Release Notes Version 1.6.0
+# Release notes version 1.6.0
 (2015-04-16)
 
 You can view release notes for earlier version of Docker by selecting the
@@ -12,7 +12,7 @@ blog](https://blog.docker.com/2015/04/docker-release-1-6/).
 
 
 
-## Docker Engine 1.6.0 Features
+## Docker Engine 1.6.0 features
 
 For a complete list of engine patches, fixes, and other improvements, see the
 [merge PR on GitHub](https://github.com/docker/docker/pull/11635). You'll also
@@ -30,7 +30,7 @@ repository](https://github.com/docker/docker/blob/master/CHANGELOG.md).
 | Ulimits                      | You can now specify the default `ulimit` settings for all containers when configuring the daemon. For example:`docker -d --default-ulimit nproc=1024:2048` See [Default Ulimits](http://docs.docker.com/reference/commandline/cli/#default-ulimits) in this documentation.                                                                                                                                                                                   |
 | Commit and import Dockerfile | You can now make changes to images on the fly without having to re-build the entire image. The feature `commit --change` and `import --change` allows you to apply standard changes to a new image. These are expressed in the Dockerfile syntax and used to modify the image. For details on how to use these, see the [commit](http://docs.docker.com/reference/commandline/cli/#commit) and [import](http://docs.docker.com/reference/commandline/cli/#import). |
 
-### Known Issues in Engine
+### Known issues in Engine
 
 This section lists significant known issues present in Docker as of release date.
 For an exhaustive list of issues, see [the issues list on the project
@@ -53,7 +53,7 @@ issues. You might have to flush your cookies if it doesn't work right away.
 For more information, see the [Docker forum
 post](https://forums.docker.com/t/new-safari-in-yosemite-issue/300).
 
-## Docker Registry 2.0 Features
+## Docker Registry 2.0 features
 
 This release includes Registry 2.0. The Docker Registry is a central server for
 pushing and pulling images. In this release, it was completely rewritten in Go

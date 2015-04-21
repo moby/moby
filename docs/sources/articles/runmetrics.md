@@ -1,8 +1,8 @@
-page_title: Runtime Metrics
+page_title: Runtime metrics
 page_description: Measure the behavior of running containers
 page_keywords: docker, metrics, CPU, memory, disk, IO, run, runtime
 
-# Runtime Metrics
+# Runtime metrics
 
 Linux Containers rely on [control groups](
 https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
@@ -11,7 +11,7 @@ CPU, memory, and block I/O usage. You can access those metrics and
 obtain network usage metrics as well. This is relevant for "pure" LXC
 containers, as well as for Docker containers.
 
-## Control Groups
+## Control groups
 
 Control groups are exposed through a pseudo-filesystem. In recent
 distros, you should find this filesystem under `/sys/fs/cgroup`. Under
@@ -28,7 +28,7 @@ To figure out where your control groups are mounted, you can run:
 
     $ grep cgroup /proc/mounts
 
-## Enumerating Cgroups
+## Enumerating cgroups
 
 You can look into `/proc/cgroups` to see the different control group subsystems
 known to the system, the hierarchy they belong to, and how many groups they contain.
@@ -39,7 +39,7 @@ the hierarchy mountpoint; e.g., `/` means “this process has not been assigned 
 a particular group”, while `/lxc/pumpkin` means that the process is likely to be
 a member of a container named `pumpkin`.
 
-## Finding the Cgroup for a Given Container
+## Finding the cgroup for a given container
 
 For each container, one cgroup will be created in each hierarchy. On
 older systems with older versions of the LXC userland tools, the name of
@@ -55,12 +55,12 @@ look it up with `docker inspect` or `docker ps --no-trunc`.
 Putting everything together to look at the memory metrics for a Docker
 container, take a look at `/sys/fs/cgroup/memory/lxc/<longid>/`.
 
-## Metrics from Cgroups: Memory, CPU, Block IO
+## Metrics from cgroups: memory, CPU, block I/O
 
 For each subsystem (memory, CPU, and block I/O), you will find one or
 more pseudo-files containing statistics.
 
-### Memory Metrics: `memory.stat`
+### Memory metrics: `memory.stat`
 
 Memory metrics are found in the "memory" cgroup. Note that the memory
 control group adds a little overhead, because it does very fine-grained
@@ -262,7 +262,7 @@ relevant ones:
    not perform more I/O, its queue size can increase just because the
    device load increases because of other devices.
 
-## Network Metrics
+## Network metrics
 
 Network metrics are not exposed directly by control groups. There is a
 good explanation for that: network interfaces exist within the context

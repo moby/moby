@@ -1,8 +1,8 @@
-page_title: Automatically Start Containers
+page_title: Automatically start containers
 page_description: How to generate scripts for upstart, systemd, etc.
 page_keywords: systemd, upstart, supervisor, docker, documentation, host integration
 
-# Automatically Start Containers
+# Automatically start containers
 
 As of Docker 1.2,
 [restart policies](/reference/commandline/cli/#restart-policies) are the
@@ -18,7 +18,7 @@ that depend on Docker containers), you can use a process manager like
 [supervisor](http://supervisord.org/) instead.
 
 
-## Using a Process Manager
+## Using a process manager
 
 Docker does not set any restart policies by default, but be aware that they will
 conflict with most process managers. So don't set restart policies if you are

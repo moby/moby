@@ -4,7 +4,7 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 
 # Accounts on Docker Hub
 
-## Docker Hub Accounts
+## Docker Hub accounts
 
 You can `search` for Docker images and `pull` them from [Docker
 Hub](https://hub.docker.com) without signing in or even having an
@@ -12,7 +12,7 @@ account. However, in order to `push` images, leave comments or to *star*
 a repository, you are going to need a [Docker
 Hub](https://hub.docker.com) account.
 
-### Registration for a Docker Hub Account
+### Registration for a Docker Hub account
 
 You can get a [Docker Hub](https://hub.docker.com) account by
 [signing up for one here](https://hub.docker.com/account/signup/). A valid
@@ -32,7 +32,7 @@ If you can't access your account for some reason, you can reset your password
 from the [*Password Reset*](https://hub.docker.com/account/forgot-password/)
 page.
 
-## Organizations & Groups
+## Organizations and groups
 
 Also available on the Docker Hub are organizations and groups that allow
 you to collaborate across your organization or team. You can see what

@@ -14,7 +14,7 @@ The default registry can be accessed using a browser at
 [Docker Hub](https://hub.docker.com) or using the
 `docker search` command.
 
-## Further Reading
+## Further reading
 
 For more information see [*Working with
 Repositories*](/userguide/dockerrepos/#working-with-the-repository)

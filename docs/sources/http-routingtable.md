@@ -1,4 +1,4 @@
-# HTTP Routing Table
+# HTTP routing table
 
 [**/api**](#cap-/api) | [**/auth**](#cap-/auth) |
 [**/build**](#cap-/build) | [**/commit**](#cap-/commit) |

@@ -1,4 +1,4 @@
-page_title: Images
+page_title: Image
 page_description: Definition of an image
 page_keywords: containers, lxc, concepts, explanation, image, container
 
@@ -19,7 +19,7 @@ images do not have state.
 
 ![](/terms/images/docker-filesystems-debianrw.png)
 
-## Parent Image
+## Parent image
 
 ![](/terms/images/docker-filesystems-multilayer.png)
 
@@ -27,7 +27,7 @@ Each image may depend on one more image which forms the layer beneath
 it. We sometimes say that the lower image is the **parent** of the upper
 image.
 
-## Base Image
+## Base image
 
 An image that has no parent is a **base image**.
 

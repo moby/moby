@@ -156,7 +156,7 @@ Images using the v2 or later image format have a content-addressable identifier
 called a digest. As long as the input used to generate the image is unchanged,
 the digest value is predictable and referenceable.
 
-## PID Settings (--pid)
+## PID settings (--pid)
     --pid=""  : Set the PID (Process) Namespace mode for the container,
            'host': use the host's PID namespace inside the container
 
@@ -177,7 +177,7 @@ within the container.
 This command would allow you to use `strace` inside the container on pid 1234 on
 the host.
 
-## IPC Settings (--ipc)
+## IPC settings (--ipc)
 
     --ipc=""  : Set the IPC mode for the container,
                  'container:<name|id>': reuses another container's IPC namespace

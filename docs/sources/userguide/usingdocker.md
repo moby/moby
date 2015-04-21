@@ -1,8 +1,8 @@
-page_title: Working with Containers
+page_title: Working with containers
 page_description: Learn how to manage and operate Docker containers.
 page_keywords: docker, the docker guide, documentation, docker.io, monitoring containers, docker top, docker inspect, docker port, ports, docker logs, log, Logs
 
-# Working with Containers
+# Working with containers
 
 In the [last section of the Docker User Guide](/userguide/dockerizing)
 we launched our first containers. We launched two containers using the
@@ -91,7 +91,7 @@ This will display the help text and all available flags:
 > You can see a full list of Docker's commands
 > [here](/reference/commandline/cli/).
 
-## Running a Web Application in Docker
+## Running a web application in Docker
 
 So now we've learnt a bit more about the `docker` client let's move onto
 the important stuff: running more containers. So far none of the
@@ -121,7 +121,7 @@ Lastly, we've specified a command for our container to run: `python app.py`. Thi
 > reference](/reference/commandline/cli/#run) and the [Docker Run
 > Reference](/reference/run/).
 
-## Viewing our Web Application Container
+## Viewing our web application container
 
 Now let's see our running container using the `docker ps` command.
 
@@ -189,7 +189,7 @@ Our Python application is live!
 > 
 > In this case you'd browse to http://192.168.59.103:49155 for the above example.
 
-## A Network Port Shortcut
+## A network port shortcut
 
 Using the `docker ps` command to return the mapped port is a bit clumsy so
 Docker has a useful shortcut we can use: `docker port`. To use `docker port` we
@@ -202,7 +202,7 @@ corresponding public-facing port.
 In this case we've looked up what port is mapped externally to port 5000 inside
 the container.
 
-## Viewing the Web Application's Logs
+## Viewing the web application's logs
 
 Let's also find out a bit more about what's happening with our application and
 use another of the commands we've learnt, `docker logs`.
@@ -217,7 +217,7 @@ logs` command to act like the `tail -f` command and watch the
 container's standard out. We can see here the logs from Flask showing
 the application running on port 5000 and the access log entries for it.
 
-## Looking at our Web Application Container's processes
+## Looking at our web application container's processes
 
 In addition to the container's logs we can also examine the processes
 running inside it using the `docker top` command.
@@ -229,7 +229,7 @@ running inside it using the `docker top` command.
 Here we can see our `python app.py` command is the only process running inside
 the container.
 
-## Inspecting our Web Application Container
+## Inspecting our web application container
 
 Lastly, we can take a low-level dive into our Docker container using the
 `docker inspect` command. It returns a JSON hash of useful configuration
@@ -258,7 +258,7 @@ specific element, for example to return the container's IP address we would:
     $ docker inspect -f '{{ .NetworkSettings.IPAddress }}' nostalgic_morse
     172.17.0.5
 
-## Stopping our Web Application Container
+## Stopping our web application container
 
 Okay we've seen web application working. Now let's stop it using the
 `docker stop` command and the name of our container: `nostalgic_morse`.
@@ -271,7 +271,7 @@ been stopped.
 
     $ docker ps -l
 
-## Restarting our Web Application Container
+## Restarting our web application container
 
 Oops! Just after you stopped the container you get a call to say another
 developer needs the container back. From here you have two choices: you
@@ -289,7 +289,7 @@ responds.
 > Also available is the `docker restart` command that runs a stop and
 > then start on the container.
 
-## Removing our Web Application Container
+## Removing our web application container
 
 Your colleague has let you know that they've now finished with the container
 and won't need it again. So let's remove it using the `docker rm` command.

@@ -1,4 +1,4 @@
-page_title: Chef Usage
+page_title: Using Chef
 page_description: Installation and using Docker via Chef
 page_keywords: chef, installation, usage, docker, documentation
 

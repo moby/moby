@@ -162,7 +162,7 @@ Initialize and run `boot2docker` from the command line, do the following:
 		$ docker run hello-world
 
 
-## Basic Boot2Docker Exercises
+## Basic Boot2Docker exercises
 
 At this point, you should have `boot2docker` running and the `docker` client
 environment initialized. To verify this, run the following commands:
@@ -314,7 +314,7 @@ section.
 	The installer places Boot2Docker in your "Applications" folder.
 
 
-## Learning more and Acknowledgement
+## Learning more and acknowledgement
 
 
 Use `boot2docker help` to list the full command line reference. For more

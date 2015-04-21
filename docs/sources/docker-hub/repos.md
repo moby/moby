@@ -1,8 +1,8 @@
-page_title: Repositories and Images on Docker Hub
-page_description: Repositories and Images on Docker Hub
+page_title: Repositories and images on Docker Hub
+page_description: Repositories and images on Docker Hub
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, webhooks, docs, documentation
 
-# Repositories and Images on Docker Hub
+# Repositories and images on Docker Hub
 
 ![repositories](/docker-hub/hub-images/repos.png)
 
@@ -51,7 +51,7 @@ private to public.
 You can also collaborate on Docker Hub with organizations and groups.
 You can read more about that [here](accounts/).
 
-## Official Repositories
+## Official repositories
 
 The Docker Hub contains a number of [official
 repositories](http://registry.hub.docker.com/official). These are
@@ -67,7 +67,7 @@ optimized and up-to-date image to power your applications.
 > organization, product or team you can see more information
 > [here](https://github.com/docker/stackbrew).
 
-## Private Repositories
+## Private repositories
 
 Private repositories allow you to have repositories that contain images
 that you want to keep private, either to your own account or within an

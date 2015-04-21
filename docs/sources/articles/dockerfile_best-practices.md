@@ -1,4 +1,4 @@
-page_title: Best Practices for Writing Dockerfiles
+page_title: Best practices for writing Dockerfiles
 page_description: Hints, tips and guidelines for writing clean, reliable Dockerfiles
 page_keywords: Examples, Usage, base image, docker, documentation, dockerfile, best practices, hub, official repo
 
@@ -419,7 +419,7 @@ fail catastrophically if the new build's context is missing the resource being
 added. Adding a separate tag, as recommended above, will help mitigate this by
 allowing the `Dockerfile` author to make a choice.
 
-## Examples For Official Repositories
+## Examples for official repositories
 
 These Official Repos have exemplary `Dockerfile`s:
 
@@ -428,7 +428,7 @@ These Official Repos have exemplary `Dockerfile`s:
 * [Hy](https://registry.hub.docker.com/_/hylang/)
 * [Rails](https://registry.hub.docker.com/_/rails)
 
-## Additional Resources:
+## Additional resources:
 
 * [Dockerfile Reference](https://docs.docker.com/reference/builder/#onbuild)
 * [More about Base Images](https://docs.docker.com/articles/baseimages/)

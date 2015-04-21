@@ -1,4 +1,4 @@
-page_title: The Docker Hub Help
+page_title: The Docker Hub help
 page_description: The Docker Help documentation home
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation, accounts, organizations, repositories, groups
 
@@ -16,7 +16,7 @@ account and manage your organizations and groups.
 Find out how to share your Docker images in [Docker Hub
 repositories](repos/) and how to store and manage private images.
 
-## [Automated Builds](builds/)
+## [Automated builds](builds/)
 
 Learn how to automate your build and deploy pipeline with [Automated
 Builds](builds/)

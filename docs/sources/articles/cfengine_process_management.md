@@ -1,8 +1,8 @@
-page_title: Process Management with CFEngine
+page_title: Process management with CFEngine
 page_description: Managing containerized processes with CFEngine
 page_keywords: cfengine, process, management, usage, docker, documentation
 
-# Process Management with CFEngine
+# Process management with CFEngine
 
 Create Docker containers with managed processes.
 

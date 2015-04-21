@@ -1,8 +1,8 @@
-page_title: Controlling and configuring Docker using Systemd
-page_description: Controlling and configuring Docker using Systemd
+page_title: Controlling and configuring Docker using systemd
+page_description: Controlling and configuring Docker using systemd
 page_keywords: docker, daemon, systemd, configuration
 
-# Controlling and configuring Docker using Systemd
+# Controlling and configuring Docker using systemd
 
 Many Linux distributions use systemd to start the Docker daemon. This document
 shows a few examples of how to customise Docker's settings.
@@ -64,7 +64,7 @@ setting `OPTIONS`:
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
 
-### HTTP Proxy
+### HTTP proxy
 
 This example overrides the default `docker.service` file.
 

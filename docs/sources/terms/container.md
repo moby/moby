@@ -17,7 +17,7 @@ Image*](/terms/image)
 and some additional information like its unique id, networking
 configuration, and resource limits is called a **container**.
 
-## Container State
+## Container state
 
 Containers can change, and so they have state. A container may be
 **running** or **exited**.

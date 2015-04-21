@@ -75,18 +75,18 @@ The [Understanding Docker section](introduction/understanding-docker.md) will he
  - See how Docker compares to virtual machines
  - See some common use cases.
 
-### Installation Guides
+### Installation guides
 
 The [installation section](/installation/#installation) will show you how to
 install Docker on a variety of platforms.
 
 
-### Docker User Guide
+### Docker user guide
 
 To learn about Docker in more detail and to answer questions about usage and
 implementation, check out the [Docker User Guide](/userguide/).
 
-## Release Notes
+## Release notes
 
 A summary of the changes in each release in the current series can now be found
 on the separate [Release Notes page](/release-notes/)

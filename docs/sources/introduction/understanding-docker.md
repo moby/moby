@@ -109,7 +109,7 @@ Docker containers. Docker provides a simple way to build new images or update ex
 images, or you can download Docker images that other people have already created.
 Docker images are the **build** component of Docker.
 
-#### Docker Registries
+#### Docker registries
 Docker registries hold images. These are public or private stores from which you upload
 or download images. The public Docker registry is called
 [Docker Hub](http://hub.docker.com). It provides a huge collection of existing
@@ -135,7 +135,7 @@ So far, we've learned that:
 
 Let's look at how these elements combine together to make Docker work.
 
-### How does a Docker Image work? 
+### How does a Docker image work? 
 We've already seen that Docker images are read-only templates from which Docker
 containers are launched. Each image consists of a series of layers. Docker
 makes use of [union file systems](http://en.wikipedia.org/wiki/UnionFS) to
@@ -280,7 +280,7 @@ BSD Jails or Solaris Zones.
 ### Installing Docker
 Visit the [installation section](/installation/#installation).
 
-### The Docker User Guide
+### The Docker user guide
 [Learn Docker in depth](/userguide/).
 
 

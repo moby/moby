@@ -1,4 +1,4 @@
-page_title: Registry Documentation
+page_title: Registry documentation
 page_description: Documentation for docker Registry and Registry API
 page_keywords: docker, registry, api, hub
 
@@ -679,7 +679,7 @@ On every request, a special header can be returned:
 On the next request, the client will always pick a server from this
 list.
 
-## Authentication & Authorization
+## Authentication and authorization
 
 ### On the Docker Hub
 
@@ -747,7 +747,7 @@ Next request:
     GET /(...)
     Cookie: session="wD/J7LqL5ctqw8haL10vgfhrb2Q=?foo=UydiYXInCnAxCi4=&timestamp=RjEzNjYzMTQ5NDcuNDc0NjQzCi4="
 
-## Document Version
+## Document version
 
  - 1.0 : May 6th 2013 : initial release
  - 1.1 : June 1st 2013 : Added Delete Repository and way to handle new

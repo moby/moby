@@ -1,8 +1,8 @@
-page_title: Working with Docker Images
+page_title: Working with Docker images
 page_description: How to work with Docker images.
 page_keywords: documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub, collaboration
 
-# Working with Docker Images
+# Working with Docker images
 
 In the [introduction](/introduction/understanding-docker/) we've discovered that Docker
 images are the basis of containers. In the

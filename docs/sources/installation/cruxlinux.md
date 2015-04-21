@@ -20,7 +20,7 @@ Assuming you have contrib enabled, update your ports tree and install docker (*a
     # prt-get depinst docker
 
 
-## Kernel Requirements
+## Kernel requirements
 
 To have a working **CRUX+Docker** Host you must ensure your Kernel has
 the necessary modules enabled for the Docker Daemon to function correctly.

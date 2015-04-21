@@ -1,8 +1,8 @@
-page_title: Dockerfile Reference
+page_title: Dockerfile reference
 page_description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
 page_keywords: builder, docker, Dockerfile, automation, image creation
 
-# Dockerfile Reference
+# Dockerfile reference
 
 **Docker can build images automatically** by reading the instructions
 from a `Dockerfile`. A `Dockerfile` is a text document that contains all
@@ -105,7 +105,7 @@ be treated as an argument. This allows statements like:
 Here is the set of instructions you can use in a `Dockerfile` for building
 images.
 
-### Environment Replacement
+### Environment replacement
 
 > **Note**: prior to 1.3, `Dockerfile` environment variables were handled
 > similarly, in that they would be replaced as described below. However, there
@@ -288,7 +288,7 @@ guide](/articles/dockerfile_best-practices/#build-cache) for more information.
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
 
-### Known Issues (RUN)
+### Known issues (RUN)
 
 - [Issue 783](https://github.com/docker/docker/issues/783) is about file
   permissions problems that can occur when using the AUFS file system. You
@@ -973,7 +973,7 @@ For example you might add something like this:
 
 > **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
 
-## Dockerfile Examples
+## Dockerfile examples
 
     # Nginx
     #

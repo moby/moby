@@ -1,4 +1,4 @@
-page_title: Style Guide for Docker Documentation
+page_title: Style guide for Docker documentation
 page_description: Style guide for Docker documentation describing standards and conventions for contributors
 page_keywords: style, guide, docker, documentation
 

@@ -1,8 +1,8 @@
-page_title: docker.io Accounts API
+page_title: docker.io accounts API
 page_description: API Documentation for docker.io accounts.
 page_keywords: API, Docker, accounts, REST, documentation
 
-# docker.io Accounts API
+# docker.io accounts API
 
 ## Get a single user
 

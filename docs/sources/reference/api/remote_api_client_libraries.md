@@ -1,8 +1,8 @@
-page_title: Remote API Client Libraries
+page_title: Remote API client libraries
 page_description: Various client libraries available to use with the Docker remote API
 page_keywords: API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust, Scala
 
-# Docker Remote API Client Libraries
+# Docker Remote API client libraries
 
 These libraries have not been tested by the Docker maintainers for
 compatibility. Please file issues with the library owners. If you find

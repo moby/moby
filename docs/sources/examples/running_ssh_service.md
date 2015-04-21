@@ -2,7 +2,7 @@ page_title: Dockerizing an SSH service
 page_description: Installing and running an SSHd service on Docker
 page_keywords: docker, example, package installation, networking
 
-# Dockerizing an SSH Daemon Service
+# Dockerizing an SSH daemon service
 
 ## Build an `eg_sshd` image
 
