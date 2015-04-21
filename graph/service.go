@@ -16,7 +16,6 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 		"image_inspect":  s.CmdLookup,
 		"image_tarlayer": s.CmdTarLayer,
 		"image_export":   s.CmdImageExport,
-		"viz":            s.CmdViz,
 		"load":           s.CmdLoad,
 		"push":           s.CmdPush,
 	} {
