@@ -6,12 +6,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/engine"
-	"github.com/docker/docker/image"
 )
 
 func (s *TagStore) Install(eng *engine.Engine) error {
 	for name, handler := range map[string]engine.Handler{
-		"image_set":     s.CmdSet,
 		"image_inspect": s.CmdLookup,
 		"image_export":  s.CmdImageExport,
 		"viz":           s.CmdViz,
@@ -21,53 +19,6 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 		if err := eng.Register(name, handler); err != nil {
 			return fmt.Errorf("Could not register %q: %v", name, err)
 		}
-	}
-	return nil
-}
-
-// CmdSet stores a new image in the graph.
-// Images are stored in the graph using 4 elements:
-//	- A user-defined ID
-//	- A collection of metadata describing the image
-//	- A directory tree stored as a tar archive (also called the "layer")
-//	- A reference to a "parent" ID on top of which the layer should be applied
-//
-// NOTE: even though the parent ID is only useful in relation to the layer and how
-// to apply it (ie you could represent the full directory tree as 'parent_layer + layer',
-// it is treated as a top-level property of the image. This is an artifact of early
-// design and should probably be cleaned up in the future to simplify the design.
-//
-// Syntax: image_set ID
-// Input:
-//	- Layer content must be streamed in tar format on stdin. An empty input is
-//	valid and represents a nil layer.
-//
-//	- Image metadata must be passed in the command environment.
-//		'json': a json-encoded object with all image metadata.
-//			It will be stored as-is, without any encoding/decoding artifacts.
-//			That is a requirement of the current registry client implementation,
-//			because a re-encoded json might invalidate the image checksum at
-//			the next upload, even with functionaly identical content.
-func (s *TagStore) CmdSet(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("usage: %s NAME", job.Name)
-	}
-	var (
-		imgJSON = []byte(job.Getenv("json"))
-		layer   = job.Stdin
-	)
-	if len(imgJSON) == 0 {
-		return fmt.Errorf("mandatory key 'json' is not set")
-	}
-	// We have to pass an *image.Image object, even though it will be completely
-	// ignored in favor of the redundant json data.
-	// FIXME: the current prototype of Graph.Register is redundant.
-	img, err := image.NewImgJSON(imgJSON)
-	if err != nil {
-		return err
-	}
-	if err := s.graph.Register(img, layer); err != nil {
-		return err
 	}
 	return nil
 }
