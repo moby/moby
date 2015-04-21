@@ -858,25 +858,26 @@ func (s *Server) postImagesPush(eng *engine.Engine, version version.Version, w h
 		}
 	}
 
-	job := eng.Job("push", vars["name"])
-	job.SetenvJson("metaHeaders", metaHeaders)
-	job.SetenvJson("authConfig", authConfig)
-	job.Setenv("tag", r.Form.Get("tag"))
-	if version.GreaterThan("1.0") {
-		job.SetenvBool("json", true)
-		streamJSON(job.Stdout, w, true)
-	} else {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
+	useJSON := version.GreaterThan("1.0")
+	name := vars["name"]
+
+	imagePushConfig := &graph.ImagePushConfig{
+		MetaHeaders: metaHeaders,
+		AuthConfig:  authConfig,
+		Tag:         r.Form.Get("tag"),
+		OutStream:   utils.NewWriteFlusher(w),
+		Json:        useJSON,
+	}
+	if useJSON {
+		w.Header().Set("Content-Type", "application/json")
 	}
 
-	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
-			return err
-		}
-		sf := streamformatter.NewStreamFormatter(version.GreaterThan("1.0"))
-		w.Write(sf.FormatError(err))
+	if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
+		sf := streamformatter.NewStreamFormatter(useJSON)
+		return fmt.Errorf(string(sf.FormatError(err)))
 	}
 	return nil
+
 }
 
 func (s *Server) getImagesGet(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
