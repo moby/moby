@@ -43,10 +43,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// These are flags not stored in Config/HostConfig
 	var (
-		flAutoRemove = cmd.Bool([]string{"#rm", "-rm"}, false, "Automatically remove the container when it exits")
+		flAutoRemove = cmd.Bool([]string{"-rm"}, false, "Automatically remove the container when it exits")
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Run container in background and print container ID")
-		flSigProxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy received signals to the process")
-		flName       = cmd.String([]string{"#name", "-name"}, "", "Assign a name to the container")
+		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
+		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
 		flAttach     *opts.ListOpts
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
