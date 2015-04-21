@@ -167,6 +167,7 @@ type HostConfig struct {
 	CpuShares       int64  // CPU shares (relative weight vs. other containers)
 	CpusetCpus      string // CpusetCpus 0-2, 0,1
 	CpusetMems      string // CpusetMems 0-2, 0,1
+	FilesystemQuota int64  // Filesystem space limit (in bytes)
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string

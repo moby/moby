@@ -22,6 +22,7 @@ docker-run - Run a command in a new container
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
+[**--filesystem-quota**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
@@ -193,6 +194,14 @@ ENTRYPOINT.
 
 **--expose**=[]
    Expose a port, or a range of ports (e.g. --expose=3300-3310), from the container without publishing it to your host
+
+**--filesystem-quota**=[]
+   Filesystem space limit
+   (format: <number><optional unit>, where unit = b, k, m or g)
+
+   Sets a hard limit of space a container can consume on its rootfs.
+This option is only supported, when using the ZFS storage driver.
+Note that this limit will be applied.
 
 **-h**, **--hostname**=""
    Container host name
