@@ -138,7 +138,7 @@ func setupBaseImage() {
 			AuthConfig: &registry.AuthConfig{},
 		}
 		d := getDaemon(eng)
-		if err := d.Repositories().Pull(unitTestImageName, "", imagePullConfig, eng); err != nil {
+		if err := d.Repositories().Pull(unitTestImageName, "", imagePullConfig); err != nil {
 			logrus.Fatalf("Unable to pull the test image: %s", err)
 		}
 	}

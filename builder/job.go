@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
@@ -83,7 +82,7 @@ func NewBuildConfig() *Config {
 	}
 }
 
-func Build(d *daemon.Daemon, e *engine.Engine, buildConfig *Config) error {
+func Build(d *daemon.Daemon, buildConfig *Config) error {
 	var (
 		repoName string
 		tag      string
@@ -150,7 +149,6 @@ func Build(d *daemon.Daemon, e *engine.Engine, buildConfig *Config) error {
 
 	builder := &Builder{
 		Daemon: d,
-		Engine: e,
 		OutStream: &streamformatter.StdoutFormater{
 			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
@@ -188,7 +186,7 @@ func Build(d *daemon.Daemon, e *engine.Engine, buildConfig *Config) error {
 	return nil
 }
 
-func BuildFromConfig(d *daemon.Daemon, e *engine.Engine, c *runconfig.Config, changes []string) (*runconfig.Config, error) {
+func BuildFromConfig(d *daemon.Daemon, c *runconfig.Config, changes []string) (*runconfig.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err
@@ -203,7 +201,6 @@ func BuildFromConfig(d *daemon.Daemon, e *engine.Engine, c *runconfig.Config, ch
 
 	builder := &Builder{
 		Daemon:        d,
-		Engine:        e,
 		Config:        c,
 		OutStream:     ioutil.Discard,
 		ErrStream:     ioutil.Discard,
@@ -219,13 +216,13 @@ func BuildFromConfig(d *daemon.Daemon, e *engine.Engine, c *runconfig.Config, ch
 	return builder.Config, nil
 }
 
-func Commit(d *daemon.Daemon, eng *engine.Engine, name string, c *daemon.ContainerCommitConfig) (string, error) {
+func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (string, error) {
 	container, err := d.Get(name)
 	if err != nil {
 		return "", err
 	}
 
-	newConfig, err := BuildFromConfig(d, eng, c.Config, c.Changes)
+	newConfig, err := BuildFromConfig(d, c.Config, c.Changes)
 	if err != nil {
 		return "", err
 	}
