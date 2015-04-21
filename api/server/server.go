@@ -900,10 +900,14 @@ func (s *Server) getImagesGet(eng *engine.Engine, version version.Version, w htt
 }
 
 func (s *Server) postImagesLoad(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	job := eng.Job("load")
-	job.Stdin.Add(r.Body)
-	job.Stdout.Add(w)
-	return job.Run()
+
+	imageLoadConfig := &graph.ImageLoadConfig{
+		InTar:     r.Body,
+		OutStream: w,
+		Engine:    eng,
+	}
+
+	return s.daemon.Repositories().Load(imageLoadConfig)
 }
 
 func (s *Server) postContainersCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
