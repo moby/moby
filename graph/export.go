@@ -139,9 +139,7 @@ func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		job = eng.Job("image_tarlayer", n)
-		job.Stdout.Add(fsTar)
-		if err := job.Run(); err != nil {
+		if err := s.ImageTarLayer(n, fsTar); err != nil {
 			return err
 		}
 

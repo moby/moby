@@ -11,14 +11,13 @@ import (
 
 func (s *TagStore) Install(eng *engine.Engine) error {
 	for name, handler := range map[string]engine.Handler{
-		"image_set":      s.CmdSet,
-		"image_get":      s.CmdGet,
-		"image_inspect":  s.CmdLookup,
-		"image_tarlayer": s.CmdTarLayer,
-		"image_export":   s.CmdImageExport,
-		"viz":            s.CmdViz,
-		"load":           s.CmdLoad,
-		"push":           s.CmdPush,
+		"image_set":     s.CmdSet,
+		"image_get":     s.CmdGet,
+		"image_inspect": s.CmdLookup,
+		"image_export":  s.CmdImageExport,
+		"viz":           s.CmdViz,
+		"load":          s.CmdLoad,
+		"push":          s.CmdPush,
 	} {
 		if err := eng.Register(name, handler); err != nil {
 			return fmt.Errorf("Could not register %q: %v", name, err)
@@ -152,12 +151,8 @@ func (s *TagStore) CmdLookup(job *engine.Job) error {
 	return fmt.Errorf("No such image: %s", name)
 }
 
-// CmdTarLayer return the tarLayer of the image
-func (s *TagStore) CmdTarLayer(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("usage: %s NAME", job.Name)
-	}
-	name := job.Args[0]
+// ImageTarLayer return the tarLayer of the image
+func (s *TagStore) ImageTarLayer(name string, dest io.Writer) error {
 	if image, err := s.LookupImage(name); err == nil && image != nil {
 		fs, err := image.TarLayer()
 		if err != nil {
@@ -165,7 +160,7 @@ func (s *TagStore) CmdTarLayer(job *engine.Job) error {
 		}
 		defer fs.Close()
 
-		written, err := io.Copy(job.Stdout, fs)
+		written, err := io.Copy(dest, fs)
 		if err != nil {
 			return err
 		}
