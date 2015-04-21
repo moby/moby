@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/engine"
@@ -238,12 +239,12 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
-func streamJSON(job *engine.Job, w http.ResponseWriter, flush bool) {
+func streamJSON(out *engine.Output, w http.ResponseWriter, flush bool) {
 	w.Header().Set("Content-Type", "application/json")
 	if flush {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
+		out.Add(utils.NewWriteFlusher(w))
 	} else {
-		job.Stdout.Add(w)
+		out.Add(w)
 	}
 }
 
@@ -382,7 +383,7 @@ func (s *Server) getImagesJSON(eng *engine.Engine, version version.Version, w ht
 		Filters: r.Form.Get("filters"),
 		// FIXME this parameter could just be a match filter
 		Filter: r.Form.Get("filter"),
-		All:    toBool(r.Form.Get("all")),
+		All:    boolValue(r, "all"),
 	}
 
 	images, err := s.daemon.Repositories().Images(&imagesConfig)
@@ -598,8 +599,8 @@ func (s *Server) getContainersJSON(eng *engine.Engine, version version.Version, 
 	}
 
 	config := &daemon.ContainersConfig{
-		All:     toBool(r.Form.Get("all")),
-		Size:    toBool(r.Form.Get("size")),
+		All:     boolValue(r, "all"),
+		Size:    boolValue(r, "size"),
 		Since:   r.Form.Get("since"),
 		Before:  r.Form.Get("before"),
 		Filters: r.Form.Get("filters"),
@@ -641,14 +642,14 @@ func (s *Server) getContainersLogs(eng *engine.Engine, version version.Version, 
 	}
 
 	// Validate args here, because we can't return not StatusOK after job.Run() call
-	stdout, stderr := toBool(r.Form.Get("stdout")), toBool(r.Form.Get("stderr"))
+	stdout, stderr := boolValue(r, "stdout"), boolValue(r, "stderr")
 	if !(stdout || stderr) {
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
 	logsConfig := &daemon.ContainerLogsConfig{
-		Follow:     toBool(r.Form.Get("follow")),
-		Timestamps: toBool(r.Form.Get("timestamps")),
+		Follow:     boolValue(r, "follow"),
+		Timestamps: boolValue(r, "timestamps"),
 		Tail:       r.Form.Get("tail"),
 		UseStdout:  stdout,
 		UseStderr:  stderr,
@@ -672,7 +673,7 @@ func (s *Server) postImagesTag(eng *engine.Engine, version version.Version, w ht
 
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
-	force := toBool(r.Form.Get("force"))
+	force := boolValue(r, "force")
 	if err := s.daemon.Repositories().Tag(repo, tag, vars["name"], force); err != nil {
 		return err
 	}
@@ -691,9 +692,18 @@ func (s *Server) postCommit(eng *engine.Engine, version version.Version, w http.
 
 	cont := r.Form.Get("container")
 
-	pause := toBool(r.Form.Get("pause"))
+	pause := boolValue(r, "pause")
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
 		pause = true
+	}
+
+	c, _, err := runconfig.DecodeContainerConfig(r.Body)
+	if err != nil && err != io.EOF { //Do not fail if body is empty.
+		return err
+	}
+
+	if c == nil {
+		c = &runconfig.Config{}
 	}
 
 	containerCommitConfig := &daemon.ContainerCommitConfig{
@@ -703,10 +713,10 @@ func (s *Server) postCommit(eng *engine.Engine, version version.Version, w http.
 		Author:  r.Form.Get("author"),
 		Comment: r.Form.Get("comment"),
 		Changes: r.Form["changes"],
-		Config:  r.Body,
+		Config:  c,
 	}
 
-	imgID, err := s.daemon.ContainerCommit(cont, containerCommitConfig)
+	imgID, err := builder.Commit(s.daemon, eng, cont, containerCommitConfig)
 	if err != nil {
 		return err
 	}
@@ -783,10 +793,15 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 			imageImportConfig.Json = false
 		}
 
-		if err := s.daemon.Repositories().Import(src, repo, tag, imageImportConfig, eng); err != nil {
+		newConfig, err := builder.BuildFromConfig(s.daemon, eng, &runconfig.Config{}, imageImportConfig.Changes)
+		if err != nil {
 			return err
 		}
+		imageImportConfig.ContainerConfig = newConfig
 
+		if err := s.daemon.Repositories().Import(src, repo, tag, imageImportConfig); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -859,7 +874,7 @@ func (s *Server) postImagesPush(eng *engine.Engine, version version.Version, w h
 	job.Setenv("tag", r.Form.Get("tag"))
 	if version.GreaterThan("1.0") {
 		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
+		streamJSON(job.Stdout, w, true)
 	} else {
 		job.Stdout.Add(utils.NewWriteFlusher(w))
 	}
@@ -978,9 +993,9 @@ func (s *Server) deleteContainers(eng *engine.Engine, version version.Version, w
 
 	name := vars["name"]
 	config := &daemon.ContainerRmConfig{
-		ForceRemove:  toBool(r.Form.Get("force")),
-		RemoveVolume: toBool(r.Form.Get("v")),
-		RemoveLink:   toBool(r.Form.Get("link")),
+		ForceRemove:  boolValue(r, "force"),
+		RemoveVolume: boolValue(r, "v"),
+		RemoveLink:   boolValue(r, "link"),
 	}
 
 	if err := s.daemon.ContainerRm(name, config); err != nil {
@@ -1005,8 +1020,8 @@ func (s *Server) deleteImages(eng *engine.Engine, version version.Version, w htt
 	}
 
 	name := vars["name"]
-	force := toBool(r.Form.Get("force"))
-	noprune := toBool(r.Form.Get("noprune"))
+	force := boolValue(r, "force")
+	noprune := boolValue(r, "noprune")
 
 	list, err := s.daemon.ImageDelete(name, force, noprune)
 	if err != nil {
@@ -1153,19 +1168,19 @@ func (s *Server) postContainersAttach(eng *engine.Engine, version version.Versio
 	} else {
 		errStream = outStream
 	}
-	logs := toBool(r.Form.Get("logs"))
-	stream := toBool(r.Form.Get("stream"))
+	logs := boolValue(r, "logs")
+	stream := boolValue(r, "stream")
 
 	var stdin io.ReadCloser
 	var stdout, stderr io.Writer
 
-	if toBool(r.Form.Get("stdin")) {
+	if boolValue(r, "stdin") {
 		stdin = inStream
 	}
-	if toBool(r.Form.Get("stdout")) {
+	if boolValue(r, "stdout") {
 		stdout = outStream
 	}
-	if toBool(r.Form.Get("stderr")) {
+	if boolValue(r, "stderr") {
 		stderr = errStream
 	}
 
@@ -1209,7 +1224,7 @@ func (s *Server) getContainersByName(eng *engine.Engine, version version.Version
 	if version.LessThan("1.12") {
 		job.SetenvBool("raw", true)
 	}
-	streamJSON(job, w, false)
+	streamJSON(job.Stdout, w, false)
 	return job.Run()
 }
 
@@ -1234,7 +1249,7 @@ func (s *Server) getImagesByName(eng *engine.Engine, version version.Version, w 
 	if version.LessThan("1.12") {
 		job.SetenvBool("raw", true)
 	}
-	streamJSON(job, w, false)
+	streamJSON(job.Stdout, w, false)
 	return job.Run()
 }
 
@@ -1247,7 +1262,7 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 		authConfig        = &registry.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &registry.ConfigFile{}
-		job               = eng.Job("build")
+		buildConfig       = builder.NewBuildConfig()
 	)
 
 	// This block can be removed when API versions prior to 1.9 are deprecated.
@@ -1273,36 +1288,38 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 	}
 
 	if version.GreaterThanOrEqualTo("1.8") {
-		job.SetenvBool("json", true)
-		streamJSON(job, w, true)
-	} else {
-		job.Stdout.Add(utils.NewWriteFlusher(w))
+		w.Header().Set("Content-Type", "application/json")
+		buildConfig.JSONFormat = true
 	}
 
-	if toBool(r.FormValue("forcerm")) && version.GreaterThanOrEqualTo("1.12") {
-		job.Setenv("rm", "1")
+	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
+		buildConfig.Remove = true
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
-		job.Setenv("rm", "1")
+		buildConfig.Remove = true
 	} else {
-		job.Setenv("rm", r.FormValue("rm"))
+		buildConfig.Remove = boolValue(r, "rm")
 	}
-	if toBool(r.FormValue("pull")) && version.GreaterThanOrEqualTo("1.16") {
-		job.Setenv("pull", "1")
+	if boolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
+		buildConfig.Pull = true
 	}
-	job.Stdin.Add(r.Body)
-	job.Setenv("remote", r.FormValue("remote"))
-	job.Setenv("dockerfile", r.FormValue("dockerfile"))
-	job.Setenv("t", r.FormValue("t"))
-	job.Setenv("q", r.FormValue("q"))
-	job.Setenv("nocache", r.FormValue("nocache"))
-	job.Setenv("forcerm", r.FormValue("forcerm"))
-	job.SetenvJson("authConfig", authConfig)
-	job.SetenvJson("configFile", configFile)
-	job.Setenv("memswap", r.FormValue("memswap"))
-	job.Setenv("memory", r.FormValue("memory"))
-	job.Setenv("cpusetcpus", r.FormValue("cpusetcpus"))
-	job.Setenv("cpusetmems", r.FormValue("cpusetmems"))
-	job.Setenv("cpushares", r.FormValue("cpushares"))
+
+	output := utils.NewWriteFlusher(w)
+	buildConfig.Stdout = output
+	buildConfig.Context = r.Body
+
+	buildConfig.RemoteURL = r.FormValue("remote")
+	buildConfig.DockerfileName = r.FormValue("dockerfile")
+	buildConfig.RepoName = r.FormValue("t")
+	buildConfig.SuppressOutput = boolValue(r, "q")
+	buildConfig.NoCache = boolValue(r, "nocache")
+	buildConfig.ForceRemove = boolValue(r, "forcerm")
+	buildConfig.AuthConfig = authConfig
+	buildConfig.ConfigFile = configFile
+	buildConfig.MemorySwap = int64Value(r, "memswap")
+	buildConfig.Memory = int64Value(r, "memory")
+	buildConfig.CpuShares = int64Value(r, "cpushares")
+	buildConfig.CpuSetCpus = r.FormValue("cpusetcpus")
+	buildConfig.CpuSetMems = r.FormValue("cpusetmems")
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
@@ -1312,14 +1329,16 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 			select {
 			case <-finished:
 			case <-closeNotifier.CloseNotify():
-				logrus.Infof("Client disconnected, cancelling job: %s", job.Name)
-				job.Cancel()
+				logrus.Infof("Client disconnected, cancelling job: build")
+				buildConfig.Cancel()
 			}
 		}()
 	}
 
-	if err := job.Run(); err != nil {
-		if !job.Stdout.Used() {
+	if err := builder.Build(s.daemon, eng, buildConfig); err != nil {
+		// Do not write the error in the http output if it's still empty.
+		// This prevents from writing a 200(OK) when there is an interal error.
+		if !output.Flushed() {
 			return err
 		}
 		sf := streamformatter.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
@@ -1672,9 +1691,4 @@ func allocateDaemonPort(addr string) error {
 		}
 	}
 	return nil
-}
-
-func toBool(s string) bool {
-	s = strings.ToLower(strings.TrimSpace(s))
-	return !(s == "" || s == "0" || s == "no" || s == "false" || s == "none")
 }
