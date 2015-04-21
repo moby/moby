@@ -37,7 +37,9 @@ var (
 	// We retry device removal so many a times that even error messages
 	// will fill up console during normal operation. So only log Fatal
 	// messages by default.
-	DMLogLevel int = devicemapper.LogLevelFatal
+	DMLogLevel                   int  = devicemapper.LogLevelFatal
+	DriverDeferredRemovalSupport bool = false
+	EnableDeferredRemoval        bool = false
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -103,6 +105,7 @@ type DeviceSet struct {
 	thinPoolDevice        string
 	Transaction           `json:"-"`
 	overrideUdevSyncCheck bool
+	deferredRemove        bool // use deferred removal
 }
 
 type DiskUsage struct {
@@ -960,14 +963,65 @@ func (devices *DeviceSet) closeTransaction() error {
 	return nil
 }
 
+func determineDriverCapabilities(version string) error {
+	/*
+	 * Driver version 4.27.0 and greater support deferred activation
+	 * feature.
+	 */
+
+	logrus.Debugf("devicemapper: driver version is %s", version)
+
+	versionSplit := strings.Split(version, ".")
+	major, err := strconv.Atoi(versionSplit[0])
+	if err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	if major > 4 {
+		DriverDeferredRemovalSupport = true
+		return nil
+	}
+
+	if major < 4 {
+		return nil
+	}
+
+	minor, err := strconv.Atoi(versionSplit[1])
+	if err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	/*
+	 * If major is 4 and minor is 27, then there is no need to
+	 * check for patch level as it can not be less than 0.
+	 */
+	if minor >= 27 {
+		DriverDeferredRemovalSupport = true
+		return nil
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
-	_, err := devicemapper.GetDriverVersion()
+	version, err := devicemapper.GetDriverVersion()
 	if err != nil {
 		// Can't even get driver version, assume not supported
 		return graphdriver.ErrNotSupported
+	}
+
+	if err := determineDriverCapabilities(version); err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	// If user asked for deferred removal and both library and driver
+	// supports deferred removal use it.
+	if EnableDeferredRemoval && DriverDeferredRemovalSupport && devicemapper.LibraryDeferredRemovalSupport == true {
+		logrus.Debugf("devmapper: Deferred removal support enabled.")
+		devices.deferredRemove = true
 	}
 
 	// https://github.com/docker/docker/issues/4036
@@ -1671,6 +1725,13 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			if err != nil {
 				return nil, err
 			}
+
+		case "dm.use_deferred_removal":
+			EnableDeferredRemoval, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+
 		default:
 			return nil, fmt.Errorf("Unknown option %s\n", key)
 		}
