@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -102,6 +103,14 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	}
 	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox-test")
 	imgID := strings.TrimSpace(out)
+
+	// first checkout without force it fails
+	runCmd = exec.Command(dockerBinary, "rmi", imgID)
+	out, _, err = runCommandWithOutput(runCmd)
+	if err == nil || !strings.Contains(out, fmt.Sprintf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", imgID)) {
+		c.Fatalf("rmi tagged in mutiple repos should have failed without force:%s, %v", out, err)
+	}
+
 	dockerCmd(c, "rmi", "-f", imgID)
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
