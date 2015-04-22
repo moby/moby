@@ -437,13 +437,13 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	}
 
 	pullRegistryAuth := b.AuthConfig
-	if len(b.AuthConfigFile.Configs) > 0 {
+	if len(b.ConfigFile.AuthConfigs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
 		repoInfo, err := b.Daemon.RegistryService.ResolveRepository(remote)
 		if err != nil {
 			return nil, err
 		}
-		resolvedAuth := b.AuthConfigFile.ResolveAuthConfig(repoInfo.Index)
+		resolvedAuth := b.ConfigFile.ResolveAuthConfig(repoInfo.Index)
 		pullRegistryAuth = &resolvedAuth
 	}
 
@@ -454,7 +454,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 		Json:       b.StreamFormatter.Json(),
 	}
 
-	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig, b.Engine); err != nil {
+	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
 		return nil, err
 	}
 
@@ -609,11 +609,10 @@ func (b *Builder) run(c *daemon.Container) error {
 
 	// Wait for it to finish
 	if ret, _ := c.WaitStop(-1 * time.Second); ret != 0 {
-		err := &jsonmessage.JSONError{
+		return &jsonmessage.JSONError{
 			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.Config.Cmd, ret),
 			Code:    ret,
 		}
-		return err
 	}
 
 	return nil

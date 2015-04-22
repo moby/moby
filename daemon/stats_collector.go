@@ -76,7 +76,7 @@ func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
 }
 
 func (s *statsCollector) run() {
-	for _ = range time.Tick(s.interval) {
+	for range time.Tick(s.interval) {
 		for container, publisher := range s.publishers {
 			systemUsage, err := s.getSystemCpuUsage()
 			if err != nil {

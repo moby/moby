@@ -14,6 +14,7 @@ docker-create - Create a new container
 [**--cidfile**[=*CIDFILE*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
+[**--cpu-quota**[=*0*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -81,6 +82,9 @@ IMAGE [COMMAND] [ARG...]
    If you have four memory nodes on your system (0-3), use `--cpuset-mems=0,1`
 then processes in your Docker container will only use memory from the first
 two memory nodes.
+
+**-cpu-quota**=0
+   Limit the CPU CFS (Completely Fair Scheduler) quota
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)

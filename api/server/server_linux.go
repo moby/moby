@@ -8,22 +8,15 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/systemd"
 )
 
-// NewServer sets up the required Server and does protocol specific checking.
-func NewServer(proto, addr string, conf *ServerConfig, eng *engine.Engine) (Server, error) {
+// newServer sets up the required serverCloser and does protocol specific checking.
+func (s *Server) newServer(proto, addr string) (serverCloser, error) {
 	var (
 		err error
 		l   net.Listener
-		r   = createRouter(
-			eng,
-			conf.Logging,
-			conf.EnableCors,
-			conf.CorsHeaders,
-			conf.Version,
-		)
 	)
 	switch proto {
 	case "fd":
@@ -35,13 +28,13 @@ func NewServer(proto, addr string, conf *ServerConfig, eng *engine.Engine) (Serv
 		// We don't want to start serving on these sockets until the
 		// daemon is initialized and installed. Otherwise required handlers
 		// won't be ready.
-		<-activationLock
+		<-s.start
 		// Since ListenFD will return one or more sockets we have
 		// to create a go func to spawn off multiple serves
 		for i := range ls {
 			listener := ls[i]
 			go func() {
-				httpSrv := http.Server{Handler: r}
+				httpSrv := http.Server{Handler: s.router}
 				chErrors <- httpSrv.Serve(listener)
 			}()
 		}
@@ -52,17 +45,17 @@ func NewServer(proto, addr string, conf *ServerConfig, eng *engine.Engine) (Serv
 		}
 		return nil, nil
 	case "tcp":
-		if !conf.TlsVerify {
+		if !s.cfg.TlsVerify {
 			logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 		}
-		if l, err = NewTcpSocket(addr, tlsConfigFromServerConfig(conf)); err != nil {
+		if l, err = NewTcpSocket(addr, tlsConfigFromServerConfig(s.cfg), s.start); err != nil {
 			return nil, err
 		}
 		if err := allocateDaemonPort(addr); err != nil {
 			return nil, err
 		}
 	case "unix":
-		if l, err = NewUnixSocket(addr, conf.SocketGroup); err != nil {
+		if l, err = NewUnixSocket(addr, s.cfg.SocketGroup, s.start); err != nil {
 			return nil, err
 		}
 	default:
@@ -71,19 +64,20 @@ func NewServer(proto, addr string, conf *ServerConfig, eng *engine.Engine) (Serv
 	return &HttpServer{
 		&http.Server{
 			Addr:    addr,
-			Handler: r,
+			Handler: s.router,
 		},
 		l,
 	}, nil
 }
 
-func AcceptConnections() {
+func (s *Server) AcceptConnections(d *daemon.Daemon) {
 	// Tell the init daemon we are accepting requests
+	s.daemon = d
 	go systemd.SdNotify("READY=1")
 	// close the lock so the listeners start accepting connections
 	select {
-	case <-activationLock:
+	case <-s.start:
 	default:
-		close(activationLock)
+		close(s.start)
 	}
 }

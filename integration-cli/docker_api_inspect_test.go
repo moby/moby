@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"os/exec"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestInspectApiContainerResponse(t *testing.T) {
-	defer deleteAllContainers()
-
+func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatalf("failed to create a container: %s, %v", out, err)
+		c.Fatalf("failed to create a container: %s, %v", out, err)
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -29,12 +28,12 @@ func TestInspectApiContainerResponse(t *testing.T) {
 		}
 		_, body, err := sockRequest("GET", endpoint, nil)
 		if err != nil {
-			t.Fatalf("sockRequest failed for %s version: %v", testVersion, err)
+			c.Fatalf("sockRequest failed for %s version: %v", testVersion, err)
 		}
 
 		var inspectJSON map[string]interface{}
 		if err = json.Unmarshal(body, &inspectJSON); err != nil {
-			t.Fatalf("unable to unmarshal body for %s version: %v", testVersion, err)
+			c.Fatalf("unable to unmarshal body for %s version: %v", testVersion, err)
 		}
 
 		keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW"}
@@ -47,14 +46,12 @@ func TestInspectApiContainerResponse(t *testing.T) {
 
 		for _, key := range keys {
 			if _, ok := inspectJSON[key]; !ok {
-				t.Fatalf("%s does not exist in response for %s version", key, testVersion)
+				c.Fatalf("%s does not exist in response for %s version", key, testVersion)
 			}
 		}
 		//Issue #6830: type not properly converted to JSON/back
 		if _, ok := inspectJSON["Path"].(bool); ok {
-			t.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
+			c.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
 		}
 	}
-
-	logDone("container json - check keys in container json response")
 }

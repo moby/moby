@@ -48,6 +48,35 @@ These Go environment variables are case-insensitive. See the
 [Go specification](http://golang.org/pkg/net/http/) for details on these
 variables.
 
+## Configuration Files
+
+The Docker command line stores its configuration files in a directory called
+`.docker` within your `HOME` directory. Docker manages most of the files in
+`.docker` and you should not modify them. However, you *can modify* the
+`.docker/config.json` file to control certain aspects of how the `docker`
+command behaves.
+
+Currently, you can modify the `docker` command behavior using environment 
+variables or command-line options. You can also use options within 
+`config.json` to modify some of the same behavior.  When using these 
+mechanisms, you must keep in mind the order of precedence among them. Command 
+line options override environment variables and environment variables override 
+properties you specify in a `config.json` file.
+
+The `config.json` file stores a JSON encoding of a single `HttpHeaders`
+property. The property specifies a set of headers to include in all
+messages sent from the Docker client to the daemon. Docker does not try to
+interpret or understand these header; it simply puts them into the messages.
+Docker does not allow these headers to change any headers it sets for itself.
+
+Following is a sample `config.json` file:
+
+    {
+      "HttpHeaders: {
+        "MyHeader": "MyValue"
+      }
+    }
+
 ## Help
 To list the help on any command just execute the command, followed by the `--help` option.
 
@@ -116,6 +145,8 @@ expect an integer, and they can only be specified once.
       --bip=""                               Specify network bridge IP
       -D, --debug=false                      Enable debug mode
       -d, --daemon=false                     Enable daemon mode
+      --default-gateway=""                   Container default gateway IPv4 address
+      --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
       --dns-search=[]                        DNS search domains to use
       -e, --exec-driver="native"             Exec driver to use
@@ -839,7 +870,8 @@ If this behavior is undesired, set the 'p' option to false.
 
 The `--change` option will apply `Dockerfile` instructions to the image
 that is created.
-Supported `Dockerfile` instructions: `ADD`|`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`FROM`|`MAINTAINER`|`RUN`|`USER`|`LABEL`|`VOLUME`|`WORKDIR`|`COPY`
+Supported `Dockerfile` instructions:
+`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 #### Commit a container
 
@@ -894,6 +926,7 @@ Creates a new container.
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
+      --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -1191,6 +1224,7 @@ This will create a new Bash session in the container `ubuntu_bash`.
 
     Show the history of an image
 
+      -H, --human=true     Print sizes and dates in human readable format
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 
@@ -1347,8 +1381,8 @@ the `-` parameter to take the data from `STDIN`.
 
 The `--change` option will apply `Dockerfile` instructions to the image
 that is created.
-Supported `Dockerfile` instructions: `CMD`, `ENTRYPOINT`, `ENV`, `EXPOSE`,
-`ONBUILD`, `USER`, `VOLUME`, `WORKDIR`
+Supported `Dockerfile` instructions:
+`CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 #### Examples
 
@@ -1847,6 +1881,7 @@ To remove an image using its digest:
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
+      --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers

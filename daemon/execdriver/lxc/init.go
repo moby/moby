@@ -141,13 +141,3 @@ func setupWorkingDirectory(args *InitArgs) error {
 	}
 	return nil
 }
-
-func getEnv(args *InitArgs, key string) string {
-	for _, kv := range args.Env {
-		parts := strings.SplitN(kv, "=", 2)
-		if parts[0] == key && len(parts) == 2 {
-			return parts[1]
-		}
-	}
-	return ""
-}

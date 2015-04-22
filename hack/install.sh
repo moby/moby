@@ -126,7 +126,7 @@ do_install() {
 			exit 0
 			;;
 
-		ubuntu|debian|linuxmint)
+		ubuntu|debian|linuxmint|'elementary os')
 			export DEBIAN_FRONTEND=noninteractive
 
 			did_apt_get_update=

@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -347,16 +346,6 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 		Read:        now,
 		MemoryLimit: memoryLimit,
 	}, nil
-}
-
-func getEnv(key string, env []string) string {
-	for _, pair := range env {
-		parts := strings.Split(pair, "=")
-		if parts[0] == key {
-			return parts[1]
-		}
-	}
-	return ""
 }
 
 type TtyConsole struct {

@@ -3,6 +3,7 @@ package registry
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -31,13 +32,14 @@ func setupTempConfigFile() (*ConfigFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	root = filepath.Join(root, CONFIGFILE)
 	configFile := &ConfigFile{
-		rootPath: root,
-		Configs:  make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]AuthConfig),
+		filename:    root,
 	}
 
 	for _, registry := range []string{"testIndex", IndexServerAddress()} {
-		configFile.Configs[registry] = AuthConfig{
+		configFile.AuthConfigs[registry] = AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 			Email:    "docker@docker.io",
@@ -52,14 +54,14 @@ func TestSameAuthDataPostSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(configFile.filename)
 
-	err = SaveConfig(configFile)
+	err = configFile.Save()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	authConfig := configFile.Configs["testIndex"]
+	authConfig := configFile.AuthConfigs["testIndex"]
 	if authConfig.Username != "docker-user" {
 		t.Fail()
 	}
@@ -79,9 +81,9 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(configFile.filename)
 
-	indexConfig := configFile.Configs[IndexServerAddress()]
+	indexConfig := configFile.AuthConfigs[IndexServerAddress()]
 
 	officialIndex := &IndexInfo{
 		Official: true,
@@ -102,7 +104,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(configFile.filename)
 
 	registryAuth := AuthConfig{
 		Username: "foo-user",
@@ -119,7 +121,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		Password: "baz-pass",
 		Email:    "baz@example.com",
 	}
-	configFile.Configs[IndexServerAddress()] = officialAuth
+	configFile.AuthConfigs[IndexServerAddress()] = officialAuth
 
 	expectedAuths := map[string]AuthConfig{
 		"registry.example.com": registryAuth,
@@ -157,12 +159,12 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 			Name: configKey,
 		}
 		for _, registry := range registries {
-			configFile.Configs[registry] = configured
+			configFile.AuthConfigs[registry] = configured
 			resolved := configFile.ResolveAuthConfig(index)
 			if resolved.Email != configured.Email {
 				t.Errorf("%s -> %q != %q\n", registry, resolved.Email, configured.Email)
 			}
-			delete(configFile.Configs, registry)
+			delete(configFile.AuthConfigs, registry)
 			resolved = configFile.ResolveAuthConfig(index)
 			if resolved.Email == configured.Email {
 				t.Errorf("%s -> %q == %q\n", registry, resolved.Email, configured.Email)

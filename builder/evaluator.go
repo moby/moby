@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -80,7 +79,6 @@ func init() {
 // processing as it evaluates the parsing result.
 type Builder struct {
 	Daemon *daemon.Daemon
-	Engine *engine.Engine
 
 	// effectively stdio for the run. Because it is not stdio, I said
 	// "Effectively". Do not use stdio anywhere in this package for any reason.
@@ -101,8 +99,8 @@ type Builder struct {
 	// the final configs of the Dockerfile but dont want the layers
 	disableCommit bool
 
-	AuthConfig     *registry.AuthConfig
-	AuthConfigFile *registry.ConfigFile
+	AuthConfig *registry.AuthConfig
+	ConfigFile *registry.ConfigFile
 
 	// Deprecated, original writer used for ImagePull. To be removed.
 	OutOld          io.Writer

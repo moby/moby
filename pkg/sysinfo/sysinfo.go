@@ -13,6 +13,7 @@ import (
 type SysInfo struct {
 	MemoryLimit            bool
 	SwapLimit              bool
+	CpuCfsQuota            bool
 	IPv4ForwardingDisabled bool
 	AppArmor               bool
 }
@@ -36,6 +37,19 @@ func New(quiet bool) *SysInfo {
 		sysInfo.SwapLimit = err == nil
 		if !sysInfo.SwapLimit && !quiet {
 			logrus.Warnf("Your kernel does not support cgroup swap limit.")
+		}
+	}
+
+	if cgroupCpuMountpoint, err := cgroups.FindCgroupMountpoint("cpu"); err != nil {
+		if !quiet {
+			logrus.Warnf("WARING: %s\n", err)
+		}
+	} else {
+		_, err1 := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_quota_us"))
+		logrus.Warnf("%s", cgroupCpuMountpoint)
+		sysInfo.CpuCfsQuota = err1 == nil
+		if !sysInfo.CpuCfsQuota && !quiet {
+			logrus.Warnf("WARING: Your kernel does not support cgroup cfs quotas")
 		}
 	}
 

@@ -89,7 +89,7 @@ The following provides greater detail on the process:
     This is a Markdown file that describes your idea. Your proposal
     should include information like:
 
-    * Why is this changed needed or what are the use cases?
+    * Why is this change needed or what are the use cases?
     * What are the requirements this change should meet?
     * What are some ways to design/implement this feature?
     * Which design/implementation do you think is best and why?

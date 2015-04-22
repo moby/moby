@@ -1,13 +1,10 @@
 package graph
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progressreader"
@@ -17,20 +14,18 @@ import (
 )
 
 type ImageImportConfig struct {
-	Changes   []string
-	InConfig  io.ReadCloser
-	Json      bool
-	OutStream io.Writer
-	//OutStream WriteFlusher
+	Changes         []string
+	InConfig        io.ReadCloser
+	Json            bool
+	OutStream       io.Writer
+	ContainerConfig *runconfig.Config
 }
 
-func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig, eng *engine.Engine) error {
+func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig) error {
 	var (
-		sf           = streamformatter.NewStreamFormatter(imageImportConfig.Json)
-		archive      archive.ArchiveReader
-		resp         *http.Response
-		stdoutBuffer = bytes.NewBuffer(nil)
-		newConfig    runconfig.Config
+		sf      = streamformatter.NewStreamFormatter(imageImportConfig.Json)
+		archive archive.ArchiveReader
+		resp    *http.Response
 	)
 
 	if src == "-" {
@@ -63,20 +58,7 @@ func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig
 		archive = progressReader
 	}
 
-	buildConfigJob := eng.Job("build_config")
-	buildConfigJob.Stdout.Add(stdoutBuffer)
-	buildConfigJob.SetenvList("changes", imageImportConfig.Changes)
-	// FIXME this should be remove when we remove deprecated config param
-	//buildConfigJob.Setenv("config", job.Getenv("config"))
-
-	if err := buildConfigJob.Run(); err != nil {
-		return err
-	}
-	if err := json.NewDecoder(stdoutBuffer).Decode(&newConfig); err != nil {
-		return err
-	}
-
-	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, &newConfig)
+	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, imageImportConfig.ContainerConfig)
 	if err != nil {
 		return err
 	}

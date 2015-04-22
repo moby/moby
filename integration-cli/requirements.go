@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 type TestCondition func() bool
@@ -92,10 +93,10 @@ var (
 
 // testRequires checks if the environment satisfies the requirements
 // for the test to run or skips the tests.
-func testRequires(t *testing.T, requirements ...TestRequirement) {
+func testRequires(c *check.C, requirements ...TestRequirement) {
 	for _, r := range requirements {
 		if !r.Condition() {
-			t.Skip(r.SkipMessage)
+			c.Skip(r.SkipMessage)
 		}
 	}
 }

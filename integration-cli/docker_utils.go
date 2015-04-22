@@ -18,17 +18,17 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/go-check/check"
 )
 
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
-	t              *testing.T
+	c              *check.C
 	logFile        *os.File
 	folder         string
 	stdin          io.WriteCloser
@@ -42,24 +42,24 @@ type Daemon struct {
 // NewDaemon returns a Daemon instance to be used for testing.
 // This will create a directory such as daemon123456789 in the folder specified by $DEST.
 // The daemon will not automatically start.
-func NewDaemon(t *testing.T) *Daemon {
+func NewDaemon(c *check.C) *Daemon {
 	dest := os.Getenv("DEST")
 	if dest == "" {
-		t.Fatal("Please set the DEST environment variable")
+		c.Fatal("Please set the DEST environment variable")
 	}
 
 	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().UnixNano()%100000000))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
-		t.Fatalf("Could not make %q an absolute path: %v", dir, err)
+		c.Fatalf("Could not make %q an absolute path: %v", dir, err)
 	}
 
 	if err := os.MkdirAll(filepath.Join(daemonFolder, "graph"), 0600); err != nil {
-		t.Fatalf("Could not create %s/graph directory", daemonFolder)
+		c.Fatalf("Could not create %s/graph directory", daemonFolder)
 	}
 
 	return &Daemon{
-		t:             t,
+		c:             c,
 		folder:        daemonFolder,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
 		execDriver:    os.Getenv("DOCKER_EXECDRIVER"),
@@ -71,7 +71,7 @@ func NewDaemon(t *testing.T) *Daemon {
 func (d *Daemon) Start(arg ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
 	if err != nil {
-		d.t.Fatalf("could not find docker binary in $PATH: %v", err)
+		d.c.Fatalf("could not find docker binary in $PATH: %v", err)
 	}
 
 	args := []string{
@@ -105,7 +105,7 @@ func (d *Daemon) Start(arg ...string) error {
 
 	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
-		d.t.Fatalf("Could not create %s/docker.log: %v", d.folder, err)
+		d.c.Fatalf("Could not create %s/docker.log: %v", d.folder, err)
 	}
 
 	d.cmd.Stdout = d.logFile
@@ -119,7 +119,7 @@ func (d *Daemon) Start(arg ...string) error {
 
 	go func() {
 		wait <- d.cmd.Wait()
-		d.t.Log("exiting daemon")
+		d.c.Log("exiting daemon")
 		close(wait)
 	}()
 
@@ -129,7 +129,7 @@ func (d *Daemon) Start(arg ...string) error {
 	// make sure daemon is ready to receive requests
 	startTime := time.Now().Unix()
 	for {
-		d.t.Log("waiting for daemon to start")
+		d.c.Log("waiting for daemon to start")
 		if time.Now().Unix()-startTime > 5 {
 			// After 5 seconds, give up
 			return errors.New("Daemon exited and never started")
@@ -148,7 +148,7 @@ func (d *Daemon) Start(arg ...string) error {
 
 			req, err := http.NewRequest("GET", "/_ping", nil)
 			if err != nil {
-				d.t.Fatalf("could not create new request: %v", err)
+				d.c.Fatalf("could not create new request: %v", err)
 			}
 
 			resp, err := client.Do(req)
@@ -156,10 +156,10 @@ func (d *Daemon) Start(arg ...string) error {
 				continue
 			}
 			if resp.StatusCode != http.StatusOK {
-				d.t.Logf("received status != 200 OK: %s", resp.Status)
+				d.c.Logf("received status != 200 OK: %s", resp.Status)
 			}
 
-			d.t.Log("daemon started")
+			d.c.Log("daemon started")
 			return nil
 		}
 	}
@@ -186,7 +186,7 @@ func (d *Daemon) StartWithBusybox(arg ...string) error {
 		return fmt.Errorf("could not load busybox image: %v", err)
 	}
 	if err := os.Remove(bb); err != nil {
-		d.t.Logf("Could not remove %s: %v", bb, err)
+		d.c.Logf("Could not remove %s: %v", bb, err)
 	}
 	return nil
 }
@@ -218,7 +218,7 @@ out1:
 			return err
 		case <-time.After(15 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.t.Log("timeout")
+			d.c.Log("timeout")
 			break out1
 		}
 	}
@@ -231,10 +231,10 @@ out2:
 		case <-tick:
 			i++
 			if i > 4 {
-				d.t.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
+				d.c.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
-			d.t.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
+			d.c.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 				return fmt.Errorf("could not send signal: %v", err)
 			}
@@ -242,7 +242,7 @@ out2:
 	}
 
 	if err := d.cmd.Process.Kill(); err != nil {
-		d.t.Logf("Could not kill daemon: %v", err)
+		d.c.Logf("Could not kill daemon: %v", err)
 		return err
 	}
 
@@ -478,10 +478,10 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
-func dockerCmd(t *testing.T, args ...string) (string, int) {
+func dockerCmd(c *check.C, args ...string) (string, int) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	if err != nil {
-		t.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
+		c.Fatalf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err)
 	}
 	return out, status
 }
@@ -496,7 +496,7 @@ func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, e
 }
 
 // execute a docker command in a directory
-func dockerCmdInDir(t *testing.T, path string, args ...string) (string, int, error) {
+func dockerCmdInDir(c *check.C, path string, args ...string) (string, int, error) {
 	dockerCommand := exec.Command(dockerBinary, args...)
 	dockerCommand.Dir = path
 	out, status, err := runCommandWithOutput(dockerCommand)
@@ -517,11 +517,11 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return out, status, err
 }
 
-func findContainerIP(t *testing.T, id string) string {
+func findContainerIP(c *check.C, id string) string {
 	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
-		t.Fatal(err, out)
+		c.Fatal(err, out)
 	}
 
 	return strings.Trim(out, " \r\n'")
@@ -779,12 +779,12 @@ func getIDByName(name string) (string, error) {
 // getContainerState returns the exit code of the container
 // and true if it's running
 // the exit code should be ignored if it's running
-func getContainerState(t *testing.T, id string) (int, bool, error) {
+func getContainerState(c *check.C, id string) (int, bool, error) {
 	var (
 		exitStatus int
 		running    bool
 	)
-	out, exitCode := dockerCmd(t, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
+	out, exitCode := dockerCmd(c, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
 	if exitCode != 0 {
 		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, out)
 	}
@@ -985,28 +985,28 @@ func fakeGIT(name string, files map[string]string, enforceLocalServer bool) (*Fa
 // Write `content` to the file at path `dst`, creating it if necessary,
 // as well as any missing directories.
 // The file is truncated if it already exists.
-// Call t.Fatal() at the first error.
-func writeFile(dst, content string, t *testing.T) {
+// Call c.Fatal() at the first error.
+func writeFile(dst, content string, c *check.C) {
 	// Create subdirectories if necessary
 	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil && !os.IsExist(err) {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// Write content (truncate if it exists)
 	if _, err := io.Copy(f, strings.NewReader(content)); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
 // Return the contents of file at path `src`.
-// Call t.Fatal() at the first error (including if the file doesn't exist)
-func readFile(src string, t *testing.T) (content string) {
+// Call c.Fatal() at the first error (including if the file doesn't exist)
+func readFile(src string, c *check.C) (content string) {
 	data, err := ioutil.ReadFile(src)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	return string(data)
@@ -1051,14 +1051,14 @@ func readContainerFileWithExec(containerId, filename string) ([]byte, error) {
 }
 
 // daemonTime provides the current time on the daemon host
-func daemonTime(t *testing.T) time.Time {
+func daemonTime(c *check.C) time.Time {
 	if isLocalDaemon {
 		return time.Now()
 	}
 
 	_, body, err := sockRequest("GET", "/info", nil)
 	if err != nil {
-		t.Fatalf("daemonTime: failed to get /info: %v", err)
+		c.Fatalf("daemonTime: failed to get /info: %v", err)
 	}
 
 	type infoJSON struct {
@@ -1066,21 +1066,21 @@ func daemonTime(t *testing.T) time.Time {
 	}
 	var info infoJSON
 	if err = json.Unmarshal(body, &info); err != nil {
-		t.Fatalf("unable to unmarshal /info response: %v", err)
+		c.Fatalf("unable to unmarshal /info response: %v", err)
 	}
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	return dt
 }
 
-func setupRegistry(t *testing.T) func() {
-	testRequires(t, RegistryHosting)
-	reg, err := newTestRegistryV2(t)
+func setupRegistry(c *check.C) func() {
+	testRequires(c, RegistryHosting)
+	reg, err := newTestRegistryV2(c)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Wait for registry to be ready to serve requests.
@@ -1092,7 +1092,7 @@ func setupRegistry(t *testing.T) func() {
 	}
 
 	if err != nil {
-		t.Fatal("Timeout waiting for test registry to become available")
+		c.Fatal("Timeout waiting for test registry to become available")
 	}
 
 	return func() { reg.Close() }
