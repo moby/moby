@@ -109,6 +109,7 @@ pages:
 - ['articles/dockerfile_best-practices.md', 'Articles', 'Best practices for writing Dockerfiles']
 - ['articles/certificates.md', 'Articles', 'Using certificates for repository client verification']
 - ['articles/using_supervisord.md', 'Articles', 'Using Supervisor']
+- ['articles/configuring.md', 'Articles', 'Configuring Docker']
 - ['articles/cfengine_process_management.md', 'Articles', 'Process management with CFEngine']
 - ['articles/puppet.md', 'Articles', 'Using Puppet']
 - ['articles/chef.md', 'Articles', 'Using Chef']
