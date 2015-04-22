@@ -23,33 +23,32 @@ func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
 	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
 		if !quiet {
-			logrus.Warnf("%s", err)
+			logrus.Warnf("%v", err)
 		}
 	} else {
 		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
 		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
 		sysInfo.MemoryLimit = err1 == nil && err2 == nil
 		if !sysInfo.MemoryLimit && !quiet {
-			logrus.Warnf("Your kernel does not support cgroup memory limit.")
+			logrus.Warn("Your kernel does not support cgroup memory limit.")
 		}
 
 		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
 		sysInfo.SwapLimit = err == nil
 		if !sysInfo.SwapLimit && !quiet {
-			logrus.Warnf("Your kernel does not support cgroup swap limit.")
+			logrus.Warn("Your kernel does not support cgroup swap limit.")
 		}
 	}
 
 	if cgroupCpuMountpoint, err := cgroups.FindCgroupMountpoint("cpu"); err != nil {
 		if !quiet {
-			logrus.Warnf("WARING: %s\n", err)
+			logrus.Warnf("%v", err)
 		}
 	} else {
 		_, err1 := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_quota_us"))
-		logrus.Warnf("%s", cgroupCpuMountpoint)
 		sysInfo.CpuCfsQuota = err1 == nil
 		if !sysInfo.CpuCfsQuota && !quiet {
-			logrus.Warnf("WARING: Your kernel does not support cgroup cfs quotas")
+			logrus.Warn("Your kernel does not support cgroup cfs quotas")
 		}
 	}
 

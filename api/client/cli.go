@@ -97,6 +97,11 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	return cli.CmdHelp()
 }
 
+// Subcmd is a subcommand of the main "docker" command.
+// A subcommand represents an action that can be performed
+// from the Docker command line client.
+//
+// To see all available subcommands, run "docker --help".
 func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bool) *flag.FlagSet {
 	var errorHandling flag.ErrorHandling
 	if exitOnError {
@@ -121,6 +126,8 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 	return flags
 }
 
+// CheckTtyInput checks if we are trying to attach to a container tty
+// from a non-tty client input stream, and if so, returns an error.
 func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	// In order to attach to a container tty, input stream for the client must
 	// be a tty itself: redirecting or piping the client standard input is

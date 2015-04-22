@@ -60,7 +60,7 @@ for HIER in $(cut -d: -f2 /proc/1/cgroup); do
 
 	mkdir -p "$CGROUP/$HIER"
 
-	if ! mountpoint -q $CGROUP/$HIER; then
+	if ! mountpoint -q "$CGROUP/$HIER"; then
 		mount -n -t cgroup -o "$OHIER" cgroup "$CGROUP/$HIER"
 	fi
 

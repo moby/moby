@@ -80,7 +80,7 @@ func (s *TagStore) CmdLoad(job *engine.Job) error {
 }
 
 func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {
-	if err := eng.Job("image_get", address).Run(); err != nil {
+	if _, err := s.LookupImage(address); err != nil {
 		logrus.Debugf("Loading %s", address)
 
 		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))

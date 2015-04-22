@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+// ByStars sorts search results in ascending order by number of stars.
 type ByStars []registry.SearchResult
 
 func (r ByStars) Len() int           { return len(r) }

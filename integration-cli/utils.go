@@ -168,10 +168,6 @@ func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 	return runCommandWithOutput(cmds[len(cmds)-1])
 }
 
-func logDone(message string) {
-	fmt.Printf("[PASSED]: %.69s\n", message)
-}
-
 func unmarshalJSON(data []byte, result interface{}) error {
 	err := json.Unmarshal(data, result)
 	if err != nil {

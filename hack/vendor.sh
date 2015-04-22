@@ -57,6 +57,8 @@ clone git github.com/Sirupsen/logrus v0.7.2
 
 clone git github.com/go-fsnotify/fsnotify v1.0.4
 
+clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
+
 # get Go tip's archive/tar, for xattr support and improved performance
 # TODO after Go 1.4 drops, bump our minimum supported version and drop this vendored dep
 if [ "$1" = '--go' ]; then

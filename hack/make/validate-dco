@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "$(dirname "$BASH_SOURCE")/.validate"
+source "${MAKEDIR}/.validate"
 
 adds=$(validate_diff --numstat | awk '{ s += $1 } END { print s }')
 dels=$(validate_diff --numstat | awk '{ s += $2 } END { print s }')

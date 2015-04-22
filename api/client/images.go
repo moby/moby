@@ -19,19 +19,19 @@ import (
 )
 
 // FIXME: --viz and --tree are deprecated. Remove them in a future version.
-func (cli *DockerCli) WalkTree(noTrunc bool, images []*types.Image, byParent map[string][]*types.Image, prefix string, printNode func(cli *DockerCli, noTrunc bool, image *types.Image, prefix string)) {
+func (cli *DockerCli) walkTree(noTrunc bool, images []*types.Image, byParent map[string][]*types.Image, prefix string, printNode func(cli *DockerCli, noTrunc bool, image *types.Image, prefix string)) {
 	length := len(images)
 	if length > 1 {
 		for index, image := range images {
 			if index+1 == length {
 				printNode(cli, noTrunc, image, prefix+"└─")
 				if subimages, exists := byParent[image.ID]; exists {
-					cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
+					cli.walkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
 				}
 			} else {
 				printNode(cli, noTrunc, image, prefix+"\u251C─")
 				if subimages, exists := byParent[image.ID]; exists {
-					cli.WalkTree(noTrunc, subimages, byParent, prefix+"\u2502 ", printNode)
+					cli.walkTree(noTrunc, subimages, byParent, prefix+"\u2502 ", printNode)
 				}
 			}
 		}
@@ -39,7 +39,7 @@ func (cli *DockerCli) WalkTree(noTrunc bool, images []*types.Image, byParent map
 		for _, image := range images {
 			printNode(cli, noTrunc, image, prefix+"└─")
 			if subimages, exists := byParent[image.ID]; exists {
-				cli.WalkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
+				cli.walkTree(noTrunc, subimages, byParent, prefix+"  ", printNode)
 			}
 		}
 	}
@@ -181,9 +181,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 		if startImage != nil {
 			root := []*types.Image{startImage}
-			cli.WalkTree(*noTrunc, root, byParent, "", printNode)
+			cli.walkTree(*noTrunc, root, byParent, "", printNode)
 		} else if matchName == "" {
-			cli.WalkTree(*noTrunc, roots, byParent, "", printNode)
+			cli.walkTree(*noTrunc, roots, byParent, "", printNode)
 		}
 		if *flViz {
 			fmt.Fprintf(cli.out, " base [style=invisible]\n}\n")

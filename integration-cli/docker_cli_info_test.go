@@ -3,15 +3,16 @@ package main
 import (
 	"os/exec"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 // ensure docker info succeeds
-func TestInfoEnsureSucceeds(t *testing.T) {
+func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	versionCmd := exec.Command(dockerBinary, "info")
 	out, exitCode, err := runCommandWithOutput(versionCmd)
 	if err != nil || exitCode != 0 {
-		t.Fatalf("failed to execute docker info: %s, %v", out, err)
+		c.Fatalf("failed to execute docker info: %s, %v", out, err)
 	}
 
 	// always shown fields
@@ -29,9 +30,8 @@ func TestInfoEnsureSucceeds(t *testing.T) {
 
 	for _, linePrefix := range stringsToCheck {
 		if !strings.Contains(out, linePrefix) {
-			t.Errorf("couldn't find string %v in output", linePrefix)
+			c.Errorf("couldn't find string %v in output", linePrefix)
 		}
 	}
 
-	logDone("info - verify that it works")
 }

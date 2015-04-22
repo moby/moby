@@ -454,7 +454,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 		Json:       b.StreamFormatter.Json(),
 	}
 
-	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig, b.Engine); err != nil {
+	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
 		return nil, err
 	}
 

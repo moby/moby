@@ -11,7 +11,7 @@ if [[ "$(uname -s)" == CYGWIN* ]]; then
 	DEST=$(cygpath -mw $DEST)
 fi
 
-source "$(dirname "$BASH_SOURCE")/.go-autogen"
+source "${MAKEDIR}/.go-autogen"
 
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
