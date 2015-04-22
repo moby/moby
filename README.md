@@ -179,7 +179,7 @@ Under the hood, Docker is built on the following components:
 Contributing to Docker
 ======================
 
-[![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
+[![GoDoc](https://godoc.org/github.com/docker/docker?status.svg)](https://godoc.org/github.com/docker/docker)
 [![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
