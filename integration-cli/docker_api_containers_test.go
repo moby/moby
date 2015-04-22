@@ -722,6 +722,51 @@ func TestContainerApiCreate(t *testing.T) {
 	logDone("containers REST API - POST /containers/create")
 }
 
+func TestContainerApiCreateWithHostName(t *testing.T) {
+	defer deleteAllContainers()
+	var hostName = "test-host"
+	config := map[string]interface{}{
+		"Image":    "busybox",
+		"Hostname": hostName,
+	}
+
+	_, b, err := sockRequest("POST", "/containers/create", config)
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		t.Fatal(err)
+	}
+	type createResp struct {
+		Id string
+	}
+	var container createResp
+	if err := json.Unmarshal(b, &container); err != nil {
+		t.Fatal(err)
+	}
+
+	var id = container.Id
+	configGet := map[string]interface{}{}
+	logDone("containers REST API - POST /containers/create")
+	_, bodyGet, err := sockRequest("GET", "/containers/"+id+"/json", configGet)
+
+	type configLocal struct {
+		Hostname string
+	}
+
+	type getResponse struct {
+		Id     string
+		Config configLocal
+	}
+
+	var containerInfo getResponse
+	if err := json.Unmarshal(bodyGet, &containerInfo); err != nil {
+		t.Fatal(err)
+	}
+	var hostNameActual = containerInfo.Config.Hostname
+
+	if hostNameActual != "test-host" {
+		t.Fatalf("Mismatched Hostname, Expected %v, Actual: %v ", hostName, hostNameActual)
+	}
+}
+
 func TestContainerApiVerifyHeader(t *testing.T) {
 	defer deleteAllContainers()
 	config := map[string]interface{}{
