@@ -49,6 +49,12 @@ ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs
 ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/api.md \
     https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/json.md \
   /docs/sources/registry/spec/
+  
+ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/s3.md \
+    https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/azure.md \
+    https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/filesystem.md \
+    https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/inmemory.md \
+  /docs/sources/registry/storage-drivers/
 
 ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/auth/token.md /docs/sources/registry/spec/auth/token.md
 
