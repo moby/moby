@@ -91,10 +91,8 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		return nil
 	}
 
-	if len(repos) <= 1 {
-		if err := daemon.canDeleteImage(img.ID, force); err != nil {
-			return err
-		}
+	if err := daemon.canDeleteImage(img.ID, force); err != nil {
+		return err
 	}
 
 	// Untag the current image
