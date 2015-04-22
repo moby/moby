@@ -46,6 +46,7 @@ echo
 DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
+	validate-test
 	validate-toml
 	validate-vet
 
