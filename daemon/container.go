@@ -1405,6 +1405,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
+	env = append(env, fmt.Sprintf("container_uuid=%s", convertUUID(container.ID)))
 	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
 
 	return env
