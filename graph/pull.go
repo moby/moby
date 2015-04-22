@@ -99,17 +99,20 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	repoData, err := r.GetRepositoryData(repoInfo.RemoteName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
-			return fmt.Errorf("Error: image %s not found", utils.ImageReference(repoInfo.RemoteName, askedTag))
+			err = fmt.Errorf("Error: image %s not found", utils.ImageReference(repoInfo.RemoteName, askedTag))
 		}
 		// Unexpected HTTP error
-		return err
+		logrus.WithFields(logrus.Fields{"error": err}).Error("HTTP Error")
+		out.Write(sf.FormatError(err))
+		return nil
 	}
 
 	logrus.Debugf("Retrieving the tag list")
 	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName, repoData.Tokens)
 	if err != nil {
 		logrus.Errorf("unable to get remote tags: %s", err)
-		return err
+		out.Write(sf.FormatError(err))
+		return nil
 	}
 
 	for tag, id := range tagsList {
@@ -130,7 +133,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repository %s", askedTag, repoInfo.CanonicalName)
+			err = fmt.Errorf("Tag %s not found in repository %s", askedTag, repoInfo.CanonicalName)
+			logrus.WithFields(logrus.Fields{"error": err}).Error("HTTP Error")
+			out.Write(sf.FormatError(err))
+			return nil
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
@@ -230,7 +236,9 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 			}
 		}
 		if lastError != nil {
-			return lastError
+			logrus.WithFields(logrus.Fields{"error": lastError}).Error("HTTP Error")
+			out.Write(sf.FormatError(lastError))
+			return nil
 		}
 
 	}
@@ -239,7 +247,9 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 			continue
 		}
 		if err := s.Tag(repoInfo.LocalName, tag, id, true); err != nil {
-			return err
+			logrus.WithFields(logrus.Fields{"error": err}).Error("HTTP Error")
+			out.Write(sf.FormatError(err))
+			return nil
 		}
 	}
 
