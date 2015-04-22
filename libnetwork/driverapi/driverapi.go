@@ -39,4 +39,7 @@ type Driver interface {
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
 	DeleteEndpoint(nid, eid types.UUID) error
+
+	// Type returns the the type of this driver, the network type this driver manages
+	Type() string
 }

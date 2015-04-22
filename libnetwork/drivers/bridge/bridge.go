@@ -475,6 +475,10 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	return nil
 }
 
+func (d *driver) Type() string {
+	return networkType
+}
+
 func parseEndpointOptions(epOptions interface{}) (*EndpointConfiguration, error) {
 	if epOptions == nil {
 		return nil, nil

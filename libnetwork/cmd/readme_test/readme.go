@@ -10,15 +10,17 @@ func main() {
 	// Create a new controller instance
 	controller := libnetwork.New()
 
+	// Select and configure the network driver
+	networkType := "bridge"
 	option := options.Generic{}
-	driver, err := controller.NewNetworkDriver("bridge", option)
+	err := controller.ConfigureNetworkDriver(networkType, option)
 	if err != nil {
 		return
 	}
 
 	netOptions := options.Generic{}
 	// Create a network for containers to join.
-	network, err := controller.NewNetwork(driver, "network1", netOptions)
+	network, err := controller.NewNetwork(networkType, "network1", netOptions)
 	if err != nil {
 		return
 	}

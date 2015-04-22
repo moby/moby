@@ -6,22 +6,24 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork"
-	_ "github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
 )
 
-var bridgeName = "dockertest0"
+const (
+	netType    = "bridge"
+	bridgeName = "dockertest0"
+)
 
 func createTestNetwork(networkType, networkName string, option options.Generic) (libnetwork.Network, error) {
 	controller := libnetwork.New()
 
-	driver, err := controller.NewNetworkDriver(networkType, option)
+	err := controller.ConfigureNetworkDriver(networkType, option)
 	if err != nil {
 		return nil, err
 	}
 
-	network, err := controller.NewNetwork(driver, networkName, "")
+	network, err := controller.NewNetwork(networkType, networkName, "")
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +64,7 @@ func Testbridge(t *testing.T) {
 		"EnableIPForwarding":    true,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("bridge", "testnetwork", option)
+	network, err := createTestNetwork(netType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,12 +108,12 @@ func TestNilDriver(t *testing.T) {
 	controller := libnetwork.New()
 
 	option := options.Generic{}
-	_, err := controller.NewNetwork(nil, "dummy", option)
+	_, err := controller.NewNetwork("framerelay", "dummy", option)
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if err != libnetwork.ErrNilNetworkDriver {
+	if err != libnetwork.ErrInvalidNetworkDriver {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -120,7 +122,7 @@ func TestNoInitDriver(t *testing.T) {
 	controller := libnetwork.New()
 
 	option := options.Generic{}
-	_, err := controller.NewNetwork(&libnetwork.NetworkDriver{}, "dummy", option)
+	_, err := controller.NewNetwork("ppp", "dummy", option)
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -135,17 +137,17 @@ func TestDuplicateNetwork(t *testing.T) {
 	controller := libnetwork.New()
 
 	option := options.Generic{}
-	driver, err := controller.NewNetworkDriver("bridge", option)
+	err := controller.ConfigureNetworkDriver(netType, option)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = controller.NewNetwork(driver, "testnetwork", "")
+	_, err = controller.NewNetwork(netType, "testnetwork", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = controller.NewNetwork(driver, "testnetwork", "")
+	_, err = controller.NewNetwork(netType, "testnetwork", "")
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -158,7 +160,7 @@ func TestDuplicateNetwork(t *testing.T) {
 func TestNetworkName(t *testing.T) {
 	networkName := "testnetwork"
 
-	n, err := createTestNetwork("bridge", networkName, options.Generic{})
+	n, err := createTestNetwork(netType, networkName, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +171,7 @@ func TestNetworkName(t *testing.T) {
 }
 
 func TestNetworkType(t *testing.T) {
-	networkType := "bridge"
+	networkType := netType
 
 	n, err := createTestNetwork(networkType, "testnetwork", options.Generic{})
 	if err != nil {
@@ -182,7 +184,7 @@ func TestNetworkType(t *testing.T) {
 }
 
 func TestNetworkID(t *testing.T) {
-	networkType := "bridge"
+	networkType := netType
 
 	n, err := createTestNetwork(networkType, "testnetwork", options.Generic{})
 	if err != nil {
@@ -200,7 +202,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("bridge", "testnetwork", option)
+	network, err := createTestNetwork(netType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +237,7 @@ func TestUnknownNetwork(t *testing.T) {
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("bridge", "testnetwork", option)
+	network, err := createTestNetwork(netType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +270,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		"AddressIPv4":           subnet,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("bridge", "testnetwork", option)
+	network, err := createTestNetwork(netType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}

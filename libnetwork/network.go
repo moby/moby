@@ -50,11 +50,11 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
-	// NOTE: This method will go away when moving to plugin infrastructure
-	NewNetworkDriver(networkType string, options interface{}) (*NetworkDriver, error)
+	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
+	ConfigureNetworkDriver(networkType string, options interface{}) error
 	// Create a new network. The options parameter carries network specific options.
 	// Labels support will be added in the near future.
-	NewNetwork(d *NetworkDriver, name string, options interface{}) (Network, error)
+	NewNetwork(networkType, name string, options interface{}) (Network, error)
 }
 
 // A Network represents a logical connectivity zone that containers may
@@ -99,12 +99,6 @@ type Endpoint interface {
 	Delete() error
 }
 
-// NetworkDriver provides a reference to driver and way to push driver specific config
-type NetworkDriver struct {
-	networkType    string
-	internalDriver driverapi.Driver
-}
-
 type endpoint struct {
 	name        string
 	id          types.UUID
@@ -117,7 +111,7 @@ type network struct {
 	name        string
 	networkType string
 	id          types.UUID
-	driver      *NetworkDriver
+	driver      driverapi.Driver
 	endpoints   endpointTable
 	sync.Mutex
 }
@@ -136,26 +130,24 @@ func New() NetworkController {
 	return &controller{networkTable{}, enumerateDrivers(), sync.Mutex{}}
 }
 
-func (c *controller) NewNetworkDriver(networkType string, options interface{}) (*NetworkDriver, error) {
+func (c *controller) ConfigureNetworkDriver(networkType string, options interface{}) error {
 	d, ok := c.drivers[networkType]
 	if !ok {
-		return nil, NetworkTypeError(networkType)
+		return NetworkTypeError(networkType)
 	}
-
-	if err := d.Config(options); err != nil {
-		return nil, err
-	}
-
-	return &NetworkDriver{networkType: networkType, internalDriver: d}, nil
+	return d.Config(options)
 }
 
-// NewNetwork creates a new network of the specified NetworkDriver. The options
-// are driver specific and modeled in a generic way.
-func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interface{}) (Network, error) {
-	if nd == nil {
-		return nil, ErrNilNetworkDriver
+// NewNetwork creates a new network of the specified network type. The options
+// are network specific and modeled in a generic way.
+func (c *controller) NewNetwork(networkType, name string, options interface{}) (Network, error) {
+	// Check if a driver for the specified network type is available
+	d, ok := c.drivers[networkType]
+	if !ok {
+		return nil, ErrInvalidNetworkDriver
 	}
 
+	// Check if a network already exists with the specified network name
 	c.Lock()
 	for _, n := range c.networks {
 		if n.name == name {
@@ -165,22 +157,21 @@ func (c *controller) NewNetwork(nd *NetworkDriver, name string, options interfac
 	}
 	c.Unlock()
 
+	// Construct the network object
 	network := &network{
-		name:   name,
-		id:     types.UUID(stringid.GenerateRandomID()),
-		ctrlr:  c,
-		driver: nd}
-	network.endpoints = make(endpointTable)
-
-	d := network.driver.internalDriver
-	if d == nil {
-		return nil, ErrInvalidNetworkDriver
+		name:      name,
+		id:        types.UUID(stringid.GenerateRandomID()),
+		ctrlr:     c,
+		driver:    d,
+		endpoints: endpointTable{},
 	}
 
+	// Create the network
 	if err := d.CreateNetwork(network.id, options); err != nil {
 		return nil, err
 	}
 
+	// Store the network handler in controller
 	c.Lock()
 	c.networks[network.id] = network
 	c.Unlock()
@@ -201,7 +192,7 @@ func (n *network) Type() string {
 		return ""
 	}
 
-	return n.driver.networkType
+	return n.driver.Type()
 }
 
 func (n *network) Delete() error {
@@ -232,8 +223,7 @@ func (n *network) Delete() error {
 		}
 	}()
 
-	d := n.driver.internalDriver
-	err = d.DeleteNetwork(n.id)
+	err = n.driver.DeleteNetwork(n.id)
 	return err
 }
 
@@ -242,7 +232,7 @@ func (n *network) CreateEndpoint(name string, sboxKey string, options interface{
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 
-	d := n.driver.internalDriver
+	d := n.driver
 	sinfo, err := d.CreateEndpoint(n.id, ep.id, sboxKey, options)
 	if err != nil {
 		return nil, err
@@ -310,7 +300,6 @@ func (ep *endpoint) Delete() error {
 		}
 	}()
 
-	d := n.driver.internalDriver
-	err = d.DeleteEndpoint(n.id, ep.id)
+	err = n.driver.DeleteEndpoint(n.id, ep.id)
 	return err
 }
