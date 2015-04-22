@@ -175,6 +175,12 @@ To create the `docker` group and add your user:
 
         $ docker run hello-world
 
+	If this fails with a message similar to this:
+
+		Cannot connect to the Docker daemon. Is 'docker -d' running on this host?
+
+	Check that the `DOCKER_HOST` environment variable is not set for your shell.
+	If it is, unset it.
 
 ### Adjust memory and swap accounting
 
