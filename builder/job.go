@@ -234,7 +234,7 @@ func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	img, err := d.Commit(container, c.Repo, c.Tag, c.Comment, c.Author, c.Pause, newConfig)
+	img, err := d.Commit(container, c.Repo, c.Tag, c.Comment, c.Author, c.Pause, newConfig, c.Excludes)
 	if err != nil {
 		return "", err
 	}

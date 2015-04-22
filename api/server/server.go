@@ -663,13 +663,14 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 	}
 
 	containerCommitConfig := &daemon.ContainerCommitConfig{
-		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
-		Author:  r.Form.Get("author"),
-		Comment: r.Form.Get("comment"),
-		Changes: r.Form["changes"],
-		Config:  c,
+		Pause:    pause,
+		Repo:     r.Form.Get("repo"),
+		Tag:      r.Form.Get("tag"),
+		Author:   r.Form.Get("author"),
+		Comment:  r.Form.Get("comment"),
+		Changes:  r.Form["changes"],
+		Excludes: r.Form["excludes"],
+		Config:   c,
 	}
 
 	imgID, err := builder.Commit(s.daemon, cont, containerCommitConfig)

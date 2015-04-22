@@ -36,9 +36,9 @@ func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, initID)
 }
 
-func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
+func (daemon *Daemon) Diff(container *Container, excludes []string) (archive.Archive, error) {
 	initID := fmt.Sprintf("%s-init", container.ID)
-	return daemon.driver.Diff(container.ID, initID)
+	return daemon.driver.Diff(container.ID, initID, excludes)
 }
 
 func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {

@@ -23,6 +23,8 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
 	flChanges := opts.NewListOpts(nil)
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
+	flExcludes := opts.NewListOpts(nil)
+	cmd.Var(&flExcludes, []string{"-exclude"}, "Exclude the specified file or directory")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	cmd.Require(flag.Max, 2)
@@ -49,6 +51,10 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	v.Set("author", *flAuthor)
 	for _, change := range flChanges.GetAll() {
 		v.Add("changes", change)
+	}
+
+	for _, exclude := range flExcludes.GetAll() {
+		v.Add("excludes", exclude)
 	}
 
 	if *flPause != true {

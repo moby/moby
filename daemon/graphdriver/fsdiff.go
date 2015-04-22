@@ -33,7 +33,7 @@ func NaiveDiffDriver(driver ProtoDriver) Driver {
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err error) {
+func (gdw *naiveDiffDriver) Diff(id, parent string, excludes []string) (arch archive.Archive, err error) {
 	driver := gdw.ProtoDriver
 
 	layerFs, err := driver.Get(id, "")
@@ -48,7 +48,11 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 	}()
 
 	if parent == "" {
-		archive, err := archive.Tar(layerFs, archive.Uncompressed)
+		options := &archive.TarOptions{
+			Compression:     archive.Uncompressed,
+			ExcludePatterns: excludes,
+		}
+		archive, err := archive.TarWithOptions(layerFs, options)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +74,7 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 		return nil, err
 	}
 
-	archive, err := archive.ExportChanges(layerFs, changes)
+	archive, err := archive.ExportChanges(layerFs, changes, excludes)
 	if err != nil {
 		return nil, err
 	}

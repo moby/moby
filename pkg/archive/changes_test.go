@@ -382,7 +382,7 @@ func TestApplyLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer, err := ExportChanges(dst, changes)
+	layer, err := ExportChanges(dst, changes, []string{})
 	if err != nil {
 		t.Fatal(err)
 	}

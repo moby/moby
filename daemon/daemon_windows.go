@@ -18,8 +18,8 @@ func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, container.ImageID)
 }
 
-func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
-	return daemon.driver.Diff(container.ID, container.ImageID)
+func (daemon *Daemon) Diff(container *Container, excludes []string) (archive.Archive, error) {
+	return daemon.driver.Diff(container.ID, container.ImageID, excludes)
 }
 
 func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {

@@ -359,7 +359,7 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change) (Archive, error) {
+func ExportChanges(dir string, changes []Change, excludes []string) (Archive, error) {
 	reader, writer := io.Pipe()
 	go func() {
 		ta := &tarAppender{
@@ -376,7 +376,21 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 		// during e.g. a diff operation the container can continue
 		// mutating the filesystem and we can see transient errors
 		// from this
+	changesLoop:
 		for _, change := range changes {
+			for _, exclude := range excludes {
+				exclude := filepath.Join("/", exclude)
+				if matched, _ := filepath.Match(exclude, change.Path); matched {
+					continue changesLoop
+				} else {
+					pattern := filepath.Join(dir, exclude)
+					if f, err := os.Stat(pattern); err == nil && f.IsDir() {
+						if strings.HasPrefix(change.Path, exclude) {
+							continue changesLoop
+						}
+					}
+				}
+			}
 			if change.Kind == ChangeDelete {
 				whiteOutDir := filepath.Dir(change.Path)
 				whiteOutBase := filepath.Base(change.Path)

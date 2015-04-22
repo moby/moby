@@ -832,11 +832,11 @@ func (container *Container) initializeNetworking() error {
 	return container.buildHostnameFile()
 }
 
-func (container *Container) ExportRw() (archive.Archive, error) {
+func (container *Container) ExportRw(excludes []string) (archive.Archive, error) {
 	if container.daemon == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
 	}
-	archive, err := container.daemon.Diff(container)
+	archive, err := container.daemon.Diff(container, excludes)
 	if err != nil {
 		return nil, err
 	}

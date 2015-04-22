@@ -6,24 +6,25 @@ import (
 )
 
 type ContainerCommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	Changes []string
-	Config  *runconfig.Config
+	Pause    bool
+	Repo     string
+	Tag      string
+	Author   string
+	Comment  string
+	Changes  []string
+	Config   *runconfig.Config
+	Excludes []string
 }
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
+func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config, excludes []string) (*image.Image, error) {
 	if pause && !container.IsPaused() {
 		container.Pause()
 		defer container.Unpause()
 	}
 
-	rwTar, err := container.ExportRw()
+	rwTar, err := container.ExportRw(excludes)
 	if err != nil {
 		return nil, err
 	}
