@@ -29,9 +29,10 @@ import (
 )
 
 var (
-	ErrConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
+	errConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 )
 
+// HTTPClient creates a new HTP client with the cli's client transport instance.
 func (cli *DockerCli) HTTPClient() *http.Client {
 	return &http.Client{Transport: cli.transport}
 }
@@ -93,7 +94,7 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return nil, "", statusCode, ErrConnectionRefused
+			return nil, "", statusCode, errConnectionRefused
 		}
 
 		if cli.tlsConfig == nil {
@@ -250,7 +251,7 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 	stream, _, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != ErrConnectionRefused {
+		if err != errConnectionRefused {
 			return false, -1, err
 		}
 		return false, -1, nil
@@ -271,7 +272,7 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 	stream, _, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != ErrConnectionRefused {
+		if err != errConnectionRefused {
 			return false, -1, err
 		}
 		return false, -1, nil

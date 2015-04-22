@@ -7,6 +7,9 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
+// CmdRm removes one or more containers.
+//
+// Usage: docker rm [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := cli.Subcmd("rm", "CONTAINER [CONTAINER...]", "Remove one or more containers", true)
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
