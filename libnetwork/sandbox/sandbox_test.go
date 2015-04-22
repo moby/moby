@@ -39,6 +39,23 @@ func TestInterfaceEqual(t *testing.T) {
 	}
 }
 
+func TestSandboxInfoEqual(t *testing.T) {
+	si1 := &Info{Interfaces: getInterfaceList(), Gateway: net.ParseIP("192.168.1.254"), GatewayIPv6: net.ParseIP("2001:2345::abcd:8889")}
+	si2 := &Info{Interfaces: getInterfaceList(), Gateway: net.ParseIP("172.18.255.254"), GatewayIPv6: net.ParseIP("2001:2345::abcd:8888")}
+
+	if !si1.Equal(si1) {
+		t.Fatalf("Info.Equal() returned false negative")
+	}
+
+	if si1.Equal(si2) {
+		t.Fatalf("Info.Equal() returned false positive")
+	}
+
+	if si1.Equal(si2) != si2.Equal(si1) {
+		t.Fatalf("Info.Equal() failed commutative check")
+	}
+}
+
 func TestInterfaceCopy(t *testing.T) {
 	for _, iface := range getInterfaceList() {
 		cp := iface.GetCopy()
