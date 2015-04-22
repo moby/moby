@@ -134,3 +134,22 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestPullScratchNotAllowed(c *check.C) {
+	testRequires(c, Network)
+
+	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
+	out, exitCode, err := runCommandWithOutput(pullCmd)
+	if err == nil {
+		c.Fatal("expected pull of scratch to fail, but it didn't")
+	}
+	if exitCode != 1 {
+		c.Fatalf("pulling scratch expected exit code 1, got %d", exitCode)
+	}
+	if strings.Contains(out, "Pulling repository scratch") {
+		c.Fatalf("pulling scratch should not have begun: %s", out)
+	}
+	if !strings.Contains(out, "'scratch' is a reserved name") {
+		c.Fatalf("unexpected output pulling scratch: %s", out)
+	}
+}
