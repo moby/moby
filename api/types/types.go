@@ -16,9 +16,6 @@ type ContainerCreateResponse struct {
 type ContainerExecCreateResponse struct {
 	// ID is the exec ID.
 	ID string `json:"Id"`
-
-	// Warnings are any warnings encountered during the execution of the command.
-	Warnings []string `json:"Warnings"`
 }
 
 // POST /auth
@@ -155,4 +152,13 @@ type Info struct {
 	NoProxy            string
 	Name               string
 	Labels             []string
+}
+
+// This struct is a temp struct used by execStart
+// Config fields is part of ExecConfig in runconfig package
+type ExecStartCheck struct {
+	// ExecStart will first check if it's detached
+	Detach bool
+	// Check if there's a tty
+	Tty bool
 }

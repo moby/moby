@@ -1,9 +1,6 @@
 package runconfig
 
 import (
-	"fmt"
-
-	"github.com/docker/docker/engine"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -17,25 +14,6 @@ type ExecConfig struct {
 	AttachStdout bool
 	Detach       bool
 	Cmd          []string
-}
-
-func ExecConfigFromJob(job *engine.Job) (*ExecConfig, error) {
-	execConfig := &ExecConfig{
-		User:         job.Getenv("User"),
-		Privileged:   job.GetenvBool("Privileged"),
-		Tty:          job.GetenvBool("Tty"),
-		AttachStdin:  job.GetenvBool("AttachStdin"),
-		AttachStderr: job.GetenvBool("AttachStderr"),
-		AttachStdout: job.GetenvBool("AttachStdout"),
-	}
-	cmd := job.GetenvList("Cmd")
-	if len(cmd) == 0 {
-		return nil, fmt.Errorf("No exec command specified")
-	}
-
-	execConfig.Cmd = cmd
-
-	return execConfig, nil
 }
 
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {

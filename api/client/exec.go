@@ -32,9 +32,6 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err
 	}
-	for _, warning := range response.Warnings {
-		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
-	}
 
 	execID := response.ID
 
@@ -43,12 +40,18 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return nil
 	}
 
+	//Temp struct for execStart so that we don't need to transfer all the execConfig
+	execStartCheck := &types.ExecStartCheck{
+		Detach: execConfig.Detach,
+		Tty:    execConfig.Tty,
+	}
+
 	if !execConfig.Detach {
 		if err := cli.CheckTtyInput(execConfig.AttachStdin, execConfig.Tty); err != nil {
 			return err
 		}
 	} else {
-		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execConfig, nil)); err != nil {
+		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execStartCheck, nil)); err != nil {
 			return err
 		}
 		// For now don't print this - wait for when we support exec wait()
