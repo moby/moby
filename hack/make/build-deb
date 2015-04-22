@@ -5,7 +5,7 @@ DEST=$1
 
 # subshell so that we can export PATH without breaking other things
 (
-	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
+	source "${MAKEDIR}/.integration-daemon-start"
 
 	# we need to wrap up everything in between integration-daemon-start and
 	# integration-daemon-stop to make sure we kill the daemon and don't hang,
@@ -76,7 +76,7 @@ DEST=$1
 	# clean up after ourselves
 	rm -f Dockerfile.build
 
-	source "$(dirname "$BASH_SOURCE")/.integration-daemon-stop"
+	source "${MAKEDIR}/.integration-daemon-stop"
 
 	[ -z "$didFail" ] # "set -e" ftw
 ) 2>&1 | tee -a $DEST/test.log

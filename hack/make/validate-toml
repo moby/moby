@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "$(dirname "$BASH_SOURCE")/.validate"
+source "${MAKEDIR}/.validate"
 
 IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'MAINTAINERS' || true) )

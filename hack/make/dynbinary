@@ -4,7 +4,7 @@ set -e
 DEST=$1
 
 if [ -z "$DOCKER_CLIENTONLY" ]; then
-	source "$(dirname "$BASH_SOURCE")/.dockerinit"
+	source "${MAKEDIR}/.dockerinit"
 
 	hash_files "$DEST/dockerinit-$VERSION"
 else
@@ -18,5 +18,5 @@ fi
 	export LDFLAGS_STATIC_DOCKER=''
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/static_build /}" ) # we're not building a "static" binary here
-	source "$(dirname "$BASH_SOURCE")/binary"
+	source "${MAKEDIR}/binary"
 )

@@ -24,10 +24,12 @@ set -e
 set -o pipefail
 
 export DOCKER_PKG='github.com/docker/docker'
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export MAKEDIR="$SCRIPTDIR/make"
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$(pwd)" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in the Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
@@ -62,7 +64,7 @@ DEFAULT_BUNDLES=(
 	ubuntu
 )
 
-VERSION=$(cat ./VERSION)
+VERSION=$(< ./VERSION)
 if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -82,7 +84,7 @@ if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
-	export GOPATH="$(pwd)/.gopath:$(pwd)/vendor"
+	export GOPATH="${PWD}/.gopath:${PWD}/vendor"
 fi
 
 if [ ! "$GOPATH" ]; then
@@ -110,7 +112,7 @@ fi
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
-source "$(dirname "$BASH_SOURCE")/make/.go-autogen"
+source "$SCRIPTDIR/make/.go-autogen"
 LDFLAGS='-w'
 
 LDFLAGS_STATIC='-linkmode external'
@@ -251,7 +253,7 @@ bundle() {
 	bundlescript=$1
 	bundle=$(basename $bundlescript)
 	echo "---> Making bundle: $bundle (in bundles/$VERSION/$bundle)"
-	mkdir -p bundles/$VERSION/$bundle
+	mkdir -p "bundles/$VERSION/$bundle"
 	source "$bundlescript" "$(pwd)/bundles/$VERSION/$bundle"
 }
 
@@ -261,23 +263,22 @@ main() {
 	mkdir -p bundles
 	if [ -e "bundles/$VERSION" ]; then
 		echo "bundles/$VERSION already exists. Removing."
-		rm -fr bundles/$VERSION && mkdir bundles/$VERSION || exit 1
+		rm -fr "bundles/$VERSION" && mkdir "bundles/$VERSION" || exit 1
 		echo
 	fi
 
 	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
 		# Windows and symlinks don't get along well
-		ln -sfT $VERSION bundles/latest
+		ln -sfT "$VERSION" bundles/latest
 	fi
 
-	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})
 	else
 		bundles=($@)
 	fi
 	for bundle in ${bundles[@]}; do
-		bundle $SCRIPTDIR/make/$bundle
+		bundle "$SCRIPTDIR/make/$bundle"
 		echo
 	done
 }
