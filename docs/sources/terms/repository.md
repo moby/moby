@@ -29,7 +29,7 @@ A Fully Qualified Image Name (FQIN) can be made up of 3 parts:
 
 If you create a new repository which you want to share, you will need to
 set at least the `user_name`, as the `default` blank `user_name` prefix is
-reserved for official Docker images.
+reserved for [Official Repositories](/docker-hub/official_repos).
 
 For more information see [*Working with
 Repositories*](/userguide/dockerrepos/#working-with-the-repository)
