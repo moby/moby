@@ -51,10 +51,10 @@ private to public.
 You can also collaborate on Docker Hub with organizations and groups.
 You can read more about that [here](accounts/).
 
-## Official repositories
+## Official Repositories
 
-The Docker Hub contains a number of [official
-repositories](http://registry.hub.docker.com/official). These are
+The Docker Hub contains a number of [Official
+Repositories](http://registry.hub.docker.com/official). These are
 certified repositories from vendors and contributors to Docker. They
 contain Docker images from vendors like Canonical, Oracle, and Red Hat
 that you can use to build applications and services.
@@ -63,9 +63,9 @@ If you use Official Repositories you know you're using a supported,
 optimized and up-to-date image to power your applications.
 
 > **Note:**
-> If you would like to contribute an official repository for your
-> organization, product or team you can see more information
-> [here](https://github.com/docker/stackbrew).
+> If you would like to contribute an Official Repository for your
+> organization, see [Official Repositories on Docker
+> Hub](/docker-hub/official_repos) for more information.
 
 ## Private repositories
 
