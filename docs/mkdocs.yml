@@ -171,6 +171,12 @@ pages:
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
 - ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub Accounts API']
 
+# Hidden registry files
+- ['registry/storage-drivers/azure.md', '**HIDDEN**' ]
+- ['registry/storage-drivers/filesystem.md', '**HIDDEN**' ]
+- ['registry/storage-drivers/inmemory.md', '**HIDDEN**' ]
+- ['registry/storage-drivers/s3.md', '**HIDDEN**' ]
+
 - ['jsearch.md', '**HIDDEN**']
 
 # - ['static_files/README.md', 'static_files', 'README']
@@ -182,6 +188,8 @@ pages:
 - ['terms/repository.md', '**HIDDEN**']
 - ['terms/filesystem.md', '**HIDDEN**']
 - ['terms/image.md', '**HIDDEN**']
+
+
 
 
 # Project:
