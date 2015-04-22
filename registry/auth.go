@@ -1,51 +1,21 @@
 package registry
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/requestdecorator"
 )
 
-const (
-	// Where we store the config file
-	CONFIGFILE     = "config.json"
-	OLD_CONFIGFILE = ".dockercfg"
-)
-
-var (
-	ErrConfigFileMissing = errors.New("The Auth config file is missing")
-)
-
-// Registry Auth Info
-type AuthConfig struct {
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
-	Auth          string `json:"auth"`
-	Email         string `json:"email"`
-	ServerAddress string `json:"serveraddress,omitempty"`
-}
-
-// ~/.docker/config.json file info
-type ConfigFile struct {
-	AuthConfigs map[string]AuthConfig `json:"auths"`
-	HttpHeaders map[string]string     `json:"HttpHeaders,omitempty"`
-	filename    string                // Note: not serialized - for internal use only
-}
-
 type RequestAuthorization struct {
-	authConfig       *AuthConfig
+	authConfig       *cliconfig.AuthConfig
 	registryEndpoint *Endpoint
 	resource         string
 	scope            string
@@ -56,7 +26,7 @@ type RequestAuthorization struct {
 	tokenExpiration time.Time
 }
 
-func NewRequestAuthorization(authConfig *AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) *RequestAuthorization {
+func NewRequestAuthorization(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) *RequestAuthorization {
 	return &RequestAuthorization{
 		authConfig:       authConfig,
 		registryEndpoint: registryEndpoint,
@@ -121,160 +91,8 @@ func (auth *RequestAuthorization) Authorize(req *http.Request) error {
 	return nil
 }
 
-// create a base64 encoded auth string to store in config
-func encodeAuth(authConfig *AuthConfig) string {
-	authStr := authConfig.Username + ":" + authConfig.Password
-	msg := []byte(authStr)
-	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
-	base64.StdEncoding.Encode(encoded, msg)
-	return string(encoded)
-}
-
-// decode the auth string
-func decodeAuth(authStr string) (string, string, error) {
-	decLen := base64.StdEncoding.DecodedLen(len(authStr))
-	decoded := make([]byte, decLen)
-	authByte := []byte(authStr)
-	n, err := base64.StdEncoding.Decode(decoded, authByte)
-	if err != nil {
-		return "", "", err
-	}
-	if n > decLen {
-		return "", "", fmt.Errorf("Something went wrong decoding auth config")
-	}
-	arr := strings.SplitN(string(decoded), ":", 2)
-	if len(arr) != 2 {
-		return "", "", fmt.Errorf("Invalid auth configuration file")
-	}
-	password := strings.Trim(arr[1], "\x00")
-	return arr[0], password, nil
-}
-
-// load up the auth config information and return values
-// FIXME: use the internal golang config parser
-func LoadConfig(configDir string) (*ConfigFile, error) {
-	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), ".docker")
-	}
-
-	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
-		filename:    filepath.Join(configDir, CONFIGFILE),
-	}
-
-	// Try happy path first - latest config file
-	if _, err := os.Stat(configFile.filename); err == nil {
-		file, err := os.Open(configFile.filename)
-		if err != nil {
-			return &configFile, err
-		}
-		defer file.Close()
-
-		if err := json.NewDecoder(file).Decode(&configFile); err != nil {
-			return &configFile, err
-		}
-
-		for addr, ac := range configFile.AuthConfigs {
-			ac.Username, ac.Password, err = decodeAuth(ac.Auth)
-			if err != nil {
-				return &configFile, err
-			}
-			ac.Auth = ""
-			ac.ServerAddress = addr
-			configFile.AuthConfigs[addr] = ac
-		}
-
-		return &configFile, nil
-	} else if !os.IsNotExist(err) {
-		// if file is there but we can't stat it for any reason other
-		// than it doesn't exist then stop
-		return &configFile, err
-	}
-
-	// Can't find latest config file so check for the old one
-	confFile := filepath.Join(homedir.Get(), OLD_CONFIGFILE)
-
-	if _, err := os.Stat(confFile); err != nil {
-		return &configFile, nil //missing file is not an error
-	}
-
-	b, err := ioutil.ReadFile(confFile)
-	if err != nil {
-		return &configFile, err
-	}
-
-	if err := json.Unmarshal(b, &configFile.AuthConfigs); err != nil {
-		arr := strings.Split(string(b), "\n")
-		if len(arr) < 2 {
-			return &configFile, fmt.Errorf("The Auth config file is empty")
-		}
-		authConfig := AuthConfig{}
-		origAuth := strings.Split(arr[0], " = ")
-		if len(origAuth) != 2 {
-			return &configFile, fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
-		if err != nil {
-			return &configFile, err
-		}
-		origEmail := strings.Split(arr[1], " = ")
-		if len(origEmail) != 2 {
-			return &configFile, fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Email = origEmail[1]
-		authConfig.ServerAddress = IndexServerAddress()
-		// *TODO: Switch to using IndexServerName() instead?
-		configFile.AuthConfigs[IndexServerAddress()] = authConfig
-	} else {
-		for k, authConfig := range configFile.AuthConfigs {
-			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
-			if err != nil {
-				return &configFile, err
-			}
-			authConfig.Auth = ""
-			authConfig.ServerAddress = k
-			configFile.AuthConfigs[k] = authConfig
-		}
-	}
-	return &configFile, nil
-}
-
-func (configFile *ConfigFile) Save() error {
-	// Encode sensitive data into a new/temp struct
-	tmpAuthConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
-	for k, authConfig := range configFile.AuthConfigs {
-		authCopy := authConfig
-
-		authCopy.Auth = encodeAuth(&authCopy)
-		authCopy.Username = ""
-		authCopy.Password = ""
-		authCopy.ServerAddress = ""
-		tmpAuthConfigs[k] = authCopy
-	}
-
-	saveAuthConfigs := configFile.AuthConfigs
-	configFile.AuthConfigs = tmpAuthConfigs
-	defer func() { configFile.AuthConfigs = saveAuthConfigs }()
-
-	data, err := json.MarshalIndent(configFile, "", "\t")
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(configFile.filename, data, 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Login tries to register/login to the registry server.
-func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
+func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
 	// Separates the v2 registry login logic from the v1 logic.
 	if registryEndpoint.Version == APIVersion2 {
 		return loginV2(authConfig, registryEndpoint, factory)
@@ -283,7 +101,7 @@ func Login(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestd
 }
 
 // loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
+func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
 	var (
 		status        string
 		reqBody       []byte
@@ -396,7 +214,7 @@ func loginV1(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *reques
 // now, users should create their account through other means like directly from a web page
 // served by the v2 registry service provider. Whether this will be supported in the future
 // is to be determined.
-func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
+func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
 	logrus.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 	var (
 		err       error
@@ -429,7 +247,7 @@ func loginV2(authConfig *AuthConfig, registryEndpoint *Endpoint, factory *reques
 	return "", fmt.Errorf("no successful auth challenge for %s - errors: %s", registryEndpoint, allErrors)
 }
 
-func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
+func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
 	req, err := factory.NewRequest("GET", registryEndpoint.Path(""), nil)
 	if err != nil {
 		return err
@@ -450,7 +268,7 @@ func tryV2BasicAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 	return nil
 }
 
-func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
+func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
 	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
 	if err != nil {
 		return err
@@ -477,7 +295,7 @@ func tryV2TokenAuthLogin(authConfig *AuthConfig, params map[string]string, regis
 }
 
 // this method matches a auth configuration to a server address or a url
-func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
+func ResolveAuthConfig(config *cliconfig.ConfigFile, index *IndexInfo) cliconfig.AuthConfig {
 	configKey := index.GetAuthConfigKey()
 	// First try the happy case
 	if c, found := config.AuthConfigs[configKey]; found || index.Official {
@@ -499,16 +317,12 @@ func (config *ConfigFile) ResolveAuthConfig(index *IndexInfo) AuthConfig {
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, config := range config.AuthConfigs {
+	for registry, ac := range config.AuthConfigs {
 		if configKey == convertToHostname(registry) {
-			return config
+			return ac
 		}
 	}
 
 	// When all else fails, return an empty auth config
-	return AuthConfig{}
-}
-
-func (config *ConfigFile) Filename() string {
-	return config.filename
+	return cliconfig.AuthConfig{}
 }

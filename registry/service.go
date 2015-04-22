@@ -1,5 +1,7 @@
 package registry
 
+import "github.com/docker/docker/cliconfig"
+
 type Service struct {
 	Config *ServiceConfig
 }
@@ -15,7 +17,7 @@ func NewService(options *Options) *Service {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was sucessful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(authConfig *AuthConfig) (string, error) {
+func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
 	addr := authConfig.ServerAddress
 	if addr == "" {
 		// Use the official registry address if not specified.
@@ -35,7 +37,7 @@ func (s *Service) Auth(authConfig *AuthConfig) (string, error) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *Service) Search(term string, authConfig *AuthConfig, headers map[string][]string) (*SearchResults, error) {
+func (s *Service) Search(term string, authConfig *cliconfig.AuthConfig, headers map[string][]string) (*SearchResults, error) {
 	repoInfo, err := s.ResolveRepository(term)
 	if err != nil {
 		return nil, err

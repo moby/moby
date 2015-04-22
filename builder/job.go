@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/parser"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
@@ -50,8 +51,8 @@ type Config struct {
 	CpuShares      int64
 	CpuSetCpus     string
 	CpuSetMems     string
-	AuthConfig     *registry.AuthConfig
-	ConfigFile     *registry.ConfigFile
+	AuthConfig     *cliconfig.AuthConfig
+	ConfigFile     *cliconfig.ConfigFile
 
 	Stdout  io.Writer
 	Context io.ReadCloser
@@ -76,8 +77,8 @@ func (b *Config) WaitCancelled() <-chan struct{} {
 
 func NewBuildConfig() *Config {
 	return &Config{
-		AuthConfig: &registry.AuthConfig{},
-		ConfigFile: &registry.ConfigFile{},
+		AuthConfig: &cliconfig.AuthConfig{},
+		ConfigFile: &cliconfig.ConfigFile{},
 		cancelled:  make(chan struct{}),
 	}
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -26,7 +27,7 @@ var ErrV2RegistryUnavailable = errors.New("error v2 registry unavailable")
 
 type ImagePushConfig struct {
 	MetaHeaders map[string][]string
-	AuthConfig  *registry.AuthConfig
+	AuthConfig  *cliconfig.AuthConfig
 	Tag         string
 	Json        bool
 	OutStream   io.Writer

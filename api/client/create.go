@@ -38,7 +38,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.configFile.ResolveAuthConfig(repoInfo.Index)
+	authConfig := registry.ResolveAuthConfig(cli.configFile, repoInfo.Index)
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return err

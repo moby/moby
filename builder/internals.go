@@ -36,6 +36,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -443,7 +444,7 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 		if err != nil {
 			return nil, err
 		}
-		resolvedAuth := b.ConfigFile.ResolveAuthConfig(repoInfo.Index)
+		resolvedAuth := registry.ResolveAuthConfig(b.ConfigFile, repoInfo.Index)
 		pullRegistryAuth = &resolvedAuth
 	}
 
