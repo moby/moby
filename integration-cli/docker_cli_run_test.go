@@ -3107,3 +3107,21 @@ func TestRunReadProcLatency(t *testing.T) {
 	}
 	logDone("run - read /proc/latency_stats")
 }
+
+func TestMountIntoProc(t *testing.T) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/proc//sys", "busybox", "true"))
+	if err == nil || code == 0 {
+		t.Fatal("container should not be able to mount into /proc")
+	}
+	logDone("run - mount into proc")
+}
+
+func TestMountIntoSys(t *testing.T) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/sys/", "busybox", "true"))
+	if err == nil || code == 0 {
+		t.Fatal("container should not be able to mount into /sys")
+	}
+	logDone("run - mount into sys")
+}
