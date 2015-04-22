@@ -373,9 +373,8 @@ blackslashes as you would in command-line parsing.
     LABEL "com.example.vendor"="ACME Incorporated"
 
 An image can have more than one label. To specify multiple labels, separate each
-key-value pair by an EOL.
+key-value pair with whitespace.
 
-    LABEL com.example.label-without-value
     LABEL com.example.label-with-value="foo"
     LABEL version="1.0"
     LABEL description="This text illustrates \
@@ -385,12 +384,24 @@ Docker recommends combining labels in a single `LABEL` instruction where
 possible. Each `LABEL` instruction produces a new layer which can result in an
 inefficient image if you use many labels. This example results in four image
 layers. 
+
+    LABEL multi.label1="value1" multi.label2="value2" other="value3"
     
 Labels are additive including `LABEL`s in `FROM` images. As the system
 encounters and then applies a new label, new `key`s override any previous labels
 with identical keys.    
 
 To view an image's labels, use the `docker inspect` command.
+
+    "Labels": {
+        "com.example.vendor": "ACME Incorporated"
+        "com.example.label-with-value": "foo",
+        "version": "1.0",
+        "description": "This text illustrates that label-values can span multiple lines.",
+        "multi.label1": "value1",
+        "multi.label2": "value2",
+        "other": "value3"
+    },
 
 ## EXPOSE
 
