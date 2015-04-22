@@ -3,15 +3,16 @@ package main
 import (
 	"net/http"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestInfoApi(t *testing.T) {
+func (s *DockerSuite) TestInfoApi(c *check.C) {
 	endpoint := "/info"
 
 	statusCode, body, err := sockRequest("GET", endpoint, nil)
 	if err != nil || statusCode != http.StatusOK {
-		t.Fatalf("Expected %d from info request, got %d", http.StatusOK, statusCode)
+		c.Fatalf("Expected %d from info request, got %d", http.StatusOK, statusCode)
 	}
 
 	// always shown fields
@@ -30,7 +31,7 @@ func TestInfoApi(t *testing.T) {
 	out := string(body)
 	for _, linePrefix := range stringsToCheck {
 		if !strings.Contains(out, linePrefix) {
-			t.Errorf("couldn't find string %v in output", linePrefix)
+			c.Errorf("couldn't find string %v in output", linePrefix)
 		}
 	}
 }
