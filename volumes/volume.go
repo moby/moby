@@ -2,14 +2,11 @@ package volumes
 
 import (
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/symlink"
 )
 
@@ -22,35 +19,6 @@ type Volume struct {
 	configPath  string
 	repository  *Repository
 	lock        sync.Mutex
-}
-
-func (v *Volume) Export(resource, name string) (io.ReadCloser, error) {
-	if v.IsBindMount && filepath.Base(resource) == name {
-		name = ""
-	}
-
-	basePath, err := v.getResourcePath(resource)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := os.Stat(basePath)
-	if err != nil {
-		return nil, err
-	}
-	var filter []string
-	if !stat.IsDir() {
-		d, f := path.Split(basePath)
-		basePath = d
-		filter = []string{f}
-	} else {
-		filter = []string{path.Base(basePath)}
-		basePath = path.Dir(basePath)
-	}
-	return archive.TarWithOptions(basePath, &archive.TarOptions{
-		Compression:  archive.Uncompressed,
-		Name:         name,
-		IncludeFiles: filter,
-	})
 }
 
 func (v *Volume) IsDir() (bool, error) {
