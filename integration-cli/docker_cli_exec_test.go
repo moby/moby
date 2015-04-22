@@ -38,44 +38,6 @@ func (s *DockerSuite) TestExec(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "busybox", "/bin/cat"))
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	contId := strings.TrimSpace(out)
-
-	returnchan := make(chan struct{})
-
-	go func() {
-		var err error
-		cmd := exec.Command(dockerBinary, "exec", "-i", contId, "/bin/ls", "/")
-		cmd.Stdin = os.Stdin
-		if err != nil {
-			c.Fatal(err)
-		}
-
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			c.Fatal(err, string(out))
-		}
-
-		if string(out) == "" {
-			c.Fatalf("Output was empty, likely blocked by standard input")
-		}
-
-		returnchan <- struct{}{}
-	}()
-
-	select {
-	case <-returnchan:
-	case <-time.After(10 * time.Second):
-		c.Fatal("timed out running docker exec")
-	}
-
-}
-
 func (s *DockerSuite) TestExecInteractive(c *check.C) {
 
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && top")
