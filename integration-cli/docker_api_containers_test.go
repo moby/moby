@@ -681,6 +681,47 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
+	var hostName = "test-host"
+	config := map[string]interface{}{
+		"Image":    "busybox",
+		"Hostname": hostName,
+	}
+
+	_, b, err := sockRequest("POST", "/containers/create", config)
+	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
+		c.Fatal(err)
+	}
+	type createResp struct {
+		Id string
+	}
+	var container createResp
+	if err := json.Unmarshal(b, &container); err != nil {
+		c.Fatal(err)
+	}
+
+	var id = container.Id
+
+	_, bodyGet, err := sockRequest("GET", "/containers/"+id+"/json", nil)
+
+	type configLocal struct {
+		Hostname string
+	}
+	type getResponse struct {
+		Id     string
+		Config configLocal
+	}
+
+	var containerInfo getResponse
+	if err := json.Unmarshal(bodyGet, &containerInfo); err != nil {
+		c.Fatal(err)
+	}
+	var hostNameActual = containerInfo.Config.Hostname
+	if hostNameActual != "test-host" {
+		c.Fatalf("Mismatched Hostname, Expected %v, Actual: %v ", hostName, hostNameActual)
+	}
+}
+
 func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 	config := map[string]interface{}{
 		"Image": "busybox",
