@@ -92,11 +92,9 @@ func (s *DockerSuite) TestPushMultipleTags(c *check.C) {
 
 func (s *DockerSuite) TestPushInterrupt(c *check.C) {
 	defer setupRegistry(c)()
-
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it tot he private registry
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repoName)); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
 	defer deleteImages(repoName)
@@ -111,13 +109,16 @@ func (s *DockerSuite) TestPushInterrupt(c *check.C) {
 	if err := pushCmd.Process.Kill(); err != nil {
 		c.Fatalf("Failed to kill push process: %v", err)
 	}
-	// Try agin
-	pushCmd = exec.Command(dockerBinary, "push", repoName)
-	if out, err := pushCmd.CombinedOutput(); err == nil {
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repoName)); err == nil {
 		str := string(out)
 		if !strings.Contains(str, "already in progress") {
 			c.Fatalf("Push should be continued on daemon side, but seems ok: %v, %s", err, out)
 		}
+	}
+	// now wait until all this pushes will complete
+	// if it will fail with timeout - this is some error, so no logic about it
+	// here
+	for exec.Command(dockerBinary, "push", repoName).Run() != nil {
 	}
 }
 
