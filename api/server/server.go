@@ -740,6 +740,15 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 		}
 	}
 
+	var (
+		opErr   error
+		useJSON = version.GreaterThan("1.0")
+	)
+
+	if useJSON {
+		w.Header().Set("Content-Type", "application/json")
+	}
+
 	if image != "" { //pull
 		if tag == "" {
 			image, tag = parsers.ParseRepositoryTag(image)
@@ -756,17 +765,10 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 			MetaHeaders: metaHeaders,
 			AuthConfig:  authConfig,
 			OutStream:   utils.NewWriteFlusher(w),
-		}
-		if version.GreaterThan("1.0") {
-			imagePullConfig.Json = true
-			w.Header().Set("Content-Type", "application/json")
-		} else {
-			imagePullConfig.Json = false
+			Json:        useJSON,
 		}
 
-		if err := s.daemon.Repositories().Pull(image, tag, imagePullConfig); err != nil {
-			return err
-		}
+		opErr = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -777,12 +779,7 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 			Changes:   r.Form["changes"],
 			InConfig:  r.Body,
 			OutStream: utils.NewWriteFlusher(w),
-		}
-		if version.GreaterThan("1.0") {
-			imageImportConfig.Json = true
-			w.Header().Set("Content-Type", "application/json")
-		} else {
-			imageImportConfig.Json = false
+			Json:      useJSON,
 		}
 
 		newConfig, err := builder.BuildFromConfig(s.daemon, &runconfig.Config{}, imageImportConfig.Changes)
@@ -791,9 +788,12 @@ func (s *Server) postImagesCreate(eng *engine.Engine, version version.Version, w
 		}
 		imageImportConfig.ContainerConfig = newConfig
 
-		if err := s.daemon.Repositories().Import(src, repo, tag, imageImportConfig); err != nil {
-			return err
-		}
+		opErr = s.daemon.Repositories().Import(src, repo, tag, imageImportConfig)
+	}
+
+	if opErr != nil {
+		sf := streamformatter.NewStreamFormatter(useJSON)
+		return fmt.Errorf(string(sf.FormatError(opErr)))
 	}
 
 	return nil
