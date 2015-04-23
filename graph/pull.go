@@ -40,6 +40,10 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		return err
 	}
 
+	if err := validateRepoName(repoInfo.LocalName); err != nil {
+		return err
+	}
+
 	c, err := s.poolAdd("pull", utils.ImageReference(repoInfo.LocalName, tag))
 	if err != nil {
 		if c != nil {
