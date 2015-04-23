@@ -33,10 +33,6 @@ func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
 		c.Fatalf("failed to inspect image: %s, %v", out, err)
 	}
-
-	deleteContainer(cleanedContainerID)
-	deleteImages(cleanedImageID)
-
 }
 
 func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
@@ -65,10 +61,6 @@ func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
 	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
 		c.Fatalf("failed to inspect image: %s, %v", out, err)
 	}
-
-	deleteContainer(cleanedContainerID)
-	deleteImages(cleanedImageID)
-
 }
 
 //test commit a paused container should not unpause it after commit
@@ -92,8 +84,6 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to commit container to image: %s, %v", out, err)
 	}
-	cleanedImageID := strings.TrimSpace(out)
-	defer deleteImages(cleanedImageID)
 
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Paused}}", cleanedContainerID)
 	out, _, _, err = runCommandWithStdoutStderr(cmd)
@@ -120,7 +110,6 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 		c.Fatal(err)
 	}
 	imageID = strings.Trim(imageID, "\r\n")
-	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", imageID, "cat", "/foo")
 
@@ -161,7 +150,6 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 		c.Fatal(imageID, err)
 	}
 	imageID = strings.Trim(imageID, "\r\n")
-	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
 	secondOuput, _, err := runCommandWithOutput(cmd)
@@ -185,7 +173,6 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
-	defer deleteImages("ttytest")
 
 	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 	if _, err := runCommand(cmd); err != nil {
@@ -220,7 +207,6 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 	}
 
 	imageID = strings.Trim(imageID, "\r\n")
-	defer deleteImages(imageID)
 
 	cmd = exec.Command(dockerBinary, "run", "bindtest", "true")
 
@@ -248,7 +234,6 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		c.Fatal(imageId, err)
 	}
 	imageId = strings.Trim(imageId, "\r\n")
-	defer deleteImages(imageId)
 
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
@@ -274,7 +259,6 @@ func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
-	defer deleteImages("commit-test")
 
 	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
 	if strings.TrimSpace(out) != "testing" {

@@ -87,7 +87,6 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 
 	// build first dockerfile
 	img1, err := buildImage(img, dockerfile1, true)
-	defer deleteImages(img1)
 	if err != nil {
 		c.Fatalf("Could not build image %s: %v", img, err)
 	}

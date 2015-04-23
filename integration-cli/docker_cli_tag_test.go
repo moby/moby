@@ -18,9 +18,6 @@ func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatal(out, err)
 	}
-
-	deleteImages("testfoobarbaz")
-
 }
 
 // tagging an image by ID in a new unprefixed repo should work
@@ -36,9 +33,6 @@ func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
 	if out, _, err = runCommandWithOutput(tagCmd); err != nil {
 		c.Fatal(out, err)
 	}
-
-	deleteImages("testfoobarbaz")
-
 }
 
 // ensure we don't allow the use of invalid repository names; these tag operations should fail
@@ -104,8 +98,6 @@ func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
 	if err == nil || !strings.Contains(out, "Conflict: Tag test is already set to image") {
 		c.Fatal("tag busybox busybox:test should have failed,because busybox:test is existed")
 	}
-	deleteImages("busybox:test")
-
 }
 
 // tag an image with an existed tag name with -f option should work
@@ -122,8 +114,6 @@ func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatal(out, err)
 	}
-	deleteImages("busybox:test")
-
 }
 
 // ensure tagging using official names works

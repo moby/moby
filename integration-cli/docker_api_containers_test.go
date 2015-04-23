@@ -632,7 +632,6 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	if err := json.Unmarshal(b, &img); err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages(img.Id)
 
 	cmd, err := inspectField(img.Id, "Config.Cmd")
 	if err != nil {

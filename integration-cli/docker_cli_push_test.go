@@ -22,7 +22,6 @@ func (s *DockerSuite) TestPushBusyboxImage(c *check.C) {
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
-	defer deleteImages(repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err != nil {
@@ -77,12 +76,10 @@ func (s *DockerSuite) TestPushMultipleTags(c *check.C) {
 	if out, _, err := runCommandWithOutput(tagCmd1); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
-	defer deleteImages(repoTag1)
 	tagCmd2 := exec.Command(dockerBinary, "tag", "busybox", repoTag2)
 	if out, _, err := runCommandWithOutput(tagCmd2); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
-	defer deleteImages(repoTag2)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err != nil {
@@ -97,7 +94,6 @@ func (s *DockerSuite) TestPushInterrupt(c *check.C) {
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repoName)); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
-	defer deleteImages(repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if err := pushCmd.Start(); err != nil {
