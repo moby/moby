@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	networkType   = "simplebridge"
+	networkType   = "bridge"
 	vethPrefix    = "veth"
 	vethLen       = 7
 	containerVeth = "eth0"
@@ -27,7 +27,7 @@ var (
 	portMapper  *portmapper.PortMapper
 )
 
-// Configuration info for the "simplebridge" driver.
+// Configuration info for the "bridge" driver.
 type Configuration struct {
 	BridgeName            string
 	AddressIPv4           *net.IPNet
@@ -111,7 +111,7 @@ func (d *driver) Config(option interface{}) error {
 	return nil
 }
 
-// Create a new network using simplebridge plugin
+// Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id types.UUID, option interface{}) error {
 	var err error
 

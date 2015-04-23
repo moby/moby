@@ -8,13 +8,13 @@ import (
 
 var (
 	// ErrConfigExists error is returned when driver already has a config applied.
-	ErrConfigExists = errors.New("configuration already exists, simplebridge configuration can be applied only once")
+	ErrConfigExists = errors.New("configuration already exists, bridge configuration can be applied only once")
 
 	// ErrInvalidConfig error is returned when a network is created on a driver without valid config.
 	ErrInvalidConfig = errors.New("trying to create a network on a driver without valid config")
 
 	// ErrNetworkExists error is returned when a network already exists and another network is created.
-	ErrNetworkExists = errors.New("network already exists, simplebridge can only have one network")
+	ErrNetworkExists = errors.New("network already exists, bridge can only have one network")
 
 	// ErrIfaceName error is returned when a new name could not be generated.
 	ErrIfaceName = errors.New("failed to find name for new interface")
