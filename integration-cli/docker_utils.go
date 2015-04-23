@@ -444,8 +444,7 @@ func unpauseAllContainers() error {
 }
 
 func deleteImages(images ...string) error {
-	args := make([]string, 1, 2)
-	args[0] = "rmi"
+	args := []string{"rmi", "-f"}
 	args = append(args, images...)
 	rmiCmd := exec.Command(dockerBinary, args...)
 	exitCode, err := runCommand(rmiCmd)
@@ -453,7 +452,6 @@ func deleteImages(images ...string) error {
 	if exitCode != 0 && err == nil {
 		err = fmt.Errorf("failed to remove image: `docker rmi` exit is non-zero")
 	}
-
 	return err
 }
 
