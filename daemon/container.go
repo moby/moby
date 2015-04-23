@@ -425,6 +425,9 @@ func (container *Container) Start() (err error) {
 		}
 	}()
 
+	if err := container.verifyDaemonSettings(); err != nil {
+		return err
+	}
 	if err := container.setupContainerDns(); err != nil {
 		return err
 	}
@@ -437,7 +440,6 @@ func (container *Container) Start() (err error) {
 	if err := container.updateParentsHosts(); err != nil {
 		return err
 	}
-	container.verifyDaemonSettings()
 	if err := container.prepareVolumes(); err != nil {
 		return err
 	}
@@ -1275,19 +1277,31 @@ func (container *Container) initializeNetworking() error {
 	return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
 }
 
-// Make sure the config is compatible with the current kernel
-func (container *Container) verifyDaemonSettings() {
-	if container.hostConfig.Memory > 0 && !container.daemon.sysInfo.MemoryLimit {
-		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
-		container.hostConfig.Memory = 0
+// Make sure the config is compatible with the current kernel and daemon
+func (container *Container) verifyDaemonSettings() error {
+	hostConfig := container.hostConfig
+	daemon := container.daemon
+
+	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
+		return fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
-	if container.hostConfig.Memory > 0 && container.hostConfig.MemorySwap != -1 && !container.daemon.sysInfo.SwapLimit {
-		logrus.Warnf("Your kernel does not support swap limit capabilities. Limitation discarded.")
-		container.hostConfig.MemorySwap = -1
+	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
+		logrus.Warn("Your kernel does not support memory limit capabilities. Limitation discarded.")
+		hostConfig.Memory = 0
 	}
-	if container.daemon.sysInfo.IPv4ForwardingDisabled {
-		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
+		logrus.Warn("Your kernel does not support swap limit capabilities, memory limited without swap.")
+		hostConfig.MemorySwap = -1
 	}
+	if hostConfig.CpuQuota > 0 && !daemon.SystemConfig().CpuCfsQuota {
+		logrus.Warn("Your kernel does not support CPU cfs quota. Quota discarded.")
+		hostConfig.CpuQuota = 0
+	}
+	if !container.Config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
+		logrus.Warn("IPv4 forwarding is disabled. Networking will not work.")
+	}
+
+	return nil
 }
 
 func (container *Container) setupLinkedContainers() ([]string, error) {
