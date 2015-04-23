@@ -11,7 +11,6 @@ import (
 func (s *TagStore) Install(eng *engine.Engine) error {
 	for name, handler := range map[string]engine.Handler{
 		"image_inspect": s.CmdLookup,
-		"image_export":  s.CmdImageExport,
 		"viz":           s.CmdViz,
 	} {
 		if err := eng.Register(name, handler); err != nil {
