@@ -25,7 +25,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "", "sb1", "")
+	sinfo, err := d.CreateEndpoint("dummy", "", "sb1", nil)
 	if err != nil {
 		if _, ok := err.(InvalidEndpointIDError); !ok {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -34,7 +34,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to detect invalid config")
 	}
 
-	sinfo, err = d.CreateEndpoint("dummy", "ep", "", "")
+	sinfo, err = d.CreateEndpoint("dummy", "ep", "", nil)
 	if err != nil {
 		if _, ok := err.(InvalidSandboxIDError); !ok {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -43,17 +43,17 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to detect invalid config")
 	}
 
-	sinfo, err = d.CreateEndpoint("dummy", "ep", "cc", "")
+	sinfo, err = d.CreateEndpoint("dummy", "ep", "cc", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", "cc2", "")
+	_, err = d.CreateEndpoint("dummy", "ep", "cc2", nil)
 	if err == nil {
 		t.Fatalf("Failed to detect duplicate endpoint id on same network")
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep2", "cc", "")
+	_, err = d.CreateEndpoint("dummy", "ep2", "cc", nil)
 	if err == nil {
 		t.Fatalf("Failed to detect addition of more than one endpoint to same sandbox")
 	}
@@ -110,12 +110,12 @@ func TestLinkCreateTwo(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", "s1", "")
+	_, err = d.CreateEndpoint("dummy", "ep", "s1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", "s1", "")
+	_, err = d.CreateEndpoint("dummy", "ep", "s1", nil)
 	if err != nil {
 		if err != driverapi.ErrEndpointExists {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -140,7 +140,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "ep", "sb2", "")
+	sinfo, err := d.CreateEndpoint("dummy", "ep", "sb2", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -171,7 +171,7 @@ func TestLinkDelete(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep1", "s1", "")
+	_, err = d.CreateEndpoint("dummy", "ep1", "s1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}

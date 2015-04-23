@@ -31,7 +31,7 @@ create network namespaces and allocate interfaces for containers to use.
     // For each new container: allocate IP and interfaces. The returned network
     // settings will be used for container infos (inspect and such), as well as
     // iptables rules for port publishing.
-    ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
+    ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), nil)
     if err != nil {
 	    return
     }

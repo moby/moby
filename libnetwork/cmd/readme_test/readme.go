@@ -35,7 +35,7 @@ func main() {
 	// settings will be used for container infos (inspect and such), as well as
 	// iptables rules for port publishing. This info is contained or accessible
 	// from the returned endpoint.
-	ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
+	ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), nil)
 	if err != nil {
 		return
 	}

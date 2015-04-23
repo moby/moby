@@ -13,6 +13,9 @@ var (
 	// ErrInvalidConfig error is returned when a network is created on a driver without valid config.
 	ErrInvalidConfig = errors.New("trying to create a network on a driver without valid config")
 
+	// ErrInvalidEndpointConfig error is returned when a endpoint create is attempted with an invalid endpoint configuration.
+	ErrInvalidEndpointConfig = errors.New("trying to create an endpoint with an invalid endpoint configuration")
+
 	// ErrNetworkExists error is returned when a network already exists and another network is created.
 	ErrNetworkExists = errors.New("network already exists, simplebridge can only have one network")
 
