@@ -101,6 +101,50 @@ func (r *Session) GetRemoteHistory(imgID, registry string, token []string) ([]st
 	return *history, nil
 }
 
+// Retrieve the image id for a particular tag
+func (r *Session) GetImageIDForTag(tag string, repository string, registry string, token []string) (string, error) {
+	if strings.Count(repository, "/") == 0 {
+		// This will be removed once the Registry supports auto-resolution on
+		// the "library" namespace
+		repository = "library/" + repository
+	}
+
+	req, err := r.reqFactory.NewRequest("GET", registry+"repositories/"+repository+"/tags/"+tag, nil)
+	if err != nil {
+		return "", err
+	}
+	setTokenAuth(req, token)
+	res, _, err := r.doRequest(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		if res.StatusCode == 401 {
+			return "", errLoginRequired
+		}
+		return "", httputils.NewHTTPRequestError(
+			fmt.Sprintf("Server error: %d trying to get image id: repository %s, tag %s", res.StatusCode, repository, tag), res)
+	}
+
+	response, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", fmt.Errorf("Error while reading the http response: %s", err)
+	}
+
+	logrus.Debugf("Image ID: %s", response)
+
+	responseLength := len(response)
+	if responseLength < 3 {
+		return "", fmt.Errorf("Error unable to parse http response %s", response)
+	}
+
+	//strip " around the response
+	imgID := string(response[1 : len(response)-1])
+	return imgID, nil
+
+}
+
 // Check if an image exists in the Registry
 func (r *Session) LookupRemoteImage(imgID, registry string, token []string) error {
 	req, err := r.reqFactory.NewRequest("GET", registry+"images/"+imgID+"/json", nil)
