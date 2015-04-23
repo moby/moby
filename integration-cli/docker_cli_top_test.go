@@ -15,7 +15,6 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	topCmd := exec.Command(dockerBinary, "top", cleanedContainerID, "-o", "pid")
 	out, _, err = runCommandWithOutput(topCmd)

@@ -140,7 +140,6 @@ func (s *DockerSuite) TestCreateByDigest(c *check.C) {
 	if err != nil {
 		c.Fatalf("error creating by digest: %s, %v", out, err)
 	}
-	defer deleteContainer(containerName)
 
 	res, err := inspectField(containerName, "Config.Image")
 	if err != nil {
@@ -168,7 +167,6 @@ func (s *DockerSuite) TestRunByDigest(c *check.C) {
 	if err != nil {
 		c.Fatalf("error run by digest: %s, %v", out, err)
 	}
-	defer deleteContainer(containerName)
 
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)

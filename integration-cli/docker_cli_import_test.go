@@ -14,7 +14,6 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 		c.Fatal("failed to create a container", out, err)
 	}
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _, err = runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),

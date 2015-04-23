@@ -287,7 +287,6 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	stopSlowRead := make(chan bool)
 
