@@ -57,9 +57,14 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 				continue
 			}
 		} else {
-			// Has template, will render
 			var value interface{}
-			if err := json.Unmarshal(obj, &value); err != nil {
+
+			// Do not use `json.Unmarshal()` because unmarshal JSON into
+			// an interface value, Unmarshal stores JSON numbers in
+			// float64, which is different from `json.Indent()` does.
+			dec := json.NewDecoder(bytes.NewReader(obj))
+			dec.UseNumber()
+			if err := dec.Decode(&value); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				status = 1
 				continue

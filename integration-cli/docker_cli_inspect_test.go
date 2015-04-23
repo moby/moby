@@ -21,3 +21,23 @@ func (s *DockerSuite) TestInspectImage(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestInspectInt64(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-m=300M", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	out = strings.TrimSpace(out)
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.Memory}}", out)
+	inspectOut, _, err := runCommandWithOutput(inspectCmd)
+	if err != nil {
+		c.Fatalf("failed to inspect container: %v, output: %q", err, inspectOut)
+	}
+
+	if strings.TrimSpace(inspectOut) != "314572800" {
+		c.Fatalf("inspect got wrong value, got: %q, expected: 314572800", inspectOut)
+	}
+}
