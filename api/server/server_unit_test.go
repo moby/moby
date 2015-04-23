@@ -13,19 +13,20 @@ import (
 	"github.com/docker/docker/pkg/version"
 )
 
-func TesthttpError(t *testing.T) {
+func TestHttpError(t *testing.T) {
 	r := httptest.NewRecorder()
-
 	httpError(r, fmt.Errorf("No such method"))
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("Expected %d, got %d", http.StatusNotFound, r.Code)
 	}
 
+	r = httptest.NewRecorder()
 	httpError(r, fmt.Errorf("This accound hasn't been activated"))
 	if r.Code != http.StatusForbidden {
 		t.Fatalf("Expected %d, got %d", http.StatusForbidden, r.Code)
 	}
 
+	r = httptest.NewRecorder()
 	httpError(r, fmt.Errorf("Some error"))
 	if r.Code != http.StatusInternalServerError {
 		t.Fatalf("Expected %d, got %d", http.StatusInternalServerError, r.Code)
