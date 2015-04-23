@@ -12,7 +12,7 @@ The goal of libnetwork is to deliver a robust Container Network Model that provi
 Please watch this space for updates on the progress.
 
 Currently libnetwork is nothing more than an attempt to modularize the Docker platform's networking subsystem by moving it into libnetwork as a library.
-  
+
 Please refer to the [roadmap](ROADMAP.md) for more information.
 
 #### Using libnetwork
@@ -23,10 +23,10 @@ There are many networking solutions available to suit a broad range of use-cases
  // Create a new controller instance
  controller := libnetwork.New()
 
- // This option is only needed for in-tree drivers. Plugins(in future) will get 
+ // This option is only needed for in-tree drivers. Plugins(in future) will get
  // their options through plugin infrastructure.
  option := options.Generic{}
- driver, err := controller.NewNetworkDriver("simplebridge", option)
+ driver, err := controller.NewNetworkDriver("bridge", option)
  if err != nil {
     return
  }
@@ -37,7 +37,7 @@ There are many networking solutions available to suit a broad range of use-cases
  if err != nil {
     return
  }
- 
+
  // For a new container: create a sandbox instance (providing a unique key).
  // For linux it is a filesystem path
  networkPath := "/var/lib/docker/.../4d23e"
@@ -45,7 +45,7 @@ There are many networking solutions available to suit a broad range of use-cases
  if err != nil {
     return
  }
- 
+
  // For each new container: allocate IP and interfaces. The returned network
  // settings will be used for container infos (inspect and such), as well as
  // iptables rules for port publishing. This info is contained or accessible
@@ -62,7 +62,7 @@ There are many networking solutions available to suit a broad range of use-cases
      	    return
      }
  }
- 
+
  // Set the gateway IP
  if err := networkNamespace.SetGateway(sinfo.Gateway); err != nil {
     return

@@ -8,7 +8,7 @@ create network namespaces and allocate interfaces for containers to use.
     // This option is only needed for in-tree drivers. Plugins(in future) will get
     // their options through plugin infrastructure.
     option := options.Generic{}
-    driver, err := controller.NewNetworkDriver("simplebridge", option)
+    driver, err := controller.NewNetworkDriver("bridge", option)
     if err != nil {
         return
     }

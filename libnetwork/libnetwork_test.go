@@ -29,7 +29,7 @@ func createTestNetwork(networkType, networkName string, option options.Generic) 
 	return network, nil
 }
 
-func TestSimplebridge(t *testing.T) {
+func Testbridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
 	if err != nil {
@@ -49,7 +49,7 @@ func TestSimplebridge(t *testing.T) {
 	}
 	cidrv6.IP = ip
 
-	log.Debug("Adding a simple bridge")
+	log.Debug("Adding a bridge")
 	option := options.Generic{
 		"BridgeName":            bridgeName,
 		"AddressIPv4":           subnet,
@@ -62,7 +62,7 @@ func TestSimplebridge(t *testing.T) {
 		"EnableIPForwarding":    true,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("simplebridge", "testnetwork", option)
+	network, err := createTestNetwork("bridge", "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestDuplicateNetwork(t *testing.T) {
 	controller := libnetwork.New()
 
 	option := options.Generic{}
-	driver, err := controller.NewNetworkDriver("simplebridge", option)
+	driver, err := controller.NewNetworkDriver("bridge", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestDuplicateNetwork(t *testing.T) {
 func TestNetworkName(t *testing.T) {
 	networkName := "testnetwork"
 
-	n, err := createTestNetwork("simplebridge", networkName, options.Generic{})
+	n, err := createTestNetwork("bridge", networkName, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestNetworkName(t *testing.T) {
 }
 
 func TestNetworkType(t *testing.T) {
-	networkType := "simplebridge"
+	networkType := "bridge"
 
 	n, err := createTestNetwork(networkType, "testnetwork", options.Generic{})
 	if err != nil {
@@ -181,7 +181,7 @@ func TestNetworkType(t *testing.T) {
 }
 
 func TestNetworkID(t *testing.T) {
-	networkType := "simplebridge"
+	networkType := "bridge"
 
 	n, err := createTestNetwork(networkType, "testnetwork", options.Generic{})
 	if err != nil {
@@ -199,7 +199,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("simplebridge", "testnetwork", option)
+	network, err := createTestNetwork("bridge", "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +234,7 @@ func TestUnknownNetwork(t *testing.T) {
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("simplebridge", "testnetwork", option)
+	network, err := createTestNetwork("bridge", "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		"AddressIPv4":           subnet,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork("simplebridge", "testnetwork", option)
+	network, err := createTestNetwork("bridge", "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}

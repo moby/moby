@@ -11,7 +11,7 @@ func main() {
 	controller := libnetwork.New()
 
 	option := options.Generic{}
-	driver, err := controller.NewNetworkDriver("simplebridge", option)
+	driver, err := controller.NewNetworkDriver("bridge", option)
 	if err != nil {
 		return
 	}
