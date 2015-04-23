@@ -26,6 +26,22 @@ import (
 	"github.com/go-check/check"
 )
 
+var httpClient *http.Client
+
+func init() {
+	daemon := daemonHost()
+	parts := strings.SplitN(daemon, "://", 2)
+	dial := func(_, _ string) (net.Conn, error) {
+		return net.DialTimeout(parts[0], parts[1], 1*time.Second)
+	}
+	httpClient = &http.Client{
+		Transport: &http.Transport{
+			DisableCompression: true,
+			Dial:               dial,
+		},
+	}
+}
+
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
 	c              *check.C
@@ -378,15 +394,63 @@ func getAllContainers() (string, error) {
 	return out, err
 }
 
-func deleteAllContainers() error {
-	containers, err := getAllContainers()
+type cont struct {
+	Id string
+}
+
+func allConts() ([]cont, error) {
+	addr := strings.SplitN(daemonHost(), "://", 2)[1]
+	var conts []cont
+	req, err := http.NewRequest("GET", "/containers/json?all=1", nil)
 	if err != nil {
-		fmt.Println(containers)
+		return nil, err
+	}
+	req.URL.Scheme = "http"
+	req.URL.Host = addr
+
+	r, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if r.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unexpected status: %d, expected %d", r.StatusCode, http.StatusOK)
+	}
+	if err := json.NewDecoder(r.Body).Decode(&conts); err != nil {
+		return nil, err
+	}
+	return conts, nil
+}
+
+func delCont(id string) error {
+	addr := strings.SplitN(daemonHost(), "://", 2)[1]
+	req, err := http.NewRequest("DELETE", "/containers/"+id+"?force=1&v=1", nil)
+	if err != nil {
 		return err
 	}
-
-	if err = deleteContainer(containers); err != nil {
+	req.URL.Scheme = "http"
+	req.URL.Host = addr
+	r, err := httpClient.Do(req)
+	if err != nil {
 		return err
+	}
+	if r.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("Unexpected status: %d, expected %d", r.StatusCode, http.StatusNoContent)
+	}
+	return nil
+}
+
+func deleteAllContainers() error {
+	conts, err := allConts()
+	if err != nil {
+		return err
+	}
+	if len(conts) == 0 {
+		return nil
+	}
+	for _, c := range conts {
+		if err := delCont(c.Id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
