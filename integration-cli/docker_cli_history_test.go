@@ -20,28 +20,7 @@ RUN echo "A"
 RUN echo "B"
 RUN echo "C"
 RUN echo "D"
-RUN echo "E"
-RUN echo "F"
-RUN echo "G"
-RUN echo "H"
-RUN echo "I"
-RUN echo "J"
-RUN echo "K"
-RUN echo "L"
-RUN echo "M"
-RUN echo "N"
-RUN echo "O"
-RUN echo "P"
-RUN echo "Q"
-RUN echo "R"
-RUN echo "S"
-RUN echo "T"
-RUN echo "U"
-RUN echo "V"
-RUN echo "W"
-RUN echo "X"
-RUN echo "Y"
-RUN echo "Z"`,
+RUN echo "E"`,
 		true)
 
 	if err != nil {
@@ -53,10 +32,10 @@ RUN echo "Z"`,
 		c.Fatalf("failed to get image history: %s, %v", out, err)
 	}
 
-	actualValues := strings.Split(out, "\n")[1:27]
-	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
+	actualValues := strings.Split(out, "\n")[1:6]
+	expectedValues := [5]string{"E", "D", "C", "B", "A"}
 
-	for i := 0; i < 26; i++ {
+	for i := 0; i < 5; i++ {
 		echoValue := fmt.Sprintf("echo \"%s\"", expectedValues[i])
 		actualValue := actualValues[i]
 
