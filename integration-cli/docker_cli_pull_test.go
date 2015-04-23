@@ -98,8 +98,13 @@ func (s *DockerSuite) TestPullImageFromCentralRegistry(c *check.C) {
 
 // pulling a non-existing image from the central registry should return a non-zero exit code
 func (s *DockerSuite) TestPullNonExistingImage(c *check.C) {
-	pullCmd := exec.Command(dockerBinary, "pull", "fooblahblah1234")
-	if out, _, err := runCommandWithOutput(pullCmd); err == nil {
+	testRequires(c, Network)
+
+	name := "sadfsadfasdf"
+	pullCmd := exec.Command(dockerBinary, "pull", name)
+	out, _, err := runCommandWithOutput(pullCmd)
+
+	if err == nil || !strings.Contains(out, fmt.Sprintf("Error: image library/%s:latest not found", name)) {
 		c.Fatalf("expected non-zero exit status when pulling non-existing image: %s", out)
 	}
 }
