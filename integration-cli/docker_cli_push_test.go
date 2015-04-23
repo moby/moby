@@ -72,7 +72,7 @@ func (s *DockerSuite) TestPushMultipleTags(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
 	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
-	// tag the image to upload it tot he private registry
+	// tag the image and upload it to the private registry
 	tagCmd1 := exec.Command(dockerBinary, "tag", "busybox", repoTag1)
 	if out, _, err := runCommandWithOutput(tagCmd1); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
@@ -93,7 +93,7 @@ func (s *DockerSuite) TestPushMultipleTags(c *check.C) {
 func (s *DockerSuite) TestPushInterrupt(c *check.C) {
 	defer setupRegistry(c)()
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	// tag the image to upload it tot he private registry
+	// tag the image and upload it to the private registry
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repoName)); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
@@ -116,8 +116,8 @@ func (s *DockerSuite) TestPushInterrupt(c *check.C) {
 		}
 	}
 	// now wait until all this pushes will complete
-	// if it will fail with timeout - this is some error, so no logic about it
-	// here
+	// if it failed with timeout - there would be some error,
+	// so no logic about it here
 	for exec.Command(dockerBinary, "push", repoName).Run() != nil {
 	}
 }
