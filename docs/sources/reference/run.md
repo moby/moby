@@ -788,6 +788,10 @@ command is available only for this logging driver
 Syslog logging driver for Docker. Writes log messages to syslog. `docker logs`
 command is not available for this logging driver
 
+#### Logging driver: journald
+
+Journald logging driver for Docker. Writes log messages to journald. `docker logs` command is not available for this logging driver
+
 ## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder)
