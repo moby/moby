@@ -20,9 +20,6 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		return -1, fmt.Errorf("No active container exists with ID %s", c.ID)
 	}
 
-	var term execdriver.Terminal
-	var err error
-
 	p := &libcontainer.Process{
 		Args: append([]string{processConfig.Entrypoint}, processConfig.Arguments...),
 		Env:  c.ProcessConfig.Env,
@@ -34,28 +31,10 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		p.Capabilities = execdriver.GetAllCapabilities()
 	}
 
-	if processConfig.Tty {
-		config := active.Config()
-		rootuid, err := config.HostUID()
-		if err != nil {
-			return -1, err
-		}
-		cons, err := p.NewConsole(rootuid)
-		if err != nil {
-			return -1, err
-		}
-		term, err = NewTtyConsole(cons, pipes, rootuid)
-	} else {
-		p.Stdout = pipes.Stdout
-		p.Stderr = pipes.Stderr
-		p.Stdin = pipes.Stdin
-		term = &execdriver.StdConsole{}
-	}
-	if err != nil {
+	config := active.Config()
+	if err := setupPipes(&config, processConfig, p, pipes); err != nil {
 		return -1, err
 	}
-
-	processConfig.Terminal = term
 
 	if err := active.Start(p); err != nil {
 		return -1, err
