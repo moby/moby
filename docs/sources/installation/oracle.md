@@ -110,7 +110,7 @@ service.
 On Oracle Linux 7, you can use a `systemd.mount` definition and modify the
 Docker `systemd.service` to depend on the btrfs mount defined in systemd.
 
-### SElinux Support on Oracle Linux 7
+### SElinux support on Oracle Linux 7
 SElinux must be set to `Permissive` or `Disabled` in `/etc/sysconfig/selinux` to
 use the btrfs storage engine on Oracle Linux 7.
 

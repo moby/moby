@@ -59,7 +59,7 @@ Let's try the `hello-world` example image. Run
 This should download the very small `hello-world` image and print a
 `Hello from Docker.` message.
 
-## Using docker from Windows Command Line Prompt (cmd.exe)
+## Using Docker from Windows Command Line Prompt (cmd.exe)
 
 Launch a Windows Command Line Prompt (cmd.exe).
 
@@ -77,7 +77,7 @@ to your console window and you are ready to run docker commands such as
 
 ![](/installation/images/windows-boot2docker-cmd.png)
 
-## Using docker from PowerShell
+## Using Docker from PowerShell
 
 Launch a PowerShell window, then you need to add `ssh.exe` to your PATH:
 

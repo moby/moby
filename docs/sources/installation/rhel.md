@@ -16,7 +16,7 @@ running on kernels shipped by the distribution. There are kernel changes which
 will cause issues if one decides to step outside that box and run
 non-distribution kernel packages.
 
-## Red Hat Enterprise Linux 7 Installation
+## Red Hat Enterprise Linux 7 installation
 
 **Red Hat Enterprise Linux 7 (64 bit)** has [shipped with
 Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
@@ -41,7 +41,7 @@ Portal](https://access.redhat.com/).
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-## Red Hat Enterprise Linux 6.5 Installation
+## Red Hat Enterprise Linux 6.5 installation
 
 You will need **64 bit** [RHEL
 6.5](https://access.redhat.com/site/articles/3078#RHEL6) or later, with

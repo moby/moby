@@ -25,7 +25,7 @@ pages:
 
 # Introduction:
 - ['index.md', 'About', 'Docker']
-- ['release-notes.md', 'About', 'Release Notes']
+- ['release-notes.md', 'About', 'Release notes']
 - ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 
@@ -54,11 +54,11 @@ pages:
 - ['compose/install.md', 'Installation', 'Docker Compose']
 
 # User Guide:
-- ['userguide/index.md', 'User Guide', 'The Docker User Guide' ]
-- ['userguide/dockerhub.md', 'User Guide', 'Getting Started with Docker Hub' ]
-- ['userguide/dockerizing.md', 'User Guide', 'Dockerizing Applications' ]
-- ['userguide/usingdocker.md', 'User Guide', 'Working with Containers' ]
-- ['userguide/dockerimages.md', 'User Guide', 'Working with Docker Images' ]
+- ['userguide/index.md', 'User Guide', 'The Docker user guide' ]
+- ['userguide/dockerhub.md', 'User Guide', 'Getting started with Docker Hub' ]
+- ['userguide/dockerizing.md', 'User Guide', 'Dockerizing applications' ]
+- ['userguide/usingdocker.md', 'User Guide', 'Working with containers' ]
+- ['userguide/dockerimages.md', 'User Guide', 'Working with Docker images' ]
 - ['userguide/dockerlinks.md', 'User Guide', 'Linking containers together' ]
 - ['userguide/dockervolumes.md', 'User Guide', 'Managing data in containers' ]
 - ['userguide/labels-custom-metadata.md', 'User Guide', 'Apply custom metadata' ]
@@ -76,7 +76,7 @@ pages:
 - ['docker-hub/accounts.md', 'Docker Hub', 'Accounts']
 - ['docker-hub/repos.md', 'Docker Hub', 'Repositories']
 - ['docker-hub/builds.md', 'Docker Hub', 'Automated Builds']
-- ['docker-hub/official_repos.md', 'Docker Hub', 'Official Repo Guidelines']
+- ['docker-hub/official_repos.md', 'Docker Hub', 'Official repo guidelines']
 
 # Docker Hub Enterprise
 #- ['docker-hub-enterprise/index.md', '**HIDDEN**' ]
@@ -125,7 +125,7 @@ pages:
 - ['reference/commandline/cli.md', 'Reference', 'Docker command line']
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['faq.md', 'Reference', 'FAQ']
-- ['reference/run.md', 'Reference', 'Run Reference']
+- ['reference/run.md', 'Reference', 'Run reference']
 - ['compose/cli.md', 'Reference', 'Compose command line']
 - ['compose/yml.md', 'Reference', 'Compose yml']
 - ['compose/env.md', 'Reference', 'Compose ENV variables']
@@ -145,7 +145,7 @@ pages:
 - ['registry/spec/auth/token.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp; Authenticate via central service' ]
 - ['reference/api/hub_registry_spec.md', 'Reference', 'Docker Hub and Registry 1.0']
 - ['reference/api/registry_api.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp;Docker Registry API v1']
-- ['reference/api/registry_api_client_libraries.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp;Docker Registry 1.0 API Client Libraries']
+- ['reference/api/registry_api_client_libraries.md', 'Reference', '&nbsp;&nbsp;&nbsp;&nbsp;&blacksquare;&nbsp;Docker Registry 1.0 API client libraries']
 #- ['reference/image-spec-v1.md', 'Reference', 'Docker Image Specification v1.0.0']
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
 #- ['reference/image-spec-v1.md', 'Reference', 'Docker Image Specification v1.0.0']
@@ -169,8 +169,8 @@ pages:
 - ['reference/api/docker_remote_api_v1.2.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.1.md', '**HIDDEN**']
 - ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
-- ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API Client Libraries']
-- ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub Accounts API']
+- ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API client libraries']
+- ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub accounts API']
 
 # Hidden registry files
 - ['registry/storage-drivers/azure.md', '**HIDDEN**' ]

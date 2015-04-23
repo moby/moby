@@ -24,7 +24,7 @@ the `docker` command, your system administrator can create a Unix group called
 For more information about installing Docker or `sudo` configuration, refer to
 the [installation](/installation) instructions for your operating system.
 
-## Environment Variables
+## Environment variables
 
 For easy reference, the following list of environment variables are supported
 by the `docker` command line:
@@ -48,7 +48,7 @@ These Go environment variables are case-insensitive. See the
 [Go specification](http://golang.org/pkg/net/http/) for details on these
 variables.
 
-## Configuration Files
+## Configuration files
 
 The Docker command line stores its configuration files in a directory called
 `.docker` within your `HOME` directory. Docker manages most of the files in
@@ -2210,7 +2210,7 @@ application change:
    `--rm` option means that when the container exits, the container's layer is
    removed.
 
-#### Restart Policies
+#### Restart policies
 
 Use Docker's `--restart` to specify a container's *restart policy*. A restart
 policy controls whether the Docker daemon restarts a container after exit.

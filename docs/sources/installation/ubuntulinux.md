@@ -127,7 +127,7 @@ install Docker using the following:
 
 	This command downloads a test image and runs it in a container.
 
-## Optional Configurations for Docker on Ubuntu 
+## Optional configurations for Docker on Ubuntu 
 
 This section contains optional procedures for configuring your Ubuntu to work
 better with Docker.
@@ -137,7 +137,7 @@ better with Docker.
 * [Enable UFW forwarding](#enable-ufw-forwarding) 
 * [Configure a DNS server for use by Docker](#configure-a-dns-server-for-docker)
 
-### Create a docker group		
+### Create a Docker group		
 
 The `docker` daemon binds to a Unix socket instead of a TCP port. By default
 that Unix socket is owned by the user `root` and other users can access it with

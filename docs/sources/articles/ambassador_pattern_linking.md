@@ -1,8 +1,8 @@
-page_title: Link via an Ambassador Container
+page_title: Link via an ambassador container
 page_description: Using the Ambassador pattern to abstract (network) services
 page_keywords: Examples, Usage, links, docker, documentation, examples, names, name, container naming
 
-# Link via an Ambassador Container
+# Link via an ambassador container
 
 ## Introduction
 
@@ -30,7 +30,7 @@ different docker host from the consumer.
 Using the `svendowideit/ambassador` container, the link wiring is
 controlled entirely from the `docker run` parameters.
 
-## Two host Example
+## Two host example
 
 Start actual Redis server on one Docker host
 

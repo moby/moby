@@ -83,7 +83,7 @@ You will be able to review and revoke Docker Hub's access by visiting the
 > using the "Start Build" button on the Hub, or if the webhook on the GitHub repository
 > still exists, will be triggered by any subsequent commits.
 
-### Auto builds and Limited linked GitHub accounts.
+### Auto builds and limited linked GitHub accounts.
 
 If you selected to link your GitHub account with only a "Limited" link, then
 after creating your automated build, you will need to either manually trigger a
@@ -101,7 +101,7 @@ section, "Revoke access".
 
 You can now re-link your account at any time.
 
-### GitHub Organizations
+### GitHub organizations
 
 GitHub organizations and private repositories forked from organizations will be
 made available to auto build using the "Docker Hub Registry" application, which
@@ -205,7 +205,7 @@ can be limited to read-only access to just the repositories required to build.
   </tbody>
 </table>
 
-### GitHub Service hooks
+### GitHub service hooks
 
 The GitHub Service hook allows GitHub to notify the Docker Hub when something has
 been committed to that git repository. You will need to add the Service Hook manually

@@ -1,8 +1,8 @@
-page_title: Dockerizing Applications: A "Hello world"
+page_title: Dockerizing applications: A "Hello world"
 page_description: A simple "Hello world" exercise that introduced you to Docker.
 page_keywords: docker guide, docker, docker platform, virtualization framework, how to, dockerize, dockerizing apps, dockerizing applications, container, containers
 
-# Dockerizing Applications: A "Hello world"
+# Dockerizing applications: A "Hello world"
 
 *So what's this Docker thing all about?*
 
@@ -48,7 +48,7 @@ So what happened to our container after that? Well Docker containers
 only run as long as the command you specify is active. Here, as soon as
 `Hello world` was echoed, the container stopped.
 
-## An Interactive Container
+## An interactive container
 
 Let's try the `docker run` command again, this time specifying a new
 command to run in our container.
@@ -90,7 +90,7 @@ use the `exit` command or enter Ctrl-D to finish.
 As with our previous container, once the Bash shell process has
 finished, the container is stopped.
 
-## A Daemonized Hello world
+## A daemonized Hello world
 
 Now a container that runs a command and then exits has some uses but
 it's not overly helpful. Let's create a container that runs as a daemon,

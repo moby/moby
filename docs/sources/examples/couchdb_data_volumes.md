@@ -1,8 +1,8 @@
-page_title: Dockerizing a CouchDB Service
+page_title: Dockerizing a CouchDB service
 page_description: Sharing data between 2 couchdb databases
 page_keywords: docker, example, package installation, networking, couchdb, data volumes
 
-# Dockerizing a CouchDB Service
+# Dockerizing a CouchDB service
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root

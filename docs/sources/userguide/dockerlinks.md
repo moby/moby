@@ -1,8 +1,8 @@
-page_title: Linking Containers Together
+page_title: Linking containers together
 page_description: Learn how to connect Docker containers together.
 page_keywords: Examples, Usage, user guide, links, linking, docker, documentation, examples, names, name, container naming, port, map, network port, network
 
-# Linking Containers Together
+# Linking containers together
 
 In [the Using Docker section](/userguide/usingdocker), you saw how you can
 connect to a service running inside a Docker container via a network
@@ -11,7 +11,7 @@ applications running inside Docker containers. In this section, we'll briefly re
 connecting via a network port and then we'll introduce you to another method of access:
 container linking.
 
-## Connect using Network port mapping
+## Connect using network port mapping
 
 In [the Using Docker section](/userguide/usingdocker), you created a
 container that ran a Python Flask application:
@@ -175,7 +175,7 @@ recipient container in two ways:
 * Environment variables,
 * Updating the `/etc/hosts` file.
 
-### Environment Variables
+### Environment variables
 
 Docker creates several environment variables when you link containers. Docker
 automatically creates environment variables in the target container based on

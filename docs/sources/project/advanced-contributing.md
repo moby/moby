@@ -137,7 +137,7 @@ The following provides greater detail on the process:
 
 14. Acceptance and merge!
 
-## About the Advanced process
+## About the advanced process
 
 Docker is a large project. Our core team gets a great many design proposals.
 Design proposal discussions can span days, weeks, and longer. The number of comments can reach the 100s.

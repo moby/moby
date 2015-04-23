@@ -1,8 +1,8 @@
-page_title: Guidelines for Official Repositories on Docker Hub
+page_title: Guidelines for official repositories on Docker Hub
 page_description: Guidelines for Official Repositories on Docker Hub
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, official, image, documentation
 
-# Guidelines for Creating and Documenting Official Repositories
+# Guidelines for creating and documenting official repositories
 
 ## Introduction
 
@@ -18,7 +18,7 @@ This document consists of two major sections:
 along with best practices for creating those items
 * Examples embodying those practices
 
-## Expected Files & Resources
+## Expected files and resources
 
 ### A Git repository
 
@@ -92,7 +92,7 @@ In terms of content, the long description must include the following sections:
 * How-to/usage
 * Issues & contributions
 
-#### Overview & links
+#### Overview and links
 
 This section should provide:
 
@@ -109,7 +109,7 @@ A section that describes how to run and use the image, including common use
 cases and example `Dockerfile`s (if applicable). Try to provide clear, step-by-
 step instructions wherever possible.
 
-##### Issues & contributions
+##### Issues and contributions
 
 In this section, point users to any resources that can help them contribute to
 the project. Include contribution guidelines and any specific instructions

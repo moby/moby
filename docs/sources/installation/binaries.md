@@ -1,4 +1,4 @@
-page_title: Installation from Binaries
+page_title: Installation from binaries
 page_description: Instructions for installing Docker as a binary. Mostly meant for hackers who want to try out Docker on a variety of environments.
 page_keywords: binaries, installation, docker, documentation, linux
 
@@ -78,7 +78,7 @@ exhibit unexpected behaviour.
 > vendor for the system, and might break regulations and security
 > policies in heavily regulated environments.
 
-## Get the docker binary
+## Get the Docker binary
 
 You can download either the latest release binary or a specific version.
 After downloading a binary file, you must set the file's execute bit to run it.
@@ -141,7 +141,7 @@ For example:
 
     https://get.docker.com/builds/Darwin/x86_64/docker-1.6.0
 
-###  Get the Windows binary
+### Get the Windows binary
  
 You can only download the Windows client binary for version `1.6.0` onwards.
 Moreover, the binary is only a client, you cannot use it to run the `docker` daemon.
@@ -164,7 +164,7 @@ For example:
     https://get.docker.com/builds/Windows/x86_64/docker-1.6.0.exe
 
 
-## Run the docker daemon
+## Run the Docker daemon
 
     # start the docker in daemon mode from the directory you unpacked
     $ sudo ./docker -d &

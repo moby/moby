@@ -2,7 +2,7 @@ page_title: Dockerizing a Riak service
 page_description: Build a Docker image with Riak pre-installed
 page_keywords: docker, example, package installation, networking, riak
 
-# Dockerizing a Riak Service
+# Dockerizing a Riak service
 
 The goal of this example is to show you how to build a Docker image with
 Riak pre-installed.

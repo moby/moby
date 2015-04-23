@@ -101,7 +101,7 @@ information [here](http://docs.docker.com/docker-hub/).
 * Automated Builds
 * Webhooks
 
-### Private Repositories
+### Private repositories
 
 Sometimes you have images you don't want to make public and share with
 everyone. So Docker Hub allows you to have private repositories. You can
@@ -150,7 +150,7 @@ repository.
 You can create multiple Automated Builds per repository and configure them
 to point to specific `Dockerfile`'s or Git branches.
 
-#### Build Triggers
+#### Build triggers
 
 Automated Builds can also be triggered via a URL on Docker Hub. This
 allows you to rebuild an Automated build image on demand.

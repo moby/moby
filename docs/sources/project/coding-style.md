@@ -1,8 +1,8 @@
-page_title: Coding Style Checklist
+page_title: Coding style checklist
 page_description: List of guidelines for coding Docker contributions
 page_keywords: change, commit, squash, request, pull request, test, unit test, integration tests, Go, gofmt, LGTM
 
-# Coding Style Checklist
+# Coding style checklist
 
 This checklist summarizes the material you experienced working through [make a
 code contribution](/project/make-a-contribution) and [advanced

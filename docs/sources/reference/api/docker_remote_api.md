@@ -40,7 +40,7 @@ You can still call an old version of the API using
 
 ## v1.19
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.19*](/reference/api/docker_remote_api_v1.19/)
 
@@ -49,7 +49,7 @@ You can still call an old version of the API using
 
 ## v1.18
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.18*](/reference/api/docker_remote_api_v1.18/)
 
@@ -96,7 +96,7 @@ Add `Warnings` field to response.
 
 ## v1.17
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.17*](/reference/api/docker_remote_api_v1.17/)
 
@@ -154,7 +154,7 @@ This endpoint now returns the labels associated with each image (`Labels`).
 
 ## v1.16
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.16*](/reference/api/docker_remote_api_v1.16/)
 
@@ -182,7 +182,7 @@ You can now copy data which is contained in a volume.
 
 ## v1.15
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.15*](/reference/api/docker_remote_api_v1.15/)
 
@@ -196,7 +196,7 @@ Previously this was only available when starting a container.
 
 ## v1.14
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.14*](/reference/api/docker_remote_api_v1.14/)
 
@@ -222,7 +222,7 @@ the `tag` parameter at the same time will return an error.
 
 ## v1.13
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.13*](/reference/api/docker_remote_api_v1.13/)
 
@@ -250,7 +250,7 @@ Added a `pause` parameter (default `true`) to pause the container during commit
 
 ## v1.12
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.12*](/reference/api/docker_remote_api_v1.12/)
 
@@ -275,7 +275,7 @@ The `insert` endpoint has been removed.
 
 ## v1.11
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.11*](/reference/api/docker_remote_api_v1.11/)
 
@@ -298,7 +298,7 @@ This url is preferred method for getting container logs now.
 
 ## v1.10
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.10*](/reference/api/docker_remote_api_v1.10/)
 
@@ -321,7 +321,7 @@ You can now use the force parameter to force delete a
 
 ## v1.9
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.9*](/reference/api/docker_remote_api_v1.9/)
 
@@ -337,7 +337,7 @@ accepting an AuthConfig object must be updated.
 
 ## v1.8
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.8*](/reference/api/docker_remote_api_v1.8/)
 
@@ -369,7 +369,7 @@ without having to parse the string.
 
 ## v1.7
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.7*](/reference/api/docker_remote_api_v1.7/)
 
@@ -468,7 +468,7 @@ output is now generated in the client, using the
 
 ## v1.6
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.6*](/reference/api/docker_remote_api_v1.6/)
 
@@ -486,7 +486,7 @@ previous API version didn't change. Stdout and stderr are merged.
 
 ## v1.5
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.5*](/reference/api/docker_remote_api_v1.5/)
 
@@ -513,7 +513,7 @@ port mapping.
 
 ## v1.4
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.4*](/reference/api/docker_remote_api_v1.4/)
 
@@ -540,7 +540,7 @@ Image's name added in the events
 docker v0.5.0
 [51f6c4a](https://github.com/docker/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.3*](/reference/api/docker_remote_api_v1.3/)
 
@@ -580,7 +580,7 @@ Start containers (/containers/<id>/start):
 docker v0.4.2
 [2e7649b](https://github.com/docker/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.2*](/reference/api/docker_remote_api_v1.2/)
 
@@ -612,7 +612,7 @@ deleted/untagged.
 docker v0.4.0
 [a8ae398](https://github.com/docker/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.1*](/reference/api/docker_remote_api_v1.1/)
 
@@ -639,7 +639,7 @@ Uses json stream instead of HTML hijack, it looks like this:
 docker v0.3.4
 [8d73740](https://github.com/docker/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
 
-### Full Documentation
+### Full documentation
 
 [*Docker Remote API v1.0*](/reference/api/docker_remote_api_v1.0/)
 

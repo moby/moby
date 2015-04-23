@@ -1,8 +1,8 @@
-page_title: Network Configuration
+page_title: Network configuration
 page_description: Docker networking
 page_keywords: network, networking, bridge, docker, documentation
 
-# Network Configuration
+# Network configuration
 
 ## TL;DR
 
@@ -41,7 +41,7 @@ can use Docker options and — in advanced cases — raw Linux networking
 commands to tweak, supplement, or entirely replace Docker's default
 networking configuration.
 
-## Quick Guide to the Options
+## Quick guide to the options
 
 Here is a quick list of the networking-related Docker command-line
 options, in case it helps you find the section below that you are
@@ -601,9 +601,9 @@ You have to execute the `ip -6 neigh add proxy ...` command for every IPv6
 address in your Docker subnet. Unfortunately there is no functionality for
 adding a whole subnet by executing one command.
 
-### Docker IPv6 Cluster
+### Docker IPv6 cluster
 
-#### Switched Network Environment
+#### Switched network environment
 Using routable IPv6 addresses allows you to realize communication between
 containers on different hosts. Let's have a look at a simple Docker IPv6 cluster
 example:
@@ -649,7 +649,7 @@ the Docker subnet on the host, the container IP addresses and the routes on the
 containers. The configuration above the line is up to the user and can be
 adapted to the individual environment.
 
-#### Routed Network Environment
+#### Routed network environment
 
 In a routed network environment you replace the layer 2 switch with a layer 3
 router. Now the hosts just have to know their default gateway (the router) and
@@ -993,7 +993,7 @@ of the right to configure their own networks.  Using `ip netns exec` is
 what let us finish up the configuration without having to take the
 dangerous step of running the container itself with `--privileged=true`.
 
-## Tools and Examples
+## Tools and examples
 
 Before diving into the following sections on custom network topologies,
 you might be interested in glancing at a few external tools or examples

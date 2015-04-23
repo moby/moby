@@ -11,7 +11,7 @@ repository into the `docker/docker` repository.
 You can see <a href="https://github.com/docker/docker/pulls" target="_blank">the
 list of active pull requests to Docker</a> on GitHub.
 
-## Check Your Work
+## Check your work
 
 Before you create a pull request, check your work.
 

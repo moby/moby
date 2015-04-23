@@ -1,5 +1,5 @@
-page_title: Resizing a Boot2Docker Volume	
-page_description: Resizing a Boot2Docker Volume in VirtualBox with GParted
+page_title: Resizing a Boot2Docker volume	
+page_description: Resizing a Boot2Docker volume in VirtualBox with GParted
 page_keywords: boot2docker, volume, virtualbox
 
 # Getting “no space left on device” errors with Boot2Docker?

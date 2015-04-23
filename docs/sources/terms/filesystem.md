@@ -1,8 +1,8 @@
-page_title: File Systems
+page_title: File system
 page_description: How Linux organizes its persistent storage
 page_keywords: containers, files, linux
 
-# File System
+# File system
 
 ## Introduction
 

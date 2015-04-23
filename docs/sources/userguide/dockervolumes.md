@@ -1,8 +1,8 @@
-page_title: Managing Data in Containers
+page_title: Managing data in containers
 page_description: How to manage data inside your Docker containers.
 page_keywords: Examples, Usage, volume, docker, documentation, user guide, data, volumes
 
-# Managing Data in Containers
+# Managing data in containers
 
 So far we've been introduced to some [basic Docker
 concepts](/userguide/usingdocker/), seen how to work with [Docker
@@ -73,7 +73,7 @@ volumes. The output should look something similar to the following:
 You will notice in the above 'Volumes' is specifying the location on the host and 
 'VolumesRW' is specifying that the volume is read/write.
 
-### Mount a Host Directory as a Data Volume
+### Mount a host directory as a data volume
 
 In addition to creating a volume using the `-v` flag you can also mount a
 directory from your Docker daemon's host into a container.
@@ -116,7 +116,7 @@ read-only.
 Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
 
-### Mount a Host File as a Data Volume
+### Mount a host file as a data volume
 
 The `-v` flag can also be used to mount a single file  - instead of *just* 
 directories - from the host machine.
@@ -134,7 +134,7 @@ history of the commands typed while in the container.
 > you want to edit the mounted file, it is often easiest to instead mount the 
 > parent directory.
 
-## Creating and mounting a Data Volume Container
+## Creating and mounting a data volume container
 
 If you have some persistent data that you want to share between
 containers, or want to use from non-persistent containers, it's best to

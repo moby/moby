@@ -2,7 +2,7 @@ page_title: Dockerizing an apt-cacher-ng service
 page_description: Installing and running an apt-cacher-ng service
 page_keywords: docker, example, package installation, networking, debian, ubuntu
 
-# Dockerizing an Apt-Cacher-ng Service
+# Dockerizing an apt-cacher-ng service
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root

@@ -1,8 +1,8 @@
-page_title: Create a Base Image
+page_title: Create a base image
 page_description: How to create base images
 page_keywords: Examples, Usage, base image, docker, documentation, examples
 
-# Create a Base Image
+# Create a base image
 
 So you want to create your own [*Base Image*](
 /terms/image/#base-image)? Great!

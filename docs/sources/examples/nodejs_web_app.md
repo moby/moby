@@ -1,8 +1,8 @@
-page_title: Dockerizing a Node.js Web App
+page_title: Dockerizing a Node.js web app
 page_description: Installing and running a Node.js app with Docker
 page_keywords: docker, example, package installation, node, centos
 
-# Dockerizing a Node.js Web App
+# Dockerizing a Node.js web app
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root

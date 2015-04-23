@@ -2,12 +2,12 @@ page_title: Dockerizing a Redis service
 page_description: Installing and running an redis service
 page_keywords: docker, example, package installation, networking, redis
 
-# Dockerizing a Redis Service
+# Dockerizing a Redis service
 
 Very simple, no frills, Redis service attached to a web application
 using a link.
 
-## Create a docker container for Redis
+## Create a Docker container for Redis
 
 Firstly, we create a `Dockerfile` for our new Redis
 image.

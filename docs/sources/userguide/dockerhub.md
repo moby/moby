@@ -2,7 +2,7 @@ page_title: Getting started with Docker Hub
 page_description: Introductory guide to getting an account on Docker Hub
 page_keywords: documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, central service, services, how to, container, containers, automation, collaboration, collaborators, registry, repo, repository, technology, github webhooks, trusted builds
 
-# Getting Started with Docker Hub
+# Getting started with Docker Hub
 
 
 This section provides a quick introduction to the [Docker Hub](https://hub.docker.com),
@@ -21,7 +21,7 @@ most out of Docker. To do this, it provides services such as:
 In order to use Docker Hub, you will first need to register and create an account. Don't
 worry, creating an account is simple and free.
 
-## Creating a Docker Hub Account
+## Creating a Docker Hub account
 
 There are two ways for you to register and create an account:
 
