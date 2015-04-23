@@ -39,21 +39,3 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 
 	return nil
 }
-
-func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-	if err := parseSecurityOpt(container, hostConfig); err != nil {
-		return err
-	}
-
-	// Register any links from the host config before starting the container
-	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
-		return err
-	}
-
-	container.hostConfig = hostConfig
-	container.toDisk()
-
-	return nil
-}
