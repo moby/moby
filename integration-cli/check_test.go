@@ -8,7 +8,9 @@ import (
 	"github.com/go-check/check"
 )
 
-func Test(t *testing.T) { check.TestingT(t) }
+func Test(t *testing.T) {
+	check.TestingT(t)
+}
 
 type TimerSuite struct {
 	start time.Time
