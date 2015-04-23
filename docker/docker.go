@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -62,8 +63,13 @@ func main() {
 	if len(flHosts) == 0 {
 		defaultHost := os.Getenv("DOCKER_HOST")
 		if defaultHost == "" || *flDaemon {
-			// If we do not have a host, default to unix socket
-			defaultHost = fmt.Sprintf("unix://%s", opts.DefaultUnixSocket)
+			if runtime.GOOS != "windows" {
+				// If we do not have a host, default to unix socket
+				defaultHost = fmt.Sprintf("unix://%s", opts.DefaultUnixSocket)
+			} else {
+				// If we do not have a host, default to TCP socket on Windows
+				defaultHost = fmt.Sprintf("tcp://%s:%d", opts.DefaultHTTPHost, opts.DefaultHTTPPort)
+			}
 		}
 		defaultHost, err := opts.ValidateHost(defaultHost)
 		if err != nil {
