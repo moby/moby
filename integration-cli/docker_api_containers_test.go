@@ -773,7 +773,6 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
-	defer deleteAllContainers()
 	config := `{
 		"Image":     "busybox",
 		"Cmd":       "ls",
@@ -795,8 +794,6 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
-	defer deleteAllContainers()
-
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "busybox"))
 	if err != nil {
 		c.Fatal(err, out)
