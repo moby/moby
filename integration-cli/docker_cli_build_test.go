@@ -4504,7 +4504,7 @@ func (s *DockerSuite) TestBuildExoticShellInterpolation(c *check.C) {
 
 	_, err := buildImage(name, `
 		FROM busybox
-		
+
 		ENV SOME_VAR a.b.c
 
 		RUN [ "$SOME_VAR"       = 'a.b.c' ]
