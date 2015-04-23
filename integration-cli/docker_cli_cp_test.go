@@ -32,7 +32,6 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -90,7 +89,6 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -156,7 +154,6 @@ func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -216,7 +213,6 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -276,7 +272,6 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -337,7 +332,6 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -379,7 +373,6 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -525,7 +518,6 @@ func (s *DockerSuite) TestCpToDot(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
@@ -559,7 +551,6 @@ func (s *DockerSuite) TestCpToStdout(c *check.C) {
 	}
 
 	cID := strings.TrimSpace(out)
-	defer deleteContainer(cID)
 
 	out, _ = dockerCmd(c, "wait", cID)
 	if strings.TrimSpace(out) != "0" {
@@ -588,7 +579,6 @@ func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {

@@ -216,7 +216,6 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer deleteContainer(cleanedContainerID)
 
 	repoName := "foobar-save-load-test"
 
@@ -298,7 +297,6 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 			c.Fatalf("failed to create a container: %v %v", out, err)
 		}
 		cleanedContainerID := strings.TrimSpace(out)
-		defer deleteContainer(cleanedContainerID)
 
 		commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, tag)
 		if out, _, err = runCommandWithOutput(commitCmd); err != nil {

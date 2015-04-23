@@ -85,7 +85,6 @@ func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	name := "testhistoryimagewithcomment"
-	defer deleteContainer(name)
 	defer deleteImages(name)
 
 	// make a image through docker commit <container id> [ -m messages ]
