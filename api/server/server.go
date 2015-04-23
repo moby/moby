@@ -861,11 +861,12 @@ func (s *Server) postImagesPush(eng *engine.Engine, version version.Version, w h
 	useJSON := version.GreaterThan("1.0")
 	name := vars["name"]
 
+	output := utils.NewWriteFlusher(w)
 	imagePushConfig := &graph.ImagePushConfig{
 		MetaHeaders: metaHeaders,
 		AuthConfig:  authConfig,
 		Tag:         r.Form.Get("tag"),
-		OutStream:   utils.NewWriteFlusher(w),
+		OutStream:   output,
 		Json:        useJSON,
 	}
 	if useJSON {
@@ -873,8 +874,11 @@ func (s *Server) postImagesPush(eng *engine.Engine, version version.Version, w h
 	}
 
 	if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
+		if !output.Flushed() {
+			return err
+		}
 		sf := streamformatter.NewStreamFormatter(useJSON)
-		return fmt.Errorf(string(sf.FormatError(err)))
+		output.Write(sf.FormatError(err))
 	}
 	return nil
 
