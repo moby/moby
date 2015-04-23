@@ -180,7 +180,7 @@ that will be excluded from the context. Globbing is done using Go's
 > **Note**:
 > The `.dockerignore` file can even be used to ignore the `Dockerfile` and
 > `.dockerignore` files. This might be useful if you are copying files from
-> the root of the build context into your new containter but do not want to 
+> the root of the build context into your new container but do not want to 
 > include the `Dockerfile` or `.dockerignore` files (e.g. `ADD . /someDir/`).
 
 The following example shows the use of the `.dockerignore` file to exclude the
