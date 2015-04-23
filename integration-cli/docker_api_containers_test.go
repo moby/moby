@@ -625,7 +625,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	}
 	id := strings.TrimSpace(string(out))
 
-	name := "testcommit"
+	name := "testcommit" + stringid.GenerateRandomID()
 	_, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+id, nil)
 	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
 		c.Fatal(err)
@@ -650,7 +650,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	// sanity check, make sure the image is what we think it is
 	out, err = exec.Command(dockerBinary, "run", img.Id, "ls", "/test").CombinedOutput()
 	if err != nil {
-		c.Fatal(out, err)
+		c.Fatalf("error checking commited image: %v - %q", err, string(out))
 	}
 }
 
