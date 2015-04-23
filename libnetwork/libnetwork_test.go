@@ -67,7 +67,7 @@ func TestSimplebridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "", "")
+	ep, err := network.CreateEndpoint("testep", "sb1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +91,7 @@ func TestSimplebridge(t *testing.T) {
 
 func TestUnknownDriver(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
+
 	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{})
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -204,7 +205,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "", "")
+	ep, err := network.CreateEndpoint("testep", "sb2", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +273,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "", "")
+	ep, err := network.CreateEndpoint("testep", "sb1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
