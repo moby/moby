@@ -209,7 +209,7 @@ build and run a `docker` binary in your container.
         root@5f8630b873fe:/go/src/github.com/docker/docker# 
 
     The command creates a container from your `dry-run-test` image. It opens an
-    interactive terminal (`-ti`) running a `/bin/bash shell`.  The
+    interactive terminal (`-ti`) running a `/bin/bash` shell.  The
     `--privileged` flag gives the container access to kernel features and device
     access. This flag allows you to run a container in a container.
     Finally, the `-rm` flag instructs Docker to remove the container when you
