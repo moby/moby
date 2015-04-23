@@ -203,18 +203,19 @@ func httpError(w http.ResponseWriter, err error) {
 	// If we need to differentiate between different possible error types, we should
 	// create appropriate error types with clearly defined meaning.
 	errStr := strings.ToLower(err.Error())
-	if strings.Contains(errStr, "no such") {
-		statusCode = http.StatusNotFound
-	} else if strings.Contains(errStr, "bad parameter") {
-		statusCode = http.StatusBadRequest
-	} else if strings.Contains(errStr, "conflict") {
-		statusCode = http.StatusConflict
-	} else if strings.Contains(errStr, "impossible") {
-		statusCode = http.StatusNotAcceptable
-	} else if strings.Contains(errStr, "wrong login/password") {
-		statusCode = http.StatusUnauthorized
-	} else if strings.Contains(errStr, "hasn't been activated") {
-		statusCode = http.StatusForbidden
+	for keyword, status := range map[string]int{
+		"not found":             http.StatusNotFound,
+		"no such":               http.StatusNotFound,
+		"bad parameter":         http.StatusBadRequest,
+		"conflict":              http.StatusConflict,
+		"impossible":            http.StatusNotAcceptable,
+		"wrong login/password":  http.StatusUnauthorized,
+		"hasn't been activated": http.StatusForbidden,
+	} {
+		if strings.Contains(errStr, keyword) {
+			statusCode = status
+			break
+		}
 	}
 
 	logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": err}).Error("HTTP Error")
