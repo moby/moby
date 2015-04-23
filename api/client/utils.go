@@ -19,6 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -238,11 +239,12 @@ func waitForExit(cli *DockerCli, containerID string) (int, error) {
 		return -1, err
 	}
 
-	var out engine.Env
-	if err := out.Decode(stream); err != nil {
+	var res types.ContainerWaitResponse
+	if err := json.NewDecoder(stream).Decode(&res); err != nil {
 		return -1, err
 	}
-	return out.GetInt("StatusCode"), nil
+
+	return res.StatusCode, nil
 }
 
 // getExitCode perform an inspect on the container. It returns
@@ -257,13 +259,12 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 		return false, -1, nil
 	}
 
-	var result engine.Env
-	if err := result.Decode(stream); err != nil {
+	var c types.ContainerJSON
+	if err := json.NewDecoder(stream).Decode(&c); err != nil {
 		return false, -1, err
 	}
 
-	state := result.GetSubEnv("State")
-	return state.GetBool("Running"), state.GetInt("ExitCode"), nil
+	return c.State.Running, c.State.ExitCode, nil
 }
 
 // getExecExitCode perform an inspect on the exec command. It returns
@@ -278,12 +279,18 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 		return false, -1, nil
 	}
 
-	var result engine.Env
-	if err := result.Decode(stream); err != nil {
+	//TODO: Should we reconsider having a type in api/types?
+	//this is a response to exex/id/json not container
+	var c struct {
+		Running  bool
+		ExitCode int
+	}
+
+	if err := json.NewDecoder(stream).Decode(&c); err != nil {
 		return false, -1, err
 	}
 
-	return result.GetBool("Running"), result.GetInt("ExitCode"), nil
+	return c.Running, c.ExitCode, nil
 }
 
 func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {

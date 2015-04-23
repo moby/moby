@@ -32,41 +32,6 @@ func TesthttpError(t *testing.T) {
 	}
 }
 
-func TestGetContainersByName(t *testing.T) {
-	eng := engine.New()
-	name := "container_name"
-	var called bool
-	eng.Register("container_inspect", func(job *engine.Job) error {
-		called = true
-		if job.Args[0] != name {
-			t.Errorf("name != '%s': %#v", name, job.Args[0])
-		}
-		if api.APIVERSION.LessThan("1.12") && !job.GetenvBool("dirty") {
-			t.Errorf("dirty env variable not set")
-		} else if api.APIVERSION.GreaterThanOrEqualTo("1.12") && job.GetenvBool("dirty") {
-			t.Errorf("dirty env variable set when it shouldn't")
-		}
-		v := &engine.Env{}
-		v.SetBool("dirty", true)
-		if _, err := v.WriteTo(job.Stdout); err != nil {
-			return err
-		}
-		return nil
-	})
-	r := serveRequest("GET", "/containers/"+name+"/json", nil, eng, t)
-	if !called {
-		t.Fatal("handler was not called")
-	}
-	assertContentType(r, "application/json", t)
-	var stdoutJson interface{}
-	if err := json.Unmarshal(r.Body.Bytes(), &stdoutJson); err != nil {
-		t.Fatalf("%#v", err)
-	}
-	if stdoutJson.(map[string]interface{})["dirty"].(float64) != 1 {
-		t.Fatalf("%#v", stdoutJson)
-	}
-}
-
 func TestGetImagesByName(t *testing.T) {
 	eng := engine.New()
 	name := "image_name"

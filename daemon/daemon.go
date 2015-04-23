@@ -116,13 +116,6 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	for name, method := range map[string]engine.Handler{
-		"container_inspect": daemon.ContainerInspect,
-	} {
-		if err := eng.Register(name, method); err != nil {
-			return err
-		}
-	}
 	if err := daemon.Repositories().Install(eng); err != nil {
 		return err
 	}

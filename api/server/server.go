@@ -1210,12 +1210,21 @@ func (s *Server) getContainersByName(eng *engine.Engine, version version.Version
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("container_inspect", vars["name"])
+
+	name := vars["name"]
+
 	if version.LessThan("1.12") {
-		job.SetenvBool("raw", true)
+		containerJSONRaw, err := s.daemon.ContainerInspectRaw(name)
+		if err != nil {
+			return err
+		}
+		return writeJSON(w, http.StatusOK, containerJSONRaw)
 	}
-	streamJSON(job.Stdout, w, false)
-	return job.Run()
+	containerJSON, err := s.daemon.ContainerInspect(name)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, containerJSON)
 }
 
 func (s *Server) getExecByID(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

@@ -1,12 +1,13 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
 )
@@ -30,25 +31,20 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	env := engine.Env{}
-	if err := env.Decode(stream); err != nil {
+	var c types.ContainerJSON
+	if err := json.NewDecoder(stream).Decode(&c); err != nil {
 		return err
 	}
 
-	if !env.GetSubEnv("State").GetBool("Running") {
+	if !c.State.Running {
 		return fmt.Errorf("You cannot attach to a stopped container, start it first")
 	}
 
-	var (
-		config = env.GetSubEnv("Config")
-		tty    = config.GetBool("Tty")
-	)
-
-	if err := cli.CheckTtyInput(!*noStdin, tty); err != nil {
+	if err := cli.CheckTtyInput(!*noStdin, c.Config.Tty); err != nil {
 		return err
 	}
 
-	if tty && cli.isTerminalOut {
+	if c.Config.Tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
 			logrus.Debugf("Error monitoring TTY size: %s", err)
 		}
@@ -58,7 +54,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	v := url.Values{}
 	v.Set("stream", "1")
-	if !*noStdin && config.GetBool("OpenStdin") {
+	if !*noStdin && c.Config.OpenStdin {
 		v.Set("stdin", "1")
 		in = cli.in
 	}
@@ -66,12 +62,12 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
 
-	if *proxy && !tty {
+	if *proxy && !c.Config.Tty {
 		sigc := cli.forwardAllSignals(cmd.Arg(0))
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, nil, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), c.Config.Tty, in, cli.out, cli.err, nil, nil); err != nil {
 		return err
 	}
 
