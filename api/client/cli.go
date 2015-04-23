@@ -15,10 +15,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/registry"
 )
 
 // DockerCli represents the docker command line client.
@@ -28,8 +28,9 @@ type DockerCli struct {
 	proto string
 	// addr holds the client address.
 	addr string
-	// configFile holds the configuration file (instance of registry.ConfigFile).
-	configFile *registry.ConfigFile
+
+	// configFile has the client configuration file
+	configFile *cliconfig.ConfigFile
 	// in holds the input stream and closer (io.ReadCloser) for the client.
 	in io.ReadCloser
 	// out holds the output stream (io.Writer) for the client.
@@ -184,7 +185,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
 	}
 
-	configFile, e := registry.LoadConfig(filepath.Join(homedir.Get(), ".docker"))
+	configFile, e := cliconfig.Load(filepath.Join(homedir.Get(), ".docker"))
 	if e != nil {
 		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
 	}

@@ -1,4 +1,4 @@
-package registry
+package cliconfig
 
 import (
 	"io/ioutil"
@@ -14,7 +14,7 @@ import (
 func TestMissingFile(t *testing.T) {
 	tmpHome, _ := ioutil.TempDir("", "config-test")
 
-	config, err := LoadConfig(tmpHome)
+	config, err := Load(tmpHome)
 	if err != nil {
 		t.Fatalf("Failed loading on missing file: %q", err)
 	}
@@ -36,7 +36,7 @@ func TestSaveFileToDirs(t *testing.T) {
 
 	tmpHome += "/.docker"
 
-	config, err := LoadConfig(tmpHome)
+	config, err := Load(tmpHome)
 	if err != nil {
 		t.Fatalf("Failed loading on missing file: %q", err)
 	}
@@ -58,7 +58,7 @@ func TestEmptyFile(t *testing.T) {
 	fn := filepath.Join(tmpHome, CONFIGFILE)
 	ioutil.WriteFile(fn, []byte(""), 0600)
 
-	_, err := LoadConfig(tmpHome)
+	_, err := Load(tmpHome)
 	if err == nil {
 		t.Fatalf("Was supposed to fail")
 	}
@@ -69,7 +69,7 @@ func TestEmptyJson(t *testing.T) {
 	fn := filepath.Join(tmpHome, CONFIGFILE)
 	ioutil.WriteFile(fn, []byte("{}"), 0600)
 
-	config, err := LoadConfig(tmpHome)
+	config, err := Load(tmpHome)
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -104,7 +104,7 @@ func TestOldJson(t *testing.T) {
 	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
 	ioutil.WriteFile(fn, []byte(js), 0600)
 
-	config, err := LoadConfig(tmpHome)
+	config, err := Load(tmpHome)
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -133,7 +133,7 @@ func TestNewJson(t *testing.T) {
 	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } } }`
 	ioutil.WriteFile(fn, []byte(js), 0600)
 
-	config, err := LoadConfig(tmpHome)
+	config, err := Load(tmpHome)
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}

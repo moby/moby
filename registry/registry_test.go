@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/requestdecorator"
 )
 
@@ -20,7 +21,7 @@ const (
 )
 
 func spawnTestRegistrySession(t *testing.T) *Session {
-	authConfig := &AuthConfig{}
+	authConfig := &cliconfig.AuthConfig{}
 	endpoint, err := NewEndpoint(makeIndex("/v1/"))
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +34,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 }
 
 func TestPublicSession(t *testing.T) {
-	authConfig := &AuthConfig{}
+	authConfig := &cliconfig.AuthConfig{}
 
 	getSessionDecorators := func(index *IndexInfo) int {
 		endpoint, err := NewEndpoint(index)

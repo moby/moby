@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cliconfig"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
@@ -56,7 +57,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	authconfig, ok := cli.configFile.AuthConfigs[serverAddress]
 	if !ok {
-		authconfig = registry.AuthConfig{}
+		authconfig = cliconfig.AuthConfig{}
 	}
 
 	if username == "" {

@@ -5,14 +5,16 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/docker/docker/cliconfig"
 )
 
 func TestEncodeAuth(t *testing.T) {
-	newAuthConfig := &AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
-	authStr := encodeAuth(newAuthConfig)
-	decAuthConfig := &AuthConfig{}
+	newAuthConfig := &cliconfig.AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
+	authStr := cliconfig.EncodeAuth(newAuthConfig)
+	decAuthConfig := &cliconfig.AuthConfig{}
 	var err error
-	decAuthConfig.Username, decAuthConfig.Password, err = decodeAuth(authStr)
+	decAuthConfig.Username, decAuthConfig.Password, err = cliconfig.DecodeAuth(authStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,19 +29,16 @@ func TestEncodeAuth(t *testing.T) {
 	}
 }
 
-func setupTempConfigFile() (*ConfigFile, error) {
+func setupTempConfigFile() (*cliconfig.ConfigFile, error) {
 	root, err := ioutil.TempDir("", "docker-test-auth")
 	if err != nil {
 		return nil, err
 	}
-	root = filepath.Join(root, CONFIGFILE)
-	configFile := &ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
-		filename:    root,
-	}
+	root = filepath.Join(root, cliconfig.CONFIGFILE)
+	configFile := cliconfig.NewConfigFile(root)
 
 	for _, registry := range []string{"testIndex", IndexServerAddress()} {
-		configFile.AuthConfigs[registry] = AuthConfig{
+		configFile.AuthConfigs[registry] = cliconfig.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 			Email:    "docker@docker.io",
@@ -54,7 +53,7 @@ func TestSameAuthDataPostSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.filename)
+	defer os.RemoveAll(configFile.Filename())
 
 	err = configFile.Save()
 	if err != nil {
@@ -81,7 +80,7 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.filename)
+	defer os.RemoveAll(configFile.Filename())
 
 	indexConfig := configFile.AuthConfigs[IndexServerAddress()]
 
@@ -92,10 +91,10 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 		Official: false,
 	}
 
-	resolved := configFile.ResolveAuthConfig(officialIndex)
+	resolved := ResolveAuthConfig(configFile, officialIndex)
 	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServerAddress()")
 
-	resolved = configFile.ResolveAuthConfig(privateIndex)
+	resolved = ResolveAuthConfig(configFile, privateIndex)
 	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServerAddress()")
 }
 
@@ -104,26 +103,26 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.filename)
+	defer os.RemoveAll(configFile.Filename())
 
-	registryAuth := AuthConfig{
+	registryAuth := cliconfig.AuthConfig{
 		Username: "foo-user",
 		Password: "foo-pass",
 		Email:    "foo@example.com",
 	}
-	localAuth := AuthConfig{
+	localAuth := cliconfig.AuthConfig{
 		Username: "bar-user",
 		Password: "bar-pass",
 		Email:    "bar@example.com",
 	}
-	officialAuth := AuthConfig{
+	officialAuth := cliconfig.AuthConfig{
 		Username: "baz-user",
 		Password: "baz-pass",
 		Email:    "baz@example.com",
 	}
 	configFile.AuthConfigs[IndexServerAddress()] = officialAuth
 
-	expectedAuths := map[string]AuthConfig{
+	expectedAuths := map[string]cliconfig.AuthConfig{
 		"registry.example.com": registryAuth,
 		"localhost:8000":       localAuth,
 		"registry.com":         localAuth,
@@ -160,12 +159,12 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		}
 		for _, registry := range registries {
 			configFile.AuthConfigs[registry] = configured
-			resolved := configFile.ResolveAuthConfig(index)
+			resolved := ResolveAuthConfig(configFile, index)
 			if resolved.Email != configured.Email {
 				t.Errorf("%s -> %q != %q\n", registry, resolved.Email, configured.Email)
 			}
 			delete(configFile.AuthConfigs, registry)
-			resolved = configFile.ResolveAuthConfig(index)
+			resolved = ResolveAuthConfig(configFile, index)
 			if resolved.Email == configured.Email {
 				t.Errorf("%s -> %q == %q\n", registry, resolved.Email, configured.Email)
 			}

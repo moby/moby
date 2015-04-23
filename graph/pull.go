@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -23,7 +24,7 @@ import (
 type ImagePullConfig struct {
 	Parallel    bool
 	MetaHeaders map[string][]string
-	AuthConfig  *registry.AuthConfig
+	AuthConfig  *cliconfig.AuthConfig
 	Json        bool
 	OutStream   io.Writer
 }
