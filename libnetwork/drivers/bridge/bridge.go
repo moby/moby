@@ -41,9 +41,15 @@ type Configuration struct {
 	AllowNonDefaultBridge bool
 }
 
+// EndpointConfiguration represents the user specified configuration for the sandbox endpoint
+type EndpointConfiguration struct {
+	MacAddress net.HardwareAddr
+}
+
 type bridgeEndpoint struct {
-	id   types.UUID
-	port *sandbox.Interface
+	id     types.UUID
+	port   *sandbox.Interface
+	config *EndpointConfiguration // User specified parameters
 }
 
 type bridgeNetwork struct {
@@ -239,7 +245,7 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	return err
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOption interface{}) (*sandbox.Info, error) {
+func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions interface{}) (*sandbox.Info, error) {
 	var (
 		ipv6Addr *net.IPNet
 		err      error
@@ -285,8 +291,14 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOption in
 		return nil, driverapi.ErrEndpointExists
 	}
 
+	// Try to convert the options to endpoint configuration
+	epConfig, err := parseEndpointOptions(epOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create and add the endpoint
-	endpoint := &bridgeEndpoint{id: eid}
+	endpoint := &bridgeEndpoint{id: eid, config: epConfig}
 	n.endpoints[sboxKey] = endpoint
 	n.Unlock()
 
@@ -335,6 +347,15 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOption in
 	if err != nil {
 		return nil, err
 	}
+
+	// Add user specified attributes
+	if epConfig != nil && epConfig.MacAddress != nil {
+		err = netlink.LinkSetHardwareAddr(sbox, epConfig.MacAddress)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	defer func() {
 		if err != nil {
 			netlink.LinkDel(sbox)
@@ -347,14 +368,14 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOption in
 		return nil, err
 	}
 
-	// Reuqest a v4 address for the sandbox side pipe interface
+	// v4 address for the sandbox side pipe interface
 	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
 	if err != nil {
 		return nil, err
 	}
 	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
-	// Request a v6 address for the sandbox side pipe interface
+	// v6 address for the sandbox side pipe interface
 	if config.EnableIPv6 {
 		ip6, err := ipAllocator.RequestIP(n.bridge.bridgeIPv6, nil)
 		if err != nil {
@@ -452,6 +473,24 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	}
 
 	return nil
+}
+
+func parseEndpointOptions(epOptions interface{}) (*EndpointConfiguration, error) {
+	if epOptions == nil {
+		return nil, nil
+	}
+	switch opt := epOptions.(type) {
+	case options.Generic:
+		opaqueConfig, err := options.GenerateFromModel(opt, &EndpointConfiguration{})
+		if err != nil {
+			return nil, err
+		}
+		return opaqueConfig.(*EndpointConfiguration), nil
+	case *EndpointConfiguration:
+		return opt, nil
+	default:
+		return nil, ErrInvalidEndpointConfig
+	}
 }
 
 // Generates a name to be used for a virtual ethernet

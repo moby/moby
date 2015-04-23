@@ -67,7 +67,7 @@ func Testbridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "sb1", "")
+	ep, err := network.CreateEndpoint("testep", "sb1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "sb2", "")
+	ep, err := network.CreateEndpoint("testep", "sb2", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "sb1", "")
+	ep, err := network.CreateEndpoint("testep", "sb1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
