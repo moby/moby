@@ -327,7 +327,11 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 			c.Fatal(err)
 		}
 		nameID[name] = strings.TrimSpace(out)
-		waitInspect(name, "{{.State.Runing }}", "false", 5)
+		err = waitRun(name)
+		
+		if err != nil {
+			c.Fatal(err)
+		}
 	}
 
 	until := fmt.Sprintf("%d", daemonTime(c).Unix())
