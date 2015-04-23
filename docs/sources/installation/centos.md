@@ -33,17 +33,6 @@ run the following command:
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-### FirewallD
-
-CentOS-7 introduced firewalld, which is a wrapper around iptables and can
-conflict with Docker.
-
-When `firewalld` is started or restarted it will remove the `DOCKER` chain
-from iptables, preventing Docker from working properly.
-
-When using Systemd, `firewalld` is started before Docker, but if you
-start or restart `firewalld` after Docker, you will have to restart the Docker daemon.
-
 ## Installing Docker - CentOS-6.5
 
 For CentOS-6.5, the Docker package is part of [Extra Packages
