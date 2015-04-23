@@ -25,6 +25,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		--pidfile "$DEST/docker.pid" \
 			&> "$DEST/docker.log"
 	) &
+	trap "source '${MAKEDIR}/.integration-daemon-stop'" EXIT # make sure that if the script exits unexpectedly, we stop this daemon we just started
 else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"
 fi
