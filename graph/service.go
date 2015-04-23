@@ -5,57 +5,47 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 )
 
-func (s *TagStore) Install(eng *engine.Engine) error {
-	for name, handler := range map[string]engine.Handler{
-		"image_inspect": s.CmdLookup,
-		"viz":           s.CmdViz,
-	} {
-		if err := eng.Register(name, handler); err != nil {
-			return fmt.Errorf("Could not register %q: %v", name, err)
-		}
+func (s *TagStore) LookupRaw(name string) ([]byte, error) {
+	image, err := s.LookupImage(name)
+	if err != nil || image == nil {
+		return nil, fmt.Errorf("No such image %s", name)
 	}
-	return nil
+
+	imageInspectRaw, err := image.RawJson()
+	if err != nil {
+		return nil, err
+	}
+
+	return imageInspectRaw, nil
 }
 
-// CmdLookup return an image encoded in JSON
-func (s *TagStore) CmdLookup(job *engine.Job) error {
-	if len(job.Args) != 1 {
-		return fmt.Errorf("usage: %s NAME", job.Name)
+// Lookup return an image encoded in JSON
+func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
+	image, err := s.LookupImage(name)
+	if err != nil || image == nil {
+		return nil, fmt.Errorf("No such image: %s", name)
 	}
-	name := job.Args[0]
-	if image, err := s.LookupImage(name); err == nil && image != nil {
-		if job.GetenvBool("raw") {
-			b, err := image.RawJson()
-			if err != nil {
-				return err
-			}
-			job.Stdout.Write(b)
-			return nil
-		}
 
-		out := &engine.Env{}
-		out.SetJson("Id", image.ID)
-		out.SetJson("Parent", image.Parent)
-		out.SetJson("Comment", image.Comment)
-		out.SetAuto("Created", image.Created)
-		out.SetJson("Container", image.Container)
-		out.SetJson("ContainerConfig", image.ContainerConfig)
-		out.Set("DockerVersion", image.DockerVersion)
-		out.SetJson("Author", image.Author)
-		out.SetJson("Config", image.Config)
-		out.Set("Architecture", image.Architecture)
-		out.Set("Os", image.OS)
-		out.SetInt64("Size", image.Size)
-		out.SetInt64("VirtualSize", image.GetParentsSize(0)+image.Size)
-		if _, err = out.WriteTo(job.Stdout); err != nil {
-			return err
-		}
-		return nil
+	imageInspect := &types.ImageInspect{
+		Id:              image.ID,
+		Parent:          image.Parent,
+		Comment:         image.Comment,
+		Created:         image.Created,
+		Container:       image.Container,
+		ContainerConfig: &image.ContainerConfig,
+		DockerVersion:   image.DockerVersion,
+		Author:          image.Author,
+		Config:          image.Config,
+		Architecture:    image.Architecture,
+		Os:              image.OS,
+		Size:            image.Size,
+		VirtualSize:     image.GetParentsSize(0) + image.Size,
 	}
-	return fmt.Errorf("No such image: %s", name)
+
+	return imageInspect, nil
 }
 
 // ImageTarLayer return the tarLayer of the image

@@ -10,21 +10,14 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 )
 
-type ImageLoadConfig struct {
-	InTar     io.ReadCloser
-	OutStream io.Writer
-	Engine    *engine.Engine
-}
-
 // Loads a set of images into the repository. This is the complementary of ImageExport.
 // The input stream is an uncompressed tar ball containing images and metadata.
-func (s *TagStore) Load(imageLoadConfig *ImageLoadConfig) error {
+func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
 		return err
@@ -48,7 +41,7 @@ func (s *TagStore) Load(imageLoadConfig *ImageLoadConfig) error {
 		excludes[i] = k
 		i++
 	}
-	if err := chrootarchive.Untar(imageLoadConfig.InTar, repoDir, &archive.TarOptions{ExcludePatterns: excludes}); err != nil {
+	if err := chrootarchive.Untar(inTar, repoDir, &archive.TarOptions{ExcludePatterns: excludes}); err != nil {
 		return err
 	}
 
@@ -59,7 +52,7 @@ func (s *TagStore) Load(imageLoadConfig *ImageLoadConfig) error {
 
 	for _, d := range dirs {
 		if d.IsDir() {
-			if err := s.recursiveLoad(imageLoadConfig.Engine, d.Name(), tmpImageDir); err != nil {
+			if err := s.recursiveLoad(d.Name(), tmpImageDir); err != nil {
 				return err
 			}
 		}
@@ -74,7 +67,7 @@ func (s *TagStore) Load(imageLoadConfig *ImageLoadConfig) error {
 
 		for imageName, tagMap := range repositories {
 			for tag, address := range tagMap {
-				if err := s.SetLoad(imageName, tag, address, true, imageLoadConfig.OutStream); err != nil {
+				if err := s.SetLoad(imageName, tag, address, true, outStream); err != nil {
 					return err
 				}
 			}
@@ -86,7 +79,7 @@ func (s *TagStore) Load(imageLoadConfig *ImageLoadConfig) error {
 	return nil
 }
 
-func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string) error {
+func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 	if _, err := s.LookupImage(address); err != nil {
 		logrus.Debugf("Loading %s", address)
 
@@ -126,7 +119,7 @@ func (s *TagStore) recursiveLoad(eng *engine.Engine, address, tmpImageDir string
 
 		if img.Parent != "" {
 			if !s.graph.Exists(img.Parent) {
-				if err := s.recursiveLoad(eng, img.Parent, tmpImageDir); err != nil {
+				if err := s.recursiveLoad(img.Parent, tmpImageDir); err != nil {
 					return err
 				}
 			}

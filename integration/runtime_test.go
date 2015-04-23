@@ -125,17 +125,22 @@ func init() {
 
 func setupBaseImage() {
 	eng := newTestEngine(std_log.New(os.Stderr, "", 0), false, unitTestStoreBase)
-	job := eng.Job("image_inspect", unitTestImageName)
-	img, _ := job.Stdout.AddEnv()
+	d := getDaemon(eng)
+
+	_, err := d.Repositories().Lookup(unitTestImageName)
 	// If the unit test is not found, try to download it.
-	if err := job.Run(); err != nil || img.Get("Id") != unitTestImageID {
+	if err != nil {
+		// seems like we can just ignore the error here...
+		// there was a check of imgId from job stdout against unittestid but
+		// if there was an error how could the imgid from the job
+		// be compared?! it's obvious it's different, am I totally wrong?
+
 		// Retrieve the Image
 		imagePullConfig := &graph.ImagePullConfig{
 			Parallel:   true,
 			OutStream:  ioutils.NopWriteCloser(os.Stdout),
 			AuthConfig: &cliconfig.AuthConfig{},
 		}
-		d := getDaemon(eng)
 		if err := d.Repositories().Pull(unitTestImageName, "", imagePullConfig); err != nil {
 			logrus.Fatalf("Unable to pull the test image: %s", err)
 		}

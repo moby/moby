@@ -8,7 +8,6 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -22,7 +21,6 @@ import (
 type ImageExportConfig struct {
 	Names     []string
 	Outstream io.Writer
-	Engine    *engine.Engine
 }
 
 func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
@@ -51,7 +49,7 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 			// this is a base repo name, like 'busybox'
 			for tag, id := range rootRepo {
 				addKey(name, tag, id)
-				if err := s.exportImage(imageExportConfig.Engine, id, tempdir); err != nil {
+				if err := s.exportImage(id, tempdir); err != nil {
 					return err
 				}
 			}
@@ -70,13 +68,13 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 				if len(repoTag) > 0 {
 					addKey(repoName, repoTag, img.ID)
 				}
-				if err := s.exportImage(imageExportConfig.Engine, img.ID, tempdir); err != nil {
+				if err := s.exportImage(img.ID, tempdir); err != nil {
 					return err
 				}
 
 			} else {
 				// this must be an ID that didn't get looked up just right?
-				if err := s.exportImage(imageExportConfig.Engine, name, tempdir); err != nil {
+				if err := s.exportImage(name, tempdir); err != nil {
 					return err
 				}
 			}
@@ -107,7 +105,7 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 }
 
 // FIXME: this should be a top-level function, not a class method
-func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
+func (s *TagStore) exportImage(name, tempdir string) error {
 	for n := name; n != ""; {
 		// temporary directory
 		tmpImageDir := path.Join(tempdir, n)
@@ -130,11 +128,16 @@ func (s *TagStore) exportImage(eng *engine.Engine, name, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		job := eng.Job("image_inspect", n)
-		job.SetenvBool("raw", true)
-		job.Stdout.Add(json)
-		if err := job.Run(); err != nil {
+		imageInspectRaw, err := s.LookupRaw(n)
+		if err != nil {
 			return err
+		}
+		written, err := json.Write(imageInspectRaw)
+		if err != nil {
+			return err
+		}
+		if written != len(imageInspectRaw) {
+			logrus.Warnf("%d byes should have been written instead %d have been written", written, len(imageInspectRaw))
 		}
 
 		// serialize filesystem
