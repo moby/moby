@@ -1448,7 +1448,6 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 
 	//cleanup
 	defer func() {
-		deleteAllContainers()
 		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			c.Fatal(err)
 		}
@@ -2380,7 +2379,6 @@ func (s *DockerSuite) TestRunVolumesNotRecreatedOnStart(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	// Clear out any remnants from other tests
-	deleteAllContainers()
 	info, err := ioutil.ReadDir(volumesConfigPath)
 	if err != nil {
 		c.Fatal(err)

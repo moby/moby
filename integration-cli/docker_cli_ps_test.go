@@ -478,9 +478,6 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 	if (!strings.Contains(containerOut, firstID) || !strings.Contains(containerOut, secondID)) || strings.Contains(containerOut, thirdID) {
 		c.Fatalf("Expected ids %s,%s, got %s for exited filter, output: %q", firstID, secondID, containerOut, out)
 	}
-
-	deleteAllContainers()
-
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {

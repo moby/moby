@@ -14,7 +14,6 @@ import (
 
 // Make sure we can create a simple container with some args
 func (s *DockerSuite) TestCreateArgs(c *check.C) {
-
 	runCmd := exec.Command(dockerBinary, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -256,9 +255,6 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
 	}
-
-	deleteAllContainers()
-
 }
 
 func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
@@ -287,9 +283,6 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
 	}
-
-	deleteAllContainers()
-
 }
 
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {

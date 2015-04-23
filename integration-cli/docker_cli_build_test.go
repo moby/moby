@@ -2090,7 +2090,6 @@ func (s *DockerSuite) TestBuildRm(c *check.C) {
 		if containerCountBefore == containerCountAfter {
 			c.Fatalf("--rm=false should have left containers behind")
 		}
-		deleteAllContainers()
 		deleteImages(name)
 
 	}
