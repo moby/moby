@@ -13,7 +13,6 @@ func (s *TagStore) Install(eng *engine.Engine) error {
 		"image_inspect": s.CmdLookup,
 		"image_export":  s.CmdImageExport,
 		"viz":           s.CmdViz,
-		"push":          s.CmdPush,
 	} {
 		if err := eng.Register(name, handler); err != nil {
 			return fmt.Errorf("Could not register %q: %v", name, err)

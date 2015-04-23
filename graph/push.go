@@ -12,7 +12,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -24,6 +23,14 @@ import (
 )
 
 var ErrV2RegistryUnavailable = errors.New("error v2 registry unavailable")
+
+type ImagePushConfig struct {
+	MetaHeaders map[string][]string
+	AuthConfig  *registry.AuthConfig
+	Tag         string
+	Json        bool
+	OutStream   io.Writer
+}
 
 // Retrieve the all the images to be uploaded in the correct order
 func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string) ([]string, map[string][]string, error) {
@@ -486,15 +493,9 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
-func (s *TagStore) CmdPush(job *engine.Job) error {
-	if n := len(job.Args); n != 1 {
-		return fmt.Errorf("Usage: %s IMAGE", job.Name)
-	}
+func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
 	var (
-		localName   = job.Args[0]
-		sf          = streamformatter.NewStreamFormatter(job.GetenvBool("json"))
-		authConfig  = &registry.AuthConfig{}
-		metaHeaders map[string][]string
+		sf = streamformatter.NewStreamFormatter(imagePushConfig.Json)
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
@@ -502,10 +503,6 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 	if err != nil {
 		return err
 	}
-
-	tag := job.Getenv("tag")
-	job.GetenvJson("authConfig", authConfig)
-	job.GetenvJson("metaHeaders", &metaHeaders)
 
 	if _, err := s.poolAdd("push", repoInfo.LocalName); err != nil {
 		return err
@@ -517,16 +514,18 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 		return err
 	}
 
-	r, err := registry.NewSession(authConfig, registry.HTTPRequestFactory(metaHeaders), endpoint, false)
+	r, err := registry.NewSession(imagePushConfig.AuthConfig, registry.HTTPRequestFactory(imagePushConfig.MetaHeaders), endpoint, false)
 	if err != nil {
 		return err
 	}
 
 	reposLen := 1
-	if tag == "" {
+	if imagePushConfig.Tag == "" {
 		reposLen = len(s.Repositories[repoInfo.LocalName])
 	}
-	job.Stdout.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
+
+	imagePushConfig.OutStream.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
+
 	// If it fails, try to get the repository
 	localRepo, exists := s.Repositories[repoInfo.LocalName]
 	if !exists {
@@ -534,7 +533,7 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 	}
 
 	if repoInfo.Index.Official || endpoint.Version == registry.APIVersion2 {
-		err := s.pushV2Repository(r, localRepo, job.Stdout, repoInfo, tag, sf)
+		err := s.pushV2Repository(r, localRepo, imagePushConfig.OutStream, repoInfo, imagePushConfig.Tag, sf)
 		if err == nil {
 			s.eventsService.Log("push", repoInfo.LocalName, "")
 			return nil
@@ -545,7 +544,7 @@ func (s *TagStore) CmdPush(job *engine.Job) error {
 		}
 	}
 
-	if err := s.pushRepository(r, job.Stdout, repoInfo, localRepo, tag, sf); err != nil {
+	if err := s.pushRepository(r, imagePushConfig.OutStream, repoInfo, localRepo, imagePushConfig.Tag, sf); err != nil {
 		return err
 	}
 	s.eventsService.Log("push", repoInfo.LocalName, "")
