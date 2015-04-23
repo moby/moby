@@ -120,8 +120,6 @@ func init() {
 
 	// Create the "global daemon" with a long-running daemons for integration tests
 	spawnGlobalDaemon()
-	spawnLegitHttpsDaemon()
-	spawnRogueHttpsDaemon()
 	startFds, startGoroutines = fileutils.GetTotalUsedFds(), runtime.NumGoroutine()
 }
 
@@ -173,62 +171,6 @@ func spawnGlobalDaemon() {
 	time.Sleep(time.Second)
 
 	api.AcceptConnections(getDaemon(eng))
-}
-
-func spawnLegitHttpsDaemon() {
-	if globalHttpsEngine != nil {
-		return
-	}
-	globalHttpsEngine = spawnHttpsDaemon(testDaemonHttpsAddr, "fixtures/https/ca.pem",
-		"fixtures/https/server-cert.pem", "fixtures/https/server-key.pem")
-}
-
-func spawnRogueHttpsDaemon() {
-	if globalRogueHttpsEngine != nil {
-		return
-	}
-	globalRogueHttpsEngine = spawnHttpsDaemon(testDaemonRogueHttpsAddr, "fixtures/https/ca.pem",
-		"fixtures/https/server-rogue-cert.pem", "fixtures/https/server-rogue-key.pem")
-}
-
-func spawnHttpsDaemon(addr, cacert, cert, key string) *engine.Engine {
-	t := std_log.New(os.Stderr, "", 0)
-	root, err := newTestDirectory(unitTestStoreBase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// FIXME: here we don't use NewTestEngine because it configures the daemon with Autorestart=false,
-	// and we want to set it to true.
-
-	eng := newTestEngine(t, true, root)
-
-	serverConfig := &apiserver.ServerConfig{
-		Logging:   true,
-		Tls:       true,
-		TlsVerify: true,
-		TlsCa:     cacert,
-		TlsCert:   cert,
-		TlsKey:    key,
-	}
-	api := apiserver.New(serverConfig, eng)
-	// Spawn a Daemon
-	go func() {
-		logrus.Debugf("Spawning https daemon for integration tests")
-		listenURL := &url.URL{
-			Scheme: testDaemonHttpsProto,
-			Host:   addr,
-		}
-		if err := api.ServeApi([]string{listenURL.String()}); err != nil {
-			logrus.Fatalf("Unable to spawn the test daemon: %s", err)
-		}
-	}()
-
-	// Give some time to ListenAndServer to actually start
-	time.Sleep(time.Second)
-
-	api.AcceptConnections(getDaemon(eng))
-
-	return eng
 }
 
 // FIXME: test that ImagePull(json=true) send correct json output

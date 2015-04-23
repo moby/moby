@@ -269,6 +269,14 @@ func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
 	return string(b), err
 }
 
+func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (string, error) {
+	args := append(daemonArgs, name)
+	args = append(args, arg...)
+	c := exec.Command(dockerBinary, args...)
+	b, err := c.CombinedOutput()
+	return string(b), err
+}
+
 func (d *Daemon) LogfileName() string {
 	return d.logFile.Name()
 }

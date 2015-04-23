@@ -910,3 +910,71 @@ func (s *DockerSuite) TestDaemonRestartKillWait(c *check.C) {
 	}
 
 }
+
+// TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
+func (s *DockerSuite) TestHttpsInfo(c *check.C) {
+	const (
+		testDaemonHttpsAddr = "localhost:4271"
+	)
+
+	d := NewDaemon(c)
+	if err := d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHttpsAddr); err != nil {
+		c.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	//force tcp protocol
+	host := fmt.Sprintf("tcp://%s", testDaemonHttpsAddr)
+	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
+	out, err := d.CmdWithArgs(daemonArgs, "info")
+	if err != nil {
+		c.Fatalf("Error Occurred: %s and output: %s", err, out)
+	}
+}
+
+// TestHttpsInfoRogueCert connects via two-way authenticated HTTPS to the info endpoint
+// by using a rogue client certificate and checks that it fails with the expected error.
+func (s *DockerSuite) TestHttpsInfoRogueCert(c *check.C) {
+	const (
+		errBadCertificate   = "remote error: bad certificate"
+		testDaemonHttpsAddr = "localhost:4271"
+	)
+	d := NewDaemon(c)
+	if err := d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHttpsAddr); err != nil {
+		c.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	//force tcp protocol
+	host := fmt.Sprintf("tcp://%s", testDaemonHttpsAddr)
+	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
+	out, err := d.CmdWithArgs(daemonArgs, "info")
+	if err == nil || !strings.Contains(out, errBadCertificate) {
+		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errBadCertificate, err, out)
+	}
+}
+
+// TestHttpsInfoRogueServerCert connects via two-way authenticated HTTPS to the info endpoint
+// which provides a rogue server certificate and checks that it fails with the expected error
+func (s *DockerSuite) TestHttpsInfoRogueServerCert(c *check.C) {
+	const (
+		errCaUnknown             = "x509: certificate signed by unknown authority"
+		testDaemonRogueHttpsAddr = "localhost:4272"
+	)
+	d := NewDaemon(c)
+	if err := d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-rogue-cert.pem",
+		"--tlskey", "fixtures/https/server-rogue-key.pem", "-H", testDaemonRogueHttpsAddr); err != nil {
+		c.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	//force tcp protocol
+	host := fmt.Sprintf("tcp://%s", testDaemonRogueHttpsAddr)
+	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
+	out, err := d.CmdWithArgs(daemonArgs, "info")
+	if err == nil || !strings.Contains(out, errCaUnknown) {
+		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errCaUnknown, err, out)
+	}
+}
