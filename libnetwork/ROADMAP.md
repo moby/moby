@@ -1,33 +1,24 @@
-# libnetwork: what's next?
+# Roadmap
 
-This document is a high-level overview of where we want to take libnetwork next.
-It is a curated selection of planned improvements which are either important, difficult, or both.
+Libnetwork is a young project and is still being defined.
+This document defines the high-level goals of the project and defines the release-relationship to the Docker Platform.
 
-For a more complete view of planned and requested improvements, see [the Github issues](https://github.com/docker/libnetwork/issues).
+* [Goals](#goals)
+* [Project Planning](#project-planning): release-relationship to the Docker Platform.
 
-To suggest changes to the roadmap, including additions, please write the change as if it were already in effect, and make a pull request.
+## Goals
 
-## Container Network Model (CNM)
+- Combine the networking logic in Docker Engine and libcontainer in to a single, reusable library
+- Replace the networking subsystem of Docker Engine, with libnetwork
+- Define a flexible model that allows local and remote drivers to provide networking to containers
+- Provide a stand-alone tool for using/testing libnetwork
 
-#### Concepts
+## Project Planning
 
-1. Sandbox: An isolated environment. This is more or less a standard docker container.
-2. Endpoint: An addressable endpoint used for communication over a specific network. Endpoints join exactly one network and are expected to create a method of network communication for a container. Example : veth pair
-3. Network: A collection of endpoints that are able to communicate to each other. Networks are intended to be isolated from each other and to not cross communicate.
+Libnetwork versions do not map 1:1 with Docker Platform releases.
+Milestones and Project Pages are used to define the set of features that are included in each release.
 
-#### axioms
-The container network model assumes the following axioms about how libnetwork provides network connectivity to containers:
-
-1. All containers on a specific network can communicate with each other freely.
-2. Multiple networks are the way to segment traffic between containers and should be supported by all drivers.
-3. Multiple endpoints per container are the way to join a container to multiple networks.
-4. An endpoint is added to a sandbox to provide it with network connectivity.
-
-## Bridge Driver using CNM
-Existing native networking functionality of Docker will be implemented as a Bridge Driver using the above CNM.  In order to prove the effectiveness of the Bridge Driver, we will make the necessary  modifications to Docker Daemon and LibContainer to replace the existing networking functionality with libnetwork & Bridge Driver.
-
-## Plugin support
-The Driver model provides a modular way to allow different networking solutions to be used as the backend, but is static in nature. 
-Plugins promise to allow dynamic pluggable networking backends for libnetwork.
-There are other community efforts implementing Plugin support for the Docker platform, and the libnetwork project intends to make use of such support when it becomes available.
-
+| Platform Version | Libnetwork Version | Planning |
+|------------------|--------------------|----------|
+| Docker 1.7       | [0.3](https://github.com/docker/libnetwork/milestones/0.3) | [Project Page](https://github.com/docker/libnetwork/wiki/Docker-1.7-Project-Page) |
+| Docker 1.8       | [1.0](https://github.com/docker/libnetwork/milestones/1.0) | [Project Page](https://github.com/docker/libnetwork/wiki/Docker-1.8-Project-Page) |
