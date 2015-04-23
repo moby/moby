@@ -4,10 +4,9 @@ package graph
 
 import (
 	"fmt"
-
-	"github.com/docker/docker/engine"
+	"io"
 )
 
-func (s *TagStore) CmdLoad(job *engine.Job) error {
-	return fmt.Errorf("CmdLoad is not supported on this platform")
+func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
+	return fmt.Errorf("Load is not supported on this platform")
 }

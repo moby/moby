@@ -899,10 +899,7 @@ func (s *Server) getImagesGet(eng *engine.Engine, version version.Version, w htt
 	}
 
 	output := utils.NewWriteFlusher(w)
-	imageExportConfig := &graph.ImageExportConfig{
-		Engine:    eng,
-		Outstream: output,
-	}
+	imageExportConfig := &graph.ImageExportConfig{Outstream: output}
 	if name, ok := vars["name"]; ok {
 		imageExportConfig.Names = []string{name}
 	} else {
@@ -921,14 +918,7 @@ func (s *Server) getImagesGet(eng *engine.Engine, version version.Version, w htt
 }
 
 func (s *Server) postImagesLoad(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
-	imageLoadConfig := &graph.ImageLoadConfig{
-		InTar:     r.Body,
-		OutStream: w,
-		Engine:    eng,
-	}
-
-	return s.daemon.Repositories().Load(imageLoadConfig)
+	return s.daemon.Repositories().Load(r.Body, w)
 }
 
 func (s *Server) postContainersCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1269,12 +1259,23 @@ func (s *Server) getImagesByName(eng *engine.Engine, version version.Version, w 
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	var job = eng.Job("image_inspect", vars["name"])
+
+	name := vars["name"]
 	if version.LessThan("1.12") {
-		job.SetenvBool("raw", true)
+		imageInspectRaw, err := s.daemon.Repositories().LookupRaw(name)
+		if err != nil {
+			return err
+		}
+
+		return writeJSON(w, http.StatusOK, imageInspectRaw)
 	}
-	streamJSON(job.Stdout, w, false)
-	return job.Run()
+
+	imageInspect, err := s.daemon.Repositories().Lookup(name)
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, imageInspect)
 }
 
 func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

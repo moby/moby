@@ -116,9 +116,6 @@ type Daemon struct {
 
 // Install installs daemon capabilities to eng.
 func (daemon *Daemon) Install(eng *engine.Engine) error {
-	if err := daemon.Repositories().Install(eng); err != nil {
-		return err
-	}
 	// FIXME: this hack is necessary for legacy integration tests to access
 	// the daemon object.
 	eng.HackSetGlobalVar("httpapi.daemon", daemon)
