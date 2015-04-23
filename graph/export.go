@@ -2,7 +2,6 @@ package graph
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,10 +19,14 @@ import (
 // uncompressed tar ball.
 // name is the set of tags to export.
 // out is the writer where the images are written to.
-func (s *TagStore) CmdImageExport(job *engine.Job) error {
-	if len(job.Args) < 1 {
-		return fmt.Errorf("Usage: %s IMAGE [IMAGE...]\n", job.Name)
-	}
+type ImageExportConfig struct {
+	Names     []string
+	Outstream io.Writer
+	Engine    *engine.Engine
+}
+
+func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
+
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
@@ -40,7 +43,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 			repo[tag] = id
 		}
 	}
-	for _, name := range job.Args {
+	for _, name := range imageExportConfig.Names {
 		name = registry.NormalizeLocalName(name)
 		logrus.Debugf("Serializing %s", name)
 		rootRepo := s.Repositories[name]
@@ -48,7 +51,7 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 			// this is a base repo name, like 'busybox'
 			for tag, id := range rootRepo {
 				addKey(name, tag, id)
-				if err := s.exportImage(job.Eng, id, tempdir); err != nil {
+				if err := s.exportImage(imageExportConfig.Engine, id, tempdir); err != nil {
 					return err
 				}
 			}
@@ -67,13 +70,13 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 				if len(repoTag) > 0 {
 					addKey(repoName, repoTag, img.ID)
 				}
-				if err := s.exportImage(job.Eng, img.ID, tempdir); err != nil {
+				if err := s.exportImage(imageExportConfig.Engine, img.ID, tempdir); err != nil {
 					return err
 				}
 
 			} else {
 				// this must be an ID that didn't get looked up just right?
-				if err := s.exportImage(job.Eng, name, tempdir); err != nil {
+				if err := s.exportImage(imageExportConfig.Engine, name, tempdir); err != nil {
 					return err
 				}
 			}
@@ -96,10 +99,10 @@ func (s *TagStore) CmdImageExport(job *engine.Job) error {
 	}
 	defer fs.Close()
 
-	if _, err := io.Copy(job.Stdout, fs); err != nil {
+	if _, err := io.Copy(imageExportConfig.Outstream, fs); err != nil {
 		return err
 	}
-	logrus.Debugf("End export job: %s", job.Name)
+	logrus.Debugf("End export image")
 	return nil
 }
 
