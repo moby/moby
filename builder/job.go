@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -23,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 // whitelist of commands allowed for a commit/import
@@ -106,20 +105,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 	if buildConfig.RemoteURL == "" {
 		context = ioutil.NopCloser(buildConfig.Context)
 	} else if urlutil.IsGitURL(buildConfig.RemoteURL) {
-		if !urlutil.IsGitTransport(buildConfig.RemoteURL) {
-			buildConfig.RemoteURL = "https://" + buildConfig.RemoteURL
-		}
-		root, err := ioutil.TempDir("", "docker-build-git")
+		root, err := utils.GitClone(buildConfig.RemoteURL)
 		if err != nil {
 			return err
 		}
 		defer os.RemoveAll(root)
-
-		clone := cloneArgs(buildConfig.RemoteURL, root)
-
-		if output, err := exec.Command("git", clone...).CombinedOutput(); err != nil {
-			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
-		}
 
 		c, err := archive.Tar(root, archive.Uncompressed)
 		if err != nil {
@@ -241,22 +231,4 @@ func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (str
 	}
 
 	return img.ID, nil
-}
-
-func cloneArgs(remoteURL, root string) []string {
-	args := []string{"clone", "--recursive"}
-	shallow := true
-
-	if strings.HasPrefix(remoteURL, "http") {
-		res, err := http.Head(fmt.Sprintf("%s/info/refs?service=git-upload-pack", remoteURL))
-		if err != nil || res.Header.Get("Content-Type") != "application/x-git-upload-pack-advertisement" {
-			shallow = false
-		}
-	}
-
-	if shallow {
-		args = append(args, "--depth", "1")
-	}
-
-	return append(args, remoteURL, root)
 }
