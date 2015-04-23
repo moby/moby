@@ -7,9 +7,6 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 	if err != nil {
 		return err
 	}
-	if !container.IsRunning() {
-		return fmt.Errorf("Container already stopped")
-	}
 	if err := container.Stop(seconds); err != nil {
 		return fmt.Errorf("Cannot stop container %s: %s\n", name, err)
 	}

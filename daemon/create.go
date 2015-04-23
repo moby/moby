@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -12,17 +11,7 @@ import (
 )
 
 func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig) (string, []string, error) {
-	warnings, err := daemon.verifyHostConfig(hostConfig)
-	if err != nil {
-		return "", warnings, err
-	}
-
-	// The check for a valid workdir path is made on the server rather than in the
-	// client. This is because we don't know the type of path (Linux or Windows)
-	// to validate on the client.
-	if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
-		return "", warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
-	}
+	var warnings []string
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
 	if err != nil {
@@ -45,11 +34,12 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (*Container, []string, error) {
 	var (
-		container *Container
-		warnings  []string
-		img       *image.Image
-		imgID     string
-		err       error
+		container     *Container
+		warnings      []string
+		totalWarnings []string
+		img           *image.Image
+		imgID         string
+		err           error
 	)
 
 	if config.Image != "" {
@@ -66,31 +56,19 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
-	if !config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {
-		warnings = append(warnings, "IPv4 forwarding is disabled.\n")
-	}
-	if hostConfig == nil {
-		hostConfig = &runconfig.HostConfig{}
-	}
-	if hostConfig.SecurityOpt == nil {
-		hostConfig.SecurityOpt, err = daemon.GenerateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
+	totalWarnings = append(totalWarnings, warnings...)
 	if container, err = daemon.newContainer(name, config, imgID); err != nil {
 		return nil, nil, err
 	}
 	if err := daemon.Register(container); err != nil {
 		return nil, nil, err
 	}
-	if err := daemon.createRootfs(container); err != nil {
+	if warnings, err = container.SetHostConfig(hostConfig); err != nil {
 		return nil, nil, err
 	}
-	if hostConfig != nil {
-		if err := daemon.setHostConfig(container, hostConfig); err != nil {
-			return nil, nil, err
-		}
+	totalWarnings = append(totalWarnings, warnings...)
+	if err := daemon.createRootfs(container); err != nil {
+		return nil, nil, err
 	}
 	if err := container.Mount(); err != nil {
 		return nil, nil, err
@@ -102,7 +80,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
 	}
-	return container, warnings, nil
+	return container, totalWarnings, nil
 }
 
 func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode, pidMode runconfig.PidMode) ([]string, error) {
