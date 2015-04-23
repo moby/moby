@@ -275,6 +275,13 @@ func Exists(table Table, chain string, rule ...string) bool {
 
 // Call 'iptables' system command, passing supplied arguments
 func Raw(args ...string) ([]byte, error) {
+	if firewalldRunning {
+		output, err := Passthrough(Iptables, args...)
+		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
+			return output, err
+		}
+
+	}
 
 	if err := initCheck(); err != nil {
 		return nil, err
