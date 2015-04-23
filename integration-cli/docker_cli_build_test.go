@@ -2349,7 +2349,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 
 func (s *DockerSuite) TestBuildCmd(c *check.C) {
 	name := "testbuildcmd"
-	expected := "[/bin/echo Hello World]"
+	expected := "{[/bin/echo Hello World]}"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
@@ -2369,7 +2369,7 @@ func (s *DockerSuite) TestBuildCmd(c *check.C) {
 
 func (s *DockerSuite) TestBuildExpose(c *check.C) {
 	name := "testbuildexpose"
-	expected := "map[2375/tcp:map[]]"
+	expected := "map[2375/tcp:{}]"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
@@ -2466,7 +2466,7 @@ func (s *DockerSuite) TestBuildExposeOrder(c *check.C) {
 
 func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
 	name := "testbuildexposeuppercaseproto"
-	expected := "map[5678/udp:map[]]"
+	expected := "map[5678/udp:{}]"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
@@ -2487,7 +2487,7 @@ func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
 func (s *DockerSuite) TestBuildExposeHostPort(c *check.C) {
 	// start building docker file with ip:hostPort:containerPort
 	name := "testbuildexpose"
-	expected := "map[5678/tcp:map[]]"
+	expected := "map[5678/tcp:{}]"
 	defer deleteImages(name)
 	_, out, err := buildImageWithOut(name,
 		`FROM scratch
@@ -2527,7 +2527,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	expected := "[/bin/echo]"
+	expected := "{[/bin/echo]}"
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -2544,7 +2544,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	expected = "[]"
+	expected = "{[]}"
 
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
@@ -2555,7 +2555,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 	name := "testbuildentrypoint"
 	defer deleteImages(name)
-	expected := "[]"
+	expected := "{[]}"
 
 	_, err := buildImage(name,
 		`FROM busybox
@@ -2576,7 +2576,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 
 func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
 	name := "testbuildentrypoint"
-	expected := "[/bin/echo]"
+	expected := "{[/bin/echo]}"
 	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
@@ -3296,8 +3296,8 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 		c.Fatal(err)
 	}
 	// Cmd must be cleaned up
-	if expected := "<no value>"; res != expected {
-		c.Fatalf("Cmd %s, expected %s", res, expected)
+	if res != "<nil>" {
+		c.Fatalf("Cmd %s, expected nil", res)
 	}
 }
 
@@ -3370,7 +3370,7 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if expected := "[/bin/echo]"; res != expected {
+	if expected := "{[/bin/echo]}"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	ports2, err := inspectField(name, "Config.ExposedPorts")
@@ -4241,14 +4241,15 @@ func (s *DockerSuite) TestBuildCleanupCmdOnEntrypoint(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if expected := "<no value>"; res != expected {
-		c.Fatalf("Cmd %s, expected %s", res, expected)
+	if res != "<nil>" {
+		c.Fatalf("Cmd %s, expected nil", res)
 	}
+
 	res, err = inspectField(name, "Config.Entrypoint")
 	if err != nil {
 		c.Fatal(err)
 	}
-	if expected := "[cat]"; res != expected {
+	if expected := "{[cat]}"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 }

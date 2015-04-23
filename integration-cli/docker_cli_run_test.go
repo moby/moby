@@ -2441,7 +2441,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if out != "<no value>" {
+	if out != "" {
 		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
 	}
 
@@ -2457,7 +2457,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if out != "<no value>" {
+	if out != "" {
 		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
 	}
 	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar")

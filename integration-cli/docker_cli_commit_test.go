@@ -251,7 +251,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	defer deleteImages(imageId)
 
 	expected := map[string]string{
-		"Config.ExposedPorts": "map[8080/tcp:map[]]",
+		"Config.ExposedPorts": "map[8080/tcp:{}]",
 		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
 	}
 
