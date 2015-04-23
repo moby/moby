@@ -13,8 +13,10 @@ func TestLinkCreate(t *testing.T) {
 	_, d := New()
 	dr := d.(*driver)
 
+	mtu := 1490
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
+		Mtu:        mtu,
 		EnableIPv6: true}
 	if err := d.Config(config); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -43,10 +45,22 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to detect invalid config")
 	}
 
+	// Good endpoint creation
 	sinfo, err = d.CreateEndpoint("dummy", "ep", "cc", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
+
+	// Verify sbox endoint interface inherited MTU value from bridge config
+	sboxLnk, err := netlink.LinkByName(sinfo.Interfaces[0].SrcName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mtu != sboxLnk.Attrs().MTU {
+		t.Fatalf("Sandbox endpoint interface did not inherit bridge interface MTU config")
+	}
+	// TODO: if we could get peer name from (sboxLnk.(*netlink.Veth)).PeerName
+	// then we could check the MTU on hostLnk as well.
 
 	_, err = d.CreateEndpoint("dummy", "ep", "cc2", nil)
 	if err == nil {
