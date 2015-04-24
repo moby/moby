@@ -42,17 +42,15 @@ func (l *TestLoggerText) Name() string {
 }
 
 func TestCopier(t *testing.T) {
-	stdoutLine := "Line that thinks that it is log line from docker stdout"
-	stderrLine := "Line that thinks that it is log line from docker stderr"
+	stdoutLine := "Line that thinks that it \n is log line from docker stdout"
+	stderrLine := "Line that thinks that it \n is log line from docker stderr"
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	for i := 0; i < 30; i++ {
-		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := stderr.WriteString(stderrLine + "\n"); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := stdout.WriteString(stdoutLine); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stderr.WriteString(stderrLine); err != nil {
+		t.Fatal(err)
 	}
 
 	var jsonBuf bytes.Buffer
