@@ -1,6 +1,9 @@
 package urlutil
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 var (
 	validPrefixes = []string{
@@ -8,11 +11,13 @@ var (
 		"github.com/",
 		"git@",
 	}
+
+	urlPathWithFragmentSuffix = regexp.MustCompile(".git(?:#.+)?$")
 )
 
 // IsGitURL returns true if the provided str is a git repository URL.
 func IsGitURL(str string) bool {
-	if IsURL(str) && strings.HasSuffix(str, ".git") {
+	if IsURL(str) && urlPathWithFragmentSuffix.MatchString(str) {
 		return true
 	}
 	for _, prefix := range validPrefixes {
