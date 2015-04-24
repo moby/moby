@@ -14,6 +14,7 @@ type SysInfo struct {
 	MemoryLimit            bool
 	SwapLimit              bool
 	CpuCfsQuota            bool
+	CpuCfsPeriod           bool
 	IPv4ForwardingDisabled bool
 	AppArmor               bool
 }
@@ -45,10 +46,15 @@ func New(quiet bool) *SysInfo {
 			logrus.Warnf("%v", err)
 		}
 	} else {
-		_, err1 := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_quota_us"))
-		sysInfo.CpuCfsQuota = err1 == nil
+		_, err := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_quota_us"))
+		sysInfo.CpuCfsQuota = err == nil
 		if !sysInfo.CpuCfsQuota && !quiet {
 			logrus.Warn("Your kernel does not support cgroup cfs quotas")
+		}
+		_, err = ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_period_us"))
+		sysInfo.CpuCfsPeriod = err == nil
+		if !sysInfo.CpuCfsPeriod && !quiet {
+			logrus.Warn("Your kernel does not support cgroup cfs period")
 		}
 	}
 

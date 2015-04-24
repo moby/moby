@@ -112,6 +112,7 @@ type Resources struct {
 	CpusetCpus string           `json:"cpuset_cpus"`
 	CpusetMems string           `json:"cpuset_mems"`
 	CpuQuota   int64            `json:"cpu_quota"`
+	CpuPeriod  int64            `json:"cpu_period"`
 	Rlimits    []*ulimit.Rlimit `json:"rlimits"`
 }
 
@@ -208,6 +209,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpusetCpus = c.Resources.CpusetCpus
 		container.Cgroups.CpusetMems = c.Resources.CpusetMems
 		container.Cgroups.CpuQuota = c.Resources.CpuQuota
+		container.Cgroups.CpuPeriod = c.Resources.CpuPeriod
 	}
 
 	return nil

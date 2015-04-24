@@ -168,6 +168,7 @@ type HostConfig struct {
 	CpusetCpus      string // CpusetCpus 0-2, 0,1
 	CpusetMems      string // CpusetMems 0-2, 0,1
 	CpuQuota        int64
+	CpuPeriod       int64
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
