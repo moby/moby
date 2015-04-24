@@ -49,6 +49,7 @@ type Config struct {
 	Memory         int64
 	MemorySwap     int64
 	CpuShares      int64
+	CpuQuota       int64
 	CpuSetCpus     string
 	CpuSetMems     string
 	AuthConfig     *cliconfig.AuthConfig
@@ -169,6 +170,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		ConfigFile:      buildConfig.ConfigFile,
 		dockerfileName:  buildConfig.DockerfileName,
 		cpuShares:       buildConfig.CpuShares,
+		cpuQuota:        buildConfig.CpuQuota,
 		cpuSetCpus:      buildConfig.CpuSetCpus,
 		cpuSetMems:      buildConfig.CpuSetMems,
 		memory:          buildConfig.Memory,

@@ -124,6 +124,7 @@ type Builder struct {
 	cpuSetCpus string
 	cpuSetMems string
 	cpuShares  int64
+	cpuQuota   int64
 	memory     int64
 	memorySwap int64
 

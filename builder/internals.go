@@ -547,6 +547,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 
 	hostConfig := &runconfig.HostConfig{
 		CpuShares:  b.cpuShares,
+		CpuQuota:   b.cpuQuota,
 		CpusetCpus: b.cpuSetCpus,
 		CpusetMems: b.cpuSetMems,
 		Memory:     b.memory,
