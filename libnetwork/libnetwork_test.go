@@ -74,14 +74,6 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	epList := network.Endpoints()
-	if len(epList) != 1 {
-		t.Fatal(err)
-	}
-	if ep != epList[0] {
-		t.Fatal(err)
-	}
-
 	if err := ep.Delete(); err != nil {
 		t.Fatal(err)
 	}
@@ -296,6 +288,86 @@ func TestUnknownEndpoint(t *testing.T) {
 
 	// Done testing. Now cleanup
 	if err := network.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNetworkEndpointsWalkers(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	controller := libnetwork.New()
+	netType := "bridge"
+
+	option := options.Generic{}
+	err := controller.ConfigureNetworkDriver(netType, option)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create network 1 and add 2 endpoint: ep11, ep12
+	net1, err := controller.NewNetwork(netType, "network1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep11, err := net1.CreateEndpoint("ep11", "sbox1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep12, err := net1.CreateEndpoint("ep12", "sbox2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test list methods on net1
+	epList1 := net1.Endpoints()
+	if len(epList1) != 2 {
+		t.Fatalf("Endpoints() returned wrong number of elements: %d instead of 2", len(epList1))
+	}
+	// endpoint order is not guaranteed
+	for _, e := range epList1 {
+		if e != ep11 && e != ep12 {
+			t.Fatal("Endpoints() did not return all the expected elements")
+		}
+	}
+
+	// Test Endpoint Walk method
+	var epName string
+	var epWanted libnetwork.Endpoint
+	wlk := func(ep libnetwork.Endpoint) bool {
+		if ep.Name() == epName {
+			epWanted = ep
+			return true
+		}
+		return false
+	}
+
+	// Look for ep1 on network1
+	epName = "ep11"
+	net1.WalkEndpoints(wlk)
+	if epWanted == nil {
+		t.Fatal(err)
+	}
+	if ep11 != epWanted {
+		t.Fatal(err)
+	}
+
+	// Test Network Walk method
+	var netName string
+	var netWanted libnetwork.Network
+	nwWlk := func(nw libnetwork.Network) bool {
+		if nw.Name() == netName {
+			netWanted = nw
+			return true
+		}
+		return false
+	}
+
+	// Look for network named "network1"
+	netName = "network1"
+	controller.WalkNetworks(nwWlk)
+	if netWanted == nil {
+		t.Fatal(err)
+	}
+	if net1 != netWanted {
 		t.Fatal(err)
 	}
 }
