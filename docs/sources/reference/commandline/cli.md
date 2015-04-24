@@ -636,12 +636,13 @@ refer to any of the files in the context. For example, your build can use
 an [*ADD*](/reference/builder/#add) instruction to reference a file in the
 context.
 
-The `URL` parameter can specify the location of a Git repository; in this
-case,  the repository is the context. The Git repository is recursively
-cloned with its submodules.  The system does a fresh `git clone -recursive`
-in a temporary directory on your local host. Then, this clone is sent to
-the Docker daemon as the context. Local clones give you the ability to
-access private repositories using local user credentials, VPN's, and so forth.
+The `URL` parameter can specify the location of a Git repository;
+the repository acts as the build context.  The system recursively clones the repository
+and its submodules using a `git clone --depth 1 --recursive` command.
+This command runs in a temporary directory on your local host.
+After the command succeeds, the directory is sent to the Docker daemon as the context.
+Local clones give you the ability to access private repositories using
+local user credentials, VPN's, and so forth.
 
 Instead of specifying a context, you can pass a single Dockerfile in the
 `URL` or pipe the file in via `STDIN`.  To pipe a Dockerfile from `STDIN`:

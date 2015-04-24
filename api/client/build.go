@@ -96,20 +96,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	} else {
 		root := cmd.Arg(0)
 		if urlutil.IsGitURL(root) {
-			remoteURL := cmd.Arg(0)
-			if !urlutil.IsGitTransport(remoteURL) {
-				remoteURL = "https://" + remoteURL
-			}
-
-			root, err = ioutil.TempDir("", "docker-build-git")
+			root, err = utils.GitClone(root)
 			if err != nil {
 				return err
 			}
 			defer os.RemoveAll(root)
-
-			if output, err := exec.Command("git", "clone", "--recursive", remoteURL, root).CombinedOutput(); err != nil {
-				return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
-			}
 		}
 		if _, err := os.Stat(root); err != nil {
 			return err
