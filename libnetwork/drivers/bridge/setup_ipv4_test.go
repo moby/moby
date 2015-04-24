@@ -76,3 +76,25 @@ func TestSetupBridgeIPv4Auto(t *testing.T) {
 		t.Fatalf("Bridge device does not have the automatic IPv4 address %v", bridgeNetworks[0].String())
 	}
 }
+
+func TestSetupGatewayIPv4(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	ip, nw, _ := net.ParseCIDR("192.168.0.24/16")
+	nw.IP = ip
+	gw := net.ParseIP("192.168.0.254")
+
+	config := &Configuration{
+		BridgeName:         DefaultBridgeName,
+		DefaultGatewayIPv4: gw}
+
+	br := &bridgeInterface{bridgeIPv4: nw}
+
+	if err := setupGatewayIPv4(config, br); err != nil {
+		t.Fatalf("Set Default Gateway failed: %v", err)
+	}
+
+	if !gw.Equal(br.gatewayIPv4) {
+		t.Fatalf("Set Default Gateway failed. Expected %v, Found %v", gw, br.gatewayIPv4)
+	}
+}

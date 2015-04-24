@@ -51,7 +51,9 @@ func setupBridgeIPv4(config *Configuration, i *bridgeInterface) error {
 		return &IPv4AddrAddError{ip: bridgeIPv4, err: err}
 	}
 
+	// Store bridge network and default gateway
 	i.bridgeIPv4 = bridgeIPv4
+	i.gatewayIPv4 = i.bridgeIPv4.IP
 
 	return nil
 }
@@ -80,4 +82,18 @@ func electBridgeIPv4(config *Configuration) (*net.IPNet, error) {
 	}
 
 	return nil, IPv4AddrRangeError(config.BridgeName)
+}
+
+func setupGatewayIPv4(config *Configuration, i *bridgeInterface) error {
+	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
+		return ErrInvalidGateway
+	}
+	if _, err := ipAllocator.RequestIP(i.bridgeIPv4, config.DefaultGatewayIPv4); err != nil {
+		return err
+	}
+
+	// Store requested default gateway
+	i.gatewayIPv4 = config.DefaultGatewayIPv4
+
+	return nil
 }

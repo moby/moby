@@ -40,6 +40,8 @@ type Configuration struct {
 	EnableIPForwarding    bool
 	AllowNonDefaultBridge bool
 	Mtu                   int
+	DefaultGatewayIPv4    net.IP
+	DefaultGatewayIPv6    net.IP
 }
 
 // EndpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -74,6 +76,46 @@ func init() {
 // New provides a new instance of bridge driver
 func New() (string, driverapi.Driver) {
 	return networkType, &driver{}
+}
+
+// Validate performs a static validation on the configuration parameters.
+// Whatever can be assessed a priori before attempting any programming.
+func (c *Configuration) Validate() error {
+	if c.Mtu < 0 {
+		return ErrInvalidMtu
+	}
+
+	// If bridge v4 subnet is specified
+	if c.AddressIPv4 != nil {
+		// If Container restricted subnet is specified, it must be a subset of bridge subnet
+		if c.FixedCIDR != nil {
+			// Check Network address
+			if !c.AddressIPv4.Contains(c.FixedCIDR.IP) {
+				return ErrInvalidContainerSubnet
+			}
+			// Check it is effectively a subset
+			brNetLen, _ := c.AddressIPv4.Mask.Size()
+			cnNetLen, _ := c.FixedCIDR.Mask.Size()
+			if brNetLen > cnNetLen {
+				return ErrInvalidContainerSubnet
+			}
+		}
+		// If default gw is specified, it must be part of bridge subnet
+		if c.DefaultGatewayIPv4 != nil {
+			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
+				return ErrInvalidGateway
+			}
+		}
+	}
+
+	// If default v6 gw is specified, FixedCIDRv6 must be specified and gw must belong to FixedCIDRv6 subnet
+	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
+		if c.FixedCIDRv6 == nil || !c.FixedCIDRv6.Contains(c.DefaultGatewayIPv6) {
+			return ErrInvalidGateway
+		}
+	}
+
+	return nil
 }
 
 func (n *bridgeNetwork) getEndpoint(eid types.UUID) (string, *bridgeEndpoint, error) {
@@ -114,7 +156,12 @@ func (d *driver) Config(option interface{}) error {
 		config = opt
 	}
 
+	if err := config.Validate(); err != nil {
+		return err
+	}
+
 	d.config = config
+
 	return nil
 }
 
@@ -192,6 +239,12 @@ func (d *driver) CreateNetwork(id types.UUID, option interface{}) error {
 
 		// Setup IP forwarding.
 		{config.EnableIPForwarding, setupIPForwarding},
+
+		// Setup DefaultGatewayIPv4
+		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
+
+		// Setup DefaultGatewayIPv6
+		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
@@ -295,6 +348,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 	// Try to convert the options to endpoint configuration
 	epConfig, err := parseEndpointOptions(epOptions)
 	if err != nil {
+		n.Unlock()
 		return nil, err
 	}
 
@@ -408,10 +462,12 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 
 	// Generate the sandbox info to return
 	sinfo := &sandbox.Info{Interfaces: []*sandbox.Interface{intf}}
-	sinfo.Gateway = n.bridge.bridgeIPv4.IP
+
+	// Set the default gateway(s) for the sandbox
+	sinfo.Gateway = n.bridge.gatewayIPv4
 	if config.EnableIPv6 {
 		intf.AddressIPv6 = ipv6Addr
-		sinfo.GatewayIPv6 = n.bridge.bridgeIPv6.IP
+		sinfo.GatewayIPv6 = n.bridge.gatewayIPv6
 	}
 
 	return sinfo, nil
