@@ -1,4 +1,12 @@
-### Description
+### TLDR
+Constructs a virtual build context derived from the uploaded one, similar to creating a directory structure comprised entirely of symbolic links, that exactly specifies what's needed or exposed to a FROM statement and its related Dockerfile commands. This supports writing a series of ADD/COPY commands according to a given interface (context local to the FROM) so they can be decoupled from the uploaded build context.  Decoupling encourages reuse, for example, encapsulating ADD/COPY commands within ONBUILD triggers, as their source path/file references can be redirected to the appropriate ones for any uploaded build context without having to rewrite them.
+###TOC
+<a href="#Description">Description</a><br>
+<a href="#Syntax">Syntax</a><br>
+<a href="#Semantics">Semantics</a><br>
+<a href="#Benefits">Benefits</a><br>
+<a href="#Example">Example</a><br>
+### Description  <a name="Description">
 
 Dockerfile commands pathologically couple to the structure of the build context provided by "docker build" and since the structure of a build context varies markedly from one "docker build" image request to the next, certain Dockerfile binding commands, like ADD, must be "repeated": manually encoded to reflect the unique structure of each image's build context.  Moreover, this harmful coupling diminishes the utility of both present and future language elements that would benefit from the ability to statically bind to a path/file name (that acts like a variable name) when writing Dockerfile commands, that when executed, are then dynamically resolved and (dynamically) coupled to the actual path/file instance (variable value).  For example, the ADD commands of an image's [ONBUILD triggers](https://docs.docker.com/reference/builder/#onbuild) must either specify path/file names which also requires these names be mirrored by all build contexts which seek to inherit it, or utilize a static coding form that dynamically extends itself, like "ADD . /src", in which '.' immediately adapts to include all resources defined by the build context.  Neither choice represents a long-term solution.
 
@@ -47,6 +55,9 @@ Conceptual method to assemble the <a href="#TermLocalBuildContext">*LocalBuildCo
 ### Benefits <a name="Benefits"></a>
 + Encourages encapsulation from both the perspective of a Dockerfile and an <a href="#TermImageContext">*ImageContext*</a>.  A Dockerfile exposes only the resources in a build context it wishes an *ImageContext* to access, while an *ImageContext* can statically, independently define its required interface.  For example, a secret key can be delivered to exactly the required *ImageContext* without exposing it to any other *ImageContext* encoded within a multi FROM Dockerfile, greatly reducing the attack surface of the vulnerability mentioned above.
 + Promotes encoding of ONBUILD triggers, as these commands can bind to statically defined references that are then dynamically resolved when executed.  ONBUILD triggers encapsulate repetitive code, thus reducing/eliminating manually generated code.  This concision increases a Dockerfile's [declarative benefit](https://github.com/docker/docker/issues/8660#declarativebenefit).
++ Adapts the structure of directories/files that exist in other committed containers, exposed by [#12415](https://github.com/docker/docker/issues/12415), to conform to the source directories/file references specified by ADD/COPY.  The ADD/COPY command source references reflect an interface that's oblivious to their actual physical location. Therefore, when the physical location of a directory/file changes, mappings specified by CONTEXT change but the source directory/file references specified by ADD/COPY operators remain the same.
++ Enables the partitioning of an aggregated build context - a Dockerfile with more than one FROM statement.
++ Since CONTEXT declares the minimal dependencies required by a given FROM, these declared dependencies can be utilized to assist, along with information from [#12415](https://github.com/docker/docker/issues/12415), in determining the execution order and schedule of potentially concurrent build steps (multiple FROMs).
 
 ### Example <a name="Example"></a>
 
