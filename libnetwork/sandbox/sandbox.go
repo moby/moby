@@ -28,6 +28,9 @@ type Sandbox interface {
 
 	// Set default IPv6 gateway for the sandbox
 	SetGatewayIPv6(gw net.IP) error
+
+	// Destroy the sandbox
+	Destroy() error
 }
 
 // Info represents all possible information that

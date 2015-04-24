@@ -31,7 +31,7 @@ func createTestNetwork(networkType, networkName string, option options.Generic) 
 	return network, nil
 }
 
-func Testbridge(t *testing.T) {
+func TestBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
 	if err != nil {

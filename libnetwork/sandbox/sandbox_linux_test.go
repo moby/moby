@@ -1,13 +1,21 @@
 package sandbox
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/docker/libnetwork/netutils"
+	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+)
+
+const (
+	vethName1     = "wierdlongname1"
+	vethName2     = "wierdlongname2"
+	sboxIfaceName = "containername"
 )
 
 func newKey(t *testing.T) (string, error) {
@@ -22,6 +30,42 @@ func newKey(t *testing.T) (string, error) {
 	}
 
 	return name, nil
+}
+
+func newInfo(t *testing.T) (*Info, error) {
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName1, TxQLen: 0},
+		PeerName:  vethName2}
+	err := netlink.LinkAdd(veth)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the sandbox side pipe interface
+	// This is needed for cleanup on DeleteEndpoint()
+	intf := &Interface{}
+	intf.SrcName = vethName2
+	intf.DstName = sboxIfaceName
+
+	ip4, addr, err := net.ParseCIDR("192.168.1.100/24")
+	if err != nil {
+		return nil, err
+	}
+	intf.Address = addr
+	intf.Address.IP = ip4
+
+	ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
+	if err != nil {
+		return nil, err
+	}
+	intf.AddressIPv6 = addrv6
+	intf.AddressIPv6.IP = ip6
+
+	sinfo := &Info{Interfaces: []*Interface{intf}}
+	sinfo.Gateway = net.ParseIP("192.168.1.1")
+	sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
+
+	return sinfo, nil
 }
 
 func verifySandbox(t *testing.T, s Sandbox) {
@@ -49,6 +93,11 @@ func verifySandbox(t *testing.T, s Sandbox) {
 	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
 		t.Fatalf("Setting to the namespace pointed to by the sandbox %s failed: %v", s.Key(), err)
 	}
+	defer netns.Set(origns)
 
-	netns.Set(origns)
+	_, err = netlink.LinkByName(sboxIfaceName)
+	if err != nil {
+		t.Fatalf("Could not find the interface %s inside the sandbox: %v", sboxIfaceName,
+			err)
+	}
 }

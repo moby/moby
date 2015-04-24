@@ -50,11 +50,15 @@ func createNetworkNamespace(path string) (Sandbox, error) {
 		return nil, err
 	}
 
-	if err := syscall.Mount("/proc/self/ns/net", path, "bind", syscall.MS_BIND, ""); err != nil {
+	procNet := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid())
+
+	if err := syscall.Mount(procNet, path, "bind", syscall.MS_BIND, ""); err != nil {
 		return nil, err
 	}
 
-	return &networkNamespace{path: path}, nil
+	interfaces := []*Interface{}
+	sinfo := &Info{Interfaces: interfaces}
+	return &networkNamespace{path: path, sinfo: sinfo}, nil
 }
 
 func createNamespaceFile(path string) (err error) {
@@ -106,6 +110,11 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 	}
 	defer netns.Set(origns)
 
+	// Down the interface before configuring
+	if err := netlink.LinkSetDown(iface); err != nil {
+		return err
+	}
+
 	// Configure the interface now this is moved in the proper namespace.
 	if err := configureInterface(iface, i); err != nil {
 		return err
@@ -121,7 +130,7 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 }
 
 func (n *networkNamespace) SetGateway(gw net.IP) error {
-	err := setGatewayIP(gw)
+	err := setGatewayIP(n.path, gw)
 	if err == nil {
 		n.sinfo.Gateway = gw
 	}
@@ -130,7 +139,11 @@ func (n *networkNamespace) SetGateway(gw net.IP) error {
 }
 
 func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
-	err := setGatewayIP(gw)
+	if len(gw) == 0 {
+		return nil
+	}
+
+	err := setGatewayIP(n.path, gw)
 	if err == nil {
 		n.sinfo.GatewayIPv6 = gw
 	}
