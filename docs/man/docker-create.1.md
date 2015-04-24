@@ -116,6 +116,8 @@ two memory nodes.
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
 
+   Forward input to container's STDIN if exposed by --attach or --tty options. Note that input will be silently discarded if STDIN is not attached.
+
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
