@@ -340,12 +340,15 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 	nameID := make(map[string]string)
 
 	for _, name := range []string{"container_1", "container_2"} {
-		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "true"))
+		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", name, "busybox", "true"))
+		if err != nil {
+			c.Fatalf("Error: %v, Output: %s", err, out)
+		}
+		id, err := inspectField(name, "Id")
 		if err != nil {
 			c.Fatal(err)
 		}
-		nameID[name] = strings.TrimSpace(out)
-		waitInspect(name, "{{.State.Runing }}", "false", 5)
+		nameID[name] = id
 	}
 
 	until := fmt.Sprintf("%d", daemonTime(c).Unix())
