@@ -233,7 +233,7 @@ func InitDriver(config *Config) error {
 	// Configure iptables for link support
 	if config.EnableIptables {
 		if err := setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq); err != nil {
-			logrus.Errorf("Error configuing iptables: %s", err)
+			logrus.Errorf("Error configuring iptables: %s", err)
 			return err
 		}
 		// call this on Firewalld reload
