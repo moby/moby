@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"bufio"
+	"bytes"
 	"io"
 	"sync"
 	"time"
@@ -40,14 +40,19 @@ func (c *Copier) Run() {
 
 func (c *Copier) copySrc(name string, src io.Reader) {
 	defer c.copyJobs.Done()
-	scanner := bufio.NewScanner(src)
-	for scanner.Scan() {
-		if err := c.dst.Log(&Message{ContainerID: c.cid, Line: scanner.Bytes(), Source: name, Timestamp: time.Now().UTC()}); err != nil {
-			logrus.Errorf("Failed to log msg %q for logger %s: %s", scanner.Bytes(), c.dst.Name(), err)
-		}
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(src); err != nil {
+		logrus.Errorf("Error reading log stream with logger %s: %s", c.dst.Name(), err)
 	}
-	if err := scanner.Err(); err != nil {
-		logrus.Errorf("Error scanning log stream: %s", err)
+
+	bytes := buf.Bytes()
+	if len(bytes) == 0 {
+		return
+	}
+
+	if err := c.dst.Log(&Message{ContainerID: c.cid, Line: bytes, Source: name, Timestamp: time.Now().UTC()}); err != nil {
+		logrus.Errorf("Failed to log msg %q for logger %s: %s", bytes, c.dst.Name(), err)
 	}
 }
 
