@@ -39,6 +39,7 @@ type Configuration struct {
 	EnableICC             bool
 	EnableIPForwarding    bool
 	AllowNonDefaultBridge bool
+	Mtu                   int
 }
 
 // EndpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -347,6 +348,11 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			netlink.LinkDel(sbox)
+		}
+	}()
 
 	// Add user specified attributes
 	if epConfig != nil && epConfig.MacAddress != nil {
@@ -356,11 +362,17 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 		}
 	}
 
-	defer func() {
+	// Add bridge inherited attributes to pipe interfaces
+	if config.Mtu != 0 {
+		err = netlink.LinkSetMTU(host, config.Mtu)
 		if err != nil {
-			netlink.LinkDel(sbox)
+			return nil, err
 		}
-	}()
+		err = netlink.LinkSetMTU(sbox, config.Mtu)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// Attach host side pipe interface into the bridge
 	if err = netlink.LinkSetMaster(host,
