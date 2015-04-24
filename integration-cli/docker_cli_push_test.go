@@ -13,9 +13,7 @@ import (
 )
 
 // pulling an image from the central registry should work
-func (s *DockerSuite) TestPushBusyboxImage(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPushBusyboxImage(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
@@ -37,9 +35,7 @@ func (s *DockerSuite) TestPushUnprefixedRepo(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPushUntagged(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPushUntagged(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	expected := "Repository does not exist"
@@ -51,9 +47,7 @@ func (s *DockerSuite) TestPushUntagged(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPushBadTag(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPushBadTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox:latest", privateRegistryURL)
 
 	expected := "does not exist"
@@ -65,9 +59,7 @@ func (s *DockerSuite) TestPushBadTag(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPushMultipleTags(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
 	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
@@ -87,8 +79,7 @@ func (s *DockerSuite) TestPushMultipleTags(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPushInterrupt(c *check.C) {
-	defer setupRegistry(c)()
+func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repoName)); err != nil {
@@ -118,8 +109,7 @@ func (s *DockerSuite) TestPushInterrupt(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPushEmptyLayer(c *check.C) {
-	defer setupRegistry(c)()
+func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
 	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
 	if err != nil {

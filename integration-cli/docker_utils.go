@@ -1125,7 +1125,7 @@ func daemonTime(c *check.C) time.Time {
 	return dt
 }
 
-func setupRegistry(c *check.C) func() {
+func setupRegistry(c *check.C) *testRegistryV2 {
 	testRequires(c, RegistryHosting)
 	reg, err := newTestRegistryV2(c)
 	if err != nil {
@@ -1143,8 +1143,7 @@ func setupRegistry(c *check.C) func() {
 	if err != nil {
 		c.Fatal("Timeout waiting for test registry to become available")
 	}
-
-	return func() { reg.Close() }
+	return reg
 }
 
 // appendBaseEnv appends the minimum set of environment variables to exec the

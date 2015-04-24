@@ -9,9 +9,7 @@ import (
 )
 
 // See issue docker/docker#8141
-func (s *DockerSuite) TestPullImageWithAliases(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -48,7 +46,6 @@ func (s *DockerSuite) TestPullImageWithAliases(c *check.C) {
 			c.Fatalf("Image %v shouldn't have been pulled down", repo)
 		}
 	}
-
 }
 
 // pulling library/hello-world should show verified message

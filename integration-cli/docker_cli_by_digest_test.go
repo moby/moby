@@ -62,9 +62,7 @@ func setupImageWithTag(tag string) (string, error) {
 	return pushDigest, nil
 }
 
-func (s *DockerSuite) TestPullByTagDisplaysDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
 	pushDigest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -88,12 +86,9 @@ func (s *DockerSuite) TestPullByTagDisplaysDigest(c *check.C) {
 	if pushDigest != pullDigest {
 		c.Fatalf("push digest %q didn't match pull digest %q", pushDigest, pullDigest)
 	}
-
 }
 
-func (s *DockerSuite) TestPullByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
 	pushDigest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -118,12 +113,9 @@ func (s *DockerSuite) TestPullByDigest(c *check.C) {
 	if pushDigest != pullDigest {
 		c.Fatalf("push digest %q didn't match pull digest %q", pushDigest, pullDigest)
 	}
-
 }
 
-func (s *DockerSuite) TestCreateByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestCreateByDigest(c *check.C) {
 	pushDigest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -145,12 +137,9 @@ func (s *DockerSuite) TestCreateByDigest(c *check.C) {
 	if res != imageReference {
 		c.Fatalf("unexpected Config.Image: %s (expected %s)", res, imageReference)
 	}
-
 }
 
-func (s *DockerSuite) TestRunByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestRunByDigest(c *check.C) {
 	pushDigest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -181,12 +170,9 @@ func (s *DockerSuite) TestRunByDigest(c *check.C) {
 	if res != imageReference {
 		c.Fatalf("unexpected Config.Image: %s (expected %s)", res, imageReference)
 	}
-
 }
 
-func (s *DockerSuite) TestRemoveImageByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	digest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -217,12 +203,9 @@ func (s *DockerSuite) TestRemoveImageByDigest(c *check.C) {
 	} else if !strings.Contains(err.Error(), "No such image") {
 		c.Fatalf("expected 'No such image' output, got %v", err)
 	}
-
 }
 
-func (s *DockerSuite) TestBuildByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	digest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -262,12 +245,9 @@ func (s *DockerSuite) TestBuildByDigest(c *check.C) {
 	if res != imageID {
 		c.Fatalf("Image %s, expected %s", res, imageID)
 	}
-
 }
 
-func (s *DockerSuite) TestTagByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestTagByDigest(c *check.C) {
 	digest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -302,12 +282,9 @@ func (s *DockerSuite) TestTagByDigest(c *check.C) {
 	if tagID != expectedID {
 		c.Fatalf("expected image id %q, got %q", expectedID, tagID)
 	}
-
 }
 
-func (s *DockerSuite) TestListImagesWithoutDigests(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestListImagesWithoutDigests(c *check.C) {
 	digest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -334,8 +311,7 @@ func (s *DockerSuite) TestListImagesWithoutDigests(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestListImagesWithDigests(c *check.C) {
-	defer setupRegistry(c)()
+func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 
 	// setup image1
 	digest1, err := setupImageWithTag("tag1")
@@ -482,12 +458,9 @@ func (s *DockerSuite) TestListImagesWithDigests(c *check.C) {
 	if !busyboxRe.MatchString(out) {
 		c.Fatalf("expected %q: %s", busyboxRe.String(), out)
 	}
-
 }
 
-func (s *DockerSuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {
 	pushDigest, err := setupImage()
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -511,5 +484,4 @@ func (s *DockerSuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {
 	if _, err := runCommand(cmd); err != nil {
 		c.Fatalf("error deleting image by id: %v", err)
 	}
-
 }
