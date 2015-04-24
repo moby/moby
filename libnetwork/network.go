@@ -8,14 +8,14 @@ create network namespaces and allocate interfaces for containers to use.
     // This option is only needed for in-tree drivers. Plugins(in future) will get
     // their options through plugin infrastructure.
     option := options.Generic{}
-    driver, err := controller.NewNetworkDriver("bridge", option)
+    err := controller.NewNetworkDriver("bridge", option)
     if err != nil {
         return
     }
 
     netOptions := options.Generic{}
     // Create a network for containers to join.
-    network, err := controller.NewNetwork(driver, "network1", netOptions)
+    network, err := controller.NewNetwork("bridge", "network1", netOptions)
     if err != nil {
     	return
     }
@@ -62,6 +62,12 @@ type NetworkController interface {
 
 	// WalkNetworks uses the provided function to walk the Network(s) managed by this controller.
 	WalkNetworks(walker NetworkWalker)
+
+	// NetworkByName returns the Network which has the passed name, if it exists otherwise nil is returned
+	NetworkByName(name string) Network
+
+	// NetworkByID returns the Network which has the passed id, if it exists otherwise nil is returned
+	NetworkByID(id string) Network
 }
 
 // A Network represents a logical connectivity zone that containers may
@@ -81,14 +87,20 @@ type Network interface {
 	// Labels support will be added in the near future.
 	CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error)
 
+	// Delete the network.
+	Delete() error
+
 	// Endpoints returns the list of Endpoint(s) in this network.
 	Endpoints() []Endpoint
 
 	// WalkEndpoints uses the provided function to walk the Endpoints
 	WalkEndpoints(walker EndpointWalker)
 
-	// Delete the network.
-	Delete() error
+	// EndpointByName returns the Endpoint which has the passed name, if it exists otherwise nil is returned
+	EndpointByName(name string) Endpoint
+
+	// EndpointByID returns the Endpoint which has the passed id, if it exists otherwise nil is returned
+	EndpointByID(id string) Endpoint
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -217,6 +229,33 @@ func (c *controller) WalkNetworks(walker NetworkWalker) {
 	}
 }
 
+func (c *controller) NetworkByName(name string) Network {
+	var n Network
+
+	if name != "" {
+		s := func(current Network) bool {
+			if current.Name() == name {
+				n = current
+				return true
+			}
+			return false
+		}
+
+		c.WalkNetworks(s)
+	}
+
+	return n
+}
+
+func (c *controller) NetworkByID(id string) Network {
+	c.Lock()
+	defer c.Unlock()
+	if n, ok := c.networks[types.UUID(id)]; ok {
+		return n
+	}
+	return nil
+}
+
 func (n *network) Name() string {
 	return n.name
 }
@@ -300,6 +339,33 @@ func (n *network) WalkEndpoints(walker EndpointWalker) {
 			return
 		}
 	}
+}
+
+func (n *network) EndpointByName(name string) Endpoint {
+	var e Endpoint
+
+	if name != "" {
+		s := func(current Endpoint) bool {
+			if current.Name() == name {
+				e = current
+				return true
+			}
+			return false
+		}
+
+		n.WalkEndpoints(s)
+	}
+
+	return e
+}
+
+func (n *network) EndpointByID(id string) Endpoint {
+	n.Lock()
+	defer n.Unlock()
+	if e, ok := n.endpoints[types.UUID(id)]; ok {
+		return e
+	}
+	return nil
 }
 
 func (ep *endpoint) ID() string {
