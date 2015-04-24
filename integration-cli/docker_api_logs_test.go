@@ -17,11 +17,9 @@ func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	statusCode, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", name), nil)
-
-	if err != nil || statusCode != http.StatusOK {
-		c.Fatalf("Expected %d from logs request, got %d", http.StatusOK, statusCode)
-	}
+	status, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", name), nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
 
 	if !bytes.Contains(body, []byte(name)) {
 		c.Fatalf("Expected %s, got %s", name, string(body[:]))
@@ -35,11 +33,9 @@ func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	statusCode, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil)
-
-	if err == nil || statusCode != http.StatusBadRequest {
-		c.Fatalf("Expected %d from logs request, got %d", http.StatusBadRequest, statusCode)
-	}
+	status, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
+	c.Assert(err, check.IsNil)
 
 	expected := "Bad parameters: you must choose at least one stream"
 	if !bytes.Contains(body, []byte(expected)) {

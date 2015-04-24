@@ -10,10 +10,9 @@ import (
 func (s *DockerSuite) TestInfoApi(c *check.C) {
 	endpoint := "/info"
 
-	statusCode, body, err := sockRequest("GET", endpoint, nil)
-	if err != nil || statusCode != http.StatusOK {
-		c.Fatalf("Expected %d from info request, got %d", http.StatusOK, statusCode)
-	}
+	status, body, err := sockRequest("GET", endpoint, nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
 
 	// always shown fields
 	stringsToCheck := []string{

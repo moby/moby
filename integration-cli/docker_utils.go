@@ -350,9 +350,6 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, io
 		defer client.Close()
 		return resp.Body.Close()
 	})
-	if resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, body, fmt.Errorf("received status != 200 OK: %s", resp.Status)
-	}
 
 	return resp.StatusCode, body, err
 }
@@ -1062,10 +1059,9 @@ func daemonTime(c *check.C) time.Time {
 		return time.Now()
 	}
 
-	_, body, err := sockRequest("GET", "/info", nil)
-	if err != nil {
-		c.Fatalf("daemonTime: failed to get /info: %v", err)
-	}
+	status, body, err := sockRequest("GET", "/info", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
 
 	type infoJSON struct {
 		SystemTime string

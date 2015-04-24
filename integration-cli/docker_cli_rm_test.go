@@ -60,13 +60,8 @@ func (s *DockerSuite) TestRmRunningContainerCheckError409(c *check.C) {
 
 	endpoint := "/containers/foo"
 	status, _, err := sockRequest("DELETE", endpoint, nil)
-
-	if err == nil {
-		c.Fatalf("Expected error, can't rm a running container")
-	} else if status != http.StatusConflict {
-		c.Fatalf("Expected error to contain '409 Conflict' but found %s", err)
-	}
-
+	c.Assert(status, check.Equals, http.StatusConflict)
+	c.Assert(err, check.IsNil)
 }
 
 func (s *DockerSuite) TestRmForceRemoveRunningContainer(c *check.C) {

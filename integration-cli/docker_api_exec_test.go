@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"net/http"
 	"os/exec"
 
 	"github.com/go-check/check"
@@ -18,8 +19,11 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	_, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": nil})
-	if err == nil || !bytes.Contains(body, []byte("No exec command specified")) {
-		c.Fatalf("Expected error when creating exec command with no Cmd specified: %q", err)
+	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": nil})
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(err, check.IsNil)
+
+	if !bytes.Contains(body, []byte("No exec command specified")) {
+		c.Fatalf("Expected message when creating exec command with no Cmd specified")
 	}
 }
