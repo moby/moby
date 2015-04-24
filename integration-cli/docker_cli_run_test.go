@@ -1272,13 +1272,13 @@ func (s *DockerSuite) TestRunAddingOptionalDevices(c *check.C) {
 func (s *DockerSuite) TestRunDenyingOptionalDevices(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "--privileged", "--device-deny", "/dev/zero:/dev/nulo", "busybox", "sh", "-c", "echo hello > /dev/nulo")
 	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
+	if err == nil {
+		c.Fatal("expected error, but successed")
 	}
 
 	out = strings.Trim(out, "\r\n")
-	if !strings.Contains(out, "Permission denied") {
-		c.Fatalf("expected output Permission denied, received %s", out)
+	if !strings.Contains(out, "operation not permitted") {
+		c.Fatalf("expected output operation not permitted, received %s", out)
 	}
 }
 
