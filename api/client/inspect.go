@@ -13,7 +13,6 @@ import (
 )
 
 // CmdInspect displays low-level information on one or more containers or images.
-//
 // Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
 func (cli *DockerCli) CmdInspect(args ...string) error {
