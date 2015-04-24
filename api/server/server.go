@@ -1343,6 +1343,7 @@ func (s *Server) postBuild(eng *engine.Engine, version version.Version, w http.R
 	buildConfig.MemorySwap = int64Value(r, "memswap")
 	buildConfig.Memory = int64Value(r, "memory")
 	buildConfig.CpuShares = int64Value(r, "cpushares")
+	buildConfig.CpuQuota = int64Value(r, "cpuquota")
 	buildConfig.CpuSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CpuSetMems = r.FormValue("cpusetmems")
 
