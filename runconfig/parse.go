@@ -277,7 +277,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
 	}
 
-	restartPolicy, err := parseRestartPolicy(*flRestartPolicy)
+	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -374,8 +374,8 @@ func convertKVStringsToMap(values []string) map[string]string {
 	return result
 }
 
-// parseRestartPolicy returns the parsed policy or an error indicating what is incorrect
-func parseRestartPolicy(policy string) (RestartPolicy, error) {
+// ParseRestartPolicy returns the parsed policy or an error indicating what is incorrect
+func ParseRestartPolicy(policy string) (RestartPolicy, error) {
 	p := RestartPolicy{}
 
 	if policy == "" {
