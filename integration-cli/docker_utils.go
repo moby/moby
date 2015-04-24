@@ -361,9 +361,7 @@ func readBody(b io.ReadCloser) ([]byte, error) {
 
 func deleteContainer(container string) error {
 	container = strings.TrimSpace(strings.Replace(container, "\n", " ", -1))
-	killArgs := strings.Split(fmt.Sprintf("kill %v", container), " ")
-	runCommand(exec.Command(dockerBinary, killArgs...))
-	rmArgs := strings.Split(fmt.Sprintf("rm -v %v", container), " ")
+	rmArgs := strings.Split(fmt.Sprintf("rm -fv %v", container), " ")
 	exitCode, err := runCommand(exec.Command(dockerBinary, rmArgs...))
 	// set error manually if not set
 	if exitCode != 0 && err == nil {
