@@ -3,8 +3,11 @@ package sandbox
 import (
 	"fmt"
 	"net"
+	"os"
+	"runtime"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 func configureInterface(iface netlink.Link, settings *Interface) error {
@@ -26,7 +29,28 @@ func configureInterface(iface netlink.Link, settings *Interface) error {
 	return nil
 }
 
-func setGatewayIP(gw net.IP) error {
+func setGatewayIP(path string, gw net.IP) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origns, err := netns.Get()
+	if err != nil {
+		return err
+	}
+	defer origns.Close()
+
+	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	if err != nil {
+		return fmt.Errorf("failed get network namespace %q: %v", path, err)
+	}
+	defer f.Close()
+
+	nsFD := f.Fd()
+	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
+		return err
+	}
+	defer netns.Set(origns)
+
 	return netlink.RouteAdd(&netlink.Route{
 		Scope: netlink.SCOPE_UNIVERSE,
 		Gw:    gw,
@@ -39,7 +63,10 @@ func setInterfaceIP(iface netlink.Link, settings *Interface) error {
 }
 
 func setInterfaceIPv6(iface netlink.Link, settings *Interface) error {
-	ipAddr := &netlink.Addr{IPNet: settings.Address, Label: ""}
+	if settings.AddressIPv6 == nil {
+		return nil
+	}
+	ipAddr := &netlink.Addr{IPNet: settings.AddressIPv6, Label: ""}
 	return netlink.AddrAdd(iface, ipAddr)
 }
 

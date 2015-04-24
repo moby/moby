@@ -20,7 +20,30 @@ func TestSandboxCreate(t *testing.T) {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
+	info, err := newInfo(t)
+	if err != nil {
+		t.Fatalf("Failed to generate new sandbox info: %v", err)
+	}
+
+	for _, i := range info.Interfaces {
+		err = s.AddInterface(i)
+		if err != nil {
+			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
+		}
+	}
+
+	err = s.SetGateway(info.Gateway)
+	if err != nil {
+		t.Fatalf("Failed to set gateway to sandbox: %v", err)
+	}
+
+	err = s.SetGatewayIPv6(info.GatewayIPv6)
+	if err != nil {
+		t.Fatalf("Failed to set ipv6 gateway to sandbox: %v", err)
+	}
+
 	verifySandbox(t, s)
+	s.Destroy()
 }
 
 func TestInterfaceEqual(t *testing.T) {
