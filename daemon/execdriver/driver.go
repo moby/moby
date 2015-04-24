@@ -158,6 +158,7 @@ type Command struct {
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
 	AllowedDevices     []*configs.Device `json:"allowed_devices"`
+	DeniedDevices      []*configs.Device `json:"denied_devices"`
 	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`

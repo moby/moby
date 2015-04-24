@@ -183,7 +183,8 @@ type HostConfig struct {
 	DnsSearch       []string
 	ExtraHosts      []string
 	VolumesFrom     []string
-	Devices         []DeviceMapping
+	AllowedDevices  []DeviceMapping
+	DeniedDevices   []DeviceMapping
 	NetworkMode     NetworkMode
 	IpcMode         IpcMode
 	PidMode         PidMode

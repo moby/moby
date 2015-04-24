@@ -968,7 +968,8 @@ Creates a new container.
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
-      --device=[]                Add a host device to the container
+      --device-allow=[]          Allow the container to access a host device
+      --device-deny=[]           Deny the container to access a host device
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
@@ -1927,7 +1928,8 @@ To remove an image using its digest:
       --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       -d, --detach=false         Run container in background and print container ID
-      --device=[]                Add a host device to the container
+      --device-allow=[]          Allow the container to access a host device
+      --device-deny=[]           Deny the container to access a host device
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
@@ -2194,41 +2196,41 @@ logs could be retrieved using `docker logs`. This is
 useful if you need to pipe a file or something else into a container and
 retrieve the container's ID once the container has finished running.
 
-   $ docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
+   $ docker run --device-allow=/dev/sdc:/dev/xvdc --device-allow=/dev/sdd --device-allow=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
    brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
    brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
    crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
 
-It is often necessary to directly expose devices to a container. The `--device`
+It is often necessary to directly expose devices to a container. The `--device-allow`
 option enables that.  For example, a specific block storage device or loop
 device or audio device can be added to an otherwise unprivileged container
 (without the `--privileged` flag) and have the application directly access it.
 
 By default, the container will be able to `read`, `write` and `mknod` these devices.
-This can be overridden using a third `:rwm` set of options to each `--device`
+This can be overridden using a third `:rwm` set of options to each `--device-allow`
 flag:
 
 
 ```
-	$ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+	$ docker run --device-allow=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
 	Command (m for help): q
-	$ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
+	$ docker run --device-allow=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
 	You will not be able to write the partition table.
 
 	Command (m for help): q
 
-	$ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+	$ docker run --device-allow=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
 	Command (m for help): q
 
-	$ docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+	$ docker run --device-allow=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
 	fdisk: unable to open /dev/xvdc: Operation not permitted
 ```
 
 > **Note:**
-> `--device` cannot be safely used with ephemeral devices. Block devices that
-> may be removed should not be added to untrusted containers with `--device`.
+> `--device-allow` cannot be safely used with ephemeral devices. Block devices that
+> may be removed should not be added to untrusted containers with `--device-allow`.
 
 **A complete example:**
 

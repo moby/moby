@@ -21,6 +21,7 @@ func InitContainer(c *Command) *configs.Config {
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
 	container.Cgroups.Name = c.ID
 	container.Cgroups.AllowedDevices = c.AllowedDevices
+	container.Cgroups.DeniedDevices = c.DeniedDevices
 	container.Devices = c.AutoCreatedDevices
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs

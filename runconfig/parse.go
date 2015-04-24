@@ -25,12 +25,13 @@ var (
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(opts.ValidatePath)
-		flLinks   = opts.NewListOpts(opts.ValidateLink)
-		flEnv     = opts.NewListOpts(opts.ValidateEnv)
-		flLabels  = opts.NewListOpts(opts.ValidateEnv)
-		flDevices = opts.NewListOpts(opts.ValidatePath)
+		flAttach         = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes        = opts.NewListOpts(opts.ValidatePath)
+		flLinks          = opts.NewListOpts(opts.ValidateLink)
+		flEnv            = opts.NewListOpts(opts.ValidateEnv)
+		flLabels         = opts.NewListOpts(opts.ValidateEnv)
+		flDevicesAllowed = opts.NewListOpts(opts.ValidatePath)
+		flDevicesDenied  = opts.NewListOpts(opts.ValidatePath)
 
 		ulimits   = make(map[string]*ulimit.Ulimit)
 		flUlimits = opts.NewUlimitOpt(ulimits)
@@ -81,7 +82,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
-	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
+	cmd.Var(&flDevicesAllowed, []string{"-device-allow"}, "Allow the container to access a host device")
+	cmd.Var(&flDevicesDenied, []string{"-device-deny"}, "deny the container to access a host device")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
 	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
@@ -250,13 +252,21 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	// parse device mappings
-	deviceMappings := []DeviceMapping{}
-	for _, device := range flDevices.GetAll() {
-		deviceMapping, err := ParseDevice(device)
+	AllowedDeviceMappings := []DeviceMapping{}
+	for _, device := range flDevicesAllowed.GetAll() {
+		AllowedDeviceMapping, err := ParseDevice(device)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
-		deviceMappings = append(deviceMappings, deviceMapping)
+		AllowedDeviceMappings = append(AllowedDeviceMappings, AllowedDeviceMapping)
+	}
+	DeniedDeviceMappings := []DeviceMapping{}
+	for _, device := range flDevicesDenied.GetAll() {
+		DeniedDeviceMapping, err := ParseDevice(device)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		DeniedDeviceMappings = append(DeniedDeviceMappings, DeniedDeviceMapping)
 	}
 
 	// collect all the environment variables for the container
@@ -337,7 +347,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		NetworkMode:     netMode,
 		IpcMode:         ipcMode,
 		PidMode:         pidMode,
-		Devices:         deviceMappings,
+		AllowedDevices:  AllowedDeviceMappings,
+		DeniedDevices:   DeniedDeviceMappings,
 		CapAdd:          flCapAdd.GetAll(),
 		CapDrop:         flCapDrop.GetAll(),
 		RestartPolicy:   restartPolicy,

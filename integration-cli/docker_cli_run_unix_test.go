@@ -161,7 +161,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
+	cmd := exec.Command(dockerBinary, "run", "--device-allow", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -172,7 +172,7 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 		c.Fatalf("expected output /dev/snd/timer, received %s", actual)
 	}
 
-	cmd = exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
+	cmd = exec.Command(dockerBinary, "run", "--device-allow", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
 
 	out, _, err = runCommandWithOutput(cmd)
 	if err != nil {
