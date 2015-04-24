@@ -408,7 +408,10 @@ func init() {
 		}
 		fields := strings.Fields(l)
 		imgTag := fields[0] + ":" + fields[1]
-		protectedImages[imgTag] = struct{}{}
+		// just for case if we have dangling images in tested daemon
+		if imgTag != "<none>:<none>" {
+			protectedImages[imgTag] = struct{}{}
+		}
 	}
 }
 
