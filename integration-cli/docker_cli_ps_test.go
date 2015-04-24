@@ -560,7 +560,6 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	tag := "asybox:shmatest"
-	defer deleteImages(tag)
 	if out, err := exec.Command(dockerBinary, "tag", "busybox", tag).CombinedOutput(); err != nil {
 		c.Fatalf("Failed to tag image: %s, out: %q", err, out)
 	}

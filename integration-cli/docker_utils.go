@@ -396,6 +396,55 @@ func deleteAllContainers() error {
 	return nil
 }
 
+var protectedImages = map[string]struct{}{}
+
+func init() {
+	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+	lines := strings.Split(string(out), "\n")[1:]
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		fields := strings.Fields(l)
+		imgTag := fields[0] + ":" + fields[1]
+		protectedImages[imgTag] = struct{}{}
+	}
+}
+
+func deleteAllImages() error {
+	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(out), "\n")[1:]
+	var imgs []string
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		fields := strings.Fields(l)
+		imgTag := fields[0] + ":" + fields[1]
+		if _, ok := protectedImages[imgTag]; !ok {
+			if fields[0] == "<none>" {
+				imgs = append(imgs, fields[2])
+				continue
+			}
+			imgs = append(imgs, imgTag)
+		}
+	}
+	if len(imgs) == 0 {
+		return nil
+	}
+	args := append([]string{"rmi", "-f"}, imgs...)
+	if err := exec.Command(dockerBinary, args...).Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getPausedContainers() (string, error) {
 	getPausedContainersCmd := exec.Command(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
 	out, exitCode, err := runCommandWithOutput(getPausedContainersCmd)

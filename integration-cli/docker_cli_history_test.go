@@ -14,7 +14,6 @@ import (
 // sort is not predictable it doesn't always fail.
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
 	name := "testbuildhistory"
-	defer deleteImages(name)
 	_, err := buildImage(name, `FROM busybox
 RUN echo "A"
 RUN echo "B"
@@ -85,7 +84,6 @@ func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	name := "testhistoryimagewithcomment"
-	defer deleteImages(name)
 
 	// make a image through docker commit <container id> [ -m messages ]
 	//runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")

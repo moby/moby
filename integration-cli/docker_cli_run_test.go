@@ -447,7 +447,6 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	if _, err := buildImage(name, dockerFile, false); err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages(name)
 
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-v", "/test/test", name))
 	if err != nil {
@@ -604,7 +603,6 @@ func (s *DockerSuite) TestRunCreateVolume(c *check.C) {
 // Note that this bug happens only with symlinks with a target that starts with '/'.
 func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 	image := "docker-test-createvolumewithsymlink"
-	defer deleteImages(image)
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", image, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
@@ -644,7 +642,6 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 	name := "docker-test-volumesfromsymlinkpath"
-	defer deleteImages(name)
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
@@ -1746,7 +1743,6 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 // Test for #1737
 func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 	name := "testrunvolumesuidgid"
-	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
@@ -1772,7 +1768,6 @@ func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 // Test for #1582
 func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 	name := "testruncopyvolumecontent"
-	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
 		RUN mkdir -p /hello/local && echo hello > /hello/local/world`,
@@ -1794,7 +1789,6 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 
 func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	name := "testrunmdcleanuponentrypoint"
-	defer deleteImages(name)
 	if _, err := buildImage(name,
 		`FROM busybox
 		ENTRYPOINT ["echo"]
@@ -2349,7 +2343,6 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
-	defer deleteImages("dataimage")
 	if _, err := buildImage("dataimage",
 		`FROM busybox
 		 RUN mkdir -p /foo
@@ -2430,7 +2423,6 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 		true); err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages("run_volumes_clean_paths")
 
 	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 	if out, _, err := runCommandWithOutput(cmd); err != nil {

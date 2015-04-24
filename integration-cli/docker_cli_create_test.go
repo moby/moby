@@ -259,7 +259,6 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 
 func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	imageName := "testcreatebuildlabel"
-	defer deleteImages(imageName)
 	_, err := buildImage(imageName,
 		`FROM busybox
 		LABEL k1=v1 k2=v2`,

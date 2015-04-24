@@ -30,7 +30,6 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 	name := "utest:tag1"
 	name2 := "utest/docker:tag2"
 	name3 := "utest:5000/docker:tag3"
-	defer deleteImages(name, name2, name3)
 	for _, n := range []string{name, name2, name3} {
 		if out, err := exec.Command(dockerBinary, "tag", "busybox", n).CombinedOutput(); err != nil {
 			c.Fatal(err, out)
@@ -74,7 +73,6 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 		c.Fatal(err)
 	}
 	id := strings.TrimSpace(out)
-	defer deleteImages("saveandload")
 
 	status, body, err := sockRequestRaw("GET", "/images/"+id+"/get", nil, "")
 	c.Assert(status, check.Equals, http.StatusOK)

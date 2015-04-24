@@ -144,7 +144,6 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 
 func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	name := "testimageevents"
-	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM scratch
 		MAINTAINER "docker"`,
@@ -179,8 +178,6 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 	since := daemonTime(c).Unix()
 	testRequires(c, Network)
-
-	defer deleteImages("hello-world")
 
 	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
