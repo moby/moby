@@ -67,7 +67,7 @@ The following provides greater detail on the process:
 
     The design proposals are <a
     href="https://github.com/docker/docker/pulls?q=is%3Aopen+is%3Apr+label%
-    3AProposal" target="_blank">all online in our GitHub pull requests</a>. 
+    3Akind%2Fproposal" target="_blank">all online in our GitHub pull requests</a>. 
     
 3. Talk to the community about your idea.
 
