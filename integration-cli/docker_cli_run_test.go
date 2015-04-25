@@ -371,6 +371,23 @@ func (s *DockerSuite) TestRunLinkToContainerNetMode(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunLinkEnvironment(c *check.C) {
+	testRequires(c, ExecSupport)
+	cmd := exec.Command(dockerBinary, "run", "-id", "--name", "parent", "-e", "FOO=BAR=QUX", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "run", "--link", "parent:parent", "busybox", "env")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	if !strings.Contains(out, "PARENT_ENV_FOO=BAR=QUX") {
+		c.Fatal("Env with '=' sign should available in linked containers")
+	}
+}
+
 func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	testRequires(c, ExecSupport)
 	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "--name", "parent", "busybox", "top")
