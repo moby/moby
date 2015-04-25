@@ -771,6 +771,7 @@ _docker_run() {
 		--cpuset
 		--cpu-shares -c
 		--cpu-quota
+		--cpu-period
 		--device
 		--dns
 		--dns-search

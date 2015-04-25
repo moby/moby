@@ -15,6 +15,7 @@ docker-create - Create a new container
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--cpu-quota**[=*0*]]
+[**--cpu-period**[=*0*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -85,6 +86,9 @@ two memory nodes.
 
 **-cpu-quota**=0
    Limit the CPU CFS (Completely Fair Scheduler) quota
+
+**-cpu-period**=0
+   Set the CPU CFS (Completely Fair Scheduler) period
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)

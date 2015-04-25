@@ -153,6 +153,7 @@ type Info struct {
 	MemoryLimit        bool
 	SwapLimit          bool
 	CpuCfsQuota        bool
+	CpuCfsPeriod       bool
 	IPv4Forwarding     bool
 	Debug              bool
 	NFd                int

@@ -116,6 +116,9 @@ lxc.cgroup.cpuset.mems = {{.Resources.CpusetMems}}
 {{if .Resources.CpuQuota}}
 lxc.cgroup.cpu.cfs_quota_us = {{.Resources.CpuQuota}}
 {{end}}
+{{if .Resources.CpuPeriod}}
+lxc.cgroup.cpu.cfs_period_us = {{.Resources.CpuPeriod}}
+{{end}}
 {{end}}
 
 {{if .LxcConfig}}

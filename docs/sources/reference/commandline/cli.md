@@ -928,6 +928,7 @@ Creates a new container.
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
+      --cpu-period=0             Set the CPU CFS (Completely Fair Scheduler) period
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -1883,6 +1884,7 @@ To remove an image using its digest:
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
+      --cpu-period=0             Set the CPU CFS (Completely Fair Scheduler) period
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers

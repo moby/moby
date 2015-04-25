@@ -16,6 +16,7 @@ docker-run - Run a command in a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
 [**--cpu-quota**[=*0*]]
+[**--cpu-period**[=*0*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -149,6 +150,9 @@ two memory nodes.
    Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
+
+**--cpu-period**=0
+   Set the CPU CFS (Completely Fair Scheduler) period
 
 **-d**, **--detach**=*true*|*false*
    Detached mode: run the container in the background and print the new container ID. The default is *false*.

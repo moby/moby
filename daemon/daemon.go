@@ -1242,6 +1242,10 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0
 	}
+	if hostConfig.CpuPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
+		warnings = append(warnings, "Your kernel does not support CPU cfs period. CPU period discarded.")
+		hostConfig.CpuPeriod = 0
+	}
 
 	return warnings, nil
 }

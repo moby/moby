@@ -476,6 +476,7 @@ container:
     --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
     --cpuset-mems="": Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
     --cpu-quota=0: Limit the CPU CFS (Completely Fair Scheduler) quota
+    --cpu-period=0: Set the CPU CFS (Completely Fair Scheduler) period
 
 ### Memory constraints
 
@@ -623,6 +624,7 @@ allows the container to take 100% of a CPU resource (1 CPU). The CFS (Completely
 Scheduler) handles resource allocation for executing processes and is default
 Linux Scheduler used by the kernel. Set this value to 50000 to limit the container
 to 50% of a CPU resource. For multiple CPUs, adjust the `--cpu-quota` as necessary.
+The `--cpu-period` flag sets the length of a cpu period used in the quota calculation.
 For more information, see the [CFS documentation on bandwidth limiting](https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt).
 
 ## Runtime privilege, Linux capabilities, and LXC configuration

@@ -113,6 +113,32 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPUQuota(c *check.C) {
 }
 
 // "test" should be printed
+func (s *DockerSuite) TestRunEchoStdoutWithCPUPeriod(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--cpu-period", "20000", "--name", "test", "busybox", "echo", "test")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	out = strings.TrimSpace(out)
+	if strings.Contains(out, "Your kernel does not support CPU cfs period") {
+		c.Skip("Your kernel does not support CPU cfs period, skip this test")
+	}
+	if out != "test" {
+		c.Errorf("container should've printed 'test'")
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.CpuPeriod}}", "test")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+	out = strings.TrimSpace(out)
+	if out != "20000" {
+		c.Errorf("setting the CPU CFS period failed")
+	}
+}
+
+// "test" should be printed
 func (s *DockerSuite) TestRunEchoNamedContainer(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "--name", "testfoonamedcontainer", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
