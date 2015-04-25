@@ -7,6 +7,7 @@ DOCKER_LOGFILE=${DOCKER_LOGFILE:-/var/log/${SVCNAME}.log}
 DOCKER_PIDFILE=${DOCKER_PIDFILE:-/run/${SVCNAME}.pid}
 DOCKER_BINARY=${DOCKER_BINARY:-/usr/bin/docker}
 DOCKER_OPTS=${DOCKER_OPTS:-}
+UNSHARE_BINARY=${UNSHARE_BINARY:-/usr/bin/unshare}
 
 start() {
 	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"
@@ -16,11 +17,12 @@ start() {
 
 	ebegin "Starting docker daemon"
 	start-stop-daemon --start --background \
-		--exec "$DOCKER_BINARY" \
+		--exec "$UNSHARE_BINARY" \
 		--pidfile "$DOCKER_PIDFILE" \
 		--stdout "$DOCKER_LOGFILE" \
 		--stderr "$DOCKER_LOGFILE" \
-		-- -d -p "$DOCKER_PIDFILE" \
+		-- --mount \
+		-- "$DOCKER_BINARY" -d -p "$DOCKER_PIDFILE" \
 		$DOCKER_OPTS
 	eend $?
 }
