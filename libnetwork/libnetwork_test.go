@@ -371,3 +371,101 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestControllerQuery(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	controller := libnetwork.New()
+	netType := "bridge"
+
+	option := options.Generic{}
+	err := controller.ConfigureNetworkDriver(netType, option)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create network 1
+	net1, err := controller.NewNetwork(netType, "network1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	g := controller.NetworkByName("")
+	if g != nil {
+		t.Fatalf("NetworkByName() succeeded with invalid target name")
+	}
+
+	g = controller.NetworkByID("")
+	if g != nil {
+		t.Fatalf("NetworkByID() succeeded with invalid target id: %v", g)
+	}
+
+	g = controller.NetworkByID("network1")
+	if g != nil {
+		t.Fatalf("NetworkByID() succeeded with invalid target name")
+	}
+
+	g = controller.NetworkByName("network1")
+	if g == nil {
+		t.Fatalf("NetworkByName() did not find the network")
+	}
+	if g != net1 {
+		t.Fatalf("NetworkByName() returned the wrong network")
+	}
+
+	g = controller.NetworkByID(net1.ID())
+	if net1 != g {
+		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
+	}
+}
+
+func TestNetworkQuery(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	controller := libnetwork.New()
+	netType := "bridge"
+
+	option := options.Generic{}
+	err := controller.ConfigureNetworkDriver(netType, option)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create network 1 and add 2 endpoint: ep11, ep12
+	net1, err := controller.NewNetwork(netType, "network1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep11, err := net1.CreateEndpoint("ep11", "sbox1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep12, err := net1.CreateEndpoint("ep12", "sbox2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	e := net1.EndpointByName("ep11")
+	if ep11 != e {
+		t.Fatalf("EndpointByName() returned %v instead of %v", e, ep11)
+	}
+
+	e = net1.EndpointByName("")
+	if e != nil {
+		t.Fatalf("EndpointByName(): expected nil, got %v", e)
+	}
+
+	e = net1.EndpointByName("IamNotAnEndpoint")
+	if e != nil {
+		t.Fatalf("EndpointByName(): expected nil, got %v", e)
+	}
+
+	e = net1.EndpointByID(ep12.ID())
+	if ep12 != e {
+		t.Fatalf("EndpointByID() returned %v instead of %v", e, ep12)
+	}
+
+	e = net1.EndpointByID("")
+	if e != nil {
+		t.Fatalf("EndpointByID(): expected nil, got %v", e)
+	}
+
+}
