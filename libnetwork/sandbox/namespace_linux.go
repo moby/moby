@@ -130,7 +130,7 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 }
 
 func (n *networkNamespace) SetGateway(gw net.IP) error {
-	err := setGatewayIP(n.path, gw)
+	err := programGateway(n.path, gw)
 	if err == nil {
 		n.sinfo.Gateway = gw
 	}
@@ -143,7 +143,7 @@ func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
 		return nil
 	}
 
-	err := setGatewayIP(n.path, gw)
+	err := programGateway(n.path, gw)
 	if err == nil {
 		n.sinfo.GatewayIPv6 = gw
 	}

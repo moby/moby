@@ -29,7 +29,7 @@ func configureInterface(iface netlink.Link, settings *Interface) error {
 	return nil
 }
 
-func setGatewayIP(path string, gw net.IP) error {
+func programGateway(path string, gw net.IP) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
