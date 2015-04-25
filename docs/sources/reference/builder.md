@@ -128,7 +128,7 @@ modifiers as specified below:
 
 * `${variable:-word}` indicates that if `variable` is set then the result
   will be that value. If `variable` is not set then `word` will be the result.
-* `${variable:+word}` indiates that if `variable` is set then `word` will be
+* `${variable:+word}` indicates that if `variable` is set then `word` will be
   the result, otherwise the result is the empty string.
 
 In all cases, `word` can be any string, including additional environment
@@ -158,7 +158,7 @@ The instructions that handle environment variables in the `Dockerfile` are:
 `ONBUILD` instructions are **NOT** supported for environment replacement, even
 the instructions above.
 
-Environment variable subtitution will use the same value for each variable
+Environment variable substitution will use the same value for each variable
 throughout the entire command.  In other words, in this example:
 
     ENV abc=hello
@@ -299,7 +299,7 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
   the layers with `dirperm1` option. More details on `dirperm1` option can be
   found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
 
-  If your system doesnt have support for `dirperm1`, the issue describes a workaround.
+  If your system doesn't have support for `dirperm1`, the issue describes a workaround.
 
 ## CMD
 
@@ -368,7 +368,7 @@ default specified in `CMD`.
 
 The `LABEL` instruction adds metadata to an image. A `LABEL` is a
 key-value pair. To include spaces within a `LABEL` value, use quotes and
-blackslashes as you would in command-line parsing.
+backslashes as you would in command-line parsing.
 
     LABEL "com.example.vendor"="ACME Incorporated"
 

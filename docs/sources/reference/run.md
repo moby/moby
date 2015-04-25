@@ -380,7 +380,7 @@ This means the daemon will wait for 100 ms, then 200 ms, 400, 800, 1600,
 and so on until either the `on-failure` limit is hit, or when you `docker stop`
 or `docker rm -f` the container.
 
-If a container is succesfully restarted (the container is started and runs
+If a container is successfully restarted (the container is started and runs
 for at least 10 seconds), the delay is reset to its default value of 100 ms.
 
 You can specify the maximum amount of times Docker will try to restart the

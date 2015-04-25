@@ -8,7 +8,7 @@ Docker is available in **openSUSE 12.3 and later**. Please note that due
 to its current limitations Docker is able to run only **64 bit** architecture.
 
 Docker is not part of the official repositories of openSUSE 12.3 and
-openSUSE 13.1. Hence  it is neccessary to add the [Virtualization
+openSUSE 13.1. Hence  it is necessary to add the [Virtualization
 repository](https://build.opensuse.org/project/show/Virtualization) from
 [OBS](https://build.opensuse.org/) to install the `docker` package.
 
