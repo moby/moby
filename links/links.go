@@ -107,8 +107,8 @@ func (l *Link) ToEnv() []string {
 
 	if l.ChildEnvironment != nil {
 		for _, v := range l.ChildEnvironment {
-			parts := strings.Split(v, "=")
-			if len(parts) != 2 {
+			parts := strings.SplitN(v, "=", 2)
+			if len(parts) < 2 {
 				continue
 			}
 			// Ignore a few variables that are added during docker build (and not really relevant to linked containers)
