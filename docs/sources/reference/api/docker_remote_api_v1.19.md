@@ -1517,7 +1517,10 @@ Status Codes:
 
 `GET /images/search`
 
-Search for an image on [Docker Hub](https://hub.docker.com).
+Search for an image on [Docker Hub](https://hub.docker.com). This API
+returns both `is_trusted` and `is_automated` images. Currently, they
+are considered identical. In the future, the `is_trusted` property will
+be deprecated and replaced by the `is_automated` property.
 
 > **Note**:
 > The response keys have changed from API v1.6 to reflect the JSON
@@ -1532,30 +1535,33 @@ Search for an image on [Docker Hub](https://hub.docker.com).
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    [
-            {
-                "description": "",
-                "is_official": false,
-                "is_automated": false,
-                "name": "wma55/u1210sshd",
-                "star_count": 0
-            },
-            {
-                "description": "",
-                "is_official": false,
-                "is_automated": false,
-                "name": "jdswinbank/sshd",
-                "star_count": 0
-            },
-            {
-                "description": "",
-                "is_official": false,
-                "is_automated": false,
-                "name": "vgauthier/sshd",
-                "star_count": 0
-            }
-    ...
-    ]
+        [
+                {
+                    "star_count": 12,
+                    "is_official": false,
+                    "name": "wma55/u1210sshd",
+                    "is_trusted": false,
+                    "is_automated": false,
+                    "description": "",
+                },
+                {
+                    "star_count": 10,
+                    "is_official": false,
+                    "name": "jdswinbank/sshd",
+                    "is_trusted": false,
+                    "is_automated": false,
+                    "description": "",
+                },
+                {
+                    "star_count": 18,
+                    "is_official": false,
+                    "name": "vgauthier/sshd",
+                    "is_trusted": false,
+                    "is_automated": false,
+                    "description": "",
+                }
+        ...
+        ]
 
 Query Parameters:
 
