@@ -614,14 +614,14 @@ func (s *DockerSuite) TestContainerApiTop(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
-	out, err := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
+	cName := "testapicommit"
+	out, err := exec.Command(dockerBinary, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
 	if err != nil {
 		c.Fatal(err, out)
 	}
-	id := strings.TrimSpace(string(out))
 
 	name := "testcommit" + stringid.GenerateRandomID()
-	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+id, nil)
+	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+cName, nil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
 
