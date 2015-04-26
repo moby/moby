@@ -77,7 +77,7 @@ Always rebase and squash your commits before making a pull request.
 
 		`git commit -s`
 
-		Make sure your message includes <a href="./set-up-git" target="_blank>your signature</a>.
+    Make sure your message includes <a href="./set-up-git" target="_blank>your signature</a>.
 
 7. Force push any changes to your fork on GitHub.
 

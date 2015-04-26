@@ -1,5 +1,5 @@
 page_title: Using Puppet
-page_description: Installating and using Puppet
+page_description: Installing and using Puppet
 page_keywords: puppet, installation, usage, docker, documentation
 
 # Using Puppet

@@ -40,7 +40,7 @@ units each have unit tests and then, together, integration tests that test the
 interface between the components. The `integration` and `integration-cli`
 directories in the Docker repository contain integration test code.
 
-Testing is its own speciality. If you aren't familiar with testing techniques,
+Testing is its own specialty. If you aren't familiar with testing techniques,
 there is a lot of information available to you on the Web. For now, you should
 understand that, the Docker maintainers may ask you to write a new test or
 change an existing one.

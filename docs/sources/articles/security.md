@@ -249,7 +249,7 @@ may still be utilized by Docker containers on supported kernels,
 by directly using the clone syscall, or utilizing the 'unshare'
 utility. Using this, some users may find it possible to drop
 more capabilities from their process as user namespaces provide
-an artifical capabilities set. Likewise, however, this artifical
+an artificial capabilities set. Likewise, however, this artificial
 capabilities set may require use of 'capsh' to restrict the
 user-namespace capabilities set when using 'unshare'.
 
