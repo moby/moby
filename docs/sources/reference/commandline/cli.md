@@ -1595,7 +1595,7 @@ For example:
       --tail="all"              Number of lines to show from the end of the logs
 
 NOTE: this command is available only for containers with `json-file` logging
-driver.
+driver, or in follow mode only for all other drivers.
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
 

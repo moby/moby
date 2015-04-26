@@ -325,3 +325,37 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestLogsErrorForNonJsonFileLogDriver(c *check.C) {
+	out, err := exec.Command(dockerBinary, "run", "-d", "--log-driver=none", "busybox", "/bin/sh", "-c", "sleep 2").CombinedOutput()
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	cleanedContainerID := strings.TrimSpace(string(out))
+	if err := waitRun(cleanedContainerID); err != nil {
+		c.Fatal(err)
+	}
+
+	logsCmd := exec.Command(dockerBinary, "logs", cleanedContainerID)
+	_, stderr, _, _ := runCommandWithStdoutStderr(logsCmd)
+	if !strings.Contains(stderr, "command is supported only for") {
+		c.Fatalf("docker log invocation should have been rejected because container is not using log driver 'json-file'")
+	}
+}
+
+func (s *DockerSuite) TestLogsNoErrorWhenFollowForNonJsonFileLogDriver(c *check.C) {
+	out, err := exec.Command(dockerBinary, "run", "-d", "--log-driver=none", "busybox", "/bin/sh", "-c", "sleep 2").CombinedOutput()
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	cleanedContainerID := strings.TrimSpace(string(out))
+	if err := waitRun(cleanedContainerID); err != nil {
+		c.Fatal(err)
+	}
+
+	logsCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
+	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(logsCmd)
+	if err != nil {
+		c.Fatalf("%s, %s, %d, %v", stdout, stderr, exitCode, err)
+	}
+}

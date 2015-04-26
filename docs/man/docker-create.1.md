@@ -135,7 +135,7 @@ two memory nodes.
 
 **--log-driver**="|*json-file*|*syslog*|*journald*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
-  **Warning**: `docker logs` command works only for `json-file` logging driver.
+  **Warning**: `docker logs` command works only for `json-file` logging driver, or in follow mode only for all other drivers.
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
