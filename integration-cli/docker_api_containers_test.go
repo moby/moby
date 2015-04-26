@@ -840,3 +840,22 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(strings.Contains(string(b), "Minimum memory limit allowed is 4MB"), check.Equals, true)
 }
+
+func (s *DockerSuite) TestContainerApiRename(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--name", "first_name", "-d", "busybox", "sh")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+	newName := "new_name" + stringid.GenerateRandomID()
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/rename?name="+newName, nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	name, err := inspectField(containerID, "Name")
+	if name != "/"+newName {
+		c.Fatalf("Failed to rename container, expected %v, got %v. Container rename API failed", newName, name)
+	}
+}
