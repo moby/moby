@@ -1536,3 +1536,10 @@ func (c *Container) LogDriverType() string {
 	}
 	return c.hostConfig.LogConfig.Type
 }
+
+func (c *Container) getLogDriver() logger.Logger {
+	c.Lock()
+	ld := c.logDriver
+	c.Unlock()
+	return ld
+}
