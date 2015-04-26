@@ -117,28 +117,26 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestExecAfterDaemonRestart(c *check.C) {
+func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	d := NewDaemon(c)
-	if err := d.StartWithBusybox(); err != nil {
+	if err := s.d.StartWithBusybox(); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
-	defer d.Stop()
 
-	if out, err := d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
+	if out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
 		c.Fatalf("Could not run top: err=%v\n%s", err, out)
 	}
 
-	if err := d.Restart(); err != nil {
+	if err := s.d.Restart(); err != nil {
 		c.Fatalf("Could not restart daemon: %v", err)
 	}
 
-	if out, err := d.Cmd("start", "top"); err != nil {
+	if out, err := s.d.Cmd("start", "top"); err != nil {
 		c.Fatalf("Could not start top after daemon restart: err=%v\n%s", err, out)
 	}
 
-	out, err := d.Cmd("exec", "top", "echo", "hello")
+	out, err := s.d.Cmd("exec", "top", "echo", "hello")
 	if err != nil {
 		c.Fatalf("Could not exec on container top: err=%v\n%s", err, out)
 	}
@@ -147,7 +145,6 @@ func (s *DockerSuite) TestExecAfterDaemonRestart(c *check.C) {
 	if outStr != "hello" {
 		c.Errorf("container should've printed hello, instead printed %q", outStr)
 	}
-
 }
 
 // Regression test for #9155, #9044
