@@ -20,8 +20,7 @@ func fromStatT(s *syscall.Stat_t) (*Stat_t, error) {
 // Throws an error if the file does not exist
 func Stat(path string) (*Stat_t, error) {
 	s := &syscall.Stat_t{}
-	err := syscall.Stat(path, s)
-	if err != nil {
+	if err := syscall.Stat(path, s); err != nil {
 		return nil, err
 	}
 	return fromStatT(s)

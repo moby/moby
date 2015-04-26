@@ -148,8 +148,15 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	// do the copy (e.g. hash value if cached).  Don't actually do
 	// the copy until we've looked at all src files
 	for _, orig := range args[0 : len(args)-1] {
-		err := calcCopyInfo(b, cmdName, &copyInfos, orig, dest, allowRemote, allowDecompression)
-		if err != nil {
+		if err := calcCopyInfo(
+			b,
+			cmdName,
+			&copyInfos,
+			orig,
+			dest,
+			allowRemote,
+			allowDecompression,
+		); err != nil {
 			return err
 		}
 	}

@@ -486,8 +486,7 @@ func (f *FlagSet) Set(name, value string) error {
 	if !ok {
 		return fmt.Errorf("no such flag -%v", name)
 	}
-	err := flag.Value.Set(value)
-	if err != nil {
+	if err := flag.Value.Set(value); err != nil {
 		return err
 	}
 	if f.actual == nil {

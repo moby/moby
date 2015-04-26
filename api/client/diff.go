@@ -31,8 +31,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 	}
 
 	changes := []types.ContainerChange{}
-	err = json.NewDecoder(rdr).Decode(&changes)
-	if err != nil {
+	if err := json.NewDecoder(rdr).Decode(&changes); err != nil {
 		return err
 	}
 

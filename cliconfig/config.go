@@ -166,8 +166,7 @@ func (configFile *ConfigFile) Save() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(configFile.filename, data, 0600)
-	if err != nil {
+	if err := ioutil.WriteFile(configFile.filename, data, 0600); err != nil {
 		return err
 	}
 
