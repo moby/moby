@@ -46,6 +46,9 @@ func (p *Publisher) Subscribe() chan interface{} {
 // Evict removes the specified subscriber from receiving any more messages.
 func (p *Publisher) Evict(sub chan interface{}) {
 	p.m.Lock()
+	if _, ok := p.subscribers[sub]; !ok {
+		return
+	}
 	delete(p.subscribers, sub)
 	close(sub)
 	p.m.Unlock()
@@ -70,5 +73,6 @@ func (p *Publisher) Close() {
 	for sub := range p.subscribers {
 		close(sub)
 	}
+	p.subscribers = make(map[subscriber]struct{})
 	p.m.Unlock()
 }
