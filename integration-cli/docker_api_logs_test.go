@@ -20,22 +20,22 @@ func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 	}
 
 	type logOut struct {
-		out    string
-		status int
-		err    error
+		out string
+		res *http.Response
+		err error
 	}
 	chLog := make(chan logOut)
 
 	go func() {
-		statusCode, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id), nil, "")
+		res, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id), nil, "")
 		out, _ := bufio.NewReader(body).ReadString('\n')
-		chLog <- logOut{strings.TrimSpace(out), statusCode, err}
+		chLog <- logOut{strings.TrimSpace(out), res, err}
 	}()
 
 	select {
 	case l := <-chLog:
-		c.Assert(l.status, check.Equals, http.StatusOK)
 		c.Assert(l.err, check.IsNil)
+		c.Assert(l.res.StatusCode, check.Equals, http.StatusOK)
 		if !strings.HasSuffix(l.out, "hello") {
 			c.Fatalf("expected log output to container 'hello', but it does not")
 		}
