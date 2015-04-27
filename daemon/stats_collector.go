@@ -76,22 +76,42 @@ func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
 }
 
 func (s *statsCollector) run() {
+	type publishersPair struct {
+		container *Container
+		publisher *pubsub.Publisher
+	}
+	// we cannot determine the capacity here.
+	// it will grow enough in first iteration
+	var pairs []publishersPair
+
 	for range time.Tick(s.interval) {
+		systemUsage, err := s.getSystemCpuUsage()
+		if err != nil {
+			logrus.Errorf("collecting system cpu usage: %v", err)
+			continue
+		}
+
+		// it does not make sense in the first iteration,
+		// but saves allocations in further iterations
+		pairs = pairs[:0]
+
+		s.m.Lock()
 		for container, publisher := range s.publishers {
-			systemUsage, err := s.getSystemCpuUsage()
-			if err != nil {
-				logrus.Errorf("collecting system cpu usage for %s: %v", container.ID, err)
-				continue
-			}
-			stats, err := container.Stats()
+			// copy pointers here to release the lock ASAP
+			pairs = append(pairs, publishersPair{container, publisher})
+		}
+		s.m.Unlock()
+
+		for _, pair := range pairs {
+			stats, err := pair.container.Stats()
 			if err != nil {
 				if err != execdriver.ErrNotRunning {
-					logrus.Errorf("collecting stats for %s: %v", container.ID, err)
+					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
 				}
 				continue
 			}
 			stats.SystemUsage = systemUsage
-			publisher.Publish(stats)
+			pair.publisher.Publish(stats)
 		}
 	}
 }
