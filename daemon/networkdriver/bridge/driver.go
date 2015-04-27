@@ -319,7 +319,7 @@ func InitDriver(config *Config) error {
 	}
 
 	// Block BridgeIP in IP allocator
-	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
+	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP, "bridge"+bridgeIPv4Network.String())
 
 	if config.EnableIptables {
 		iptables.OnReloaded(portMapper.ReMapAll) // call this on Firewalld reload
@@ -516,7 +516,7 @@ func requestDefaultGateway(requestedGateway string, network *net.IPNet) (gateway
 			return nil, fmt.Errorf("Gateway ip %s must be part of the network %s", requestedGateway, network.String())
 		}
 
-		ipAllocator.RequestIP(network, gateway)
+		ipAllocator.RequestIP(network, gateway, "DG"+network.String())
 	}
 
 	return gateway, nil
@@ -569,7 +569,7 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 }
 
 // Allocate a network interface
-func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Settings, error) {
+func Allocate(id, requestedMac, requestedIP, requestedIPv6 string, name string) (*network.Settings, error) {
 	var (
 		ip            net.IP
 		mac           net.HardwareAddr
@@ -579,7 +579,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 		defaultGWIPv6 net.IP
 	)
 
-	ip, err = ipAllocator.RequestIP(bridgeIPv4Network, net.ParseIP(requestedIP))
+	ip, err = ipAllocator.RequestIP(bridgeIPv4Network, net.ParseIP(requestedIP), name)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +601,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 			}
 		}
 
-		globalIPv6, err = ipAllocator.RequestIP(globalIPv6Network, ipv6)
+		globalIPv6, err = ipAllocator.RequestIP(globalIPv6Network, ipv6, name)
 		if err != nil {
 			logrus.Errorf("Allocator: RequestIP v6: %v", err)
 			return nil, err

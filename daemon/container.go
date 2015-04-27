@@ -581,7 +581,7 @@ func (container *Container) AllocateNetwork() error {
 		eng = container.daemon.eng
 	)
 
-	networkSettings, err := bridge.Allocate(container.ID, container.Config.MacAddress, "", "")
+	networkSettings, err := bridge.Allocate(container.ID, container.Config.MacAddress, "", "", container.Name)
 	if err != nil {
 		return err
 	}
@@ -665,7 +665,7 @@ func (container *Container) RestoreNetwork() error {
 	eng := container.daemon.eng
 
 	// Re-allocate the interface with the same IP and MAC address.
-	if _, err := bridge.Allocate(container.ID, container.NetworkSettings.MacAddress, container.NetworkSettings.IPAddress, ""); err != nil {
+	if _, err := bridge.Allocate(container.ID, container.NetworkSettings.MacAddress, container.NetworkSettings.IPAddress, "", container.Name); err != nil {
 		return err
 	}
 

@@ -39,7 +39,7 @@ func TestAllocatePortDetection(t *testing.T) {
 	}
 
 	// Allocate interface
-	if _, err := Allocate("container_id", "", "", ""); err != nil {
+	if _, err := Allocate("container_id", "", "", "", "container_name"); err != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
@@ -63,7 +63,7 @@ func TestHostnameFormatChecking(t *testing.T) {
 	}
 
 	// Allocate interface
-	if _, err := Allocate("container_id", "", "", ""); err != nil {
+	if _, err := Allocate("container_id", "", "", "", "container_name"); err != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
@@ -81,7 +81,7 @@ func newInterfaceAllocation(t *testing.T, globalIPv6 *net.IPNet, requestedMac, r
 		globalIPv6Network = globalIPv6
 	}
 
-	networkSettings, err := Allocate("container_id", requestedMac, requestedIP, requestedIPv6)
+	networkSettings, err := Allocate("container_id", requestedMac, requestedIP, requestedIPv6, "container_name")
 	if err == nil && expectFail {
 		t.Fatal("Doesn't fail to allocate network interface")
 	} else if err != nil && !expectFail {
@@ -172,7 +172,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	// Allocate interface
-	if _, err := Allocate("container_id", "", "", ""); err != nil {
+	if _, err := Allocate("container_id", "", "", "", "container_name"); err != nil {
 		t.Fatal("Failed to allocate network interface")
 	}
 
