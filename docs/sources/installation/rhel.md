@@ -46,7 +46,7 @@ Please continue with the [Starting the Docker daemon](#starting-the-docker-daemo
 You will need **64 bit** [RHEL
 6.6](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
 a RHEL 6 kernel version 2.6.32-504.16.2 or higher as this has specific kernel
-fixes to allow Docker to work.
+fixes to allow Docker to work. Related issues: [#9856](https://github.com/docker/docker/issues/9856).
 
 Docker is available for **RHEL6.6** on EPEL. Please note that
 this package is part of [Extra Packages for Enterprise Linux
