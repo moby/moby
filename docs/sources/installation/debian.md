@@ -28,9 +28,10 @@ To install the latest Debian package (may not be the latest Docker release):
 
 To verify that everything has worked as expected:
 
-    $ sudo docker run -i -t ubuntu /bin/bash
+    $ sudo docker run --rm hello-world
 
-Which should download the `ubuntu` image, and then start `bash` in a container.
+This command downloads and runs the `hello-world` image in a container. When the
+container runs, it prints an informational message. Then, it exits.
 
 > **Note**:
 > If you want to enable memory and swap accounting see
