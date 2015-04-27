@@ -1202,3 +1202,22 @@ func (s *DockerSuite) TestContainersApiChunkedEncoding(c *check.C) {
 		c.Fatalf("got incorrect bind spec, wanted %s, got: %s", expected, binds[0])
 	}
 }
+
+func (s *DockerSuite) TestPostContainerStop(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+	c.Assert(waitRun(containerID), check.IsNil)
+
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/stop", nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5); err != nil {
+		c.Fatal(err)
+	}
+}

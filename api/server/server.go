@@ -1040,10 +1040,7 @@ func (s *Server) postContainersStop(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
-	seconds, err := strconv.Atoi(r.Form.Get("t"))
-	if err != nil {
-		return err
-	}
+	seconds, _ := strconv.Atoi(r.Form.Get("t"))
 
 	if err := s.daemon.ContainerStop(vars["name"], seconds); err != nil {
 		if err.Error() == "Container already stopped" {
