@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 	"io"
-	"net/url"
 	"os"
 
 	flag "github.com/docker/docker/pkg/mflag"
@@ -34,19 +33,9 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 
-	if len(cmd.Args()) == 1 {
-		image := cmd.Arg(0)
-		if err := cli.stream("GET", "/containers/"+image+"/export", nil, output, nil); err != nil {
-			return err
-		}
-	} else {
-		v := url.Values{}
-		for _, arg := range cmd.Args() {
-			v.Add("names", arg)
-		}
-		if err := cli.stream("GET", "/containers/get?"+v.Encode(), nil, output, nil); err != nil {
-			return err
-		}
+	image := cmd.Arg(0)
+	if err := cli.stream("GET", "/containers/"+image+"/export", nil, output, nil); err != nil {
+		return err
 	}
 
 	return nil
