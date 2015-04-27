@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-check/check"
@@ -65,9 +66,29 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
-	for i := 0; i < 30; i++ {
-		dockerCmd(c, "run", "busybox", "echo", strconv.Itoa(i))
+
+	var waitGroup sync.WaitGroup
+	errChan := make(chan error, 17)
+
+	args := []string{"run", "--rm", "busybox", "true"}
+	for i := 0; i < 17; i++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			err := exec.Command(dockerBinary, args...).Run()
+			errChan <- err
+		}()
 	}
+
+	waitGroup.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			c.Fatalf("%q failed with error: %v", strings.Join(args, " "), err)
+		}
+	}
+
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
