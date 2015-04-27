@@ -859,3 +859,110 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 		c.Fatalf("Failed to rename container, expected %v, got %v. Container rename API failed", newName, name)
 	}
 }
+
+func (s *DockerSuite) TestPostContainerKill(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--name", "first_name", "-d", "busybox", "sh")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/kill", nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	state, err := inspectField(containerID, "State.Running")
+	if state != "false" {
+		c.Fatalf("Failed to kill container, expected running false, got %v. Container kill API failed", state)
+	}
+}
+
+func (s *DockerSuite) TestPostContainerRestart(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+	state, err := inspectField(containerID, "State.Running")
+	c.Assert(err, check.IsNil)
+	if state != "true" {
+		c.Fatalf("Failed to start container, expexting running containers to issue restart")
+	}
+
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/restart?t=1", nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	state, err = inspectField(containerID, "State.Running")
+	if state != "true" {
+		c.Fatalf("Failed to restart container, expected running true, got %v. Container restart API failed", state)
+	}
+}
+
+func (s *DockerSuite) TestPostContainerStart(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "create", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/start", nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	state, err := inspectField(containerID, "State.Running")
+	if state != "true" {
+		c.Fatalf("Failed to start container, expected running true, got %v. Container start API failed", state)
+	}
+}
+
+func (s *DockerSuite) TestPostContainerStop(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/stop?t=1", nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	state, err := inspectField(containerID, "State.Running")
+	if state != "false" {
+		c.Fatalf("Failed to stop container, expected running false, got %v. Container stop API failed", state)
+	}
+}
+
+func (s *DockerSuite) TestPostContainerWait(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/wait", nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
+
+	var state string
+	for i := 0; i < 3; i++ {
+		state, err = inspectField(containerID, "State.Running")
+		if state == "false" {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if state != "false" {
+		c.Fatalf("Failed to stop container, expected running false, got %v. Container stop API failed", state)
+	}
+}
