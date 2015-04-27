@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/jsonlog"
@@ -28,9 +27,10 @@ func New(filename string) (logger.Logger, error) {
 		return nil, err
 	}
 	return &JSONFileLogger{
-		f:         log,
-		buf:       bytes.NewBuffer(nil),
-		Publisher: pubsub.NewPublisher(100*time.Millisecond, 1024),
+		f:   log,
+		buf: bytes.NewBuffer(nil),
+		// don't use timeout, because time.After is superheavy
+		Publisher: pubsub.NewPublisher(0, 1024*1024),
 	}, nil
 }
 
