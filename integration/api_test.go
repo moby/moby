@@ -434,7 +434,7 @@ func TestGetEnabledCors(t *testing.T) {
 		t.Errorf("Expected header Access-Control-Allow-Headers to be \"Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth\", %s found.", allowHeaders)
 	}
 	if allowMethods != "GET, POST, DELETE, PUT, OPTIONS" {
-		t.Errorf("Expected hearder Access-Control-Allow-Methods to be \"GET, POST, DELETE, PUT, OPTIONS\", %s found.", allowMethods)
+		t.Errorf("Expected header Access-Control-Allow-Methods to be \"GET, POST, DELETE, PUT, OPTIONS\", %s found.", allowMethods)
 	}
 }
 
@@ -648,7 +648,7 @@ func TestConstainersStartChunkedEncodingHostConfig(t *testing.T) {
 	}
 
 	if c.HostConfig.Binds[0] != "/tmp:/foo" {
-		t.Fatal("Chunked encoding not properly handled, execpted binds to be /tmp:/foo, got:", c.HostConfig.Binds[0])
+		t.Fatal("Chunked encoding not properly handled, expected binds to be /tmp:/foo, got:", c.HostConfig.Binds[0])
 	}
 }
 

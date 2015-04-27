@@ -104,7 +104,7 @@ func TestParseRunVolumes(t *testing.T) {
 	if config, hostConfig := mustParse(t, "-v /tmp -v /var"); hostConfig.Binds != nil {
 		t.Fatalf("Error parsing volume flags, `-v /tmp -v /var` should not mount-bind anything. Received %v", hostConfig.Binds)
 	} else if _, exists := config.Volumes["/tmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Recevied %v", config.Volumes)
+		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Received %v", config.Volumes)
 	} else if _, exists := config.Volumes["/var"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /var` is missing from volumes. Received %v", config.Volumes)
 	}

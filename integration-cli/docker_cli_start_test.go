@@ -205,7 +205,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 		c.Fatal("Container should be stopped")
 	}
 
-	// start all the three containers, container `child_first` start first which should be faild
+	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
 	cmd = exec.Command(dockerBinary, "start", "child_first", "parent", "child_second")
 	out, _, err = runCommandWithOutput(cmd)

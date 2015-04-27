@@ -601,7 +601,7 @@ func TestRegisterBadTwice(t *testing.T) {
 		Mask: []byte{255, 255, 255, 248},
 	}
 	if err := a.RegisterSubnet(network, subnet); err != ErrNetworkAlreadyRegistered {
-		t.Fatalf("Expecteded ErrNetworkAlreadyRegistered error, got %v", err)
+		t.Fatalf("Expected ErrNetworkAlreadyRegistered error, got %v", err)
 	}
 }
 

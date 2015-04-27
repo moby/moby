@@ -41,7 +41,7 @@ func waitContainerStart(t *testing.T, timeout time.Duration) *daemon.Container {
 	})
 
 	if container == nil {
-		t.Fatal("An error occured while waiting for the container to start")
+		t.Fatal("An error occurred while waiting for the container to start")
 	}
 
 	return container

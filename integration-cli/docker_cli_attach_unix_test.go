@@ -172,7 +172,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 		c.Fatal(err)
 	}
 	if strings.TrimSpace(out) != "hello" {
-		c.Fatalf("exepected 'hello', got %q", out)
+		c.Fatalf("expected 'hello', got %q", out)
 	}
 
 	// escape sequence
@@ -195,7 +195,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 		c.Fatal(err)
 	}
 	if running != "true" {
-		c.Fatal("exepected container to still be running")
+		c.Fatal("expected container to still be running")
 	}
 
 	go func() {
@@ -243,7 +243,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 		c.Fatal(err)
 	}
 	if strings.TrimSpace(out) != "hello" {
-		c.Fatalf("exepected 'hello', got %q", out)
+		c.Fatalf("expected 'hello', got %q", out)
 	}
 
 	// escape sequence
@@ -266,7 +266,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 		c.Fatal(err)
 	}
 	if running != "true" {
-		c.Fatal("exepected container to still be running")
+		c.Fatal("expected container to still be running")
 	}
 
 	go func() {

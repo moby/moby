@@ -3408,7 +3408,7 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
 
 	out, rc, err := runCommandWithOutput(exec.Command(dockerBinary, "inspect", name))
 	if rc != 0 || err != nil {
-		c.Fatalf("Unexcepted error from inspect: rc: %v  err: %v", rc, err)
+		c.Fatalf("Unexpected error from inspect: rc: %v  err: %v", rc, err)
 	}
 
 	if !strings.Contains(out, "\"123\"") {
@@ -5033,7 +5033,7 @@ RUN echo "  \
 
 	expecting := "\n    foo  \n"
 	if !strings.Contains(out, expecting) {
-		c.Fatalf("Bad output: %q expecting to contian %q", out, expecting)
+		c.Fatalf("Bad output: %q expecting to contain %q", out, expecting)
 	}
 
 }

@@ -643,7 +643,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	// sanity check, make sure the image is what we think it is
 	out, err = exec.Command(dockerBinary, "run", img.Id, "ls", "/test").CombinedOutput()
 	if err != nil {
-		c.Fatalf("error checking commited image: %v - %q", err, string(out))
+		c.Fatalf("error checking committed image: %v - %q", err, string(out))
 	}
 }
 

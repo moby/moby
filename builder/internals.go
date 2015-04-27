@@ -483,7 +483,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 		fmt.Fprintf(b.ErrStream, "# Executing %d build triggers\n", nTriggers)
 	}
 
-	// Copy the ONBUILD triggers, and remove them from the config, since the config will be commited.
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
 	onBuildTriggers := b.Config.OnBuild
 	b.Config.OnBuild = []string{}
 

@@ -860,7 +860,7 @@ func (s *DockerSuite) TestDaemonwithwrongkey(c *check.C) {
 
 	if err := d1.Start(); err == nil {
 		d1.Stop()
-		c.Fatalf("It should not be succssful to start daemon with wrong key: %v", err)
+		c.Fatalf("It should not be successful to start daemon with wrong key: %v", err)
 	}
 
 	content, _ := ioutil.ReadFile(d1.logFile.Name())

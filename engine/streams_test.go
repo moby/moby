@@ -182,7 +182,7 @@ func TestInputAddEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(data) > 0 {
-		t.Fatalf("Read from empty input shoul yield no data")
+		t.Fatalf("Read from empty input should yield no data")
 	}
 }
 
