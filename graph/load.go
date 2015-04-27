@@ -58,22 +58,26 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 		}
 	}
 
-	repositoriesJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", "repositories"))
-	if err == nil {
-		repositories := map[string]Repository{}
-		if err := json.Unmarshal(repositoriesJson, &repositories); err != nil {
+	reposJSONFile, err := os.Open(path.Join(tmpImageDir, "repo", "repositories"))
+	if err != nil {
+		if !os.IsNotExist(err) {
 			return err
 		}
+		return nil
+	}
+	defer reposJSONFile.Close()
 
-		for imageName, tagMap := range repositories {
-			for tag, address := range tagMap {
-				if err := s.SetLoad(imageName, tag, address, true, outStream); err != nil {
-					return err
-				}
+	repositories := map[string]Repository{}
+	if err := json.NewDecoder(reposJSONFile).Decode(&repositories); err != nil {
+		return err
+	}
+
+	for imageName, tagMap := range repositories {
+		for tag, address := range tagMap {
+			if err := s.SetLoad(imageName, tag, address, true, outStream); err != nil {
+				return err
 			}
 		}
-	} else if !os.IsNotExist(err) {
-		return err
 	}
 
 	return nil

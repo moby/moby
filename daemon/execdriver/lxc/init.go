@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -107,12 +106,13 @@ func getArgs() *InitArgs {
 func setupEnv(args *InitArgs) error {
 	// Get env
 	var env []string
-	content, err := ioutil.ReadFile(".dockerenv")
+	dockerenv, err := os.Open(".dockerenv")
 	if err != nil {
 		return fmt.Errorf("Unable to load environment variables: %v", err)
 	}
-	if err := json.Unmarshal(content, &env); err != nil {
-		return fmt.Errorf("Unable to unmarshal environment variables: %v", err)
+	defer dockerenv.Close()
+	if err := json.NewDecoder(dockerenv).Decode(&env); err != nil {
+		return fmt.Errorf("Unable to decode environment variables: %v", err)
 	}
 	// Propagate the plugin-specific container env variable
 	env = append(env, "container="+os.Getenv("container"))

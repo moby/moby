@@ -233,7 +233,7 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 // parseJSON converts JSON arrays to an AST.
 func parseJSON(rest string) (*Node, map[string]bool, error) {
 	var myJson []interface{}
-	if err := json.Unmarshal([]byte(rest), &myJson); err != nil {
+	if err := json.NewDecoder(strings.NewReader(rest)).Decode(&myJson); err != nil {
 		return nil, nil, err
 	}
 

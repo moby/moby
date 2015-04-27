@@ -58,8 +58,7 @@ func FromParam(p string) (Args, error) {
 	if len(p) == 0 {
 		return args, nil
 	}
-	err := json.Unmarshal([]byte(p), &args)
-	if err != nil {
+	if err := json.NewDecoder(strings.NewReader(p)).Decode(&args); err != nil {
 		return nil, err
 	}
 	return args, nil
