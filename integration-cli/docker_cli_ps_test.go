@@ -255,7 +255,6 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
-
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
 	runCommandWithOutput(cmd)
 	cmd = exec.Command(dockerBinary, "ps", "-s", "-n=1")

@@ -756,17 +756,22 @@ func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
 	group := sync.WaitGroup{}
 	group.Add(2)
 
+	errChan := make(chan error, 2)
 	for i := 0; i < 2; i++ {
 		go func() {
 			defer group.Done()
 			cmd := exec.Command(dockerBinary, "run", "busybox", "sleep", "2")
-			if _, err := runCommand(cmd); err != nil {
-				c.Fatal(err)
-			}
+			_, err := runCommand(cmd)
+			errChan <- err
 		}()
 	}
 
 	group.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, check.IsNil)
+	}
 }
 
 func (s *DockerSuite) TestRunEnvironment(c *check.C) {
@@ -1851,22 +1856,20 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 	if err := stdin.Close(); err != nil {
 		c.Fatal(err)
 	}
-	finish := make(chan struct{})
+	finish := make(chan error)
 	go func() {
-		if err := runCmd.Wait(); err != nil {
-			c.Fatal(err)
-		}
+		finish <- runCmd.Wait()
 		close(finish)
 	}()
 	select {
-	case <-finish:
+	case err := <-finish:
+		c.Assert(err, check.IsNil)
 	case <-time.After(1 * time.Second):
 		c.Fatal("docker run failed to exit on stdin close")
 	}
 	state, err := inspectField(name, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	if state != "false" {
 		c.Fatal("Container must be stopped after stdin closing")
 	}
@@ -2762,25 +2765,29 @@ func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTtyWithPipe(c *check.C) {
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		defer close(done)
+		defer close(errChan)
 
 		cmd := exec.Command(dockerBinary, "run", "-ti", "busybox", "true")
 		if _, err := cmd.StdinPipe(); err != nil {
-			c.Fatal(err)
+			errChan <- err
+			return
 		}
 
 		expected := "cannot enable tty mode"
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			c.Fatal("run should have failed")
+			errChan <- fmt.Errorf("run should have failed")
+			return
 		} else if !strings.Contains(out, expected) {
-			c.Fatalf("run failed with error %q: expected %q", out, expected)
+			errChan <- fmt.Errorf("run failed with error %q: expected %q", out, expected)
+			return
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(3 * time.Second):
 		c.Fatal("container is running but should have failed")
 	}
@@ -2875,19 +2882,19 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		defer close(done)
-
+		defer close(errChan)
 		runCmd := exec.Command(dockerBinary, "run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
 		out, exitCode, _ := runCommandWithOutput(runCmd)
 		if expected := 137; exitCode != expected {
-			c.Fatalf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
+			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(30 * time.Second):
 		c.Fatal("Timeout waiting for container to die on OOM")
 	}
@@ -3030,9 +3037,7 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 	}()
 	select {
 	case err := <-errchan:
-		if err != nil {
-			c.Fatal(err)
-		}
+		c.Assert(err, check.IsNil)
 	case <-time.After(5 * time.Second):
 		c.Fatal("Kill container timed out")
 	}
