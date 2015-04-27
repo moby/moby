@@ -1515,6 +1515,9 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 		if err != nil {
 			return nil, err
 		}
+		if container == nc {
+			return nil, fmt.Errorf("cannot join own network")
+		}
 		if !nc.IsRunning() {
 			return nil, fmt.Errorf("cannot join network of a non running container: %s", parts[1])
 		}
