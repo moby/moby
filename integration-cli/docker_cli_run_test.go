@@ -2657,6 +2657,14 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerNetworkModeToSelf(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--name=me", "--net=container:me", "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "cannot join own network") {
+		c.Fatalf("using container net mode to self should result in an error")
+	}
+}
+
 func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 	testRequires(c, NativeExecDriver, SameHostDaemon)
 
