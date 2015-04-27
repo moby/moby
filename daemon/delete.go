@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -141,9 +142,11 @@ func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err erro
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
 	}
 
-	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Remove(initID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+	if runtime.GOOS != "windows" {
+		initID := fmt.Sprintf("%s-init", container.ID)
+		if err := daemon.driver.Remove(initID); err != nil {
+			return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+		}
 	}
 
 	if err = os.RemoveAll(container.root); err != nil {
