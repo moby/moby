@@ -1,13 +1,14 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -65,12 +66,12 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 
-		env := engine.Env{}
-		if err := env.Decode(stream); err != nil {
+		var c types.ContainerJSON
+		if err := json.NewDecoder(stream).Decode(&c); err != nil {
 			return err
 		}
-		config := env.GetSubEnv("Config")
-		tty = config.GetBool("Tty")
+
+		tty = c.Config.Tty
 
 		if !tty {
 			sigc := cli.forwardAllSignals(cmd.Arg(0))
@@ -82,7 +83,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v := url.Values{}
 		v.Set("stream", "1")
 
-		if *openStdin && config.GetBool("OpenStdin") {
+		if *openStdin && c.Config.OpenStdin {
 			v.Set("stdin", "1")
 			in = cli.in
 		}
