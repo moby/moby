@@ -7,7 +7,7 @@ page_keywords: Docker, Docker documentation, requirements, linux, rhel
 Docker is supported on the following versions of RHEL:
 
 - [*Red Hat Enterprise Linux 7 (64-bit)*](#red-hat-enterprise-linux-7-installation)
-- [*Red Hat Enterprise Linux 6.5 (64-bit)*](#red-hat-enterprise-linux-6.5-installation) or later
+- [*Red Hat Enterprise Linux 6.6 (64-bit)*](#red-hat-enterprise-linux-66-installation) or later
 
 ## Kernel support
 
@@ -41,14 +41,14 @@ Portal](https://access.redhat.com/).
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-## Red Hat Enterprise Linux 6.5 installation
+## Red Hat Enterprise Linux 6.6 installation
 
 You will need **64 bit** [RHEL
-6.5](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
+6.6](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
 a RHEL 6 kernel version 2.6.32-431 or higher as this has specific kernel
 fixes to allow Docker to work.
 
-Docker is available for **RHEL6.5** on EPEL. Please note that
+Docker is available for **RHEL6.6** on EPEL. Please note that
 this package is part of [Extra Packages for Enterprise Linux
 (EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
 create and maintain additional packages for the RHEL distribution.
