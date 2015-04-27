@@ -1,0 +1,60 @@
+diff --git a/Dockerfile b/Dockerfile
+index b54fda5..1d6d755 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -23,34 +23,35 @@
+ # the case. Therefore, you don't have to disable it anymore.
+ #
+ 
+-FROM ubuntu:14.04
++FROM fedora
+ MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
+ 
+ # Packaged dependencies
+-RUN apt-get update && apt-get install -y \
+-	apparmor \
+-	aufs-tools \
++RUN yum -y update && yum install -y \
+ 	automake \
+ 	bash-completion \
++	btrfs-progs-devel \
+ 	btrfs-tools \
+ 	build-essential \
+ 	curl \
+ 	dpkg-sig \
++	gcc \
+ 	git \
++	glibc-static \
+ 	iptables \
+-	libapparmor-dev \
+-	libcap-dev \
+-	libsqlite3-dev \
++	libcap-devel \
++	libsqlite3x-devel \
++        make \
+ 	mercurial \
+ 	parallel \
+ 	python-mock \
+ 	python-pip \
+-	python-websocket \
++	python-websocket-client \
+ 	reprepro \
+-	ruby1.9.1 \
+-	ruby1.9.1-dev \
++	ruby \
++	ruby-dev \
+ 	s3cmd=1.1.0* \
+-	--no-install-recommends
++	tar
+ 
+ # Get lvm2 source for compiling statically
+ RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
+@@ -138,7 +139,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
+ 
+ VOLUME /var/lib/docker
+ WORKDIR /go/src/github.com/docker/docker
+-ENV DOCKER_BUILDTAGS apparmor selinux
++ENV DOCKER_BUILDTAGS selinux
+ 
+ # Let us use a .bashrc file
+ RUN ln -sfv $PWD/.bashrc ~/.bashrc
