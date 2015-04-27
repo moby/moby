@@ -277,8 +277,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	err := parseForm(r)
-	if err != nil {
+	if err := parseForm(r); err != nil {
 		return err
 	}
 
@@ -289,7 +288,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 	if sigStr := vars["signal"]; sigStr != "" {
 		// Check if we passed the signal as a number:
 		// The largest legal signal is 31, so let's parse on 5 bits
-		sig, err = strconv.ParseUint(sigStr, 10, 5)
+		sig, err := strconv.ParseUint(sigStr, 10, 5)
 		if err != nil {
 			// The signal is not a number, treat it as a string (either like
 			// "KILL" or like "SIGKILL")
@@ -301,7 +300,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 		}
 	}
 
-	if err = s.daemon.ContainerKill(name, sig); err != nil {
+	if err := s.daemon.ContainerKill(name, sig); err != nil {
 		return err
 	}
 

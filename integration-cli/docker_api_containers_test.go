@@ -176,7 +176,7 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	name := "testing"
+	name := "TestContainerApiStartDupVolumeBinds"
 	config := map[string]interface{}{
 		"Image":   "busybox",
 		"Volumes": map[string]struct{}{volPath: {}},
@@ -620,7 +620,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 		c.Fatal(err, out)
 	}
 
-	name := "testcommit" + stringid.GenerateRandomID()
+	name := "TestContainerApiCommit"
 	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+cName, nil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
@@ -842,12 +842,12 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--name", "first_name", "-d", "busybox", "sh")
+	runCmd := exec.Command(dockerBinary, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
 	out, _, err := runCommandWithOutput(runCmd)
 	c.Assert(err, check.IsNil)
 
 	containerID := strings.TrimSpace(out)
-	newName := "new_name" + stringid.GenerateRandomID()
+	newName := "TestContainerApiRenameNew"
 	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/rename?name="+newName, nil)
 
 	// 204 No Content is expected, not 200

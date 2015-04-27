@@ -1181,8 +1181,7 @@ func tempDir(rootDir string) (string, error) {
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
 	}
-	err := os.MkdirAll(tmpDir, 0700)
-	return tmpDir, err
+	return tmpDir, os.MkdirAll(tmpDir, 0700)
 }
 
 func checkKernel() error {

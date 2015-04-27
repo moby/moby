@@ -149,8 +149,7 @@ func (container *Container) toDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(pth, data, 0666)
-	if err != nil {
+	if err := ioutil.WriteFile(pth, data, 0666); err != nil {
 		return err
 	}
 

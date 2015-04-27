@@ -173,7 +173,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			includes = append(includes, ".dockerignore", *dockerfileName)
 		}
 
-		if err = utils.ValidateContextDirectory(root, excludes); err != nil {
+		if err := utils.ValidateContextDirectory(root, excludes); err != nil {
 			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
 		}
 		options := &archive.TarOptions{

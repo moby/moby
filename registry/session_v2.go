@@ -387,10 +387,8 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s", res.StatusCode, imageName), res)
 	}
 
-	decoder := json.NewDecoder(res.Body)
 	var remote remoteTags
-	err = decoder.Decode(&remote)
-	if err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&remote); err != nil {
 		return nil, fmt.Errorf("Error while decoding the http response: %s", err)
 	}
 	return remote.Tags, nil

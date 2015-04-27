@@ -92,8 +92,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	containers := []types.Container{}
-	err = json.NewDecoder(rdr).Decode(&containers)
-	if err != nil {
+	if err := json.NewDecoder(rdr).Decode(&containers); err != nil {
 		return err
 	}
 

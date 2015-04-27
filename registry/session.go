@@ -597,8 +597,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
 	result := new(SearchResults)
-	err = json.NewDecoder(res.Body).Decode(result)
-	return result, err
+	return result, json.NewDecoder(res.Body).Decode(result)
 }
 
 func (r *Session) GetAuthConfig(withPasswd bool) *cliconfig.AuthConfig {
