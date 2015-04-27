@@ -16,6 +16,11 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		return "", warnings, err
 	}
 
+	//validate volume path before creating container
+	if err := validateVolumePath(config, hostConfig); err != nil {
+		return "", warnings, err
+	}
+
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
 	if err != nil {
 		if daemon.Graph().IsNotExist(err, config.Image) {

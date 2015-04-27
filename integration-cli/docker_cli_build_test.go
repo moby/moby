@@ -298,7 +298,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 	_, err := buildImage(name,
 		`
   FROM scratch
-  ENV FOO bar
+  ENV FOO /bar
   VOLUME ${FOO}
   `, true)
 
@@ -317,7 +317,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, ok := result["bar"]; !ok {
+	if _, ok := result["/bar"]; !ok {
 		c.Fatal("Could not find volume bar set from env foo in volumes table")
 	}
 
@@ -327,7 +327,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		`
   FROM scratch
   ENV FOO bar
-  VOLUME \${FOO}
+  VOLUME /\${FOO}
   `, true)
 
 	if err != nil {
@@ -343,7 +343,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, ok := result["${FOO}"]; !ok {
+	if _, ok := result["/${FOO}"]; !ok {
 		c.Fatal("Could not find volume ${FOO} set from env foo in volumes table")
 	}
 
@@ -357,7 +357,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		`
   FROM scratch
   ENV FOO bar
-  VOLUME \\\\\\\${FOO}
+  VOLUME /\\\\\\\${FOO}
   `, true)
 
 	if err != nil {
@@ -373,8 +373,8 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, ok := result[`\\\${FOO}`]; !ok {
-		c.Fatal(`Could not find volume \\\${FOO} set from env foo in volumes table`, result)
+	if _, ok := result[`/\\\${FOO}`]; !ok {
+		c.Fatal(`Could not find volume /\\\${FOO} set from env foo in volumes table`, result)
 	}
 
 }
@@ -2030,14 +2030,12 @@ func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
 		name     = "testbuildvolumes"
 		emptyMap = make(map[string]struct{})
 		expected = map[string]map[string]struct{}{
-			"/test1":  emptyMap,
-			"/test2":  emptyMap,
-			"/test3":  emptyMap,
-			"/test4":  emptyMap,
-			"/test5":  emptyMap,
-			"/test6":  emptyMap,
-			"[/test7": emptyMap,
-			"/test8]": emptyMap,
+			"/test1": emptyMap,
+			"/test2": emptyMap,
+			"/test3": emptyMap,
+			"/test4": emptyMap,
+			"/test5": emptyMap,
+			"/test6": emptyMap,
 		}
 	)
 	_, err := buildImage(name,
@@ -2046,7 +2044,6 @@ func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
 		VOLUME /test2
     VOLUME /test3 /test4
     VOLUME ["/test5", "/test6"]
-    VOLUME [/test7 /test8]
     `,
 		true)
 	if err != nil {
