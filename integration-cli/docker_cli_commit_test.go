@@ -262,7 +262,7 @@ func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 
 	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
 	if strings.TrimSpace(out) != "testing" {
-		c.Fatal("run config in commited container was not merged")
+		c.Fatal("run config in committed container was not merged")
 	}
 
 	type cfg struct {

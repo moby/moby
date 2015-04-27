@@ -213,7 +213,7 @@ func BenchmarkRunParallel(b *testing.B) {
 				return
 			}
 			// if string(output) != "foo" {
-			// 	complete <- fmt.Errorf("Unexecpted output: %v", string(output))
+			// 	complete <- fmt.Errorf("Unexpected output: %v", string(output))
 			// }
 			if err := daemon.Rm(container); err != nil {
 				complete <- err

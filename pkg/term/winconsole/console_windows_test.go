@@ -18,7 +18,7 @@ func helpsTestParseInt16OrDefault(t *testing.T, expectedValue int16, shouldFail 
 		t.Errorf(format, args)
 	}
 	if expectedValue != value {
-		t.Errorf("The value returned does not macth expected\n\tExpected:%v\n\t:Actual%v", expectedValue, value)
+		t.Errorf("The value returned does not match expected\n\tExpected:%v\n\t:Actual%v", expectedValue, value)
 		t.Errorf(format, args)
 	}
 }

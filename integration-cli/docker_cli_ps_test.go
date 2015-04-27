@@ -547,7 +547,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	}
 	ids = strings.Split(strings.TrimSpace(out), "\n")
 	if len(ids) != 2 {
-		c.Fatalf("Should be 2 zero exited containerst got %d", len(ids))
+		c.Fatalf("Should be 2 zero exited containers got %d", len(ids))
 	}
 	if ids[0] != secondNonZero {
 		c.Fatalf("First in list should be %q, got %q", secondNonZero, ids[0])

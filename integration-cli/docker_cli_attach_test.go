@@ -161,7 +161,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 		c.Fatal(err)
 	}
 	if strings.TrimSpace(out) != "hello" {
-		c.Fatalf("exepected 'hello', got %q", out)
+		c.Fatalf("expected 'hello', got %q", out)
 	}
 
 	if err := stdin.Close(); err != nil {
@@ -174,7 +174,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 		c.Fatal(err)
 	}
 	if running != "true" {
-		c.Fatal("exepected container to still be running")
+		c.Fatal("expected container to still be running")
 	}
 
 }

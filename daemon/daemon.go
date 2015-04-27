@@ -823,7 +823,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 	// Load storage driver
 	driver, err := graphdriver.New(config.Root, config.GraphOptions)
 	if err != nil {
-		return nil, fmt.Errorf("error intializing graphdriver: %v", err)
+		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
 	logrus.Debugf("Using graph driver %s", driver)
 	// register cleanup for graph driver

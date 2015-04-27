@@ -329,7 +329,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", cID)
 	ip, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
-		c.Fatalf("faild to inspect container: %v, output: %q", err, ip)
+		c.Fatalf("failed to inspect container: %v, output: %q", err, ip)
 	}
 	ip = strings.TrimSpace(ip)
 	cmd = exec.Command(dockerBinary, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
@@ -2067,7 +2067,7 @@ func (s *DockerSuite) TestRunCidFileCleanupIfEmpty(c *check.C) {
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
 	} else if !strings.Contains(out, "No command specified") {
-		c.Fatalf("Run without command failed with wrong outpuc. out=%s\nerr=%v", out, err)
+		c.Fatalf("Run without command failed with wrong output. out=%s\nerr=%v", out, err)
 	}
 
 	if _, err := os.Stat(tmpCidFile); err == nil {
