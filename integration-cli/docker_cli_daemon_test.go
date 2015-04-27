@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -445,6 +446,46 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 		//if we didn't get an error and the daemon is running, this is a failure
 		c.Fatal("Conflicting options should cause the daemon to error out with a failure")
 	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
+	d := s.d
+	err := d.Start("--bridge", "nosuchbridge")
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("--bridge option with an invalid bridge should cause the daemon to fail"))
+
+	bridgeName := "external-bridge"
+	bridgeIp := "192.169.1.1/24"
+	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIp)
+
+	args := []string{"link", "add", "name", bridgeName, "type", "bridge"}
+	ipLinkCmd := exec.Command("ip", args...)
+	_, _, _, err = runCommandWithStdoutStderr(ipLinkCmd)
+	c.Assert(err, check.IsNil)
+
+	ifCfgCmd := exec.Command("ifconfig", bridgeName, bridgeIp, "up")
+	_, _, _, err = runCommandWithStdoutStderr(ifCfgCmd)
+	c.Assert(err, check.IsNil)
+
+	err = d.StartWithBusybox("--bridge", bridgeName)
+	c.Assert(err, check.IsNil)
+
+	ipTablesSearchString := bridgeIPNet.String()
+	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, check.IsNil)
+
+	c.Assert(strings.Contains(out, ipTablesSearchString), check.Equals, true,
+		check.Commentf("iptables output should have contained %q, but was %q",
+			ipTablesSearchString, out))
+
+	_, err = d.Cmd("run", "-d", "--name", "ExtContainer", "busybox", "top")
+	c.Assert(err, check.IsNil)
+
+	containerIp := d.findContainerIP(c, "ExtContainer")
+	ip := net.ParseIP(containerIp)
+	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
+		check.Commentf("Container IP-Address must be in the same subnet range : %s",
+			containerIp))
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
