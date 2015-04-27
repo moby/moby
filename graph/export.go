@@ -83,8 +83,15 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 	}
 	// write repositories, if there is something to write
 	if len(rootRepoMap) > 0 {
-		rootRepoJson, _ := json.Marshal(rootRepoMap)
-		if err := ioutil.WriteFile(path.Join(tempdir, "repositories"), rootRepoJson, os.FileMode(0644)); err != nil {
+		f, err := os.OpenFile(path.Join(tempdir, "repositories"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			f.Close()
+			return err
+		}
+		if err := json.NewEncoder(f).Encode(rootRepoMap); err != nil {
+			return err
+		}
+		if err := f.Close(); err != nil {
 			return err
 		}
 	} else {
