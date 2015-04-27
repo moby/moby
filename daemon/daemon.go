@@ -225,7 +225,6 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	if container.IsRunning() {
 		logrus.Debugf("killing old running container %s", container.ID)
 
-		existingPid := container.Pid
 		container.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 
 		// We only have to handle this for lxc because the other drivers will ensure that
@@ -236,11 +235,6 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 			// use the current driver and ensure that the container is dead x.x
 			cmd := &execdriver.Command{
 				ID: container.ID,
-			}
-			var err error
-			cmd.ProcessConfig.Process, err = os.FindProcess(existingPid)
-			if err != nil {
-				logrus.Debugf("cannot find existing process for %d", existingPid)
 			}
 			daemon.execDriver.Terminate(cmd)
 		}
