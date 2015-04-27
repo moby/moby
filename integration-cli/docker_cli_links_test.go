@@ -310,3 +310,24 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 		c.Fatalf("For 'onetwo' alias expected IP: %s, got: %s", realIP, ip)
 	}
 }
+
+func (s *DockerSuite) TestLinksEnvs(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("Run of first failed: %s\n%s", out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--name=second", "--link=first:first", "busybox", "env")
+
+	out, stde, rc, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil || rc != 0 {
+		c.Fatalf("run of 2nd failed: rc: %d, out: %s\n err: %s", rc, out, stde)
+	}
+
+	if !strings.Contains(out, "FIRST_ENV_e1=\n") ||
+		!strings.Contains(out, "FIRST_ENV_e2=v2") ||
+		!strings.Contains(out, "FIRST_ENV_e3=v3=v3") {
+		c.Fatalf("Incorrect output: %s", out)
+	}
+}
