@@ -1004,6 +1004,12 @@ func (daemon *Daemon) shutdown() error {
 
 			go func() {
 				defer group.Done()
+				if c.IsPaused() {
+					logrus.Debugf("container '%s' is paused, unpause it first", c.ID)
+					if err := c.Unpause(); err != nil {
+						logrus.Debugf("unpause container '%s' with error %s", c.ID, err.Error())
+					}
+				}
 				if err := c.KillSig(15); err != nil {
 					logrus.Debugf("kill 15 error for %s - %s", c.ID, err)
 				}
