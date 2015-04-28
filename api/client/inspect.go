@@ -34,7 +34,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	indented := new(bytes.Buffer)
-	indented.WriteByte('[')
+	indented.WriteString("[\n")
 	status := 0
 	isImage := false
 
