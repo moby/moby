@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
 	imagepkg "github.com/docker/docker/image"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/httputils"
@@ -223,21 +224,15 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		return err
 	}
 	b.TmpContainers[container.ID] = struct{}{}
-
-	if err := container.Mount(); err != nil {
-		return err
-	}
-	defer container.Unmount()
+	logrus.Debugf("[BUILDER] Created container")
 
 	for _, ci := range copyInfos {
-		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {
+		logrus.Debugf("[BUILDER] Adding Context")
+		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress, cmdName, origPaths); err != nil {
 			return err
 		}
 	}
 
-	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -674,30 +669,20 @@ func (b *Builder) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *Builder) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func (b *Builder) addContext(container *daemon.Container, orig, dest string, decompress bool, cmdName string, origPaths string) error {
 	var (
 		err        error
-		destExists = true
 		origPath   = filepath.Join(b.contextPath, orig)
-		destPath   string
+		layer      io.Reader
+		image      *image.Image
+		tf         *os.File
 	)
 
-	destPath, err = container.GetResourcePath(dest)
-	if err != nil {
-		return err
-	}
+	commitComment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
 
-	// Preserve the trailing '/'
-	if strings.HasSuffix(dest, "/") || dest == "." {
-		destPath = destPath + "/"
-	}
-
-	destStat, err := os.Stat(destPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		destExists = false
+	/* Because this method does its own commit-like semantics by registering in the graph */
+	if b.disableCommit {
+		return nil
 	}
 
 	fi, err := os.Stat(origPath)
@@ -708,49 +693,45 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		return err
 	}
 
+	logrus.Debugf("[BUILDER] Opening layer")
+
 	if fi.IsDir() {
-		return copyAsDirectory(origPath, destPath, destExists)
-	}
+		logrus.Debugf("[BUILDER] is dir")
+		layer, err = archive.Tar(origPath, archive.Uncompressed)
+	} else {
+		// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
+		if decompress {
+			if tf, err = os.Open(origPath); err != nil {
+				return err
+			}
+			defer tf.Close()
 
-	// If we are adding a remote file (or we've been told not to decompress), do not try to untar it
-	if decompress {
-		// First try to unpack the source as an archive
-		// to support the untar feature we need to clean up the path a little bit
-		// because tar is very forgiving.  First we need to strip off the archive's
-		// filename from the path but this is only added if it does not end in / .
-		tarDest := destPath
-		if strings.HasSuffix(tarDest, "/") {
-			tarDest = filepath.Dir(destPath)
+			logrus.Debugf("[BUILDER] layer opened")
+
+			// Only rebase archives if the destination is not /
+			if dest == "/" {
+				layer = tf
+			} else {
+				logrus.Debugf("[BUILDER] untartar")
+				layer, err = archive.UntarTar(tf, dest, nil)
+			}
+		} else {
+			logrus.Debugf("[BUILDER] copy file")
+			layer, err = archive.Tar(origPath, archive.Uncompressed)
 		}
-
-		// try to successfully untar the orig
-		if err := chrootarchive.UntarPath(origPath, tarDest); err == nil {
-			return nil
-		} else if err != io.EOF {
-			logrus.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
-		}
 	}
-
-	if err := system.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return err
-	}
-	if err := chrootarchive.CopyWithTar(origPath, destPath); err != nil {
+	if err != nil {
 		return err
 	}
 
-	resPath := destPath
-	if destExists && destStat.IsDir() {
-		resPath = filepath.Join(destPath, filepath.Base(origPath))
-	}
-
-	return fixPermissions(origPath, resPath, 0, 0, destExists)
-}
-
-func copyAsDirectory(source, destination string, destExisted bool) error {
-	if err := chrootarchive.CopyWithTar(source, destination); err != nil {
+	logrus.Debugf("[BUILDER] Creating layer in Graph")
+	if image, err = b.Daemon.Graph().Create(layer, container.ID, b.image, commitComment, b.maintainer, b.Config, b.Config); err != nil {
 		return err
 	}
-	return fixPermissions(source, destination, 0, 0, destExisted)
+
+	logrus.Debugf("[BUILDER] setting image id")
+	b.image = image.ID
+	return nil
 }
 
 func (b *Builder) clearTmp() {
