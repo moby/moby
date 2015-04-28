@@ -488,6 +488,71 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 			containerIp))
 }
 
+func deleteBridge(c *check.C, bridge string) {
+	ifCmd := exec.Command("ip", "link", "delete", bridge)
+	_, _, _, err := runCommandWithStdoutStderr(ifCmd)
+	c.Assert(err, check.IsNil)
+
+	flushCmd := exec.Command("iptables", "-t", "nat", "--flush")
+	_, _, _, err = runCommandWithStdoutStderr(flushCmd)
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
+	// TestDaemonBridgeIP Steps
+	// 1. Delete the existing docker0 Bridge
+	// 2. Set --bip daemon configuration and start the new Docker Daemon
+	// 3. Check if the bip config has taken effect using ifconfig and iptables commands
+	// 4. Launch a Container and make sure the IP-Address is in the expected subnet
+	// 5. Delete the docker0 Bridge
+	// 6. Restart the Docker Daemon (with no --bip settings)
+	//    This Restart takes care of bringing docker0 interface back to auto-assigned IP
+	// 7. Stop the Docker Daemon (via defered action)
+
+	defaultNetworkBridge := "docker0"
+	deleteBridge(c, defaultNetworkBridge)
+
+	d := s.d
+
+	bridgeIp := "192.169.1.1/24"
+	ip, bridgeIPNet, _ := net.ParseCIDR(bridgeIp)
+
+	err := d.StartWithBusybox("--bip", bridgeIp)
+	c.Assert(err, check.IsNil)
+
+	ifconfigSearchString := ip.String()
+	ifconfigCmd := exec.Command("ifconfig", defaultNetworkBridge)
+	out, _, _, err := runCommandWithStdoutStderr(ifconfigCmd)
+	c.Assert(err, check.IsNil)
+
+	c.Assert(strings.Contains(out, ifconfigSearchString), check.Equals, true,
+		check.Commentf("ifconfig output should have contained %q, but was %q",
+			ifconfigSearchString, out))
+
+	ipTablesSearchString := bridgeIPNet.String()
+	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, check.IsNil)
+
+	c.Assert(strings.Contains(out, ipTablesSearchString), check.Equals, true,
+		check.Commentf("iptables output should have contained %q, but was %q",
+			ipTablesSearchString, out))
+
+	out, err = d.Cmd("run", "-d", "--name", "test", "busybox", "top")
+	c.Assert(err, check.IsNil)
+
+	containerIp := d.findContainerIP(c, "test")
+	ip = net.ParseIP(containerIp)
+	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
+		check.Commentf("Container IP-Address must be in the same subnet range : %s",
+			containerIp))
+
+	// Reset to Defaults
+	deleteBridge(c, defaultNetworkBridge)
+	d.Restart()
+	pingContainers(c)
+}
+
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
@@ -929,4 +994,17 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueServerCert(c *check.C) {
 	if err == nil || !strings.Contains(out, errCaUnknown) {
 		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errCaUnknown, err, out)
 	}
+}
+
+func pingContainers(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "container1",
+		"--hostname", "fred", "busybox", "top")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	runArgs := []string{"run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c"}
+	pingCmd := "ping -c 1 %s -W 1"
+
+	dockerCmd(c, append(runArgs, fmt.Sprintf(pingCmd, "alias1"))...)
+	dockerCmd(c, "rm", "-f", "container1")
 }
