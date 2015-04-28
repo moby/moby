@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -486,6 +487,10 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
 			containerIp))
+
+	// Reset to Defaults
+	deleteBridge(c, bridgeName)
+	d.Restart()
 }
 
 func deleteBridge(c *check.C, bridge string) {
@@ -551,6 +556,37 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	deleteBridge(c, defaultNetworkBridge)
 	d.Restart()
 	pingContainers(c)
+}
+
+func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	args := []string{"link", "add", "name", bridgeName, "type", "bridge"}
+	ipLinkCmd := exec.Command("ip", args...)
+	_, _, _, err := runCommandWithStdoutStderr(ipLinkCmd)
+	c.Assert(err, check.IsNil)
+
+	ifCmd := exec.Command("ifconfig", bridgeName, "192.169.1.1/24", "up")
+	_, _, _, err = runCommandWithStdoutStderr(ifCmd)
+	c.Assert(err, check.IsNil)
+
+	args = []string{"--bridge", bridgeName, "--fixed-cidr", "192.169.1.0/30"}
+	err = d.StartWithBusybox(args...)
+	c.Assert(err, check.IsNil)
+
+	for i := 0; i < 4; i++ {
+		cName := "Container" + strconv.Itoa(i)
+		out, err := d.Cmd("run", "-d", "--name", cName, "busybox", "top")
+		if err != nil {
+			c.Assert(strings.Contains(out, "no available ip addresses"), check.Equals, true,
+				check.Commentf("Could not run a Container : %s %s", err.Error(), out))
+		}
+	}
+
+	// Reset to Defaults
+	deleteBridge(c, bridgeName)
+	d.Restart()
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
