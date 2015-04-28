@@ -313,20 +313,20 @@ func sockRequest(method, endpoint string, data interface{}) (int, []byte, error)
 		return -1, nil, err
 	}
 
-	status, body, err := sockRequestRaw(method, endpoint, jsonData, "application/json")
+	res, body, err := sockRequestRaw(method, endpoint, jsonData, "application/json")
 	if err != nil {
 		b, _ := ioutil.ReadAll(body)
-		return status, b, err
+		return -1, b, err
 	}
 	var b []byte
 	b, err = readBody(body)
-	return status, b, err
+	return res.StatusCode, b, err
 }
 
-func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, io.ReadCloser, error) {
+func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
 	c, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
-		return -1, nil, fmt.Errorf("could not dial docker daemon: %v", err)
+		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
 	}
 
 	client := httputil.NewClientConn(c, nil)
@@ -334,7 +334,7 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, io
 	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {
 		client.Close()
-		return -1, nil, fmt.Errorf("could not create new request: %v", err)
+		return nil, nil, fmt.Errorf("could not create new request: %v", err)
 	}
 
 	if ct != "" {
@@ -344,14 +344,14 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (int, io
 	resp, err := client.Do(req)
 	if err != nil {
 		client.Close()
-		return -1, nil, fmt.Errorf("could not perform request: %v", err)
+		return nil, nil, fmt.Errorf("could not perform request: %v", err)
 	}
 	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
 		defer client.Close()
 		return resp.Body.Close()
 	})
 
-	return resp.StatusCode, body, err
+	return resp, body, nil
 }
 
 func readBody(b io.ReadCloser) ([]byte, error) {

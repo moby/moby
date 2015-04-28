@@ -339,8 +339,8 @@ func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
 		c.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	status, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
 	out, err := readBody(body)
@@ -365,8 +365,8 @@ RUN find /tmp/`,
 	}
 	defer server.Close()
 
-	status, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -393,8 +393,8 @@ RUN echo from dockerfile`,
 	}
 	defer git.Close()
 
-	status, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -421,8 +421,8 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	status, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -450,8 +450,8 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	status, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -483,8 +483,8 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 		c.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	status, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
 	out, err := readBody(body)
@@ -720,7 +720,7 @@ func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 		"Image": "busybox",
 	}
 
-	create := func(ct string) (int, io.ReadCloser, error) {
+	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
 		if err := json.NewEncoder(jsonData).Encode(config); err != nil {
 			c.Fatal(err)
@@ -729,21 +729,21 @@ func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 	}
 
 	// Try with no content-type
-	status, body, err := create("")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err := create("")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	body.Close()
 
 	// Try with wrong content-type
-	status, body, err = create("application/xml")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err = create("application/xml")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	body.Close()
 
 	// now application/json
-	status, body, err = create("application/json")
-	c.Assert(status, check.Equals, http.StatusCreated)
+	res, body, err = create("application/json")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusCreated)
 	body.Close()
 }
 
@@ -774,8 +774,8 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		"NetworkDisabled":false,
 		"OnBuild":null}`
 
-	status, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
-	c.Assert(status, check.Equals, http.StatusCreated)
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
 
 	b, err := readBody(body)
@@ -808,13 +808,13 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 		"Memory":    524287
 	}`
 
-	status, body, _ := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	res, body, _ := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
 	b, err2 := readBody(body)
 	if err2 != nil {
 		c.Fatal(err2)
 	}
 
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(strings.Contains(string(b), "Minimum memory limit allowed is 4MB"), check.Equals, true)
 }
 
@@ -831,13 +831,13 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
                 "Memory":    524287
         }`
 
-	status, body, _ := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	res, body, _ := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
 	b, err2 := readBody(body)
 	if err2 != nil {
 		c.Fatal(err2)
 	}
 
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(strings.Contains(string(b), "Minimum memory limit allowed is 4MB"), check.Equals, true)
 }
 

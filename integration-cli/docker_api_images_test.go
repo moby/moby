@@ -74,9 +74,9 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 
-	status, body, err := sockRequestRaw("GET", "/images/"+id+"/get", nil, "")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("GET", "/images/"+id+"/get", nil, "")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	defer body.Close()
 
@@ -84,9 +84,9 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 		c.Fatal(err, out)
 	}
 
-	status, loadBody, err := sockRequestRaw("POST", "/images/load", body, "application/x-tar")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, loadBody, err := sockRequestRaw("POST", "/images/load", body, "application/x-tar")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	defer loadBody.Close()
 
