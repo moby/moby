@@ -17,7 +17,7 @@ var (
 func init() {
 	// Change patricia max prefix per node length,
 	// because our len(ID) always 64
-	patricia.MaxPrefixPerNode = 64
+	patricia.MaxPrefixPerNode(64)
 }
 
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
