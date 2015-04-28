@@ -115,14 +115,38 @@ func (v *Volume) FromDisk() error {
 }
 
 func (v *Volume) jsonPath() (string, error) {
-	return v.getRootResourcePath("config.json")
-}
-func (v *Volume) getRootResourcePath(path string) (string, error) {
-	cleanPath := filepath.Join("/", path)
-	return symlink.FollowSymlinkInScope(filepath.Join(v.configPath, cleanPath), v.configPath)
+	return v.GetRootResourcePath("config.json")
 }
 
-func (v *Volume) getResourcePath(path string) (string, error) {
+// Evalutes `path` in the scope of the volume's root path, with proper path
+// sanitisation. Symlinks are all scoped to the root of the volume, as
+// though the volume's root was `/`.
+//
+// The volume's root path is the host-facing path of the root of the volume's
+// mountpoint inside a container.
+//
+// NOTE: The returned path is *only* safely scoped inside the volume's root
+//       if no component of the returned path changes (such as a component
+//       symlinking to a different path) between using this method and using the
+//       path. See symlink.FollowSymlinkInScope for more details.
+func (v *Volume) GetResourcePath(path string) (string, error) {
 	cleanPath := filepath.Join("/", path)
 	return symlink.FollowSymlinkInScope(filepath.Join(v.Path, cleanPath), v.Path)
+}
+
+// Evalutes `path` in the scope of the volume's config path, with proper path
+// sanitisation. Symlinks are all scoped to the root of the config path, as
+// though the config path was `/`.
+//
+// The config path of a volume is not exposed to the container and is just used
+// to store volume configuration options and other internal information. If in
+// doubt, you probably want to just use v.GetResourcePath.
+//
+// NOTE: The returned path is *only* safely scoped inside the volume's config
+//       path if no component of the returned path changes (such as a component
+//       symlinking to a different path) between using this method and using the
+//       path. See symlink.FollowSymlinkInScope for more details.
+func (v *Volume) GetRootResourcePath(path string) (string, error) {
+	cleanPath := filepath.Join("/", path)
+	return symlink.FollowSymlinkInScope(filepath.Join(v.configPath, cleanPath), v.configPath)
 }
