@@ -18,6 +18,7 @@ parent = "smn_cli"
       --api-cors-header=""                   Set CORS headers in the remote API
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
+      --config=~/.docker                     Location of client config files
       -D, --debug=false                      Enable debug mode
       -d, --daemon=false                     Enable daemon mode
       --default-gateway=""                   Container default gateway IPv4 address

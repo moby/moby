@@ -7,13 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strings"
 	"text/template"
 
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/term"
@@ -215,7 +213,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 	}
 	sockets.ConfigureTCPTransport(tr, proto, addr)
 
-	configFile, e := cliconfig.Load(filepath.Join(homedir.Get(), ".docker"))
+	configFile, e := cliconfig.Load(cliconfig.ConfigDir())
 	if e != nil {
 		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
 	}

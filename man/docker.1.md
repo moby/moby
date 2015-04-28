@@ -35,6 +35,9 @@ To see the man page for a command run **man docker <command>**.
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
 
+**--config**=""
+  Specifies the location of the Docker client configuration files. The default is '~/.docker'.
+
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 
