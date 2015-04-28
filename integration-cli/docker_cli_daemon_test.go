@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -489,11 +490,11 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 			containerIp))
 
 	// Reset to Defaults
-	deleteBridge(c, bridgeName)
+	deleteInterface(c, bridgeName)
 	d.Restart()
 }
 
-func deleteBridge(c *check.C, bridge string) {
+func deleteInterface(c *check.C, bridge string) {
 	ifCmd := exec.Command("ip", "link", "delete", bridge)
 	_, _, _, err := runCommandWithStdoutStderr(ifCmd)
 	c.Assert(err, check.IsNil)
@@ -515,7 +516,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	// 7. Stop the Docker Daemon (via defered action)
 
 	defaultNetworkBridge := "docker0"
-	deleteBridge(c, defaultNetworkBridge)
+	deleteInterface(c, defaultNetworkBridge)
 
 	d := s.d
 
@@ -553,7 +554,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 			containerIp))
 
 	// Reset to Defaults
-	deleteBridge(c, defaultNetworkBridge)
+	deleteInterface(c, defaultNetworkBridge)
 	d.Restart()
 	pingContainers(c)
 }
@@ -585,7 +586,48 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	}
 
 	// Reset to Defaults
-	deleteBridge(c, bridgeName)
+	deleteInterface(c, bridgeName)
+	d.Restart()
+}
+
+func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
+	d := s.d
+
+	ipStr := "192.170.1.1/24"
+	ip, _, _ := net.ParseCIDR(ipStr)
+	args := []string{"--ip", ip.String()}
+	err := d.StartWithBusybox(args...)
+	c.Assert(err, check.IsNil)
+
+	out, err := d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
+	c.Assert(err, check.Not(check.IsNil),
+		check.Commentf("Running a container must fail with an invalid --ip option"))
+	c.Assert(strings.Contains(out, "Error starting userland proxy"), check.Equals, true)
+
+	ifName := "dummy"
+	args = []string{"link", "add", "name", ifName, "type", "dummy"}
+	ipLinkCmd := exec.Command("ip", args...)
+	_, _, _, err = runCommandWithStdoutStderr(ipLinkCmd)
+	c.Assert(err, check.IsNil)
+
+	ifCmd := exec.Command("ifconfig", ifName, ipStr, "up")
+	_, _, _, err = runCommandWithStdoutStderr(ifCmd)
+	c.Assert(err, check.IsNil)
+
+	_, err = d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
+	c.Assert(err, check.IsNil)
+
+	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, check.IsNil)
+
+	regex := fmt.Sprintf("DNAT.*%s.*dpt:8000", ip.String())
+	matched, _ := regexp.MatchString(regex, out)
+	c.Assert(matched, check.Equals, true,
+		check.Commentf("iptables output should have contained %q, but was %q", regex, out))
+
+	// Reset to Defaults
+	deleteInterface(c, ifName)
 	d.Restart()
 }
 
