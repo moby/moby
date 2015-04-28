@@ -128,120 +128,158 @@ unix://[/path/to/socket] to use.
   Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
 # COMMANDS
-**docker-attach(1)**
+**attach**
   Attach to a running container
+  See **docker-attach(1)** for full documentation on the **attach** command.
 
-**docker-build(1)**
+**build**
   Build an image from a Dockerfile
+  See **docker-build(1)** for full documentation on the **build** command.
 
-**docker-commit(1)**
+**commit**
   Create a new image from a container's changes
+  See **docker-commit(1)** for full documentation on the **commit** command.
 
-**docker-cp(1)**
+**cp**
   Copy files/folders from a container's filesystem to the host
+  See **docker-cp(1)** for full documentation on the **cp** command.
 
-**docker-create(1)**
+**create**
   Create a new container
+  See **docker-create(1)** for full documentation on the **create** command.
 
-**docker-diff(1)**
+**diff**
   Inspect changes on a container's filesystem
+  See **docker-diff(1)** for full documentation on the **diff** command.
 
-**docker-events(1)**
+**events**
   Get real time events from the server
+  See **docker-events(1)** for full documentation on the **events** command.
 
-**docker-exec(1)**
+**exec**
   Run a command in a running container
+  See **docker-exec(1)** for full documentation on the **exec** command.
 
-**docker-export(1)**
+**export**
   Stream the contents of a container as a tar archive
+  See **docker-export(1)** for full documentation on the **export** command.
 
-**docker-history(1)**
+**history**
   Show the history of an image
+  See **docker-history(1)** for full documentation on the **history** command.
 
-**docker-images(1)**
+**images**
   List images
+  See **docker-images(1)** for full documentation on the **images** command.
 
-**docker-import(1)**
+**import**
   Create a new filesystem image from the contents of a tarball
+  See **docker-import(1)** for full documentation on the **import** command.
 
-**docker-info(1)**
+**info**
   Display system-wide information
+  See **docker-info(1)** for full documentation on the **info** command.
 
-**docker-inspect(1)**
+**inspect**
   Return low-level information on a container or image
+  See **docker-inspect(1)** for full documentation on the **inspect** command.
 
-**docker-kill(1)**
+**kill**
   Kill a running container (which includes the wrapper process and everything
 inside it)
+  See **docker-kill(1)** for full documentation on the **kill** command.
 
-**docker-load(1)**
+**load**
   Load an image from a tar archive
+  See **docker-load(1)** for full documentation on the **load** command.
 
-**docker-login(1)**
+**login**
   Register or login to a Docker Registry
+  See **docker-login(1)** for full documentation on the **login** command.
 
-**docker-logout(1)**
+**logout**
   Log the user out of a Docker Registry
+  See **docker-logout(1)** for full documentation on the **logout** command.
 
-**docker-logs(1)**
+**logs**
   Fetch the logs of a container
+  See **docker-logs(1)** for full documentation on the **logs** command.
 
-**docker-pause(1)**
+**pause**
   Pause all processes within a container
+  See **docker-pause(1)** for full documentation on the **pause** command.
 
-**docker-port(1)**
+**port**
   Lookup the public-facing port which is NAT-ed to PRIVATE_PORT
+  See **docker-port(1)** for full documentation on the **port** command.
 
-**docker-ps(1)**
+**ps**
   List containers
+  See **docker-ps(1)** for full documentation on the **ps** command.
 
-**docker-pull(1)**
+**pull**
   Pull an image or a repository from a Docker Registry
+  See **docker-pull(1)** for full documentation on the **pull** command.
 
-**docker-push(1)**
+**push**
   Push an image or a repository to a Docker Registry
+  See **docker-push(1)** for full documentation on the **push** command.
 
-**docker-restart(1)**
+**restart**
   Restart a running container
+  See **docker-restart(1)** for full documentation on the **restart** command.
 
-**docker-rm(1)**
+**rm**
   Remove one or more containers
+  See **docker-rm(1)** for full documentation on the **rm** command.
 
-**docker-rmi(1)**
+**rmi**
   Remove one or more images
+  See **docker-rmi(1)** for full documentation on the **rmi** command.
 
-**docker-run(1)**
+**run**
   Run a command in a new container
+  See **docker-run(1)** for full documentation on the **run** command.
 
-**docker-save(1)**
+**save**
   Save an image to a tar archive
+  See **docker-save(1)** for full documentation on the **save** command.
 
-**docker-search(1)**
+**search**
   Search for an image in the Docker index
+  See **docker-search(1)** for full documentation on the **search** command.
 
-**docker-start(1)**
+**start**
   Start a stopped container
+  See **docker-start(1)** for full documentation on the **start** command.
 
-**docker-stats(1)**
+**stats**
   Display a live stream of one or more containers' resource usage statistics
+  See **docker-stats(1)** for full documentation on the **stats** command.
 
-**docker-stop(1)**
+**stop**
   Stop a running container
+  See **docker-stop(1)** for full documentation on the **stop** command.
 
-**docker-tag(1)**
+**tag**
   Tag an image into a repository
+  See **docker-tag(1)** for full documentation on the **tag** command.
 
-**docker-top(1)**
+**top**
   Lookup the running processes of a container
+  See **docker-top(1)** for full documentation on the **top** command.
 
-**docker-unpause(1)**
+**unpause**
   Unpause all processes within a container
+  See **docker-unpause(1)** for full documentation on the **unpause** command.
 
-**docker-version(1)**
+**version**
   Show the Docker version information
+  See **docker-version(1)** for full documentation on the **version** command.
 
-**docker-wait(1)**
+**wait**
   Block until a container stops, then print its exit code
+  See **docker-wait(1)** for full documentation on the **wait** command.
 
 # STORAGE DRIVER OPTIONS
 
