@@ -232,7 +232,9 @@ func InitDriver(config *Config) error {
 	}
 
 	if config.EnableIptables {
-		iptables.FirewalldInit()
+		if err := iptables.FirewalldInit(); err != nil {
+			logrus.Debugf("Error initializing firewalld: %v", err)
+		}
 	}
 
 	// Configure iptables for link support

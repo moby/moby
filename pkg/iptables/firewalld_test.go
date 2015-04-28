@@ -7,7 +7,12 @@ import (
 )
 
 func TestFirewalldInit(t *testing.T) {
-	FirewalldInit()
+	if !checkRunning() {
+		t.Skip("firewalld is not running")
+	}
+	if err := FirewalldInit(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestReloaded(t *testing.T) {
