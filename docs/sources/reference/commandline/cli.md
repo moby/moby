@@ -653,6 +653,26 @@ If you use STDIN or specify a `URL`, the system places the contents into a
 file called `Dockerfile`, and any `-f`, `--file` option is ignored. In this
 scenario, there is no context.
 
+By default the `docker build` command will look for a `Dockerfile` at the
+root of the build context. The `-f`, `--file`, option lets you specify
+the path to an alternative file to use instead.  This is useful
+in cases where the same set of files are used for multiple builds. The path
+must be to a file within the build context. If a relative path is specified
+then it must to be relative to the current directory.
+
+In most cases, it's best to put each Dockerfile in an empty directory. Then, add
+to that directory only the files needed for building the Dockerfile. To increase
+the build's performance, you can exclude files and directories by adding a
+`.dockerignore` file to that directory as well. For information on creating one,
+see the [.dockerignore file](../../reference/builder/#dockerignore-file).
+
+If the Docker client loses connection to the daemon, the build is canceled.
+This happens if you interrupt the Docker client with `ctrl-c` or if the Docker
+client is killed for any reason.
+
+> **Note:** Currently only the "run" phase of the build can be canceled until
+> pull cancelation is implemented).
+
 ### Return code
 
 On a successful build, a return code of success `0` will be returned.
@@ -673,55 +693,11 @@ INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
 $ echo $?
 1
 ```
-
-### .dockerignore file
-
-If a file named `.dockerignore` exists in the root of `PATH` then it
-is interpreted as a newline-separated list of exclusion patterns.
-Exclusion patterns match files or directories relative to `PATH` that
-will be excluded from the context. Globbing is done using Go's
-[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
-
-Please note that `.dockerignore` files in other subdirectories are
-considered as normal files. Filepaths in `.dockerignore` are absolute with
-the current directory as the root. Wildcards are allowed but the search
-is not recursive.
-
-#### Example .dockerignore file
-    */temp*
-    */*/temp*
-    temp?
-
-The first line above `*/temp*`, would ignore all files with names starting with
-`temp` from any subdirectory below the root directory. For example, a file named
-`/somedir/temporary.txt` would be ignored. The second line `*/*/temp*`, will
-ignore files starting with name `temp` from any subdirectory that is two levels
-below the root directory. For example, the file `/somedir/subdir/temporary.txt`
-would get ignored in this case. The last line in the above example `temp?`
-will ignore the files that match the pattern from the root directory.
-For example, the files `tempa`, `tempb` are ignored from the root directory.
-Currently there is no support for regular expressions. Formats
-like `[^temp*]` are ignored.
-
-By default the `docker build` command will look for a `Dockerfile` at the
-root of the build context. The `-f`, `--file`, option lets you specify
-the path to an alternative file to use instead.  This is useful
-in cases where the same set of files are used for multiple builds. The path
-must be to a file within the build context. If a relative path is specified
-then it must to be relative to the current directory.
-
-If the Docker client loses connection to the daemon, the build is canceled.
-This happens if you interrupt the Docker client with `ctrl-c` or if the Docker
-client is killed for any reason.
-
-> **Note:** Currently only the "run" phase of the build can be canceled until
-> pull cancelation is implemented).
-
 See also:
 
 [*Dockerfile Reference*](/reference/builder).
 
-#### Examples
+### Examples
 
     $ docker build .
     Uploading context 10240 bytes
@@ -790,7 +766,8 @@ affect the build cache.
 
 This example shows the use of the `.dockerignore` file to exclude the `.git`
 directory from the context. Its effect can be seen in the changed size of the
-uploaded context.
+uploaded context. The builder reference contains detailed information on
+[creating a .dockerignore file](../../builder/#dockerignore-file)
 
     $ docker build -t vieux/apache:2.0 .
 
