@@ -419,9 +419,9 @@ fail catastrophically if the new build's context is missing the resource being
 added. Adding a separate tag, as recommended above, will help mitigate this by
 allowing the `Dockerfile` author to make a choice.
 
-## Examples for official repositories
+## Examples for Official Repositories
 
-These Official Repos have exemplary `Dockerfile`s:
+These Official Repositories have exemplary `Dockerfile`s:
 
 * [Go](https://registry.hub.docker.com/_/golang/)
 * [Perl](https://registry.hub.docker.com/_/perl/)
