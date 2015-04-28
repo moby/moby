@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"sort"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/tlsconfig"
 )
@@ -73,19 +73,20 @@ var (
 
 func init() {
 	if dockerCertPath == "" {
-		dockerCertPath = filepath.Join(homedir.Get(), ".docker")
+		dockerCertPath = cliconfig.ConfigDir()
 	}
 }
 
 func getDaemonConfDir() string {
 	// TODO: update for Windows daemon
 	if runtime.GOOS == "windows" {
-		return filepath.Join(homedir.Get(), ".docker")
+		return cliconfig.ConfigDir()
 	}
 	return "/etc/docker"
 }
 
 var (
+	flConfigDir = flag.String([]string{"-config"}, cliconfig.ConfigDir(), "Location of client config files")
 	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
@@ -105,7 +106,7 @@ func setDefaultConfFlag(flag *string, def string) {
 		if *flDaemon {
 			*flag = filepath.Join(getDaemonConfDir(), def)
 		} else {
-			*flag = filepath.Join(homedir.Get(), ".docker", def)
+			*flag = filepath.Join(cliconfig.ConfigDir(), def)
 		}
 	}
 }

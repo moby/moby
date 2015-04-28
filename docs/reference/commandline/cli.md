@@ -10,7 +10,7 @@ parent = "smn_cli"
 
 # Using the command line
 
-> **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
+> **Note:** If you are using a remote Docker daemon, such as Boot2Docker,
 > then _do not_ type the `sudo` before the `docker` commands shown in the
 > documentation's examples.
 
@@ -38,6 +38,7 @@ the [installation](/installation) instructions for your operating system.
 For easy reference, the following list of environment variables are supported
 by the `docker` command line:
 
+* `DOCKER_CONFIG` The location of your client configuration files.
 * `DOCKER_CERT_PATH` The location of your authentication keys.
 * `DOCKER_DRIVER` The graph driver to use.
 * `DOCKER_HOST` Daemon socket to connect to.
@@ -60,10 +61,21 @@ variables.
 
 ## Configuration files
 
-The Docker command line stores its configuration files in a directory called
-`.docker` within your `HOME` directory. Docker manages most of the files in
-`.docker` and you should not modify them. However, you *can modify* the
-`.docker/config.json` file to control certain aspects of how the `docker`
+By default, the Docker command line stores its configuration files in a
+directory called `.docker` within your `HOME` directory. However, you can
+specify a different location via the `DOCKER_CONFIG` environment variable
+or the `--config` command line option. If both are specified, then the
+`--config` option overrides the `DOCKER_CONFIG` environment variable.
+For example:
+
+    docker --config ~/testconfigs/ ps
+
+Instructs Docker to use the configuration files in your `~/testconfigs/`
+directory when running the `ps` command.
+
+Docker manages most of the files in the configuration directory
+and you should not modify them. However, you *can modify* the
+`config.json` file to control certain aspects of how the `docker`
 command behaves.
 
 Currently, you can modify the `docker` command behavior using environment
