@@ -581,8 +581,8 @@ func findContainerIP(c *check.C, id string, vargs ...string) string {
 	return strings.Trim(out, " \r\n'")
 }
 
-func (d *Daemon) findContainerIP(c *check.C, id string) string {
-	return findContainerIP(c, id, "--host", d.sock())
+func (d *Daemon) findContainerIP(id string) string {
+	return findContainerIP(d.c, id, "--host", d.sock())
 }
 
 func getContainerCount() (int, error) {

@@ -453,20 +453,13 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	d := s.d
 	err := d.Start("--bridge", "nosuchbridge")
-	c.Assert(err, check.Not(check.IsNil), check.Commentf("--bridge option with an invalid bridge should cause the daemon to fail"))
+	c.Assert(err, check.NotNil, check.Commentf("--bridge option with an invalid bridge should cause the daemon to fail"))
 
 	bridgeName := "external-bridge"
 	bridgeIp := "192.169.1.1/24"
 	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIp)
 
-	args := []string{"link", "add", "name", bridgeName, "type", "bridge"}
-	ipLinkCmd := exec.Command("ip", args...)
-	_, _, _, err = runCommandWithStdoutStderr(ipLinkCmd)
-	c.Assert(err, check.IsNil)
-
-	ifCfgCmd := exec.Command("ifconfig", bridgeName, bridgeIp, "up")
-	_, _, _, err = runCommandWithStdoutStderr(ifCfgCmd)
-	c.Assert(err, check.IsNil)
+	createInterface(c, "bridge", bridgeName, bridgeIp)
 
 	err = d.StartWithBusybox("--bridge", bridgeName)
 	c.Assert(err, check.IsNil)
@@ -483,7 +476,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	_, err = d.Cmd("run", "-d", "--name", "ExtContainer", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	containerIp := d.findContainerIP(c, "ExtContainer")
+	containerIp := d.findContainerIP("ExtContainer")
 	ip := net.ParseIP(containerIp)
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
@@ -494,14 +487,29 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	d.Restart()
 }
 
+func createInterface(c *check.C, ifType string, ifName string, ipNet string) {
+	args := []string{"link", "add", "name", ifName, "type", ifType}
+	ipLinkCmd := exec.Command("ip", args...)
+	out, _, err := runCommandWithOutput(ipLinkCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	ifCfgCmd := exec.Command("ifconfig", ifName, ipNet, "up")
+	out, _, err = runCommandWithOutput(ifCfgCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}
+
 func deleteInterface(c *check.C, bridge string) {
 	ifCmd := exec.Command("ip", "link", "delete", bridge)
-	_, _, _, err := runCommandWithStdoutStderr(ifCmd)
-	c.Assert(err, check.IsNil)
+	out, _, err := runCommandWithOutput(ifCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	flushCmd := exec.Command("iptables", "-t", "nat", "--flush")
-	_, _, _, err = runCommandWithStdoutStderr(flushCmd)
-	c.Assert(err, check.IsNil)
+	out, _, err = runCommandWithOutput(flushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	flushCmd = exec.Command("iptables", "--flush")
+	out, _, err = runCommandWithOutput(flushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
 func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
@@ -547,7 +555,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	out, err = d.Cmd("run", "-d", "--name", "test", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	containerIp := d.findContainerIP(c, "test")
+	containerIp := d.findContainerIP("test")
 	ip = net.ParseIP(containerIp)
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
@@ -556,24 +564,19 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	// Reset to Defaults
 	deleteInterface(c, defaultNetworkBridge)
 	d.Restart()
-	pingContainers(c)
+	pingContainers(c, nil, false)
 }
 
 func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	d := s.d
 
 	bridgeName := "external-bridge"
-	args := []string{"link", "add", "name", bridgeName, "type", "bridge"}
-	ipLinkCmd := exec.Command("ip", args...)
-	_, _, _, err := runCommandWithStdoutStderr(ipLinkCmd)
-	c.Assert(err, check.IsNil)
+	bridgeIp := "192.169.1.1/24"
 
-	ifCmd := exec.Command("ifconfig", bridgeName, "192.169.1.1/24", "up")
-	_, _, _, err = runCommandWithStdoutStderr(ifCmd)
-	c.Assert(err, check.IsNil)
+	createInterface(c, "bridge", bridgeName, bridgeIp)
 
-	args = []string{"--bridge", bridgeName, "--fixed-cidr", "192.169.1.0/30"}
-	err = d.StartWithBusybox(args...)
+	args := []string{"--bridge", bridgeName, "--fixed-cidr", "192.169.1.0/30"}
+	err := d.StartWithBusybox(args...)
 	c.Assert(err, check.IsNil)
 
 	for i := 0; i < 4; i++ {
@@ -600,19 +603,12 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	out, err := d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
-	c.Assert(err, check.Not(check.IsNil),
+	c.Assert(err, check.NotNil,
 		check.Commentf("Running a container must fail with an invalid --ip option"))
 	c.Assert(strings.Contains(out, "Error starting userland proxy"), check.Equals, true)
 
 	ifName := "dummy"
-	args = []string{"link", "add", "name", ifName, "type", "dummy"}
-	ipLinkCmd := exec.Command("ip", args...)
-	_, _, _, err = runCommandWithStdoutStderr(ipLinkCmd)
-	c.Assert(err, check.IsNil)
-
-	ifCmd := exec.Command("ifconfig", ifName, ipStr, "up")
-	_, _, _, err = runCommandWithStdoutStderr(ifCmd)
-	c.Assert(err, check.IsNil)
+	createInterface(c, "dummy", ifName, ipStr)
 
 	_, err = d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
 	c.Assert(err, check.IsNil)
@@ -628,6 +624,79 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 
 	// Reset to Defaults
 	deleteInterface(c, ifName)
+	d.Restart()
+}
+
+func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	bridgeIp := "192.169.1.1/24"
+
+	createInterface(c, "bridge", bridgeName, bridgeIp)
+
+	args := []string{"--bridge", bridgeName, "--icc=false"}
+	err := d.StartWithBusybox(args...)
+	c.Assert(err, check.IsNil)
+
+	ipTablesCmd := exec.Command("iptables", "-nvL", "FORWARD")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, check.IsNil)
+
+	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
+	matched, _ := regexp.MatchString(regex, out)
+	c.Assert(matched, check.Equals, true,
+		check.Commentf("iptables output should have contained %q, but was %q", regex, out))
+
+	// Pinging another container must fail with --icc=false
+	pingContainers(c, d, true)
+
+	ipStr := "192.171.1.1/24"
+	ip, _, _ := net.ParseCIDR(ipStr)
+	ifName := "icc-dummy"
+
+	createInterface(c, "dummy", ifName, ipStr)
+
+	// But, Pinging external or a Host interface must succeed
+	pingCmd := fmt.Sprintf("ping -c 1 %s -W 1", ip.String())
+	runArgs := []string{"--rm", "busybox", "sh", "-c", pingCmd}
+	_, err = d.Cmd("run", runArgs...)
+	c.Assert(err, check.IsNil)
+
+	// Reset to Defaults
+	deleteInterface(c, ifName)
+	d.Restart()
+}
+
+func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	bridgeIp := "192.169.1.1/24"
+
+	createInterface(c, "bridge", bridgeName, bridgeIp)
+
+	args := []string{"--bridge", bridgeName, "--icc=false"}
+	err := d.StartWithBusybox(args...)
+	c.Assert(err, check.IsNil)
+
+	ipTablesCmd := exec.Command("iptables", "-nvL", "FORWARD")
+	out, _, err := runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, check.IsNil)
+
+	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
+	matched, _ := regexp.MatchString(regex, out)
+	c.Assert(matched, check.Equals, true,
+		check.Commentf("iptables output should have contained %q, but was %q", regex, out))
+
+	_, err = d.Cmd("run", "-d", "--expose", "4567", "--name", "icc1", "busybox", "nc", "-l", "-p", "4567")
+	c.Assert(err, check.IsNil)
+
+	out, err = d.Cmd("run", "--link", "icc1:icc1", "busybox", "nc", "icc1", "4567")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Reset to Defaults
+	deleteInterface(c, bridgeName)
 	d.Restart()
 }
 
@@ -1074,15 +1143,27 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueServerCert(c *check.C) {
 	}
 }
 
-func pingContainers(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "container1",
-		"--hostname", "fred", "busybox", "top")
-	_, err := runCommand(runCmd)
+func pingContainers(c *check.C, d *Daemon, expectFailure bool) {
+	var dargs []string
+	if d != nil {
+		dargs = []string{"--host", d.sock()}
+	}
+
+	args := append(dargs, "run", "-d", "--name", "container1", "busybox", "top")
+	_, err := runCommand(exec.Command(dockerBinary, args...))
 	c.Assert(err, check.IsNil)
 
-	runArgs := []string{"run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c"}
+	args = append(dargs, "run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c")
 	pingCmd := "ping -c 1 %s -W 1"
+	args = append(args, fmt.Sprintf(pingCmd, "alias1"))
+	_, err = runCommand(exec.Command(dockerBinary, args...))
 
-	dockerCmd(c, append(runArgs, fmt.Sprintf(pingCmd, "alias1"))...)
-	dockerCmd(c, "rm", "-f", "container1")
+	if expectFailure {
+		c.Assert(err, check.NotNil)
+	} else {
+		c.Assert(err, check.IsNil)
+	}
+
+	args = append(dargs, "rm", "-f", "container1")
+	runCommand(exec.Command(dockerBinary, args...))
 }
