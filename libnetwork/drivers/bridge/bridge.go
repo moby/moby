@@ -57,8 +57,8 @@ type bridgeEndpoint struct {
 
 type bridgeNetwork struct {
 	id        types.UUID
-	bridge    *bridgeInterface           // The bridge's L3 interface
-	endpoints map[string]*bridgeEndpoint // key: sandbox id
+	bridge    *bridgeInterface               // The bridge's L3 interface
+	endpoints map[types.UUID]*bridgeEndpoint // key: endpoint id
 	sync.Mutex
 }
 
@@ -118,21 +118,19 @@ func (c *Configuration) Validate() error {
 	return nil
 }
 
-func (n *bridgeNetwork) getEndpoint(eid types.UUID) (string, *bridgeEndpoint, error) {
+func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	n.Lock()
 	defer n.Unlock()
 
 	if eid == "" {
-		return "", nil, InvalidEndpointIDError(eid)
+		return nil, InvalidEndpointIDError(eid)
 	}
 
-	for sk, ep := range n.endpoints {
-		if ep.id == eid {
-			return sk, ep, nil
-		}
+	if ep, ok := n.endpoints[eid]; ok {
+		return ep, nil
 	}
 
-	return "", nil, nil
+	return nil, nil
 }
 
 func (d *driver) Config(option interface{}) error {
@@ -184,7 +182,7 @@ func (d *driver) CreateNetwork(id types.UUID, option interface{}) error {
 	}
 
 	// Create and set network handler in driver
-	d.network = &bridgeNetwork{id: id, endpoints: make(map[string]*bridgeEndpoint)}
+	d.network = &bridgeNetwork{id: id, endpoints: make(map[types.UUID]*bridgeEndpoint)}
 	d.Unlock()
 
 	// On failure make sure to reset driver network handler to nil
@@ -299,7 +297,7 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	return err
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions interface{}) (*sandbox.Info, error) {
+func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions interface{}) (*sandbox.Info, error) {
 	var (
 		ipv6Addr *net.IPNet
 		err      error
@@ -323,25 +321,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 	n.Unlock()
 
 	// Check if endpoint id is good and retrieve correspondent endpoint
-	_, ep, err := n.getEndpoint(eid)
+	ep, err := n.getEndpoint(eid)
 	if err != nil {
 		return nil, err
 	}
 
 	// Endpoint with that id exists either on desired or other sandbox
 	if ep != nil {
-		return nil, driverapi.ErrEndpointExists
-	}
-
-	// Check if valid sandbox key
-	if sboxKey == "" {
-		return nil, InvalidSandboxIDError(sboxKey)
-	}
-
-	// Check if endpoint already exists for this sandbox
-	n.Lock()
-	if _, ok := n.endpoints[sboxKey]; ok {
-		n.Unlock()
 		return nil, driverapi.ErrEndpointExists
 	}
 
@@ -353,15 +339,16 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 	}
 
 	// Create and add the endpoint
+	n.Lock()
 	endpoint := &bridgeEndpoint{id: eid, config: epConfig}
-	n.endpoints[sboxKey] = endpoint
+	n.endpoints[eid] = endpoint
 	n.Unlock()
 
 	// On failure make sure to remove the endpoint
 	defer func() {
 		if err != nil {
 			n.Lock()
-			delete(n.endpoints, sboxKey)
+			delete(n.endpoints, eid)
 			n.Unlock()
 		}
 	}()
@@ -408,12 +395,15 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 		}
 	}()
 
+	mac := netutils.GenerateRandomMAC()
 	// Add user specified attributes
 	if epConfig != nil && epConfig.MacAddress != nil {
-		err = netlink.LinkSetHardwareAddr(sbox, epConfig.MacAddress)
-		if err != nil {
-			return nil, err
-		}
+		mac = epConfig.MacAddress
+	}
+
+	err = netlink.LinkSetHardwareAddr(sbox, mac)
+	if err != nil {
+		return nil, err
 	}
 
 	// Add bridge inherited attributes to pipe interfaces
@@ -443,11 +433,28 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, sboxKey string, epOptions i
 
 	// v6 address for the sandbox side pipe interface
 	if config.EnableIPv6 {
-		ip6, err := ipAllocator.RequestIP(n.bridge.bridgeIPv6, nil)
+		var ip6 net.IP
+
+		network := n.bridge.bridgeIPv6
+		if config.FixedCIDRv6 != nil {
+			network = config.FixedCIDRv6
+		}
+
+		ones, _ := network.Mask.Size()
+		if ones <= 80 {
+			ip6 = make(net.IP, len(network.IP))
+			copy(ip6, network.IP)
+			for i, h := range mac {
+				ip6[i+10] = h
+			}
+		}
+
+		ip6, err := ipAllocator.RequestIP(network, ip6)
 		if err != nil {
 			return nil, err
 		}
-		ipv6Addr = &net.IPNet{IP: ip6, Mask: n.bridge.bridgeIPv6.Mask}
+
+		ipv6Addr = &net.IPNet{IP: ip6, Mask: network.Mask}
 	}
 
 	// Store the sandbox side pipe interface
@@ -494,7 +501,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	n.Unlock()
 
 	// Check endpoint id and if an endpoint is actually there
-	sboxKey, ep, err := n.getEndpoint(eid)
+	ep, err := n.getEndpoint(eid)
 	if err != nil {
 		return err
 	}
@@ -504,7 +511,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Remove it
 	n.Lock()
-	delete(n.endpoints, sboxKey)
+	delete(n.endpoints, eid)
 	n.Unlock()
 
 	// On failure make sure to set back ep in n.endpoints, but only
@@ -512,8 +519,8 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	defer func() {
 		if err != nil {
 			n.Lock()
-			if _, ok := n.endpoints[sboxKey]; !ok {
-				n.endpoints[sboxKey] = ep
+			if _, ok := n.endpoints[eid]; !ok {
+				n.endpoints[eid] = ep
 			}
 			n.Unlock()
 		}

@@ -51,9 +51,15 @@ func programGateway(path string, gw net.IP) error {
 	}
 	defer netns.Set(origns)
 
+	gwRoutes, err := netlink.RouteGet(gw)
+	if err != nil {
+		return fmt.Errorf("route for the gateway could not be found: %v", err)
+	}
+
 	return netlink.RouteAdd(&netlink.Route{
-		Scope: netlink.SCOPE_UNIVERSE,
-		Gw:    gw,
+		Scope:     netlink.SCOPE_UNIVERSE,
+		LinkIndex: gwRoutes[0].LinkIndex,
+		Gw:        gw,
 	})
 }
 

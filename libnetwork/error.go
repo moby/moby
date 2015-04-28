@@ -12,6 +12,9 @@ var (
 	// ErrInvalidNetworkDriver is returned if an invalid driver
 	// instance is passed.
 	ErrInvalidNetworkDriver = errors.New("invalid driver bound to network")
+	// ErrInvalidJoin is returned if a join is attempted on an endpoint
+	// which already has a container joined.
+	ErrInvalidJoin = errors.New("A container has already joined the endpoint")
 )
 
 // NetworkTypeError type is returned when the network type string is not
@@ -60,4 +63,12 @@ type UnknownEndpointError struct {
 
 func (uee *UnknownEndpointError) Error() string {
 	return fmt.Sprintf("unknown endpoint %s id %s", uee.name, uee.id)
+}
+
+// InvalidContainerIDError is returned when an invalid container id is passed
+// in Join/Leave
+type InvalidContainerIDError string
+
+func (id InvalidContainerIDError) Error() string {
+	return fmt.Sprintf("invalid container id %s", string(id))
 }

@@ -69,7 +69,7 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "sb1", nil)
+	ep, err := network.CreateEndpoint("testep", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "sb2", nil)
+	ep, err := network.CreateEndpoint("testep", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", "sb1", nil)
+	ep, err := network.CreateEndpoint("testep", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,11 +308,11 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep11, err := net1.CreateEndpoint("ep11", "sbox1", nil)
+	ep11, err := net1.CreateEndpoint("ep11", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep12, err := net1.CreateEndpoint("ep12", "sbox2", nil)
+	ep12, err := net1.CreateEndpoint("ep12", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,11 +434,11 @@ func TestNetworkQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep11, err := net1.CreateEndpoint("ep11", "sbox1", nil)
+	ep11, err := net1.CreateEndpoint("ep11", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep12, err := net1.CreateEndpoint("ep12", "sbox2", nil)
+	ep12, err := net1.CreateEndpoint("ep12", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -468,4 +468,137 @@ func TestNetworkQuery(t *testing.T) {
 		t.Fatalf("EndpointByID(): expected nil, got %v", e)
 	}
 
+}
+
+const containerID = "valid_container"
+
+func TestEndpointJoin(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEndpointJoinInvalidContainerId(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join("")
+	if err == nil {
+		t.Fatal("Expected to fail join with empty container id string")
+	}
+
+	if _, ok := err.(libnetwork.InvalidContainerIDError); !ok {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+}
+
+func TestEndpointMultipleJoins(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join("container2")
+	if err == nil {
+		t.Fatal("Expected to fail multiple joins for the same endpoint")
+	}
+
+	if err != libnetwork.ErrInvalidJoin {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+
+	err = ep.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEndpointInvalidLeave(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Leave(containerID)
+	if err == nil {
+		t.Fatal("Expected to fail leave from an endpoint which has no active join")
+	}
+
+	if _, ok := err.(libnetwork.InvalidContainerIDError); !ok {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+
+	_, err = ep.Join(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Leave("")
+	if err == nil {
+		t.Fatal("Expected to fail leave with empty container id")
+	}
+
+	if _, ok := err.(libnetwork.InvalidContainerIDError); !ok {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+
+	err = ep.Leave("container2")
+	if err == nil {
+		t.Fatal("Expected to fail leave with wrong container id")
+	}
+
+	if _, ok := err.(libnetwork.InvalidContainerIDError); !ok {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+
+	err = ep.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

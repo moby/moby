@@ -5,11 +5,16 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"sync"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
+
+const prefix = "/var/lib/docker/network"
+
+var once sync.Once
 
 // The networkNamespace type is the linux implementation of the Sandbox
 // interface. It represents a linux network namespace, and moves an interface
@@ -17,6 +22,24 @@ import (
 type networkNamespace struct {
 	path  string
 	sinfo *Info
+}
+
+func creatBasePath() {
+	err := os.MkdirAll(prefix, 0644)
+	if err != nil && !os.IsExist(err) {
+		panic("Could not create net namespace path directory")
+	}
+}
+
+// GenerateKey generates a sandbox key based on the passed
+// container id.
+func GenerateKey(containerID string) string {
+	maxLen := 12
+	if len(containerID) < maxLen {
+		maxLen = len(containerID)
+	}
+
+	return prefix + "/" + containerID[:maxLen]
 }
 
 // NewSandbox provides a new sandbox instance created in an os specific way
@@ -63,6 +86,8 @@ func createNetworkNamespace(path string) (Sandbox, error) {
 
 func createNamespaceFile(path string) (err error) {
 	var f *os.File
+
+	once.Do(creatBasePath)
 	if f, err = os.Create(path); err == nil {
 		f.Close()
 	}
@@ -130,6 +155,10 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 }
 
 func (n *networkNamespace) SetGateway(gw net.IP) error {
+	if len(gw) == 0 {
+		return nil
+	}
+
 	err := programGateway(n.path, gw)
 	if err == nil {
 		n.sinfo.Gateway = gw
@@ -162,5 +191,9 @@ func (n *networkNamespace) Key() string {
 func (n *networkNamespace) Destroy() error {
 	// Assuming no running process is executing in this network namespace,
 	// unmounting is sufficient to destroy it.
-	return syscall.Unmount(n.path, syscall.MNT_DETACH)
+	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil {
+		return err
+	}
+
+	return os.Remove(n.path)
 }

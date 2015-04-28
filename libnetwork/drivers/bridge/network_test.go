@@ -28,7 +28,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "", "sb1", nil)
+	sinfo, err := d.CreateEndpoint("dummy", "", nil)
 	if err != nil {
 		if _, ok := err.(InvalidEndpointIDError); !ok {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -37,17 +37,8 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to detect invalid config")
 	}
 
-	sinfo, err = d.CreateEndpoint("dummy", "ep", "", nil)
-	if err != nil {
-		if _, ok := err.(InvalidSandboxIDError); !ok {
-			t.Fatalf("Failed with a wrong error :%s", err.Error())
-		}
-	} else {
-		t.Fatalf("Failed to detect invalid config")
-	}
-
 	// Good endpoint creation
-	sinfo, err = d.CreateEndpoint("dummy", "ep", "cc", nil)
+	sinfo, err = d.CreateEndpoint("dummy", "ep", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -63,14 +54,9 @@ func TestLinkCreate(t *testing.T) {
 	// TODO: if we could get peer name from (sboxLnk.(*netlink.Veth)).PeerName
 	// then we could check the MTU on hostLnk as well.
 
-	_, err = d.CreateEndpoint("dummy", "ep", "cc2", nil)
+	_, err = d.CreateEndpoint("dummy", "ep", nil)
 	if err == nil {
 		t.Fatalf("Failed to detect duplicate endpoint id on same network")
-	}
-
-	_, err = d.CreateEndpoint("dummy", "ep2", "cc", nil)
-	if err == nil {
-		t.Fatalf("Failed to detect addition of more than one endpoint to same sandbox")
 	}
 
 	interfaces := sinfo.Interfaces
@@ -125,12 +111,12 @@ func TestLinkCreateTwo(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", "s1", nil)
+	_, err = d.CreateEndpoint("dummy", "ep", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", "s1", nil)
+	_, err = d.CreateEndpoint("dummy", "ep", nil)
 	if err != nil {
 		if err != driverapi.ErrEndpointExists {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -155,7 +141,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "ep", "sb2", nil)
+	sinfo, err := d.CreateEndpoint("dummy", "ep", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -186,7 +172,7 @@ func TestLinkDelete(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep1", "s1", nil)
+	_, err = d.CreateEndpoint("dummy", "ep1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
