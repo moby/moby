@@ -76,7 +76,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	mac := net.HardwareAddr([]byte{0x1e, 0x67, 0x66, 0x44, 0x55, 0x66})
 	epConf := &EndpointConfiguration{MacAddress: mac}
 
-	sinfo, err := d.CreateEndpoint("net1", "ep", "s1", epConf)
+	sinfo, err := d.CreateEndpoint("net1", "ep", epConf)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -207,7 +207,7 @@ func TestSetDefaultGw(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "ep", "sb2", nil)
+	sinfo, err := d.CreateEndpoint("dummy", "ep", nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)
 	}

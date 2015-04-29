@@ -19,54 +19,33 @@ Please refer to the [roadmap](ROADMAP.md) for more information.
 
 There are many networking solutions available to suit a broad range of use-cases. libnetwork uses a driver / plugin model to support all of these solutions while abstracting the complexity of the driver implementations by exposing a simple and consistent Network Model to users.
 
+
 ```go
- // Create a new controller instance
- controller := libnetwork.New()
+    // Create a new controller instance
+    controller := libnetwork.New()
 
- // This option is only needed for in-tree drivers. Plugins(in future) will get
- // their options through plugin infrastructure.
- option := options.Generic{}
- driver, err := controller.NewNetworkDriver("bridge", option)
- if err != nil {
-    return
- }
+    // This option is only needed for in-tree drivers. Plugins(in future) will get
+    // their options through plugin infrastructure.
+    option := options.Generic{}
+    err := controller.NewNetworkDriver("bridge", option)
+    if err != nil {
+        return
+    }
 
- netOptions := options.Generic{}
- // Create a network for containers to join.
- network, err := controller.NewNetwork(driver, "network1", netOptions)
- if err != nil {
-    return
- }
+    netOptions := options.Generic{}
+    // Create a network for containers to join.
+    network, err := controller.NewNetwork("bridge", "network1", netOptions)
+    if err != nil {
+    	return
+    }
 
- // For a new container: create a sandbox instance (providing a unique key).
- // For linux it is a filesystem path
- networkPath := "/var/lib/docker/.../4d23e"
- networkNamespace, err := sandbox.NewSandbox(networkPath)
- if err != nil {
-    return
- }
-
- // For each new container: allocate IP and interfaces. The returned network
- // settings will be used for container infos (inspect and such), as well as
- // iptables rules for port publishing. This info is contained or accessible
- // from the returned endpoint.
- ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), "")
- if err != nil {
-    return
- }
-
- // Add interfaces to the namespace.
- sinfo := ep.SandboxInfo()
- for _, iface := range sinfo.Interfaces {
-     if err := networkNamespace.AddInterface(iface); err != nil {
-     	    return
-     }
- }
-
- // Set the gateway IP
- if err := networkNamespace.SetGateway(sinfo.Gateway); err != nil {
-    return
- }
+    // For each new container: allocate IP and interfaces. The returned network
+    // settings will be used for container infos (inspect and such), as well as
+    // iptables rules for port publishing.
+    ep, err := network.CreateEndpoint("Endpoint1", nil)
+    if err != nil {
+	    return
+    }
 ```
 
 ## Future

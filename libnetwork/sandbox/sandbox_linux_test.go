@@ -54,7 +54,8 @@ func newInfo(t *testing.T) (*Info, error) {
 	intf.Address = addr
 	intf.Address.IP = ip4
 
-	ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
+	// ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
+	ip6, addrv6, err := net.ParseCIDR("fe80::2/64")
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,8 @@ func newInfo(t *testing.T) (*Info, error) {
 
 	sinfo := &Info{Interfaces: []*Interface{intf}}
 	sinfo.Gateway = net.ParseIP("192.168.1.1")
-	sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
+	// sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
+	sinfo.GatewayIPv6 = net.ParseIP("fe80::1")
 
 	return sinfo, nil
 }

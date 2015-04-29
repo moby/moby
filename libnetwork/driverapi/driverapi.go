@@ -31,10 +31,10 @@ type Driver interface {
 	DeleteNetwork(nid types.UUID) error
 
 	// CreateEndpoint invokes the driver method to create an endpoint
-	// passing the network id, endpoint id, sandbox key and driver
+	// passing the network id, endpoint id and driver
 	// specific config. The config mechanism will eventually be replaced
 	// with labels which are yet to be introduced.
-	CreateEndpoint(nid, eid types.UUID, key string, config interface{}) (*sandbox.Info, error)
+	CreateEndpoint(nid, eid types.UUID, config interface{}) (*sandbox.Info, error)
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.

@@ -12,7 +12,7 @@ To suggest changes to the roadmap, including additions, please write the change 
 #### Concepts
 
 1. Sandbox: An isolated environment. This is more or less a standard docker container.
-2. Endpoint: An addressable endpoint used for communication over a specific network. Endpoints join exactly one network and are expected to create a method of network communication for a container. Endpoints are garbage collected when they no longer belong to any Sandboxes. Example : veth pair
+2. Endpoint: An addressable endpoint used for communication over a specific network. Endpoints join exactly one network and are expected to create a method of network communication for a container. Example : veth pair
 3. Network: A collection of endpoints that are able to communicate to each other. Networks are intended to be isolated from each other and to not cross communicate.
 
 #### axioms

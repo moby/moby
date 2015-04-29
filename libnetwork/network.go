@@ -2,39 +2,40 @@
 Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
-    // Create a new controller instance
-    controller := libnetwork.New()
+	// Create a new controller instance
+	controller := libnetwork.New()
 
-    // This option is only needed for in-tree drivers. Plugins(in future) will get
-    // their options through plugin infrastructure.
-    option := options.Generic{}
-    err := controller.NewNetworkDriver("bridge", option)
-    if err != nil {
-        return
-    }
+	// Select and configure the network driver
+	networkType := "bridge"
+	option := options.Generic{}
+	err := controller.ConfigureNetworkDriver(networkType, option)
+	if err != nil {
+		return
+	}
 
-    netOptions := options.Generic{}
-    // Create a network for containers to join.
-    network, err := controller.NewNetwork("bridge", "network1", netOptions)
-    if err != nil {
-    	return
-    }
+	netOptions := options.Generic{}
+	// Create a network for containers to join.
+	network, err := controller.NewNetwork(networkType, "network1", netOptions)
+	if err != nil {
+		return
+	}
 
-    // For a new container: create a sandbox instance (providing a unique key).
-    // For linux it is a filesystem path
-    networkPath := "/var/lib/docker/.../4d23e"
-    networkNamespace, err := sandbox.NewSandbox(networkPath)
-    if err != nil {
-	    return
-    }
+	// For each new container: allocate IP and interfaces. The returned network
+	// settings will be used for container infos (inspect and such), as well as
+	// iptables rules for port publishing. This info is contained or accessible
+	// from the returned endpoint.
+	ep, err := network.CreateEndpoint("Endpoint1", nil)
+	if err != nil {
+		return
+	}
 
-    // For each new container: allocate IP and interfaces. The returned network
-    // settings will be used for container infos (inspect and such), as well as
-    // iptables rules for port publishing.
-    ep, err := network.CreateEndpoint("Endpoint1", networkNamespace.Key(), nil)
-    if err != nil {
-	    return
-    }
+	// A container can join the endpoint by providing the container ID to the join
+	// api which returns the sandbox key which can be used to access the sandbox
+	// created for the container during join.
+	_, err = ep.Join("container1")
+	if err != nil {
+		return
+	}
 */
 package libnetwork
 
@@ -85,7 +86,7 @@ type Network interface {
 	// Create a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carry driver specific options.
 	// Labels support will be added in the near future.
-	CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error)
+	CreateEndpoint(name string, options interface{}) (Endpoint, error)
 
 	// Delete the network.
 	Delete() error
@@ -118,6 +119,15 @@ type Endpoint interface {
 	// Network returns the name of the network to which this endpoint is attached.
 	Network() string
 
+	// Join creates a new sandbox for the given container ID and populates the
+	// network resources allocated for the endpoint and joins the sandbox to
+	// the endpoint. It returns the sandbox key to the caller
+	Join(containerID string) (string, error)
+
+	// Leave removes the sandbox associated with  container ID and detaches
+	// the network resources populated in the sandbox
+	Leave(containerID string) error
+
 	// SandboxInfo returns the sandbox information for this endpoint.
 	SandboxInfo() *sandbox.Info
 
@@ -144,20 +154,29 @@ type endpoint struct {
 	id          types.UUID
 	network     *network
 	sandboxInfo *sandbox.Info
+	sandBox     sandbox.Sandbox
+	containerID string
+}
+
+type sandboxData struct {
+	sandbox sandbox.Sandbox
+	refCnt  int
 }
 
 type networkTable map[types.UUID]*network
 type endpointTable map[types.UUID]*endpoint
+type sandboxTable map[string]sandboxData
 
 type controller struct {
-	networks networkTable
-	drivers  driverTable
+	networks  networkTable
+	drivers   driverTable
+	sandboxes sandboxTable
 	sync.Mutex
 }
 
 // New creates a new instance of network controller.
 func New() NetworkController {
-	return &controller{networkTable{}, enumerateDrivers(), sync.Mutex{}}
+	return &controller{networkTable{}, enumerateDrivers(), sandboxTable{}, sync.Mutex{}}
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options interface{}) error {
@@ -256,6 +275,51 @@ func (c *controller) NetworkByID(id string) Network {
 	return nil
 }
 
+func (c *controller) sandboxAdd(key string) (sandbox.Sandbox, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	sData, ok := c.sandboxes[key]
+	if !ok {
+		sb, err := sandbox.NewSandbox(key)
+		if err != nil {
+			return nil, err
+		}
+
+		sData = sandboxData{sandbox: sb, refCnt: 1}
+		c.sandboxes[key] = sData
+		return sData.sandbox, nil
+	}
+
+	sData.refCnt++
+	return sData.sandbox, nil
+}
+
+func (c *controller) sandboxRm(key string) {
+	c.Lock()
+	defer c.Unlock()
+
+	sData := c.sandboxes[key]
+	sData.refCnt--
+
+	if sData.refCnt == 0 {
+		sData.sandbox.Destroy()
+		delete(c.sandboxes, key)
+	}
+}
+
+func (c *controller) sandboxGet(key string) sandbox.Sandbox {
+	c.Lock()
+	defer c.Unlock()
+
+	sData, ok := c.sandboxes[key]
+	if !ok {
+		return nil
+	}
+
+	return sData.sandbox
+}
+
 func (n *network) Name() string {
 	return n.name
 }
@@ -304,13 +368,13 @@ func (n *network) Delete() error {
 	return err
 }
 
-func (n *network) CreateEndpoint(name string, sboxKey string, options interface{}) (Endpoint, error) {
+func (n *network) CreateEndpoint(name string, options interface{}) (Endpoint, error) {
 	ep := &endpoint{name: name}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 
 	d := n.driver
-	sinfo, err := d.CreateEndpoint(n.id, ep.id, sboxKey, options)
+	sinfo, err := d.CreateEndpoint(n.id, ep.id, options)
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +449,60 @@ func (ep *endpoint) SandboxInfo() *sandbox.Info {
 		return nil
 	}
 	return ep.sandboxInfo.GetCopy()
+}
+
+func (ep *endpoint) Join(containerID string) (string, error) {
+	if containerID == "" {
+		return "", InvalidContainerIDError(containerID)
+	}
+
+	if ep.containerID != "" {
+		return "", ErrInvalidJoin
+	}
+
+	sboxKey := sandbox.GenerateKey(containerID)
+	sb, err := ep.network.ctrlr.sandboxAdd(sboxKey)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err != nil {
+			ep.network.ctrlr.sandboxRm(sboxKey)
+		}
+	}()
+
+	sinfo := ep.SandboxInfo()
+	if sinfo != nil {
+		for _, i := range sinfo.Interfaces {
+			err = sb.AddInterface(i)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		err = sb.SetGateway(sinfo.Gateway)
+		if err != nil {
+			return "", err
+		}
+
+		err = sb.SetGatewayIPv6(sinfo.GatewayIPv6)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	ep.containerID = containerID
+	return sb.Key(), nil
+}
+
+func (ep *endpoint) Leave(containerID string) error {
+	if ep.containerID == "" || containerID == "" || ep.containerID != containerID {
+		return InvalidContainerIDError(containerID)
+	}
+
+	ep.network.ctrlr.sandboxRm(sandbox.GenerateKey(containerID))
+	ep.containerID = ""
+	return nil
 }
 
 func (ep *endpoint) Delete() error {
