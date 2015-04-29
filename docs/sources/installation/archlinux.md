@@ -30,13 +30,13 @@ in the packages. The core dependencies are:
 
 For the normal package a simple
 
-    pacman -S docker
+    $ sudo pacman -S docker
 
 is all that is needed.
 
 For the AUR package execute:
 
-    yaourt -S docker-git
+    $ sudo yaourt -S docker-git
 
 The instructions here assume **yaourt** is installed. See [Arch User
 Repository](https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages)
@@ -59,3 +59,21 @@ To start on system boot:
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
 learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo pacman -R docker
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo pacman -Rns docker
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.

@@ -16,7 +16,9 @@ running on kernels shipped by the distribution. There are kernel changes which
 will cause issues if one decides to step outside that box and run
 non-distribution kernel packages.
 
-## Red Hat Enterprise Linux 7 installation
+## Red Hat Enterprise Linux 7
+
+### Installation
 
 **Red Hat Enterprise Linux 7 (64 bit)** has [shipped with
 Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
@@ -41,7 +43,21 @@ Portal](https://access.redhat.com/).
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-## Red Hat Enterprise Linux 6.6 installation
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo yum -y remove docker
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
+
+## Red Hat Enterprise Linux 6.6
 
 You will need **64 bit** [RHEL
 6.6](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
@@ -66,7 +82,7 @@ non-distro kernel packages.
 >  vulnerabilities and severe bugs (such as those found in kernel 2.6.32)
 > are fixed.
 
-## Installation
+###  Installation
 
 Firstly, you need to install the EPEL repository. Please follow the
 [EPEL installation
@@ -89,6 +105,20 @@ To update the `docker-io` package
     $ sudo yum -y update docker-io
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo yum -y remove docker-io
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## Starting the Docker daemon
 
@@ -117,7 +147,6 @@ Continue with the [User Guide](/userguide/).
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
 learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
-
 
 ## Issues?
 
