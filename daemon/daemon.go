@@ -942,7 +942,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 
 	sysInfo := sysinfo.New(false)
 	const runDir = "/var/run/docker"
-	ed, err := execdrivers.NewDriver(config.ExecDriver, runDir, config.Root, sysInitPath, sysInfo)
+	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, runDir, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
 	}
