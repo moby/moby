@@ -17,7 +17,8 @@ func TestLinkCreate(t *testing.T) {
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		Mtu:        mtu,
-		EnableIPv6: true}
+		EnableIPv6: true,
+	}
 	if err := d.Config(config); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
@@ -97,12 +98,12 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip6.String(), bridgeIPv6.String())
 	}
 
-	if sinfo.Gateway.String() != n.bridge.bridgeIPv4.IP.String() {
+	if !sinfo.Gateway.Equal(n.bridge.bridgeIPv4.IP) {
 		t.Fatalf("Invalid default gateway. Expected %s. Got %s", n.bridge.bridgeIPv4.IP.String(),
 			sinfo.Gateway.String())
 	}
 
-	if sinfo.GatewayIPv6.String() != n.bridge.bridgeIPv6.IP.String() {
+	if !sinfo.GatewayIPv6.Equal(n.bridge.bridgeIPv6.IP) {
 		t.Fatalf("Invalid default gateway for IPv6. Expected %s. Got %s", n.bridge.bridgeIPv6.IP.String(),
 			sinfo.GatewayIPv6.String())
 	}

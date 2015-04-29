@@ -24,6 +24,15 @@ var (
 
 	// ErrNoIPAddr error is returned when bridge has no IPv4 address configured.
 	ErrNoIPAddr = errors.New("bridge has no IPv4 address configured")
+
+	// ErrInvalidGateway is returned when the user provided default gateway (v4/v6) is not not valid.
+	ErrInvalidGateway = errors.New("default gateway ip must be part of the network")
+
+	// ErrInvalidContainerSubnet is returned when the container subnet (FixedCIDR) is not valid.
+	ErrInvalidContainerSubnet = errors.New("container subnet must be a subset of bridge network")
+
+	// ErrInvalidMtu is returned when the user provided MTU is not valid
+	ErrInvalidMtu = errors.New("invalid MTU number")
 )
 
 // ActiveEndpointsError is returned when there are

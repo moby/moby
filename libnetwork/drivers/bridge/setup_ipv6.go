@@ -33,7 +33,26 @@ func setupBridgeIPv6(config *Configuration, i *bridgeInterface) error {
 		return &IPv6AddrAddError{ip: bridgeIPv6, err: err}
 	}
 
+	// Store bridge network and default gateway
 	i.bridgeIPv6 = bridgeIPv6
+	i.gatewayIPv6 = i.bridgeIPv6.IP
+
+	return nil
+}
+
+func setupGatewayIPv6(config *Configuration, i *bridgeInterface) error {
+	if config.FixedCIDRv6 == nil {
+		return ErrInvalidContainerSubnet
+	}
+	if !config.FixedCIDRv6.Contains(config.DefaultGatewayIPv6) {
+		return ErrInvalidGateway
+	}
+	if _, err := ipAllocator.RequestIP(config.FixedCIDRv6, config.DefaultGatewayIPv6); err != nil {
+		return err
+	}
+
+	// Store requested default gateway
+	i.gatewayIPv6 = config.DefaultGatewayIPv6
 
 	return nil
 }

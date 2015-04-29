@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"testing"
 
 	"github.com/docker/libnetwork/netutils"
@@ -44,4 +45,26 @@ func TestSetupIPv6(t *testing.T) {
 		t.Fatalf("Bridge device does not have requested IPv6 address %v", bridgeIPv6Str)
 	}
 
+}
+
+func TestSetupGatewayIPv6(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	_, nw, _ := net.ParseCIDR("2001:db8:ea9:9abc:ffff::/80")
+	gw := net.ParseIP("2001:db8:ea9:9abc:ffff::254")
+
+	config := &Configuration{
+		BridgeName:         DefaultBridgeName,
+		FixedCIDRv6:        nw,
+		DefaultGatewayIPv6: gw}
+
+	br := &bridgeInterface{}
+
+	if err := setupGatewayIPv6(config, br); err != nil {
+		t.Fatalf("Set Default Gateway failed: %v", err)
+	}
+
+	if !gw.Equal(br.gatewayIPv6) {
+		t.Fatalf("Set Default Gateway failed. Expected %v, Found %v", gw, br.gatewayIPv6)
+	}
 }
