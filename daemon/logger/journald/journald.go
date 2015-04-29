@@ -11,11 +11,19 @@ type Journald struct {
 	Jmap map[string]string
 }
 
-func New(id string) (logger.Logger, error) {
+func New(id string, name string) (logger.Logger, error) {
 	if !journal.Enabled() {
 		return nil, fmt.Errorf("journald is not enabled on this host")
 	}
-	jmap := map[string]string{"MESSAGE_ID": id}
+	// Strip a leading slash so that people can search for
+	// CONTAINER_NAME=foo rather than CONTAINER_NAME=/foo.
+	if name[0] == '/' {
+		name = name[1:]
+	}
+	jmap := map[string]string{
+		"CONTAINER_ID":      id[:12],
+		"CONTAINER_ID_FULL": id,
+		"CONTAINER_NAME":    name}
 	return &Journald{Jmap: jmap}, nil
 }
 

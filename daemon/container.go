@@ -1447,7 +1447,7 @@ func (container *Container) startLogging() error {
 		}
 		l = dl
 	case "journald":
-		dl, err := journald.New(container.ID[:12])
+		dl, err := journald.New(container.ID, container.Name)
 		if err != nil {
 			return err
 		}
