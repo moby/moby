@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/nat"
@@ -59,4 +60,13 @@ func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) ([]string, error)
 
 func convertUUID(id string) string {
 	return fmt.Sprintf("%s-%s-%s-%s-%.12s", id[0:8], id[8:12], id[12:16], id[16:20], id[20:])
+}
+
+func journalPath(id string) string {
+	finfo, err := os.Stat("/var/log/journal")
+	if err != nil || !finfo.IsDir() {
+		return ""
+	}
+
+	return fmt.Sprintf("/var/log/journal/%.32s", id)
 }
