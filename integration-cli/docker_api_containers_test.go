@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"os/exec"
 	"strings"
@@ -1148,5 +1149,56 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 
 	if _, err := os.Stat(vol); !os.IsNotExist(err) {
 		c.Fatalf("expected to get ErrNotExist error, got %v", err)
+	}
+}
+
+// Regression test for https://github.com/docker/docker/issues/6231
+func (s *DockerSuite) TestContainersApiChunkedEncoding(c *check.C) {
+	out, _ := dockerCmd(c, "create", "-v", "/foo", "busybox", "true")
+	id := strings.TrimSpace(out)
+
+	conn, err := sockConn(time.Duration(10 * time.Second))
+	if err != nil {
+		c.Fatal(err)
+	}
+	client := httputil.NewClientConn(conn, nil)
+	defer client.Close()
+
+	bindCfg := strings.NewReader(`{"Binds": ["/tmp:/foo"]}`)
+	req, err := http.NewRequest("POST", "/containers/"+id+"/start", bindCfg)
+	if err != nil {
+		c.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	// This is a cheat to make the http request do chunked encoding
+	// Otherwise (just setting the Content-Encoding to chunked) net/http will overwrite
+	// https://golang.org/src/pkg/net/http/request.go?s=11980:12172
+	req.ContentLength = -1
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Fatalf("error starting container with chunked encoding: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 204 {
+		c.Fatalf("expected status code 204, got %d", resp.StatusCode)
+	}
+
+	out, err = inspectFieldJSON(id, "HostConfig.Binds")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	var binds []string
+	if err := json.NewDecoder(strings.NewReader(out)).Decode(&binds); err != nil {
+		c.Fatal(err)
+	}
+	if len(binds) != 1 {
+		c.Fatalf("got unexpected binds: %v", binds)
+	}
+
+	expected := "/tmp:/foo"
+	if binds[0] != expected {
+		c.Fatalf("got incorrect bind spec, wanted %s, got: %s", expected, binds[0])
 	}
 }
