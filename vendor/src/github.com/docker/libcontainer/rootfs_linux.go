@@ -122,7 +122,7 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			}
 		}
 		if m.Flags&syscall.MS_PRIVATE != 0 {
-			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
+			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE|syscall.MS_REC), ""); err != nil {
 				return err
 			}
 		}
@@ -240,9 +240,9 @@ func mknodDevice(dest string, node *configs.Device) error {
 }
 
 func prepareRoot(config *configs.Config) error {
-	flag := syscall.MS_PRIVATE | syscall.MS_REC
+	flag := syscall.MS_PRIVATE
 	if config.NoPivotRoot {
-		flag = syscall.MS_SLAVE | syscall.MS_REC
+		flag = syscall.MS_SLAVE
 	}
 	if err := syscall.Mount("", "/", "", uintptr(flag), ""); err != nil {
 		return err

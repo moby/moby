@@ -243,6 +243,11 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 		if m.Slave {
 			flags |= syscall.MS_SLAVE
 		}
+		// Add code to parse /foo:/foo:p to decide whether this should be set.
+		// m.Private should be true by default unless p is found
+		if m.Private {
+			flags |= syscall.MS_PRIVATE
+		}
 
 		container.Mounts = append(container.Mounts, &configs.Mount{
 			Source:      m.Source,
