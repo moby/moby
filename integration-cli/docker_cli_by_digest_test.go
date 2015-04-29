@@ -115,6 +115,16 @@ func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
 	}
 }
 
+func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *check.C) {
+	// pull from the registry using the <name>@<digest> reference
+	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
+	cmd := exec.Command(dockerBinary, "pull", imageReference)
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "pulling with digest reference failed from v2 registry") {
+		c.Fatalf("expected non-zero exit status and correct error message when pulling non-existing image: %s", out)
+	}
+}
+
 func (s *DockerRegistrySuite) TestCreateByDigest(c *check.C) {
 	pushDigest, err := setupImage()
 	if err != nil {

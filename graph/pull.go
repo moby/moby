@@ -88,6 +88,10 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		logrus.Debug("image does not exist on v2 registry, falling back to v1")
 	}
 
+	if utils.DigestReference(tag) {
+		return fmt.Errorf("pulling with digest reference failed from v2 registry")
+	}
+
 	logrus.Debugf("pulling v1 repository with local name %q", repoInfo.LocalName)
 	if err = s.pullRepository(r, imagePullConfig.OutStream, repoInfo, tag, sf, imagePullConfig.Parallel); err != nil {
 		return err
