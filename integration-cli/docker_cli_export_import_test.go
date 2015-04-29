@@ -12,8 +12,6 @@ import (
 func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 	containerID := "testexportcontainerandimportimage"
 
-	defer deleteImages("repo/testexp:v1")
-
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", containerID, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -50,8 +48,6 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 // Used to test output flag in the export command
 func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	containerID := "testexportcontainerwithoutputandimportimage"
-
-	defer deleteImages("repo/testexp:v1")
 
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", containerID, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)

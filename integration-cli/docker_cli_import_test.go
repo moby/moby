@@ -27,7 +27,6 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 		c.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
 	}
 	image := strings.TrimSpace(out)
-	defer deleteImages(image)
 
 	runCmd = exec.Command(dockerBinary, "run", "--rm", image, "true")
 	out, _, err = runCommandWithOutput(runCmd)

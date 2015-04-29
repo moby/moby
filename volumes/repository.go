@@ -58,7 +58,7 @@ func (r *Repository) newVolume(path string, writable bool) (*Volume, error) {
 	path = filepath.Clean(path)
 
 	// Ignore the error here since the path may not exist
-	// Really just want to make sure the path we are using is real(or non-existant)
+	// Really just want to make sure the path we are using is real(or nonexistent)
 	if cleanPath, err := filepath.EvalSymlinks(path); err == nil {
 		path = cleanPath
 	}

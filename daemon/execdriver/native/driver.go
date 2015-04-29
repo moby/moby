@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
@@ -39,7 +41,7 @@ type driver struct {
 	sync.Mutex
 }
 
-func NewDriver(root, initPath string) (*driver, error) {
+func NewDriver(root, initPath string, options []string) (*driver, error) {
 	meminfo, err := sysinfo.ReadMemInfo()
 	if err != nil {
 		return nil, err
@@ -52,10 +54,44 @@ func NewDriver(root, initPath string) (*driver, error) {
 	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
+
+	// choose cgroup manager
+	// this makes sure there are no breaking changes to people
+	// who upgrade from versions without native.cgroupdriver opt
 	cgm := libcontainer.Cgroupfs
 	if systemd.UseSystemd() {
 		cgm = libcontainer.SystemdCgroups
 	}
+
+	// parse the options
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "native.cgroupdriver":
+			// override the default if they set options
+			switch val {
+			case "systemd":
+				if systemd.UseSystemd() {
+					cgm = libcontainer.SystemdCgroups
+				} else {
+					// warn them that they chose the wrong driver
+					logrus.Warn("You cannot use systemd as native.cgroupdriver, using cgroupfs instead")
+				}
+			case "cgroupfs":
+				cgm = libcontainer.Cgroupfs
+			default:
+				return nil, fmt.Errorf("Unknown native.cgroupdriver given %q. try cgroupfs or systemd", val)
+			}
+		default:
+			return nil, fmt.Errorf("Unknown option %s\n", key)
+		}
+	}
+
+	logrus.Debugf("Using %v as native.cgroupdriver", cgm)
 
 	f, err := libcontainer.New(
 		root,

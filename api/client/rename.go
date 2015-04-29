@@ -1,20 +1,19 @@
 package client
 
-import "fmt"
+import (
+	"fmt"
+
+	flag "github.com/docker/docker/pkg/mflag"
+)
 
 // CmdRename renames a container.
 //
 // Usage: docker rename OLD_NAME NEW_NAME
 func (cli *DockerCli) CmdRename(args ...string) error {
 	cmd := cli.Subcmd("rename", "OLD_NAME NEW_NAME", "Rename a container", true)
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
+	cmd.Require(flag.Exact, 2)
+	cmd.ParseFlags(args, true)
 
-	if cmd.NArg() != 2 {
-		cmd.Usage()
-		return nil
-	}
 	oldName := cmd.Arg(0)
 	newName := cmd.Arg(1)
 

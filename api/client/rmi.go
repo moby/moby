@@ -37,8 +37,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 		} else {
 			dels := []types.ImageDelete{}
-			err = json.NewDecoder(rdr).Decode(&dels)
-			if err != nil {
+			if err := json.NewDecoder(rdr).Decode(&dels); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
 				continue

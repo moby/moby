@@ -115,11 +115,12 @@ func (store *TagStore) save() error {
 }
 
 func (store *TagStore) reload() error {
-	jsonData, err := ioutil.ReadFile(store.path)
+	f, err := os.Open(store.path)
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(jsonData, store); err != nil {
+	defer f.Close()
+	if err := json.NewDecoder(f).Decode(&store); err != nil {
 		return err
 	}
 	return nil

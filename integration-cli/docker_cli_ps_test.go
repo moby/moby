@@ -255,7 +255,6 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
-
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", "hello")
 	runCommandWithOutput(cmd)
 	cmd = exec.Command(dockerBinary, "ps", "-s", "-n=1")
@@ -547,7 +546,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	}
 	ids = strings.Split(strings.TrimSpace(out), "\n")
 	if len(ids) != 2 {
-		c.Fatalf("Should be 2 zero exited containerst got %d", len(ids))
+		c.Fatalf("Should be 2 zero exited containers got %d", len(ids))
 	}
 	if ids[0] != secondNonZero {
 		c.Fatalf("First in list should be %q, got %q", secondNonZero, ids[0])
@@ -560,7 +559,6 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	tag := "asybox:shmatest"
-	defer deleteImages(tag)
 	if out, err := exec.Command(dockerBinary, "tag", "busybox", tag).CombinedOutput(); err != nil {
 		c.Fatalf("Failed to tag image: %s, out: %q", err, out)
 	}

@@ -225,7 +225,6 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	if container.IsRunning() {
 		logrus.Debugf("killing old running container %s", container.ID)
 
-		existingPid := container.Pid
 		container.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 
 		// We only have to handle this for lxc because the other drivers will ensure that
@@ -236,11 +235,6 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 			// use the current driver and ensure that the container is dead x.x
 			cmd := &execdriver.Command{
 				ID: container.ID,
-			}
-			var err error
-			cmd.ProcessConfig.Process, err = os.FindProcess(existingPid)
-			if err != nil {
-				logrus.Debugf("cannot find existing process for %d", existingPid)
 			}
 			daemon.execDriver.Terminate(cmd)
 		}
@@ -829,7 +823,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 	// Load storage driver
 	driver, err := graphdriver.New(config.Root, config.GraphOptions)
 	if err != nil {
-		return nil, fmt.Errorf("error intializing graphdriver: %v", err)
+		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
 	logrus.Debugf("Using graph driver %s", driver)
 	// register cleanup for graph driver
@@ -948,7 +942,7 @@ func NewDaemonFromDirectory(config *Config, eng *engine.Engine, registryService 
 
 	sysInfo := sysinfo.New(false)
 	const runDir = "/var/run/docker"
-	ed, err := execdrivers.NewDriver(config.ExecDriver, runDir, config.Root, sysInitPath, sysInfo)
+	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, runDir, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -1187,8 +1181,7 @@ func tempDir(rootDir string) (string, error) {
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
 	}
-	err := os.MkdirAll(tmpDir, 0700)
-	return tmpDir, err
+	return tmpDir, os.MkdirAll(tmpDir, 0700)
 }
 
 func checkKernel() error {

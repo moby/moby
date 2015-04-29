@@ -1,189 +1,106 @@
-page_title: Guidelines for official repositories on Docker Hub
+page_title: Official Repositories on Docker Hub
 page_description: Guidelines for Official Repositories on Docker Hub
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, official, image, documentation
 
-# Guidelines for creating and documenting official repositories
+# Official Repositories on Docker Hub
 
-## Introduction
+The Docker [Official Repositories](http://registry.hub.docker.com/official) are
+a curated set of Docker repositories that are promoted on Docker Hub and
+supported by Docker, Inc. They are designed to:
 
-You’ve been given the job of creating an image for an Official Repository
-hosted on [Docker Hub Registry](https://registry.hub.docker.com/). These are
-our guidelines for getting that task done. Even if you’re not
-planning to create an Official Repo, you can think of these guidelines as best
-practices for image creation generally.
+* Provide essential base OS repositories (for example,
+  [`ubuntu`](https://registry.hub.docker.com/_/ubuntu/),
+  [`centos`](https://registry.hub.docker.com/_/centos/)) that serve as the
+  starting point for the majority of users.
 
-This document consists of two major sections:
+* Provide drop-in solutions for popular programming language runtimes, data
+  stores, and other services, similar to what a Platform-as-a-Service (PAAS)
+  would offer.
 
-* A list of expected files, resources and supporting items for your image,
-along with best practices for creating those items
-* Examples embodying those practices
+* Exemplify [`Dockerfile` best practices](/articles/dockerfile_best-practices)
+  and provide clear documentation to serve as a reference for other `Dockerfile`
+  authors.
 
-## Expected files and resources
+* Ensure that security updates are applied in a timely manner. This is
+  particularly important as many Official Repositories are some of the most
+  popular on Docker Hub.
 
-### A Git repository
+* Provide a channel for software vendors to redistribute up-to-date and
+  supported versions of their products. Organization accounts on Docker Hub can
+  also serve this purpose, without the careful review or restrictions on what
+  can be published.
 
-Your image needs to live in a Git repository, preferably on GitHub. (If you’d
-like to use a different provider, please [contact us](mailto:feedback@docker.com)
-directly.) Docker **strongly** recommends that this repo be publicly
-accessible.
+Docker, Inc. sponsors a dedicated team that is responsible for reviewing and
+publishing all Official Repositories content. This team works in collaboration
+with upstream software maintainers, security experts, and the broader Docker
+community.
 
-If the repo is private or has otherwise limited access, you must provide a
-means of at least “read-only” access for both general users and for the
-docker-library maintainers, who need access for review and building purposes.
+While it is preferrable to have upstream software authors maintaining their
+corresponding Official Repositories, this is not a strict requirement. Creating
+and maintaining images for Official Repositories is a public process. It takes
+place openly on GitHub where participation is encouraged. Anyone can provide
+feedback, contribute code, suggest process changes, or even propose a new
+Official Repository.
 
-### A Dockerfile
+## Should I use Official Repositories?
 
-Complete information on `Dockerfile`s can be found in the [Reference section](https://docs.docker.com/reference/builder/).
-We also have a page discussing [best practices for writing `Dockerfile`s](/articles/dockerfile_best-practices).
-Your `Dockerfile` should adhere to the following:
+New Docker users are encouraged to use the Official Repositories in their
+projects. These repositories have clear documentation, promote best practices,
+and are designed for the most common use cases. Advanced users are encouraged to
+review the Official Repositories as part of their `Dockerfile` learning process.
 
-* It must be written either by using `FROM scratch` or be based on another,
-established Official Image.
-* It must follow `Dockerfile` best practices. These are discussed on the
-[best practices page](/articles/dockerfile_best-practices). In addition,
-Docker engineer Michael Crosby has some good tips for `Dockerfiles` in
-this [blog post](http://crosbymichael.com/dockerfile-best-practices-take-2.html).
+A common rationale for diverging from Official Repositories is to optimize for
+image size. For instance, many of the programming language stack images contain
+a complete build toolchain to support installation of modules that depend on
+optimized code. An advanced user could build a custom image with just the
+necessary pre-compiled libraries to save space.
 
-While [`ONBUILD` triggers](https://docs.docker.com/reference/builder/#onbuild)
-are not required, if you choose to use them you should:
+A number of language stacks such as
+[`python`](https://registry.hub.docker.com/_/python/) and
+[`ruby`](https://registry.hub.docker.com/_/ruby/) have `-slim` tag variants
+designed to fill the need for optimization.  Even when these "slim" variants are
+insufficient, it is still recommended to inherit from an Official Repository
+base OS image to leverage the ongoing maintenance work, rather than duplicating
+these efforts.
 
-* Build both `ONBUILD` and non-`ONBUILD` images, with the `ONBUILD` image
-built `FROM` the non-`ONBUILD` image.
-* The `ONBUILD` image should be specifically tagged, for example, `ruby:
-latest`and `ruby:onbuild`, or `ruby:2` and  `ruby:2-onbuild`
+## How can I get involved?
 
-### A short description
+All Official Repositories contain a **User Feedback** section in their
+documentation which covers the details for that specific repository. In most
+cases, the GitHub repository which contains the Dockerfiles for an Official
+Repository also has an active issue tracker. General feedback and support
+questions should be directed to `#docker-library` on Freenode IRC.
 
-Include a brief description of your image (in plaintext). Only one description
-is required; you don’t need additional descriptions for each tag. The file
-should also: 
+## How do I create a new Official Repository?
 
-* Be named `README-short.txt`
-* Reside in the repo for the “latest” tag
-* Not exceed 100 characters
+From a high level, an Official Repository starts out as a proposal in the form
+of a set of GitHub pull requests.  You'll find detailed and objective proposal
+requirements in the following GitHub repositories:
 
-### A logo
+* [docker-library/official-images](https://github.com/docker-library/official-images)
 
-Include a logo of your company or the product (png format preferred). Only one
-logo is required; you don’t need additional logo files for each tag. The logo
-file should have the following characteristics: 
+* [docker-library/docs](https://github.com/docker-library/docs)
 
-* Be named `logo.png`
-* Should reside in the repo for the “latest” tag
-* Should fit inside a 200px square, maximized in one dimension (preferably the
-width)
-* Square or wide (landscape) is preferred over tall (portrait), but exceptions
-can be made based on the logo needed
+The Official Repositories team, with help from community contributors, formally
+review each proposal and provide feedback to the author. This initial review
+process may require a bit of back and forth before the proposal is accepted.
 
-### A long description
+There are also subjective considerations during the review process. These
+subjective concerns boil down to the basic question: "is this image generally
+useful?"  For example, the [`python`](https://registry.hub.docker.com/_/python/)
+Official Repository is "generally useful" to the large Python developer
+community, whereas an obscure text adventure game written in Python last week is
+not.
 
-Include a comprehensive description of your image (in Markdown format, GitHub 
-flavor preferred). Only one description is required; you don’t need additional
-descriptions for each tag. The file should also: 
+When a new proposal is accepted, the author becomes responsibile for keeping
+their images up-to-date and responding to user feedback.  The Official
+Repositories team becomes responsibile for publishing the images and
+documentation on Docker Hub.  Updates to the Official Repository follow the same
+pull request process, though with less review. The Official Repositories team
+ultimately acts as a gatekeeper for all changes, which helps mitigate the risk
+of quality and security issues from being introduced.
 
-* Be named `README.md`
-* Reside in the repo for the “latest” tag
-* Be no longer than absolutely necessary, while still addressing all the
-content requirements
-
-In terms of content, the long description must include the following sections:
-
-* Overview & links
-* How-to/usage
-* Issues & contributions
-
-#### Overview and links
-
-This section should provide:
-
-* an overview of the software contained in the image, similar to the
-introduction in a Wikipedia entry
-
-* a selection of links to outside resources that help to describe the software
-
-* a *mandatory* link to the `Dockerfile`
-
-#### How-to/usage
-
-A section that describes how to run and use the image, including common use
-cases and example `Dockerfile`s (if applicable). Try to provide clear, step-by-
-step instructions wherever possible.
-
-##### Issues and contributions
-
-In this section, point users to any resources that can help them contribute to
-the project. Include contribution guidelines and any specific instructions
-related to your development practices. Include a link to
-[Docker’s resources for contributors](https://docs.docker.com/contributing/contributing/).
-Be sure to include contact info, handles, etc. for official maintainers.
-
-Also include information letting users know where they can go for help and how
-they can file issues with the repo. Point them to any specific IRC channels,
-issue trackers, contacts, additional “how-to” information or other resources.
-
-### License
-
-Include a file, `LICENSE`, of any applicable license.  Docker recommends using
-the license of the software contained in the image, provided it allows Docker,
-Inc. to legally build and distribute the image. Otherwise, Docker recommends
-adopting the [Expat license](http://directory.fsf.org/wiki/License:Expat)
-(a.k.a., the MIT or X11 license).
-
-## Examples
-
-Below are sample short and long description files for an imaginary image
-containing Ruby on Rails.
-
-### Short description
-
-`README-short.txt`
-
-`Ruby on Rails is an open-source application framework written in Ruby. It emphasizes best practices such as convention over configuration, active record pattern, and the model-view-controller pattern.`
-
-### Long description
-
-`README.md`
-
-```markdown
-# What is Ruby on Rails
-
-Ruby on Rails, often simply referred to as Rails, is an open source web application framework which runs via the Ruby programming language. It is a full-stack framework: it allows creating pages and applications that gather information from the web server, talk to or query the database, and render templates out of the box. As a result, Rails features a routing system that is independent of the web server.
-
-> [wikipedia.org/wiki/Ruby_on_Rails](https://en.wikipedia.org/wiki/Ruby_on_Rails)
-
-# How to use this image
-
-## Create a `Dockerfile` in your rails app project
-
-    FROM rails:onbuild
-
-Put this file in the root of your app, next to the `Gemfile`.
-
-This image includes multiple `ONBUILD` triggers so that should be all that you need for most applications. The build will `ADD . /usr/src/app`, `RUN bundle install`, `EXPOSE 3000`, and set the default command to `rails server`.
-
-Then build and run the Docker image.
-
-    docker build -t my-rails-app .
-    docker run --name some-rails-app -d my-rails-app
-
-Test it by visiting `http://container-ip:3000` in a browser. On the other hand, if you need access outside the host on port 8080:
-
-    docker run --name some-rails-app -p 8080:3000 -d my-rails-app
-
-Then go to `http://localhost:8080` or `http://host-ip:8080` in a browser.
-```
-
-For more examples, take a look at these repos: 
-
-* [Go](https://github.com/docker-library/golang)
-* [PostgreSQL](https://github.com/docker-library/postgres)
-* [Buildpack-deps](https://github.com/docker-library/buildpack-deps)
-* ["Hello World" minimal container](https://github.com/docker-library/hello-world)
-* [Node](https://github.com/docker-library/node)
-
-## Submit your repo
-
-Once you've checked off everything in these guidelines, and are confident your
-image is ready for primetime, please contact us at
-[partners@docker.com](mailto:partners@docker.com) to have your project
-considered for the Official Repos program.
+> **Note**: If you are interested in proposing an Official Repository, but would
+> like to discuss it with Docker, Inc. privately first, please send your
+> inquiries to partners@docker.com.  There is no fast-track or pay-for-status
+> option.

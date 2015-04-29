@@ -74,15 +74,14 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 	if err := stdin.Close(); err != nil {
 		c.Fatal(err)
 	}
-	finish := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if err := execCmd.Wait(); err != nil {
-			c.Fatal(err)
-		}
-		close(finish)
+		errChan <- execCmd.Wait()
+		close(errChan)
 	}()
 	select {
-	case <-finish:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(1 * time.Second):
 		c.Fatal("docker exec failed to exit on stdin close")
 	}
@@ -117,28 +116,26 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestExecAfterDaemonRestart(c *check.C) {
+func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	d := NewDaemon(c)
-	if err := d.StartWithBusybox(); err != nil {
+	if err := s.d.StartWithBusybox(); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
-	defer d.Stop()
 
-	if out, err := d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
+	if out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
 		c.Fatalf("Could not run top: err=%v\n%s", err, out)
 	}
 
-	if err := d.Restart(); err != nil {
+	if err := s.d.Restart(); err != nil {
 		c.Fatalf("Could not restart daemon: %v", err)
 	}
 
-	if out, err := d.Cmd("start", "top"); err != nil {
+	if out, err := s.d.Cmd("start", "top"); err != nil {
 		c.Fatalf("Could not start top after daemon restart: err=%v\n%s", err, out)
 	}
 
-	out, err := d.Cmd("exec", "top", "echo", "hello")
+	out, err := s.d.Cmd("exec", "top", "echo", "hello")
 	if err != nil {
 		c.Fatalf("Could not exec on container top: err=%v\n%s", err, out)
 	}
@@ -147,7 +144,6 @@ func (s *DockerSuite) TestExecAfterDaemonRestart(c *check.C) {
 	if outStr != "hello" {
 		c.Errorf("container should've printed hello, instead printed %q", outStr)
 	}
-
 }
 
 // Regression test for #9155, #9044
@@ -281,25 +277,29 @@ func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
 		}
 	}()
 
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		defer close(done)
+		defer close(errChan)
 
 		cmd := exec.Command(dockerBinary, "exec", "-ti", id, "true")
 		if _, err := cmd.StdinPipe(); err != nil {
-			c.Fatal(err)
+			errChan <- err
+			return
 		}
 
 		expected := "cannot enable tty mode"
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			c.Fatal("exec should have failed")
+			errChan <- fmt.Errorf("exec should have failed")
+			return
 		} else if !strings.Contains(out, expected) {
-			c.Fatalf("exec failed with error %q: expected %q", out, expected)
+			errChan <- fmt.Errorf("exec failed with error %q: expected %q", out, expected)
+			return
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(3 * time.Second):
 		c.Fatal("exec is running but should have failed")
 	}
@@ -329,17 +329,22 @@ func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
 		c.Fatal(err)
 	}
 
-	wait := make(chan struct{})
+	type dstop struct {
+		out []byte
+		err error
+	}
+
+	ch := make(chan dstop)
 	go func() {
-		if out, err := exec.Command(dockerBinary, "stop", "testing").CombinedOutput(); err != nil {
-			c.Fatal(out, err)
-		}
-		close(wait)
+		out, err := exec.Command(dockerBinary, "stop", "testing").CombinedOutput()
+		ch <- dstop{out, err}
+		close(ch)
 	}()
 	select {
 	case <-time.After(3 * time.Second):
 		c.Fatal("Container stop timed out")
-	case <-wait:
+	case s := <-ch:
+		c.Assert(s.err, check.IsNil)
 	}
 }
 
@@ -362,6 +367,7 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	execCgroups := []sort.StringSlice{}
+	errChan := make(chan error)
 	// exec a few times concurrently to get consistent failure
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
@@ -369,7 +375,8 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 			cmd := exec.Command(dockerBinary, "exec", "testing", "cat", "/proc/self/cgroup")
 			out, _, err := runCommandWithOutput(cmd)
 			if err != nil {
-				c.Fatal(out, err)
+				errChan <- err
+				return
 			}
 			cg := sort.StringSlice(strings.Split(string(out), "\n"))
 
@@ -380,6 +387,11 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 		}()
 	}
 	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, check.IsNil)
+	}
 
 	for _, cg := range execCgroups {
 		if !reflect.DeepEqual(cg, containerCgroups) {

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"sort"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -91,17 +92,130 @@ func createSampleDir(t *testing.T, root string) {
 	}
 }
 
+func TestChangeString(t *testing.T) {
+	modifiyChange := Change{"change", ChangeModify}
+	toString := modifiyChange.String()
+	if toString != "C change" {
+		t.Fatalf("String() of a change with ChangeModifiy Kind should have been %s but was %s", "C change", toString)
+	}
+	addChange := Change{"change", ChangeAdd}
+	toString = addChange.String()
+	if toString != "A change" {
+		t.Fatalf("String() of a change with ChangeAdd Kind should have been %s but was %s", "A change", toString)
+	}
+	deleteChange := Change{"change", ChangeDelete}
+	toString = deleteChange.String()
+	if toString != "D change" {
+		t.Fatalf("String() of a change with ChangeDelete Kind should have been %s but was %s", "D change", toString)
+	}
+}
+
+func TestChangesWithNoChanges(t *testing.T) {
+	rwLayer, err := ioutil.TempDir("", "docker-changes-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(rwLayer)
+	layer, err := ioutil.TempDir("", "docker-changes-test-layer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(layer)
+	createSampleDir(t, layer)
+	changes, err := Changes([]string{layer}, rwLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 0 {
+		t.Fatalf("Changes with no difference should have detect no changes, but detected %d", len(changes))
+	}
+}
+
+func TestChangesWithChanges(t *testing.T) {
+	rwLayer, err := ioutil.TempDir("", "docker-changes-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(rwLayer)
+	// Create a folder
+	dir1 := path.Join(rwLayer, "dir1")
+	os.MkdirAll(dir1, 0740)
+	deletedFile := path.Join(dir1, ".wh.file1-2")
+	ioutil.WriteFile(deletedFile, []byte{}, 0600)
+	modifiedFile := path.Join(dir1, "file1-1")
+	ioutil.WriteFile(modifiedFile, []byte{0x00}, 01444)
+	// Let's add a subfolder for a newFile
+	subfolder := path.Join(dir1, "subfolder")
+	os.MkdirAll(subfolder, 0740)
+	newFile := path.Join(subfolder, "newFile")
+	ioutil.WriteFile(newFile, []byte{}, 0740)
+	// Let's create folders that with have the role of layers with the same data
+	layer, err := ioutil.TempDir("", "docker-changes-test-layer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(layer)
+	createSampleDir(t, layer)
+	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0740)
+
+	// Let's modify modtime for dir1 to be sure it's the same for the two layer (to not having false positive)
+	fi, err := os.Stat(dir1)
+	if err != nil {
+		return
+	}
+	mtime := fi.ModTime()
+	stat := fi.Sys().(*syscall.Stat_t)
+	atime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+
+	layerDir1 := path.Join(layer, "dir1")
+	os.Chtimes(layerDir1, atime, mtime)
+
+	changes, err := Changes([]string{layer}, rwLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sort.Sort(changesByPath(changes))
+
+	expectedChanges := []Change{
+		{"/dir1/file1-1", ChangeModify},
+		{"/dir1/file1-2", ChangeDelete},
+		{"/dir1/subfolder", ChangeModify},
+		{"/dir1/subfolder/newFile", ChangeAdd},
+	}
+
+	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
+		if i >= len(expectedChanges) {
+			t.Fatalf("unexpected change %s\n", changes[i].String())
+		}
+		if i >= len(changes) {
+			t.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
+		}
+		if changes[i].Path == expectedChanges[i].Path {
+			if changes[i] != expectedChanges[i] {
+				t.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
+			}
+		} else if changes[i].Path < expectedChanges[i].Path {
+			t.Fatalf("unexpected change %s\n", changes[i].String())
+		} else {
+			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
+		}
+	}
+}
+
 // Create an directory, copy it, make sure we report no changes between the two
 func TestChangesDirsEmpty(t *testing.T) {
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(src)
 	createSampleDir(t, src)
 	dst := src + "-copy"
 	if err := copyDir(src, dst); err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(dst)
 	changes, err := ChangesDirs(dst, src)
 	if err != nil {
 		t.Fatal(err)
@@ -289,5 +403,43 @@ func TestApplyLayer(t *testing.T) {
 
 	if len(changes2) != 0 {
 		t.Fatalf("Unexpected differences after reapplying mutation: %v", changes2)
+	}
+}
+
+func TestChangesSizeWithNoChanges(t *testing.T) {
+	size := ChangesSize("/tmp", nil)
+	if size != 0 {
+		t.Fatalf("ChangesSizes with no changes should be 0, was %d", size)
+	}
+}
+
+func TestChangesSizeWithOnlyDeleteChanges(t *testing.T) {
+	changes := []Change{
+		{Path: "deletedPath", Kind: ChangeDelete},
+	}
+	size := ChangesSize("/tmp", changes)
+	if size != 0 {
+		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
+	}
+}
+
+func TestChangesSize(t *testing.T) {
+	parentPath, err := ioutil.TempDir("", "docker-changes-test")
+	defer os.RemoveAll(parentPath)
+	addition := path.Join(parentPath, "addition")
+	if err := ioutil.WriteFile(addition, []byte{0x01, 0x01, 0x01}, 0744); err != nil {
+		t.Fatal(err)
+	}
+	modification := path.Join(parentPath, "modification")
+	if err = ioutil.WriteFile(modification, []byte{0x01, 0x01, 0x01}, 0744); err != nil {
+		t.Fatal(err)
+	}
+	changes := []Change{
+		{Path: "addition", Kind: ChangeAdd},
+		{Path: "modification", Kind: ChangeModify},
+	}
+	size := ChangesSize(parentPath, changes)
+	if size != 6 {
+		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
 	}
 }

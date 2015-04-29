@@ -29,6 +29,7 @@ type Config struct {
 	GraphDriver          string
 	GraphOptions         []string
 	ExecDriver           string
+	ExecOptions          []string
 	Mtu                  int
 	SocketGroup          string
 	EnableCors           bool
@@ -70,6 +71,7 @@ func (config *Config) InstallFlags() {
 	flag.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", "Set CORS headers in the remote API")
 	opts.IPVar(&config.Bridge.DefaultIp, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP when binding container ports")
 	opts.ListVar(&config.GraphOptions, []string{"-storage-opt"}, "Set storage driver options")
+	opts.ListVar(&config.ExecOptions, []string{"-exec-opt"}, "Set exec driver options")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "DNS server to use")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "DNS search domains to use")

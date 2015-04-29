@@ -837,7 +837,7 @@ func TestDestroyWithInitLayer(t *testing.T) {
 
 	// Make sure that the container does not exist in the driver
 	if _, err := driver.Get(container.ID, ""); err == nil {
-		t.Fatal("Conttainer should not exist in the driver")
+		t.Fatal("Container should not exist in the driver")
 	}
 
 	// Make sure that the init layer is removed from the driver

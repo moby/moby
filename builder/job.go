@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 // whitelist of commands allowed for a commit/import
@@ -106,18 +106,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 	if buildConfig.RemoteURL == "" {
 		context = ioutil.NopCloser(buildConfig.Context)
 	} else if urlutil.IsGitURL(buildConfig.RemoteURL) {
-		if !urlutil.IsGitTransport(buildConfig.RemoteURL) {
-			buildConfig.RemoteURL = "https://" + buildConfig.RemoteURL
-		}
-		root, err := ioutil.TempDir("", "docker-build-git")
+		root, err := utils.GitClone(buildConfig.RemoteURL)
 		if err != nil {
 			return err
 		}
 		defer os.RemoveAll(root)
-
-		if output, err := exec.Command("git", "clone", "--recursive", buildConfig.RemoteURL, root).CombinedOutput(); err != nil {
-			return fmt.Errorf("Error trying to use git: %s (%s)", err, output)
-		}
 
 		c, err := archive.Tar(root, archive.Uncompressed)
 		if err != nil {

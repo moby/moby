@@ -176,7 +176,7 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	name := "testing"
+	name := "TestContainerApiStartDupVolumeBinds"
 	config := map[string]interface{}{
 		"Image":   "busybox",
 		"Volumes": map[string]struct{}{volPath: {}},
@@ -260,15 +260,14 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 		c.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 	type b struct {
-		body []byte
-		err  error
+		status int
+		body   []byte
+		err    error
 	}
 	bc := make(chan b, 1)
 	go func() {
 		status, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
-		c.Assert(status, check.Equals, http.StatusOK)
-		c.Assert(err, check.IsNil)
-		bc <- b{body, err}
+		bc <- b{status, body, err}
 	}()
 
 	// allow some time to stream the stats from the container
@@ -283,9 +282,8 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 	case <-time.After(2 * time.Second):
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
-		if sr.err != nil {
-			c.Fatal(sr.err)
-		}
+		c.Assert(sr.err, check.IsNil)
+		c.Assert(sr.status, check.Equals, http.StatusOK)
 
 		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
 		var s *types.Stats
@@ -297,6 +295,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
+	// TODO: this test does nothing because we are c.Assert'ing in goroutine
 	var (
 		name   = "statscontainer"
 		runCmd = exec.Command(dockerBinary, "create", "--name", name, "busybox", "top")
@@ -339,8 +338,8 @@ func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
 		c.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	status, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
 	out, err := readBody(body)
@@ -365,8 +364,8 @@ RUN find /tmp/`,
 	}
 	defer server.Close()
 
-	status, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -393,8 +392,8 @@ RUN echo from dockerfile`,
 	}
 	defer git.Close()
 
-	status, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -421,8 +420,8 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	status, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -450,8 +449,8 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	status, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
-	c.Assert(status, check.Equals, http.StatusOK)
+	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	buf, err := readBody(body)
@@ -483,8 +482,8 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 		c.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	status, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
 	out, err := readBody(body)
@@ -614,14 +613,14 @@ func (s *DockerSuite) TestContainerApiTop(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
-	out, err := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
+	cName := "testapicommit"
+	out, err := exec.Command(dockerBinary, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
 	if err != nil {
 		c.Fatal(err, out)
 	}
-	id := strings.TrimSpace(string(out))
 
-	name := "testcommit" + stringid.GenerateRandomID()
-	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+id, nil)
+	name := "TestContainerApiCommit"
+	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+cName, nil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
 
@@ -632,7 +631,6 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	if err := json.Unmarshal(b, &img); err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages(img.Id)
 
 	cmd, err := inspectField(img.Id, "Config.Cmd")
 	if err != nil {
@@ -644,7 +642,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	// sanity check, make sure the image is what we think it is
 	out, err = exec.Command(dockerBinary, "run", img.Id, "ls", "/test").CombinedOutput()
 	if err != nil {
-		c.Fatalf("error checking commited image: %v - %q", err, string(out))
+		c.Fatalf("error checking committed image: %v - %q", err, string(out))
 	}
 }
 
@@ -721,7 +719,7 @@ func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 		"Image": "busybox",
 	}
 
-	create := func(ct string) (int, io.ReadCloser, error) {
+	create := func(ct string) (*http.Response, io.ReadCloser, error) {
 		jsonData := bytes.NewBuffer(nil)
 		if err := json.NewEncoder(jsonData).Encode(config); err != nil {
 			c.Fatal(err)
@@ -730,21 +728,21 @@ func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 	}
 
 	// Try with no content-type
-	status, body, err := create("")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err := create("")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	body.Close()
 
 	// Try with wrong content-type
-	status, body, err = create("application/xml")
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	res, body, err = create("application/xml")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	body.Close()
 
 	// now application/json
-	status, body, err = create("application/json")
-	c.Assert(status, check.Equals, http.StatusCreated)
+	res, body, err = create("application/json")
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusCreated)
 	body.Close()
 }
 
@@ -775,8 +773,8 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		"NetworkDisabled":false,
 		"OnBuild":null}`
 
-	status, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
-	c.Assert(status, check.Equals, http.StatusCreated)
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
 
 	b, err := readBody(body)
@@ -809,13 +807,13 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 		"Memory":    524287
 	}`
 
-	status, body, _ := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	res, body, _ := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
 	b, err2 := readBody(body)
 	if err2 != nil {
 		c.Fatal(err2)
 	}
 
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(strings.Contains(string(b), "Minimum memory limit allowed is 4MB"), check.Equals, true)
 }
 
@@ -832,12 +830,31 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
                 "Memory":    524287
         }`
 
-	status, body, _ := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	res, body, _ := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
 	b, err2 := readBody(body)
 	if err2 != nil {
 		c.Fatal(err2)
 	}
 
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(strings.Contains(string(b), "Minimum memory limit allowed is 4MB"), check.Equals, true)
+}
+
+func (s *DockerSuite) TestContainerApiRename(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+	newName := "TestContainerApiRenameNew"
+	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/rename?name="+newName, nil)
+
+	// 204 No Content is expected, not 200
+	c.Assert(statusCode, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	name, err := inspectField(containerID, "Name")
+	if name != "/"+newName {
+		c.Fatalf("Failed to rename container, expected %v, got %v. Container rename API failed", newName, name)
+	}
 }

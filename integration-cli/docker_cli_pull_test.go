@@ -9,11 +9,8 @@ import (
 )
 
 // See issue docker/docker#8141
-func (s *DockerSuite) TestPullImageWithAliases(c *check.C) {
-	defer setupRegistry(c)()
-
+func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	defer deleteImages(repoName)
 
 	repos := []string{}
 	for _, tag := range []string{"recent", "fresh"} {
@@ -25,7 +22,6 @@ func (s *DockerSuite) TestPullImageWithAliases(c *check.C) {
 		if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repo)); err != nil {
 			c.Fatalf("Failed to tag image %v: error %v, output %q", repos, err, out)
 		}
-		defer deleteImages(repo)
 		if out, err := exec.Command(dockerBinary, "push", repo).CombinedOutput(); err != nil {
 			c.Fatalf("Failed to push image %v: error %v, output %q", repo, err, string(out))
 		}
@@ -50,7 +46,6 @@ func (s *DockerSuite) TestPullImageWithAliases(c *check.C) {
 			c.Fatalf("Image %v shouldn't have been pulled down", repo)
 		}
 	}
-
 }
 
 // pulling library/hello-world should show verified message
@@ -61,7 +56,6 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 	// unless keychain is manually updated to contain the daemon's sign key.
 
 	verifiedName := "hello-world"
-	defer deleteImages(verifiedName)
 
 	// pull it
 	expected := "The image you are pulling has been verified"
@@ -87,8 +81,6 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 // pulling an image from the central registry should work
 func (s *DockerSuite) TestPullImageFromCentralRegistry(c *check.C) {
 	testRequires(c, Network)
-
-	defer deleteImages("hello-world")
 
 	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
 	if out, _, err := runCommandWithOutput(pullCmd); err != nil {

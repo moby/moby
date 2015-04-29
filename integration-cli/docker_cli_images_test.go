@@ -26,9 +26,6 @@ func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
-	defer deleteImages("order:test_a")
-	defer deleteImages("order:test_c")
-	defer deleteImages("order:test_b")
 	id1, err := buildImage("order:test_a",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
@@ -80,9 +77,6 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 	imageName1 := "images_filter_test1"
 	imageName2 := "images_filter_test2"
 	imageName3 := "images_filter_test3"
-	defer deleteImages(imageName1)
-	defer deleteImages(imageName2)
-	defer deleteImages(imageName3)
 	image1ID, err := buildImage(imageName1,
 		`FROM scratch
 		 LABEL match me`, true)
@@ -130,7 +124,6 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 	imageName := "images_filter_test"
-	defer deleteImages(imageName)
 	buildImage(imageName,
 		`FROM scratch
 		 RUN touch /test/foo
@@ -189,7 +182,6 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 		c.Fatalf("error tagging foobox: %s", err)
 	}
 	imageId := stringid.TruncateID(strings.TrimSpace(out))
-	defer deleteImages(imageId)
 
 	// overwrite the tag, making the previous image dangling
 	cmd = exec.Command(dockerBinary, "tag", "-f", "busybox", "foobox")
@@ -197,7 +189,6 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	if err != nil {
 		c.Fatalf("error tagging foobox: %s", err)
 	}
-	defer deleteImages("foobox")
 
 	cmd = exec.Command(dockerBinary, "images", "-q", "-f", "dangling=true")
 	out, _, err = runCommandWithOutput(cmd)

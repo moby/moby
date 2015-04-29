@@ -329,7 +329,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", cID)
 	ip, _, _, err := runCommandWithStdoutStderr(cmd)
 	if err != nil {
-		c.Fatalf("faild to inspect container: %v, output: %q", err, ip)
+		c.Fatalf("failed to inspect container: %v, output: %q", err, ip)
 	}
 	ip = strings.TrimSpace(ip)
 	cmd = exec.Command(dockerBinary, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
@@ -447,7 +447,6 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	if _, err := buildImage(name, dockerFile, false); err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages(name)
 
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-v", "/test/test", name))
 	if err != nil {
@@ -604,7 +603,6 @@ func (s *DockerSuite) TestRunCreateVolume(c *check.C) {
 // Note that this bug happens only with symlinks with a target that starts with '/'.
 func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 	image := "docker-test-createvolumewithsymlink"
-	defer deleteImages(image)
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", image, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
@@ -644,7 +642,6 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 	name := "docker-test-volumesfromsymlinkpath"
-	defer deleteImages(name)
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
@@ -759,17 +756,22 @@ func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
 	group := sync.WaitGroup{}
 	group.Add(2)
 
+	errChan := make(chan error, 2)
 	for i := 0; i < 2; i++ {
 		go func() {
 			defer group.Done()
 			cmd := exec.Command(dockerBinary, "run", "busybox", "sleep", "2")
-			if _, err := runCommand(cmd); err != nil {
-				c.Fatal(err)
-			}
+			_, err := runCommand(cmd)
+			errChan <- err
 		}()
 	}
 
 	group.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, check.IsNil)
+	}
 }
 
 func (s *DockerSuite) TestRunEnvironment(c *check.C) {
@@ -1746,7 +1748,6 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 // Test for #1737
 func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 	name := "testrunvolumesuidgid"
-	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
@@ -1772,7 +1773,6 @@ func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 // Test for #1582
 func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 	name := "testruncopyvolumecontent"
-	defer deleteImages(name)
 	_, err := buildImage(name,
 		`FROM busybox
 		RUN mkdir -p /hello/local && echo hello > /hello/local/world`,
@@ -1794,7 +1794,6 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 
 func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	name := "testrunmdcleanuponentrypoint"
-	defer deleteImages(name)
 	if _, err := buildImage(name,
 		`FROM busybox
 		ENTRYPOINT ["echo"]
@@ -1857,22 +1856,20 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 	if err := stdin.Close(); err != nil {
 		c.Fatal(err)
 	}
-	finish := make(chan struct{})
+	finish := make(chan error)
 	go func() {
-		if err := runCmd.Wait(); err != nil {
-			c.Fatal(err)
-		}
+		finish <- runCmd.Wait()
 		close(finish)
 	}()
 	select {
-	case <-finish:
+	case err := <-finish:
+		c.Assert(err, check.IsNil)
 	case <-time.After(1 * time.Second):
 		c.Fatal("docker run failed to exit on stdin close")
 	}
 	state, err := inspectField(name, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	if state != "false" {
 		c.Fatal("Container must be stopped after stdin closing")
 	}
@@ -2073,7 +2070,7 @@ func (s *DockerSuite) TestRunCidFileCleanupIfEmpty(c *check.C) {
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
 	} else if !strings.Contains(out, "No command specified") {
-		c.Fatalf("Run without command failed with wrong outpuc. out=%s\nerr=%v", out, err)
+		c.Fatalf("Run without command failed with wrong output. out=%s\nerr=%v", out, err)
 	}
 
 	if _, err := os.Stat(tmpCidFile); err == nil {
@@ -2349,7 +2346,6 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
-	defer deleteImages("dataimage")
 	if _, err := buildImage("dataimage",
 		`FROM busybox
 		 RUN mkdir -p /foo
@@ -2430,7 +2426,6 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 		true); err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages("run_volumes_clean_paths")
 
 	cmd := exec.Command(dockerBinary, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 	if out, _, err := runCommandWithOutput(cmd); err != nil {
@@ -2665,6 +2660,14 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerNetworkModeToSelf(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--name=me", "--net=container:me", "busybox", "true")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "cannot join own network") {
+		c.Fatalf("using container net mode to self should result in an error")
+	}
+}
+
 func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 	testRequires(c, NativeExecDriver, SameHostDaemon)
 
@@ -2762,25 +2765,29 @@ func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTtyWithPipe(c *check.C) {
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		defer close(done)
+		defer close(errChan)
 
 		cmd := exec.Command(dockerBinary, "run", "-ti", "busybox", "true")
 		if _, err := cmd.StdinPipe(); err != nil {
-			c.Fatal(err)
+			errChan <- err
+			return
 		}
 
 		expected := "cannot enable tty mode"
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			c.Fatal("run should have failed")
+			errChan <- fmt.Errorf("run should have failed")
+			return
 		} else if !strings.Contains(out, expected) {
-			c.Fatalf("run failed with error %q: expected %q", out, expected)
+			errChan <- fmt.Errorf("run failed with error %q: expected %q", out, expected)
+			return
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(3 * time.Second):
 		c.Fatal("container is running but should have failed")
 	}
@@ -2875,19 +2882,19 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		defer close(done)
-
+		defer close(errChan)
 		runCmd := exec.Command(dockerBinary, "run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
 		out, exitCode, _ := runCommandWithOutput(runCmd)
 		if expected := 137; exitCode != expected {
-			c.Fatalf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
+			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(30 * time.Second):
 		c.Fatal("Timeout waiting for container to die on OOM")
 	}
@@ -3030,9 +3037,7 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 	}()
 	select {
 	case err := <-errchan:
-		if err != nil {
-			c.Fatal(err)
-		}
+		c.Assert(err, check.IsNil)
 	case <-time.After(5 * time.Second):
 		c.Fatal("Kill container timed out")
 	}

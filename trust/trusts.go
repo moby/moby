@@ -62,8 +62,7 @@ func NewTrustStore(path string) (*TrustStore, error) {
 		baseEndpoints: endpoints,
 	}
 
-	err = t.reload()
-	if err != nil {
+	if err := t.reload(); err != nil {
 		return nil, err
 	}
 
@@ -170,8 +169,7 @@ func (t *TrustStore) fetch() {
 			continue
 		}
 		// TODO check if value differs
-		err = ioutil.WriteFile(path.Join(t.path, bg+".json"), b, 0600)
-		if err != nil {
+		if err := ioutil.WriteFile(path.Join(t.path, bg+".json"), b, 0600); err != nil {
 			logrus.Infof("Error writing trust graph statement: %s", err)
 		}
 		fetchCount++
@@ -180,8 +178,7 @@ func (t *TrustStore) fetch() {
 
 	if fetchCount > 0 {
 		go func() {
-			err := t.reload()
-			if err != nil {
+			if err := t.reload(); err != nil {
 				logrus.Infof("Reload of trust graph failed: %s", err)
 			}
 		}()

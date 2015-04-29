@@ -14,7 +14,7 @@ work on Docker.  You need to understand and work with both the "bots" and the
 "beings" to review your contribution.
 
 
-## How we proces your review
+## How we process your review
 
 First to review your pull request is Gordon. Gordon is fast. He checks your
 pull request (PR) for common problems like a missing signature. If Gordon finds a

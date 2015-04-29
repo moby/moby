@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/system"
 )
 
 type volumeMount struct {
@@ -47,7 +46,7 @@ func (container *Container) createVolumes() error {
 			continue
 		}
 
-		realPath, err := container.getResourcePath(path)
+		realPath, err := container.GetResourcePath(path)
 		if err != nil {
 			return err
 		}
@@ -314,21 +313,6 @@ func copyExistingContents(source, destination string) error {
 	return copyOwnership(source, destination)
 }
 
-// copyOwnership copies the permissions and uid:gid of the source file
-// into the destination file
-func copyOwnership(source, destination string) error {
-	stat, err := system.Stat(source)
-	if err != nil {
-		return err
-	}
-
-	if err := os.Chown(destination, int(stat.Uid()), int(stat.Gid())); err != nil {
-		return err
-	}
-
-	return os.Chmod(destination, os.FileMode(stat.Mode()))
-}
-
 func (container *Container) mountVolumes() error {
 	for dest, source := range container.Volumes {
 		v := container.daemon.volumes.Get(source)
@@ -336,7 +320,7 @@ func (container *Container) mountVolumes() error {
 			return fmt.Errorf("could not find volume for %s:%s, impossible to mount", source, dest)
 		}
 
-		destPath, err := container.getResourcePath(dest)
+		destPath, err := container.GetResourcePath(dest)
 		if err != nil {
 			return err
 		}
@@ -347,7 +331,7 @@ func (container *Container) mountVolumes() error {
 	}
 
 	for _, mnt := range container.specialMounts() {
-		destPath, err := container.getResourcePath(mnt.Destination)
+		destPath, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
 			return err
 		}
@@ -360,7 +344,7 @@ func (container *Container) mountVolumes() error {
 
 func (container *Container) unmountVolumes() {
 	for dest := range container.Volumes {
-		destPath, err := container.getResourcePath(dest)
+		destPath, err := container.GetResourcePath(dest)
 		if err != nil {
 			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
 			continue
@@ -372,7 +356,7 @@ func (container *Container) unmountVolumes() {
 	}
 
 	for _, mnt := range container.specialMounts() {
-		destPath, err := container.getResourcePath(mnt.Destination)
+		destPath, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
 			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
 			continue

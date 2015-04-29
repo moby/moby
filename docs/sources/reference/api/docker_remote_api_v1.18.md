@@ -91,6 +91,7 @@ Query Parameters:
 -   **filters** - a json encoded value of the filters (a map[string][]string) to process on the containers list. Available filters:
   -   exited=&lt;int&gt; -- containers with exit code of &lt;int&gt;
   -   status=(restarting|running|paused|exited)
+  -   label=`key` or `key=value` of a container label
 
 Status Codes:
 
@@ -1191,6 +1192,7 @@ Query Parameters:
 -   **all** – 1/True/true or 0/False/false, default false
 -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   dangling=true
+  -   label=`key` or `key=value` of an image label
 
 ### Build image from a Dockerfile
 
@@ -1250,7 +1252,7 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – should be set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile objec
+-   **X-Registry-Config** – base64-encoded ConfigFile object
 
 Status Codes:
 
@@ -1791,7 +1793,7 @@ Get a tarball containing all images and metadata for the repository specified
 by `name`.
 
 If `name` is a specific name and tag (e.g. ubuntu:latest), then only that image
-(and its parents) are returned. If `name` is an image ID, similarly only tha
+(and its parents) are returned. If `name` is an image ID, similarly only that
 image (and its parents) are returned, but with the exclusion of the
 'repositories' file in the tarball, as there were no image names referenced.
 

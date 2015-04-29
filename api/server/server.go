@@ -277,8 +277,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	err := parseForm(r)
-	if err != nil {
+	if err := parseForm(r); err != nil {
 		return err
 	}
 
@@ -289,7 +288,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 	if sigStr := r.Form.Get("signal"); sigStr != "" {
 		// Check if we passed the signal as a number:
 		// The largest legal signal is 31, so let's parse on 5 bits
-		sig, err = strconv.ParseUint(sigStr, 10, 5)
+		sig, err := strconv.ParseUint(sigStr, 10, 5)
 		if err != nil {
 			// The signal is not a number, treat it as a string (either like
 			// "KILL" or like "SIGKILL")
@@ -301,7 +300,7 @@ func (s *Server) postContainersKill(eng *engine.Engine, version version.Version,
 		}
 	}
 
-	if err = s.daemon.ContainerKill(name, sig); err != nil {
+	if err := s.daemon.ContainerKill(name, sig); err != nil {
 		return err
 	}
 
@@ -404,15 +403,6 @@ func (s *Server) getImagesJSON(eng *engine.Engine, version version.Version, w ht
 	}
 
 	return writeJSON(w, http.StatusOK, legacyImages)
-}
-
-func (s *Server) getImagesViz(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if version.GreaterThan("1.6") {
-		w.WriteHeader(http.StatusNotFound)
-		return fmt.Errorf("This is now implemented in the client.")
-	}
-	eng.ServeHTTP(w, r)
-	return nil
 }
 
 func (s *Server) getInfo(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1589,7 +1579,6 @@ func createRouter(s *Server, eng *engine.Engine) *mux.Router {
 			"/info":                           s.getInfo,
 			"/version":                        s.getVersion,
 			"/images/json":                    s.getImagesJSON,
-			"/images/viz":                     s.getImagesViz,
 			"/images/search":                  s.getImagesSearch,
 			"/images/get":                     s.getImagesGet,
 			"/images/{name:.*}/get":           s.getImagesGet,

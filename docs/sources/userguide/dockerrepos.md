@@ -51,12 +51,12 @@ name, user name, or description:
     tianon/centos  CentOS 5 and 6, created using rinse instea...   21
     ...
 
-There you can see two example results: `centos` and
-`tianon/centos`. The second result shows that it comes from
-the public repository of a user, named `tianon/`, while the first result,
-`centos`, doesn't explicitly list a repository which means that it comes from the
-trusted top-level namespace. The `/` character separates a user's
-repository from the image name.
+There you can see two example results: `centos` and `tianon/centos`. The second
+result shows that it comes from the public repository of a user, named
+`tianon/`, while the first result, `centos`, doesn't explicitly list a
+repository which means that it comes from the trusted top-level namespace for
+[Official Repositories](/docker-hub/official_repos). The `/` character separates
+a user's repository from the image name.
 
 Once you've found the image you want, you can download it with `docker pull <imagename>`:
 

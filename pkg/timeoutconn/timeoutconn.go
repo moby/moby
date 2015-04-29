@@ -17,8 +17,7 @@ type conn struct {
 
 func (c *conn) Read(b []byte) (int, error) {
 	if c.timeout > 0 {
-		err := c.Conn.SetReadDeadline(time.Now().Add(c.timeout))
-		if err != nil {
+		if err := c.Conn.SetReadDeadline(time.Now().Add(c.timeout)); err != nil {
 			return 0, err
 		}
 	}

@@ -65,8 +65,7 @@ import (
 func (mj *JSONLog) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.Grow(1024)
-	err := mj.MarshalJSONBuf(&buf)
-	if err != nil {
+	if err := mj.MarshalJSONBuf(&buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil

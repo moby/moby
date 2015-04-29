@@ -736,7 +736,7 @@ func TestSearchRepositories(t *testing.T) {
 	}
 	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
 	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' a ot hae 42 stars")
+	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
 }
 
 func TestValidRemoteName(t *testing.T) {

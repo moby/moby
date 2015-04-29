@@ -207,6 +207,315 @@ func TestCmdStreamGood(t *testing.T) {
 	}
 }
 
+func TestUntarPathWithInvalidDest(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempFolder)
+	invalidDestFolder := path.Join(tempFolder, "invalidDest")
+	// Create a src file
+	srcFile := path.Join(tempFolder, "src")
+	_, err = os.Create(srcFile)
+	if err != nil {
+		t.Fatalf("Fail to create the source file")
+	}
+	err = UntarPath(srcFile, invalidDestFolder)
+	if err == nil {
+		t.Fatalf("UntarPath with invalid destination path should throw an error.")
+	}
+}
+
+func TestUntarPathWithInvalidSrc(t *testing.T) {
+	dest, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	defer os.RemoveAll(dest)
+	err = UntarPath("/invalid/path", dest)
+	if err == nil {
+		t.Fatalf("UntarPath with invalid src path should throw an error.")
+	}
+}
+
+func TestUntarPath(t *testing.T) {
+	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpFolder)
+	srcFile := path.Join(tmpFolder, "src")
+	tarFile := path.Join(tmpFolder, "src.tar")
+	os.Create(path.Join(tmpFolder, "src"))
+	cmd := exec.Command("/bin/sh", "-c", "tar cf "+tarFile+" "+srcFile)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	destFolder := path.Join(tmpFolder, "dest")
+	err = os.MkdirAll(destFolder, 0740)
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	err = UntarPath(tarFile, destFolder)
+	if err != nil {
+		t.Fatalf("UntarPath shouldn't throw an error, %s.", err)
+	}
+	expectedFile := path.Join(destFolder, srcFile)
+	_, err = os.Stat(expectedFile)
+	if err != nil {
+		t.Fatalf("Destination folder should contain the source file but did not.")
+	}
+}
+
+// Do the same test as above but with the destination as file, it should fail
+func TestUntarPathWithDestinationFile(t *testing.T) {
+	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpFolder)
+	srcFile := path.Join(tmpFolder, "src")
+	tarFile := path.Join(tmpFolder, "src.tar")
+	os.Create(path.Join(tmpFolder, "src"))
+	cmd := exec.Command("/bin/sh", "-c", "tar cf "+tarFile+" "+srcFile)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	destFile := path.Join(tmpFolder, "dest")
+	_, err = os.Create(destFile)
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	err = UntarPath(tarFile, destFile)
+	if err == nil {
+		t.Fatalf("UntarPath should throw an error if the destination if a file")
+	}
+}
+
+// Do the same test as above but with the destination folder already exists
+// and the destination file is a directory
+// It's working, see https://github.com/docker/docker/issues/10040
+func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
+	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpFolder)
+	srcFile := path.Join(tmpFolder, "src")
+	tarFile := path.Join(tmpFolder, "src.tar")
+	os.Create(srcFile)
+	cmd := exec.Command("/bin/sh", "-c", "tar cf "+tarFile+" "+srcFile)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	destFolder := path.Join(tmpFolder, "dest")
+	err = os.MkdirAll(destFolder, 0740)
+	if err != nil {
+		t.Fatalf("Fail to create the destination folder")
+	}
+	// Let's create a folder that will has the same path as the extracted file (from tar)
+	destSrcFileAsFolder := path.Join(destFolder, srcFile)
+	err = os.MkdirAll(destSrcFileAsFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = UntarPath(tarFile, destFolder)
+	if err != nil {
+		t.Fatalf("UntarPath should throw not throw an error if the extracted file already exists and is a folder")
+	}
+}
+
+func TestCopyWithTarInvalidSrc(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(nil)
+	}
+	destFolder := path.Join(tempFolder, "dest")
+	invalidSrc := path.Join(tempFolder, "doesnotexists")
+	err = os.MkdirAll(destFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = CopyWithTar(invalidSrc, destFolder)
+	if err == nil {
+		t.Fatalf("archiver.CopyWithTar with invalid src path should throw an error.")
+	}
+}
+
+func TestCopyWithTarInexistentDestWillCreateIt(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(nil)
+	}
+	srcFolder := path.Join(tempFolder, "src")
+	inexistentDestFolder := path.Join(tempFolder, "doesnotexists")
+	err = os.MkdirAll(srcFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = CopyWithTar(srcFolder, inexistentDestFolder)
+	if err != nil {
+		t.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
+	}
+	_, err = os.Stat(inexistentDestFolder)
+	if err != nil {
+		t.Fatalf("CopyWithTar with an inexistent folder should create it.")
+	}
+}
+
+// Test CopyWithTar with a file as src
+func TestCopyWithTarSrcFile(t *testing.T) {
+	folder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(folder)
+	dest := path.Join(folder, "dest")
+	srcFolder := path.Join(folder, "src")
+	src := path.Join(folder, path.Join("src", "src"))
+	err = os.MkdirAll(srcFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.MkdirAll(dest, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ioutil.WriteFile(src, []byte("content"), 0777)
+	err = CopyWithTar(src, dest)
+	if err != nil {
+		t.Fatalf("archiver.CopyWithTar shouldn't throw an error, %s.", err)
+	}
+	_, err = os.Stat(dest)
+	// FIXME Check the content
+	if err != nil {
+		t.Fatalf("Destination file should be the same as the source.")
+	}
+}
+
+// Test CopyWithTar with a folder as src
+func TestCopyWithTarSrcFolder(t *testing.T) {
+	folder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(folder)
+	dest := path.Join(folder, "dest")
+	src := path.Join(folder, path.Join("src", "folder"))
+	err = os.MkdirAll(src, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.MkdirAll(dest, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ioutil.WriteFile(path.Join(src, "file"), []byte("content"), 0777)
+	err = CopyWithTar(src, dest)
+	if err != nil {
+		t.Fatalf("archiver.CopyWithTar shouldn't throw an error, %s.", err)
+	}
+	_, err = os.Stat(dest)
+	// FIXME Check the content (the file inside)
+	if err != nil {
+		t.Fatalf("Destination folder should contain the source file but did not.")
+	}
+}
+
+func TestCopyFileWithTarInvalidSrc(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempFolder)
+	destFolder := path.Join(tempFolder, "dest")
+	err = os.MkdirAll(destFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalidFile := path.Join(tempFolder, "doesnotexists")
+	err = CopyFileWithTar(invalidFile, destFolder)
+	if err == nil {
+		t.Fatalf("archiver.CopyWithTar with invalid src path should throw an error.")
+	}
+}
+
+func TestCopyFileWithTarInexistentDestWillCreateIt(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(nil)
+	}
+	defer os.RemoveAll(tempFolder)
+	srcFile := path.Join(tempFolder, "src")
+	inexistentDestFolder := path.Join(tempFolder, "doesnotexists")
+	_, err = os.Create(srcFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = CopyFileWithTar(srcFile, inexistentDestFolder)
+	if err != nil {
+		t.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
+	}
+	_, err = os.Stat(inexistentDestFolder)
+	if err != nil {
+		t.Fatalf("CopyWithTar with an inexistent folder should create it.")
+	}
+	// FIXME Test the src file and content
+}
+
+func TestCopyFileWithTarSrcFolder(t *testing.T) {
+	folder, err := ioutil.TempDir("", "docker-archive-copyfilewithtar-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(folder)
+	dest := path.Join(folder, "dest")
+	src := path.Join(folder, "srcfolder")
+	err = os.MkdirAll(src, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.MkdirAll(dest, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = CopyFileWithTar(src, dest)
+	if err == nil {
+		t.Fatalf("CopyFileWithTar should throw an error with a folder.")
+	}
+}
+
+func TestCopyFileWithTarSrcFile(t *testing.T) {
+	folder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(folder)
+	dest := path.Join(folder, "dest")
+	srcFolder := path.Join(folder, "src")
+	src := path.Join(folder, path.Join("src", "src"))
+	err = os.MkdirAll(srcFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.MkdirAll(dest, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ioutil.WriteFile(src, []byte("content"), 0777)
+	err = CopyWithTar(src, dest+"/")
+	if err != nil {
+		t.Fatalf("archiver.CopyFileWithTar shouldn't throw an error, %s.", err)
+	}
+	_, err = os.Stat(dest)
+	if err != nil {
+		t.Fatalf("Destination folder should contain the source file but did not.")
+	}
+}
+
 func TestTarFiles(t *testing.T) {
 	// try without hardlinks
 	if err := checkNoChanges(1000, false); err != nil {

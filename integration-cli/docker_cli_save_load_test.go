@@ -131,7 +131,6 @@ func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
 	repoName := "foobar-save-single-tag-test"
 
 	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", fmt.Sprintf("%v:latest", repoName))
-	defer deleteImages(repoName)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
@@ -157,7 +156,6 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	repoName := "foobar-save-image-id-test"
 
 	tagCmd := exec.Command(dockerBinary, "tag", "emptyfs:latest", fmt.Sprintf("%v:latest", repoName))
-	defer deleteImages(repoName)
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
@@ -264,7 +262,6 @@ func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {
 	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
-	defer deleteImages(repoName + "-one")
 
 	// Make two images
 	tagCmd = exec.Command(dockerBinary, "tag", "emptyfs:latest", fmt.Sprintf("%v-two:latest", repoName))
@@ -272,7 +269,6 @@ func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to tag repo: %s, %v", out, err)
 	}
-	defer deleteImages(repoName + "-two")
 
 	out, _, err = runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", fmt.Sprintf("%v-one", repoName), fmt.Sprintf("%v-two:latest", repoName)),
@@ -311,9 +307,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 	tagBar := repoName + ":bar"
 
 	idFoo := makeImage("busybox:latest", tagFoo)
-	defer deleteImages(idFoo)
 	idBar := makeImage("busybox:latest", tagBar)
-	defer deleteImages(idBar)
 
 	deleteImages(repoName)
 
@@ -339,7 +333,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 	sort.Strings(actual)
 	sort.Strings(expected)
 	if !reflect.DeepEqual(expected, actual) {
-		c.Fatalf("achive does not contains the right layers: got %v, expected %v", actual, expected)
+		c.Fatalf("archive does not contains the right layers: got %v, expected %v", actual, expected)
 	}
 
 }
@@ -358,7 +352,6 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 	os.Mkdir(extractionDirectory, 0777)
 
 	defer os.RemoveAll(tmpDir)
-	defer deleteImages(name)
 	_, err = buildImage(name,
 		`FROM busybox
 	RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a

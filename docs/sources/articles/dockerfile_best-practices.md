@@ -32,13 +32,14 @@ ephemeral as possible. By “ephemeral,” we mean that it can be stopped and
 destroyed and a new one built and put in place with an absolute minimum of
 set-up and configuration.
 
-### Use [a .dockerignore file](https://docs.docker.com/reference/builder/#the-dockerignore-file)
+### Use a .dockerignore file
 
-For faster uploading and efficiency during `docker build`, you should use
-a `.dockerignore` file to exclude files or directories from the build
-context and final image. For example, unless`.git` is needed by your build
-process or scripts, you should add it to `.dockerignore`, which can save many
-megabytes worth of upload time.
+In most cases, it's best to put each Dockerfile in an empty directory. Then,
+add to that directory only the files needed for building the Dockerfile. To
+increase the build's performance, you can exclude files and directories by
+adding a `.dockerignore` file to that directory as well. This file supports 
+exclusion patterns similar to `.gitignore` files. For information on creating one,
+see the [.dockerignore file](../../reference/builder/#dockerignore-file).
 
 ### Avoid installing unnecessary packages
 
@@ -419,9 +420,9 @@ fail catastrophically if the new build's context is missing the resource being
 added. Adding a separate tag, as recommended above, will help mitigate this by
 allowing the `Dockerfile` author to make a choice.
 
-## Examples for official repositories
+## Examples for Official Repositories
 
-These Official Repos have exemplary `Dockerfile`s:
+These Official Repositories have exemplary `Dockerfile`s:
 
 * [Go](https://registry.hub.docker.com/_/golang/)
 * [Perl](https://registry.hub.docker.com/_/perl/)

@@ -40,7 +40,7 @@ units each have unit tests and then, together, integration tests that test the
 interface between the components. The `integration` and `integration-cli`
 directories in the Docker repository contain integration test code.
 
-Testing is its own speciality. If you aren't familiar with testing techniques,
+Testing is its own specialty. If you aren't familiar with testing techniques,
 there is a lot of information available to you on the Web. For now, you should
 understand that, the Docker maintainers may ask you to write a new test or
 change an existing one.
@@ -228,6 +228,46 @@ with new memory settings.
         $ boot2docker info
 
 6. Restart your container and try your test again.
+
+
+## Testing just the Windows client
+
+This explains how to test the Windows client on a Windows server set up as a
+development environment.  You'll use the **Git Bash** came with the Git for
+Windows installation.  **Git Bash** just as it sounds allows you to run a Bash
+terminal on Windows. 
+
+1.  If you don't have one, start a Git Bash terminal.
+
+	 ![Git Bash](/project/images/git_bash.png)
+
+2. Change to the `docker` source directory.
+
+		$ cd /c/gopath/src/github.com/docker/docker
+    
+3. Set `DOCKER_CLIENTONLY` as follows:
+
+		$ export DOCKER_CLIENTONLY=1
+     
+	This ensures you are building only the client binary instead of both the
+	binary and the daemon.
+	
+4. Set `DOCKER_TEST_HOST` to the `tcp://IP_ADDRESS:2376` value; substitute your
+machine's actual IP address, for example:
+
+		$ export DOCKER_TEST_HOST=tcp://263.124.23.200:2376
+
+5. Make the binary and the test:
+
+		$ hack/make.sh binary test-integration-cli
+  	
+   Many tests are skipped on Windows for various reasons. You see which tests
+   were skipped by re-running the make and passing in the 
+   `TESTFLAGS='-test.v'` value.
+        
+
+You can now choose to make changes to the Docker source or the tests. If you
+make any changes just run these commands again.
 
 
 ## Build and test the documentation

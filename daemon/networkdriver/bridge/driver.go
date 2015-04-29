@@ -233,7 +233,7 @@ func InitDriver(config *Config) error {
 	// Configure iptables for link support
 	if config.EnableIptables {
 		if err := setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq); err != nil {
-			logrus.Errorf("Error configuing iptables: %s", err)
+			logrus.Errorf("Error configuring iptables: %s", err)
 			return err
 		}
 		// call this on Firewalld reload
@@ -355,7 +355,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 		if !iptables.Exists(iptables.Filter, "FORWARD", dropArgs...) {
 			logrus.Debugf("Disable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, dropArgs...)...); err != nil {
+			if output, err := iptables.Raw(append([]string{"-A", "FORWARD"}, dropArgs...)...); err != nil {
 				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
@@ -366,7 +366,7 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 
 		if !iptables.Exists(iptables.Filter, "FORWARD", acceptArgs...) {
 			logrus.Debugf("Enable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, acceptArgs...)...); err != nil {
+			if output, err := iptables.Raw(append([]string{"-A", "FORWARD"}, acceptArgs...)...); err != nil {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
