@@ -858,3 +858,185 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 		c.Fatalf("Failed to rename container, expected %v, got %v. Container rename API failed", newName, name)
 	}
 }
+
+func (s *DockerSuite) TestContainerApiKill(c *check.C) {
+	name := "test-api-kill"
+	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+
+	status, _, err := sockRequest("POST", "/containers/"+name+"/kill", nil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	state, err := inspectField(name, "State.Running")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if state != "false" {
+		c.Fatalf("got wrong State from container %s: %q", name, state)
+	}
+}
+
+func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
+	name := "test-api-restart"
+	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+
+	status, _, err := sockRequest("POST", "/containers/"+name+"/restart?t=1", nil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+		c.Fatal(err)
+	}
+}
+
+func (s *DockerSuite) TestContainerApiStart(c *check.C) {
+	name := "testing-start"
+	config := map[string]interface{}{
+		"Image":     "busybox",
+		"Cmd":       []string{"/bin/sh", "-c", "/bin/top"},
+		"OpenStdin": true,
+	}
+
+	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(status, check.Equals, http.StatusCreated)
+	c.Assert(err, check.IsNil)
+
+	conf := make(map[string]interface{})
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", conf)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	// second call to start should give 304
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", conf)
+	c.Assert(status, check.Equals, http.StatusNotModified)
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestContainerApiStop(c *check.C) {
+	name := "test-api-stop"
+	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+
+	status, _, err := sockRequest("POST", "/containers/"+name+"/stop?t=1", nil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+		c.Fatal(err)
+	}
+
+	// second call to start should give 304
+	status, _, err = sockRequest("POST", "/containers/"+name+"/stop?t=1", nil)
+	c.Assert(status, check.Equals, http.StatusNotModified)
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestContainerApiWait(c *check.C) {
+	name := "test-api-wait"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sleep", "5")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+
+	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
+
+	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+		c.Fatal(err)
+	}
+
+	var waitres types.ContainerWaitResponse
+	if err := json.Unmarshal(body, &waitres); err != nil {
+		c.Fatalf("unable to unmarshal response body: %v", err)
+	}
+
+	if waitres.StatusCode != 0 {
+		c.Fatalf("Expected wait response StatusCode to be 0, got %d", waitres.StatusCode)
+	}
+}
+
+func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
+	name := "test-container-api-copy"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test.txt")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	postData := types.CopyConfig{
+		Resource: "/test.txt",
+	}
+
+	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+
+	found := false
+	for tarReader := tar.NewReader(bytes.NewReader(body)); ; {
+		h, err := tarReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			c.Fatal(err)
+		}
+		if h.Name == "test.txt" {
+			found = true
+			break
+		}
+	}
+	c.Assert(found, check.Equals, true)
+}
+
+func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
+	name := "test-container-api-copy-resource-empty"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test.txt")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	postData := types.CopyConfig{
+		Resource: "",
+	}
+
+	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(string(body), check.Matches, "Path cannot be empty\n")
+}
+
+func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
+	name := "test-container-api-copy-resource-not-found"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	postData := types.CopyConfig{
+		Resource: "/notexist",
+	}
+
+	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(string(body), check.Matches, "Could not find the file /notexist in container "+name+"\n")
+}
+
+func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
+	postData := types.CopyConfig{
+		Resource: "/something",
+	}
+
+	status, _, err := sockRequest("POST", "/containers/notexists/copy", postData)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
+}

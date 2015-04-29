@@ -35,7 +35,7 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 			c.Fatal(err, out)
 		}
 	}
-	type image struct{ RepoTags []string }
+	type image types.Image
 	getImages := func(filter string) []image {
 		v := url.Values{}
 		v.Set("filter", filter)
@@ -97,4 +97,26 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 	if strings.TrimSpace(string(inspectOut)) != id {
 		c.Fatal("load did not work properly")
 	}
+}
+
+func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
+	name := "test-api-images-delete"
+	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer deleteImages(name)
+	id := strings.TrimSpace(out)
+
+	if out, err := exec.Command(dockerBinary, "tag", name, "test:tag1").CombinedOutput(); err != nil {
+		c.Fatal(err, out)
+	}
+
+	status, _, err := sockRequest("DELETE", "/images/"+id, nil)
+	c.Assert(status, check.Equals, http.StatusConflict)
+	c.Assert(err, check.IsNil)
+
+	status, _, err = sockRequest("DELETE", "/images/test:tag1", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
 }
