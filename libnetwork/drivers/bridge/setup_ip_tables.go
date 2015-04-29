@@ -129,7 +129,7 @@ func setIcc(bridgeIface string, iccEnable, insert bool) error {
 			iptables.Raw(append([]string{"-D", chain}, acceptArgs...)...)
 
 			if !iptables.Exists(table, chain, dropArgs...) {
-				if output, err := iptables.Raw(append([]string{"-I", chain}, dropArgs...)...); err != nil {
+				if output, err := iptables.Raw(append([]string{"-A", chain}, dropArgs...)...); err != nil {
 					return fmt.Errorf("Unable to prevent intercontainer communication: %s", err.Error())
 				} else if len(output) != 0 {
 					return fmt.Errorf("Error disabling intercontainer communication: %s", output)
@@ -139,7 +139,7 @@ func setIcc(bridgeIface string, iccEnable, insert bool) error {
 			iptables.Raw(append([]string{"-D", chain}, dropArgs...)...)
 
 			if !iptables.Exists(table, chain, acceptArgs...) {
-				if output, err := iptables.Raw(append([]string{"-I", chain}, acceptArgs...)...); err != nil {
+				if output, err := iptables.Raw(append([]string{"-A", chain}, acceptArgs...)...); err != nil {
 					return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
 				} else if len(output) != 0 {
 					return fmt.Errorf("Error enabling intercontainer communication: %s", output)
