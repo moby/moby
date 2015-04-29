@@ -82,16 +82,16 @@ func New() *configs.Config {
 		},
 		MaskPaths: []string{
 			"/proc/kcore",
+			"/proc/latency_stats",
+			"/proc/timer_stats",
 		},
 		ReadonlyPaths: []string{
 			"/proc/asound",
 			"/proc/bus",
 			"/proc/fs",
 			"/proc/irq",
-			"/proc/latency_stats",
 			"/proc/sys",
 			"/proc/sysrq-trigger",
-			"/proc/timer_stats",
 		},
 	}
 
