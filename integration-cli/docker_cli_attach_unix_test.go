@@ -27,14 +27,14 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 		c.Fatal(err)
 	}
 
-	done := make(chan struct{})
-
+	errChan := make(chan error)
 	go func() {
-		defer close(done)
+		defer close(errChan)
 
 		_, tty, err := pty.Open()
 		if err != nil {
-			c.Fatalf("could not open pty: %v", err)
+			errChan <- err
+			return
 		}
 		attachCmd := exec.Command(dockerBinary, "attach", id)
 		attachCmd.Stdin = tty
@@ -42,7 +42,8 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 		attachCmd.Stderr = tty
 
 		if err := attachCmd.Run(); err != nil {
-			c.Fatalf("attach returned error %s", err)
+			errChan <- err
+			return
 		}
 	}()
 
@@ -51,7 +52,8 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 		c.Fatalf("error thrown while waiting for container: %s, %v", out, err)
 	}
 	select {
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}
@@ -71,12 +73,10 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 
-	detached := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if err := cmd.Run(); err != nil {
-			c.Fatalf("attach returned error %s", err)
-		}
-		close(detached)
+		errChan <- cmd.Run()
+		close(errChan)
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -87,7 +87,12 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	time.Sleep(100 * time.Millisecond)
 	cpty.Write([]byte{17})
 
-	<-detached
+	select {
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
+	case <-time.After(5 * time.Second):
+		c.Fatal("timeout while detaching")
+	}
 
 	cpty, tty, err = pty.Open()
 	if err != nil {
@@ -119,9 +124,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 
 	select {
 	case err := <-readErr:
-		if err != nil {
-			c.Fatal(err)
-		}
+		c.Assert(err, check.IsNil)
 	case <-time.After(2 * time.Second):
 		c.Fatal("timeout waiting for attach read")
 	}

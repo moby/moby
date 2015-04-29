@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os/exec"
 	"strings"
@@ -89,7 +90,6 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
-
 	cmd := exec.Command(dockerBinary, "run", "-d", "-ti", "busybox")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -108,29 +108,32 @@ func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
 		}
 	}()
 
-	done := make(chan struct{})
+	done := make(chan error)
 	go func() {
 		defer close(done)
 
 		cmd := exec.Command(dockerBinary, "attach", id)
 		if _, err := cmd.StdinPipe(); err != nil {
-			c.Fatal(err)
+			done <- err
+			return
 		}
 
 		expected := "cannot enable tty mode"
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			c.Fatal("attach should have failed")
+			done <- fmt.Errorf("attach should have failed")
+			return
 		} else if !strings.Contains(out, expected) {
-			c.Fatalf("attach failed with error %q: expected %q", out, expected)
+			done <- fmt.Errorf("attach failed with error %q: expected %q", out, expected)
+			return
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
+		c.Assert(err, check.IsNil)
 	case <-time.After(attachWait):
 		c.Fatal("attach is running but should have failed")
 	}
-
 }
 
 func (s *DockerSuite) TestAttachDisconnect(c *check.C) {

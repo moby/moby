@@ -260,15 +260,14 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 		c.Fatalf("Error on container creation: %v, output: %q", err, out)
 	}
 	type b struct {
-		body []byte
-		err  error
+		status int
+		body   []byte
+		err    error
 	}
 	bc := make(chan b, 1)
 	go func() {
 		status, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
-		c.Assert(status, check.Equals, http.StatusOK)
-		c.Assert(err, check.IsNil)
-		bc <- b{body, err}
+		bc <- b{status, body, err}
 	}()
 
 	// allow some time to stream the stats from the container
@@ -283,9 +282,8 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 	case <-time.After(2 * time.Second):
 		c.Fatal("stream was not closed after container was removed")
 	case sr := <-bc:
-		if sr.err != nil {
-			c.Fatal(sr.err)
-		}
+		c.Assert(sr.err, check.IsNil)
+		c.Assert(sr.status, check.Equals, http.StatusOK)
 
 		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
 		var s *types.Stats
@@ -297,6 +295,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
+	// TODO: this test does nothing because we are c.Assert'ing in goroutine
 	var (
 		name   = "statscontainer"
 		runCmd = exec.Command(dockerBinary, "create", "--name", name, "busybox", "top")

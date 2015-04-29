@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -764,17 +763,17 @@ ADD test_file .`,
 	}
 	defer ctx.Close()
 
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if _, err := buildImageFromContext(name, ctx, true); err != nil {
-			c.Fatal(err)
-		}
-		close(done)
+		_, err := buildImageFromContext(name, ctx, true)
+		errChan <- err
+		close(errChan)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
 		c.Fatal("Build with adding to workdir timed out")
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	}
 }
 
@@ -1365,17 +1364,17 @@ COPY test_file .`,
 	}
 	defer ctx.Close()
 
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if _, err := buildImageFromContext(name, ctx, true); err != nil {
-			c.Fatal(err)
-		}
-		close(done)
+		_, err := buildImageFromContext(name, ctx, true)
+		errChan <- err
+		close(errChan)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
 		c.Fatal("Build with adding to workdir timed out")
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	}
 }
 
@@ -1829,9 +1828,6 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 // * When docker events sees container start, close the "docker build" command
 // * Wait for docker events to emit a dying event.
 func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	name := "testbuildcancelation"
 
 	// (Note: one year, will never finish)
@@ -1849,26 +1845,21 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 	containerID := make(chan string)
 
 	startEpoch := daemonTime(c).Unix()
+	// Watch for events since epoch.
+	eventsCmd := exec.Command(
+		dockerBinary, "events",
+		"--since", strconv.FormatInt(startEpoch, 10))
+	stdout, err := eventsCmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := eventsCmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	defer eventsCmd.Process.Kill()
 
-	wg.Add(1)
 	// Goroutine responsible for watching start/die events from `docker events`
 	go func() {
-		defer wg.Done()
-		// Watch for events since epoch.
-		eventsCmd := exec.Command(
-			dockerBinary, "events",
-			"--since", strconv.FormatInt(startEpoch, 10))
-		stdout, err := eventsCmd.StdoutPipe()
-		err = eventsCmd.Start()
-		if err != nil {
-			c.Fatalf("failed to start 'docker events': %s", err)
-		}
-
-		go func() {
-			<-finish
-			eventsCmd.Process.Kill()
-		}()
-
 		cid := <-containerID
 
 		matchStart := regexp.MustCompile(cid + `(.*) start$`)
@@ -1886,19 +1877,13 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 				close(eventDie)
 			}
 		}
-
-		err = eventsCmd.Wait()
-		if err != nil && !IsKilled(err) {
-			c.Fatalf("docker events had bad exit status: %s", err)
-		}
 	}()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 	buildCmd.Dir = ctx.Dir
 
 	stdoutBuild, err := buildCmd.StdoutPipe()
-	err = buildCmd.Start()
-	if err != nil {
+	if err := buildCmd.Start(); err != nil {
 		c.Fatalf("failed to run build: %s", err)
 	}
 
@@ -1923,14 +1908,12 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 
 	// Send a kill to the `docker build` command.
 	// Causes the underlying build to be cancelled due to socket close.
-	err = buildCmd.Process.Kill()
-	if err != nil {
+	if err := buildCmd.Process.Kill(); err != nil {
 		c.Fatalf("error killing build command: %s", err)
 	}
 
 	// Get the exit status of `docker build`, check it exited because killed.
-	err = buildCmd.Wait()
-	if err != nil && !IsKilled(err) {
+	if err := buildCmd.Wait(); err != nil && !IsKilled(err) {
 		c.Fatalf("wait failed during build run: %T %s", err, err)
 	}
 

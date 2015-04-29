@@ -29,21 +29,22 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 		cmd.Stdin = tty
 		cmd.Stdout = tty
 		cmd.Stderr = tty
-		ch := make(chan struct{})
 		if err := cmd.Start(); err != nil {
 			c.Fatalf("start err: %v", err)
 		}
+		ch := make(chan error)
 		go func() {
-			if err := cmd.Wait(); err != nil {
-				c.Fatalf("wait err=%v", err)
-			}
+			ch <- cmd.Wait()
 			close(ch)
 		}()
 
 		select {
 		case <-time.After(10 * time.Second):
 			c.Fatal("command timeout")
-		case <-ch:
+		case err := <-ch:
+			if err != nil {
+				c.Fatalf("wait err=%v", err)
+			}
 		}
 	}
 

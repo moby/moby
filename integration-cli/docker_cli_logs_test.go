@@ -260,16 +260,15 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 		c.Fatal(err)
 	}
 
-	ch := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if err := logsCmd.Wait(); err != nil {
-			c.Fatal(err)
-		}
-		close(ch)
+		errChan <- logsCmd.Wait()
+		close(errChan)
 	}()
 
 	select {
-	case <-ch:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	case <-time.After(1 * time.Second):
 		c.Fatal("Following logs is hanged")
 	}
@@ -298,9 +297,7 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	logCmd := exec.Command(dockerBinary, "logs", "-f", cleanedContainerID)
 
 	stdout, err := logCmd.StdoutPipe()
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	if err := logCmd.Start(); err != nil {
 		c.Fatal(err)
@@ -308,15 +305,11 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 
 	// First read slowly
 	bytes1, err := consumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	// After the container has finished we can continue reading fast
 	bytes2, err := consumeWithSpeed(stdout, 32*1024, 0, nil)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	actual := bytes1 + bytes2
 	expected := 200000
