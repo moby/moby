@@ -118,18 +118,20 @@ func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool,
 }
 
 func CopyFile(src, dst string) (int64, error) {
-	if src == dst {
+	cleanSrc := filepath.Clean(src)
+	cleanDst := filepath.Clean(dst)
+	if cleanSrc == cleanDst {
 		return 0, nil
 	}
-	sf, err := os.Open(src)
+	sf, err := os.Open(cleanSrc)
 	if err != nil {
 		return 0, err
 	}
 	defer sf.Close()
-	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(cleanDst); err != nil && !os.IsNotExist(err) {
 		return 0, err
 	}
-	df, err := os.Create(dst)
+	df, err := os.Create(cleanDst)
 	if err != nil {
 		return 0, err
 	}
