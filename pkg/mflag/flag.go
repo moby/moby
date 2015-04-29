@@ -105,6 +105,15 @@ var ErrRetry = errors.New("flag: retry")
 // -- bool Value
 type boolValue bool
 
+var (
+	MapDaemonFlags map[string]bool
+	HasDaemonFlag  bool
+)
+
+func init() {
+	MapDaemonFlags = make(map[string]bool)
+}
+
 func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val
 	return (*boolValue)(p)
@@ -946,6 +955,10 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		value = trimQuotes(name[i+1:])
 		hasValue = true
 		name = name[:i]
+	}
+
+	if MapDaemonFlags[name] {
+		HasDaemonFlag = true
 	}
 
 	m := f.formal
