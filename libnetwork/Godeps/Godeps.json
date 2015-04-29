@@ -31,6 +31,21 @@
 			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/pkg/mflag",
+			"Comment": "v1.4.1-2492-ge690ad9",
+			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/homedir",
+			"Comment": "v1.4.1-2492-ge690ad9",
+			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/user",
+			"Comment": "v1.4.0",
+			"Rev": "53eca435e63db58b06cf796d3a9326db5fd42253"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/stringid",
 			"Comment": "v1.4.1-2492-ge690ad9",
 			"Rev": "e690ad92925a045344bde8d2d59d7a7f602dded6"
