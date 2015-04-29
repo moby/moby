@@ -1,9 +1,124 @@
 package fileutils
 
 import (
+	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 )
+
+// CopyFile with invalid src
+func TestCopyFileWithInvalidSrc(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	defer os.RemoveAll(tempFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := CopyFile("/invalid/file/path", path.Join(tempFolder, "dest"))
+	if err == nil {
+		t.Fatal("Should have fail to copy an invalid src file")
+	}
+	if bytes != 0 {
+		t.Fatal("Should have written 0 bytes")
+	}
+
+}
+
+// CopyFile with invalid dest
+func TestCopyFileWithInvalidDest(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	defer os.RemoveAll(tempFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := path.Join(tempFolder, "file")
+	err = ioutil.WriteFile(src, []byte("content"), 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := CopyFile(src, path.Join(tempFolder, "/invalid/dest/path"))
+	if err == nil {
+		t.Fatal("Should have fail to copy an invalid src file")
+	}
+	if bytes != 0 {
+		t.Fatal("Should have written 0 bytes")
+	}
+
+}
+
+// CopyFile with same src and dest
+func TestCopyFileWithSameSrcAndDest(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	defer os.RemoveAll(tempFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := path.Join(tempFolder, "file")
+	err = ioutil.WriteFile(file, []byte("content"), 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := CopyFile(file, file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes != 0 {
+		t.Fatal("Should have written 0 bytes as it is the same file.")
+	}
+}
+
+// CopyFile with same src and dest but path is different and not clean
+func TestCopyFileWithSameSrcAndDestWithPathNameDifferent(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	defer os.RemoveAll(tempFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testFolder := path.Join(tempFolder, "test")
+	err = os.MkdirAll(testFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := path.Join(testFolder, "file")
+	sameFile := testFolder + "/../test/file"
+	err = ioutil.WriteFile(file, []byte("content"), 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := CopyFile(file, sameFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes != 0 {
+		t.Fatal("Should have written 0 bytes as it is the same file.")
+	}
+}
+
+func TestCopyFile(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	defer os.RemoveAll(tempFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := path.Join(tempFolder, "src")
+	dest := path.Join(tempFolder, "dest")
+	ioutil.WriteFile(src, []byte("content"), 0777)
+	ioutil.WriteFile(dest, []byte("destContent"), 0777)
+	bytes, err := CopyFile(src, dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes != 7 {
+		t.Fatalf("Should have written %d bytes but wrote %d", 7, bytes)
+	}
+	actual, err := ioutil.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(actual) != "content" {
+		t.Fatalf("Dest content was '%s', expected '%s'", string(actual), "content")
+	}
+}
 
 // Reading a symlink to a directory must return the directory
 func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
@@ -156,6 +271,28 @@ func TestExclusion(t *testing.T) {
 	exclusion := Exclusion("!")
 	if !exclusion {
 		t.Errorf("failed to get true for a single !, got %v", exclusion)
+	}
+}
+
+// Matches with no patterns
+func TestMatchesWithNoPatterns(t *testing.T) {
+	matches, err := Matches("/any/path/there", []string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if matches {
+		t.Fatalf("Should not have match anything")
+	}
+}
+
+// Matches with malformed patterns
+func TestMatchesWithMalformedPatterns(t *testing.T) {
+	matches, err := Matches("/any/path/there", []string{"["})
+	if err == nil {
+		t.Fatal("Should have failed because of a malformed syntax in the pattern")
+	}
+	if matches {
+		t.Fatalf("Should not have match anything")
 	}
 }
 
