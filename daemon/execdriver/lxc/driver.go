@@ -85,16 +85,21 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		dataPath = d.containerDir(c.ID)
 	)
 
+	container, err := d.createContainer(c)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
 	if c.ProcessConfig.Tty {
 		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
 	} else {
 		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
-	c.ProcessConfig.Terminal = term
-	container, err := d.createContainer(c)
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
+	c.ProcessConfig.Terminal = term
+
 	d.Lock()
 	d.activeContainers[c.ID] = &activeContainer{
 		container: container,
