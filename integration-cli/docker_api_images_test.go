@@ -100,6 +100,7 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
+	testRequires(c, Network)
 	name := "test-api-images-delete"
 	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
 	if err != nil {
