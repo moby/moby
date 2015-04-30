@@ -107,6 +107,7 @@ func init() {
 			{"run", "Run a command in a new container"},
 			{"save", "Save an image to a tar archive"},
 			{"search", "Search for an image on the Docker Hub"},
+			{"set", "Setup or update resource configs for one or more containers"},
 			{"start", "Start a stopped container"},
 			{"stats", "Display a stream of a containers' resource usage statistics"},
 			{"stop", "Stop a running container"},

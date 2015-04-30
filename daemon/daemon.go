@@ -1069,6 +1069,10 @@ func (daemon *Daemon) Stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
+func (daemon *Daemon) Set(c *execdriver.Command) error {
+	return daemon.execDriver.Set(c)
+}
+
 func (daemon *Daemon) SubscribeToContainerStats(name string) (chan interface{}, error) {
 	c, err := daemon.Get(name)
 	if err != nil {

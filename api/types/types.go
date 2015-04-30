@@ -24,6 +24,12 @@ type ContainerExecCreateResponse struct {
 	ID string `json:"Id"`
 }
 
+// POST /containers/{name:.*}/set
+type ContainerSetResponse struct {
+	// Warnings are any warnings encountered during the execution of the command.
+	Warnings []string `json:"Warnings"`
+}
+
 // POST /auth
 type AuthResponse struct {
 	// Status is the authentication status

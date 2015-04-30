@@ -46,6 +46,10 @@ You can still call an old version of the API using
 
 ### What's new
 
+`POST /containers/(id)/set`
+
+**New!**
+Resource configs can be updated after containers are created.
 
 ## v1.18
 
