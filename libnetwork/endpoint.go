@@ -43,8 +43,9 @@ type ContainerData struct {
 }
 
 // JoinOption is a option setter function type used to pass varios options to
-// endpoint Join method.
-type JoinOption func(ep Endpoint)
+// endpoint Join method. The various setter functions of type JoinOption are
+// provided by libnetwork, they look like JoinOption[...](...)
+type JoinOption func(ep *endpoint)
 
 type containerConfig struct {
 	Hostname   string
@@ -241,8 +242,7 @@ func (ep *endpoint) buildHostsFiles() error {
 // JoinOptionHostname function returns an option setter for hostname option to
 // be passed to endpoint Join method.
 func JoinOptionHostname(name string) JoinOption {
-	return func(e Endpoint) {
-		ep := e.(*endpoint)
+	return func(ep *endpoint) {
 		ep.container.Config.Hostname = name
 	}
 }
@@ -250,8 +250,7 @@ func JoinOptionHostname(name string) JoinOption {
 // JoinOptionDomainname function returns an option setter for domainname option to
 // be passed to endpoint Join method.
 func JoinOptionDomainname(name string) JoinOption {
-	return func(e Endpoint) {
-		ep := e.(*endpoint)
+	return func(ep *endpoint) {
 		ep.container.Config.Domainname = name
 	}
 }
