@@ -129,9 +129,13 @@ You can view the labels via the `docker inspect` command:
     }
     ...
 
-    $ docker inspect -f "{{json .Labels }}" 4fa6e0f0c678
+    # Inspect labels on container
+    $ docker inspect -f "{{json .Config.Labels }}" 4fa6e0f0c678
 
     {"Vendor":"ACME Incorporated","com.example.is-beta":"","com.example.version":"0.0.1-beta","com.example.release-date":"2015-02-12"}
+
+    # Inspect labels on images
+    $ docker inspect -f "{{json .ContainerConfig.Labels }}" myimage
 
 
 ## Query labels
