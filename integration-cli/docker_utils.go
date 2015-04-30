@@ -570,14 +570,19 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return out, status, err
 }
 
-func findContainerIP(c *check.C, id string) string {
-	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+func findContainerIP(c *check.C, id string, vargs ...string) string {
+	args := append(vargs, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+	cmd := exec.Command(dockerBinary, args...)
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatal(err, out)
 	}
 
 	return strings.Trim(out, " \r\n'")
+}
+
+func (d *Daemon) findContainerIP(id string) string {
+	return findContainerIP(d.c, id, "--host", d.sock())
 }
 
 func getContainerCount() (int, error) {
