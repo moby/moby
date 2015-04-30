@@ -28,6 +28,11 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+// The type is used to protect pulling or building related image
+// layers from deleteing when filtered by dangling=true
+// The key of layers is the iamges ID which is pulling or building
+// The value of layers is a slice which hold layer IDs referenced to
+// pulling or building images
 type retainedLayers struct {
 	layers map[string][]string
 	sync.Mutex
@@ -74,10 +79,8 @@ func (r *retainedLayers) Delete(layerIDs []string, imgID string) {
 func (r *retainedLayers) Exists(layerID string) bool {
 	r.Lock()
 	defer r.Unlock()
-	if _, exists := r.layers[layerID]; exists {
-		return true
-	}
-	return false
+	_, exists := r.layers[layerID]
+	return exists
 }
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
@@ -471,9 +474,11 @@ func (graph *Graph) Retain(layerIDs []string, imgID string) {
 	graph.retained.Add(layerIDs, imgID)
 }
 
-// Unretain removes the referenced image id from the provided set of layers.
-func (graph *Graph) Unretain(layerIDs []string, imgID string) {
-	graph.retained.Delete(layerIDs, imgID)
+// Release removes the referenced image id from the provided set of layers.
+func (graph *Graph) Release(layerIDs []string, imgIDs []string) {
+	for _, imgID := range imgIDs {
+		graph.retained.Delete(layerIDs, imgID)
+	}
 }
 
 // Heads returns all heads in the graph, keyed by id.

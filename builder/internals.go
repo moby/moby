@@ -108,6 +108,8 @@ func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	if err != nil {
 		return err
 	}
+	b.Daemon.Graph().Retain([]string{image.ID}, b.imageTag)
+	b.activeImages = append(b.activeImages, image.ID)
 	b.image = image.ID
 	return nil
 }
@@ -543,6 +545,8 @@ func (b *Builder) probeCache() (bool, error) {
 	fmt.Fprintf(b.OutStream, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version")
 	b.image = cache.ID
+	b.Daemon.Graph().Retain([]string{cache.ID}, b.imageTag)
+	b.activeImages = append(b.activeImages, cache.ID)
 	return true, nil
 }
 

@@ -131,6 +131,9 @@ type Builder struct {
 	memorySwap   int64
 
 	cancelled <-chan struct{} // When closed, job was cancelled.
+
+	activeImages []string
+	imageTag     string
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This

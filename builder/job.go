@@ -172,13 +172,17 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		memory:          buildConfig.Memory,
 		memorySwap:      buildConfig.MemorySwap,
 		cancelled:       buildConfig.WaitCancelled(),
+		imageTag:        tag,
 	}
+
+	defer func() {
+		builder.Daemon.Graph().Release(builder.activeImages, []string{builder.imageTag})
+	}()
 
 	id, err := builder.Run(context)
 	if err != nil {
 		return err
 	}
-
 	if repoName != "" {
 		return d.Repositories().Tag(repoName, tag, id, true)
 	}

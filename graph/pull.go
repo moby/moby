@@ -149,7 +149,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	errors := make(chan error)
 
 	layersDownloaded := false
-	for _, image := range repoData.ImgList {
+	imgIDs := []string{}
+	defer s.graph.Release(imgIDs, imgIDs)
+	for imgID, image := range repoData.ImgList {
+		imgIDs = append(imgIDs, imgID)
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
 				errors <- nil
@@ -258,7 +261,8 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 
 	layers := append(history, imgID)
 	s.graph.Retain(layers, imgID)
-	defer s.graph.Unretain(history, imgID)
+	// We need to delay realase [imgID] Until image tagged.
+	defer s.graph.Release(history, []string{imgID})
 
 	layersDownloaded := false
 	for i := len(history) - 1; i >= 0; i-- {
@@ -439,7 +443,9 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
 	layers := []string{}
-	defer s.graph.Unretain(layers, manifest.Name)
+	defer func() {
+		s.graph.Release(layers, []string{manifest.Name})
+	}()
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
