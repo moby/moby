@@ -57,7 +57,6 @@ DEFAULT_BUNDLES=(
 	test-docker-py
 
 	dynbinary
-	test-integration
 
 	cover
 	cross
@@ -216,7 +215,6 @@ find_dirs() {
 	find . -not \( \
 		\( \
 			-path './vendor/*' \
-			-o -path './integration/*' \
 			-o -path './integration-cli/*' \
 			-o -path './contrib/*' \
 			-o -path './pkg/mflag/example/*' \

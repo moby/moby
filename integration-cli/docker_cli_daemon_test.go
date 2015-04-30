@@ -980,7 +980,7 @@ func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *check.C) {
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonwithwrongkey(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 	type Config struct {
 		Crv string `json:"crv"`
 		D   string `json:"d"`
