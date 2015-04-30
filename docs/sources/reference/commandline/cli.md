@@ -2362,6 +2362,19 @@ more details on finding shared images from the command line.
       -a, --attach=false         Attach STDOUT/STDERR and forward signals
       -i, --interactive=false    Attach container's STDIN
 
+## set
+
+    Usage: docker set [OPTIONS] CONTAINER [CONTAINER...]
+
+    Set resource configs of one or more containers
+
+      -c, --cpu-shares=0         CPU shares (relative weight)
+      --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems=""           Mems in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+      -m, --memory=0             Memory limit
+      --memory-swap=0            Total memory (memory + swap), '-1' to disable swap
+      --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
+
 ## stats
 
     Usage: docker stats CONTAINER [CONTAINER...]

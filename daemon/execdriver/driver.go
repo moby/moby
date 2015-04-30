@@ -72,6 +72,7 @@ type Driver interface {
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
 	Stats(id string) (*ResourceStats, error)      // Get resource stats for a running container
+	Set(c *Command) error                         // Set resource configs for a container
 }
 
 // Network settings of the container

@@ -803,3 +803,7 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	}
 	return execdriver.Stats(d.containerDir(id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
 }
+
+func (d *driver) Set(c *execdriver.Command) error {
+	return fmt.Errorf("Container set is not supported by LXC")
+}
