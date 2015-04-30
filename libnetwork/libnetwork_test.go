@@ -31,6 +31,38 @@ func createTestNetwork(networkType, networkName string, option options.Generic) 
 	return network, nil
 }
 
+func TestNull(t *testing.T) {
+	network, err := createTestNetwork("null", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := network.CreateEndpoint("testep", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join(containerID,
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := network.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
@@ -485,7 +517,9 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join(containerID)
+	_, err = ep.Join(containerID,
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,7 +566,10 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join(containerID)
+	_, err = ep.Join(containerID,
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"))
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,7 +611,10 @@ func TestEndpointInvalidLeave(t *testing.T) {
 		t.Fatalf("Failed for unexpected reason: %v", err)
 	}
 
-	_, err = ep.Join(containerID)
+	_, err = ep.Join(containerID,
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"))
+
 	if err != nil {
 		t.Fatal(err)
 	}
