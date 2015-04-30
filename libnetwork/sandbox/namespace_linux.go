@@ -24,7 +24,7 @@ type networkNamespace struct {
 	sinfo *Info
 }
 
-func creatBasePath() {
+func createBasePath() {
 	err := os.MkdirAll(prefix, 0644)
 	if err != nil && !os.IsExist(err) {
 		panic("Could not create net namespace path directory")
@@ -87,7 +87,7 @@ func createNetworkNamespace(path string) (Sandbox, error) {
 func createNamespaceFile(path string) (err error) {
 	var f *os.File
 
-	once.Do(creatBasePath)
+	once.Do(createBasePath)
 	if f, err = os.Create(path); err == nil {
 		f.Close()
 	}
