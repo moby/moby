@@ -308,5 +308,5 @@ NetworkManager (this might slow your network).
 
 To install the latest version of Docker, use the standard `-N` flag with `wget`:
 
-	$ wget -N -qO- https://get.docker.com/ | sh
+	$ wget -qO- https://get.docker.com/ | sh
 
