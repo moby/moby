@@ -939,6 +939,55 @@ func (s *Server) postContainersCreate(eng *engine.Engine, version version.Versio
 	})
 }
 
+func (s *Server) postImagesUpdate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var (
+		dryRun = boolValue(r, "dry_run")
+	)
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	authConfigs := &map[string]registry.AuthConfig{}
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfigs); err != nil {
+			// for a update it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			authConfigs = &map[string]registry.AuthConfig{}
+		}
+	}
+
+	metaHeaders := map[string][]string{}
+	for k, v := range r.Header {
+		if strings.HasPrefix(k, "X-Meta-") {
+			metaHeaders[k] = v
+		}
+	}
+
+	imagesUpdateConfig := &graph.ImagesUpdateConfig{
+		Parallel:    version.GreaterThan("1.3"),
+		MetaHeaders: metaHeaders,
+		AuthConfigs: authConfigs,
+		OutStream:   utils.NewWriteFlusher(w),
+		DryRun:      dryRun,
+	}
+
+	if version.GreaterThan("1.0") {
+		imagesUpdateConfig.Json = true
+		w.Header().Set("Content-Type", "application/json")
+	} else {
+		imagesUpdateConfig.Json = false
+	}
+
+	if err := s.daemon.Repositories().Update(imagesUpdateConfig); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Server) postContainersRestart(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1601,6 +1650,7 @@ func createRouter(s *Server, eng *engine.Engine) *mux.Router {
 			"/build":                        s.postBuild,
 			"/images/create":                s.postImagesCreate,
 			"/images/load":                  s.postImagesLoad,
+			"/images/update":                s.postImagesUpdate,
 			"/images/{name:.*}/push":        s.postImagesPush,
 			"/images/{name:.*}/tag":         s.postImagesTag,
 			"/containers/create":            s.postContainersCreate,

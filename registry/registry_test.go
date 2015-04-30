@@ -168,6 +168,16 @@ func TestEndpoint(t *testing.T) {
 	}
 }
 
+func TestGetRemoteIDForTag(t *testing.T) {
+	r := spawnTestRegistrySession(t)
+	imgID, err := r.GetImageIDForTag("latest", REPO, makeURL("/v1/"), token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, imgID, "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
+		"Unexpected image ID")
+}
+
 func TestGetRemoteHistory(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"), token)
