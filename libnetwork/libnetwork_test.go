@@ -173,12 +173,12 @@ func TestDuplicateNetwork(t *testing.T) {
 
 	err := controller.ConfigureNetworkDriver(netType, genericOption)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 
 	_, err = controller.NewNetwork(netType, "testnetwork", nil)
 	if err != nil {
-		t.Fatal("Expected to fail. But instead succeeded")
+		t.Fatal(err)
 	}
 
 	_, err = controller.NewNetwork(netType, "testnetwork")

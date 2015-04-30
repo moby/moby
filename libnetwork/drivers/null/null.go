@@ -35,6 +35,16 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	return nil
 }
 
+// Join method is invoked when a Sandbox is attached to an endpoint.
+func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error {
+	return nil
+}
+
+// Leave method is invoked when a Sandbox detaches from an endpoint.
+func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) error {
+	return nil
+}
+
 func (d *driver) Type() string {
 	return networkType
 }

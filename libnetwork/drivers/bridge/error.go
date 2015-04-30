@@ -13,8 +13,11 @@ var (
 	// ErrInvalidDriverConfig error is returned when Bridge Driver is passed an invalid config
 	ErrInvalidDriverConfig = errors.New("Invalid configuration passed to Bridge Driver")
 
-	// ErrInvalidConfig error is returned when a network is created on a driver without valid config.
-	ErrInvalidConfig = errors.New("trying to create a network on a driver without valid config")
+	// ErrInvalidNetworkConfig error is returned when a network is created on a driver without valid config.
+	ErrInvalidNetworkConfig = errors.New("trying to create a network on a driver without valid config")
+
+	// ErrInvalidContainerConfig error is returned when a endpoint create is attempted with an invalid configuration.
+	ErrInvalidContainerConfig = errors.New("Error in joining a container due to invalid configuration")
 
 	// ErrInvalidEndpointConfig error is returned when a endpoint create is attempted with an invalid endpoint configuration.
 	ErrInvalidEndpointConfig = errors.New("trying to create an endpoint with an invalid endpoint configuration")

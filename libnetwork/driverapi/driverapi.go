@@ -40,6 +40,12 @@ type Driver interface {
 	// passing the network id and endpoint id.
 	DeleteEndpoint(nid, eid types.UUID) error
 
+	// Join method is invoked when a Sandbox is attached to an endpoint.
+	Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error
+
+	// Leave method is invoked when a Sandbox detaches from an endpoint.
+	Leave(nid, eid types.UUID, options map[string]interface{}) error
+
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
 }
