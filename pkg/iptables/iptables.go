@@ -261,7 +261,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 	// parse "iptables -S" for the rule (this checks rules in a specific chain
 	// in a specific table)
 	ruleString := strings.Join(rule, " ")
-	existingRules, _ := exec.Command("iptables", "-t", string(table), "-S", chain).Output()
+	existingRules, _ := exec.Command(iptablesPath, "-t", string(table), "-S", chain).Output()
 
 	// regex to replace ips in rule
 	// because MASQUERADE rule will not be exactly what was passed
