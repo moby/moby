@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer/cgroups"
@@ -45,6 +47,17 @@ func New(quiet bool) *SysInfo {
 		sysInfo.CpuCfsQuota = err1 == nil
 		if !sysInfo.CpuCfsQuota && !quiet {
 			logrus.Warn("Your kernel does not support cgroup cfs quotas")
+		}
+	}
+
+	// Checek if ipv4_forward is disabled.
+	if data, err := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward"); os.IsNotExist(err) {
+		sysInfo.IPv4ForwardingDisabled = true
+	} else {
+		if enabled, _ := strconv.Atoi(strings.TrimSpace(string(data))); enabled == 0 {
+			sysInfo.IPv4ForwardingDisabled = true
+		} else {
+			sysInfo.IPv4ForwardingDisabled = false
 		}
 	}
 
