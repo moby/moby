@@ -573,3 +573,57 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 		c.Fatalf("Expected to print only the container id, got %v\n", out)
 	}
 }
+
+// Test for GitHub issue #12595
+func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
+
+	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
+	updatedImageName := "busybox:TestPsImageIDAfterUpdate-updated"
+
+	runCmd := exec.Command(dockerBinary, "tag", "busybox:latest", originalImageName)
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	originalImageID, err := getIDByName(originalImageName)
+	c.Assert(err, check.IsNil)
+
+	runCmd = exec.Command(dockerBinary, "run", "-d", originalImageName, "top")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	containerID := strings.TrimSpace(out)
+
+	linesOut, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
+	c.Assert(err, check.IsNil)
+
+	lines := strings.Split(strings.TrimSpace(string(linesOut)), "\n")
+	// skip header
+	lines = lines[1:]
+	c.Assert(len(lines), check.Equals, 1)
+
+	for _, line := range lines {
+		f := strings.Fields(line)
+		c.Assert(f[1], check.Equals, originalImageName)
+	}
+
+	runCmd = exec.Command(dockerBinary, "commit", containerID, updatedImageName)
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	runCmd = exec.Command(dockerBinary, "tag", "-f", updatedImageName, originalImageName)
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	linesOut, err = exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
+	c.Assert(err, check.IsNil)
+
+	lines = strings.Split(strings.TrimSpace(string(linesOut)), "\n")
+	// skip header
+	lines = lines[1:]
+	c.Assert(len(lines), check.Equals, 1)
+
+	for _, line := range lines {
+		f := strings.Fields(line)
+		c.Assert(f[1], check.Equals, originalImageID)
+	}
+
+}
