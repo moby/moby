@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/etchosts"
+	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
@@ -65,6 +66,7 @@ type endpoint struct {
 	sandboxInfo *sandbox.Info
 	sandBox     sandbox.Sandbox
 	container   *containerInfo
+	generic     options.Generic
 }
 
 const prefix = "/var/lib/docker/network/files"
@@ -86,6 +88,27 @@ func (ep *endpoint) SandboxInfo() *sandbox.Info {
 		return nil
 	}
 	return ep.sandboxInfo.GetCopy()
+}
+
+// EndpointOption is a option setter function type used to pass various options to
+// CreateEndpoint method. The various setter functions of type EndpointOption are
+// provided by libnetwork, they look like EndpointOptionXXXX(...)
+type EndpointOption func(ep *endpoint)
+
+// EndpointOptionGeneric function returns an option setter for a Generic option defined
+// in a Dictionary of Key-Value pair
+func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic = generic
+	}
+}
+
+func (ep *endpoint) processOptions(options ...EndpointOption) {
+	for _, opt := range options {
+		if opt != nil {
+			opt(ep)
+		}
+	}
 }
 
 func createBasePath(dir string) error {
@@ -132,9 +155,7 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 		}
 	}()
 
-	if options != nil {
-		ep.processOptions(options...)
-	}
+	ep.processJoinOptions(options...)
 
 	ep.container.Data.HostsPath = prefix + "/" + containerID + "/hosts"
 	err = createHostsFile(ep.container.Data.HostsPath)
@@ -255,8 +276,10 @@ func JoinOptionDomainname(name string) JoinOption {
 	}
 }
 
-func (ep *endpoint) processOptions(options ...JoinOption) {
+func (ep *endpoint) processJoinOptions(options ...JoinOption) {
 	for _, opt := range options {
-		opt(ep)
+		if opt != nil {
+			opt(ep)
+		}
 	}
 }

@@ -15,11 +15,11 @@ func New() (string, driverapi.Driver) {
 	return networkType, &driver{}
 }
 
-func (d *driver) Config(option interface{}) error {
+func (d *driver) Config(option map[string]interface{}) error {
 	return nil
 }
 
-func (d *driver) CreateNetwork(id types.UUID, option interface{}) error {
+func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
 	return nil
 }
 
@@ -27,7 +27,7 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	return nil
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions interface{}) (*sandbox.Info, error) {
+func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interface{}) (*sandbox.Info, error) {
 	return nil, nil
 }
 

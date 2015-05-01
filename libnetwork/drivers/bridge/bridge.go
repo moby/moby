@@ -133,7 +133,7 @@ func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	return nil, nil
 }
 
-func (d *driver) Config(option interface{}) error {
+func (d *driver) Config(option map[string]interface{}) error {
 	var config *Configuration
 
 	d.Lock()
@@ -143,28 +143,32 @@ func (d *driver) Config(option interface{}) error {
 		return ErrConfigExists
 	}
 
-	switch opt := option.(type) {
-	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
-		if err != nil {
+	genericData := option[options.GenericData]
+	if genericData != nil {
+		switch opt := genericData.(type) {
+		case options.Generic:
+			opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
+			if err != nil {
+				return err
+			}
+			config = opaqueConfig.(*Configuration)
+		case *Configuration:
+			config = opt
+		default:
+			return ErrInvalidDriverConfig
+		}
+
+		if err := config.Validate(); err != nil {
 			return err
 		}
-		config = opaqueConfig.(*Configuration)
-	case *Configuration:
-		config = opt
+		d.config = config
 	}
-
-	if err := config.Validate(); err != nil {
-		return err
-	}
-
-	d.config = config
 
 	return nil
 }
 
 // Create a new network using bridge plugin
-func (d *driver) CreateNetwork(id types.UUID, option interface{}) error {
+func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
 	var err error
 
 	// Driver must be configured
@@ -297,7 +301,7 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	return err
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions interface{}) (*sandbox.Info, error) {
+func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interface{}) (*sandbox.Info, error) {
 	var (
 		ipv6Addr *net.IPNet
 		err      error
@@ -554,11 +558,15 @@ func (d *driver) Type() string {
 	return networkType
 }
 
-func parseEndpointOptions(epOptions interface{}) (*EndpointConfiguration, error) {
+func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfiguration, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
-	switch opt := epOptions.(type) {
+	genericData := epOptions[options.GenericData]
+	if genericData == nil {
+		return nil, nil
+	}
+	switch opt := genericData.(type) {
 	case options.Generic:
 		opaqueConfig, err := options.GenerateFromModel(opt, &EndpointConfiguration{})
 		if err != nil {

@@ -7,6 +7,15 @@ import (
 	"reflect"
 )
 
+const (
+	// GenericData constant that helps to identify an option as a Generic constant
+	GenericData = "io.docker.network.generic"
+	// PortMap constant represents Port Mapping
+	PortMap = "io.docker.network.endpoint.portmap"
+	// MacAddress constant represents Mac Address config of a Container
+	MacAddress = "io.docker.network.endpoint.macaddress"
+)
+
 // NoSuchFieldError is the error returned when the generic parameters hold a
 // value for a field absent from the destination structure.
 type NoSuchFieldError struct {

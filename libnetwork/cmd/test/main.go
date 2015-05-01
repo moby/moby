@@ -17,7 +17,7 @@ func main() {
 	controller := libnetwork.New()
 	netType := "bridge"
 	err := controller.ConfigureNetworkDriver(netType, options)
-	netw, err := controller.NewNetwork(netType, "dummy", "")
+	netw, err := controller.NewNetwork(netType, "dummy")
 	if err != nil {
 		log.Fatal(err)
 	}

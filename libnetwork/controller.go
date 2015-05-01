@@ -2,40 +2,46 @@
 Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
-	// Create a new controller instance
-	controller := libnetwork.New()
+        // Create a new controller instance
+        controller := libnetwork.New()
 
-	// Select and configure the network driver
-	networkType := "bridge"
-	option := options.Generic{}
-	err := controller.ConfigureNetworkDriver(networkType, option)
-	if err != nil {
-		return
-	}
+        // Select and configure the network driver
+        networkType := "bridge"
 
-	netOptions := options.Generic{}
-	// Create a network for containers to join.
-	network, err := controller.NewNetwork(networkType, "network1", netOptions)
-	if err != nil {
-		return
-	}
+        driverOptions := options.Generic{}
+        genericOption := make(map[string]interface{})
+        genericOption[options.GenericData] = driverOptions
+        err := controller.ConfigureNetworkDriver(networkType, genericOption)
+        if err != nil {
+                return
+        }
 
-	// For each new container: allocate IP and interfaces. The returned network
-	// settings will be used for container infos (inspect and such), as well as
-	// iptables rules for port publishing. This info is contained or accessible
-	// from the returned endpoint.
-	ep, err := network.CreateEndpoint("Endpoint1", nil)
-	if err != nil {
-		return
-	}
+        // Create a network for containers to join.
+        // NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make of
+        network, err := controller.NewNetwork(networkType, "network1")
+        if err != nil {
+                return
+        }
 
-	// A container can join the endpoint by providing the container ID to the join
-	// api which returns the sandbox key which can be used to access the sandbox
-	// created for the container during join.
-	_, err = ep.Join("container1")
-	if err != nil {
-		return
-	}
+        // For each new container: allocate IP and interfaces. The returned network
+        // settings will be used for container infos (inspect and such), as well as
+        // iptables rules for port publishing. This info is contained or accessible
+        // from the returned endpoint.
+        ep, err := network.CreateEndpoint("Endpoint1")
+        if err != nil {
+                return
+        }
+
+        // A container can join the endpoint by providing the container ID to the join
+        // api which returns the sandbox key which can be used to access the sandbox
+        // created for the container during join.
+        // Join acceps Variadic arguments which will be made use of by libnetwork and Drivers
+        _, err = ep.Join("container1",
+                libnetwork.JoinOptionHostname("test"),
+                libnetwork.JoinOptionDomainname("docker.io"))
+        if err != nil {
+                return
+        }
 */
 package libnetwork
 
@@ -51,11 +57,11 @@ import (
 // networks.
 type NetworkController interface {
 	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
-	ConfigureNetworkDriver(networkType string, options interface{}) error
+	ConfigureNetworkDriver(networkType string, options map[string]interface{}) error
 
 	// Create a new network. The options parameter carries network specific options.
 	// Labels support will be added in the near future.
-	NewNetwork(networkType, name string, options interface{}) (Network, error)
+	NewNetwork(networkType, name string, options ...NetworkOption) (Network, error)
 
 	// Networks returns the list of Network(s) managed by this controller.
 	Networks() []Network
@@ -95,7 +101,7 @@ func New() NetworkController {
 	return &controller{networkTable{}, enumerateDrivers(), sandboxTable{}, sync.Mutex{}}
 }
 
-func (c *controller) ConfigureNetworkDriver(networkType string, options interface{}) error {
+func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
 	d, ok := c.drivers[networkType]
 	if !ok {
 		return NetworkTypeError(networkType)
@@ -105,7 +111,7 @@ func (c *controller) ConfigureNetworkDriver(networkType string, options interfac
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *controller) NewNetwork(networkType, name string, options interface{}) (Network, error) {
+func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
 	// Check if a driver for the specified network type is available
 	d, ok := c.drivers[networkType]
 	if !ok {
@@ -131,8 +137,9 @@ func (c *controller) NewNetwork(networkType, name string, options interface{}) (
 		endpoints: endpointTable{},
 	}
 
+	network.processOptions(options...)
 	// Create the network
-	if err := d.CreateNetwork(network.id, options); err != nil {
+	if err := d.CreateNetwork(network.id, network.generic); err != nil {
 		return nil, err
 	}
 

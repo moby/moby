@@ -10,6 +10,9 @@ var (
 	// ErrConfigExists error is returned when driver already has a config applied.
 	ErrConfigExists = errors.New("configuration already exists, bridge configuration can be applied only once")
 
+	// ErrInvalidDriverConfig error is returned when Bridge Driver is passed an invalid config
+	ErrInvalidDriverConfig = errors.New("Invalid configuration passed to Bridge Driver")
+
 	// ErrInvalidConfig error is returned when a network is created on a driver without valid config.
 	ErrInvalidConfig = errors.New("trying to create a network on a driver without valid config")
 

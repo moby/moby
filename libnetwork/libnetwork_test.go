@@ -17,18 +17,26 @@ const (
 
 func createTestNetwork(networkType, networkName string, option options.Generic) (libnetwork.Network, error) {
 	controller := libnetwork.New()
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = option
 
-	err := controller.ConfigureNetworkDriver(networkType, option)
+	err := controller.ConfigureNetworkDriver(networkType, genericOption)
 	if err != nil {
 		return nil, err
 	}
 
-	network, err := controller.NewNetwork(networkType, networkName, "")
+	network, err := controller.NewNetwork(networkType, networkName)
 	if err != nil {
 		return nil, err
 	}
 
 	return network, nil
+}
+
+func getEmptyGenericOption() map[string]interface{} {
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = options.Generic{}
+	return genericOption
 }
 
 func TestNull(t *testing.T) {
@@ -37,7 +45,7 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", nil)
+	ep, err := network.CreateEndpoint("testep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +109,7 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", nil)
+	ep, err := network.CreateEndpoint("testep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,8 +139,8 @@ func TestUnknownDriver(t *testing.T) {
 func TestNilDriver(t *testing.T) {
 	controller := libnetwork.New()
 
-	option := options.Generic{}
-	_, err := controller.NewNetwork("framerelay", "dummy", option)
+	_, err := controller.NewNetwork("framerelay", "dummy",
+		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -145,8 +153,8 @@ func TestNilDriver(t *testing.T) {
 func TestNoInitDriver(t *testing.T) {
 	controller := libnetwork.New()
 
-	option := options.Generic{}
-	_, err := controller.NewNetwork("ppp", "dummy", option)
+	_, err := controller.NewNetwork("ppp", "dummy",
+		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -160,18 +168,20 @@ func TestDuplicateNetwork(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	controller := libnetwork.New()
 
-	option := options.Generic{}
-	err := controller.ConfigureNetworkDriver(netType, option)
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = options.Generic{}
+
+	err := controller.ConfigureNetworkDriver(netType, genericOption)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err.Error())
 	}
 
-	_, err = controller.NewNetwork(netType, "testnetwork", "")
+	_, err = controller.NewNetwork(netType, "testnetwork", nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	_, err = controller.NewNetwork(netType, "testnetwork", "")
+	_, err = controller.NewNetwork(netType, "testnetwork")
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -231,7 +241,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", nil)
+	ep, err := network.CreateEndpoint("testep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +309,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep", nil)
+	ep, err := network.CreateEndpoint("testep")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,22 +339,21 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	controller := libnetwork.New()
 	netType := "bridge"
 
-	option := options.Generic{}
-	err := controller.ConfigureNetworkDriver(netType, option)
+	err := controller.ConfigureNetworkDriver(netType, getEmptyGenericOption())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
-	net1, err := controller.NewNetwork(netType, "network1", "")
+	net1, err := controller.NewNetwork(netType, "network1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep11, err := net1.CreateEndpoint("ep11", nil)
+	ep11, err := net1.CreateEndpoint("ep11")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep12, err := net1.CreateEndpoint("ep12", nil)
+	ep12, err := net1.CreateEndpoint("ep12")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,14 +418,13 @@ func TestControllerQuery(t *testing.T) {
 	controller := libnetwork.New()
 	netType := "bridge"
 
-	option := options.Generic{}
-	err := controller.ConfigureNetworkDriver(netType, option)
+	err := controller.ConfigureNetworkDriver(netType, getEmptyGenericOption())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create network 1
-	net1, err := controller.NewNetwork(netType, "network1", "")
+	net1, err := controller.NewNetwork(netType, "network1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,22 +463,21 @@ func TestNetworkQuery(t *testing.T) {
 	controller := libnetwork.New()
 	netType := "bridge"
 
-	option := options.Generic{}
-	err := controller.ConfigureNetworkDriver(netType, option)
+	err := controller.ConfigureNetworkDriver(netType, getEmptyGenericOption())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
-	net1, err := controller.NewNetwork(netType, "network1", "")
+	net1, err := controller.NewNetwork(netType, "network1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep11, err := net1.CreateEndpoint("ep11", nil)
+	ep11, err := net1.CreateEndpoint("ep11")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep12, err := net1.CreateEndpoint("ep12", nil)
+	ep12, err := net1.CreateEndpoint("ep12")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,7 +519,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := n.CreateEndpoint("ep1", nil)
+	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -538,7 +545,7 @@ func TestEndpointJoinInvalidContainerId(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := n.CreateEndpoint("ep1", nil)
+	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +568,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := n.CreateEndpoint("ep1", nil)
+	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -597,7 +604,7 @@ func TestEndpointInvalidLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := n.CreateEndpoint("ep1", nil)
+	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}

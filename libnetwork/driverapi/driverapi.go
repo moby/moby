@@ -19,12 +19,12 @@ var (
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
 	// Push driver specific config to the driver
-	Config(config interface{}) error
+	Config(options map[string]interface{}) error
 
 	// CreateNetwork invokes the driver method to create a network passing
 	// the network id and network specific config. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateNetwork(nid types.UUID, config interface{}) error
+	CreateNetwork(nid types.UUID, options map[string]interface{}) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
@@ -34,7 +34,7 @@ type Driver interface {
 	// passing the network id, endpoint id and driver
 	// specific config. The config mechanism will eventually be replaced
 	// with labels which are yet to be introduced.
-	CreateEndpoint(nid, eid types.UUID, config interface{}) (*sandbox.Info, error)
+	CreateEndpoint(nid, eid types.UUID, options map[string]interface{}) (*sandbox.Info, error)
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
