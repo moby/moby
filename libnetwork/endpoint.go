@@ -53,15 +53,15 @@ type JoinOption func(ep *endpoint)
 type LeaveOption func(ep *endpoint)
 
 type containerConfig struct {
-	Hostname   string
-	Domainname string
+	hostName   string
+	domainName string
 	generic    map[string]interface{}
 }
 
 type containerInfo struct {
-	ID     string
-	Config containerConfig
-	Data   ContainerData
+	id     string
+	config containerConfig
+	data   ContainerData
 }
 
 type endpoint struct {
@@ -163,8 +163,8 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 
 	ep.processJoinOptions(options...)
 
-	ep.container.Data.HostsPath = prefix + "/" + containerID + "/hosts"
-	err = createHostsFile(ep.container.Data.HostsPath)
+	ep.container.data.HostsPath = prefix + "/" + containerID + "/hosts"
+	err = createHostsFile(ep.container.data.HostsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -211,28 +211,28 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 		}
 	}
 
-	ep.container.ID = containerID
-	ep.container.Data.SandboxKey = sb.Key()
+	ep.container.id = containerID
+	ep.container.data.SandboxKey = sb.Key()
 
-	cData := ep.container.Data
+	cData := ep.container.data
 	return &cData, nil
 }
 
 func (ep *endpoint) Leave(containerID string, options ...LeaveOption) error {
-	if ep.container == nil || ep.container.ID == "" ||
-		containerID == "" || ep.container.ID != containerID {
+	if ep.container == nil || ep.container.id == "" ||
+		containerID == "" || ep.container.id != containerID {
 		return InvalidContainerIDError(containerID)
 	}
 
-	n := ep.network
 	ep.processLeaveOptions(options...)
 
+	n := ep.network
 	err := n.driver.Leave(n.id, ep.id, ep.context)
 	if err != nil {
 		return err
 	}
 
-	ep.network.ctrlr.sandboxRm(ep.container.Data.SandboxKey)
+	ep.network.ctrlr.sandboxRm(ep.container.data.SandboxKey)
 	ep.container = nil
 	ep.context = nil
 	return nil
@@ -266,9 +266,9 @@ func (ep *endpoint) Delete() error {
 func (ep *endpoint) buildHostsFiles() error {
 	var extraContent []etchosts.Record
 
-	name := ep.container.Config.Hostname
-	if ep.container.Config.Domainname != "" {
-		name = name + "." + ep.container.Config.Domainname
+	name := ep.container.config.hostName
+	if ep.container.config.domainName != "" {
+		name = name + "." + ep.container.config.domainName
 	}
 
 	IP := ""
@@ -277,15 +277,15 @@ func (ep *endpoint) buildHostsFiles() error {
 		IP = ep.sandboxInfo.Interfaces[0].Address.IP.String()
 	}
 
-	return etchosts.Build(ep.container.Data.HostsPath, IP, ep.container.Config.Hostname,
-		ep.container.Config.Domainname, extraContent)
+	return etchosts.Build(ep.container.data.HostsPath, IP, ep.container.config.hostName,
+		ep.container.config.domainName, extraContent)
 }
 
 // JoinOptionHostname function returns an option setter for hostname option to
 // be passed to endpoint Join method.
 func JoinOptionHostname(name string) JoinOption {
 	return func(ep *endpoint) {
-		ep.container.Config.Hostname = name
+		ep.container.config.hostName = name
 	}
 }
 
@@ -293,7 +293,7 @@ func JoinOptionHostname(name string) JoinOption {
 // be passed to endpoint Join method.
 func JoinOptionDomainname(name string) JoinOption {
 	return func(ep *endpoint) {
-		ep.container.Config.Domainname = name
+		ep.container.config.domainName = name
 	}
 }
 
