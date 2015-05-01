@@ -1,6 +1,7 @@
 package tarsum
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto"
@@ -11,8 +12,6 @@ import (
 	"hash"
 	"io"
 	"strings"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 const (
