@@ -47,7 +47,12 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	registryAuthHeader := []string{
 		base64.URLEncoding.EncodeToString(buf),
 	}
-	if err = cli.stream("POST", "/images/create?"+v.Encode(), nil, out, map[string][]string{"X-Registry-Auth": registryAuthHeader}); err != nil {
+	sopts := &streamOpts{
+		rawTerminal: true,
+		out:         out,
+		headers:     map[string][]string{"X-Registry-Auth": registryAuthHeader},
+	}
+	if err := cli.stream("POST", "/images/create?"+v.Encode(), sopts); err != nil {
 		return err
 	}
 	return nil

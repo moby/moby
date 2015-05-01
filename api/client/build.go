@@ -289,7 +289,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")
 	}
-	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
+	sopts := &streamOpts{
+		rawTerminal: true,
+		in:          body,
+		out:         cli.out,
+		headers:     headers,
+	}
+	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), sopts)
 	if jerr, ok := err.(*jsonmessage.JSONError); ok {
 		// If no error code is set, default to 1
 		if jerr.Code == 0 {

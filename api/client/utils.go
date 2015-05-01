@@ -170,19 +170,23 @@ func (cli *DockerCli) call(method, path string, data interface{}, headers map[st
 	return body, statusCode, err
 }
 
-func (cli *DockerCli) stream(method, path string, in io.Reader, out io.Writer, headers map[string][]string) error {
-	return cli.streamHelper(method, path, true, in, out, nil, headers)
+type streamOpts struct {
+	rawTerminal bool
+	in          io.Reader
+	out         io.Writer
+	err         io.Writer
+	headers     map[string][]string
 }
 
-func (cli *DockerCli) streamHelper(method, path string, setRawTerminal bool, in io.Reader, stdout, stderr io.Writer, headers map[string][]string) error {
-	body, contentType, _, err := cli.clientRequest(method, path, in, headers)
+func (cli *DockerCli) stream(method, path string, opts *streamOpts) error {
+	body, contentType, _, err := cli.clientRequest(method, path, opts.in, opts.headers)
 	if err != nil {
 		return err
 	}
-	return cli.streamBody(body, contentType, setRawTerminal, stdout, stderr)
+	return cli.streamBody(body, contentType, opts.rawTerminal, opts.out, opts.err)
 }
 
-func (cli *DockerCli) streamBody(body io.ReadCloser, contentType string, setRawTerminal bool, stdout, stderr io.Writer) error {
+func (cli *DockerCli) streamBody(body io.ReadCloser, contentType string, rawTerminal bool, stdout, stderr io.Writer) error {
 	defer body.Close()
 
 	if api.MatchesContentType(contentType, "application/json") {
@@ -191,7 +195,7 @@ func (cli *DockerCli) streamBody(body io.ReadCloser, contentType string, setRawT
 	if stdout != nil || stderr != nil {
 		// When TTY is ON, use regular copy
 		var err error
-		if setRawTerminal {
+		if rawTerminal {
 			_, err = io.Copy(stdout, body)
 		} else {
 			_, err = stdcopy.StdCopy(stdout, stderr, body)

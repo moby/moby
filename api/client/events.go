@@ -63,7 +63,11 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		}
 		v.Set("filters", filterJSON)
 	}
-	if err := cli.stream("GET", "/events?"+v.Encode(), nil, cli.out, nil); err != nil {
+	sopts := &streamOpts{
+		rawTerminal: true,
+		out:         cli.out,
+	}
+	if err := cli.stream("GET", "/events?"+v.Encode(), sopts); err != nil {
 		return err
 	}
 	return nil
