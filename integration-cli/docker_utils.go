@@ -29,6 +29,12 @@ import (
 
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
+	// Defaults to "daemon"
+	// Useful to set to --daemon or -d for checking backwards compatability
+	Command     string
+	GlobalFlags []string
+
+	id             string
 	c              *check.C
 	logFile        *os.File
 	folder         string
@@ -59,7 +65,8 @@ func NewDaemon(c *check.C) *Daemon {
 		c.Fatal("Please set the DEST environment variable")
 	}
 
-	dir := filepath.Join(dest, fmt.Sprintf("d%d", time.Now().UnixNano()%100000000))
+	id := fmt.Sprintf("d%d", time.Now().UnixNano()%100000000)
+	dir := filepath.Join(dest, id)
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
 		c.Fatalf("Could not make %q an absolute path: %v", dir, err)
@@ -77,6 +84,8 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 
 	return &Daemon{
+		Command:       "daemon",
+		id:            id,
 		c:             c,
 		folder:        daemonFolder,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
@@ -90,22 +99,22 @@ func NewDaemon(c *check.C) *Daemon {
 func (d *Daemon) Start(arg ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
 	if err != nil {
-		d.c.Fatalf("could not find docker binary in $PATH: %v", err)
+		d.c.Fatalf("[%s] could not find docker binary in $PATH: %v", d.id, err)
 	}
 
-	args := []string{
+	args := append(d.GlobalFlags,
+		d.Command,
 		"--host", d.sock(),
-		"--daemon",
 		"--graph", fmt.Sprintf("%s/graph", d.folder),
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
-	}
+	)
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
 	// turn on debug mode
 	foundIt := false
 	for _, a := range arg {
-		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") {
+		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") || strings.Contains(a, "--debug") {
 			foundIt = true
 		}
 	}
@@ -125,21 +134,21 @@ func (d *Daemon) Start(arg ...string) error {
 
 	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
-		d.c.Fatalf("Could not create %s/docker.log: %v", d.folder, err)
+		d.c.Fatalf("[%s] Could not create %s/docker.log: %v", d.id, d.folder, err)
 	}
 
 	d.cmd.Stdout = d.logFile
 	d.cmd.Stderr = d.logFile
 
 	if err := d.cmd.Start(); err != nil {
-		return fmt.Errorf("could not start daemon container: %v", err)
+		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
 	}
 
 	wait := make(chan error)
 
 	go func() {
 		wait <- d.cmd.Wait()
-		d.c.Log("exiting daemon")
+		d.c.Logf("[%s] exiting daemon", d.id)
 		close(wait)
 	}()
 
@@ -149,14 +158,14 @@ func (d *Daemon) Start(arg ...string) error {
 	// make sure daemon is ready to receive requests
 	startTime := time.Now().Unix()
 	for {
-		d.c.Log("waiting for daemon to start")
+		d.c.Logf("[%s] waiting for daemon to start", d.id)
 		if time.Now().Unix()-startTime > 5 {
 			// After 5 seconds, give up
-			return errors.New("Daemon exited and never started")
+			return fmt.Errorf("[%s] Daemon exited and never started", d.id)
 		}
 		select {
 		case <-time.After(2 * time.Second):
-			return errors.New("timeout: daemon does not respond")
+			return fmt.Errorf("[%s] timeout: daemon does not respond", d.id)
 		case <-tick:
 			c, err := net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
 			if err != nil {
@@ -168,7 +177,7 @@ func (d *Daemon) Start(arg ...string) error {
 
 			req, err := http.NewRequest("GET", "/_ping", nil)
 			if err != nil {
-				d.c.Fatalf("could not create new request: %v", err)
+				d.c.Fatalf("[%s] could not create new request: %v", d.id, err)
 			}
 
 			resp, err := client.Do(req)
@@ -176,10 +185,10 @@ func (d *Daemon) Start(arg ...string) error {
 				continue
 			}
 			if resp.StatusCode != http.StatusOK {
-				d.c.Logf("received status != 200 OK: %s", resp.Status)
+				d.c.Logf("[%s] received status != 200 OK: %s", d.id, resp.Status)
 			}
 
-			d.c.Log("daemon started")
+			d.c.Logf("[%s] daemon started", d.id)
 			return nil
 		}
 	}

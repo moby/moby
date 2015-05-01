@@ -43,8 +43,7 @@ func (s *DockerDaemonSuite) TestCliProxyProxyTCPSock(c *check.C) {
 		c.Fatal("could not find ip to connect to")
 	}
 
-	s.d.GlobalFlags = []string{"-H", "tcp://" + ip + ":2375"}
-	if err := s.d.Start(); err != nil {
+	if err := s.d.Start("-H", "tcp://"+ip+":2375"); err != nil {
 		c.Fatal(err)
 	}
 

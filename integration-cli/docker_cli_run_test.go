@@ -217,6 +217,17 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	}
 }
 
+// Issue 9677.
+func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
+	out, _, err := dockerCmdWithError(c, "--selinux-enabled", "run", "-i", "-t", "busybox", "true")
+	if err != nil {
+		if !strings.Contains(out, "must follow the 'docker daemon' command") && // daemon
+			!strings.Contains(out, "flag provided but not defined: --selinux-enabled") { // no daemon (client-only)
+			c.Fatal(err, out)
+		}
+	}
+}
+
 // Regression test for #4979
 func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 	out, exitCode := dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")

@@ -11,7 +11,7 @@ func TestUlimitOpt(t *testing.T) {
 		"nofile": {"nofile", 1024, 512},
 	}
 
-	ulimitOpt := NewUlimitOpt(ulimitMap)
+	ulimitOpt := NewUlimitOpt(&ulimitMap)
 
 	expected := "[nofile=512:1024]"
 	if ulimitOpt.String() != expected {

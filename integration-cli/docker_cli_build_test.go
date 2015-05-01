@@ -79,7 +79,7 @@ func (s *DockerSuite) TestBuildShCmdJSONEntrypoint(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--rm", name)
 
 	if strings.TrimSpace(out) != "/bin/sh -c echo test" {
-		c.Fatal("CMD did not contain /bin/sh -c")
+		c.Fatalf("CMD did not contain /bin/sh -c : %s", out)
 	}
 
 }
