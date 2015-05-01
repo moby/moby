@@ -324,6 +324,100 @@ func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
+func (s *DockerSuite) TestDaemonStartWithBackwardCompatibility(c *check.C) {
+
+	var validCommandArgs = [][]string{
+		{"--selinux-enabled", "-l", "info"},
+		{"--insecure-registry", "daemon"},
+	}
+
+	var invalidCommandArgs = [][]string{
+		{"--selinux-enabled", "--storage-opt"},
+		{"-D", "-b"},
+		{"--config", "/tmp"},
+	}
+
+	for _, args := range validCommandArgs {
+		d := NewDaemon(c)
+		d.Command = "--daemon"
+		if err := d.Start(args...); err != nil {
+			c.Fatalf("Daemon should have started successfully with --daemon %v: %v", args, err)
+		}
+		d.Stop()
+	}
+
+	for _, args := range invalidCommandArgs {
+		d := NewDaemon(c)
+		if err := d.Start(args...); err == nil {
+			d.Stop()
+			c.Fatalf("Daemon should have failed to start with %v", args)
+		}
+	}
+}
+
+func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
+
+	type kind int
+
+	const (
+		common kind = iota
+		daemon
+	)
+
+	var flags = []map[kind][]string{
+		{common: {"-l", "info"}, daemon: {"--selinux-enabled"}},
+		{common: {"-D"}, daemon: {"--selinux-enabled", "-r"}},
+		{common: {"-D"}, daemon: {"--restart"}},
+		{common: {"--debug"}, daemon: {"--log-driver=json-file", "--log-opt=max-size=1k"}},
+	}
+
+	var invalidGlobalFlags = [][]string{
+		//Invalid because you cannot pass daemon flags as global flags.
+		{"--selinux-enabled", "-l", "info"},
+		{"-D", "-r"},
+		{"--config", "/tmp"},
+	}
+
+	// `docker daemon -l info --selinux-enabled`
+	// should NOT error out
+	for _, f := range flags {
+		d := NewDaemon(c)
+		args := append(f[common], f[daemon]...)
+		if err := d.Start(args...); err != nil {
+			c.Fatalf("Daemon should have started successfully with %v: %v", args, err)
+		}
+		d.Stop()
+	}
+
+	// `docker -l info daemon --selinux-enabled`
+	// should error out
+	for _, f := range flags {
+		d := NewDaemon(c)
+		d.GlobalFlags = f[common]
+		if err := d.Start(f[daemon]...); err == nil {
+			d.Stop()
+			c.Fatalf("Daemon should have failed to start with docker %v daemon %v", d.GlobalFlags, f[daemon])
+		}
+	}
+
+	for _, f := range invalidGlobalFlags {
+		cmd := exec.Command(dockerBinary, append(f, "daemon")...)
+		errch := make(chan error)
+		var err error
+		go func() {
+			errch <- cmd.Run()
+		}()
+		select {
+		case <-time.After(time.Second):
+			cmd.Process.Kill()
+		case err = <-errch:
+		}
+		if err == nil {
+			c.Fatalf("Daemon should have failed to start with docker %v daemon", f)
+		}
+	}
+}
+
 func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *check.C) {
 	if err := s.d.Start("--log-level=debug"); err != nil {
 		c.Fatal(err)
@@ -382,7 +476,7 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 		{"localhost", "127.0.0.1", "1235"},
 	}
 
-	cmdArgs := []string{}
+	cmdArgs := make([]string, 0, len(listeningPorts)*2)
 	for _, hostDirective := range listeningPorts {
 		cmdArgs = append(cmdArgs, "--host", fmt.Sprintf("tcp://%s:%s", hostDirective[0], hostDirective[2]))
 	}
@@ -798,8 +892,7 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	args := []string{"--bridge", bridgeName, "--icc=false"}
-	err = s.d.StartWithBusybox(args...)
+	err = s.d.StartWithBusybox("--bridge", bridgeName, "--icc=false")
 	c.Assert(err, check.IsNil)
 	defer s.d.Restart()
 
@@ -1210,7 +1303,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *check.C) {
 // TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
 func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 	const (
-		testDaemonHTTPSAddr = "localhost:4271"
+		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
 	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
@@ -1218,9 +1311,7 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	//force tcp protocol
-	host := fmt.Sprintf("tcp://%s", testDaemonHTTPSAddr)
-	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
+	daemonArgs := []string{"--host", testDaemonHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
 	out, err := s.d.CmdWithArgs(daemonArgs, "info")
 	if err != nil {
 		c.Fatalf("Error Occurred: %s and output: %s", err, out)
@@ -1232,16 +1323,15 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 	const (
 		errBadCertificate   = "remote error: bad certificate"
-		testDaemonHTTPSAddr = "localhost:4271"
+		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
+
 	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
 		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	//force tcp protocol
-	host := fmt.Sprintf("tcp://%s", testDaemonHTTPSAddr)
-	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
+	daemonArgs := []string{"--host", testDaemonHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
 	out, err := s.d.CmdWithArgs(daemonArgs, "info")
 	if err == nil || !strings.Contains(out, errBadCertificate) {
 		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errBadCertificate, err, out)
@@ -1253,16 +1343,14 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 func (s *DockerDaemonSuite) TestHttpsInfoRogueServerCert(c *check.C) {
 	const (
 		errCaUnknown             = "x509: certificate signed by unknown authority"
-		testDaemonRogueHTTPSAddr = "localhost:4272"
+		testDaemonRogueHTTPSAddr = "tcp://localhost:4272"
 	)
 	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-rogue-cert.pem",
 		"--tlskey", "fixtures/https/server-rogue-key.pem", "-H", testDaemonRogueHTTPSAddr); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	//force tcp protocol
-	host := fmt.Sprintf("tcp://%s", testDaemonRogueHTTPSAddr)
-	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
+	daemonArgs := []string{"--host", testDaemonRogueHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
 	out, err := s.d.CmdWithArgs(daemonArgs, "info")
 	if err == nil || !strings.Contains(out, errCaUnknown) {
 		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errCaUnknown, err, out)
