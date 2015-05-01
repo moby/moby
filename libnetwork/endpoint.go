@@ -213,14 +213,10 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 
 	n := ep.network
 	err := n.driver.Leave(n.id, ep.id, ep.context)
-	if err != nil {
-		return err
-	}
-
 	ep.network.ctrlr.sandboxRm(ep.container.data.SandboxKey)
 	ep.container = nil
 	ep.context = nil
-	return nil
+	return err
 }
 
 func (ep *endpoint) Delete() error {
