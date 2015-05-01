@@ -543,6 +543,25 @@ func (s *Server) getContainersChanges(version version.Version, w http.ResponseWr
 	return writeJSON(w, http.StatusOK, changes)
 }
 
+func (s *Server) getImagesChanges(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	name := vars["name"]
+	image, err := s.daemon.Repositories().LookupImage(name)
+	if err != nil {
+		return err
+	}
+
+	changes, err := s.daemon.GraphDriver().Changes(image.ID, image.Parent)
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, changes)
+}
+
 func (s *Server) getContainersTop(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if version.LessThan("1.4") {
 		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
@@ -1571,6 +1590,7 @@ func createRouter(s *Server) *mux.Router {
 			"/images/json":                    s.getImagesJSON,
 			"/images/search":                  s.getImagesSearch,
 			"/images/get":                     s.getImagesGet,
+			"/images/{name:.*}/changes":       s.getImagesChanges,
 			"/images/{name:.*}/get":           s.getImagesGet,
 			"/images/{name:.*}/history":       s.getImagesHistory,
 			"/images/{name:.*}/json":          s.getImagesByName,
