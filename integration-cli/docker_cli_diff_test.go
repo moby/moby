@@ -40,12 +40,14 @@ func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 	// this is a list of files which shouldn't show up in `docker diff`
 	dockerinitFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerinit", "/.dockerenv"}
+	containerCount := 5
 
 	// we might not run into this problem from the first run, so start a few containers
-	for i := 0; i < 20; i++ {
+	for i := 0; i < containerCount; i++ {
 		containerCmd := `echo foo > /root/bar`
 		runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", containerCmd)
 		out, _, err := runCommandWithOutput(runCmd)
+
 		if err != nil {
 			c.Fatal(out, err)
 		}
