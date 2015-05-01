@@ -23,23 +23,29 @@ import (
 //
 // Usage: docker ps [OPTIONS]
 func (cli *DockerCli) CmdPs(args ...string) error {
+
 	var (
 		err error
 
 		psFilterArgs = filters.Args{}
 		v            = url.Values{}
+		cmd          = cli.Subcmd("ps", "", "List containers", true)
 
-		cmd      = cli.Subcmd("ps", "", "List containers", true)
-		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
-		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
-		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
-		noTrunc  = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container, include non-running")
-		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
-		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
-		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
+		quiet   = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
+		size    = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
+		all     = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
+		noTrunc = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
+		nLatest = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container, include non-running")
+		since   = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
+		before  = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
+		last    = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
+
+		columns  = opts.NewListOpts(nil)
 		flFilter = opts.NewListOpts(nil)
 	)
+
+	cmd.Var(&columns, []string{"c", "-columns"}, "Use there columns instead of the defaults")
+
 	cmd.Require(flag.Exact, 0)
 
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
@@ -97,14 +103,42 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
 
-		if *size {
-			fmt.Fprintln(w, "\tSIZE")
-		} else {
-			fmt.Fprint(w, "\n")
+	//Set up column names (default and non-default)
+	cols := strings.Split("names,image,command,ports", ",")
+	if !*quiet {
+		//Set up columnms to be printed.
+		vals := columns.GetAll()
+
+		if len(vals) > 0 {
+			cols = strings.Split(vals[0], ",")
 		}
+
+		if stringInSlice("names", cols) {
+			fmt.Fprint(w, "NAMES\t")
+		}
+		if stringInSlice("id", cols) {
+			fmt.Fprint(w, "CONTAINER ID\t")
+		}
+		if stringInSlice("image", cols) {
+			fmt.Fprint(w, "IMAGE\t")
+		}
+		if stringInSlice("command", cols) {
+			fmt.Fprint(w, "COMMAND\t")
+		}
+		if stringInSlice("created", cols) {
+			fmt.Fprint(w, "CREATED\t")
+		}
+		if stringInSlice("status", cols) {
+			fmt.Fprint(w, "STATUS\t")
+		}
+		if stringInSlice("ports", cols) {
+			fmt.Fprint(w, "PORTS\t")
+		}
+		if *size {
+			fmt.Fprint(w, "SIZE")
+		}
+		fmt.Fprint(w, "\n")
 	}
 
 	stripNamePrefix := func(ss []string) []string {
@@ -150,10 +184,28 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			image = "<no image>"
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", ID, image, command,
-			units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))),
-			container.Status, api.DisplayablePorts(container.Ports), strings.Join(names, ","))
-
+		//Print each column that was requested by the user
+		if stringInSlice("names", cols) {
+			fmt.Fprintf(w, "%s\t", strings.Join(names, ","))
+		}
+		if stringInSlice("id", cols) {
+			fmt.Fprintf(w, "%s\t", ID)
+		}
+		if stringInSlice("image", cols) {
+			fmt.Fprintf(w, "%s\t", image)
+		}
+		if stringInSlice("command", cols) {
+			fmt.Fprintf(w, "%s\t", command)
+		}
+		if stringInSlice("created", cols) {
+			fmt.Fprintf(w, "%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))))
+		}
+		if stringInSlice("status", cols) {
+			fmt.Fprintf(w, "%s\t", container.Status)
+		}
+		if stringInSlice("ports", cols) {
+			fmt.Fprintf(w, "%s\t", api.DisplayablePorts(container.Ports))
+		}
 		if *size {
 			if container.SizeRootFs > 0 {
 				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(float64(container.SizeRw)), units.HumanSize(float64(container.SizeRootFs)))
@@ -163,7 +215,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 			continue
 		}
-
 		fmt.Fprint(w, "\n")
 	}
 
@@ -172,4 +223,13 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	return nil
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
