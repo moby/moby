@@ -2,9 +2,10 @@ package iptables
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/godbus/dbus"
-	"strings"
 )
 
 type IPV string
@@ -39,6 +40,9 @@ func FirewalldInit() {
 
 	if err != nil {
 		logrus.Errorf("Failed to connect to D-Bus system bus: %s", err)
+	}
+	if connection != nil {
+		go signalHandler()
 	}
 
 	firewalldRunning = checkRunning()
@@ -76,20 +80,17 @@ func (c *Conn) initConnection() error {
 
 	c.signal = make(chan *dbus.Signal, 10)
 	c.sysconn.Signal(c.signal)
-	go signalHandler()
 
 	return nil
 }
 
 func signalHandler() {
-	if connection != nil {
-		for signal := range connection.signal {
-			if strings.Contains(signal.Name, "NameOwnerChanged") {
-				firewalldRunning = checkRunning()
-				dbusConnectionChanged(signal.Body)
-			} else if strings.Contains(signal.Name, "Reloaded") {
-				reloaded()
-			}
+	for signal := range connection.signal {
+		if strings.Contains(signal.Name, "NameOwnerChanged") {
+			firewalldRunning = checkRunning()
+			dbusConnectionChanged(signal.Body)
+		} else if strings.Contains(signal.Name, "Reloaded") {
+			reloaded()
 		}
 	}
 }
