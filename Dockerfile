@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	reprepro \
+	rpm \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
 	s3cmd=1.1.0* \
