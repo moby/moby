@@ -56,15 +56,11 @@ DEST=$1
 			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
 			RUN dpkg-buildpackage -uc -us
 		EOF
-		cp -a "$DEST/$version/Dockerfile.build" . # can't use $DEST because it's in .dockerignore...
 		tempImage="docker-temp/build-deb:$version"
-		( set -x && docker build -t "$tempImage" -f Dockerfile.build . )
+		( set -x && docker build -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done
-
-	# clean up after ourselves
-	rm -f Dockerfile.build
 
 	source "${MAKEDIR}/.integration-daemon-stop"
 ) 2>&1 | tee -a "$DEST/test.log"
