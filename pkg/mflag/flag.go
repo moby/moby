@@ -105,6 +105,23 @@ var ErrRetry = errors.New("flag: retry")
 // -- bool Value
 type boolValue bool
 
+func (f *FlagSet) setFlagsMap(names []string, value bool) {
+
+	if f.FlagsMap == nil {
+		f.FlagsMap = make(map[string]bool)
+	}
+
+	for _, opt := range names {
+		opt = strings.TrimPrefix(opt, "#")
+		opt = "-" + opt
+		//Boolean flags make calls to setFlagsMap twice. Check if the value already
+		//exists in the map before setting the map.
+		if _, exists := f.FlagsMap[opt]; !exists {
+			f.FlagsMap[opt] = value
+		}
+	}
+}
+
 func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val
 	return (*boolValue)(p)
@@ -299,6 +316,7 @@ type FlagSet struct {
 	errorHandling    ErrorHandling
 	output           io.Writer // nil means stderr; use Out() accessor
 	nArgRequirements []nArgRequirement
+	FlagsMap         map[string]bool
 }
 
 // A Flag represents the state of a flag.
@@ -617,6 +635,8 @@ func Args() []string { return CommandLine.args }
 // BoolVar defines a bool flag with specified name, default value, and usage string.
 // The argument p points to a bool variable in which to store the value of the flag.
 func (f *FlagSet) BoolVar(p *bool, names []string, value bool, usage string) {
+	//Populate the boolean flags in FlagsMap as TRUE.
+	f.setFlagsMap(names, true)
 	f.Var(newBoolValue(value, p), names, usage)
 }
 
@@ -830,6 +850,8 @@ func Duration(names []string, value time.Duration, usage string) *time.Duration 
 // decompose the comma-separated string into the slice.
 func (f *FlagSet) Var(value Value, names []string, usage string) {
 	// Remember the default value as a string; it won't change.
+	//Populate the Non boolean flags in FlagsMap as FALSE.
+	f.setFlagsMap(names, false)
 	flag := &Flag{names, usage, value, value.String()}
 	for _, name := range names {
 		name = strings.TrimPrefix(name, "#")

@@ -24,32 +24,32 @@ var (
 	DefaultUnixSocket = "/var/run/docker.sock" // Docker daemon by default always listens on the default unix socket
 )
 
-func ListVar(values *[]string, names []string, usage string) {
-	flag.Var(newListOptsRef(values, nil), names, usage)
+func ListVar(f *flag.FlagSet, values *[]string, names []string, usage string) {
+	f.Var(newListOptsRef(values, nil), names, usage)
 }
 
 func HostListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateHost), names, usage)
 }
 
-func IPListVar(values *[]string, names []string, usage string) {
-	flag.Var(newListOptsRef(values, ValidateIPAddress), names, usage)
+func IPListVar(f *flag.FlagSet, values *[]string, names []string, usage string) {
+	f.Var(newListOptsRef(values, ValidateIPAddress), names, usage)
 }
 
-func DnsSearchListVar(values *[]string, names []string, usage string) {
-	flag.Var(newListOptsRef(values, ValidateDnsSearch), names, usage)
+func DnsSearchListVar(f *flag.FlagSet, values *[]string, names []string, usage string) {
+	f.Var(newListOptsRef(values, ValidateDnsSearch), names, usage)
 }
 
-func IPVar(value *net.IP, names []string, defaultValue, usage string) {
-	flag.Var(NewIpOpt(value, defaultValue), names, usage)
+func IPVar(f *flag.FlagSet, value *net.IP, names []string, defaultValue, usage string) {
+	f.Var(NewIpOpt(value, defaultValue), names, usage)
 }
 
-func LabelListVar(values *[]string, names []string, usage string) {
-	flag.Var(newListOptsRef(values, ValidateLabel), names, usage)
+func LabelListVar(f *flag.FlagSet, values *[]string, names []string, usage string) {
+	f.Var(newListOptsRef(values, ValidateLabel), names, usage)
 }
 
-func UlimitMapVar(values map[string]*ulimit.Ulimit, names []string, usage string) {
-	flag.Var(NewUlimitOpt(values), names, usage)
+func UlimitMapVar(f *flag.FlagSet, values map[string]*ulimit.Ulimit, names []string, usage string) {
+	f.Var(NewUlimitOpt(values), names, usage)
 }
 
 // ListOpts type

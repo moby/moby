@@ -32,7 +32,7 @@ func getDaemonConfDir() string {
 
 var (
 	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+	flDaemon    = flag.Bool([]string{"#d", "#-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
 	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
@@ -81,6 +81,7 @@ func init() {
 			{"commit", "Create a new image from a container's changes"},
 			{"cp", "Copy files/folders from a container's filesystem to the host path"},
 			{"create", "Create a new container"},
+			{"daemon", "Run the Docker daemon"},
 			{"diff", "Inspect changes on a container's filesystem"},
 			{"events", "Get real time events from the server"},
 			{"exec", "Run a command in a running container"},
@@ -118,6 +119,7 @@ func init() {
 		} {
 			help += fmt.Sprintf("    %-10.10s%s\n", command[0], command[1])
 		}
+
 		help += "\nRun 'docker COMMAND --help' for more information on a command."
 		fmt.Fprintf(os.Stdout, "%s\n", help)
 	}
