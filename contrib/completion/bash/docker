@@ -679,6 +679,14 @@ _docker_pull() {
 		*)
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
+				for arg in "${COMP_WORDS[@]}"; do
+					case "$arg" in
+						--all-tags|-a)
+							__docker_image_repos
+							return
+							;;
+					esac
+				done
 				__docker_image_repos_and_tags
 			fi
 			;;
