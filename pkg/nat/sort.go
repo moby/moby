@@ -2,8 +2,9 @@ package nat
 
 import (
 	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/docker/docker/pkg/parsers"
 )
 
 type portSorter struct {
@@ -88,8 +89,8 @@ func SortPortMap(ports []Port, bindings PortMap) {
 	}
 }
 
-func toInt(s string) int64 {
-	i, err := strconv.ParseInt(s, 10, 64)
+func toInt(s string) uint64 {
+	i, _, err := parsers.ParsePortRange(s)
 	if err != nil {
 		i = 0
 	}

@@ -729,10 +729,15 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()
 			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+			var portStart, portEnd int
+			if err == nil {
+				portStart, portEnd, err = newP.Range()
+			}
 			if err != nil {
 				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
 			}
-			pbCopy.HostPort = uint16(newP.Int())
+			pbCopy.HostPort = uint16(portStart)
+			pbCopy.HostPortEnd = uint16(portEnd)
 			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
 			pbList = append(pbList, pbCopy)
 		}
