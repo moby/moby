@@ -69,7 +69,7 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install lxc
-ENV LXC_VERSION 1.0.7
+ENV LXC_VERSION 1.1.2
 RUN mkdir -p /usr/src/lxc \
 	&& curl -sSL https://linuxcontainers.org/downloads/lxc/lxc-${LXC_VERSION}.tar.gz | tar -v -C /usr/src/lxc/ -xz --strip-components=1
 RUN cd /usr/src/lxc \
