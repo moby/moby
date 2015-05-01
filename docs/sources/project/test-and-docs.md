@@ -164,11 +164,11 @@ You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from
 your local host you can run the `TestBuild` test with this command:
 
-    $ TESTFLAGS='-check.f DockerSuite.TestBuild*' make test
+    $ TESTFLAGS='-check.f DockerSuite.TestBuild*' make test-integration-cli
 
 To run the same test inside your Docker development container, you do this:
 
-    root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-check.f TestBuild*' hack/make.sh
+    root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration-cli
 
 ## If tests under Boot2Docker fail due to disk space errors
 
