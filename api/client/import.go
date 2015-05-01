@@ -54,5 +54,11 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		in = cli.in
 	}
 
-	return cli.stream("POST", "/images/create?"+v.Encode(), in, cli.out, nil)
+	sopts := &streamOpts{
+		rawTerminal: true,
+		in:          in,
+		out:         cli.out,
+	}
+
+	return cli.stream("POST", "/images/create?"+v.Encode(), sopts)
 }

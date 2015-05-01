@@ -52,5 +52,11 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	}
 	v.Set("tail", *tail)
 
-	return cli.streamHelper("GET", "/containers/"+name+"/logs?"+v.Encode(), c.Config.Tty, nil, cli.out, cli.err, nil)
+	sopts := &streamOpts{
+		rawTerminal: c.Config.Tty,
+		out:         cli.out,
+		err:         cli.err,
+	}
+
+	return cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
 }

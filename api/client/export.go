@@ -34,7 +34,11 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 	}
 
 	image := cmd.Arg(0)
-	if err := cli.stream("GET", "/containers/"+image+"/export", nil, output, nil); err != nil {
+	sopts := &streamOpts{
+		rawTerminal: true,
+		out:         output,
+	}
+	if err := cli.stream("GET", "/containers/"+image+"/export", sopts); err != nil {
 		return err
 	}
 

@@ -34,9 +34,14 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 
+	sopts := &streamOpts{
+		rawTerminal: true,
+		out:         output,
+	}
+
 	if len(cmd.Args()) == 1 {
 		image := cmd.Arg(0)
-		if err := cli.stream("GET", "/images/"+image+"/get", nil, output, nil); err != nil {
+		if err := cli.stream("GET", "/images/"+image+"/get", sopts); err != nil {
 			return err
 		}
 	} else {
@@ -44,7 +49,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		for _, arg := range cmd.Args() {
 			v.Add("names", arg)
 		}
-		if err := cli.stream("GET", "/images/get?"+v.Encode(), nil, output, nil); err != nil {
+		if err := cli.stream("GET", "/images/get?"+v.Encode(), sopts); err != nil {
 			return err
 		}
 	}
