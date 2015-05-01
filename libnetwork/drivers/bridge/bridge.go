@@ -404,12 +404,8 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 		}
 	}()
 
-	mac := netutils.GenerateRandomMAC()
-	// Add user specified attributes
-	if epConfig != nil && epConfig.MacAddress != nil {
-		mac = epConfig.MacAddress
-	}
-
+	// Set the sbox's MAC. If specified, use the one configured by user, otherwise use a random one
+	mac := electMacAddress(epConfig)
 	err = netlink.LinkSetHardwareAddr(sbox, mac)
 	if err != nil {
 		return nil, err
@@ -611,6 +607,13 @@ func parseContainerOptions(cOptions interface{}) (*ContainerConfiguration, error
 	default:
 		return nil, ErrInvalidContainerConfig
 	}
+}
+
+func electMacAddress(epConfig *EndpointConfiguration) net.HardwareAddr {
+	if epConfig != nil && epConfig.MacAddress != nil {
+		return epConfig.MacAddress
+	}
+	return netutils.GenerateRandomMAC()
 }
 
 // Generates a name to be used for a virtual ethernet
