@@ -155,3 +155,34 @@ func TestNewJson(t *testing.T) {
 		t.Fatalf("Should have save in new form: %s", string(buf))
 	}
 }
+
+func TestJsonWithPsFormat(t *testing.T) {
+	tmpHome, _ := ioutil.TempDir("", "config-test")
+	fn := filepath.Join(tmpHome, CONFIGFILE)
+	js := `{
+		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
+		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
+}`
+	ioutil.WriteFile(fn, []byte(js), 0600)
+
+	config, err := Load(tmpHome)
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	if config.PsFormat != `table {{.ID}}\t{{.Label "com.docker.label.cpu"}}` {
+		t.Fatalf("Unknown ps format: %s\n", config.PsFormat)
+	}
+
+	// Now save it and make sure it shows up in new form
+	err = config.Save()
+	if err != nil {
+		t.Fatalf("Failed to save: %q", err)
+	}
+
+	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, CONFIGFILE))
+	if !strings.Contains(string(buf), `"psFormat":`) ||
+		!strings.Contains(string(buf), "{{.ID}}") {
+		t.Fatalf("Should have save in new form: %s", string(buf))
+	}
+}
