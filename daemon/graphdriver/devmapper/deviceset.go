@@ -1366,11 +1366,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, devices.mountOptions)
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
-	err = syscall.Mount(info.DevName(), path, fstype, flags, joinMountOptions("discard", options))
-	if err != nil && err == syscall.EINVAL {
-		err = syscall.Mount(info.DevName(), path, fstype, flags, options)
-	}
-	if err != nil {
+	if err := syscall.Mount(info.DevName(), path, fstype, flags, options); err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
 	}
 
