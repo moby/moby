@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/options"
 	"github.com/vishvananda/netlink"
 )
 
@@ -19,11 +20,13 @@ func TestLinkCreate(t *testing.T) {
 		Mtu:        mtu,
 		EnableIPv6: true,
 	}
-	if err := d.Config(config); err != nil {
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	err := d.CreateNetwork("dummy", "")
+	err := d.CreateNetwork("dummy", nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -102,11 +105,13 @@ func TestLinkCreateTwo(t *testing.T) {
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
-	if err := d.Config(config); err != nil {
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	err := d.CreateNetwork("dummy", "")
+	err := d.CreateNetwork("dummy", nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -132,11 +137,14 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 
 	config := &Configuration{
 		BridgeName: DefaultBridgeName}
-	if err := d.Config(config); err != nil {
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	err := d.CreateNetwork("dummy", "")
+	err := d.CreateNetwork("dummy", nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -163,11 +171,14 @@ func TestLinkDelete(t *testing.T) {
 	config := &Configuration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
-	if err := d.Config(config); err != nil {
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	err := d.CreateNetwork("dummy", "")
+	err := d.CreateNetwork("dummy", nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

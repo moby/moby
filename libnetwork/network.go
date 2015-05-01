@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -23,7 +24,7 @@ type Network interface {
 	// Create a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carry driver specific options.
 	// Labels support will be added in the near future.
-	CreateEndpoint(name string, options interface{}) (Endpoint, error)
+	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
 	Delete() error
@@ -52,6 +53,7 @@ type network struct {
 	id          types.UUID
 	driver      driverapi.Driver
 	endpoints   endpointTable
+	generic     options.Generic
 	sync.Mutex
 }
 
@@ -69,6 +71,27 @@ func (n *network) Type() string {
 	}
 
 	return n.driver.Type()
+}
+
+// NetworkOption is a option setter function type used to pass varios options to
+// NewNetwork method. The various setter functions of type NetworkOption are
+// provided by libnetwork, they look like NetworkOptionXXXX(...)
+type NetworkOption func(n *network)
+
+// NetworkOptionGeneric function returns an option setter for a Generic option defined
+// in a Dictionary of Key-Value pair
+func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
+	return func(n *network) {
+		n.generic = generic
+	}
+}
+
+func (n *network) processOptions(options ...NetworkOption) {
+	for _, opt := range options {
+		if opt != nil {
+			opt(n)
+		}
+	}
 }
 
 func (n *network) Delete() error {
@@ -103,13 +126,14 @@ func (n *network) Delete() error {
 	return err
 }
 
-func (n *network) CreateEndpoint(name string, options interface{}) (Endpoint, error) {
+func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	ep := &endpoint{name: name}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
+	ep.processOptions(options...)
 
 	d := n.driver
-	sinfo, err := d.CreateEndpoint(n.id, ep.id, options)
+	sinfo, err := d.CreateEndpoint(n.id, ep.id, ep.generic)
 	if err != nil {
 		return nil, err
 	}

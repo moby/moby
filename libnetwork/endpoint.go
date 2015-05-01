@@ -27,7 +27,7 @@ type Endpoint interface {
 
 	// Leave removes the sandbox associated with  container ID and detaches
 	// the network resources populated in the sandbox
-	Leave(containerID string) error
+	Leave(containerID string, options ...LeaveOption) error
 
 	// SandboxInfo returns the sandbox information for this endpoint.
 	SandboxInfo() *sandbox.Info
@@ -47,9 +47,15 @@ type ContainerData struct {
 // provided by libnetwork, they look like JoinOption[...](...)
 type JoinOption func(ep *endpoint)
 
+// LeaveOption is a option setter function type used to pass varios options to
+// endpoint Leave method. The various setter functions of type LeaveOption are
+// provided by libnetwork, they look like LeaveOptionXXXX(...)
+type LeaveOption func(ep *endpoint)
+
 type containerConfig struct {
 	Hostname   string
 	Domainname string
+	generic    map[string]interface{}
 }
 
 type containerInfo struct {
@@ -65,6 +71,8 @@ type endpoint struct {
 	sandboxInfo *sandbox.Info
 	sandBox     sandbox.Sandbox
 	container   *containerInfo
+	generic     map[string]interface{}
+	context     map[string]interface{}
 }
 
 const prefix = "/var/lib/docker/network/files"
@@ -86,6 +94,27 @@ func (ep *endpoint) SandboxInfo() *sandbox.Info {
 		return nil
 	}
 	return ep.sandboxInfo.GetCopy()
+}
+
+// EndpointOption is a option setter function type used to pass various options to
+// CreateEndpoint method. The various setter functions of type EndpointOption are
+// provided by libnetwork, they look like EndpointOptionXXXX(...)
+type EndpointOption func(ep *endpoint)
+
+// EndpointOptionGeneric function returns an option setter for a Generic option defined
+// in a Dictionary of Key-Value pair
+func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic = generic
+	}
+}
+
+func (ep *endpoint) processOptions(options ...EndpointOption) {
+	for _, opt := range options {
+		if opt != nil {
+			opt(ep)
+		}
+	}
 }
 
 func createBasePath(dir string) error {
@@ -132,9 +161,7 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 		}
 	}()
 
-	if options != nil {
-		ep.processOptions(options...)
-	}
+	ep.processJoinOptions(options...)
 
 	ep.container.Data.HostsPath = prefix + "/" + containerID + "/hosts"
 	err = createHostsFile(ep.container.Data.HostsPath)
@@ -157,6 +184,12 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 			ep.network.ctrlr.sandboxRm(sboxKey)
 		}
 	}()
+
+	n := ep.network
+	err = n.driver.Join(n.id, ep.id, sboxKey, ep.container.Config.generic)
+	if err != nil {
+		return nil, err
+	}
 
 	sinfo := ep.SandboxInfo()
 	if sinfo != nil {
@@ -185,14 +218,23 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 	return &cData, nil
 }
 
-func (ep *endpoint) Leave(containerID string) error {
+func (ep *endpoint) Leave(containerID string, options ...LeaveOption) error {
 	if ep.container == nil || ep.container.ID == "" ||
 		containerID == "" || ep.container.ID != containerID {
 		return InvalidContainerIDError(containerID)
 	}
 
-	ep.network.ctrlr.sandboxRm(sandbox.GenerateKey(containerID))
+	n := ep.network
+	ep.processLeaveOptions(options...)
+
+	err := n.driver.Leave(n.id, ep.id, ep.context)
+	if err != nil {
+		return err
+	}
+
+	ep.network.ctrlr.sandboxRm(ep.container.Data.SandboxKey)
 	ep.container = nil
+	ep.context = nil
 	return nil
 }
 
@@ -255,8 +297,36 @@ func JoinOptionDomainname(name string) JoinOption {
 	}
 }
 
-func (ep *endpoint) processOptions(options ...JoinOption) {
+// JoinOptionGeneric function returns an option setter for Generic configuration
+// that is not managed by libNetwork but can be used by the Drivers during the call to
+// endpoint join method. Container Labels are a good example.
+func JoinOptionGeneric(generic map[string]interface{}) JoinOption {
+	return func(ep *endpoint) {
+		ep.container.Config.generic = generic
+	}
+}
+
+func (ep *endpoint) processJoinOptions(options ...JoinOption) {
 	for _, opt := range options {
-		opt(ep)
+		if opt != nil {
+			opt(ep)
+		}
+	}
+}
+
+// LeaveOptionGeneric function returns an option setter for Generic configuration
+// that is not managed by libNetwork but can be used by the Drivers during the call to
+// endpoint leave method. Container Labels are a good example.
+func LeaveOptionGeneric(context map[string]interface{}) JoinOption {
+	return func(ep *endpoint) {
+		ep.context = context
+	}
+}
+
+func (ep *endpoint) processLeaveOptions(options ...LeaveOption) {
+	for _, opt := range options {
+		if opt != nil {
+			opt(ep)
+		}
 	}
 }
