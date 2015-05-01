@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
 	"compress/bzip2"
@@ -15,8 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
