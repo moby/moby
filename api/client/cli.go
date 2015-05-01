@@ -146,6 +146,10 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
+func (cli *DockerCli) PsFormat() string {
+	return cli.configFile.PsFormat
+}
+
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
 // The key file, protocol (i.e. unix) and address are passed in as strings, along with the tls.Config. If the tls.Config
 // is set the client scheme will be set to https.

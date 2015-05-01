@@ -2,21 +2,14 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
-	"text/tabwriter"
-	"time"
 
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/client/ps"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers/filters"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/units"
 )
 
 // CmdPs outputs a list of Docker containers.
@@ -38,6 +31,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
 		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
+		format   = cmd.String([]string{"F", "-format"}, "", "Pretty-print containers using a Go template")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
@@ -96,80 +90,24 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
-
-		if *size {
-			fmt.Fprintln(w, "\tSIZE")
+	f := *format
+	if len(f) == 0 {
+		if len(cli.PsFormat()) > 0 {
+			f = cli.PsFormat()
 		} else {
-			fmt.Fprint(w, "\n")
+			f = "table"
 		}
 	}
 
-	stripNamePrefix := func(ss []string) []string {
-		for i, s := range ss {
-			ss[i] = s[1:]
-		}
-
-		return ss
+	psCtx := ps.Context{
+		Output: cli.out,
+		Format: f,
+		Quiet:  *quiet,
+		Size:   *size,
+		Trunc:  !*noTrunc,
 	}
 
-	for _, container := range containers {
-		ID := container.ID
-
-		if !*noTrunc {
-			ID = stringid.TruncateID(ID)
-		}
-
-		if *quiet {
-			fmt.Fprintln(w, ID)
-
-			continue
-		}
-
-		var (
-			names   = stripNamePrefix(container.Names)
-			command = strconv.Quote(container.Command)
-		)
-
-		if !*noTrunc {
-			command = stringutils.Truncate(command, 20)
-
-			// only display the default name for the container with notrunc is passed
-			for _, name := range names {
-				if len(strings.Split(name, "/")) == 1 {
-					names = []string{name}
-					break
-				}
-			}
-		}
-
-		image := container.Image
-		if image == "" {
-			image = "<no image>"
-		}
-
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", ID, image, command,
-			units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))),
-			container.Status, api.DisplayablePorts(container.Ports), strings.Join(names, ","))
-
-		if *size {
-			if container.SizeRootFs > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(float64(container.SizeRw)), units.HumanSize(float64(container.SizeRootFs)))
-			} else {
-				fmt.Fprintf(w, "%s\n", units.HumanSize(float64(container.SizeRw)))
-			}
-
-			continue
-		}
-
-		fmt.Fprint(w, "\n")
-	}
-
-	if !*quiet {
-		w.Flush()
-	}
+	ps.Format(psCtx, containers)
 
 	return nil
 }
